@@ -54,12 +54,12 @@ export const WRAPPING_TOOLBAR_CSS =
   '.medapp-rich-text-toolbar [role="group"] { flex-wrap: wrap !important; overflow: visible !important; row-gap: var(--spacing-1); }';
 
 /**
- * A box for formatted text (stage notes and instructions, procedure notes, the notepad): bold, italics, lists, quotes
+ * A box for formatted text (stage notes and instructions, pathway notes, the notepad): bold, italics, lists, quotes
  * and links, from its toolbar or by typing Markdown (`**bold**`, `- ` for a list). It's kept as Markdown, so text
  * written before, as plain text, opens as it was. Show it read-only with `RichText`.
  *
  * It isn't controlled: `value` is where it starts, and `onChange` reports each change. Its `ref` puts the cursor in it,
- * and reads what's selected as Markdown and takes exactly that out (the notepad's Add Note to Procedure).
+ * and reads what's selected as Markdown and takes exactly that out (the notepad's Add Note to Pathway).
  */
 export function RichTextField({value, onChange, minHeight = '7.5rem', ref, ...field}: RichTextFieldProps) {
   const editor = useRef<RichTextEditorRef>(null);

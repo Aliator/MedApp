@@ -1,11 +1,11 @@
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
-using MedApp.Domain.Procedures.PatientProcedures;
-using AuditAction = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditAction;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using MedApp.Domain.Pathways.PatientPathways;
+using AuditAction = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.DevMcp.DemoData;
 
@@ -16,37 +16,37 @@ namespace MedApp.DevMcp.DemoData;
 /// </summary>
 public static class DemoTour
 {
-    public static object Build(DemoWorld world, IReadOnlyList<ProcedurePlan> plans, IReadOnlyList<PatientSeed> patients)
+    public static object Build(DemoWorld world, IReadOnlyList<PathwayPlan> plans, IReadOnlyList<PatientSeed> patients)
     {
         var names = patients.ToDictionary(p => p.Id, p => p.FullName);
-        var deleted = world.Deletions.Select(d => d.Procedure.Id).ToHashSet();
-        var byId = world.Procedures.Where(p => !deleted.Contains(p.Id)).ToDictionary(p => p.Id);
-        string Describe(PatientProcedure p) => $"{p.Title}, for {names[p.PatientId]}";
-        IEnumerable<string> Procedures(Func<ProcedurePlan, bool> where, Func<PatientProcedure, bool>? also = null, int take = 3) =>
-            plans.Where(where).Select(p => byId.GetValueOrDefault(p.ProcedureId)).OfType<PatientProcedure>()
+        var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
+        var byId = world.Pathways.Where(p => !deleted.Contains(p.Id)).ToDictionary(p => p.Id);
+        string Describe(PatientPathway p) => $"{p.Title}, for {names[p.PatientId]}";
+        IEnumerable<string> Pathways(Func<PathwayPlan, bool> where, Func<PatientPathway, bool>? also = null, int take = 3) =>
+            plans.Where(where).Select(p => byId.GetValueOrDefault(p.PathwayId)).OfType<PatientPathway>()
                 .Where(p => also?.Invoke(p) ?? true).Take(take).Select(Describe);
 
-        var audit = world.Audit.ToLookup(a => a.PatientProcedureId);
-        bool Has(PatientProcedure p, AuditAction action, string? detail = null) =>
+        var audit = world.Audit.ToLookup(a => a.PatientPathwayId);
+        bool Has(PatientPathway p, AuditAction action, string? detail = null) =>
             audit[p.Id].Any(a => a.Action == action && (detail is null || a.Details.Contains(detail)));
 
         var lead = world.Lead;
         var day = world.Timeline.DiaryDay;
         return new
         {
-            blocked = Procedures(p => p.Fate == Fate.Blocked, p => p.Status == Status.Blocked),
-            blockedThenUnblocked = Procedures(p => p.Fate == Fate.Unblocked, p => Has(p, AuditAction.StatusChanged, "\"from\":\"Blocked\"")),
-            cancelledWithItsBookingCancelled = Procedures(p => p.Fate == Fate.CancelledAfterBooking, p => p.Status == Status.Cancelled),
-            stageUnlockedAndCorrected = Procedures(p => p.UnlockStage >= 0, p => Has(p, AuditAction.StageUnlocked)),
-            finishedWithoutItsVisit = Procedures(_ => true, p => Has(p, AuditAction.StageFinished, "\"visitRequirement\":\"Required\"")),
-            dueDateOrPriorityChanged = Procedures(p => p.EditDueDate || p.RaisePriority, p => Has(p, AuditAction.DetailsUpdated)),
-            reassigned = Procedures(p => p.ReassignStage >= 0, p => Has(p, AuditAction.Unassigned)),
-            visitNeverBooked = Procedures(p => p.NeverBookStage >= 0, p => ProcedureWorkflow.IsOpen(p.Status)),
-            oldPathwayStillFinishing = Procedures(p => p.Straggler, p => ProcedureWorkflow.IsOpen(p.Status)),
-            missedAndRebooked = world.Appointments.Where(a => a.Status == AppointmentStatus.DidNotAttend && a.ProcedureId is { } id && byId.ContainsKey(id))
-                .Select(a => Describe(byId[a.ProcedureId!.Value])).Distinct().Take(3),
+            blocked = Pathways(p => p.Fate == Fate.Blocked, p => p.Status == Status.Blocked),
+            blockedThenUnblocked = Pathways(p => p.Fate == Fate.Unblocked, p => Has(p, AuditAction.StatusChanged, "\"from\":\"Blocked\"")),
+            cancelledWithItsBookingCancelled = Pathways(p => p.Fate == Fate.CancelledAfterBooking, p => p.Status == Status.Cancelled),
+            stageUnlockedAndCorrected = Pathways(p => p.UnlockStage >= 0, p => Has(p, AuditAction.StageUnlocked)),
+            finishedWithoutItsVisit = Pathways(_ => true, p => Has(p, AuditAction.StageFinished, "\"visitRequirement\":\"Required\"")),
+            dueDateOrPriorityChanged = Pathways(p => p.EditDueDate || p.RaisePriority, p => Has(p, AuditAction.DetailsUpdated)),
+            reassigned = Pathways(p => p.ReassignStage >= 0, p => Has(p, AuditAction.Unassigned)),
+            visitNeverBooked = Pathways(p => p.NeverBookStage >= 0, p => PathwayWorkflow.IsOpen(p.Status)),
+            oldPathwayStillFinishing = Pathways(p => p.Straggler, p => PathwayWorkflow.IsOpen(p.Status)),
+            missedAndRebooked = world.Appointments.Where(a => a.Status == AppointmentStatus.DidNotAttend && a.PathwayId is { } id && byId.ContainsKey(id))
+                .Select(a => Describe(byId[a.PathwayId!.Value])).Distinct().Take(3),
             inReview = byId.Values.Where(p => p.Status == Status.InReview).Take(3).Select(Describe),
-            deletedProceduresOf = world.Deletions.Select(d => names[d.Procedure.PatientId]),
+            deletedPathwaysOf = world.Deletions.Select(d => names[d.Pathway.PatientId]),
             leadsDiaryDay = day,
             leadsAppointmentsThatDay = world.Appointments
                 .Where(a => a.StaffUserId == lead.Id && a.StartUtc is { } s && UkTime.DateOf(s) == day && AppointmentWorkflow.IsOnCalendar(a.Status))

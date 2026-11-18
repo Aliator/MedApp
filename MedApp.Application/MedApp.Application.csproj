@@ -32,8 +32,8 @@
       <Folder Include="Authentication\Sessions\Commands\" />
       <Folder Include="Authentication\Users\Commands\" />
       <Folder Include="Authentication\Users\Queries\" />
-      <Folder Include="Procedures\PatientProcedureStages\Definitions\" />
-      <Folder Include="Procedures\PatientProcedureStages\Templates\" />
+      <Folder Include="Pathways\PatientPathwayStages\Definitions\" />
+      <Folder Include="Pathways\PatientPathwayStages\Templates\" />
     </ItemGroup>
 
 </Project>

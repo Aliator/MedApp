@@ -27,13 +27,13 @@ public sealed class UpdateMyNotificationPreferencesHandlerTests
 
     [TestCase(false)]
     [TestCase(true)]
-    public async Task Handle_SavesTheirChoiceNowAndReturnsIt(bool procedureAssigned)
+    public async Task Handle_SavesTheirChoiceNowAndReturnsIt(bool pathwayAssigned)
     {
         using var cts = new CancellationTokenSource();
 
-        var response = await _handler.Handle(new UpdateMyNotificationPreferencesCommand(UserId, procedureAssigned), cts.Token);
+        var response = await _handler.Handle(new UpdateMyNotificationPreferencesCommand(UserId, pathwayAssigned), cts.Token);
 
-        _repository.Verify(r => r.SaveAsync(UserId, procedureAssigned, Now, cts.Token), Times.Once);
-        response.Should().Be(new NotificationPreferencesResponse(procedureAssigned));
+        _repository.Verify(r => r.SaveAsync(UserId, pathwayAssigned, Now, cts.Token), Times.Once);
+        response.Should().Be(new NotificationPreferencesResponse(pathwayAssigned));
     }
 }

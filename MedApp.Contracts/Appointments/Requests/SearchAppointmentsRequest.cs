@@ -9,7 +9,7 @@ public sealed class SearchAppointmentsRequest
 
     /// <summary>
     /// <c>start</c> (the default; Requested ones, which have none, last), <c>requested</c> (when it was asked for),
-    /// <c>dueDate</c> (the procedure's; none last) or <c>patient</c>.
+    /// <c>dueDate</c> (the pathway's; none last) or <c>patient</c>.
     /// </summary>
     public string? Sort { get; set; }
 
@@ -17,7 +17,7 @@ public sealed class SearchAppointmentsRequest
 
     public Guid? PatientId { get; set; }
 
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
     public Guid? StageId { get; set; }
 

@@ -7,10 +7,10 @@ import {LiveNotifications, NOTIFICATION_MESSAGE, NOTIFICATIONS_HUB} from './Live
 
 const notification = {
   id: '0000000c-0000-0000-0000-000000000010',
-  kind: 'ProcedureAssigned',
-  title: 'Test procedure',
-  message: 'test.admin assigned you to this procedure.',
-  procedureId: '0000000c-0000-0000-0000-000000000011',
+  kind: 'PathwayAssigned',
+  title: 'Test pathway',
+  message: 'test.admin assigned you to this pathway.',
+  pathwayId: '0000000c-0000-0000-0000-000000000011',
   createdAtUtc: new Date().toISOString(),
   isRead: false,
 };
@@ -65,12 +65,12 @@ describe('LiveNotifications', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('announcer')).toHaveTextContent(
-        'New notification: Test procedure. test.admin assigned you to this procedure.',
+        'New notification: Test pathway. test.admin assigned you to this pathway.',
       ),
     );
   });
 
-  it('refreshes the list for a notification about no procedure, leaving procedure lists alone', async () => {
+  it('refreshes the list for a notification about no pathway, leaving pathway lists alone', async () => {
     mockApi({
       'GET /api/notifications': () => json({items: [], unreadCount: 0}),
     });
@@ -78,10 +78,10 @@ describe('LiveNotifications', () => {
     await waitFor(() => expect(liveHub.connections).toHaveLength(1));
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
-    act(() => liveHub.push(NOTIFICATION_MESSAGE, {...notification, procedureId: null}));
+    act(() => liveHub.push(NOTIFICATION_MESSAGE, {...notification, pathwayId: null}));
 
     expect(invalidate).toHaveBeenCalledWith({queryKey: ['notifications']});
-    expect(invalidate).not.toHaveBeenCalledWith({queryKey: ['procedures']});
+    expect(invalidate).not.toHaveBeenCalledWith({queryKey: ['pathways']});
   });
 
   it('refreshes the list after reconnecting, in case one came while it was away', async () => {

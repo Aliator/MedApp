@@ -19,7 +19,7 @@ export interface RuleDescription {
   stageName?: string | null;
 }
 
-/** The choices for "only procedures of this priority or higher", and how each reads in a sentence. */
+/** The choices for "only pathways of this priority or higher", and how each reads in a sentence. */
 export const MINIMUM_PRIORITIES = [
   {value: 'Medium', label: 'Medium or higher', reads: 'Medium, High or Urgent'},
   {value: 'High', label: 'High or higher', reads: 'High or Urgent'},
@@ -29,13 +29,13 @@ export const MINIMUM_PRIORITIES = [
 const named = (id: string | null | undefined, name: string | null | undefined, deleted: string): SentencePart | null =>
   id ? (name ? {text: name, strong: true} : {text: deleted}) : null;
 
-/** "a procedure", "an Urgent priority procedure", "a High or Urgent priority procedure from the Knee template". */
-function procedure(rule: RuleDescription): SentencePart[] {
-  // Low or higher is every procedure, so it reads as no condition.
+/** "a pathway", "an Urgent priority pathway", "a High or Urgent priority pathway from the Knee template". */
+function pathway(rule: RuleDescription): SentencePart[] {
+  // Low or higher is every pathway, so it reads as no condition.
   const priority = MINIMUM_PRIORITIES.find((p) => p.value === rule.minimumPriority)?.reads;
   const parts: SentencePart[] = priority
-    ? [{text: /^[AEIOU]/.test(priority) ? 'an ' : 'a '}, {text: priority, strong: true}, {text: ' priority procedure'}]
-    : [{text: 'a procedure'}];
+    ? [{text: /^[AEIOU]/.test(priority) ? 'an ' : 'a '}, {text: priority, strong: true}, {text: ' priority pathway'}]
+    : [{text: 'a pathway'}];
   const template = named(rule.templateId, rule.templateName, 'a deleted template');
   if (template) parts.push({text: template.strong ? ' from the ' : ' from '}, template, ...(template.strong ? [{text: ' template'}] : []));
   return parts;
@@ -48,29 +48,29 @@ function stage(rule: RuleDescription): SentencePart[] {
 
 /**
  * A rule as a plain sentence, e.g. "Notify me when **Sam** finishes **Bloods** on a **High or Urgent** priority
- * procedure". Used for the rules list and for the preview while one is edited, so both always agree.
+ * pathway". Used for the rules list and for the preview while one is edited, so both always agree.
  */
 export function describeRule(rule: RuleDescription): SentencePart[] {
   const who = named(rule.subjectUserId, rule.subjectUsername, 'a deleted user') ?? {text: 'anyone'};
-  const what = procedure(rule);
+  const what = pathway(rule);
   const action: SentencePart[] = (() => {
     switch (rule.event) {
-      case 'ProcedureCreated':
+      case 'PathwayCreated':
         return [{text: ' creates '}, ...what];
       case 'StageFinished':
         return [{text: ' finishes '}, ...stage(rule), {text: ' on '}, ...what];
-      case 'ProcedureCompleted':
+      case 'PathwayCompleted':
         return [{text: ' completes '}, ...what];
-      case 'ProcedureBlocked':
+      case 'PathwayBlocked':
         return [{text: ' blocks '}, ...what];
-      case 'ProcedureCancelled':
+      case 'PathwayCancelled':
         return [{text: ' cancels '}, ...what];
-      case 'ProcedureAssigned':
+      case 'PathwayAssigned':
         return [{text: ' is assigned to '}, ...what];
       case 'StageUnlocked':
         return [{text: ' unlocks '}, ...stage(rule), {text: ' on '}, ...what];
       case 'DueDateChanged':
-        return [{text: ' changes the due date of '}, ...what];
+        return [{text: ' changes the target date of '}, ...what];
       default:
         return [{text: ` does something to `}, ...what];
     }

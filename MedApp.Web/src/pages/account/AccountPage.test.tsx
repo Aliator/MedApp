@@ -55,13 +55,13 @@ describe('AccountPage', () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
     expect(await screen.findByRole('radio', {name: 'Home'})).toBeChecked();
-    await user.click(screen.getByRole('radio', {name: 'My Tasks'}));
+    await user.click(screen.getByRole('radio', {name: 'My Worklist'}));
 
-    expect(screen.getByRole('radio', {name: 'My Tasks'})).toBeChecked();
+    expect(screen.getByRole('radio', {name: 'My Worklist'})).toBeChecked();
     expect(localStorage.getItem('medapp.startPage')).toBe('tasks');
   });
 
-  it('chooses rows per page and where procedure lists start, in the Lists card', async () => {
+  it('chooses rows per page and where pathway lists start, in the Lists card', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
     const rows = await screen.findByRole('spinbutton', {name: /^Rows per page/});
@@ -74,7 +74,7 @@ describe('AccountPage', () => {
     // Nothing changes until Apply.
     expect(localStorage.getItem('medapp.pageSize')).toBeNull();
     await user.click(apply);
-    await user.click(screen.getByRole('switch', {name: 'Procedure lists start on Assigned to me'}));
+    await user.click(screen.getByRole('switch', {name: 'Pathway lists start on Assigned to me'}));
 
     expect(localStorage.getItem('medapp.pageSize')).toBe('30');
     expect(isDisabled(screen.getByRole('button', {name: 'Apply'}))).toBe(true);

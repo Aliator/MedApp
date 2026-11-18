@@ -3,7 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.UnitTests.Common.Constants;
@@ -29,7 +29,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         Guid? staffUserId = null,
         DateTime? startUtc = null,
         int minutes = 30,
-        ProcedureActor? by = null,
+        PathwayActor? by = null,
         AppointmentStatus? expected = null)
     {
         var start = startUtc ?? At(NextMonday, 14);
@@ -204,17 +204,17 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ForAProcedure_NotificationLinksToItWithAFixedTitle()
+    public async Task Handle_ForAPathway_NotificationLinksToItWithAFixedTitle()
     {
         var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested);
-        var procedure = LinkToProcedure(appointment);
+        var pathway = LinkToPathway(appointment);
         GivenAppointment(appointment);
 
         await _handler.Handle(Command(appointment), CancellationToken.None);
 
         var notification = SentNotifications.Single();
         notification.Title.Should().Be("Appointment booked");
-        notification.ProcedureId.Should().Be(procedure.Id);
+        notification.PathwayId.Should().Be(pathway.Id);
         notification.AppointmentId.Should().Be(appointment.Id);
     }
 

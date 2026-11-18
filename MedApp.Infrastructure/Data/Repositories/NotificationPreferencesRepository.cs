@@ -11,7 +11,7 @@ public sealed class NotificationPreferencesRepository(MedAppDbContext context) :
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
-    public async Task SaveAsync(Guid userId, bool procedureAssigned, DateTime utcNow, CancellationToken cancellationToken)
+    public async Task SaveAsync(Guid userId, bool pathwayAssigned, DateTime utcNow, CancellationToken cancellationToken)
     {
         var existing = await context.NotificationPreferences.FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
         if (existing is null)
@@ -19,13 +19,13 @@ public sealed class NotificationPreferencesRepository(MedAppDbContext context) :
             context.NotificationPreferences.Add(new NotificationPreferences
             {
                 UserId = userId,
-                ProcedureAssigned = procedureAssigned,
+                PathwayAssigned = pathwayAssigned,
                 UpdatedAtUtc = utcNow
             });
         }
         else
         {
-            existing.ProcedureAssigned = procedureAssigned;
+            existing.PathwayAssigned = pathwayAssigned;
             existing.UpdatedAtUtc = utcNow;
         }
 

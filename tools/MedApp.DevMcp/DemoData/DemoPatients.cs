@@ -42,7 +42,7 @@ public sealed class PatientSeed
 
     /// <summary>Whether the invented first name is a woman's: two pathways see only women, or only men.</summary>
     public bool Female { get; init; }
-    public int Procedures { get; set; }
+    public int Pathways { get; set; }
     public bool Restricted { get; set; }
 
     /// <summary>When the record was anonymised (the retention review), if it was: from then on nobody sees it.</summary>
@@ -163,28 +163,28 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
     /// one year, a diabetes review the next), otherwise someone new. Children only on the pathways that see them; women
     /// only, or men only, and old enough, on the two pathways that need it.
     /// </summary>
-    public void AssignPatients(IReadOnlyList<ProcedurePlan> plans)
+    public void AssignPatients(IReadOnlyList<PathwayPlan> plans)
     {
         foreach (var plan in plans.OrderBy(p => p.CreatedUtc))
         {
-            var mayBeChild = ProcedureKinds.SeesChildren(plan.Pathway);
-            var (female, minimumAge) = ProcedureKinds.Sees(plan.Pathway);
+            var mayBeChild = ProcedureKinds.SeesChildren(plan.PathwayKind);
+            var (female, minimumAge) = ProcedureKinds.Sees(plan.PathwayKind);
             PatientSeed? patient = null;
             if (random.NextDouble() < 0.64)
             {
                 var eligible = All.Where(p => p.Role == PatientRole.Active
                                               && p.CreatedUtc < plan.CreatedUtc.AddDays(-1)
-                                              && p.Procedures < 4
+                                              && p.Pathways < 4
                                               && (female is null || p.Female == female)
                                               && p.AgeAt(plan.CreatedUtc) >= minimumAge
                                               && (mayBeChild || !p.IsChildAt(plan.CreatedUtc))).ToList();
                 // Someone with one procedure is likelier to come back than someone with three.
                 if (eligible.Count > 0)
-                    patient = ProcedurePlans.Weighted(random, eligible.Select(p => (p, p.Procedures switch { 1 => 6, 2 => 3, _ => 1 })).ToArray());
+                    patient = PathwayPlans.Weighted(random, eligible.Select(p => (p, p.Pathways switch { 1 => 6, 2 => 3, _ => 1 })).ToArray());
             }
 
             patient ??= NewPatient(plan.CreatedUtc, mayBeChild, female: female, minimumAge: minimumAge);
-            patient.Procedures++;
+            patient.Pathways++;
             plan.Patient = patient;
         }
 

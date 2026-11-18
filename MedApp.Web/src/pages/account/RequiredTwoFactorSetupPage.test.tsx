@@ -37,7 +37,7 @@ describe('RequiredTwoFactorSetupPage', () => {
     expect(screen.queryByRole('button', {name: 'Sign out'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Continue'}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways'));
     // Who they are is asked again (going in reloads the account's settings): the cached answer that said they must set
     // it up is gone, so the layout's guard lets them in.
     expect(queryClient.getQueryData(whoamiQuery.queryKey)).toMatchObject({isAuthenticated: true, mustSetUpTwoFactor: false});

@@ -50,7 +50,7 @@ describe('RequiredPasswordChangePage', () => {
 
     await fill(user, 'Given-Synthetic1', 'Chosen-Synthetic1', 'Chosen-Synthetic1');
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways'));
   });
 
   it("shows the server's reasons on the fields, and stays", async () => {

@@ -94,9 +94,9 @@ describe('calendarItems', () => {
   });
 
   it('says what an appointment is for', () => {
-    expect(appointmentPurpose({procedureTitle: 'Knee review', stageName: 'Assessment'})).toBe('Knee review: Assessment');
-    expect(appointmentPurpose({procedureTitle: 'Knee review', stageName: null})).toBe('Knee review');
-    expect(appointmentPurpose({procedureTitle: null, stageName: null})).toBe('Appointment');
+    expect(appointmentPurpose({pathwayTitle: 'Knee review', stageName: 'Assessment'})).toBe('Knee review: Assessment');
+    expect(appointmentPurpose({pathwayTitle: 'Knee review', stageName: null})).toBe('Knee review');
+    expect(appointmentPurpose({pathwayTitle: null, stageName: null})).toBe('Appointment');
   });
 
   it("fades a meeting on the calendar of someone who declined it, and says so, but not on anyone else's", () => {

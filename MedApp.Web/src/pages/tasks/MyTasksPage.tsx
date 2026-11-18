@@ -2,18 +2,18 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
-import type {ProcedureSummary} from '../../api/procedures';
-import {procedureSearchQuery, type ProcedureSearch} from '../../api/search';
+import type {PathwaySummary} from '../../api/pathways';
+import {pathwaySearchQuery, type PathwaySearch} from '../../api/search';
 import {Page} from '../../components/pages/Page';
 import {
   DueDateCell,
-  PROCEDURE_COLUMN_WIDTH,
+  PATHWAY_COLUMN_WIDTH,
   PriorityToken,
-  ProcedureActions,
-  ProcedureCell,
+  PathwayActions,
+  PathwayCell,
   StageProgressCell,
   statusLabel,
-} from '../../components/procedures/ProcedureCells';
+} from '../../components/pathways/PathwayCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -27,7 +27,7 @@ import {TextCell} from '../../components/tables/TextCell';
 import {
   choiceValues,
   hasTaskFilters,
-  OPEN_PROCEDURE_STATUSES,
+  OPEN_PATHWAY_STATUSES,
   TASK_PRIORITIES,
   TASK_SORTS,
   type TaskSortColumn,
@@ -35,45 +35,45 @@ import {
 } from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 
-type TaskRow = ProcedureSummary & Record<string, unknown>;
+type TaskRow = PathwaySummary & Record<string, unknown>;
 
 /** How far along the list's tasks are: its progress filter, Not started unless the URL says otherwise. */
 type Progress = 'notStarted' | 'started' | 'any';
 const progressOf = (search: TasksSearch): Progress => search.progress ?? 'notStarted';
 
-const procedureColumn: DataTableColumn<TaskRow> = {
-  key: 'Procedure',
-  header: 'Procedure',
+const pathwayColumn: DataTableColumn<TaskRow> = {
+  key: 'Pathway',
+  header: 'Pathway',
   sortable: true,
-  width: PROCEDURE_COLUMN_WIDTH.procedure,
-  renderCell: (p) => <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} />,
+  width: PATHWAY_COLUMN_WIDTH.pathway,
+  renderCell: (p) => <PathwayCell id={p.id ?? ''} title={p.title ?? ''} />,
 };
 
 /** The patient's name, on one line (truncated); View patient is in the actions. */
 const patientColumn: DataTableColumn<TaskRow> = {
   key: 'patientName',
   header: 'Patient',
-  width: PROCEDURE_COLUMN_WIDTH.patient,
+  width: PATHWAY_COLUMN_WIDTH.patient,
   renderCell: (p) => <TextCell text={p.patientName} />,
 };
 
 const templateColumn: DataTableColumn<TaskRow> = {
   key: 'templateName',
   header: 'Template',
-  width: PROCEDURE_COLUMN_WIDTH.template,
+  width: PATHWAY_COLUMN_WIDTH.template,
   renderCell: (p) => <TextCell text={p.templateName} />,
 };
 
 const stageColumn: DataTableColumn<TaskRow> = {
   key: 'stage',
   header: 'Current stage',
-  width: PROCEDURE_COLUMN_WIDTH.stage,
+  width: PATHWAY_COLUMN_WIDTH.stage,
   renderCell: (p) => (
     <StageProgressCell
       completed={p.completedStageCount ?? 0}
       total={p.stageCount ?? 0}
       currentStageName={p.currentStageName}
-      // There's no status column here, so the cell says when a procedure is blocked or in review.
+      // There's no status column here, so the cell says when a pathway is blocked or in review.
       status={p.status ?? ''}
     />
   ),
@@ -83,7 +83,7 @@ const dueColumn: DataTableColumn<TaskRow> = {
   key: 'Due',
   header: 'Due',
   sortable: true,
-  width: PROCEDURE_COLUMN_WIDTH.due,
+  width: PATHWAY_COLUMN_WIDTH.due,
   renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
 };
 
@@ -91,7 +91,7 @@ const priorityColumn: DataTableColumn<TaskRow> = {
   key: 'Priority',
   header: 'Priority',
   sortable: true,
-  width: PROCEDURE_COLUMN_WIDTH.priority,
+  width: PATHWAY_COLUMN_WIDTH.priority,
   renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />,
 };
 
@@ -99,13 +99,13 @@ const actionsColumn: DataTableColumn<TaskRow> = {
   key: 'actions',
   header: 'Actions',
   align: 'end',
-  width: PROCEDURE_COLUMN_WIDTH.actions,
-  renderCell: (p) => <ProcedureActions id={p.id ?? ''} patientId={p.patientId ?? ''} />,
+  width: PATHWAY_COLUMN_WIDTH.actions,
+  renderCell: (p) => <PathwayActions id={p.id ?? ''} patientId={p.patientId ?? ''} />,
 };
 
 /** Tasks not started show their template (there's no stage to show yet); the others, the stage they're at. */
 const columnsFor = (progress: Progress) => [
-  procedureColumn,
+  pathwayColumn,
   patientColumn,
   progress === 'notStarted' ? templateColumn : stageColumn,
   dueColumn,
@@ -122,7 +122,7 @@ const PROGRESS_TEXT: Record<Progress, {noun: string; empty: string}> = {
 
 /** The search's fields, as the API filters a user's tasks, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
-  {kind: 'text', key: 'title', label: 'Procedure'},
+  {kind: 'text', key: 'title', label: 'Pathway'},
   {kind: 'text', key: 'template', label: 'Template'},
   {kind: 'text', key: 'patient', label: 'Patient'},
   {
@@ -138,7 +138,7 @@ const FILTER_FIELDS: ListFilterField[] = [
     kind: 'choice',
     key: 'status',
     label: 'Status',
-    options: OPEN_PROCEDURE_STATUSES.map((s) => ({value: s, label: statusLabel(s)})),
+    options: OPEN_PATHWAY_STATUSES.map((s) => ({value: s, label: statusLabel(s)})),
     isMultiple: true,
   },
   {kind: 'choice', key: 'priority', label: 'Priority', options: TASK_PRIORITIES.map((p) => ({value: p, label: p})), isMultiple: true},
@@ -154,8 +154,8 @@ const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Blocked', values: {status: 'Blocked'}},
 ];
 
-/** The API search behind the list: unfinished procedures assigned to me, with its filters. */
-export function taskQuery(search: TasksSearch, pageSize?: number): ProcedureSearch {
+/** The API search behind the list: unfinished pathways assigned to me, with its filters. */
+export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch {
   const progress = progressOf(search);
   return {
     AssignedToMe: true,
@@ -167,7 +167,7 @@ export function taskQuery(search: TasksSearch, pageSize?: number): ProcedureSear
     Title: search.title,
     TemplateName: search.template,
     PatientName: search.patient,
-    Statuses: choiceValues(search.status, OPEN_PROCEDURE_STATUSES),
+    Statuses: choiceValues(search.status, OPEN_PATHWAY_STATUSES),
     Priorities: choiceValues(search.priority, TASK_PRIORITIES),
     OverdueOnly: search.overdue,
     DueFrom: search.dueFrom,
@@ -196,7 +196,7 @@ export interface MyTasksPageProps {
 }
 
 /**
- * My Tasks: the signed-in user's unfinished procedures, as a list like the others: a power search across the top
+ * My Worklist: the signed-in user's unfinished pathways, as a list like the others: a power search across the top
  * (Not started to begin with; Not started and Started are quick filters, not named beside the star, as the bar's
  * token already shows them; a saved search still is), sortable columns and page controls. The
  * same in a half view.
@@ -209,14 +209,14 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
   const isFiltered = hasTaskFilters(search);
 
   const {pageSize} = useListSettings();
-  const {data, isPending, isError} = useQuery(procedureSearchQuery(taskQuery(search, pageSize)));
+  const {data, isPending, isError} = useQuery(pathwaySearchQuery(taskQuery(search, pageSize)));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as TaskRow[];
 
   /** Keeps the sort; back to Not started, with no other filters. */
   const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc});
 
-  const noun = total === 1 ? 'procedure' : 'procedures';
+  const noun = total === 1 ? 'pathway' : 'pathways';
   const subtitle = isPending
     ? 'Loading...'
     : isFiltered
@@ -225,7 +225,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
 
   return (
     <Page
-      title="My Tasks"
+      title="My Worklist"
       subtitle={subtitle}
       fill
       message={isError && <AlertMessage message="Your tasks could not be loaded. Please try again." />}>
@@ -243,7 +243,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
             list="tasks"
             isUnfiltered={!hasTaskFilters(search) && search.progress === undefined}
             label="Search my tasks"
-            placeholder="Search my tasks by procedure, or filter by progress, patient, priority, due date..."
+            placeholder="Search my tasks by pathway, or filter by progress, patient, priority, target date..."
             textKey="title"
             favourites={FAVOURITES}
           />
@@ -259,7 +259,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
         emptyState={
           isFiltered ? (
             <EmptyState
-              title="No procedures match your search"
+              title="No pathways match your search"
               icon={<Icon icon={AppIcon.Search} size="lg" />}
               actions={<Button label="Clear Search" variant="secondary" onClick={clearSearch} />}
             />

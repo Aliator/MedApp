@@ -1,12 +1,12 @@
 using MedApp.Domain.Monitoring;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.UnitTests.Common.Constants;
 
-/// <summary>Synthetic monitoring rules and the admins who own them. The staff they watch are in ProceduresTestConstants.</summary>
+/// <summary>Synthetic monitoring rules and the admins who own them. The staff they watch are in PathwaysTestConstants.</summary>
 public static class MonitoringTestConstants
 {
-    /// <summary>An admin who owns rules (not the one making changes in the procedure tests).</summary>
+    /// <summary>An admin who owns rules (not the one making changes in the pathway tests).</summary>
     public static readonly Guid OwnerId = Guid.Parse("0000000c-0000-0000-0000-000000000001");
 
     /// <summary>A second admin with rules of their own.</summary>
@@ -24,7 +24,7 @@ public static class MonitoringTestConstants
         MonitoringEvent monitoringEvent,
         Guid? ownerId = null,
         Guid? subjectUserId = null,
-        PatientProcedurePriority? minimumPriority = null,
+        PatientPathwayPriority? minimumPriority = null,
         Guid? templateId = null,
         Guid? stageDefinitionId = null,
         bool isEnabled = true,

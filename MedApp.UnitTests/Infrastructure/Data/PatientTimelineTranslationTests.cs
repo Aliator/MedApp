@@ -1,6 +1,6 @@
 using FluentAssertions;
-using MedApp.Application.Procedures.Timeline.Common;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
+using MedApp.Application.Pathways.Timeline.Common;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,7 +39,7 @@ public sealed class PatientTimelineTranslationTests
             isAdmin);
 
         var sql = PatientTimelineSearch
-            .Page(_context.PatientProcedureAuditEntries.AsNoTracking(), _context.PatientProcedures.AsNoTracking(), query)
+            .Page(_context.PatientPathwayAuditEntries.AsNoTracking(), _context.PatientPathways.AsNoTracking(), query)
             .ToQueryString();
 
         sql.Should().Contain("ORDER BY [p].[AtUtc] DESC, [p].[Id] DESC").And.Contain("[p].[Id] < @id").And.Contain("TOP");

@@ -3,13 +3,13 @@ import {flushSettings} from '../../app/settingsStore';
 import {$setSelection, type LexicalEditor} from 'lexical';
 import {useEffect} from 'react';
 import type {Notepad} from '../../api/notepad';
-import type {Procedure} from '../../api/procedures';
+import type {Pathway} from '../../api/pathways';
 import {givenWidth} from '../../test/layout';
 import {isDisabled, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {richText, selectRichText, setRichText, typeRichText} from '../../test/richText';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {NotepadProvider, useNotepad, type OpenProcedure} from './NotepadContext';
-import {CANT_REMOVE_SELECTION} from './AddToProcedureDialog';
+import {NotepadProvider, useNotepad, type OpenPathway} from './NotepadContext';
+import {CANT_REMOVE_SELECTION} from './AddToPathwayDialog';
 import {AUTOSAVE_MS, NOT_REMOVED, NotepadPane} from './NotepadPane';
 
 const NOTEPAD = '/api/me/notepad';
@@ -22,7 +22,7 @@ const notepad = (overrides: Partial<Notepad> = {}): Notepad => ({
   ...overrides,
 });
 
-const procedure = (id: string, title: string, overrides: Partial<Procedure> = {}): Procedure => ({
+const pathway = (id: string, title: string, overrides: Partial<Pathway> = {}): Pathway => ({
   id,
   title,
   patientId: `patient-${id}`,
@@ -33,12 +33,12 @@ const procedure = (id: string, title: string, overrides: Partial<Procedure> = {}
   ...overrides,
 });
 
-/** Opens the notepad and offers these procedure pages to it, as open procedure pages do. */
-function Offered({procedures}: {procedures: OpenProcedure[]}) {
+/** Opens the notepad and offers these pathway pages to it, as open pathway pages do. */
+function Offered({pathways}: {pathways: OpenPathway[]}) {
   const notepad = useNotepad()!;
   useEffect(() => {
     notepad.open();
-    const withdraw = procedures.map((p) => notepad.offer(p));
+    const withdraw = pathways.map((p) => notepad.offer(p));
     return () => withdraw.forEach((w) => w());
     // Once, as the test sets them up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -46,11 +46,11 @@ function Offered({procedures}: {procedures: OpenProcedure[]}) {
   return <>{notepad.isOpen ? 'notepad open' : 'notepad closed'}</>;
 }
 
-function renderPane(procedures: OpenProcedure[] = []) {
+function renderPane(pathways: OpenPathway[] = []) {
   return renderWithApp(
     <NotepadProvider>
       <SaveShortcutProvider>
-        <Offered procedures={procedures} />
+        <Offered pathways={pathways} />
         <NotepadPane />
       </SaveShortcutProvider>
     </NotepadProvider>,
@@ -257,24 +257,24 @@ describe('NotepadPane', () => {
     expect(richText(screen.getByRole('textbox', {name: 'Notepad'}))).toBe('');
   });
 
-  it('can only add a note to a procedure while a procedure page is open', async () => {
+  it('can only add a note to a pathway while a pathway page is open', async () => {
     mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
     renderPane();
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    expect(isDisabled(screen.getByRole('button', {name: 'Add Note to Procedure'}))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', {name: 'Add Note to Pathway'}))).toBe(true);
   });
 
-  it('adds everything to the open procedure, after showing who the patient is, and takes it out of the notepad', async () => {
+  it('adds everything to the open pathway, after showing who the patient is, and takes it out of the notepad', async () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad()),
       [`PUT ${NOTEPAD}`]: () => json(notepad({text: '', version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', text: 'x', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', text: 'x', version: 1}, 201),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
 
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('region', {name: 'Patient: Ahmedp1, Freya'})).toBeInTheDocument();
@@ -293,12 +293,12 @@ describe('NotepadPane', () => {
   it('keeps the text when told not to remove it', async () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad()),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', version: 1}, 201),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     const dialog = within(openDialog()!);
     await user.click(dialog.getByRole('checkbox', {name: 'Remove it from the notepad'}));
     await user.click(dialog.getByRole('button', {name: 'Add Note'}));
@@ -312,14 +312,14 @@ describe('NotepadPane', () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic first line. Synthetic second line.'})),
       [`PUT ${NOTEPAD}`]: () => json(notepad({version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', version: 1}, 201),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
 
     await selectRichText(box, 'Synthetic second line.');
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     expect(within(openDialog()!).getByText(/the text you selected/)).toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
 
@@ -333,14 +333,14 @@ describe('NotepadPane', () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad({text: 'Bed 3: obs stable\n\nBed 4: obs stable'})),
       [`PUT ${NOTEPAD}`]: () => json(notepad({version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', version: 1}, 201),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
 
     // The second "obs stable", on Bed 4's line.
     await selectRichText(box, 'obs stable', 1);
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     expect(within(openDialog()!).getByRole('checkbox', {name: 'Remove it from the notepad'})).toBeChecked();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
 
@@ -353,13 +353,13 @@ describe('NotepadPane', () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad({text: 'Rang: **worried** about the result.\n\nCall back at 3pm.'})),
       [`PUT ${NOTEPAD}`]: () => json(notepad({version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', version: 1}, 201),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
 
     await selectRichText(box, 'worried about the result.Call back');
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
 
     await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(true));
@@ -372,14 +372,14 @@ describe('NotepadPane', () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic: call back.'})),
       [`PUT ${NOTEPAD}`]: () => json(notepad({version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () =>
+      'POST /api/pathways/patient-pathways/p1/notes': () =>
         new Promise<Response>((resolve) => (releaseAdd = () => resolve(json({id: 'n1', version: 1}, 201)))),
     });
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
 
     await selectRichText(box, 'call back');
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
     // The notepad changes while the note is being added.
     await typeRichText(box, ' Done.');
@@ -393,9 +393,9 @@ describe('NotepadPane', () => {
   it("adds a selection the editor can't pin down as the browser shows it, without offering to take it out", async () => {
     mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic: call back.'})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', version: 1}, 201),
     });
-    renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
+    renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review')}]);
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
     await selectRichText(box, 'call back');
     // The editor's own selection is gone, while the browser still shows the text selected.
@@ -403,7 +403,7 @@ describe('NotepadPane', () => {
     act(() => editor.update(() => $setSelection(null), {discrete: true, tag: 'skip-dom-selection'}));
 
     // A plain click, with no selection events for the editor to pick the browser's selection up again from.
-    fireEvent.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    fireEvent.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
 
     const dialog = within(openDialog()!);
     expect(dialog.getByText('call back')).toBeInTheDocument();
@@ -504,19 +504,19 @@ describe('NotepadPane', () => {
     await waitFor(() => expect(box).toHaveFocus());
   });
 
-  it('asks which procedure when two are open, and adds nothing until one is chosen', {timeout: 20000}, async () => {
+  it('asks which pathway when two are open, and adds nothing until one is chosen', {timeout: 20000}, async () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad()),
       [`PUT ${NOTEPAD}`]: () => json(notepad({version: 4})),
-      'POST /api/procedures/patient-procedures/p2/notes': () => json({id: 'n1', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p2/notes': () => json({id: 'n1', version: 1}, 201),
     });
     const {user} = renderPane([
-      {key: 'b', side: 'right', procedure: procedure('p2', 'Synthetic cataract')},
-      {key: 'a', side: 'left', procedure: procedure('p1', 'Synthetic knee review')},
+      {key: 'b', side: 'right', pathway: pathway('p2', 'Synthetic cataract')},
+      {key: 'a', side: 'left', pathway: pathway('p1', 'Synthetic knee review')},
     ]);
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
     const dialog = within(openDialog()!);
     expect(dialog.getAllByRole('radio')).toHaveLength(2);
     expect(dialog.getByText('Left: Synthetic knee review')).toBeInTheDocument();
@@ -530,12 +530,12 @@ describe('NotepadPane', () => {
     await waitFor(() => expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.endsWith('/p2/notes'))).toBe(true));
   });
 
-  it("won't add to a procedure that takes no notes", async () => {
+  it("won't add to a pathway that takes no notes", async () => {
     mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review', {canAddNotes: false})}]);
+    const {user} = renderPane([{key: 'a', pathway: pathway('p1', 'Synthetic knee review', {canAddNotes: false})}]);
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
 
     const dialog = within(openDialog()!);
     expect(dialog.getByText(/can't take notes now/)).toBeInTheDocument();

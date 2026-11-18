@@ -24,8 +24,8 @@ import {
 import {calendarKeys, calendarQuery, staffQuery} from '../../api/calendar';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
-import {procedureQuery} from '../../api/procedures';
-import {patientSearchQuery, procedureSearchQuery} from '../../api/search';
+import {pathwayQuery} from '../../api/pathways';
+import {patientSearchQuery, pathwaySearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {
@@ -59,15 +59,15 @@ export interface BookAppointmentDialogProps {
   onSaved?: (appointment: Appointment) => void;
   /** What's known already; the dialog asks for whatever isn't. The patient comes with who they are, for their banner. */
   patient?: AppointmentPatientDetails;
-  procedure?: {id: string; title: string};
+  pathway?: {id: string; title: string};
   stage?: {id: string; name: string};
-  /** A Requested appointment to book, or a Booked one to reschedule (its patient, procedure and stage are fixed). */
+  /** A Requested appointment to book, or a Booked one to reschedule (its patient, pathway and stage are fixed). */
   appointment?: Appointment;
   /** A preselected member of staff and time, e.g. from a click on the calendar. */
   staffUserId?: string;
   startUtc?: string;
   endUtc?: string;
-  /** The member of staff to suggest when none is preselected (e.g. a procedure's only assignee); otherwise the signed-in user. */
+  /** The member of staff to suggest when none is preselected (e.g. a pathway's only assignee); otherwise the signed-in user. */
   suggestedStaffUserId?: string;
   /**
    * The finest steps start times come in: 15 minutes (the default), or 5 from a calendar showing 5-minute rows. The
@@ -78,14 +78,14 @@ export interface BookAppointmentDialogProps {
 
 /**
  * Booking an appointment (docs/calendar-plan.md, decision 30): one dialog, not a wizard. On the left, who it's for
- * (the patient, and optionally one of their procedures and its stage), with whom, how long, and notes; on the right,
+ * (the patient, and optionally one of their pathways and its stage), with whom, how long, and notes; on the right,
  * the week's working days, each with how many times are free, and the chosen day's free start times. Whatever is
- * already known (the patient, the procedure, a time picked on the calendar) is filled in, and everything else has a
+ * already known (the patient, the pathway, a time picked on the calendar) is filled in, and everything else has a
  * default, so the common path is one click on a time, then Book.
  *
  * Without a time it can add the appointment to Requires Appointment instead (a Requested appointment). With `appointment`,
  * it books a Requested appointment or reschedules a Booked one. Use it wherever an appointment is booked: the
- * calendar, Requires Appointment, the procedure and patient pages, and an appointment's own dialog.
+ * calendar, Requires Appointment, the pathway and patient pages, and an appointment's own dialog.
  *
  * Once the patient is known (given, the appointment's, or picked), their banner heads the dialog: name, date of birth
  * and NHS number, so staff can check who they're booking (hazard H-34). A patient whose record is restricted or
@@ -112,9 +112,9 @@ function lengthLabel(minutes: number): string {
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
-const FIELDS = ['patientId', 'procedureId', 'stageId', 'staffUserId', 'notes'];
+const FIELDS = ['patientId', 'pathwayId', 'stageId', 'staffUserId', 'notes'];
 
-const NO_PROCEDURE = 'none';
+const NO_PATHWAY = 'none';
 const NO_STAGE = 'none';
 
 interface Problem {
@@ -146,7 +146,7 @@ function BookingForm({
   onClose,
   onSaved,
   patient,
-  procedure,
+  pathway,
   stage,
   appointment,
   staffUserId,
@@ -167,20 +167,20 @@ function BookingForm({
 
   const isRescheduling = appointment?.status === 'Booked';
   const fixedPatientId = appointment ? (appointment.patientId ?? '') : patient?.id;
-  const fixedProcedure = appointment
-    ? appointment.procedureId
-      ? {id: appointment.procedureId, title: appointment.procedureTitle ?? ''}
+  const fixedPathway = appointment
+    ? appointment.pathwayId
+      ? {id: appointment.pathwayId, title: appointment.pathwayTitle ?? ''}
       : null
-    : procedure;
+    : pathway;
   const fixedStage = appointment ? (appointment.stageId ? {id: appointment.stageId, name: appointment.stageName ?? ''} : null) : stage;
-  const isForFixed = appointment !== undefined || procedure !== undefined;
+  const isForFixed = appointment !== undefined || pathway !== undefined;
 
   const initialLength =
     startUtc && endUtc ? minutesBetween(startUtc, endUtc) : (appointment?.durationMinutes ?? DEFAULT_APPOINTMENT_LENGTH);
   const initialDay = startUtc ? ukDay(startUtc) : undefined;
 
   const [pickedPatient, setPickedPatient] = useState<PatientItem | null>(null);
-  const [procedureId, setProcedureId] = useState(NO_PROCEDURE);
+  const [pathwayId, setPathwayId] = useState(NO_PATHWAY);
   const [stageId, setStageId] = useState(NO_STAGE);
   const [chosenStaff, setChosenStaff] = useState<string | undefined>(staffUserId ?? appointment?.staffUserId ?? undefined);
   const [length, setLength] = useState(initialLength > 0 ? initialLength : DEFAULT_APPOINTMENT_LENGTH);
@@ -209,16 +209,16 @@ function BookingForm({
   const cantChange = patientState.patient ? whyCantChange(patientState.patient) : null;
   const isRefused = appointment ? !(isRescheduling ? appointment.canReschedule : appointment.canBook) : cantChange !== null;
   const refusal = isRefused ? (cantChange ?? 'This appointment can’t be booked now.') : null;
-  const procedures = useQuery({
-    ...procedureSearchQuery({PatientId: patientId, PageSize: 100, Sort: 'dueDate', Ascending: true}),
+  const pathways = useQuery({
+    ...pathwaySearchQuery({PatientId: patientId, PageSize: 100, Sort: 'dueDate', Ascending: true}),
     enabled: isOpen && !isForFixed && patientId !== undefined,
   });
-  const chosenProcedureId = fixedProcedure?.id ?? (procedureId === NO_PROCEDURE ? undefined : procedureId);
-  const procedureDetail = useQuery({
-    ...procedureQuery(chosenProcedureId ?? ''),
-    enabled: isOpen && fixedStage === undefined && chosenProcedureId !== undefined,
+  const chosenPathwayId = fixedPathway?.id ?? (pathwayId === NO_PATHWAY ? undefined : pathwayId);
+  const pathwayDetail = useQuery({
+    ...pathwayQuery(chosenPathwayId ?? ''),
+    enabled: isOpen && fixedStage === undefined && chosenPathwayId !== undefined,
   });
-  const openStages = (procedureDetail.data?.stages ?? []).filter((s) => s.state !== 'Completed');
+  const openStages = (pathwayDetail.data?.stages ?? []).filter((s) => s.state !== 'Completed');
 
   const weekEnd = addDays(week, 4);
   const calendar = useQuery({...calendarQuery({staffUserId: staffId, from: week, to: weekEnd}), enabled: isOpen && staffId !== undefined});
@@ -303,8 +303,8 @@ function BookingForm({
   function forWhom() {
     return {
       patientId,
-      procedureId: chosenProcedureId ?? null,
-      stageId: fixedStage?.id ?? (chosenProcedureId && stageId !== NO_STAGE ? stageId : null),
+      pathwayId: chosenPathwayId ?? null,
+      stageId: fixedStage?.id ?? (chosenPathwayId && stageId !== NO_STAGE ? stageId : null),
     };
   }
 
@@ -313,12 +313,12 @@ function BookingForm({
 
   const choosePatient = (item: PatientItem | null) => {
     setPickedPatient(item);
-    setProcedureId(NO_PROCEDURE);
+    setPathwayId(NO_PATHWAY);
     setStageId(NO_STAGE);
   };
 
-  const chooseProcedure = (id: string) => {
-    setProcedureId(id);
+  const choosePathway = (id: string) => {
+    setPathwayId(id);
     setStageId(NO_STAGE);
   };
 
@@ -335,7 +335,7 @@ function BookingForm({
   if (isForFixed) {
     fixedItems.push(
       <MetadataListItem key="for" label="For">
-        {fixedProcedure ? (fixedStage ? `${fixedProcedure.title}: ${fixedStage.name}` : fixedProcedure.title) : 'Not for a procedure'}
+        {fixedPathway ? (fixedStage ? `${fixedPathway.title}: ${fixedStage.name}` : fixedPathway.title) : 'Not for a pathway'}
       </MetadataListItem>,
     );
   }
@@ -357,13 +357,13 @@ function BookingForm({
         <Selector
           label="For"
           isOptional
-          value={procedureId}
-          onChange={chooseProcedure}
-          isLoading={procedures.isLoading}
-          status={fieldStatus(problem.validation, 'procedureId')}
+          value={pathwayId}
+          onChange={choosePathway}
+          isLoading={pathways.isLoading}
+          status={fieldStatus(problem.validation, 'pathwayId')}
           options={[
-            {value: NO_PROCEDURE, label: 'Not for a procedure'},
-            ...(procedures.data?.items ?? []).map((p) => ({
+            {value: NO_PATHWAY, label: 'Not for a pathway'},
+            ...(pathways.data?.items ?? []).map((p) => ({
               value: p.id ?? '',
               label: p.title ?? '',
               description: `Due ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
@@ -371,13 +371,13 @@ function BookingForm({
           ]}
         />
       )}
-      {fixedStage === undefined && chosenProcedureId !== undefined && (
+      {fixedStage === undefined && chosenPathwayId !== undefined && (
         <Selector
           label="Stage"
           isOptional
           value={stageId}
           onChange={setStageId}
-          isLoading={procedureDetail.isLoading}
+          isLoading={pathwayDetail.isLoading}
           status={fieldStatus(problem.validation, 'stageId')}
           options={[
             {value: NO_STAGE, label: 'No particular stage'},
@@ -411,7 +411,7 @@ function BookingForm({
         <TextArea
           label="Notes"
           isOptional
-          description="About the visit, as procedure notes are. Staff see them on the appointment."
+          description="About the visit, as pathway notes are. Staff see them on the appointment."
           value={notes}
           onChange={setNotes}
           rows={3}

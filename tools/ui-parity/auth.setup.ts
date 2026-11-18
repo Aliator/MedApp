@@ -24,24 +24,24 @@ setup('sign in and find shared records', async ({ page }, info) => {
   const patients = (await response.json()) as { id: string; firstName: string; lastName: string }[];
   if (patients.length === 0) throw new Error('No patients in the database: the patient screens need at least one.');
   patients.sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`) || a.id.localeCompare(b.id));
-  // And the first in-progress procedure by title, for the procedure page.
-  const procedures = await page.request.get(
-    `${apiUrl}/api/procedures/patient-procedures/search?Statuses=InProgress&Sort=title&PageSize=1`,
+  // And the first in-progress pathway by title, for the pathway page.
+  const pathways = await page.request.get(
+    `${apiUrl}/api/pathways/patient-pathways/search?Statuses=InProgress&Sort=title&PageSize=1`,
   );
-  const procedureId = procedures.ok() ? ((await procedures.json()) as { items: { id: string }[] }).items[0]?.id : undefined;
-  // And a procedure of the first restricted patient (the demo data has some), for a page with a long page message.
+  const pathwayId = pathways.ok() ? ((await pathways.json()) as { items: { id: string }[] }).items[0]?.id : undefined;
+  // And a pathway of the first restricted patient (the demo data has some), for a page with a long page message.
   const restricted = (patients as { id: string; isRestricted?: boolean }[]).find((p) => p.isRestricted);
-  const restrictedProcedures = restricted
-    ? await page.request.get(`${apiUrl}/api/procedures/patient-procedures/search?PatientId=${restricted.id}&Sort=title&PageSize=1`)
+  const restrictedPathways = restricted
+    ? await page.request.get(`${apiUrl}/api/pathways/patient-pathways/search?PatientId=${restricted.id}&Sort=title&PageSize=1`)
     : undefined;
-  const restrictedProcedureId = restrictedProcedures?.ok()
-    ? ((await restrictedProcedures.json()) as { items: { id: string }[] }).items[0]?.id
+  const restrictedPathwayId = restrictedPathways?.ok()
+    ? ((await restrictedPathways.json()) as { items: { id: string }[] }).items[0]?.id
     : undefined;
 
   // And a meeting of the parity account's own, declined, for the meeting screens (best effort: they skip without it).
   const meeting = await parityMeeting(page, apiUrl, username).catch(() => undefined);
 
-  writeData(app, { patientId: patients[0].id, procedureId, restrictedProcedureId, meetingId: meeting?.id, meetingDate: meeting?.date });
+  writeData(app, { patientId: patients[0].id, pathwayId, restrictedPathwayId, meetingId: meeting?.id, meetingDate: meeting?.date });
 });
 
 const PARITY_MEETING = 'Parity check meeting (synthetic)';

@@ -26,7 +26,7 @@ public sealed class MeetingNotificationsTests
         Notification.HasFixedTitle(kind).Should().BeTrue();
     }
 
-    [TestCase(NotificationKind.ProcedureAssigned)]
+    [TestCase(NotificationKind.PathwayAssigned)]
     [TestCase(NotificationKind.AppointmentBooked)]
     public void TitleOf_AnotherKind_Throws(NotificationKind kind)
     {
@@ -49,7 +49,7 @@ public sealed class MeetingNotificationsTests
             n.Message == $"{AdminUsername} invited you to '{Title}', Monday 23 November, 10:00 to 11:00.");
         notifications.Should().OnlyContain(n => n.CalendarDate == NextMonday);
         notifications.Should().OnlyContain(n => n.CreatedAtUtc == Now);
-        notifications.Should().OnlyContain(n => n.ProcedureId == null && n.AppointmentId == null && n.ReadAtUtc == null);
+        notifications.Should().OnlyContain(n => n.PathwayId == null && n.AppointmentId == null && n.ReadAtUtc == null);
         notifications.Select(n => n.Id).Should().OnlyHaveUniqueItems().And.NotContain(Guid.Empty);
     }
 
@@ -175,7 +175,7 @@ public sealed class MeetingNotificationsTests
         notification.Message.Should().Be($"{StaffUsername} declined '{Title}', Monday 23 November, 10:00 to 11:00.");
         notification.Message.Should().NotContain(Notes, "a meeting's notes are never in a notification");
         notification.CalendarDate.Should().Be(NextMonday);
-        notification.ProcedureId.Should().BeNull();
+        notification.PathwayId.Should().BeNull();
         notification.AppointmentId.Should().BeNull();
         notification.MeetingId.Should().Be(MeetingId, "it opens the meeting, so the organiser sees who declined");
         notification.CreatedAtUtc.Should().Be(Now);

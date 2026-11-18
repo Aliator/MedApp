@@ -1,6 +1,6 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +73,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
         var appointments = await context.Appointments
             .AsNoTracking()
             .Include(a => a.Patient)
-            .Include(a => a.Procedure)
+            .Include(a => a.Pathway)
             .Include(a => a.Stage)
             .Where(a => nullableIds.Contains(a.StaffUserId)
                         && (a.Status == AppointmentStatus.Booked

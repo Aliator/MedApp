@@ -3,8 +3,8 @@ using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Repositories;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Application.Pathways.Repositories;
+using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
 namespace MedApp.Application.Attachments.Commands.DeleteAttachment;
@@ -12,7 +12,7 @@ namespace MedApp.Application.Attachments.Commands.DeleteAttachment;
 public sealed class DeleteAttachmentHandler(
     IAttachmentRepository attachments,
     IPatientRepository patients,
-    IPatientProcedureRepository procedures,
+    IPatientPathwayRepository pathways,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
 {
@@ -25,7 +25,7 @@ public sealed class DeleteAttachmentHandler(
         if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.IsAdmin))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");
 
-        var target = await AttachmentTargets.OfAsync(attachment, patients, procedures, cancellationToken);
+        var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, cancellationToken);
         // A restricted or anonymised record can't change, for admins too (an admin lifts the restriction first).
         PatientRules.EnsureCanChange(target.Owner);
         if (!request.IsAdmin && target.WhyFilesCantChange() is { } reason)
@@ -37,7 +37,7 @@ public sealed class DeleteAttachmentHandler(
         attachment.DeletedByUsername = request.Actor.Username;
 
         var audit = AttachmentAudit.Entry(
-            attachment, target, request.Actor, PatientProcedureAuditAction.AttachmentDeleted, nowUtc);
+            attachment, target, request.Actor, PatientPathwayAuditAction.AttachmentDeleted, nowUtc);
         await attachments.SaveAsync(audit, cancellationToken);
     }
 }

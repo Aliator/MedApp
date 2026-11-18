@@ -36,33 +36,33 @@
 
 ### 1.1 What MedApp does
 
-MedApp is a patient and procedure management app for clinical staff. It records patients, and tracks the procedures done for them through a fixed sequence of stages, with a full audit trail. Each member of staff has a calendar, on which staff book appointments with patients.
+MedApp is a patient and pathway management app for clinical staff. It records patients, and tracks the pathways done for them through a fixed sequence of stages, with a full audit trail. Each member of staff has a calendar, on which staff book appointments with patients.
 
 | Area | What people can do |
 |---|---|
-| **Patients** | List, search, sort and page through patients; add, view, edit and delete them. A patient record is deliberately small: first name, last name, date of birth and email (`MedApp.Domain/Patients/Patient.cs`). A patient who has procedures can't be deleted. |
-| **Procedures** | Start a procedure for a patient from a **template**. The template's stages are copied onto the procedure, so later edits to the template don't rewrite history. Each procedure has a title, notes, a due date (a whole day, UK time), a priority and a status. |
+| **Patients** | List, search, sort and page through patients; add, view, edit and delete them. A patient record is deliberately small: first name, last name, date of birth and email (`MedApp.Domain/Patients/Patient.cs`). A patient who has pathways can't be deleted. |
+| **Pathways** | Start a pathway for a patient from a **template**. The template's stages are copied onto the pathway, so later edits to the template don't rewrite history. Each pathway has a title, notes, a target date (a whole day, UK time), a priority and a status. |
 | **Stages** | Work the stages strictly in order: start the current stage, write its notes (rich text), then **finish** it, which locks it. An admin can **unlock** a finished stage to correct it. |
-| **Status workflow** | The status moves by itself (assigned, in progress, in review) and by hand (complete, block or cancel with a reason, archive). The rules are in one place, `ProcedureWorkflow` ([section 5.6](#56-the-domain-model)). |
-| **Assignment** | Admins assign staff to procedures. Assignment decides whose task list a procedure appears on; it doesn't limit who may work on it. Changing a procedure that isn't yours asks for confirmation first, once per visit. |
-| **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
+| **Status workflow** | The status moves by itself (assigned, in progress, in review) and by hand (complete, block or cancel with a reason, archive). The rules are in one place, `PathwayWorkflow` ([section 5.6](#56-the-domain-model)). |
+| **Assignment** | Admins assign staff to pathways. Assignment decides whose task list a pathway appears on; it doesn't limit who may work on it. Changing a pathway that isn't yours asks for confirmation first, once per visit. |
+| **Task list** | My Worklist (`/tasks`) shows the open pathways assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions, and whether the stage involves a visit: none, suggested or required) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
 | **Calendars** | Each member of staff has a **calendar**: an 08:00 to 18:00 working day, UK time, Monday to Friday, in day and week views, with weekends greyed. Staff **block off time** on it for activities from an admin-managed list (Lunch, Training, Annual leave, ...). Each member of staff has their own **day and week templates** that fill their week with its usual blocks, applied when the calendar is read; a person's default week can be changed for one day. Admins arrange **meetings** (busy time on several people's calendars), with a **team view** of several people's day and **suggested meeting times**. Nothing may overlap, and past days don't change. Everyone can see everyone's calendar, meetings and templates; blocks and templates are changed by their owner or an admin, and meetings by admins. |
-| **Appointments** | Staff book an **appointment** for a patient with a member of staff, optionally for a procedure and stage, in a free slot. It goes from **Requested** (Requires appointment) to **Booked**, then **Attended** or **Did not attend**, or **Cancelled** with a reason; every change is kept in its history. When a stage that involves a visit becomes current, the app requests an appointment for it, and a stage whose visit is **required** can't be finished until the appointment is Attended, unless an admin finishes it with a reason. A **Requires Appointment** list shows the requested ones. The member of staff is notified when someone else books, moves or cancels their appointment. |
-| **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
-| **Attached files** | Staff attach scans, photos, results and letters to a patient, a procedure or a stage: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text, up to 20 MB, with the type found from the file's contents. Files are stored in blob storage and only ever downloaded, never shown in the page; photos get a small thumbnail made by the server. Adding, deleting and downloading a file are audited. Staff delete their own files and admins any; deleting hides a file but keeps it. Files aren't scanned for malware yet: each shows "Not scanned" (step 9 of the [roadmap](#step-9-the-features-buyers-expect)). |
-| **Notifications** | Being assigned a procedure (by someone else), which each person can turn off in Account Settings, or having an appointment booked, moved or cancelled by someone else, sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
-| **Monitoring** | Admins set rules for being told what staff do to procedures (Administration, Monitoring), e.g. "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority procedure": a person or anyone, one of eight events, and optional priority, template and stage conditions. A matching change sends the admin one notification, never about their own changes, with no free text or patient details. Each admin sees only their own rules. |
+| **Appointments** | Staff book an **appointment** for a patient with a member of staff, optionally for a pathway and stage, in a free slot. It goes from **Requested** (Requires appointment) to **Booked**, then **Attended** or **Did not attend**, or **Cancelled** with a reason; every change is kept in its history. When a stage that involves a visit becomes current, the app requests an appointment for it, and a stage whose visit is **required** can't be finished until the appointment is Attended, unless an admin finishes it with a reason. A **Requires Appointment** list shows the requested ones. The member of staff is notified when someone else books, moves or cancels their appointment. |
+| **Audit log** | Every change to a pathway writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by pathway. The patient page's timeline shows one patient's history across their pathways: all of it for admins, deleted pathways included; for staff, only pathways that still exist and never the log's free text (notes, titles, reasons). |
+| **Attached files** | Staff attach scans, photos, results and letters to a patient, a pathway or a stage: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text, up to 20 MB, with the type found from the file's contents. Files are stored in blob storage and only ever downloaded, never shown in the page; photos get a small thumbnail made by the server. Adding, deleting and downloading a file are audited. Staff delete their own files and admins any; deleting hides a file but keeps it. Files aren't scanned for malware yet: each shows "Not scanned" (step 9 of the [roadmap](#step-9-the-features-buyers-expect)). |
+| **Notifications** | Being assigned a pathway (by someone else), which each person can turn off in Account Settings, or having an appointment booked, moved or cancelled by someone else, sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Monitoring** | Admins set rules for being told what staff do to pathways (Administration, Monitoring), e.g. "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority pathway": a person or anyone, one of eight events, and optional priority, template and stage conditions. A matching change sends the admin one notification, never about their own changes, with no free text or patient details. Each admin sees only their own rules. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
 | **Accessibility** | The target is WCAG 2.2 level AA (the Web Content Accessibility Guidelines). There's an accessibility statement at `/accessibility`, keyboard shortcuts, screen reader announcements, and an automated audit. |
 | **Half views** | Any two pages side by side, opened from the side navigation. |
 
-There are two roles. **Staff** (role `User`) can do nearly everything: patients, creating and working on procedures, booking and changing any appointment, and blocking time on their own calendar. **Admins** (role `Admin`) can also manage users and roles, stage definitions and templates, activity types and calendar templates, anyone's calendar, assign staff, unlock stages, finish a stage whose visit is required without one, delete cancelled or archived procedures, and read the audit log. An admin account normally holds both roles.
+There are two roles. **Staff** (role `User`) can do nearly everything: patients, creating and working on pathways, booking and changing any appointment, and blocking time on their own calendar. **Admins** (role `Admin`) can also manage users and roles, stage definitions and templates, activity types and calendar templates, anyone's calendar, assign staff, unlock stages, finish a stage whose visit is required without one, delete cancelled or archived pathways, and read the audit log. An admin account normally holds both roles.
 
 ### 1.2 Who uses it
 
-- **Clinical and administrative staff** use it every day: they find patients, start procedures from templates, work stages, book appointments, and follow their task list and their day's calendar.
+- **Clinical and administrative staff** use it every day: they find patients, start pathways from templates, work stages, book appointments, and follow their task list and their day's calendar.
 - **Admins** set up the templates and stages, activity types and calendar templates, manage accounts, assign work and review the audit log.
 - **The maintainer** develops and operates it, mostly through AI coding agents that follow `AGENTS.md` ([section 2.2](#22-organisational-constraints)).
 
@@ -73,7 +73,7 @@ In priority order. [Section 10](#10-quality-requirements) says how each is met a
 | # | Goal | What it means here |
 |---|---|---|
 | 1 | **Confidentiality and integrity of patient data** | Only signed-in staff see patient data; only admins change structure. Data is protected in transit and in the cluster, secrets never live in git, and the platform is locked down. |
-| 2 | **Traceability** | Every change to a procedure can be traced to a person and a time, and the trail survives deletes. |
+| 2 | **Traceability** | Every change to a pathway can be traced to a person and a time, and the trail survives deletes. |
 | 3 | **Accessibility** | WCAG 2.2 AA on every screen, in light, dark and colour themes. |
 | 4 | **Maintainability and testability** | A new feature follows one known pattern; tests cover all behaviour worth testing; conventions are written down and enforced in CI. |
 | 5 | **Deployability and graceful degradation** | One image, deployed the same way everywhere from git; optional parts (server rendering, live notifications) fail soft rather than taking the app down. |
@@ -96,7 +96,7 @@ Read this before anything else if you're assessing the product.
 
 - **It has never run in production, and has never held real patient data.** Every environment uses synthetic data only.
 - **Azure is written and checked, but not deployed** (`deploy/azure/README.md`). The local Kubernetes cluster (kind) is the only cluster it has run on.
-- **It's young, and moved fast.** The backend and the original Blazor UI were built from January to February 2026 (PRs #1 to #21). The rest happened from 13 to 15 November 2026 (PRs #22 to #53): the React rewrite, the procedures workflow, accessibility, notifications, server-side rendering, Kubernetes, GitOps and Azure. From #24 onwards, every pull request description is marked as generated by Claude Code, an AI coding tool, and every commit since 13 November, apart from GitHub's merge commits, carries a Claude co-author line.
+- **It's young, and moved fast.** The backend and the original Blazor UI were built from January to February 2026 (PRs #1 to #21). The rest happened from 13 to 15 November 2026 (PRs #22 to #53): the React rewrite, the pathways workflow, accessibility, notifications, server-side rendering, Kubernetes, GitOps and Azure. From #24 onwards, every pull request description is marked as generated by Claude Code, an AI coding tool, and every commit since 13 November, apart from GitHub's merge commits, carries a Claude co-author line.
 - **One maintainer.** There's no team; the bus factor is one.
 - **It's a portfolio project in a public repository** (`docs/react-migration-plan.md`, Q5b). The source, the container image and this handbook are all public.
 - **Tests:** 815 .NET unit tests and 713 web tests, with web coverage gated at 99% of lines. 185 integration tests run the real API against SQL Server in Docker, and 11 Playwright end-to-end tests run the main journeys against the production image; both run on `main` after every merge, and on a pull request labelled `ci:full` (since #123, a pull request runs a tier (`AGENTS.md`, CI): by default only quick checks of the side that changed, and every job with the `ci:full` label).
@@ -123,7 +123,7 @@ Read this before anything else if you're assessing the product.
 | **Linux on amd64** | The image is built for `linux/amd64` only. The migrations bundle inside it is architecture-specific. |
 | **Kubernetes** | Deployed environments run on Kubernetes with the Helm chart in `deploy/helm/medapp`. The chart expects an ingress controller, a network plugin that enforces NetworkPolicies, cert-manager and External Secrets Operator. |
 | **Desktop first** | Mobile layouts were out of scope for the React migration (`docs/react-migration-plan.md`). Narrow windows get narrow layouts, and tables turn into cards, but nothing is tested on phones. |
-| **Locale** | `en-GB` throughout. Due dates are whole days in UK time (`Europe/London`). |
+| **Locale** | `en-GB` throughout. Target dates are whole days in UK time (`Europe/London`). |
 
 ### 2.2 Organisational constraints
 
@@ -140,7 +140,7 @@ MedApp is designed to hold **special category data**: health data, under Article
 
 None of the following has been assessed, and nothing in the repository claims compliance with any of them. Anyone taking MedApp towards real use would have to:
 - **carry out a data protection impact assessment (DPIA)**, which UK GDPR requires for large-scale processing of health data;
-- **decide retention periods** for patient records, procedures, audit entries, notifications and sessions (there are none today: nothing is ever purged);
+- **decide retention periods** for patient records, pathways, audit entries, notifications and sessions (there are none today: nothing is ever purged);
 - **check the NHS standards** if it's used for NHS patients in England: the Data Security and Protection Toolkit, and the clinical risk management standards DCB0129 (for the manufacturer) and DCB0160 (for the deploying organisation);
 - **decide whether it's a medical device.** It manages workflow and doesn't make clinical decisions, which usually puts software outside medical device regulation, but that's a judgement for a qualified person, not this handbook;
 - **meet the accessibility regulations** if a public sector body runs it (the Public Sector Bodies Accessibility Regulations 2018 point to WCAG 2.2 AA, which is MedApp's target already).
@@ -158,7 +158,7 @@ None of the following has been assessed, and nothing in the repository claims co
 ### 2.4 Conventions
 
 The conventions are part of the architecture, because the code relies on them being followed:
-- `AGENTS.md`: the core every change needs (backend feature slices, validation and errors, lists and paging, mapping, data access, migrations, testing, CI and the git workflow), with a table of which area guide in `docs/agents/` (procedures, calendar, privacy, auth and the rest) to read before changing each area.
+- `AGENTS.md`: the core every change needs (backend feature slices, validation and errors, lists and paging, mapping, data access, migrations, testing, CI and the git workflow), with a table of which area guide in `docs/agents/` (pathways, calendar, privacy, auth and the rest) to read before changing each area.
 - `MedApp.Web/AGENTS.md`: Astryx only, shared composites, routes and pages, server rendering rules, list pages, colours, forms, tests and accessibility.
 - `MedApp.Web/README.md`, `deploy/*/README.md` and `tools/*/README.md`: how each part is run.
 
@@ -175,7 +175,7 @@ flowchart LR
     maint(["Maintainer and AI coding agents"])
     subgraph sys["MedApp"]
       app["Web app and API"]
-      db[("Patient and procedure database")]
+      db[("Patient and pathway database")]
       app --- db
     end
     gh["GitHub: repository, Actions, container registry"]
@@ -228,8 +228,8 @@ These are outside the system today, and nothing in the code integrates with them
 | Quality goal or need | Approach |
 |---|---|
 | Maintainability | **Clean Architecture** (dependencies point inward to the domain) with **CQRS**: each use case is its own command or query, handler and validator, dispatched by **MediatR**. One folder per use case. |
-| Correct procedure rules | All workflow rules live in two classes, `ProcedureWorkflow` and `ProcedureChange`. Handlers ask them, rather than setting statuses themselves. |
-| Traceability | Every procedure change goes through `ProcedureChange`, which writes audit entries that are saved in the same database save as the change. The audit table has no foreign keys, so it outlives deletes. |
+| Correct pathway rules | All workflow rules live in two classes, `PathwayWorkflow` and `PathwayChange`. Handlers ask them, rather than setting statuses themselves. |
+| Traceability | Every pathway change goes through `PathwayChange`, which writes audit entries that are saved in the same database save as the change. The audit table has no foreign keys, so it outlives deletes. |
 | Confidentiality | A server-side session per sign-in, in an HttpOnly cookie on the app's own origin; role-based policies on every endpoint; a locked-down Kubernetes deployment; secrets from a secret store. |
 | One UI, one origin | The API serves the built React app from its `wwwroot`, so pages, API and WebSocket share one origin, and the cookie stays first-party. |
 | Fast, accessible first paint | **Server-side rendering (SSR):** a Node page server, started and fronted by the API, renders each page with its data; the browser then hydrates it. If Node fails, the browser renders the page instead. |
@@ -356,7 +356,7 @@ flowchart LR
 | **API** | `MedApp.API` and the projects it references | Everything server-side: the JSON API, sign-in and sessions, the live notifications hub, serving the React app's files, and forwarding page requests to the Node page server. |
 | **Node page server** | `MedApp.Web/server/server.mjs`, built to `dist/ssr/`, in the image at `/app/ssr/` (outside `wwwroot`) | Renders pages to HTML with their data. In Kubernetes, the `pages` container in the API's pod, from the same image, supervised by Kubernetes; elsewhere started by the API. Reachable only on loopback inside the pod. |
 | **React app** | `MedApp.Web/src`, built to `wwwroot/` | The UI, in the browser. |
-| **Database** | SQL Server 2022, or Azure SQL | All durable state: patients, procedures, audit, notifications, users, sessions, settings. |
+| **Database** | SQL Server 2022, or Azure SQL | All durable state: patients, pathways, audit, notifications, users, sessions, settings. |
 | **Valkey** | `deploy/helm/medapp/templates/valkey.yaml` | Relays SignalR messages between API copies. Stores nothing. |
 | **Migrations Job** | `deploy/helm/medapp/templates/migrations-job.yaml` | Runs the EF Core migrations bundle from the API's image, then creates the first admin if there are no accounts. |
 
@@ -386,14 +386,14 @@ Dependencies point inward: the API and Infrastructure depend on Application, whi
 |---|---|---|
 | `MedApp.Domain` | Entities and enums. No dependencies at all. | nothing |
 | `MedApp.Contracts` | Request and response DTOs (data transfer objects): the API's public shapes. | Microsoft.Extensions.Identity.Core, only for `IdentityError` in `ResetUserPasswordResponse` (see [11.4](#114-code-and-architecture-debt)) |
-| `MedApp.Application` | One folder per use case: command or query, handler, validator. Repository and service **interfaces**, the mappers, paging, the procedure workflow, and the app's exceptions. | Domain, Contracts, MediatR, FluentValidation, Identity's core types |
+| `MedApp.Application` | One folder per use case: command or query, handler, validator. Repository and service **interfaces**, the mappers, paging, the pathway workflow, and the app's exceptions. | Domain, Contracts, MediatR, FluentValidation, Identity's core types |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repository implementations, Identity services, sessions, the first-admin command, migrations. | Application, Domain, EF Core, ASP.NET Core Identity |
 | `MedApp.API` | Thin controllers, the session authentication handler, the exception middleware, the notifications hub and publisher, server rendering. The composition root (`Program.cs`). | all of the above, ServiceDefaults |
 | `MedApp.ServiceDefaults` | Aspire's shared defaults: OpenTelemetry, health checks (`/health`, `/alive`), HTTP client resilience and service discovery. | OpenTelemetry, Microsoft.Extensions.Http.Resilience |
 | `MedApp.AppHost` | Development orchestration with .NET Aspire. Not deployed. | the API |
 | `MedApp.UnitTests` | NUnit tests for Application, Infrastructure and the API. | everything |
-| `MedApp.IntegrationTests` | The real API in memory (`WebApplicationFactory`, as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in, sessions, authorisation, the forced password change, users, patients, procedures, notifications and the hub, errors, and the migrations. | the API |
-| `MedApp.E2ETests` | Playwright for .NET journeys through the React app: sign-in, patients, a procedure's stages, My Tasks, a new user's first sign-in, and the notification bell. | the API |
+| `MedApp.IntegrationTests` | The real API in memory (`WebApplicationFactory`, as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in, sessions, authorisation, the forced password change, users, patients, pathways, notifications and the hub, errors, and the migrations. | the API |
+| `MedApp.E2ETests` | Playwright for .NET journeys through the React app: sign-in, patients, a pathway's stages, My Worklist, a new user's first sign-in, and the notification bell. | the API |
 | `MedApp.Client.Deprecated` | The original Blazor WebAssembly UI. Kept compiling, never run. | Contracts |
 | `tools/MedApp.DevMcp` | The `medapp-dev` MCP server for local chores. Not in `MedApp.sln`, so CI's `unit-tests` job builds it on its own. | Application, Infrastructure |
 
@@ -421,31 +421,31 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 | 10 | `/api` catch-all | Any other `/api` path is a 404, never the app's HTML. |
 | 11 | Page fallback | Every other path that isn't a file goes to `SsrPages.Handle`: server-rendered, or `index.html` ([6.2](#62-a-server-rendered-page-request)). |
 
-**Controllers are thin.** Each action maps the request to a command or query, adds the signed-in user where needed (`User.ToProcedureActor()`), calls `mediator.Send(...)` and returns the result.
+**Controllers are thin.** Each action maps the request to a command or query, adds the signed-in user where needed (`User.ToPathwayActor()`), calls `mediator.Send(...)` and returns the result.
 
 ### 5.4 The Application layer
 
-**Feature slices.** Each use case has its own folder, for example `MedApp.Application/Procedures/PatientProcedures/Commands/FinishProcedureStage/`, holding:
-- `FinishProcedureStageCommand.cs`: a sealed record implementing `IRequest<TResponse>`;
-- `FinishProcedureStageHandler.cs`: a sealed class with its dependencies in its primary constructor;
-- `FinishProcedureStageValidator.cs`, when the input needs checking.
+**Feature slices.** Each use case has its own folder, for example `MedApp.Application/Pathways/PatientPathways/Commands/FinishPathwayStage/`, holding:
+- `FinishPathwayStageCommand.cs`: a sealed record implementing `IRequest<TResponse>`;
+- `FinishPathwayStageHandler.cs`: a sealed class with its dependencies in its primary constructor;
+- `FinishPathwayStageValidator.cs`, when the input needs checking.
 
-There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit, the patient timeline) and Notifications. Staff calendars add two more areas: Calendar (calendars, blocks, activity types, day and week templates) and Appointments.
+There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Pathways (pathways, stage definitions, templates, audit, the patient timeline) and Notifications. Staff calendars add two more areas: Calendar (calendars, blocks, activity types, day and week templates) and Appointments.
 
 **The pipeline.** `AddApplication()` (`MedApp.Application/Common/Extensions/ServiceExtensions.cs`) registers MediatR by assembly scanning, with one open behaviour, `ValidationBehaviour<,>`, which runs the command's validators before its handler and throws FluentValidation's `ValidationException` on failure. It also registers every validator, `TimeProvider.System` (so handlers and validators that need "now" can be tested at a fixed time), and the `NotificationSender`.
 
 **Errors.** Handlers throw `NotFoundException` (404), `ConflictException` (409), `InvalidCredentialsException` (401) and `AccountLockedOutException` (423). The older Patients and Auth slices return `null`, `bool` or `IdentityResult` and leave the status code to the controller; `AGENTS.md` says to keep that style there unless migrating them.
 
-**Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
+**Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `PathwayMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
 
 **Paging.** The search endpoints (four, plus `GET api/appointments/search`) filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`). A patient's timeline is the exception: a feed paged by cursor (keyset), newest first by time then ID, so entries added meanwhile don't shift its pages (`PatientTimelineSearch`).
 
-**Procedures.** All workflow rules are in `MedApp.Application/Procedures/Common`:
-- `ProcedureWorkflow`: statuses, which stage is current, what can be edited, what status changes are allowed, overdue.
-- `ProcedureChange`: applies one request's changes, moves the status automatically, stamps `LastUpdated` and collects the audit entries.
-- `DueDates`: due dates as the end of a UK day, stored in UTC.
-- `ProcedureAudit`, `ProcedureMapper`, `ProcedureActor` (the signed-in user, from the claims).
-- For stage visits: `ProcedureWorkflow.WhyStageNeedsVisit` (a stage whose visit is required needs an Attended appointment before it's finished), and `ProcedureChange.RequestVisit` and `CancelRequestedVisit`, which collect the appointments and their history to save with the procedure change.
+**Pathways.** All workflow rules are in `MedApp.Application/Pathways/Common`:
+- `PathwayWorkflow`: statuses, which stage is current, what can be edited, what status changes are allowed, overdue.
+- `PathwayChange`: applies one request's changes, moves the status automatically, stamps `LastUpdated` and collects the audit entries.
+- `DueDates`: target dates as the end of a UK day, stored in UTC.
+- `PathwayAudit`, `PathwayMapper`, `PathwayActor` (the signed-in user, from the claims).
+- For stage visits: `PathwayWorkflow.WhyStageNeedsVisit` (a stage whose visit is required needs an Attended appointment before it's finished), and `PathwayChange.RequestVisit` and `CancelRequestedVisit`, which collect the appointments and their history to save with the pathway change.
 
 **Calendars and appointments** (`docs/calendar-plan.md`, section 3). The calendar rules are in `MedApp.Application/Calendar/Common`:
 - `WorkingHours`: the working day (08:00 to 18:00 UK time, Monday to Friday), the slot length, and `WhyOutside(startUtc, endUtc)` for the validators.
@@ -459,15 +459,15 @@ The appointment rules are in `MedApp.Application/Appointments/Common`: `Appointm
 
 **Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender checks the person's choices for the kinds they can turn off (`NotificationPreferences`), stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
 
-**Monitoring.** Every procedure command also calls `IProcedureMonitor.NotifyAsync(change)` after saving. `ProcedureMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query when the change has something to watch, none otherwise), matches them, leaves out the admin who made the change (and, for an assignment, the person assigned), skips without deleting the rules of an owner who is no longer an admin (one more query, only when a rule matched), and sends each remaining admin one notification (one insert and one push each). It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
+**Monitoring.** Every pathway command also calls `IPathwayMonitor.NotifyAsync(change)` after saving. `PathwayMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query when the change has something to watch, none otherwise), matches them, leaves out the admin who made the change (and, for an assignment, the person assigned), skips without deleting the rules of an owner who is no longer an admin (one more query, only when a rule matched), and sends each remaining admin one notification (one insert and one push each). It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
 
 ### 5.5 The Infrastructure layer
 
 **Database access.** `MedAppDbContext` (`MedApp.Infrastructure/Data/MedAppDbContext.cs`) extends Identity's `IdentityDbContext` with Guid keys, and picks up every `IEntityTypeConfiguration` in the assembly. The SQL Server provider retries transient failures (five times, up to 30 s between tries), mainly for Azure SQL serverless waking from a pause (`MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs:40-46`, #52).
 
-**Repositories.** Six, registered in `AddRepositories()`: patients, procedures, stage definitions and templates, audit, user settings, notifications. Each method calls `SaveChangesAsync` itself; there's no unit of work. Reads use `AsNoTracking()`.
+**Repositories.** Six, registered in `AddRepositories()`: patients, pathways, stage definitions and templates, audit, user settings, notifications. Each method calls `SaveChangesAsync` itself; there's no unit of work. Reads use `AsNoTracking()`.
 
-The procedure repository is the exception, by design: handlers load a **tracked** procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(change)` saves the change, its audit entries, and any appointments it requested or cancelled with their history, in **one** `SaveChangesAsync`, so one database transaction. That way EF works out which stages and assignments changed, and no change can be saved without its audit entries.
+The pathway repository is the exception, by design: handlers load a **tracked** pathway with `GetForUpdateAsync`, change it through `PathwayChange`, and `SaveAsync(change)` saves the change, its audit entries, and any appointments it requested or cancelled with their history, in **one** `SaveChangesAsync`, so one database transaction. That way EF works out which stages and assignments changed, and no change can be saved without its audit entries.
 
 **Identity.** ASP.NET Core Identity (`AddIdentityCore<ApplicationUser>().AddRoles<IdentityRole<Guid>>()`), with password and lockout rules from the `Identity` section of `appsettings.json`: at least 8 characters with a digit, a lower-case and an upper-case letter; 5 failed attempts lock the account for 5 minutes. Behind Application's interfaces:
 - `IdentityAuthenticationService`: checks a password, counts failures, honours lockout (#38).
@@ -484,20 +484,20 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 
 ```mermaid
 erDiagram
-    PATIENT ||--o{ PROCEDURE : "has"
-    PROCEDURE ||--|{ PROCEDURE_STAGE : "has, in order"
-    PROCEDURE ||--o{ ASSIGNMENT : "is assigned through"
-    STAGE_DEFINITION ||--o{ PROCEDURE_STAGE : "is copied into"
+    PATIENT ||--o{ PATHWAY : "has"
+    PATHWAY ||--|{ PATHWAY_STAGE : "has, in order"
+    PATHWAY ||--o{ ASSIGNMENT : "is assigned through"
+    STAGE_DEFINITION ||--o{ PATHWAY_STAGE : "is copied into"
     TEMPLATE ||--|{ TEMPLATE_MAP : "lists, in order"
     STAGE_DEFINITION ||--o{ TEMPLATE_MAP : "is used by"
-    TEMPLATE |o..o{ PROCEDURE : "is the origin of, by ID and name"
-    PROCEDURE |o..o{ AUDIT_ENTRY : "is recorded by, no foreign key"
+    TEMPLATE |o..o{ PATHWAY : "is the origin of, by ID and name"
+    PATHWAY |o..o{ AUDIT_ENTRY : "is recorded by, no foreign key"
     USER ||..o{ SESSION : "signs in with, no foreign key"
     USER ||..o| USER_SETTINGS : "keeps, no foreign key"
     USER ||..o{ NOTIFICATION : "receives, no foreign key"
     PATIENT ||--o{ APPOINTMENT : "has"
-    PROCEDURE |o--o{ APPOINTMENT : "may have, detached when deleted"
-    PROCEDURE_STAGE |o--o{ APPOINTMENT : "may need, as a visit"
+    PATHWAY |o--o{ APPOINTMENT : "may have, detached when deleted"
+    PATHWAY_STAGE |o--o{ APPOINTMENT : "may need, as a visit"
     APPOINTMENT |o..o{ APPOINTMENT_EVENT : "is recorded by, no foreign key"
     USER |o..o{ APPOINTMENT : "is booked with once Booked, no foreign key"
     USER ||..o{ CALENDAR_BLOCK : "blocks time with, no foreign key"
@@ -512,18 +512,18 @@ erDiagram
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `Patient` | first and last name, date of birth (`DateOnly`), email, NHS number (optional, 10 digits) | Can't be deleted while it has procedures (409). The NHS number is unique when present (a filtered unique index; branch `feature/nhs-integrations`). |
-| `PatientProcedure` | title, notes (Markdown), `DueDateUtc`, priority, status, `BlockedFromStatus`, `TemplateId` and `TemplateName` | Created only from a template. Keeps the template's name, in case the template changes. |
-| `PatientProcedureStage` | order, a **snapshot** of the definition's name, description, instructions and SNOMED CT code and term; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
-| `PatientProcedureAssignment` | user, assigned by, assigned at | Drives task lists and notifications, not permissions. |
-| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), optional SNOMED CT code and display term, `VisitRequirement` (none, suggested or required), `IsArchived` | Archived, not deleted, once in use. The code's format is checked, never whether the concept exists. The stage copies `VisitRequirement` too. |
-| `PatientProcedureStageTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
-| `PatientProcedureAuditEntry` | procedure ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
-| `Notification` | user, kind, title, message, procedure ID, appointment ID, created, read at | No foreign keys, like the audit log. |
+| `Patient` | first and last name, date of birth (`DateOnly`), email, NHS number (optional, 10 digits) | Can't be deleted while it has pathways (409). The NHS number is unique when present (a filtered unique index; branch `feature/nhs-integrations`). |
+| `PatientPathway` | title, notes (Markdown), `DueDateUtc`, priority, status, `BlockedFromStatus`, `TemplateId` and `TemplateName` | Created only from a template. Keeps the template's name, in case the template changes. |
+| `PatientPathwayStage` | order, a **snapshot** of the definition's name, description, instructions and SNOMED CT code and term; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished pathway. |
+| `PatientPathwayAssignment` | user, assigned by, assigned at | Drives task lists and notifications, not permissions. |
+| `PatientPathwayStageDefinition` | name, description, instructions (Markdown), optional SNOMED CT code and display term, `VisitRequirement` (none, suggested or required), `IsArchived` | Archived, not deleted, once in use. The code's format is checked, never whether the concept exists. The stage copies `VisitRequirement` too. |
+| `PathwayTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
+| `PatientPathwayAuditEntry` | pathway ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
+| `Notification` | user, kind, title, message, pathway ID, appointment ID, created, read at | No foreign keys, like the audit log. |
 | `NotificationPreferences` | user, whether to be told of being assigned | One row per person who has chosen; none means everything. |
 | `MonitoringRule` | owner (an admin), person watched (or anyone), event, minimum priority, template, stage definition, on or off | No foreign keys: one naming something deleted matches nothing. |
-| `Appointment` | patient; procedure and stage (optional); member of staff, start and end (UTC; none while Requested); status; notes (2,000 characters); cancellation reason (500); `IsAutomatic`; who requested, booked and recorded the outcome, and when | Foreign keys to the patient, procedure and stage that don't cascade; none to the member of staff. One open (Requested or Booked) appointment per stage. |
-| `AppointmentEvent` | appointment, patient and procedure IDs, procedure title, stage name, action, user ID and username, `AtUtc`, member of staff and time, details (JSON: old and new times and staff, old and new notes, the cancellation reason) | The appointment's history. No foreign keys, like the audit log. |
+| `Appointment` | patient; pathway and stage (optional); member of staff, start and end (UTC; none while Requested); status; notes (2,000 characters); cancellation reason (500); `IsAutomatic`; who requested, booked and recorded the outcome, and when | Foreign keys to the patient, pathway and stage that don't cascade; none to the member of staff. One open (Requested or Booked) appointment per stage. |
+| `AppointmentEvent` | appointment, patient and pathway IDs, pathway title, stage name, action, user ID and username, `AtUtc`, member of staff and time, details (JSON: old and new times and staff, old and new notes, the cancellation reason) | The appointment's history. No foreign keys, like the audit log. |
 | `CalendarBlock` | member of staff, activity type, start and end (UTC), note (200 characters), created by and at | Time blocked off on a calendar. No foreign key to the member of staff. |
 | `CalendarActivityType` | name, colour (from a fixed palette), `IsArchived` | Seeded with six; archived, not deleted, once in use. |
 | `DayTemplate` and `DayTemplateBlock` | name, `IsArchived`; blocks of activity type, UK start and end time (`TimeOnly`), note, `ValidFrom` and `ValidTo` | The dates keep history: an edit closes changed rows and adds new ones from today (`TemplateHistory`). |
@@ -534,9 +534,9 @@ erDiagram
 | `UserSettings` | user, one JSON document, updated at | The account's settings, as the React app stores them. |
 | `ApplicationUser` | Identity's user (in Infrastructure) | Roles `Admin` and `User`. |
 
-**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction`, `NotificationKind`, `MonitoringEvent`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind`'s 1 to 3 are the appointment kinds, with 4 to 9 kept for the calendar; the monitoring kinds are 10 to 17.
+**Stored enums.** `PatientPathwayStatus`, `PatientPathwayAuditAction`, `NotificationKind`, `MonitoringEvent`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientPathwayStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind`'s 1 to 3 are the appointment kinds, with 4 to 9 kept for the calendar; the monitoring kinds are 10 to 17.
 
-**The status workflow** (`ProcedureWorkflow`, `docs/procedures-ui-plan.md` section 4):
+**The status workflow** (`PathwayWorkflow`, `docs/pathways-ui-plan.md` section 4):
 
 ```mermaid
 stateDiagram-v2
@@ -559,13 +559,13 @@ stateDiagram-v2
 ```
 
 - **Open** statuses are `Unassigned`, `Assigned`, `InProgress` and `InReview`. Any of them can be blocked or cancelled (the diagram shows only `InProgress`, for clarity). Unblocking returns to the status it was blocked from.
-- **Stages can be worked only while the procedure is open**, and only the current stage (the first unfinished one). Finishing a stage locks it. An admin can unlock a finished stage while the procedure is open or `Completed`; that reopens just that stage, and moves an `InReview` or `Completed` procedure back to `InProgress`.
-- **Overdue** means open and past the due date. A blocked procedure is never overdue.
-- **Every response lists the status changes allowed from where the procedure is** (`allowedStatusChanges`), so the UI never has to repeat the rules.
+- **Stages can be worked only while the pathway is open**, and only the current stage (the first unfinished one). Finishing a stage locks it. An admin can unlock a finished stage while the pathway is open or `Completed`; that reopens just that stage, and moves an `InReview` or `Completed` pathway back to `InProgress`.
+- **Overdue** means open and past the target date. A blocked pathway is never overdue.
+- **Every response lists the status changes allowed from where the pathway is** (`allowedStatusChanges`), so the UI never has to repeat the rules.
 
 **Audit actions:** created, details updated, status changed, assigned, unassigned, stage started, stage notes updated (old and new text), stage finished (with `withoutVisit`, the visit requirement and an admin's reason, when finished without a visit), stage unlocked, deleted.
 
-**Due dates** are whole days. A procedure is due by the end of its day in UK time, stored as that moment in UTC (`DueDates.EndOfDayUtc`), so the day survives the clocks changing. The API takes and returns a date.
+**Target dates** are whole days. A pathway is due by the end of its day in UK time, stored as that moment in UTC (`DueDates.EndOfDayUtc`), so the day survives the clocks changing. The API takes and returns a date.
 
 **Appointments** (`AppointmentWorkflow`, `docs/calendar-plan.md` section 1):
 
@@ -584,8 +584,8 @@ stateDiagram-v2
 ```
 
 - **Calendars hold no overlaps:** a Booked, Attended or Did not attend appointment, or a block (stored or from a template), can't overlap another on the same person's calendar (409).
-- **Stage visits:** when a stage whose definition involves a visit becomes current, `ProcedureChange` adds a Requested appointment for it, unless it already has one that's Requested, Booked or Attended. A **required** visit must be Attended before the stage is finished, unless an admin finishes it with a reason; a **suggested** one only asks for confirmation in the UI. Finishing the stage cancels its Requested appointments, and cancelling the procedure cancels all its Requested ones; Booked ones are never cancelled by the app.
-- **Deleting:** a patient with appointments can't be deleted. Deleting a procedure detaches its appointments. An account with upcoming Booked appointments can't be deleted, nor lose every role.
+- **Stage visits:** when a stage whose definition involves a visit becomes current, `PathwayChange` adds a Requested appointment for it, unless it already has one that's Requested, Booked or Attended. A **required** visit must be Attended before the stage is finished, unless an admin finishes it with a reason; a **suggested** one only asks for confirmation in the UI. Finishing the stage cancels its Requested appointments, and cancelling the pathway cancels all its Requested ones; Booked ones are never cancelled by the app.
+- **Deleting:** a patient with appointments can't be deleted. Deleting a pathway detaches its appointments. An account with upcoming Booked appointments can't be deleted, nor lose every role.
 - **Concurrent changes to one appointment:** an appointment has a row version, so the later of two overlapping saves is a 409; booking says whether it expects a Requested or a Booked appointment (`expectedStatus`); and a filtered unique index keeps a stage to one open appointment (`docs/calendar-plan.md`, decisions 46 and 47).
 
 ### 5.7 The API surface
@@ -600,13 +600,13 @@ stateDiagram-v2
 | Own password | `PUT api/auth/users/{username}/update-password` | Staff, and only for your own username (`SelfUserOnly`) |
 | Own settings | `GET`/`PUT api/auth/me/settings` | Staff |
 | Patients | `POST`, `GET {id}`, `GET search`, `GET` (all), `PATCH {id}`, `DELETE {id}` under `api/patients` | Staff |
-| Procedures | `POST`, `GET {id}`, `GET search`, `PATCH {id}`, `POST {id}/status`, and stage `start`, `notes`, `finish` under `api/procedures/patient-procedures`. `finish` takes an optional `{ withoutVisit, reason }`, which only an admin may use to finish a stage whose visit is required | Staff |
-| Procedure administration | `DELETE {id}`; `POST`/`DELETE {id}/assignments/{userId}`; `POST {id}/stages/{stageId}/unlock` | Admin |
-| Stage definitions and templates | reads under `api/procedures/patient-procedure-stage/definitions` and `/templates` | Staff |
+| Pathways | `POST`, `GET {id}`, `GET search`, `PATCH {id}`, `POST {id}/status`, and stage `start`, `notes`, `finish` under `api/pathways/patient-pathways`. `finish` takes an optional `{ withoutVisit, reason }`, which only an admin may use to finish a stage whose visit is required | Staff |
+| Pathway administration | `DELETE {id}`; `POST`/`DELETE {id}/assignments/{userId}`; `POST {id}/stages/{stageId}/unlock` | Admin |
+| Stage definitions and templates | reads under `api/pathways/patient-pathway-stage/definitions` and `/templates` | Staff |
 | | create, update, archive, restore, delete | Admin |
-| Audit log | `GET api/procedures/audit/search` | Admin |
-| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor; procedure changes and appointment history), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures, and the free text of the log and of appointments) |
-| Insights | `GET api/procedures/insights` | Admin |
+| Audit log | `GET api/pathways/audit/search` | Admin |
+| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor; pathway changes and appointment history), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted pathways, and the free text of the log and of appointments) |
+| Insights | `GET api/pathways/insights` | Admin |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read`; `GET` and `PUT api/notifications/preferences` | Staff |
 | Monitoring rules | `GET`, `POST api/monitoring/rules`; `PUT`, `DELETE api/monitoring/rules/{id}`; `PUT api/monitoring/rules/{id}/enabled` (your own only) | Admin |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
@@ -616,7 +616,7 @@ stateDiagram-v2
 | A calendar's own setup | `POST api/calendar/blocks`, `PUT`/`DELETE blocks/{id}`; `PUT`/`DELETE staff/{userId}/days/{date}/template-blocks/{templateBlockId}` (one day's template block); `PUT`/`DELETE staff/{userId}/days/{date}/day-template` (a day template for one day, or back to the week's); `PUT staff/{userId}/week-template` (the default week; `GET` for staff) | The calendar's owner, or an admin |
 | Calendar setup | `api/calendar/activity-types`, `day-templates`, `week-templates`: list (`includeArchived`), get | Staff |
 | | add, edit, archive, restore, delete | Admin |
-| Appointments | `POST api/appointments` (request, or book); `GET {id}`, `GET search` (by patient, procedure, stage, staff, statuses, from and to); `POST {id}/book` (book or reschedule, saying which with `expectedStatus`); `POST {id}/outcome`; `POST {id}/cancel` (with a reason); `PUT {id}/notes` | Staff |
+| Appointments | `POST api/appointments` (request, or book); `GET {id}`, `GET search` (by patient, pathway, stage, staff, statuses, from and to); `POST {id}/book` (book or reschedule, saying which with `expectedStatus`); `POST {id}/outcome`; `POST {id}/cancel` (with a reason); `PUT {id}/notes` | Staff |
 
 `GET api/patients` and `GET api/auth/users` return every row. Only the deprecated Blazor client uses them, and the UI parity tool's sign-in step uses `GET api/patients`; the React app uses the search endpoints. Swagger is served only in Development.
 
@@ -629,8 +629,8 @@ stateDiagram-v2
 | `api/` | The typed `openapi-fetch` client, the generated `schema.d.ts`, the 400-to-field-error mapper, query functions per area, `preload` for route loaders |
 | `app/` | `App`, providers, the query client, the settings store and its providers (colour mode, colours, text size, navigation, lists, accessibility, favourites), `SettingsSync`, `LiveNotifications`, announcements |
 | `auth/` | The `whoami` query, sign-in and sign-out, `requireAdmin` |
-| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`, `PatientTimeline`), `shared/` (`AppIcon`, `RichText`) |
-| `pages/` | One folder per page: accessibility, account, audit, home, login, patients, procedures, setup (stage definitions and templates), tasks, users; and, with staff calendars, the Calendar, Requires Appointment, Calendar templates and Activity types pages |
+| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `pathways/` (`PathwayCells`, `StageList`, `StageWork`, `StatusChangeDialog`, `PatientTimeline`), `shared/` (`AppIcon`, `RichText`) |
+| `pages/` | One folder per page: accessibility, account, audit, home, login, patients, pathways, setup (stage definitions and templates), tasks, users; and, with staff calendars, the Calendar, Requires Appointment, Calendar templates and Activity types pages |
 | `routes/` | Thin TanStack Router file routes that point at pages; `routeTree.gen.ts` is generated from them |
 | `ssr/` | `document.tsx` (the whole HTML document when rendering on the server), `requestContext.ts` (the per-request API address, cookie and key) |
 | `themes/medapp/` | The `medapp` theme (Astryx's stone theme with MedApp's blues), built ahead of time and checked in |
@@ -640,25 +640,25 @@ stateDiagram-v2
 | Route | Page | Who |
 |---|---|---|
 | `/change-password` | Choose your own password, after a generated one | Signed in, with a password to change |
-| `/` | Welcome, with your **day calendar**: today, with Previous and Next day, your appointments and blocks; an appointment opens its procedure, or the patient when it has none | Staff |
-| `/tasks` | My Tasks: Not started and Started | Staff |
+| `/` | Welcome, with your **day calendar**: today, with Previous and Next day, your appointments and blocks; an appointment opens its pathway, or the patient when it has none | Staff |
+| `/tasks` | My Worklist: Not started and Started | Staff |
 | `/calendar` | **Calendar:** day and week views, your own by default, with a staff picker for anyone's. Click or drag across empty slots (or use the keyboard) to book an appointment or block time; click an appointment or block to see and change it, or drag it to move it. The toolbar has Previous, Today, Next, a date picker, Day or Week, whose calendar and **My default week**; beside New, **Apply Template** puts a day template (or none, or the week's) on days of the week shown. **Rows** shows 15 or 5 minute rows (the last choice is remembered). In a narrow window or a half view it opens on a day; a week is shown compact whenever its card is too narrow for the full one | Staff |
-| `/calendar/requires-appointment` | **Requires Appointment:** Requested appointments, soonest procedure due date first, each with Book. Not in the side nav: reached from the Calendar page's **Requires Appointment (N)** link, which shows how many are waiting | Staff |
-| `/patients`, `/patients/add`, `/patients/$id`, `/patients/$id/edit`, `/patients/$id/procedures` | Patients | Staff |
-| `/procedures`, `/procedures/new`, `/procedures/$id`, `/procedures/$id/edit` | Procedures | Staff |
+| `/calendar/requires-appointment` | **Requires Appointment:** Requested appointments, soonest pathway target date first, each with Book. Not in the side nav: reached from the Calendar page's **Requires Appointment (N)** link, which shows how many are waiting | Staff |
+| `/patients`, `/patients/add`, `/patients/$id`, `/patients/$id/edit`, `/patients/$id/pathways` | Patients | Staff |
+| `/pathways`, `/pathways/new`, `/pathways/$id`, `/pathways/$id/edit` | Pathways | Staff |
 | `/account`, `/account/colours`, `/account/password` | Account settings | Staff |
 | `/accessibility` | Accessibility statement | Anyone signed in |
-| `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit`, `/admin/insights` | Administration | Admin |
+| `/admin/users`, `/admin/stages`, `/admin/pathway-templates` (and `new`, `$id`), `/admin/audit`, `/admin/insights` | Administration | Admin |
 | `/calendar/templates` (and `day/...`, `week/...`; `?staff=` for someone else's) | **Calendar templates:** your own day and week templates (add, edit, archive, restore, delete when unused) and your default week; an admin can open anyone's. `/admin/calendar-templates` redirects here | Staff (their own); Admin (anyone's) |
 | `/admin/activity-types` | **Activity types:** add, edit, archive, restore, delete when unused | Admin |
 
-**Booking** is one dialog (`BookAppointmentDialog`), opened from the patient page, the procedure page, a stage that needs a visit ("Book visit"), Requires Appointment, an empty calendar slot, or an appointment (to reschedule). It asks for the patient (and procedure and stage) unless they're known, and once one is chosen shows their name, date of birth and NHS number, as the patient banner does; then the member of staff, the length (15 to 120 minutes; 30 by default), the day (the week's working days, with how many slots are free) and a free slot, with optional notes. Without a time, it can add the appointment to Requires Appointment instead. The procedure page lists a procedure's Booked appointments, so someone can tell the patient if the procedure is cancelled.
+**Booking** is one dialog (`BookAppointmentDialog`), opened from the patient page, the pathway page, a stage that needs a visit ("Book visit"), Requires Appointment, an empty calendar slot, or an appointment (to reschedule). It asks for the patient (and pathway and stage) unless they're known, and once one is chosen shows their name, date of birth and NHS number, as the patient banner does; then the member of staff, the length (15 to 120 minutes; 30 by default), the day (the week's working days, with how many slots are free) and a free slot, with optional notes. Without a time, it can add the appointment to Requires Appointment instead. The pathway page lists a pathway's Booked appointments, so someone can tell the patient if the pathway is cancelled.
 
 **Data.** TanStack Query holds server state. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Every call goes through `api` and `unwrap` (`src/api/client.ts`). A 400 becomes an `ApiValidationError`, and `fieldStatus(errors, field)` puts each message on its field. The server's FluentValidation rules are the only rules; the client doesn't repeat them.
 
 **Lists** keep their page, sort and filters in the URL (`validateSearch`, `src/pages/listSearch.ts`), so a search is a shareable link. Each has a `ListFilterBar` (Astryx's PowerSearch, a token per filter) and a `ListFavourites` star for quick filters and saved searches. `DataTable` fills the window, and turns its rows into cards when the columns don't fit.
 
-**Settings** are declared with `defineSetting` and read with `useAppSetting` (`src/app/settingsStore.ts`). They're kept in the browser and with the account: `SettingsSync` loads them on sign-in and saves changes through `PUT api/auth/me/settings`. The keys cover colour mode, colours, text size, navigation behaviour, rows per page, where procedure lists start, favourites, and accessibility.
+**Settings** are declared with `defineSetting` and read with `useAppSetting` (`src/app/settingsStore.ts`). They're kept in the browser and with the account: `SettingsSync` loads them on sign-in and saves changes through `PUT api/auth/me/settings`. The keys cover colour mode, colours, text size, navigation behaviour, rows per page, where pathway lists start, favourites, and accessibility.
 
 **Accessibility** ([8.6](#86-accessibility)) is built in: `Page` sets the tab title and announces the page; `useAnnounce()` announces other changes; statuses and priorities use tokens that can show icons; keyboard shortcuts are off by default; eleven switches change the CSS through `AccessibilityProvider`.
 
@@ -670,7 +670,7 @@ stateDiagram-v2
 - The server renders with the account's saved settings (`ServerSettingsContext`), so light or dark mode and text size are right from the first paint.
 - Rendering must work without a browser: no `window`, `document`, `localStorage` or `matchMedia` during render (`MedApp.Web/AGENTS.md`).
 
-**Live notifications.** `LiveNotifications` (`src/app/LiveNotifications.tsx`), mounted in `AppLayout`, opens one SignalR connection while signed in: WebSocket only, without negotiating first. On a notification it refreshes the bell and procedure lists, and announces it to screen readers if that's switched on.
+**Live notifications.** `LiveNotifications` (`src/app/LiveNotifications.tsx`), mounted in `AppLayout`, opens one SignalR connection while signed in: WebSocket only, without negotiating first. On a notification it refreshes the bell and pathway lists, and announces it to screen readers if that's switched on.
 
 ### 5.9 The Node page server
 
@@ -771,26 +771,26 @@ sequenceDiagram
 5. **The fallback.** If Node isn't running, answers with a 5xx, or fails in any way before anything has been sent (a connection error, or no response headers within `Ssr:RenderTimeout`, 15 s), the browser gets `index.html` and renders the page itself. The fallback keeps the headers the pipeline had already set, such as HSTS, and drops only Node's. A render is never retried: the `ssr` HTTP client has no resilience handler (#51). If a page fails after it has started streaming, the connection is cut short, since it can't be replaced by another page then. Nothing times out a page that's still streaming: one that stalls part-way holds the request until the browser gives up.
 6. **In the browser.** `entry-client.tsx` hydrates the server's HTML, starting from the data the server put in the page, or renders from scratch on `index.html`. After hydration, the app navigates on the client, and loaders only start fetches.
 
-### 6.3 Creating and working a procedure, with the audit trail
+### 6.3 Creating and working a pathway, with the audit trail
 
-Each step is one API call. Each handler loads a tracked procedure, checks the rules in `ProcedureWorkflow`, applies the change through `ProcedureChange`, and saves the change and its audit entries in one `SaveChangesAsync`, so in one transaction.
+Each step is one API call. Each handler loads a tracked pathway, checks the rules in `PathwayWorkflow`, applies the change through `PathwayChange`, and saves the change and its audit entries in one `SaveChangesAsync`, so in one transaction.
 
 | # | Who | Action | API call | What changes | Audit entries |
 |---|---|---|---|---|---|
-| 1 | Staff | New procedure from a patient's procedures list: pick an active template; the title defaults to its name | `POST api/procedures/patient-procedures` | A procedure, `Unassigned`, with a copy of each template stage (name, description, instructions) and the template's ID and name | `Created` (with the template) |
+| 1 | Staff | New pathway from a patient's pathways list: pick an active template; the title defaults to its name | `POST api/pathways/patient-pathways` | A pathway, `Unassigned`, with a copy of each template stage (name, description, instructions) and the template's ID and name | `Created` (with the template) |
 | 2 | Admin | Assign a member of staff | `POST …/{id}/assignments/{userId}` | An assignment; status `Unassigned` to `Assigned`. A notification for the assignee ([6.4](#64-a-live-notification-across-two-api-copies)), unless they assigned themselves | `Assigned`, `StatusChanged` (automatic) |
-| 3 | Staff | Open the procedure. If it isn't assigned to them, their first change asks "This procedure is not assigned to you, are you sure…" (a UI check, once per visit, not a permission) | `GET …/{id}` | Nothing | None |
+| 3 | Staff | Open the pathway. If it isn't assigned to them, their first change asks "This pathway is not assigned to you, are you sure…" (a UI check, once per visit, not a permission) | `GET …/{id}` | Nothing | None |
 | 4 | Staff | Start the current stage | `POST …/{id}/stages/{stageId}/start` | Started at and by; status to `InProgress` | `StageStarted`, `StatusChanged` (automatic) |
 | 5 | Staff | Save the stage's notes (rich text, stored as Markdown); starts the stage if needed | `PUT …/{id}/stages/{stageId}/notes` | The notes | `StageNotesUpdated`, with the old and new text |
 | 6 | Staff | Finish the stage. If its visit is required, it needs an Attended appointment first, or an admin finishing it with a reason; if suggested, the UI asks for confirmation | `POST …/{id}/stages/{stageId}/finish` | Finished at and by; locked. After the last stage, status to `InReview`. Its Requested appointments are cancelled, and if the next stage involves a visit, a Requested appointment is added for it | `StageFinished` (with `withoutVisit` when finished without a visit), then `StatusChanged` (automatic) after the last; the appointments' own history entries |
 | 7 | Staff | Mark it complete | `POST …/{id}/status` | `Completed`, only from `InReview` with every stage finished and locked | `StatusChanged` |
-| 8 | Admin | Unlock a finished stage to correct it | `POST …/{id}/stages/{stageId}/unlock` | Unlocked (still finished); an `InReview` or `Completed` procedure goes back to `InProgress`. Finishing it again re-locks it | `StageUnlocked`, `StatusChanged` (automatic) |
+| 8 | Admin | Unlock a finished stage to correct it | `POST …/{id}/stages/{stageId}/unlock` | Unlocked (still finished); an `InReview` or `Completed` pathway goes back to `InProgress`. Finishing it again re-locks it | `StageUnlocked`, `StatusChanged` (automatic) |
 | 9 | Staff | Archive it | `POST …/{id}/status` | `Archived` | `StatusChanged` |
-| 10 | Admin | Delete it (only `Cancelled` or `Archived`) | `DELETE …/{id}` | The procedure and its stages and assignments | `Deleted`, which outlives the procedure |
+| 10 | Admin | Delete it (only `Cancelled` or `Archived`) | `DELETE …/{id}` | The pathway and its stages and assignments | `Deleted`, which outlives the pathway |
 
-Blocking and cancelling (each with a reason) work the same way as step 7; cancelling also cancels the procedure's Requested appointments, but not its Booked ones. Creating a procedure whose first stage involves a visit adds a Requested appointment for it in step 1. Details (title, notes, due date, priority) are edited with `PATCH …/{id}`, which writes `DetailsUpdated` with the fields' old and new values.
+Blocking and cancelling (each with a reason) work the same way as step 7; cancelling also cancels the pathway's Requested appointments, but not its Booked ones. Creating a pathway whose first stage involves a visit adds a Requested appointment for it in step 1. Details (title, notes, target date, priority) are edited with `PATCH …/{id}`, which writes `DetailsUpdated` with the fields' old and new values.
 
-**Reading the trail.** Admins search the whole log at `/admin/audit` (`GET api/procedures/audit/search`), by procedure, stage, user, action and date range, newest first. A procedure page links to its own log. Each entry keeps the username and the procedure's title as they were, so it reads correctly after renames and deletes. Staff see who started and finished each stage on the stage itself.
+**Reading the trail.** Admins search the whole log at `/admin/audit` (`GET api/pathways/audit/search`), by pathway, stage, user, action and date range, newest first. A pathway page links to its own log. Each entry keeps the username and the pathway's title as they were, so it reads correctly after renames and deletes. Staff see who started and finished each stage on the stage itself.
 
 ### 6.4 A live notification across two API copies
 
@@ -803,19 +803,19 @@ sequenceDiagram
     participant A2 as API copy 2
     participant S as Staff browser, connected to copy 2
     S->>A2: WebSocket to /api/notifications/hub, no negotiate request
-    Ad->>A1: POST assign the staff member to a procedure
+    Ad->>A1: POST assign the staff member to a pathway
     A1->>D: save the assignment with its audit entries
     A1->>D: store the Notification
     A1->>V: publish to that user's channel, prefix MedApp
     V-->>A2: the message
     A2-->>S: notification
-    S->>S: refresh the bell and procedure lists, announce it
+    S->>S: refresh the bell and pathway lists, announce it
 ```
 
 1. **Connecting.** On every signed-in page, `LiveNotifications` opens a WebSocket straight to `/api/notifications/hub`, skipping SignalR's usual negotiate request (`skipNegotiation: true`, WebSockets only). With two copies and no sticky sessions, the negotiate request and the WebSocket could reach different copies, and the second would reject a connection it didn't know. The hub requires the `Staff` policy; the cookie authenticates the WebSocket like any request.
 2. **Sending.** The assign handler saves the assignment and its audit entries, then calls `INotificationSender`, which stores the notification (its own save) and calls `SignalRNotificationPublisher`. That sends to `Clients.User(userId)`, addressed by the session's user ID.
 3. **The backplane.** With `ConnectionStrings:SignalRBackplane` set, SignalR publishes through Valkey (`MedApp.API/Notifications/SignalRBackplane.cs`, channel prefix `MedApp`). Every copy subscribes, and delivers to its own connections for that user. In development the setting is empty, and there's one copy.
-4. **Receiving.** The browser refreshes the bell's list and count, invalidates procedure queries (My Tasks gains the procedure), and announces it to screen readers if announcements are on.
+4. **Receiving.** The browser refreshes the bell's list and count, invalidates pathway queries (My Worklist gains the pathway), and announces it to screen readers if announcements are on.
 5. **Failure is soft.** Pushing is best effort: a failure is logged, and the stored notification shows on the next page load. If Valkey is down, the API still starts and keeps reconnecting (`AbortOnConnectFail = false`); meanwhile only browsers on the sending copy get it live. The browser reconnects at 0, 2, 10 and 30 seconds after a drop, then gives up until the page is reloaded.
 
 Measured on kind with two copies (#50): 8 of 8 notifications arrived live with the backplane, 4 of 8 without it.
@@ -1096,7 +1096,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 - **Two roles,** `User` (staff) and `Admin`, checked on every endpoint with `[Authorize(Policy = AuthPolicies.Staff)]` or `[Authorize(Roles = "Admin")]`. [Section 5.7](#57-the-api-surface) has the full matrix.
 - **The API is the only enforcement.** The React app's guards (`_app`, `requireAdmin`) and hidden admin buttons are conveniences.
 - **Roles are re-read on every request,** so a change applies to the user's next request, without ending their session.
-- **"Not assigned to you" is not a permission.** Any staff member may work on any procedure; the confirmation is a UI safeguard, and the audit log records who acted (procedures plan, decision 18).
+- **"Not assigned to you" is not a permission.** Any staff member may work on any pathway; the confirmation is a UI safeguard, and the audit log records who acted (pathways plan, decision 18).
 - **All staff see all patients,** and all calendars and appointments. There's no restriction by team, ward or care relationship. Any staff member may book, move or cancel any appointment (only cancel, a restricted patient's; none of an anonymised patient's); a calendar's blocks and its day and week templates are changed only by its owner or an admin.
 - **Only two endpoints' attributes are tested.** The own-password change (#51) and creating a user (#53) have tests that evaluate their `[Authorize]` attributes with the API's real policies. The other controller tests call actions directly through a recording mediator, so a missing or wrong `[Authorize]` anywhere else wouldn't fail a test ([11.1](#111-security-and-privacy)).
 
@@ -1189,16 +1189,16 @@ This describes what the code does today. It isn't a compliance statement; [secti
 
 | Topic | Today |
 |---|---|
-| **Personal data held** | Patients: name, date of birth, email. Procedures: titles, notes and stage notes, free text that will in practice hold clinical information. Staff: username, password hash, and on each session the IP address and browser user agent. Audit entries: usernames, and the old and new text of every notes change. Notifications: the procedure's title. Appointments: the patient, the member of staff, the time, the status, notes and a cancellation reason (free text about the patient), and their history with old and new notes. Calendar blocks: the member of staff, the time, the activity (Annual leave, Training, ...) and a short note, about staff. |
+| **Personal data held** | Patients: name, date of birth, email. Pathways: titles, notes and stage notes, free text that will in practice hold clinical information. Staff: username, password hash, and on each session the IP address and browser user agent. Audit entries: usernames, and the old and new text of every notes change. Notifications: the pathway's title. Appointments: the patient, the member of staff, the time, the status, notes and a cancellation reason (free text about the patient), and their history with old and new notes. Calendar blocks: the member of staff, the time, the activity (Annual leave, Training, ...) and a short note, about staff. |
 | **Minimisation** | The patient record is deliberately small. Free text isn't limited by structure. |
 | **At rest** | In SQL Server. Azure SQL encrypts data at rest by default (transparent data encryption), which the Bicep doesn't change. On kind, the data is on the SQL Server pod's volume. No column-level encryption. |
-| **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries procedure titles) and, on kind, to SQL Server. |
-| **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept with them, as IDs. No patient records are stored in the browser. Signing out clears the query cache, and every `medapp.` key in `localStorage` and `sessionStorage` but the four visual settings (step 7). |
+| **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries pathway titles) and, on kind, to SQL Server. |
+| **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and pathways are kept with them, as IDs. No patient records are stored in the browser. Signing out clears the query cache, and every `medapp.` key in `localStorage` and `sessionStorage` but the four visual settings (step 7). |
 | **In logs** | EF Core logs every SQL command at Information level, but without parameter values (sensitive data logging is off). Nothing logs patient fields on purpose. |
-| **Who can see what** | Every staff member sees every patient and procedure, and every calendar and appointment. Only admins read the audit log and the activity log; staff see each patient's timeline without its free text (no appointment notes or cancellation reasons either). A restricted or anonymised patient's record, procedures and appointments can't be changed, except that a restricted record's procedures and appointments can be paused (blocked or cancelled) (step 7). |
-| **Access logging** | Changes to procedures and appointments are fully audited. Since step 7, the activity log records patient views, search results and searches (filter names, not terms), procedure views, appointments read (on the calendar, Requires Appointment, the booking dialog, or opened, as reads of their patients), patient creates, edits (fields, not values) and deletes, exports, sign-ins (and refused ones), sign-outs, and account and role changes, with the address; admins see a patient's access report on their page. |
-| **Retention** | Records past their retention period are listed for an admin to keep or anonymise (step 7); nothing is deleted automatically. Nothing is ever purged: procedures, appointments and their history, calendar blocks, audit entries, the activity log, notifications and expired sessions stay forever. |
-| **Erasure** | A patient with procedures or appointments can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design, and detaches its appointments, whose history keeps the procedure. Admins can anonymise a record in place (which also removes the free text the timeline shows, and appointments' notes and cancellation reasons), and export everything held about a patient, appointments included, for a subject access request (step 7). |
+| **Who can see what** | Every staff member sees every patient and pathway, and every calendar and appointment. Only admins read the audit log and the activity log; staff see each patient's timeline without its free text (no appointment notes or cancellation reasons either). A restricted or anonymised patient's record, pathways and appointments can't be changed, except that a restricted record's pathways and appointments can be paused (blocked or cancelled) (step 7). |
+| **Access logging** | Changes to pathways and appointments are fully audited. Since step 7, the activity log records patient views, search results and searches (filter names, not terms), pathway views, appointments read (on the calendar, Requires Appointment, the booking dialog, or opened, as reads of their patients), patient creates, edits (fields, not values) and deletes, exports, sign-ins (and refused ones), sign-outs, and account and role changes, with the address; admins see a patient's access report on their page. |
+| **Retention** | Records past their retention period are listed for an admin to keep or anonymise (step 7); nothing is deleted automatically. Nothing is ever purged: pathways, appointments and their history, calendar blocks, audit entries, the activity log, notifications and expired sessions stay forever. |
+| **Erasure** | A patient with pathways or appointments can't be deleted. Deleting a pathway keeps its audit entries, including notes text and the patient's ID, by design, and detaches its appointments, whose history keeps the pathway. Admins can anonymise a record in place (which also removes the free text the timeline shows, and appointments' notes and cancellation reasons), and export everything held about a patient, appointments included, for a subject access request (step 7). |
 | **Backups** | Azure SQL: 7 days of point-in-time restore, locally redundant. kind: none. Development: `medapp-dev` snapshots. No restore has been tested. |
 | **Residency** | UK South by default on Azure. GitHub holds only code and the public image. |
 | **Test data** | Synthetic only, by convention (`AGENTS.md`); the demo seeds invent names and use `@example.com` addresses. |
@@ -1224,15 +1224,15 @@ This describes what the code does today. It isn't a compliance statement; [secti
 
 | Layer | What's tested | How |
 |---|---|---|
-| Application | Every handler, validator and mapper; the procedure workflow | NUnit, FluentAssertions, Moq, AutoFixture with AutoMoq. Procedure handler tests share `ProcedureHandlerTestBase` (a mocked repository and username lookup, a fixed clock). |
+| Application | Every handler, validator and mapper; the pathway workflow | NUnit, FluentAssertions, Moq, AutoFixture with AutoMoq. Pathway handler tests share `PathwayHandlerTestBase` (a mocked repository and username lookup, a fixed clock). |
 | Infrastructure | Identity services, the first admin, mappers | The same; an `AsyncQueryable` helper runs EF's async operators over in-memory data. |
 | API | Controllers (through `RecordingMediator`, which records each request and its cancellation token), the exception middleware, session authentication, the cookie service, the SignalR publisher and backplane, server rendering | Including a real Node process (`SsrServerProcessTests`) and the real `ssr` HttpClient registration (`SsrClientTests`, #51). |
 | React | Every component and page, the providers, API modules, and whole pages rendered on the server in Node (`src/entry-server.test.tsx`) | Vitest with React Testing Library on jsdom; `renderWithApp` and `mockFetch` helpers; a stand-in SignalR connection. |
 | Chart and infrastructure | Lint and render in five configurations; the cluster services' charts with every values file; the Bicep built and linted | CI's `helm` job. |
 | Image | Builds | CI's `image` job. |
 | UI and accessibility | 46 screens captured; axe across them in three colour schemes | `tools/ui-parity`, by hand, not in CI. |
-| Integration | Every area through HTTP against real SQL Server: sign-in, sessions and lockout, an authorisation matrix (admin-only and staff endpoints by role), the forced password change, users and roles (with `IdentityTransactions`), patients' search in SQL, procedures' workflow, audit and due dates, archiving, notifications and the hub, errors, and every migration up and down | `MedApp.IntegrationTests`: `WebApplicationFactory` and Testcontainers, data reset with Respawn; CI's `integration-tests` job. |
-| End-to-end | Signing in and out, patients, a procedure's stages, My Tasks, a new user's first sign-in and password change, and the notification bell | `MedApp.E2ETests` (Playwright) against the production image in CI's `e2e` job. |
+| Integration | Every area through HTTP against real SQL Server: sign-in, sessions and lockout, an authorisation matrix (admin-only and staff endpoints by role), the forced password change, users and roles (with `IdentityTransactions`), patients' search in SQL, pathways' workflow, audit and target dates, archiving, notifications and the hub, errors, and every migration up and down | `MedApp.IntegrationTests`: `WebApplicationFactory` and Testcontainers, data reset with Respawn; CI's `integration-tests` job. |
+| End-to-end | Signing in and out, patients, a pathway's stages, My Worklist, a new user's first sign-in and password change, and the notification bell | `MedApp.E2ETests` (Playwright) against the production image in CI's `e2e` job. |
 
 - **Numbers:** 815 .NET unit tests, 185 integration tests, 11 end-to-end tests and 713 web tests.
 - **Coverage.** The web job fails below 99% of lines, statements and functions, and 92% of branches (`MedApp.Web/vite.config.ts`). .NET coverage is reported in the sticky PR comment (classes under 80%), but doesn't fail the build. The .NET report leaves out commands, queries, DTOs, repositories, the DbContext, migrations, generated code, the service defaults and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database.
@@ -1272,7 +1272,7 @@ This describes what the code does today. It isn't a compliance statement; [secti
 ### 8.8 Time, dates and locale
 
 - **Timestamps are UTC,** set in handlers from an injected `TimeProvider`, so tests run at a fixed time. (`SessionService` is the exception: it reads `DateTime.UtcNow` directly.)
-- **Due dates are whole days** in UK time, stored as the end of that day in UTC (`DueDates`), and sent and received as dates.
+- **Target dates are whole days** in UK time, stored as the end of that day in UTC (`DueDates`), and sent and received as dates.
 - **Calendars work in UK time and store UTC.** The working day is 08:00 to 18:00 UK time (Europe/London). Appointments and blocks are stored and sent as UTC. Template times are UK clock times (`TimeOnly`), turned into UTC for each date by `UkTime`, so a 12:00 lunch stays at 12:00 UK time across a clock change; template history is dated in UK dates. The calendar response gives each day's working start and end in UTC, so the browser steps through slots without time zone arithmetic. A UK working day never spans a clock change (they happen at 01:00 and 02:00).
 - **The UI is `en-GB`:** UK date formats, and calendars starting on Monday. Dates go to the API as ISO `YYYY-MM-DD`.
 
@@ -1281,7 +1281,7 @@ This describes what the code does today. It isn't a compliance statement; [secti
 - **IDs** are GUIDs made in handlers.
 - **Migrations** form one linear history; a new one goes on top, and an applied one is never edited. EF scaffolds a rename as drop-and-create, which loses data, so every scaffold is read and renames are written by hand (`RenamedTasksToProcedures` is the reference). `has-pending-model-changes` must report nothing. A non-trivial migration is tested up and down on a throwaway LocalDB database.
 - **Expand, then contract.** Migrations run before the new API starts, so the old API briefly runs on the new schema. A removal or rename takes two releases: add first, remove later. Nothing enforces this but review.
-- **No optimistic concurrency.** No entity has a concurrency token, so two simultaneous edits to one procedure or patient end with the last write winning. For procedure notes both saves are audited, with the old and new text, so nothing is lost for good.
+- **No optimistic concurrency.** No entity has a concurrency token, so two simultaneous edits to one pathway or patient end with the last write winning. For pathway notes both saves are audited, with the old and new text, so nothing is lost for good.
 - **Stored enums** are never renumbered.
 
 ### 8.10 How changes are made
@@ -1307,7 +1307,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-4 | **React on Astryx replaces Blazor WebAssembly**, built alongside and then switched over; Blazor kept as `MedApp.Client.Deprecated` (react-migration-plan; #23 to #29) | A fixed goal of the migration, with Astryx as the UI library (inferred reasons: a richer, accessible component set, the React ecosystem, and server rendering). | Keeping Blazor; page-by-page mixing (rejected, Q12); other React UI kits (ruled out: Astryx only). | One UI library, in beta, pinned exactly; a parity process with screenshots; the old client kept compiling for reference. |
 | ADR-5 | **API types generated from the OpenAPI document** (Q6) | Types must not drift from the API. | NSwag; hand-written types (both rejected). | One source of truth. `npm run gen:api` after each DTO change, with the AppHost running. Every generated field is optional, so the code carries `??` fallbacks. |
 | ADR-6 | **Lists are filtered, sorted and paged by the API** (phase 4, revising Q10) | Blazor loaded every row and paged in the browser. | Paging in the browser. | Scales; list state lives in the URL; the same LINQ runs in SQL and in tests; ordering always ends on a unique key. |
-| ADR-7 | **Procedures copy their template's stages, keep their rules in two classes, and save audit entries with each change; the audit table has no foreign keys** (procedures-ui-plan; #30) | Finished work must never change when a definition is edited, and every change must be traceable. | Stages pointing at live definitions (the old model); auditing by database triggers or a separate service (inferred). | History is stable; definitions and templates in use are archived, not deleted; audit entries outlive deletes, but the database can't enforce their links; every new procedure command must go through `ProcedureChange`. |
+| ADR-7 | **Pathways copy their template's stages, keep their rules in two classes, and save audit entries with each change; the audit table has no foreign keys** (pathways-ui-plan; #30) | Finished work must never change when a definition is edited, and every change must be traceable. | Stages pointing at live definitions (the old model); auditing by database triggers or a separate service (inferred). | History is stable; definitions and templates in use are archived, not deleted; audit entries outlive deletes, but the database can't enforce their links; every new pathway command must go through `PathwayChange`. |
 | ADR-8 | **Hand-written static mappers, no mapping library** (#44) | Handlers built responses inline in several styles, and two endpoints returned the Domain `Patient`. | AutoMapper, Mapster. | Mapping is visible, cheap and tested per mapper; more boilerplate, and a new field can be forgotten (the tests guard that). |
 | ADR-9 | **Server-side rendering, with the API starting and fronting a Node page server, falling back to browser rendering** (#42, hardened in #51) | Faster first paint with the data in it; every page sits behind sign-in, with per-user data, and the app was static files in the API. | Node in front of the API (for example TanStack Start, which the to-do item suggested); a sidecar container; no SSR. The PR doesn't say why Start wasn't used (inferred: it expects to own the server and the build). | One image and one origin; Node on loopback only. But the API became Node's supervisor, without restarts, health checks or memory isolation; and the first version had an open proxy and a broken fallback, fixed in #51. Since then, in Kubernetes, the page server runs as a container of its own beside the API (from the same image), which brings restarts, probes, its own memory limit and separation from the API's secrets; the API supervises Node only when run on its own. |
 | ADR-10 | **One image holding the API, the React app, Node and the EF migrations bundle; migrations as a Kubernetes Job, never at startup** (#45, #47) | The schema must always match the code, and a failed migration must stop a rollout. | Migrating at startup; a separate migrations image; a separate web server image. | The Job can't apply a different schema; a failed migration leaves the old API running. Migrations and the app share one database credential. Changes must follow expand-then-contract. |
@@ -1338,7 +1338,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | | A crafted path such as `//evil.example/x` never leaves the pod. | URL built from parts; `//` blocked (#51). | 14 path cases in `PageServerFilesTests`; `SsrPagesTests`. | No end-to-end test of the assembled pipeline. |
 | | A pod in another namespace can't reach SQL Server or the API. | Default-deny network policies. | A connection matrix on kind (#48). | Not checked on AKS. |
 | | Nothing secret is in git or the image. | Secret stores; `.dockerignore`. | Review; the image is public and was checked (`docs/reviews/container-image.md`). | No automated secret scanning. |
-| **Traceability** | Every procedure change records who, when and what, in the same transaction. | `ProcedureChange` and `SaveAsync(auditEntries)`. | Handler tests for every procedure command; demo data written through the same code. | Patient and account changes and reads of patient data are in the activity log (step 7), but it isn't tamper-evident yet. |
+| **Traceability** | Every pathway change records who, when and what, in the same transaction. | `PathwayChange` and `SaveAsync(auditEntries)`. | Handler tests for every pathway command; demo data written through the same code. | Patient and account changes and reads of patient data are in the activity log (step 7), but it isn't tamper-evident yet. |
 | **Accessibility** | Every screen passes WCAG 2.2 A and AA checks in dark, light and a colour theme. | Astryx, theme tokens, the accessibility settings. | `npm run a11y` (axe), run by hand. | Not in CI; no manual screen reader pass yet. |
 | **Maintainability** | A new feature follows the slice pattern and comes with tests. | `AGENTS.md`, mappers, the review stage. | CI: build, lint, type check, tests, web coverage at 99% of lines. | .NET coverage isn't a gate. |
 | **Deployability** | A merge reaches kind with no manual step. | Publish and Argo CD. | Publish runs on every merge; Argo CD syncs (checked on #49 and #50). | Azure never run; no promotion gate. |
@@ -1364,9 +1364,9 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | ID | Risk | Severity | Source |
 |---|---|---|---|
 | S1 | **Fixed in #53: new accounts no longer share a password.** Before #53, every account was created with `DefaultPassword1`, which was in the public source and shown in the UI. Now the server generates each first password and shows it once. **Left over:** accounts created before #53 may still have `DefaultPassword1`, and nothing finds them yet (a reset now forces its user to choose their own). A generated password must now be changed at first sign-in. If the admin leaves the page while an account is being created, its password is never shown. The deprecated Blazor client doesn't show the generated password. | Was high. Now medium (the old accounts) and low (the rest) | (handbook); `docs/reviews/pr-53-generated-first-password.md`, findings 1, 3 and 7; `docs/todo.md` |
-| S2 | **Patient records and account administration weren't audited, and reads weren't logged at all.** Since step 7's first part, the activity log records them; what's left is a tamper-evident log, alerts, and the old values of patient edits. Any staff member can still delete a patient who has no procedures (now recorded). | Medium | (handbook) |
+| S2 | **Patient records and account administration weren't audited, and reads weren't logged at all.** Since step 7's first part, the activity log records them; what's left is a tamper-evident log, alerts, and the old values of patient edits. Any staff member can still delete a patient who has no pathways (now recorded). | Medium | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
-| S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure procedures and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
+| S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure pathways and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
 | S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password is changed or reset, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
 | S6 | **Fixed on `feature/security-baseline`:** security headers on every response, `no-store` on every `/api` response, and a nonce-based Content Security Policy on pages (`SecurityHeaders`). Left: styles allow `'unsafe-inline'`, and nothing collects violation reports. | Was medium. Now low | F24 |
 | S7 | **Authorisation has no fallback policy.** Endpoint roles and policies are attributes. Since #65, `AuthorisationTests` checks every admin-only and staff endpoint for each role and signed out through the real pipeline, and #67 added the headers, throttling and session ending to it; but a new endpoint without an attribute would be open until the matrix gains it, and HSTS, the health port and blocked paths aren't tested end to end. | Low (was medium) | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
@@ -1376,7 +1376,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S11 | **All staff see all patients.** There's no restriction by team or care relationship. | Depends on the customer | (handbook) |
 | S12 | Forwarded headers are trusted from any caller; safe only because of the network policy and Traefik. | Low | F26 |
 | S13 | Secrets on process command lines (the Job's `--connection`, Valkey's `--requirepass`) and, with plain Helm, in release history. | Low | F27 |
-| S14 | Valkey traffic isn't encrypted, and carries procedure titles. | Low | `docs/reviews/signalr-backplane.md` |
+| S14 | Valkey traffic isn't encrypted, and carries pathway titles. | Low | `docs/reviews/signalr-backplane.md` |
 | S15 | Port 8081 serves the whole app, not just health checks. | Low | F21 |
 | S16 | The first admin is always called `admin`, so anyone can lock it out for 5 minutes. | Low | `docs/reviews/app-changes.md` |
 | S17 | **Node's environment allowlist isn't isolation,** where the API starts Node. **Resolved in Kubernetes:** the page server runs in a container of its own (`pages`), as another user, with none of the API's secrets. It still applies to the image run on its own (`docker run`, CI's `e2e` job), where code in Node could read the API's connection strings from `/proc`. | Low (outside Kubernetes only) | `pr-51-ssr-security-fixes.md` 3.5 |
@@ -1488,9 +1488,9 @@ This roadmap takes MedApp from a well-built app for one organisation to a produc
 ### Where MedApp stands
 
 **What a buyer's technical reviewer will like:**
-- A .NET 10 application programming interface (API) built with Clean Architecture: one folder per use case, hand-written mappers, and the procedure rules in one place (`ProcedureWorkflow` and `ProcedureChange`).
+- A .NET 10 application programming interface (API) built with Clean Architecture: one folder per use case, hand-written mappers, and the pathway rules in one place (`PathwayWorkflow` and `PathwayChange`).
 - Over 1,700 automated tests (815 .NET unit, 185 integration, 11 end-to-end and 713 web), with continuous integration (CI) holding the web suite at 99% line coverage.
-- A procedure audit log, written in the same save as each change, kept after deletes, and readable only by admins.
+- A pathway audit log, written in the same save as each change, kept after deletes, and readable only by admins.
 - A locked-down Helm chart: the `restricted` Pod Security Standard, default-deny network policies, read-only filesystems, no service account tokens, and secrets from External Secrets.
 - GitOps (git decides what's deployed) through Argo CD, required CI checks on `main`, and an Azure design in Bicep, written but not yet deployed, with private SQL, cluster access through Microsoft Entra ID only, and OpenID Connect (OIDC) federation instead of stored cloud secrets.
 - Accessibility work: an automated axe audit that passes the Web Content Accessibility Guidelines (WCAG) 2.2 AA in every theme, and an accessibility statement.
@@ -1507,7 +1507,7 @@ This roadmap takes MedApp from a well-built app for one organisation to a produc
   - "Forgot password?" says a link was sent when nothing is sent (`MedApp.Web/src/pages/login/ForgotPasswordDialog.tsx`).
   - The first admin is always called `admin`.
   - Sessions have no idle timeout, and they survive a password change or reset.
-- **Accountability:** only procedures are audited. Viewing, creating, editing or deleting a patient, changing users and roles, and signing in leave no audit entry. Any staff member can permanently delete a patient who has no procedures.
+- **Accountability:** only pathways are audited. Viewing, creating, editing or deleting a patient, changing users and roles, and signing in leave no audit entry. Any staff member can permanently delete a patient who has no pathways.
 - **Paperwork:** there's no data protection impact assessment (DPIA), record of processing activities (ROPA), data processing agreement, privacy notice, retention schedule, breach plan or clinical safety case.
 - **Operations:** MedApp has never been deployed. There's no monitoring, alerting, restore evidence or service level, and on Azure the app would sign in to the database as the server administrator.
 - **Product:**
@@ -1725,9 +1725,9 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
     - Appoint a data protection officer (DPO), or use a DPO service. Article 37 requires one once large-scale processing of health data is the core activity.
 - **A data inventory,** field by field, from the code:
   - `Patient`: names, date of birth and email
-  - `PatientProcedure`: title, notes and due date; `PatientProcedureStage.Notes`: clinical free text
-  - `PatientProcedureAuditEntry.Details`: JSON that includes the old and new stage notes
-  - `Notification.Title`: procedure titles
+  - `PatientPathway`: title, notes and target date; `PatientPathwayStage.Notes`: clinical free text
+  - `PatientPathwayAuditEntry.Details`: JSON that includes the old and new stage notes
+  - `Notification.Title`: pathway titles
   - `UserSession`: staff IP addresses and browsers
   - `UserSettings.Json`: settings, including saved searches that can hold patient names
   - the Identity tables, OpenTelemetry and EF Core logs, Azure SQL backups, and the browser's `localStorage` (`medapp.*`)
@@ -1932,11 +1932,11 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - Since 5 February 2026, section 121 of the DUAA lets those standards bind IT suppliers directly ([legislation.gov.uk](https://www.legislation.gov.uk/ukpga/2025/18/section/121)).
   - NHS England's review of both standards says future versions will likely use the new powers ([NHS England](https://www.england.nhs.uk/long-read/national-review-of-clinical-risk-management-standardsdcb0129-and-dcb0160-supporting-information/)). Its consultation, which proposed a tiered, risk-based approach, closed on 11 September 2026.
 - **DTAC starts with clinical safety:**
-  - It covers products that "influence, support or manage real time or near real time direct care", which a tool for working through a patient's procedure very likely is.
+  - It covers products that "influence, support or manage real time or near real time direct care", which a tool for working through a patient's pathway very likely is.
   - The CSO must be a suitably qualified and experienced clinician with a current professional registration, and the role can be contracted out ([DTAC form 2.0](https://digital.nhs.uk/binaries/content/assets/website-assets/services/dtac/dtac_form_2.0_february_2026.docx)).
 - **Order:** clinical risk management has to run alongside development. Every feature in step 9 needs a hazard assessment, so the system has to exist first.
 - **The device line** ([MHRA guidance](https://assets.publishing.service.gov.uk/media/6abf6c8c943e890cb55e5e52/Medical_device_stand-alone_software_including_apps__including_IVDMDs.pdf)):
-  - The Medicines and Healthcare products Regulatory Agency (MHRA) treats software that "just follows the path of a procedure/treatment - there are no decisions" as not a medical device.
+  - The Medicines and Healthcare products Regulatory Agency (MHRA) treats software that "just follows the path of a pathway/treatment - there are no decisions" as not a medical device.
   - Software that calculates, scores risk, triages or raises "red flag" indicators from patient data is likely to be one.
   - Its intended purpose guidance warns about "function creep" ([MHRA](https://www.gov.uk/government/publications/crafting-an-intended-purpose-in-the-context-of-software-as-a-medical-device-samd/crafting-an-intended-purpose-in-the-context-of-software-as-a-medical-device-samd)).
   - The government plans to consult by spring 2027 on a new device definition, with possible carve-outs for administrative software ([GOV.UK](https://www.gov.uk/government/publications/government-response-to-the-national-commissions-recommendations-on-the-regulation-of-ai-in-healthcare/government-response-to-the-national-commissions-recommendations-on-the-regulation-of-ai-in-healthcare)).
@@ -1955,15 +1955,15 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - **Missed work:** live notifications stop after about 42 seconds offline, and nothing emails or escalates overdue work.
   - **A stage finished in error:** it stays locked until an admin unlocks it.
   - **Stale or failed pages** when SSR falls back.
-  - **No downtime procedure** for when MedApp is unavailable part-way through a procedure.
+  - **No downtime procedure** for when MedApp is unavailable part-way through a pathway.
 - **Fixes the hazards call for** (small ones here, larger ones in step 9):
-  - optimistic concurrency: a `rowversion` on procedures and stages, and a 409 on conflict
-  - a patient banner (name, date of birth and, from step 9, NHS number) on every patient and procedure page
-  - a printable task list and procedure summary for downtime
+  - optimistic concurrency: a `rowversion` on pathways and stages, and a 409 on conflict
+  - a patient banner (name, date of birth and, from step 9, NHS number) on every patient and pathway page
+  - a printable task list and pathway summary for downtime
 - **A release gate:** a clinical safety section in the pull request template for any change to clinical workflow, signed off by the CSO before release.
 - **A DCB0160 pack for customers:** a template hazard log for deployment, configuration and training guidance, and a downtime procedure.
 - **Intended purpose and qualification:**
-  - an intended purpose statement, for example "records and coordinates the administrative and clinical workflow steps of a procedure; it does not interpret clinical data, prioritise patients or recommend treatment"
+  - an intended purpose statement, for example "records and coordinates the administrative and clinical workflow steps of a pathway; it does not interpret clinical data, prioritise patients or recommend treatment"
   - a recorded assessment against the MHRA's flowchart for standalone software
   - a change-control rule: any feature that works out a priority, a risk or a recommendation from patient data triggers a new assessment
 - **Accessibility:** finish the manual screen reader pass in `docs/todo.md`. DTAC scores usability and accessibility against WCAG 2.2 AA, the level public sector bodies must meet ([GOV.UK](https://www.gov.uk/guidance/accessibility-requirements-for-public-sector-websites-and-apps)).
@@ -1988,8 +1988,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 **Goal:** Give each customer, without anyone touching the database, a complete record of who saw and changed what, and the tools to answer data subject requests and apply their retention schedule.
 
 **Status:** the first part is built (branch `feature/privacy-features`, 16 November 2026), checked against `docs/governance/` (each document says what's built and what's left):
-- **An activity log** (admins), separate from the procedure audit: patient views, search results and searches (filter names and counts, never the terms), procedure views, patient creates, edits (field names, never values) and deletes, exports, anonymisations, restrictions and disputes, retention decisions, sign-ins, refused sign-ins, sign-outs, and account, password and role changes, with the user and address. A view is recorded once per person every 5 minutes. The Activity Log page searches it, and a patient's page shows admins its access report.
-- **Data subject rights:** a subject access export (JSON and a printable page, itself logged); restricted (read-only, with a banner) and disputed (a banner) flags with reasons; anonymisation in place with a typed confirmation and a reason, refused while procedures are under way.
+- **An activity log** (admins), separate from the pathway audit: patient views, search results and searches (filter names and counts, never the terms), pathway views, patient creates, edits (field names, never values) and deletes, exports, anonymisations, restrictions and disputes, retention decisions, sign-ins, refused sign-ins, sign-outs, and account, password and role changes, with the user and address. A view is recorded once per person every 5 minutes. The Activity Log page searches it, and a patient's page shows admins its access report.
+- **Data subject rights:** a subject access export (JSON and a printable page, itself logged); restricted (read-only, with a banner) and disputed (a banner) flags with reasons; anonymisation in place with a typed confirmation and a reason, refused while pathways are under way.
 - **A retention review list** from configurable periods (adults 8 years, children to 25, or 26 if 17), where an admin reviews, keeps with a reason and a review date, or anonymises. Nothing is deleted automatically.
 - **Sign-out hygiene:** sign-out clears the app's `localStorage` and `sessionStorage` but the visual settings; pins moved to the account's settings.
 - **Appointments** (with staff calendars, `feature/staff-calendars`): reading them is in the activity log, the export includes them and their history, anonymisation replaces their notes and cancellation reasons (and the history's copies), and a restricted patient's appointments can only be cancelled, an anonymised patient's not changed at all.
@@ -2006,9 +2006,9 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
 - **Order:** step 3 decided the retention defaults and how requests are handled; this step builds them. Doing it before multi-tenancy (step 8) keeps it simpler, and step 8 adds the organisation to these tables along with the rest.
 
 **Scope:**
-- **One audit trail for everything** (`MedApp.Domain`, `MedApp.Application`, `MedApp.Infrastructure/Data`). Extend the procedure audit (`PatientProcedureAuditEntry`, written through `ProcedureChange`) to every read and change of patient-identifiable data:
+- **One audit trail for everything** (`MedApp.Domain`, `MedApp.Application`, `MedApp.Infrastructure/Data`). Extend the pathway audit (`PatientPathwayAuditEntry`, written through `PathwayChange`) to every read and change of patient-identifiable data:
   - patients viewed, searched (with the terms), created, edited (each field before and after), archived and erased
-  - procedures viewed, and exports
+  - pathways viewed, and exports
   - sign-ins, successful and failed (ASVS V16.3.1), and refused requests (V16.3.2) ([ASVS V16](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x25-V16-Security-Logging-and-Error-Handling.md))
   - MFA changes and session revocations
   - changes to users, roles and settings
@@ -2022,7 +2022,7 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
   - an export of the audit for each customer, which NCSC cloud principle 13 ("audit information for customers") expects ([NCSC](https://www.ncsc.gov.uk/collection/cloud/the-cloud-security-principles))
 - **Data subject rights:**
   - **Access and portability (Articles 15 and 20):**
-    - `GET api/patients/{id}/export` returns everything held about a patient as JSON, with a readable PDF: details, procedures, stages, note versions, assignments, and the access log if the controller wants it.
+    - `GET api/patients/{id}/export` returns everything held about a patient as JSON, with a readable PDF: details, pathways, stages, note versions, assignments, and the access log if the controller wants it.
     - A clinician can review the export and hold back anything that meets the serious harm test.
     - A test fills every table and checks that the export includes each.
     - Portability doesn't apply to NHS bodies acting on public task, but does to clinics relying on contract ([Article 20](https://www.legislation.gov.uk/eur/2016/679/article/20)).
@@ -2075,7 +2075,7 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
 
 **Scope:**
 - **The model:**
-  - an `Organisation`, with sites or departments under it, and an `OrganisationId` on every table: patients, procedures, stage definitions, templates, audit, notifications, settings and sessions
+  - an `Organisation`, with sites or departments under it, and an `OrganisationId` on every table: patients, pathways, stage definitions, templates, audit, notifications, settings and sessions
   - users belong to an organisation (several later, for bank staff)
   - a migration (`AddedOrganisations`) that puts existing data into a default organisation, so pilots carry over
 - **Separation in two layers:**
@@ -2112,13 +2112,13 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
 
 ### Step 9: The features buyers expect
 
-**Goal:** Turn a procedure checklist into something buyers recognise as a clinical workflow product: real patient identity, structured stages, standard interoperability, documents, reporting and communications.
+**Goal:** Turn a pathway checklist into something buyers recognise as a clinical workflow product: real patient identity, structured stages, standard interoperability, documents, reporting and communications.
 
 **Status:** the first part is built (branch `feature/nhs-integrations`, 16 November 2026), ahead of steps 6 and 8, with `docs/governance/` and `docs/clinical-safety/` updated for it:
 - **The NHS number** on a patient: optional, checked with its Modulus 11 check digit on the server and in the form, unique when present (across the deployment until step 8), shown as `XXX XXX XXXX`, searchable, in the export and removed by anonymisation. Logged as a field and filter name, never the number.
-- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, on every page about one patient (the patient's page, Edit Patient, the export, their procedures, a procedure, Edit Procedure and New Procedure), in view on all but the printable export. Built, not yet verified by a CSO.
+- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, on every page about one patient (the patient's page, Edit Patient, the export, their pathways, a pathway, Edit Pathway and New Pathway), in view on all but the printable export. Built, not yet verified by a CSO.
 - **A read-only FHIR R4 API in the UK Core shape:** `Patient` by ID, and by NHS number as a searchset Bundle, for signed-in staff, logged like the pages. Hand-built resources, not the Firely SDK.
-- **SNOMED CT codes on stage definitions,** with the admin's display term, copied onto procedures' stages. Format checked only.
+- **SNOMED CT codes on stage definitions,** with the admin's display term, copied onto pathways' stages. Format checked only.
 - **A demographics lookup** behind `IPersonalDemographicsService`, off by default, with only an offline stub of synthetic 999 numbers; the forms offer Look up when it's on.
 
 Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR API reports numbers as "not traced"), validation against the UK Core profiles, OAuth for systems, the other FHIR resources, SNOMED CT and OPCS-4 on templates, a terminology server, duplicate checks beyond an exact NHS number, a local hospital number and the other patient details, Always Encrypted for the NHS number, and the rest of the scope below (`docs/todo.md`, Patient identity and interoperability). The medical device decision is unchanged (`docs/clinical-safety/intended-purpose-and-device-decision.md`).
@@ -2138,7 +2138,7 @@ Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR 
 - **Integrate, don't compete:**
   - Nearly every NHS trust now has or has bought an EPR ([Health Business](https://healthbusinessuk.net/node/9175)).
   - NHS England's Federated Data Platform (FDP) gives trusts waiting-list and theatre tools that are "already paid for" ([NHS England](https://www.england.nhs.uk/digitaltechnology/nhs-federated-data-platform/trust-offer/)).
-  - So MedApp sells best as a procedure workflow module that plugs into an EPR, and to the independent sector.
+  - So MedApp sells best as a pathway workflow module that plugs into an EPR, and to the independent sector.
 - **Order:** after tenancy and the clinical safety system, each feature is built once, tenant-aware, with its hazards assessed.
 
 **Scope,** in priority order, each released on its own with a hazard assessment:
@@ -2162,18 +2162,18 @@ Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR 
    - Stage definitions carry fields (checkboxes, choices, dates, numbers, signatures) as well as notes, so a "Consent" or "Pre-assessment" stage records the same things every time.
    - Templates carry a SNOMED CT procedure concept and, where useful, an OPCS-4 code (the NHS classification of procedures) ([SNOMED CT standard](https://standards.nhs.uk/published-standards/snomed-ct), [OPCS-4](https://digital.nhs.uk/data-and-information/information-standards/information-standards-and-data-collections-including-extractions/publications-and-notifications/standards-and-collections/dapb0084-opcs-classification-of-interventions-and-procedures)).
 3. **A FHIR R4 API on the UK Core profiles** ([NHS England](https://digital.nhs.uk/developer/api-catalogue/fhir-uk-core-standards)):
-   - the patient as Patient, the procedure as a CarePlan or ServiceRequest, each stage as a Task, templates as PlanDefinitions, attachments as DocumentReferences, and the audit as AuditEvents
+   - the patient as Patient, the pathway as a CarePlan or ServiceRequest, each stage as a Task, templates as PlanDefinitions, attachments as DocumentReferences, and the audit as AuditEvents
    - OAuth 2.0 client credentials for systems, and webhooks for status changes
-   - a PDF summary sent back to the customer's EPR when a procedure completes
+   - a PDF summary sent back to the customer's EPR when a pathway completes
 4. **Documents:**
-   - attach consent forms, referral letters and images to a procedure or stage
+   - attach consent forms, referral letters and images to a pathway or stage
    - store them in Azure Blob Storage with a private endpoint and a customer-managed key, scanned for malware by Defender for Storage ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/defender-for-cloud/introduction-malware-scanning)), with type and size limits and audited downloads
 
-   **A first version is built** (file attachments): files on a patient, a procedure or a stage; six types found from their contents, up to 20 MB; Azure Blob Storage in UK South behind a private endpoint (Azurite on kind and in development); downloads only through the API, never shown inline, with thumbnails of photos made by the server; adding, deleting and downloading audited, and listing and downloading in the activity log; soft deletion; listed in the subject access export, renamed and deleted by anonymisation, and frozen on a restricted record. Still missing against this step: **malware scanning** by Defender for Storage (every file shows "Not scanned", and the DPIA and hazard log bring scanning forward to before go-live), a **customer-managed key**, passwordless access to the storage account, the **purge job** that removes deleted files' contents after a retention window (until it exists they're kept, an anonymised patient's included), the files themselves in the subject access export, backups of the files beyond 7 days' soft delete, PDF and HEIC previews, and attachments as FHIR **DocumentReference**s (item 3).
+   **A first version is built** (file attachments): files on a patient, a pathway or a stage; six types found from their contents, up to 20 MB; Azure Blob Storage in UK South behind a private endpoint (Azurite on kind and in development); downloads only through the API, never shown inline, with thumbnails of photos made by the server; adding, deleting and downloading audited, and listing and downloading in the activity log; soft deletion; listed in the subject access export, renamed and deleted by anonymisation, and frozen on a restricted record. Still missing against this step: **malware scanning** by Defender for Storage (every file shows "Not scanned", and the DPIA and hazard log bring scanning forward to before go-live), a **customer-managed key**, passwordless access to the storage account, the **purge job** that removes deleted files' contents after a retention window (until it exists they're kept, an anonymised patient's included), the files themselves in the subject access export, backups of the files beyond 7 days' soft delete, PDF and HEIC previews, and attachments as FHIR **DocumentReference**s (item 3).
 5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default. Insights (`/admin/insights`, #66) is a first version for one organisation: open, in progress, overdue and completed against last week, overdue work by assignee and priority, time at each stage per template, and weekly throughput. No exports yet.
 6. **Communications and escalation:**
    - the notification kinds in `docs/todo.md` (overdue, blocked, stage unlocked), by email, with no patient identifiers in the message
-   - due dates for each stage, escalation to a lead, and daily digests
+   - target dates for each stage, escalation to a lead, and daily digests
 
 **Done when:**
 - NHS numbers are validated and shown in the patient banner.
@@ -2242,25 +2242,25 @@ Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR 
 
 ### Features worth adding
 
-**Positioning:** nearly every NHS trust now has an EPR, and the FDP gives trusts waiting-list and theatre tools for free. So the strongest position is a procedure workflow module that integrates with EPRs, plus a standalone product for independent clinics and private hospitals.
+**Positioning:** nearly every NHS trust now has an EPR, and the FDP gives trusts waiting-list and theatre tools for free. So the strongest position is a pathway workflow module that integrates with EPRs, plus a standalone product for independent clinics and private hospitals.
 
 These go beyond step 9, ranked by how often comparable products offer them and how often buyers ask. Each needs a hazard assessment (step 6) and a DPIA update (step 3).
 
 1. **Patient messaging and reminders.** SMS and email reminders, with replies. It's one of the most common features in clinical and clinic software ([Accurx](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-15/services/650967208338040), [Pabau](https://www.pabau.com/pricing/)).
-2. **Scheduling.** Book the appointments a procedure's stages need (pre-assessment, the procedure, follow-up), with calendar views and patient self-booking. Every clinic system has it ([Jane](https://jane.app/pricing), [WriteUpp](https://www.writeupp.com/pricing)). **Partly built:** staff calendars, booking by staff and stage visits (`docs/calendar-plan.md`). Still to do: patient self-booking and reminders, rooms and resources, recurring appointments, and closed days (`docs/todo.md`, "Calendar follow-ups").
+2. **Scheduling.** Book the appointments a pathway's stages need (pre-assessment, the pathway, follow-up), with calendar views and patient self-booking. Every clinic system has it ([Jane](https://jane.app/pricing), [WriteUpp](https://www.writeupp.com/pricing)). **Partly built:** staff calendars, booking by staff and stage visits (`docs/calendar-plan.md`). Still to do: patient self-booking and reminders, rooms and resources, recurring appointments, and closed days (`docs/todo.md`, "Calendar follow-ups").
 3. **Patient questionnaires and a portal.**
    - Pre-assessment questionnaires and outcome measures that patients complete themselves ([Ultramed](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud/services/799143724896306)).
    - NHS login for identity. It must be sponsored by an NHS organisation and takes three to four months to integrate ([NHS England](https://digital.nhs.uk/services/nhs-login/nhs-login-for-partners-and-developers)).
    - Patient access also brings the identity standard DAPB3051 ([NHS England](https://standards.nhs.uk/information-standards-notice/identity-verification-and-authentication-std-for-health-care-digital-data-analytics-and-tech-use)).
-4. **Digital consent.** Procedure-specific consent forms and patient information, signed in clinic or remotely, versioned and attached to the stage. Trusts often buy this separately ([Concentric](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-15/services/602302860349329)), so integrating with one may beat building it.
+4. **Digital consent.** Pathway-specific consent forms and patient information, signed in clinic or remotely, versioned and attached to the stage. Trusts often buy this separately ([Concentric](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-15/services/602302860349329)), so integrating with one may beat building it.
 5. **Waiting-list tracking.** Referral-to-treatment (RTT) clocks, breach alerts and patient tracking lists. Priorities must stay clinician-assigned, or MedApp could become a medical device. Aim at independent providers, since the FDP covers NHS trusts ([FDP catalogue](https://www.england.nhs.uk/digitaltechnology/nhs-federated-data-platform/solution-exchange/solution-exchange-product-catalogue)).
 6. **Mobile and offline use.** An installable web app for wards and theatres. Offline read access to the day's list is rare, so it's a differentiator.
 7. **Insurer billing for private clinics.** Invoices to patients and insurers through Healthcode, the UK clearing house ([Healthcode](https://www.healthcode.co.uk/)).
 8. **PHIN reporting.** Episode data for private hospitals' mandatory returns ([PHIN](https://www.phin.org.uk/about/our-mandate-and-governance)).
-9. **A template library.** Ready-made templates for common procedures, as a selling point and a quick start.
-10. **Bulk import.** CSV import of patients and procedures already under way, so a new customer can move off spreadsheets in a day.
+9. **A template library.** Ready-made templates for common pathways, as a selling point and a quick start.
+10. **Bulk import.** CSV import of patients and pathways already under way, so a new customer can move off spreadsheets in a day.
 11. **Letters to GPs and other organisations.** Templated letters through NHSmail or MESH, the NHS messaging service. MESH needs national onboarding.
-12. **Team discussion on a procedure.** Comments and handover notes, with mentions.
+12. **Team discussion on a pathway.** Comments and handover notes, with mentions.
 13. **Data exports for analytics.** Scheduled, pseudonymised exports to a customer's own data warehouse, honouring the National Data Opt-out.
 
 ### Compliance map
@@ -2269,13 +2269,13 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 |---|---|---|
 | **UK GDPR Art 5(1)(a), 6, 9, 13 and 14:** lawful basis, the health condition, privacy information | Drafts in `docs/governance/`, not approved: guidance on lawful bases, and privacy notice templates | 3 |
 | **Art 5(1)(c):** data minimisation | The patient record is small. But stage notes are copied whole into audit `Details`, and saved searches can hold patient names | 3, 7 |
-| **Art 5(1)(d) and 16:** accuracy and rectification | Patients and procedure details can be edited, but patient edits aren't audited. Finished stages lock, and unlocking is audited | 7 |
+| **Art 5(1)(d) and 16:** accuracy and rectification | Patients and pathway details can be edited, but patient edits aren't audited. Finished stages lock, and unlocking is audited | 7 |
 | **Art 5(1)(e):** storage limitation | Nothing is deleted on a schedule. Sessions (with IP addresses), notifications and audit entries are kept forever. Retention schedule: Drafts in `docs/governance/`, not approved | 3, 7 |
 | **Art 5(1)(f) and 32:** security | Partly in place: TLS, and HSTS (HTTP Strict Transport Security); an HttpOnly, Secure, SameSite=Lax cookie; lockout after 5 failures; network policies; the restricted Pod Security Standard; External Secrets; PR #51's SSR fixes. Missing: MFA, security headers, throttling, an idle timeout | 2, 4, 5 |
 | **Art 5(2) and 30:** accountability and the ROPA | Drafts in `docs/governance/`, not approved | 3 |
 | **Art 12A and 15:** subject access, with the DUAA's search and timing rules | No export; it would take hand-written SQL | 7 |
-| **Art 17, 18, 20 and 21:** erasure, restriction, portability, objection | Any staff member can hard-delete a patient with no procedures; one with procedures can't be deleted (409); no restriction, export or preferences | 7 |
-| **Art 25:** data protection by design and default | Partly: the procedure audit, stage snapshots, an admin-only audit log, audit rows that outlive deletes. But every staff member sees every patient by default | 3, 7, 8 |
+| **Art 17, 18, 20 and 21:** erasure, restriction, portability, objection | Any staff member can hard-delete a patient with no pathways; one with pathways can't be deleted (409); no restriction, export or preferences | 7 |
+| **Art 25:** data protection by design and default | Partly: the pathway audit, stage snapshots, an admin-only audit log, audit rows that outlive deletes. But every staff member sees every patient by default | 3, 7, 8 |
 | **Art 28:** processor terms and sub-processors | Drafts in `docs/governance/`, not approved: a data processing agreement template and a sub-processor list | 3 |
 | **Art 33 and 34:** breach notification | A breach procedure: Drafts in `docs/governance/`, not approved. No monitoring to notice a breach | 3, 5 |
 | **Art 35 and 36:** DPIA | Drafts in `docs/governance/`, not approved | 3 |
@@ -2284,7 +2284,7 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 | **DPA 2018 s164A** (from the DUAA): complaints handling | A complaints procedure: Drafts in `docs/governance/`, not approved | 3 |
 | **PECR:** cookies and browser storage | One strictly necessary cookie, preferences in `localStorage`; a statement: Drafts in `docs/governance/`, not approved | 3 |
 | **Common law duty of confidentiality, Caldicott Principles** | Two roles, but every staff member can see every patient, and reads aren't audited | 3, 7, 8 |
-| **ICO's November 2026 letter:** access reviewed, monitoring and audit | Only procedure changes are audited; no access reports or reviews | 7 |
+| **ICO's November 2026 letter:** access reviewed, monitoring and audit | Only pathway changes are audited; no access reports or reviews | 7 |
 | **Records Management Code of Practice** | A retention schedule following it: Drafts in `docs/governance/`, not approved. No review process or destruction log in the app | 3, 7 |
 | **National Data Opt-out** | Doesn't apply to direct care; no secondary use yet | 3, 7 |
 | **DSPT 2026-27** (IT supplier assertions) | Some technical controls; no registration, policies, training records, tested restores or penetration test | 3, 5, 10 |
@@ -2295,7 +2295,7 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 | **NHS supplier Cyber Security Charter** | Not signed; commitments not yet met | 5, 10 |
 | **NHS England MFA policy** | Passwords only | 4 |
 | **UK Medical Devices Regulations 2002 and MHRA guidance** | Not assessed. Today's features look like workflow, not a device | 6 |
-| **CQC Regulation 17** (private providers) | Finished stages lock, and changes to procedures are audited. Concurrent edits can overwrite each other | 6, 7 |
+| **CQC Regulation 17** (private providers) | Finished stages lock, and changes to pathways are audited. Concurrent edits can overwrite each other | 6, 7 |
 | **NHS number (ISB 0149), PDS, FHIR UK Core, SNOMED CT, OPCS-4** | On branch `feature/nhs-integrations`: a validated NHS number, a read-only FHIR Patient in the UK Core shape (not yet validated against the profiles), and SNOMED CT codes on stage definitions (format checked only). No PDS connection, tracing or OPCS-4 | 9 |
 | **CIS2 and other SSO** | Local passwords only | 4, 8 |
 | **WCAG 2.2 AA** | axe audit passes in every theme; statement at `/accessibility`; manual screen reader pass and session timeout warning outstanding | 2, 6 |
@@ -2487,14 +2487,14 @@ All accessed on or before 15 November 2026.
 | **ADR** | Architecture decision record: a short note of a decision, its context, the alternatives and the consequences. |
 | **AKS** | Azure Kubernetes Service: Kubernetes run by Microsoft, with MedApp on its virtual machines. |
 | **AppHost** | The .NET Aspire project (`MedApp.AppHost`) that starts the development stack. |
-| **Appointment** | A patient booked with a member of staff at a time, optionally for a procedure's stage: Requested (Requires appointment), Booked, Attended, Did not attend or Cancelled. |
+| **Appointment** | A patient booked with a member of staff at a time, optionally for a pathway's stage: Requested (Requires appointment), Booked, Attended, Did not attend or Cancelled. |
 | **AppProject** | An Argo CD setting that limits what its Applications may deploy, and where. |
 | **arc42** | A standard template for describing software architecture, in twelve sections. |
 | **Argo CD** | A tool running in the cluster that keeps it in step with a git branch. |
 | **Aspire** | .NET Aspire: Microsoft's tooling for running and observing a multi-part app in development. |
 | **AsyncLocalStorage** | A Node.js feature that keeps a value (here, the current request's cookie) available to all code running for one request. |
 | **Astryx** | Meta's open-source React design system, MedApp's only UI library. |
-| **Audit entry** | One row in `PatientProcedureAuditEntries`: who changed what on a procedure, and when. |
+| **Audit entry** | One row in `PatientPathwayAuditEntries`: who changed what on a pathway, and when. |
 | **axe** | An automated accessibility checker, run through Playwright. |
 | **Backplane** | A shared message relay that lets several copies of a server pass real-time messages to each other's connections. |
 | **Bicep** | Microsoft's language for describing Azure resources as code. |
@@ -2559,7 +2559,7 @@ All accessed on or before 15 November 2026.
 | **Secret (Kubernetes)** | A Kubernetes object holding sensitive values for pods. |
 | **SignalR** | ASP.NET Core's library for real-time messages to browsers, usually over WebSockets. |
 | **Skip negotiation** | Connecting to SignalR straight over a WebSocket, without its first HTTP request. |
-| **Snapshot (stage)** | A procedure's own copy of a stage definition's text, taken when the procedure is created. |
+| **Snapshot (stage)** | A pathway's own copy of a stage definition's text, taken when the pathway is created. |
 | **Special category data** | Personal data UK GDPR protects most closely, including health data. |
 | **SSR** | Server-side rendering: building a page's HTML, with its data, on the server. |
 | **StatefulSet** | A Kubernetes workload for pods with their own lasting storage, such as a database. |
@@ -2586,14 +2586,14 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 
 | Where | The doc says | The code does |
 |---|---|---|
-| `docs/procedures-ui-plan.md`, section 6 | Home (`/`) is My tasks. | `/` is a welcome page (`src/pages/home/HomePage.tsx`); My Tasks is `/tasks`. The plan's planned component names (`ProcedureStatusBadge`, `NotAssignedConfirm`, `SearchDialog`) also differ from what was built (`ProcedureCells`, `StageWork`, `ListFilterBar`). |
+| `docs/pathways-ui-plan.md`, section 6 | Home (`/`) is My worklist. | `/` is a welcome page (`src/pages/home/HomePage.tsx`); My Worklist is `/tasks`. The plan's planned component names (`PathwayStatusBadge`, `NotAssignedConfirm`, `SearchDialog`) also differ from what was built (`PathwayCells`, `StageWork`, `ListFilterBar`). |
 | `MedApp.Web/README.md`, Layout and Theme | `components/modals` holds a `SearchDialog`; the light/dark toggle is in the side navigation's footer. | There's no `SearchDialog` (lists use `ListFilterBar`); dark mode is a switch in Account Settings (`src/pages/account/AccountPage.tsx:83`). |
 | `MedApp.API/Common/Extensions/ApplicationBuilderExtensions.cs:38` | The AppHost copies the built React app into `wwwroot` on publish. | Since #45, `MedApp.API/Dockerfile` builds it into the image. `docs/react-migration-plan.md` (Q4, phase 5) describes the earlier way too, as history. |
 | `MedApp.Web/server/server.mjs:6, 15` | The API's class is `SsrHost`. | It's `SsrServer`. |
 | `deploy/helm/medapp/README.md:77`, "How it's locked down" | The API and the Job reach only DNS and the database. | The API also reaches Valkey (`templates/networkpolicy.yaml:38-46`). |
 | `.github/workflows/publish.yml:21` | Runs go "one at a time, in order". | GitHub keeps only the newest waiting run, so commits in between can be skipped. |
 | `docs/reviews/flaws-review.md` | Describes its 31 findings as open. | It's a point-in-time review: #51 and #52 fix many of them ([11.6](#116-the-reviews-31-findings-after-51-and-52)). `docs/reviews/README.md` now says so. |
-| `AGENTS.md`, Solution layout | `MedApp.Domain` holds `Patient`, `PatientProcedure`, `PatientProcedureStage*` and `UserSession`. | It also holds `UserSettings`, `Notification` and `NotificationKind`. |
+| `AGENTS.md`, Solution layout | `MedApp.Domain` holds `Patient`, `PatientPathway`, `PatientPathwayStage*` and `UserSession`. | It also holds `UserSettings`, `Notification` and `NotificationKind`. |
 | `AGENTS.md`, Commands | `global.json` pins the SDK to 10.0.x. | It asks for 10.0.100 with `rollForward: latestMinor`, so any later 10.x SDK is accepted. |
 
 ---
@@ -2605,7 +2605,7 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 | Conventions for all code, and the merge flow | `AGENTS.md` |
 | Conventions for the React app | `MedApp.Web/AGENTS.md`, `MedApp.Web/README.md` |
 | Why and how the UI moved from Blazor to React | `docs/react-migration-plan.md` |
-| The procedures concept and its decisions | `docs/procedures-ui-plan.md` |
+| The pathways concept and its decisions | `docs/pathways-ui-plan.md` |
 | Staff calendars, appointments and stage visits, and their decisions | `docs/calendar-plan.md` |
 | Smaller open items | `docs/todo.md` |
 | Clinical safety (DCB0129 drafts) and the medical device decision | `docs/clinical-safety/README.md` and the documents it lists |

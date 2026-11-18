@@ -8,5 +8,5 @@ public interface INotificationPreferencesRepository
     Task<NotificationPreferences?> GetAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Saves the user's choices, replacing any they had.</summary>
-    Task SaveAsync(Guid userId, bool procedureAssigned, DateTime utcNow, CancellationToken cancellationToken);
+    Task SaveAsync(Guid userId, bool pathwayAssigned, DateTime utcNow, CancellationToken cancellationToken);
 }

@@ -6,7 +6,7 @@ const HALF = {flexBasis: 0};
 
 /**
  * Two equal columns side by side, filling the height they're given (e.g. a `Page` with `fill`). Each column is
- * held to that height, so a card in it fills it and scrolls its own content. Used by Home and the procedure page.
+ * held to that height, so a card in it fills it and scrolls its own content. Used by Home and the pathway page.
  */
 export function TwoColumns({start, end}: {start: ReactNode; end: ReactNode}) {
   return (

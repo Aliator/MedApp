@@ -82,12 +82,12 @@ describe('AnonymiseDialog', () => {
 
   it('says why the API refused, and stays open', async () => {
     const {user, onDone} = renderDialog(() =>
-      json({title: 'This patient has 1 procedure under way, so their record can’t be anonymised.'}, 409),
+      json({title: 'This patient has 1 pathway under way, so their record can’t be anonymised.'}, 409),
     );
 
     await user.click(await fill(user, 'Oriel Penhallow'));
 
-    expect(await screen.findByText(/1 procedure under way/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 pathway under way/)).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
   });
 

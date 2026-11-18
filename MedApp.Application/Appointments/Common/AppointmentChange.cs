@@ -1,4 +1,4 @@
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using static MedApp.Domain.Appointments.AppointmentStatus;
 
@@ -9,17 +9,17 @@ namespace MedApp.Application.Appointments.Common;
 /// collects the history entries (<see cref="AppointmentEvent"/>) to save with the change. Handlers check that a change
 /// is allowed first (<see cref="AppointmentWorkflow"/>); this only applies it.
 /// <para>
-/// Each entry copies what it shows: the procedure's title and stage's name (given, or from the appointment's
-/// procedure and stage), the member of staff (<paramref name="staffUsername"/> is the current one's username) and
+/// Each entry copies what it shows: the pathway's title and stage's name (given, or from the appointment's
+/// pathway and stage), the member of staff (<paramref name="staffUsername"/> is the current one's username) and
 /// the time, as they are after the change.
 /// </para>
 /// </summary>
 public sealed class AppointmentChange(
     Appointment appointment,
-    ProcedureActor actor,
+    PathwayActor actor,
     DateTime nowUtc,
     string? staffUsername = null,
-    string? procedureTitle = null,
+    string? pathwayTitle = null,
     string? stageName = null)
 {
     private readonly List<AppointmentEvent> _events = [];
@@ -164,7 +164,7 @@ public sealed class AppointmentChange(
 
     /// <summary>
     /// Records a history entry. Entries one change writes are each a tick (100 ns) after the one before, so they sort
-    /// in the order they happened, as the procedure audit log's do.
+    /// in the order they happened, as the pathway audit log's do.
     /// </summary>
     private void Record(AppointmentEventAction action, object? details = null)
     {
@@ -173,10 +173,10 @@ public sealed class AppointmentChange(
             Id = Guid.NewGuid(),
             AppointmentId = appointment.Id,
             PatientId = appointment.PatientId,
-            ProcedureId = appointment.ProcedureId,
-            ProcedureTitle = appointment.ProcedureId is null
+            PathwayId = appointment.PathwayId,
+            PathwayTitle = appointment.PathwayId is null
                 ? string.Empty
-                : procedureTitle ?? appointment.Procedure?.Title ?? string.Empty,
+                : pathwayTitle ?? appointment.Pathway?.Title ?? string.Empty,
             StageName = appointment.StageId is null ? null : stageName ?? appointment.Stage?.Name,
             Action = action,
             UserId = actor.UserId,
@@ -186,7 +186,7 @@ public sealed class AppointmentChange(
             StaffUsername = appointment.StaffUserId is null ? null : _staffUsername,
             StartUtc = appointment.StartUtc,
             EndUtc = appointment.EndUtc,
-            Details = ProcedureAudit.Details(details)
+            Details = PathwayAudit.Details(details)
         });
         appointment.LastUpdated = nowUtc;
     }

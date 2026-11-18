@@ -3,14 +3,14 @@ import {adminUser, calls, findAlert, json, mockApi, pageOf, pickFavourite, rende
 import type {AuditListSearch} from '../listSearch';
 import {AuditLogPage} from './AuditLogPage';
 
-const SEARCH = '/api/procedures/audit/search';
-const procedureId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+const SEARCH = '/api/pathways/audit/search';
+const pathwayId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
 
 const entries = [
   {
     id: 'a1',
-    patientProcedureId: procedureId,
-    procedureTitle: 'Knee review',
+    patientPathwayId: pathwayId,
+    pathwayTitle: 'Knee review',
     stageName: null,
     action: 'StatusChanged',
     username: 'k.ashford',
@@ -19,8 +19,8 @@ const entries = [
   },
   {
     id: 'a2',
-    patientProcedureId: procedureId,
-    procedureTitle: 'Knee review',
+    patientPathwayId: pathwayId,
+    pathwayTitle: 'Knee review',
     stageName: 'Consent',
     action: 'StageFinished',
     username: 'l.northcott',
@@ -36,11 +36,11 @@ function renderLog(search: AuditListSearch = {}, body: unknown = pageOf(entries,
 }
 
 describe('AuditLogPage', () => {
-  it('lists entries newest first: when, the procedure and stage, the action, who, and the details in words', async () => {
+  it('lists entries newest first: when, the pathway and stage, the action, who, and the details in words', async () => {
     const {fetch} = renderLog();
 
     const row = (await screen.findByText('In progress → blocked: Awaiting results')).closest('tr')!;
-    expect(within(row).getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(within(row).getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
     expect(within(row).getByText('Status changed')).toBeInTheDocument();
     expect(within(row).getByText('k.ashford')).toBeInTheDocument();
     const stageRow = within(screen.getByRole('table')).getByText('Stage finished').closest('tr')!;
@@ -49,26 +49,26 @@ describe('AuditLogPage', () => {
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1&Ascending=false`]);
   });
 
-  it("shows one procedure's entries, named in the subtitle, with Back to the procedure", async () => {
-    const {fetch} = renderLog({procedureId, page: 2});
+  it("shows one pathway's entries, named in the subtitle, with Back to the pathway", async () => {
+    const {fetch} = renderLog({pathwayId, page: 2});
 
     expect(await screen.findByText('23 entries for Knee review')).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Back'})).toHaveAttribute('href', `/procedures/${procedureId}`);
-    expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=2&Ascending=false&ProcedureId=${procedureId}`]);
+    expect(screen.getByRole('link', {name: 'Back'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+    expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=2&Ascending=false&PathwayId=${pathwayId}`]);
   });
 
-  it('searches by text and actions; a favourite sets its filter, keeping the procedure, and back to page 1', async () => {
-    const {user, fetch, onSearchChange} = renderLog({procedureId, page: 3, q: 'ashford', action: 'StageFinished,Created'});
+  it('searches by text and actions; a favourite sets its filter, keeping the pathway, and back to page 1', async () => {
+    const {user, fetch, onSearchChange} = renderLog({pathwayId, page: 3, q: 'ashford', action: 'StageFinished,Created'});
 
     await screen.findByText('k.ashford');
     expect(calls(fetch)[0]).toContain('Search=ashford');
     expect(calls(fetch)[0]).toContain('Actions=StageFinished&Actions=Created');
-    expect(searchBar()).toHaveTextContent(/Procedure, stage or user: contains\s*ashford/);
+    expect(searchBar()).toHaveTextContent(/Pathway, stage or user: contains\s*ashford/);
     expect(searchBar()).toHaveTextContent(/Action: is any of/);
 
     await pickFavourite(user, 'Status changes');
     expect(onSearchChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({procedureId, action: 'StatusChanged', q: undefined, page: undefined}),
+      expect.objectContaining({pathwayId, action: 'StatusChanged', q: undefined, page: undefined}),
     );
   });
 
@@ -109,7 +109,7 @@ describe('AuditLogPage', () => {
   });
 
   it('offers to clear a search that finds nothing, keeping the order', async () => {
-    const {user, onSearchChange} = renderLog({procedureId, q: 'nothing', asc: true}, pageOf([], 0));
+    const {user, onSearchChange} = renderLog({pathwayId, q: 'nothing', asc: true}, pageOf([], 0));
 
     expect((await screen.findAllByText('No entries match your search')).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', {name: 'Clear Search'}));
@@ -129,13 +129,13 @@ describe('AuditLogPage', () => {
     expect(await findAlert('The audit log could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
-  it("lists file entries: a patient's own file as a Patient file, linked to the patient, and a procedure's as usual", async () => {
+  it("lists file entries: a patient's own file as a Patient file, linked to the patient, and a pathway's as usual", async () => {
     const patientId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5c';
     const files = [
       {
         id: 'f1',
-        patientProcedureId: '00000000-0000-0000-0000-000000000000',
-        procedureTitle: '',
+        patientPathwayId: '00000000-0000-0000-0000-000000000000',
+        pathwayTitle: '',
         patientId,
         stageName: null,
         action: 'AttachmentDownloaded',
@@ -145,8 +145,8 @@ describe('AuditLogPage', () => {
       },
       {
         id: 'f2',
-        patientProcedureId: procedureId,
-        procedureTitle: 'Knee review',
+        patientPathwayId: pathwayId,
+        pathwayTitle: 'Knee review',
         patientId,
         stageName: 'Consent',
         action: 'AttachmentAdded',
@@ -154,7 +154,7 @@ describe('AuditLogPage', () => {
         atUtc: '2026-11-08T09:00:00Z',
         details: JSON.stringify({attachmentId: 'y', fileName: 'consent.pdf', size: 1258291, attachedTo: 'Stage'}),
       },
-      {...entries[1], id: 'f3', action: 'AttachmentDeleted', details: JSON.stringify({fileName: 'old.pdf', attachedTo: 'Procedure'})},
+      {...entries[1], id: 'f3', action: 'AttachmentDeleted', details: JSON.stringify({fileName: 'old.pdf', attachedTo: 'Pathway'})},
     ];
     renderLog({}, pageOf(files, 3));
 
@@ -162,7 +162,7 @@ describe('AuditLogPage', () => {
     expect(patientRow.getByRole('link', {name: 'Patient file'})).toHaveAttribute('href', `/patients/${patientId}`);
     expect(patientRow.getByText('File downloaded')).toBeInTheDocument();
     const stageRow = within(screen.getByText('consent.pdf (1.2 MB), on the stage').closest('tr')!);
-    expect(stageRow.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(stageRow.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
     expect(stageRow.getByText('Consent')).toBeInTheDocument();
     expect(stageRow.getByText('File attached')).toBeInTheDocument();
     expect(screen.getByText('File deleted')).toBeInTheDocument();

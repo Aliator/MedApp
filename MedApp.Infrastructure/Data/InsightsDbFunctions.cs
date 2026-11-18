@@ -1,4 +1,4 @@
-using MedApp.Application.Procedures.Insights.Common;
+using MedApp.Application.Pathways.Insights.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 

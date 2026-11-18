@@ -1,9 +1,9 @@
 /**
- * Insights' numbers in words: durations, weeks, the charts' summaries, and the links from a count to the procedures
+ * Insights' numbers in words: durations, weeks, the charts' summaries, and the links from a count to the pathways
  * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status` and `template`).
  */
 
-import type {OverdueByAssignee, OverdueByPriority, ProcedureInsights, TemplateStageTimes, WeeklyThroughput} from '../../api/insights';
+import type {OverdueByAssignee, OverdueByPriority, PathwayInsights, TemplateStageTimes, WeeklyThroughput} from '../../api/insights';
 import {NOBODY} from '../listSearch';
 
 /** A duration given in hours, as people say it: "45 min", "5 h 30 min", "3 d 4 h". */
@@ -45,32 +45,32 @@ export function assigneeNames(rows: readonly OverdueByAssignee[]): string[] {
 
 
 /**
- * The procedures list, filtered to what a count counts: on the template (by its ID) when Insights is on one. Always
- * `mine=false`, so the list isn't narrowed to the admin's own procedures by where Account Settings has lists start.
+ * The pathways list, filtered to what a count counts: on the template (by its ID) when Insights is on one. Always
+ * `mine=false`, so the list isn't narrowed to the admin's own pathways by where Account Settings has lists start.
  */
-export function proceduresHref(filters: Record<string, string>, templateId?: string | null): string {
-  return `/procedures?${new URLSearchParams({...filters, mine: 'false', ...(templateId ? {templateId} : {})}).toString()}`;
+export function pathwaysHref(filters: Record<string, string>, templateId?: string | null): string {
+  return `/pathways?${new URLSearchParams({...filters, mine: 'false', ...(templateId ? {templateId} : {})}).toString()}`;
 }
 
 export const assigneeHref = (row: OverdueByAssignee, templateId?: string | null) =>
-  proceduresHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateId);
+  pathwaysHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateId);
 
 export const priorityHref = (row: OverdueByPriority, templateId?: string | null) =>
-  proceduresHref({overdue: 'true', priority: row.priority ?? ''}, templateId);
+  pathwaysHref({overdue: 'true', priority: row.priority ?? ''}, templateId);
 
-export function overdueByAssigneeSummary(insights: ProcedureInsights): string {
+export function overdueByAssigneeSummary(insights: PathwayInsights): string {
   const overdue = insights.overdue?.current ?? 0;
   if (overdue === 0) return 'Nothing is overdue.';
   const rows = insights.overdueByAssignee ?? [];
   const nobody = rows.find((r) => !r.userId)?.count ?? 0;
   const top = rows.find((r) => r.userId);
-  const parts = [`${plural(overdue, 'procedure is', 'procedures are')} overdue.`];
+  const parts = [`${plural(overdue, 'pathway is', 'pathways are')} overdue.`];
   if (top) parts.push(`${assigneeName(top)} has the most (${top.count}).`);
   if (nobody) parts.push(`${plural(nobody, 'has', 'have')} nobody assigned.`);
   return parts.join(' ');
 }
 
-export function overdueByPrioritySummary(insights: ProcedureInsights): string {
+export function overdueByPrioritySummary(insights: PathwayInsights): string {
   const overdue = insights.overdue?.current ?? 0;
   if (overdue === 0) return 'Nothing is overdue.';
   const count = (priority: string) => insights.overdueByPriority?.find((r) => r.priority === priority)?.count ?? 0;
@@ -88,7 +88,7 @@ export function throughputSummary(weeks: readonly WeeklyThroughput[]): string {
         ? `${created - completed} more created than completed`
         : `${completed - created} more completed than created`;
   const parts = [
-    `Over ${plural(weeks.length, 'week')}, ${plural(created, 'procedure')} created and ${completed} completed: ${balance}.`,
+    `Over ${plural(weeks.length, 'week')}, ${plural(created, 'pathway')} created and ${completed} completed: ${balance}.`,
   ];
   if (thisWeek) parts.push(`This week so far: ${thisWeek.created ?? 0} created, ${thisWeek.completed ?? 0} completed.`);
   return parts.join(' ');

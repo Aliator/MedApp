@@ -45,7 +45,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(appointmentWhen(testRequested())).toBe('Not booked yet');
   });
 
-  it("shows a booked appointment's details, with links to its patient and procedure", async () => {
+  it("shows a booked appointment's details, with links to its patient and pathway", async () => {
     const {user, router, onClose} = renderDialog(testAppointment({id: 'appt-1', notes: 'Bring the scan.'}));
 
     expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(dialog().queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
 
     await user.click(dialog().getByRole('link', {name: 'Knee review: Assessment'}));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures/procedure-1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways/pathway-1'));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -323,8 +323,8 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       canEditNotes: false,
       canCancel: false,
       canReschedule: false,
-      procedureId: null,
-      procedureTitle: null,
+      pathwayId: null,
+      pathwayTitle: null,
       stageId: null,
       stageName: null,
       outcomeAtUtc: '2026-11-12T10:00:00Z',
@@ -347,7 +347,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       'GET /api/appointments/appt-1': () => json(appointment),
       'GET /api/calendar/staff': () => json([STAFF_ME]),
       'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
-      'GET /api/procedures/patient-procedures/search': () => json({items: []}),
+      'GET /api/pathways/patient-pathways/search': () => json({items: []}),
       'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     });
     const {user} = renderWithApp(<Harness />, {user: staffUser});

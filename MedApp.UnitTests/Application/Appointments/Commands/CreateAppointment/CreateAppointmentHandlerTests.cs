@@ -5,12 +5,12 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -23,7 +23,7 @@ namespace MedApp.UnitTests.Application.Appointments.Commands.CreateAppointment;
 public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
 {
     private Mock<IPatientRepository> _patients = null!;
-    private Mock<IPatientProcedureRepository> _procedures = null!;
+    private Mock<IPatientPathwayRepository> _pathways = null!;
     private Patient _patient = null!;
     private CreateAppointmentHandler _handler = null!;
 
@@ -31,27 +31,27 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     public void SetUp()
     {
         _patients = new Mock<IPatientRepository>();
-        _procedures = new Mock<IPatientProcedureRepository>();
+        _pathways = new Mock<IPatientPathwayRepository>();
         _patient = PatientsTestConstants.CreateValidPatient();
         _patients.Setup(p => p.GetByIdAsync(_patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_patient);
 
         Fixture.Inject(_patients.Object);
-        Fixture.Inject(_procedures.Object);
+        Fixture.Inject(_pathways.Object);
         _handler = Fixture.Create<CreateAppointmentHandler>();
     }
 
-    private CreateAppointmentCommand Request(Guid? procedureId = null, Guid? stageId = null) =>
-        new(_patient.Id, procedureId, stageId, null, null, null, Notes, Colleague);
+    private CreateAppointmentCommand Request(Guid? pathwayId = null, Guid? stageId = null) =>
+        new(_patient.Id, pathwayId, stageId, null, null, null, Notes, Colleague);
 
-    private CreateAppointmentCommand Booking(Guid? procedureId = null, Guid? stageId = null, ProcedureActor? by = null) =>
-        new(_patient.Id, procedureId, stageId, StaffUserId, At(NextMonday, 10), At(NextMonday, 10, 30), Notes, by ?? Colleague);
+    private CreateAppointmentCommand Booking(Guid? pathwayId = null, Guid? stageId = null, PathwayActor? by = null) =>
+        new(_patient.Id, pathwayId, stageId, StaffUserId, At(NextMonday, 10), At(NextMonday, 10, 30), Notes, by ?? Colleague);
 
-    private PatientProcedure GivenProcedure(PatientProcedureStatus status = PatientProcedureStatus.Assigned, Patient? patient = null)
+    private PatientPathway GivenPathway(PatientPathwayStatus status = PatientPathwayStatus.Assigned, Patient? patient = null)
     {
-        var procedure = ProceduresTestConstants.CreateProcedure(status, patient: patient ?? _patient, title: ProcedureTitle);
-        procedure.StageAt(1).Name = StageName;
-        _procedures.Setup(p => p.GetByIdAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure);
-        return procedure;
+        var pathway = PathwaysTestConstants.CreatePathway(status, patient: patient ?? _patient, title: PathwayTitle);
+        pathway.StageAt(1).Name = StageName;
+        _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
+        return pathway;
     }
 
     [Test]
@@ -64,7 +64,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ProcedureDoesNotExist_ThrowsNotFound()
+    public async Task Handle_PathwayDoesNotExist_ThrowsNotFound()
     {
         var act = () => _handler.Handle(Request(Guid.NewGuid()), CancellationToken.None);
 
@@ -73,50 +73,50 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ProcedureForAnotherPatient_ThrowsConflict()
+    public async Task Handle_PathwayForAnotherPatient_ThrowsConflict()
     {
-        var procedure = GivenProcedure(patient: PatientsTestConstants.CreateValidPatient());
+        var pathway = GivenPathway(patient: PatientsTestConstants.CreateValidPatient());
 
-        var act = () => _handler.Handle(Request(procedure.Id), CancellationToken.None);
+        var act = () => _handler.Handle(Request(pathway.Id), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("That procedure is for another patient.");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("That pathway is for another patient.");
         Added.Should().BeEmpty();
     }
 
     [Test]
-    public async Task Handle_StageNotOnTheProcedure_ThrowsNotFound()
+    public async Task Handle_StageNotOnThePathway_ThrowsNotFound()
     {
-        var procedure = GivenProcedure();
+        var pathway = GivenPathway();
 
-        var act = () => _handler.Handle(Request(procedure.Id, Guid.NewGuid()), CancellationToken.None);
+        var act = () => _handler.Handle(Request(pathway.Id, Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
         Added.Should().BeEmpty();
     }
 
-    [TestCase(PatientProcedureStatus.Completed)]
-    [TestCase(PatientProcedureStatus.Cancelled)]
-    [TestCase(PatientProcedureStatus.Archived)]
-    public async Task Handle_StageOfAClosedProcedure_ThrowsConflict(PatientProcedureStatus status)
+    [TestCase(PatientPathwayStatus.Completed)]
+    [TestCase(PatientPathwayStatus.Cancelled)]
+    [TestCase(PatientPathwayStatus.Archived)]
+    public async Task Handle_StageOfAClosedPathway_ThrowsConflict(PatientPathwayStatus status)
     {
-        var procedure = GivenProcedure(status);
+        var pathway = GivenPathway(status);
 
-        var act = () => _handler.Handle(Request(procedure.Id, procedure.StageAt(1).Id), CancellationToken.None);
+        var act = () => _handler.Handle(Request(pathway.Id, pathway.StageAt(1).Id), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("A visit can't be booked for a stage of a procedure that's *");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("A visit can't be booked for a stage of a pathway that's *");
         Added.Should().BeEmpty();
     }
 
     [Test]
     public async Task Handle_StageAlreadyHasAVisitInRequiresAppointment_ThrowsConflictPointingToIt()
     {
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         using var cts = new CancellationTokenSource();
         Repository.Setup(r => r.GetOpenForStageAsync(stageId, cts.Token))
             .ReturnsAsync(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested, stageId: stageId));
 
-        var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
+        var act = () => _handler.Handle(Request(pathway.Id, stageId), cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("This stage already has a visit in Requires Appointment. Book that one instead.");
@@ -126,13 +126,13 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     [Test]
     public async Task Handle_StageAlreadyHasABookedVisit_ThrowsConflictSayingWhenAndWithWhom()
     {
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         using var cts = new CancellationTokenSource();
         Repository.Setup(r => r.GetOpenForStageAsync(stageId, cts.Token))
             .ReturnsAsync(CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11), stageId: stageId));
 
-        var act = () => _handler.Handle(Booking(procedure.Id, stageId), cts.Token);
+        var act = () => _handler.Handle(Booking(pathway.Id, stageId), cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(
             $"This stage already has a visit booked, on Monday 23 November at 11:00 with {StaffUsername}. Reschedule or cancel that one instead.");
@@ -145,8 +145,8 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     public async Task Handle_AnotherRequestAddsAVisitForTheStageFirst_ThrowsTheSameConflictPointingToIt()
     {
         // Both passed the check; the database's unique index refused this one's save.
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         var theirs = CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested, stageId: stageId);
         using var cts = new CancellationTokenSource();
         Repository.SetupSequence(r => r.GetOpenForStageAsync(stageId, cts.Token))
@@ -156,7 +156,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
             .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
 
-        var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
+        var act = () => _handler.Handle(Request(pathway.Id, stageId), cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("This stage already has a visit in Requires Appointment. Book that one instead.");
@@ -166,8 +166,8 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     [Test]
     public async Task Handle_BookingLosesTheRaceForTheStage_ThrowsTheConflictAndNotifiesNobody()
     {
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         var theirs = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11), stageId: stageId);
         Repository.SetupSequence(r => r.GetOpenForStageAsync(stageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Appointment?)null)
@@ -176,7 +176,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
             .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
 
-        var act = () => _handler.Handle(Booking(procedure.Id, stageId), CancellationToken.None);
+        var act = () => _handler.Handle(Booking(pathway.Id, stageId), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("This stage already has a visit booked, on Monday 23 November at 11:00*");
         Sent.Should().BeEmpty();
@@ -185,26 +185,26 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     [Test]
     public async Task Handle_TheVisitThatWonTheRaceIsClosedByTheTimeItIsLookedFor_ThrowsAConflictSayingToTryAgain()
     {
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         Repository
             .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
 
-        var act = () => _handler.Handle(Request(procedure.Id, stageId), CancellationToken.None);
+        var act = () => _handler.Handle(Request(pathway.Id, stageId), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("This stage already has a visit requested or booked. Reload it and try again.");
     }
 
     [Test]
-    public async Task Handle_ProcedureWithoutAStage_DoesNotCheckForOpenVisits()
+    public async Task Handle_PathwayWithoutAStage_DoesNotCheckForOpenVisits()
     {
-        var procedure = GivenProcedure(PatientProcedureStatus.Cancelled);
+        var pathway = GivenPathway(PatientPathwayStatus.Cancelled);
 
-        var response = await _handler.Handle(Request(procedure.Id), CancellationToken.None);
+        var response = await _handler.Handle(Request(pathway.Id), CancellationToken.None);
 
-        response.ProcedureId.Should().Be(procedure.Id);
+        response.PathwayId.Should().Be(pathway.Id);
         Repository.Verify(r => r.GetOpenForStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -243,37 +243,37 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ForAStage_LinksItAndRecordsTheProcedureTitleAndStageName()
+    public async Task Handle_ForAStage_LinksItAndRecordsThePathwayTitleAndStageName()
     {
-        var procedure = GivenProcedure();
-        var stage = procedure.StageAt(1);
+        var pathway = GivenPathway();
+        var stage = pathway.StageAt(1);
 
-        await _handler.Handle(Request(procedure.Id, stage.Id), CancellationToken.None);
+        await _handler.Handle(Request(pathway.Id, stage.Id), CancellationToken.None);
 
         var added = Added.Single();
-        added.ProcedureId.Should().Be(procedure.Id);
+        added.PathwayId.Should().Be(pathway.Id);
         added.StageId.Should().Be(stage.Id);
         var entry = SavedEvents.Single();
-        entry.ProcedureTitle.Should().Be(ProcedureTitle);
+        entry.PathwayTitle.Should().Be(PathwayTitle);
         entry.StageName.Should().Be(StageName);
     }
 
     [Test]
-    public async Task Handle_ReadBack_ReturnsTheSavedAppointmentWithItsProcedure()
+    public async Task Handle_ReadBack_ReturnsTheSavedAppointmentWithItsPathway()
     {
-        var procedure = GivenProcedure();
+        var pathway = GivenPathway();
         Repository.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Guid id, CancellationToken _) =>
             {
                 var saved = Added.Single(a => a.Id == id);
-                saved.Procedure = procedure;
+                saved.Pathway = pathway;
                 saved.Patient = _patient;
                 return saved;
             });
 
-        var response = await _handler.Handle(Request(procedure.Id), CancellationToken.None);
+        var response = await _handler.Handle(Request(pathway.Id), CancellationToken.None);
 
-        response.ProcedureTitle.Should().Be(ProcedureTitle);
+        response.PathwayTitle.Should().Be(PathwayTitle);
         response.PatientName.Should().Be($"{_patient.FirstName} {_patient.LastName}");
     }
 
@@ -319,17 +319,17 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     [Test]
     public async Task Handle_BookingWithSomeoneElse_NotifiesThemWithoutThePatientOrNotes()
     {
-        var procedure = GivenProcedure();
+        var pathway = GivenPathway();
         using var cts = new CancellationTokenSource();
 
-        await _handler.Handle(Booking(procedure.Id), cts.Token);
+        await _handler.Handle(Booking(pathway.Id), cts.Token);
 
         var (notification, token) = Sent.Should().ContainSingle().Subject;
         token.Should().Be(cts.Token);
         notification.UserId.Should().Be(StaffUserId);
         notification.Kind.Should().Be(NotificationKind.AppointmentBooked);
         notification.Title.Should().Be("Appointment booked");
-        notification.ProcedureId.Should().Be(procedure.Id);
+        notification.PathwayId.Should().Be(pathway.Id);
         notification.AppointmentId.Should().Be(Added.Single().Id);
         notification.Message.Should().Be($"{Colleague.Username} booked you an appointment on Monday 23 November at 10:00.");
         notification.Message.Should().NotContain(_patient.FirstName).And.NotContain(Notes);
@@ -381,14 +381,14 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     [Test]
     public async Task Handle_PassesTheTokenToEveryLookup()
     {
-        var procedure = GivenProcedure();
-        var stageId = procedure.StageAt(1).Id;
+        var pathway = GivenPathway();
+        var stageId = pathway.StageAt(1).Id;
         using var cts = new CancellationTokenSource();
 
-        await _handler.Handle(Booking(procedure.Id, stageId), cts.Token);
+        await _handler.Handle(Booking(pathway.Id, stageId), cts.Token);
 
         _patients.Verify(p => p.GetByIdAsync(_patient.Id, cts.Token), Times.Once);
-        _procedures.Verify(p => p.GetByIdAsync(procedure.Id, cts.Token), Times.Once);
+        _pathways.Verify(p => p.GetByIdAsync(pathway.Id, cts.Token), Times.Once);
         Repository.Verify(r => r.GetOpenForStageAsync(stageId, cts.Token), Times.Once);
         Identity.Verify(i => i.GetStaffAsync(cts.Token), Times.Once);
         Repository.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), cts.Token), Times.Once);

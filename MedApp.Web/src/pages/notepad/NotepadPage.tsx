@@ -12,8 +12,8 @@ const HALF = {height: '100%'} as const;
 
 /**
  * The notepad's page (`/notepad`), shown in a half view beside a page (the side nav's Notepad row's menu): the notepad
- * filling its half. Close saves first, then closes the half (it stays open if the save fails). Add Note to Procedure
- * adds to the procedure page beside it (the signed-in layout's), after the same confirmation as the docked notepad.
+ * filling its half. Close saves first, then closes the half (it stays open if the save fails). Add Note to Pathway
+ * adds to the pathway page beside it (the signed-in layout's), after the same confirmation as the docked notepad.
  *
  * It isn't a page of its own: opened on its own (the address typed, or a window kept from when the notepad had one),
  * it goes to the start page with the notepad docked there.

@@ -108,7 +108,7 @@ export function whyCantChange(patient: Pick<Patient, 'isRestricted' | 'isAnonymi
 
 /**
  * Refreshes everything a change to a patient's flags or record touches: the patient (with its new state from the
- * response), the lists, their procedures and appointments (which become read-only with them, so the calendars too)
+ * response), the lists, their pathways and appointments (which become read-only with them, so the calendars too)
  * and the activity log.
  */
 function useAfterPatientChange(id: string) {
@@ -117,7 +117,7 @@ function useAfterPatientChange(id: string) {
     queryClient.setQueryData(['patients', id], patient);
     await Promise.all([
       queryClient.invalidateQueries({queryKey: ['patients']}),
-      queryClient.invalidateQueries({queryKey: ['procedures']}),
+      queryClient.invalidateQueries({queryKey: ['pathways']}),
       queryClient.invalidateQueries({queryKey: ['appointments']}),
       queryClient.invalidateQueries({queryKey: ['calendar']}),
       queryClient.invalidateQueries({queryKey: ['activity']}),
@@ -133,16 +133,16 @@ export interface PatientFlagInput {
   /** True to set it, false to clear it. */
   set: boolean;
   reason: string;
-  /** Restricting a record with procedures under way: the admin confirms their work stops (but for blocking and cancelling). */
-  confirmOpenProcedures?: boolean;
+  /** Restricting a record with pathways under way: the admin confirms their work stops (but for blocking and cancelling). */
+  confirmOpenPathways?: boolean;
 }
 
 /** Sets or clears a patient's restricted or disputed flag, with a reason (admins only). */
 export function useSetPatientFlag(id: string) {
   const after = useAfterPatientChange(id);
   return useMutation({
-    mutationFn: ({flag, set, reason, confirmOpenProcedures = false}: PatientFlagInput) => {
-      const body = {set, reason: reason.trim() || null, confirmOpenProcedures};
+    mutationFn: ({flag, set, reason, confirmOpenPathways = false}: PatientFlagInput) => {
+      const body = {set, reason: reason.trim() || null, confirmOpenPathways};
       return unwrap(
         flag === 'restriction'
           ? api.PUT('/api/patients/{id}/restriction', {params: {path: {id}}, body})

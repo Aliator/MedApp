@@ -1,7 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Attachments.Commands.UploadAttachment;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Commands.UploadAttachment;
 
@@ -10,16 +10,16 @@ public sealed class UploadAttachmentValidatorTests
 {
     private readonly UploadAttachmentValidator _validator = new();
 
-    private static UploadAttachmentCommand Command(Guid? patientId, Guid? procedureId, Guid? stageId, string? fileName = FileName) =>
-        new(patientId, procedureId, stageId, fileName, 10, Stream(Pdf), Staff, false);
+    private static UploadAttachmentCommand Command(Guid? patientId, Guid? pathwayId, Guid? stageId, string? fileName = FileName) =>
+        new(patientId, pathwayId, stageId, fileName, 10, Stream(Pdf), Staff, false);
 
     [TestCase(true, false, false)]
     [TestCase(false, true, false)]
     [TestCase(false, false, true)]
-    public void Validate_ExactlyOneTarget_IsValid(bool patient, bool procedure, bool stage)
+    public void Validate_ExactlyOneTarget_IsValid(bool patient, bool pathway, bool stage)
     {
         var result = _validator.Validate(Command(
-            patient ? Guid.NewGuid() : null, procedure ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
+            patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
 
         result.IsValid.Should().BeTrue();
     }
@@ -27,13 +27,13 @@ public sealed class UploadAttachmentValidatorTests
     [TestCase(false, false, false)]
     [TestCase(true, true, false)]
     [TestCase(true, true, true)]
-    public void Validate_NoneOrSeveralTargets_IsInvalid(bool patient, bool procedure, bool stage)
+    public void Validate_NoneOrSeveralTargets_IsInvalid(bool patient, bool pathway, bool stage)
     {
         var result = _validator.Validate(Command(
-            patient ? Guid.NewGuid() : null, procedure ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
+            patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Target"
-                                                  && e.ErrorMessage == "Give exactly one of a patient, a procedure or a stage.");
+                                                  && e.ErrorMessage == "Give exactly one of a patient, a pathway or a stage.");
     }
 
     [TestCase(null)]

@@ -1,4 +1,4 @@
-import {acronym, initials, procedureNavLabel} from './navLabels';
+import {acronym, initials, pathwayNavLabel} from './navLabels';
 
 describe('navLabels', () => {
   it('takes initials from a name', () => {
@@ -15,10 +15,10 @@ describe('navLabels', () => {
   });
 
   it('puts the initials before the acronym', () => {
-    expect(procedureNavLabel('Freya Ahmed', 'Total knee replacement')).toBe('FA TKR');
+    expect(pathwayNavLabel('Freya Ahmed', 'Total knee replacement')).toBe('FA TKR');
   });
 
   it('falls back when there is nothing to abbreviate', () => {
-    expect(procedureNavLabel('', '')).toBe('Procedure');
+    expect(pathwayNavLabel('', '')).toBe('Pathway');
   });
 });

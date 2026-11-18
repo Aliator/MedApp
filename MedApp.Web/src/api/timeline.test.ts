@@ -14,7 +14,7 @@ import {
 } from './timeline';
 
 const patientId = '00000031-0000-0000-0000-000000000001';
-const procedureId = '00000031-0000-0000-0000-000000000002';
+const pathwayId = '00000031-0000-0000-0000-000000000002';
 
 const entry = (fields: Partial<TimelineEntry>): TimelineEntry => ({
   id: '00000031-0000-0000-0000-000000000003',
@@ -22,9 +22,9 @@ const entry = (fields: Partial<TimelineEntry>): TimelineEntry => ({
   action: 'StageFinished',
   atUtc: '2026-06-15T09:00:00Z',
   username: 'test.staff',
-  procedureId,
-  procedureTitle: 'Test procedure',
-  isProcedureDeleted: false,
+  pathwayId,
+  pathwayTitle: 'Test pathway',
+  isPathwayDeleted: false,
   changes: [],
   ...fields,
 });
@@ -36,17 +36,17 @@ describe('patientTimelineQuery', () => {
         json({items: [], nextCursor: new URL(request.url).searchParams.get('Before') ? null : 'next-page'}),
     });
     const queryClient = new QueryClient();
-    const query = patientTimelineQuery(patientId, {kinds: ['Notes', 'Blocks'], procedureIds: [procedureId]});
+    const query = patientTimelineQuery(patientId, {kinds: ['Notes', 'Blocks'], pathwayIds: [pathwayId]});
 
     await queryClient.fetchInfiniteQuery(query);
     await queryClient.fetchInfiniteQuery({...query, pages: 2});
 
-    expect(query.queryKey).toEqual(['procedures', 'timeline', patientId, {kinds: ['Blocks', 'Notes'], procedureIds: [procedureId]}]);
+    expect(query.queryKey).toEqual(['pathways', 'timeline', patientId, {kinds: ['Blocks', 'Notes'], pathwayIds: [pathwayId]}]);
     // Fetching two pages starts again from the first.
     expect(new Set(calls(fetch))).toEqual(
       new Set([
-        `GET /api/patients/${patientId}/timeline?PageSize=20&Kinds=Blocks&Kinds=Notes&ProcedureIds=${procedureId}`,
-        `GET /api/patients/${patientId}/timeline?PageSize=20&Before=next-page&Kinds=Blocks&Kinds=Notes&ProcedureIds=${procedureId}`,
+        `GET /api/patients/${patientId}/timeline?PageSize=20&Kinds=Blocks&Kinds=Notes&PathwayIds=${pathwayId}`,
+        `GET /api/patients/${patientId}/timeline?PageSize=20&Before=next-page&Kinds=Blocks&Kinds=Notes&PathwayIds=${pathwayId}`,
       ]),
     );
   });
@@ -62,7 +62,7 @@ describe('patientTimelineQuery', () => {
 
 describe('patientTimelineOverviewQuery', () => {
   it("fetches the patient's overview", async () => {
-    const overview = {upcoming: [], openCount: 0, procedures: []};
+    const overview = {upcoming: [], openCount: 0, pathways: []};
     mockApi({[`GET /api/patients/${patientId}/timeline/overview`]: () => json(overview)});
 
     expect(await new QueryClient().fetchQuery(patientTimelineOverviewQuery(patientId))).toEqual(overview);
@@ -79,7 +79,7 @@ describe('timeline filters', () => {
       'Assignments',
       'Blocks',
       'Status',
-      'Due dates',
+      'Target dates',
       'Other edits',
       'Files',
       'Deleted',
@@ -88,8 +88,8 @@ describe('timeline filters', () => {
 
   it('knows when anything is filtered', () => {
     expect(hasTimelineFilters(NO_TIMELINE_FILTERS)).toBe(false);
-    expect(hasTimelineFilters({kinds: ['Notes'], procedureIds: []})).toBe(true);
-    expect(hasTimelineFilters({kinds: [], procedureIds: [procedureId]})).toBe(true);
+    expect(hasTimelineFilters({kinds: ['Notes'], pathwayIds: []})).toBe(true);
+    expect(hasTimelineFilters({kinds: [], pathwayIds: [pathwayId]})).toBe(true);
   });
 });
 
@@ -142,18 +142,18 @@ describe('describeTimelineEntry', () => {
     [{action: 'StageUnlocked', stageName: null}, 'Unlocked a stage', ''],
     [{action: 'Assigned', assigneeUsername: 'other.staff'}, 'Assigned other.staff', ''],
     [{action: 'Unassigned', assigneeUsername: null}, 'Unassigned someone', ''],
-    [{action: 'Deleted', fromStatus: 'Cancelled'}, 'Procedure deleted', 'Was cancelled'],
-    [{action: 'Deleted', fromStatus: null}, 'Procedure deleted', ''],
+    [{action: 'Deleted', fromStatus: 'Cancelled'}, 'Pathway deleted', 'Was cancelled'],
+    [{action: 'Deleted', fromStatus: null}, 'Pathway deleted', ''],
     [{action: 'Exploded'}, 'Exploded', ''],
     [{action: null}, 'Changed', ''],
   ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
     expect(describeTimelineEntry(entry(fields))).toEqual({title, detail});
   });
 
-  it('says where a procedure came from', () => {
+  it('says where a pathway came from', () => {
     const created = entry({action: 'Created', templateName: 'Test template', stageCount: 1, dueDate: '2026-06-22', priority: 'High'});
 
-    expect(describeTimelineEntry(created)).toEqual({title: 'Procedure created', detail: 'From Test template, 1 stage, due 22 Jun 2026, high priority'});
+    expect(describeTimelineEntry(created)).toEqual({title: 'Pathway created', detail: 'From Test template, 1 stage, due 22 Jun 2026, high priority'});
     expect(describeTimelineEntry(entry({action: 'Created', stageCount: 3})).detail).toBe('3 stages');
   });
 
@@ -189,8 +189,8 @@ describe('describeTimelineEntry', () => {
     });
 
     expect(describeTimelineEntry(admin)).toEqual({
-      title: 'Due date changed',
-      detail: 'Title "Old title" → "New title"; Notes cleared; Due date 15 Jun 2026 → none; Priority medium → high; Colour: blue',
+      title: 'Target date changed',
+      detail: 'Title "Old title" → "New title"; Notes cleared; Target date 15 Jun 2026 → none; Priority medium → high; Colour: blue',
     });
     expect(describeTimelineEntry(staff)).toEqual({title: 'Details edited', detail: 'Title changed; Notes changed'});
     expect(describeTimelineEntry(entry({action: 'DetailsUpdated', changes: [{field: 'title', from: '', to: 'Named'}]})).detail).toBe(
@@ -206,7 +206,7 @@ describe('describeTimelineEntry', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Assigned', toStatus: 'Blocked'})).detail).toBe('Was assigned');
   });
 
-  it('words an unblock, and cancelling a blocked procedure as a status change', () => {
+  it('words an unblock, and cancelling a blocked pathway as a status change', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Blocked', toStatus: 'InReview'}))).toEqual({
       title: 'Unblocked',
       detail: 'Back to in review',
@@ -290,7 +290,7 @@ describe('describeTimelineEntry', () => {
       describeTimelineEntry(entry({kind: 'Files', attachmentId: '00000031-0000-0000-0000-000000000009', ...fields}));
 
     // Staff get no names (free text).
-    expect(file({action: 'AttachmentAdded', attachedTo: 'Procedure', fileName: null})).toEqual({title: 'Attached a file', detail: 'To the procedure'});
+    expect(file({action: 'AttachmentAdded', attachedTo: 'Pathway', fileName: null})).toEqual({title: 'Attached a file', detail: 'To the pathway'});
     expect(file({action: 'AttachmentAdded', attachedTo: 'Stage', stageName: 'Consultation', fileName: 'scan.pdf'})).toEqual({
       title: 'Attached scan.pdf',
       detail: 'To the Consultation stage',
@@ -299,20 +299,20 @@ describe('describeTimelineEntry', () => {
       title: 'Deleted a file',
       detail: 'From a stage',
     });
-    expect(file({action: 'AttachmentDeleted', attachedTo: 'Patient', procedureId: NO_PROCEDURE_ID, procedureTitle: '', fileName: 'letter.docx'})).toEqual({
+    expect(file({action: 'AttachmentDeleted', attachedTo: 'Patient', pathwayId: NO_PATHWAY_ID, pathwayTitle: '', fileName: 'letter.docx'})).toEqual({
       title: 'Deleted letter.docx',
       detail: 'From the patient',
     });
   });
 });
 
-const NO_PROCEDURE_ID = '00000000-0000-0000-0000-000000000000';
+const NO_PATHWAY_ID = '00000000-0000-0000-0000-000000000000';
 
 describe('isPatientEntry', () => {
-  it("knows an entry about the patient's own file, which has no procedure", () => {
-    expect(isPatientEntry(entry({attachedTo: 'Patient', procedureId: NO_PROCEDURE_ID}))).toBe(true);
-    expect(isPatientEntry(entry({attachedTo: null, procedureId: NO_PROCEDURE_ID}))).toBe(true);
-    expect(isPatientEntry(entry({attachedTo: 'Procedure'}))).toBe(false);
+  it("knows an entry about the patient's own file, which has no pathway", () => {
+    expect(isPatientEntry(entry({attachedTo: 'Patient', pathwayId: NO_PATHWAY_ID}))).toBe(true);
+    expect(isPatientEntry(entry({attachedTo: null, pathwayId: NO_PATHWAY_ID}))).toBe(true);
+    expect(isPatientEntry(entry({attachedTo: 'Pathway'}))).toBe(false);
     expect(isPatientEntry(entry({}))).toBe(false);
   });
 });

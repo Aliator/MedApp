@@ -19,12 +19,12 @@ import {
   type StageDefinition,
   type StageDefinitionInput,
   type VisitRequirement,
-} from '../../api/procedureSetup';
+} from '../../api/pathwaySetup';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
-import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
-import {SnomedCell, snomedLabel} from '../../components/procedures/SnomedConcept';
+import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
+import {SnomedCell, snomedLabel} from '../../components/pathways/SnomedConcept';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
@@ -72,9 +72,9 @@ const templatesUsing = (n: number) => (n === 0 ? 'No templates' : `${n} ${n === 
 /**
  * Stage definitions (admin, decision 17): the reusable steps templates are built from. Admins add and edit them
  * (name, description, instructions, the SNOMED CT concept it records, and whether it involves a visit), archive ones no
- * longer wanted (kept by the templates and procedures that have them, but not offered for new templates), restore them,
+ * longer wanted (kept by the templates and pathways that have them, but not offered for new templates), restore them,
  * and delete ones no template has used (decision 11).
- * A procedure keeps its own copy of each stage, so editing a definition changes templates, not existing procedures.
+ * A pathway keeps its own copy of each stage, so editing a definition changes templates, not existing pathways.
  */
 export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsPageProps) {
   const {data = [], isPending, isError} = useQuery(stageDefinitionsQuery);
@@ -201,7 +201,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             title={editing ? 'Edit Stage' : 'Add Stage'}
             message={
               editing
-                ? 'Templates use the changes from now on. Procedures already started keep the stage as it was.'
+                ? 'Templates use the changes from now on. Pathways already started keep the stage as it was.'
                 : 'A step that templates can be built from.'
             }
             icon={editing ? AppIcon.Edit : AppIcon.Add}
@@ -270,7 +270,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               </Grid>
               <RadioList
                 label="Visit"
-                description="Whether the stage involves an appointment with the patient. New procedures ask for one to be booked when they reach it."
+                description="Whether the stage involves an appointment with the patient. New pathways ask for one to be booked when they reach it."
                 value={form.visitRequirement}
                 onChange={(value) => setForm((current) => ({...current, visitRequirement: value as VisitRequirement}))}
                 status={fieldStatus(problem.validation, 'visitRequirement')}>
@@ -284,7 +284,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
           <ConfirmDialog
             isOpen={dialog?.kind === 'archive'}
             title="Archive Stage"
-            message="It won't be offered for new templates. Templates and procedures that have it keep it, and it can be restored."
+            message="It won't be offered for new templates. Templates and pathways that have it keep it, and it can be restored."
             icon={AppIcon.Archive}
             intent="warning"
             confirmText="Archive"

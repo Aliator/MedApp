@@ -27,7 +27,7 @@ public sealed class SearchAppointmentsValidatorTests
         {
             Sort = "DUEDATE",
             PatientId = Guid.NewGuid(),
-            ProcedureId = Guid.NewGuid(),
+            PathwayId = Guid.NewGuid(),
             StageId = Guid.NewGuid(),
             StaffUserId = Guid.NewGuid(),
             Statuses = ["Booked", "requested"],

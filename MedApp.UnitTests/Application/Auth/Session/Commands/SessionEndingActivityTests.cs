@@ -124,8 +124,8 @@ public sealed class SessionEndingActivityTests
         public ActivityActor Actor => _inner.Actor;
 
         public ActivityEntry Entry(ActivityAction action, Guid? patientId = null, object? details = null, string? targetUsername = null,
-            Guid? procedureId = null, ActivityActor? actor = null) =>
-            _inner.Entry(action, patientId, details, targetUsername, procedureId, actor);
+            Guid? pathwayId = null, ActivityActor? actor = null) =>
+            _inner.Entry(action, patientId, details, targetUsername, pathwayId, actor);
 
         public Task RecordAsync(ActivityEntry entry, CancellationToken ct)
         {
@@ -133,7 +133,7 @@ public sealed class SessionEndingActivityTests
             return _inner.RecordAsync(entry, ct);
         }
 
-        public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? procedureId = null) =>
-            _inner.RecordViewsAsync(action, patientIds, ct, procedureId);
+        public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null) =>
+            _inner.RecordViewsAsync(action, patientIds, ct, pathwayId);
     }
 }

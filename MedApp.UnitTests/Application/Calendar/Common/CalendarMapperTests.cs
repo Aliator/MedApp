@@ -1,6 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
 using MedApp.UnitTests.Common.Constants;
@@ -301,7 +301,7 @@ public sealed class CalendarMapperTests
         var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now).Appointments.Single();
 
         response.StaffUsername.Should().Be(StaffUsername);
-        response.BookedByUsername.Should().Be(ProcedureMapper.DeletedUser);
+        response.BookedByUsername.Should().Be(PathwayMapper.DeletedUser);
         response.DurationMinutes.Should().Be(45);
         response.CanReschedule.Should().BeTrue();
         response.CanRecordOutcome.Should().BeFalse("it hasn't started yet");

@@ -16,7 +16,7 @@ using Microsoft.Net.Http.Headers;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Files attached to patients, procedures and stages. Staff can list, upload and download them; staff delete their
+/// Files attached to patients, pathways and stages. Staff can list, upload and download them; staff delete their
 /// own, admins any. Files only ever leave through this API, as downloads (<see cref="AttachmentResponseHeaders"/>).
 /// </summary>
 [ApiController]
@@ -26,7 +26,7 @@ namespace MedApp.API.Controllers;
 public sealed class AttachmentsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    /// The files attached to one patient (everything, anywhere), procedure (its own) or stage, newest first. Admins can
+    /// The files attached to one patient (everything, anywhere), pathway (its own) or stage, newest first. Admins can
     /// ask for deleted ones too.
     /// </summary>
     [HttpGet]
@@ -36,14 +36,14 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetAttachments([FromQuery] GetAttachmentsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAttachmentsQuery(
             request.PatientId,
-            request.ProcedureId,
+            request.PathwayId,
             request.StageId,
             request.IncludeDeleted,
             User.GetUserId(),
             IsAdmin), ct));
 
     /// <summary>
-    /// Attaches a file to one patient, procedure or stage. The body is the file's bytes
+    /// Attaches a file to one patient, pathway or stage. The body is the file's bytes
     /// (<c>application/octet-stream</c>), at most 20 MB; its name is in the <c>X-File-Name</c> header, percent-encoded.
     /// Its type is found from its contents: PDF, PNG, JPEG, HEIC/HEIF, Word (.docx) or plain text (.txt). Any other
     /// request type is a 415: a page on another site can't send this one without asking first (CORS), which nothing
@@ -70,12 +70,12 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
 
         var attachment = await mediator.Send(new UploadAttachmentCommand(
             target.PatientId,
-            target.ProcedureId,
+            target.PathwayId,
             target.StageId,
             AttachmentResponseHeaders.DecodeFileName(fileName),
             Request.ContentLength,
             Request.Body,
-            User.ToProcedureActor(),
+            User.ToPathwayActor(),
             IsAdmin), ct);
 
         return Created($"/api/attachments/{attachment.Id}/content", attachment);
@@ -87,7 +87,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct) =>
-        Send(await mediator.Send(new DownloadAttachmentCommand(id, User.ToProcedureActor()), ct));
+        Send(await mediator.Send(new DownloadAttachmentCommand(id, User.ToPathwayActor()), ct));
 
     /// <summary>An image's thumbnail (re-encoded when it was uploaded), sent as safely as the file itself.</summary>
     [HttpGet("{id:guid}/thumbnail")]
@@ -105,7 +105,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        await mediator.Send(new DeleteAttachmentCommand(id, User.ToProcedureActor(), IsAdmin), ct);
+        await mediator.Send(new DeleteAttachmentCommand(id, User.ToPathwayActor(), IsAdmin), ct);
         return NoContent();
     }
 

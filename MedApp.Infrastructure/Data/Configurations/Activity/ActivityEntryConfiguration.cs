@@ -12,7 +12,7 @@ public sealed class ActivityEntryConfiguration : IEntityTypeConfiguration<Activi
 
         builder.HasKey(x => x.Id);
 
-        // No foreign keys: the log outlives deleted patients, procedures and accounts.
+        // No foreign keys: the log outlives deleted patients, pathways and accounts.
         builder.Property(x => x.Action)
             .IsRequired();
 

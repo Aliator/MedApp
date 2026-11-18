@@ -50,10 +50,10 @@ public sealed class ActivityLogTests
     public void Entry_ByTheRequestsActor_FillsEveryField()
     {
         var patientId = Guid.NewGuid();
-        var procedureId = Guid.NewGuid();
+        var pathwayId = Guid.NewGuid();
 
         var entry = Log().Entry(ActivityAction.PatientUpdated, patientId, new { Fields = new[] { "email" }, Missing = (string?)null },
-            "someone", procedureId);
+            "someone", pathwayId);
 
         entry.Id.Should().NotBeEmpty();
         entry.AtUtc.Should().Be(ActivityTestConstants.Now);
@@ -62,7 +62,7 @@ public sealed class ActivityLogTests
         entry.Username.Should().Be(ActivityTestConstants.Username);
         entry.IpAddress.Should().Be(ActivityTestConstants.IpAddress);
         entry.PatientId.Should().Be(patientId);
-        entry.ProcedureId.Should().Be(procedureId);
+        entry.PathwayId.Should().Be(pathwayId);
         entry.TargetUsername.Should().Be("someone");
         entry.Details.Should().Be("""{"fields":["email"]}""");
     }
@@ -143,7 +143,7 @@ public sealed class ActivityLogTests
         {
             e.Action.Should().Be(ActivityAction.PatientListed);
             e.UserId.Should().Be(ActivityTestConstants.UserId);
-            e.ProcedureId.Should().BeNull();
+            e.PathwayId.Should().BeNull();
         });
         _repository.Verify(r => r.AddAsync(It.IsAny<IReadOnlyCollection<ActivityEntry>>(), cts.Token), Times.Once);
     }
@@ -153,18 +153,18 @@ public sealed class ActivityLogTests
     {
         var seen = Guid.NewGuid();
         var unseen = Guid.NewGuid();
-        var procedureId = Guid.NewGuid();
+        var pathwayId = Guid.NewGuid();
         using var cts = new CancellationTokenSource();
         _repository
             .Setup(r => r.GetRecentlyRecordedPatientIdsAsync(
-                ActivityTestConstants.UserId, ActivityAction.ProcedureViewed, It.IsAny<IReadOnlyCollection<Guid>>(), procedureId,
+                ActivityTestConstants.UserId, ActivityAction.PathwayViewed, It.IsAny<IReadOnlyCollection<Guid>>(), pathwayId,
                 ActivityTestConstants.Now.AddMinutes(-10), cts.Token))
             .ReturnsAsync(new HashSet<Guid> { seen });
 
-        await Log(windowMinutes: 10).RecordViewsAsync(ActivityAction.ProcedureViewed, [seen, unseen], cts.Token, procedureId);
+        await Log(windowMinutes: 10).RecordViewsAsync(ActivityAction.PathwayViewed, [seen, unseen], cts.Token, pathwayId);
 
         _added.Should().ContainSingle().Which.PatientId.Should().Be(unseen);
-        _added.Single().ProcedureId.Should().Be(procedureId);
+        _added.Single().PathwayId.Should().Be(pathwayId);
     }
 
     [Test]

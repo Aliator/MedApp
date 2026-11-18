@@ -47,7 +47,7 @@ src/
                   account/ (TwoFactorSetup, RecoveryCodes)
                   attachments/ (Attachments, AttachmentsFold: attached files, with uploads and downloads)
   pages/        one folder per page: patients/ (list, view, add, edit), users/, account/ (settings, email, security, the hold pages),
-                  login/ (sign in, forgot and reset password), admin/ (Admin Settings), home/ (the welcome page), tasks/ (My Tasks);
+                  login/ (sign in, forgot and reset password), admin/ (Admin Settings), home/ (the welcome page), tasks/ (My Worklist);
                   listSearch.ts parses the list pages' URL state
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)
   themes/       the medapp theme: source (medappTheme.ts, icons.ts) and its built output

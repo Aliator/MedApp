@@ -1,7 +1,7 @@
 using System.Text.Json;
 using MediatR;
 using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MedApp.DevMcp.DemoData;
@@ -19,13 +19,13 @@ public static class DemoSettings
         var timeline = world.Timeline;
         var lead = world.Lead;
         var today = timeline.Today;
-        var skinLesion = world.TemplateIds[Pathway.SkinLesion].ToString();
-        var prostate = world.TemplateIds[Pathway.Prostate].ToString();
-        var bleeding = world.TemplateIds[Pathway.PostMenopausalBleeding].ToString();
-        var deleted = world.Deletions.Select(d => d.Procedure.Id).ToHashSet();
+        var skinLesion = world.TemplateIds[PathwayKind.SkinLesion].ToString();
+        var prostate = world.TemplateIds[PathwayKind.Prostate].ToString();
+        var bleeding = world.TemplateIds[PathwayKind.PostMenopausalBleeding].ToString();
+        var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
 
-        var mine = world.Procedures
-            .Where(p => !deleted.Contains(p.Id) && ProcedureWorkflow.IsOpen(p.Status) && p.Assignments.Any(a => a.UserId == lead.Id))
+        var mine = world.Pathways
+            .Where(p => !deleted.Contains(p.Id) && PathwayWorkflow.IsOpen(p.Status) && p.Assignments.Any(a => a.UserId == lead.Id))
             .OrderByDescending(p => p.LastUpdated)
             .ToList();
 
@@ -58,7 +58,7 @@ public static class DemoSettings
             ["medapp.pins"] = Json(new
             {
                 patients = mine.Select(p => p.PatientId).Distinct().Take(2).Select(id => id.ToString()).ToArray(),
-                procedures = mine.Take(1).Select(p => p.Id.ToString()).ToArray(),
+                pathways = mine.Take(1).Select(p => p.Id.ToString()).ToArray(),
             }),
         };
 

@@ -3,7 +3,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Calendar;
 using MediatR;
@@ -29,7 +29,7 @@ public sealed class ReplyToMeetingHandler(
 {
     public async Task<MeetingResponse> Handle(ReplyToMeetingCommand request, CancellationToken cancellationToken)
     {
-        var reply = ProcedureEnums.Parse<MeetingReply>(request.Reply);
+        var reply = PathwayEnums.Parse<MeetingReply>(request.Reply);
         var actor = request.Actor;
         var now = timeProvider.GetUtcNow().UtcDateTime;
 

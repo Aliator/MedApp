@@ -10,9 +10,9 @@ using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Contracts.Pathways.NoteDeletionRequests.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.IntegrationTests.Common;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -42,32 +42,32 @@ public sealed class PatientPrivacyTests : IntegrationTest
     private Task<HttpResponseMessage> SetRestrictionAsync(Guid patientId, bool set, string? reason, bool confirm = false) =>
         _admin.PutAsJsonAsync(
             $"{PatientUrl(patientId)}/restriction",
-            new SetPatientFlagRequest { Set = set, Reason = reason, ConfirmOpenProcedures = confirm });
+            new SetPatientFlagRequest { Set = set, Reason = reason, ConfirmOpenPathways = confirm });
 
     [Test]
     public async Task Restriction_RefusesChangesButPausing_UntilLifted()
     {
-        var procedure = await CreatePatientWithProcedureAsync(_admin);
+        var pathway = await CreatePatientWithPathwayAsync(_admin);
         var staff = await CreateStaffAsync(UserRole);
 
-        // A procedure is under way, so the admin must confirm its work stops.
-        var unconfirmed = await (await SetRestrictionAsync(procedure.PatientId, true, "Synthetic accuracy check"))
+        // A pathway is under way, so the admin must confirm its work stops.
+        var unconfirmed = await (await SetRestrictionAsync(pathway.PatientId, true, "Synthetic accuracy check"))
             .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        unconfirmed.Errors.Should().ContainKey(nameof(SetPatientFlagRequest.ConfirmOpenProcedures));
-        var restricted = await (await _admin.PutAsJsonAsync($"{PatientUrl(procedure.PatientId)}/restriction",
-                new SetPatientFlagRequest { Set = true, Reason = "Synthetic accuracy check", ConfirmOpenProcedures = true }))
+        unconfirmed.Errors.Should().ContainKey(nameof(SetPatientFlagRequest.ConfirmOpenPathways));
+        var restricted = await (await _admin.PutAsJsonAsync($"{PatientUrl(pathway.PatientId)}/restriction",
+                new SetPatientFlagRequest { Set = true, Reason = "Synthetic accuracy check", ConfirmOpenPathways = true }))
             .ReadAsAsync<PatientResponse>();
         restricted.IsRestricted.Should().BeTrue();
         restricted.RestrictionReason.Should().Be("Synthetic accuracy check");
 
-        (await staff.Client.PatchAsJsonAsync(PatientUrl(procedure.PatientId), new UpdatePatientRequest
+        (await staff.Client.PatchAsJsonAsync(PatientUrl(pathway.PatientId), new UpdatePatientRequest
             {
                 FirstName = "Changed", LastName = "Changed", DateOfBirth = DateOfBirth, Email = $"changed@{PatientEmailDomain}",
             }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await PutStageNotesAsync(staff.Client, procedure.Id, procedure.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await FinishStageAsync(staff.Client, procedure.Id, procedure.Stages[0].Id)).StatusCode.Should().Be(HttpStatusCode.Conflict);
-        var shown = await (await staff.Client.GetAsync(ProcedureUrl(procedure.Id))).ReadAsAsync<PatientProcedureResponse>();
+        (await PutStageNotesAsync(staff.Client, pathway.Id, pathway.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await FinishStageAsync(staff.Client, pathway.Id, pathway.Stages[0].Id)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var shown = await (await staff.Client.GetAsync(PathwayUrl(pathway.Id))).ReadAsAsync<PatientPathwayResponse>();
         shown.ReadOnlyReason.Should().Be(PatientRules.RestrictedMessage);
         shown.CanWorkOnStages.Should().BeFalse();
         shown.PatientFlags!.IsRestricted.Should().BeTrue();
@@ -75,30 +75,30 @@ public sealed class PatientPrivacyTests : IntegrationTest
         shown.AllowedStatusChanges.Should().BeEquivalentTo("Blocked", "Cancelled");
 
         // Care can still be paused: blocked with a reason, but not unblocked while restricted.
-        (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status", new ChangePatientProcedureStatusRequest { Status = "Blocked", Reason = BlockReason }))
+        (await staff.Client.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status", new ChangePatientPathwayStatusRequest { Status = "Blocked", Reason = BlockReason }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
-        (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status", new ChangePatientProcedureStatusRequest { Status = "Assigned" }))
+        (await staff.Client.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status", new ChangePatientPathwayStatusRequest { Status = "Assigned" }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        (await SetRestrictionAsync(procedure.PatientId, false, null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        var unblocked = await (await staff.Client.GetAsync(ProcedureUrl(procedure.Id))).ReadAsAsync<PatientProcedureResponse>();
-        (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status",
-                new ChangePatientProcedureStatusRequest { Status = unblocked.BlockedFromStatus! }))
+        (await SetRestrictionAsync(pathway.PatientId, false, null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var unblocked = await (await staff.Client.GetAsync(PathwayUrl(pathway.Id))).ReadAsAsync<PatientPathwayResponse>();
+        (await staff.Client.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+                new ChangePatientPathwayStatusRequest { Status = unblocked.BlockedFromStatus! }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
-        (await PutStageNotesAsync(staff.Client, procedure.Id, procedure.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PutStageNotesAsync(staff.Client, pathway.Id, pathway.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Test]
     public async Task Restriction_CancellingWithAReason_IsAllowed()
     {
-        var procedure = await CreatePatientWithProcedureAsync(_admin);
-        (await _admin.PutAsJsonAsync($"{PatientUrl(procedure.PatientId)}/restriction",
-                new SetPatientFlagRequest { Set = true, Reason = "Synthetic check", ConfirmOpenProcedures = true }))
+        var pathway = await CreatePatientWithPathwayAsync(_admin);
+        (await _admin.PutAsJsonAsync($"{PatientUrl(pathway.PatientId)}/restriction",
+                new SetPatientFlagRequest { Set = true, Reason = "Synthetic check", ConfirmOpenPathways = true }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var cancelled = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status",
-                new ChangePatientProcedureStatusRequest { Status = "Cancelled", Reason = "Synthetic: no longer needed" }))
-            .ReadAsAsync<PatientProcedureResponse>();
+        var cancelled = await (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+                new ChangePatientPathwayStatusRequest { Status = "Cancelled", Reason = "Synthetic: no longer needed" }))
+            .ReadAsAsync<PatientPathwayResponse>();
 
         cancelled.Status.Should().Be("Cancelled");
         cancelled.AllowedStatusChanges.Should().BeEmpty("archiving isn't a pause, so it waits until the restriction is lifted");
@@ -110,10 +110,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
         var patient = await CreatePatientAsync(_admin);
         var staff = await CreateStaffAsync(UserRole);
         var booked = await BookNewAppointmentAsync(_admin, patient.Id, staff.UserId, NextBookableStart());
-        // No procedure is under way, but the open appointment freezes too, so the admin must confirm.
+        // No pathway is under way, but the open appointment freezes too, so the admin must confirm.
         var unconfirmed = await (await SetRestrictionAsync(patient.Id, true, "Synthetic check"))
             .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenPathways)].Should().ContainSingle()
             .Which.Should().StartWith("This patient has 1 open appointment.");
         (await SetRestrictionAsync(patient.Id, true, "Synthetic check", confirm: true)).StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -133,20 +133,20 @@ public sealed class PatientPrivacyTests : IntegrationTest
     }
 
     [Test]
-    public async Task Restriction_ProceduresUnderWay_ConfirmationCountsTheOpenAppointmentsToo()
+    public async Task Restriction_PathwaysUnderWay_ConfirmationCountsTheOpenAppointmentsToo()
     {
-        var procedure = await CreatePatientWithProcedureAsync(_admin);
+        var pathway = await CreatePatientWithPathwayAsync(_admin);
         var staff = await CreateStaffAsync(UserRole);
-        await RequestAppointmentAsync(_admin, procedure.PatientId, procedure.Id);
-        await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, NextBookableStart());
-        var cancelled = await RequestAppointmentAsync(_admin, procedure.PatientId);
+        await RequestAppointmentAsync(_admin, pathway.PatientId, pathway.Id);
+        await BookNewAppointmentAsync(_admin, pathway.PatientId, staff.UserId, NextBookableStart());
+        var cancelled = await RequestAppointmentAsync(_admin, pathway.PatientId);
         (await PostCancelAsync(_admin, cancelled.Id, "Synthetic: not needed")).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var unconfirmed = await (await SetRestrictionAsync(procedure.PatientId, true, "Synthetic check"))
+        var unconfirmed = await (await SetRestrictionAsync(pathway.PatientId, true, "Synthetic check"))
             .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
 
-        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
-            .Which.Should().StartWith("This patient has 1 procedure under way and 2 open appointments.");
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenPathways)].Should().ContainSingle()
+            .Which.Should().StartWith("This patient has 1 pathway under way and 2 open appointments.");
     }
 
     [Test]
@@ -172,51 +172,51 @@ public sealed class PatientPrivacyTests : IntegrationTest
     {
         var patient = await CreatePatientAsync(_admin, firstName: "Canary", lastName: Canary);
         var template = await CreateTemplateWithStagesAsync(_admin, 1);
-        var procedure = await CreateProcedureAsync(_admin, patient.Id, template.Id);
+        var pathway = await CreatePathwayAsync(_admin, patient.Id, template.Id);
         var staff = await CreateStaffAsync(UserRole);
-        (await PutStageNotesAsync(_admin, procedure.Id, procedure.Stages[0].Id, $"Notes about {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
-        // Files whose names hold the canary: on the patient, the procedure and the stage, and one deleted already.
+        (await PutStageNotesAsync(_admin, pathway.Id, pathway.Stages[0].Id, $"Notes about {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // Files whose names hold the canary: on the patient, the pathway and the stage, and one deleted already.
         var files = new[]
         {
             await UploadAttachmentOkAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, $"Letter for {Canary}.pdf"),
-            await UploadAttachmentOkAsync(_admin, $"procedureId={procedure.Id}", SyntheticPdf, $"{Canary} referral.pdf"),
-            await UploadAttachmentOkAsync(_admin, $"stageId={procedure.Stages[0].Id}", SyntheticPdf, $"{Canary} consent.pdf"),
+            await UploadAttachmentOkAsync(_admin, $"pathwayId={pathway.Id}", SyntheticPdf, $"{Canary} referral.pdf"),
+            await UploadAttachmentOkAsync(_admin, $"stageId={pathway.Stages[0].Id}", SyntheticPdf, $"{Canary} consent.pdf"),
             await UploadAttachmentOkAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, $"Old {Canary}.pdf"),
         };
         (await _admin.GetAsync($"/api/attachments/{files[1].Id}/content")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await _admin.DeleteAsync($"/api/attachments/{files[3].Id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await _admin.PatchAsJsonAsync(ProcedureUrl(procedure.Id), new UpdatePatientProcedureRequest
+        (await _admin.PatchAsJsonAsync(PathwayUrl(pathway.Id), new UpdatePatientPathwayRequest
             {
-                Title = $"Procedure for {Canary}",
+                Title = $"Pathway for {Canary}",
                 DueDate = UkToday.AddDays(7),
                 Priority = "High",
             }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         // A note about the canary, edited, so two versions hold it; and the old single notes field, kept for a rollout.
-        var note = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes", new AddProcedureNoteRequest { Text = $"More about {Canary}" }))
-            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
-        (await _admin.PutAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{note.Id}",
-                new EditProcedureNoteRequest { Text = $"Even more about {Canary}", ExpectedVersion = 1 }))
+        var note = await (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/notes", new AddPathwayNoteRequest { Text = $"More about {Canary}" }))
+            .ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
+        (await _admin.PutAsJsonAsync($"{PathwayUrl(pathway.Id)}/notes/{note.Id}",
+                new EditPathwayNoteRequest { Text = $"Even more about {Canary}", ExpectedVersion = 1 }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
-        await ExecuteSqlAsync($"UPDATE PatientProcedures SET Notes = {"Legacy notes about " + Canary} WHERE Id = {procedure.Id}");
+        await ExecuteSqlAsync($"UPDATE PatientPathways SET Notes = {"Legacy notes about " + Canary} WHERE Id = {pathway.Id}");
         // A second note, deleted by an admin with a reason naming the canary (kept, so its text and reason must go too),
         // and a request from staff to delete the first, with a reason naming it, still waiting when the record is anonymised.
-        var deletedNote = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes", new AddProcedureNoteRequest { Text = $"Wrong record: {Canary}" }))
-            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
-        (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{deletedNote.Id}/delete", new DeleteProcedureNoteRequest { Reason = "Other", Detail = $"Deleted for {Canary}", ExpectedVersion = 1 }))
+        var deletedNote = await (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/notes", new AddPathwayNoteRequest { Text = $"Wrong record: {Canary}" }))
+            .ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
+        (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/notes/{deletedNote.Id}/delete", new DeletePathwayNoteRequest { Reason = "Other", Detail = $"Deleted for {Canary}", ExpectedVersion = 1 }))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
-        var deletionRequest = await (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{note.Id}/deletion-requests",
+        var deletionRequest = await (await staff.Client.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/notes/{note.Id}/deletion-requests",
                 new RequestNoteDeletionRequest { Reason = "Other", Detail = $"Asked for {Canary}" }))
-            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
-        // Another admin watching cancellations, so they have a monitoring notification about this procedure too.
+            .ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
+        // Another admin watching cancellations, so they have a monitoring notification about this pathway too.
         var watcher = await CreateStaffAsync(AdminRole, UserRole);
-        (await watcher.Client.PostAsJsonAsync("/api/monitoring/rules", new SaveMonitoringRuleRequest { Event = "ProcedureCancelled" }))
+        (await watcher.Client.PostAsJsonAsync("/api/monitoring/rules", new SaveMonitoringRuleRequest { Event = "PathwayCancelled" }))
             .StatusCode.Should().Be(HttpStatusCode.Created);
-        // Assigned, so the staff member has a notification with the procedure's title.
-        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        // An appointment for the procedure with the staff member (so they're told, under fixed titles), with notes,
-        // cancelled with a reason; and one not for a procedure, waiting to be booked, whose notes were changed.
-        var booked = await (await PostBookingAsync(_admin, patient.Id, staff.UserId, NextBookableStart(), procedureId: procedure.Id,
+        // Assigned, so the staff member has a notification with the pathway's title.
+        (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        // An appointment for the pathway with the staff member (so they're told, under fixed titles), with notes,
+        // cancelled with a reason; and one not for a pathway, waiting to be booked, whose notes were changed.
+        var booked = await (await PostBookingAsync(_admin, patient.Id, staff.UserId, NextBookableStart(), pathwayId: pathway.Id,
                 notes: $"Visit notes about {Canary}"))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
         (await PostCancelAsync(_admin, booked.Id, $"Cancelled for {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -225,7 +225,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .StatusCode.Should().Be(HttpStatusCode.OK);
         // Every reason an admin can type, with the canary in it.
         (await _admin.PutAsJsonAsync($"{PatientUrl(patient.Id)}/restriction",
-                new SetPatientFlagRequest { Set = true, Reason = $"Restricted for {Canary}", ConfirmOpenProcedures = true }))
+                new SetPatientFlagRequest { Set = true, Reason = $"Restricted for {Canary}", ConfirmOpenPathways = true }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         (await SetRestrictionAsync(patient.Id, false, $"Lifted for {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await _admin.PutAsJsonAsync($"{PatientUrl(patient.Id)}/dispute", new SetPatientFlagRequest { Set = true, Reason = $"Disputed by {Canary}" }))
@@ -241,9 +241,9 @@ public sealed class PatientPrivacyTests : IntegrationTest
             Confirmation = $"canary {Canary.ToUpperInvariant()}",
         };
 
-        // Refused while the procedure is under way, then while the appointment waiting to be booked is open.
+        // Refused while the pathway is under way, then while the appointment waiting to be booked is open.
         (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status", new ChangePatientProcedureStatusRequest { Status = "Cancelled", Reason = $"Cancelled for {Canary}" }))
+        (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status", new ChangePatientPathwayStatusRequest { Status = "Cancelled", Reason = $"Cancelled for {Canary}" }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         (await (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
             .Title.Should().Contain("1 open appointment");
@@ -264,22 +264,22 @@ public sealed class PatientPrivacyTests : IntegrationTest
         foreach (var (client, url) in new[]
                  {
                      (_admin, PatientUrl(patient.Id)),
-                     (_admin, ProcedureUrl(procedure.Id)),
+                     (_admin, PathwayUrl(pathway.Id)),
                      (_admin, $"{PatientUrl(patient.Id)}/timeline"),
                      (_admin, $"{PatientUrl(patient.Id)}/timeline/overview"),
-                     (_admin, $"/api/procedures/audit/search?PatientId={patient.Id}&PageSize=100"),
+                     (_admin, $"/api/pathways/audit/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"/api/activity/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"{PatientUrl(patient.Id)}/export"),
-                     (_admin, $"/api/procedures/note-deletion-requests/{deletionRequest.DeletionRequestId}"),
+                     (_admin, $"/api/pathways/note-deletion-requests/{deletionRequest.DeletionRequestId}"),
                      (_admin, "/api/notifications"),
                      (_admin, AppointmentUrl(booked.Id)),
                      (_admin, AppointmentUrl(requested.Id)),
                      (_admin, $"/api/appointments/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"/api/attachments?patientId={patient.Id}&includeDeleted=true"),
-                     (_admin, $"/api/attachments?procedureId={procedure.Id}&includeDeleted=true"),
+                     (_admin, $"/api/attachments?pathwayId={pathway.Id}&includeDeleted=true"),
                      (staff.Client, "/api/notifications"),
                      (watcher.Client, "/api/notifications"),
-                     (staff.Client, $"/api/procedures/patient-procedures/search?PatientId={patient.Id}&Statuses=Cancelled"),
+                     (staff.Client, $"/api/pathways/patient-pathways/search?PatientId={patient.Id}&Statuses=Cancelled"),
                  })
         {
             var body = await (await client.GetAsync(url)).ShouldHaveStatusAsync(HttpStatusCode.OK);
@@ -290,8 +290,8 @@ public sealed class PatientPrivacyTests : IntegrationTest
         var stored = await RunInScopeAsync(async sp =>
         {
             var db = sp.GetRequiredService<MedAppDbContext>();
-            var versions = await db.PatientProcedureNoteVersions.AsNoTracking().Where(v => v.PatientId == patient.Id).Select(v => v.Text).ToListAsync();
-            var legacy = await db.PatientProcedures.AsNoTracking().Where(p => p.Id == procedure.Id).Select(p => p.LegacyNotes).SingleAsync();
+            var versions = await db.PatientPathwayNoteVersions.AsNoTracking().Where(v => v.PatientId == patient.Id).Select(v => v.Text).ToListAsync();
+            var legacy = await db.PatientPathways.AsNoTracking().Where(p => p.Id == pathway.Id).Select(p => p.LegacyNotes).SingleAsync();
             return (versions, legacy);
         });
         stored.versions.Should().HaveCount(3).And.AllBe(PatientAnonymiser.RemovedText);
@@ -311,10 +311,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
         (await UploadAttachmentAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, "after.pdf")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         // The monitoring notification never held free text, keeps its fixed title, and isn't in the patient's export.
         (await (await _admin.GetAsync($"{PatientUrl(patient.Id)}/export")).Content.ReadAsStringAsync())
-            .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);
+            .Should().NotContain("MonitoredPathwayCancelled").And.NotContain(watcher.Username);
         var watched = await (await watcher.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
-        watched.Items.Should().ContainSingle().Which.Title.Should().Be("Procedure cancelled");
-        // The appointment notifications have fixed titles, so they never held the procedure's title.
+        watched.Items.Should().ContainSingle().Which.Title.Should().Be("Pathway cancelled");
+        // The appointment notifications have fixed titles, so they never held the pathway's title.
         var told = await (await staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         told.Items.Where(n => n.AppointmentId == booked.Id).Select(n => n.Title)
             .Should().BeEquivalentTo("Appointment booked", "Appointment cancelled");
@@ -332,21 +332,21 @@ public sealed class PatientPrivacyTests : IntegrationTest
     [Test]
     public async Task Export_HoldsTheWholeRecord_IsNeverCached_AndIsRecordedInItsOwnAccessLog()
     {
-        var procedure = await CreatePatientWithProcedureAsync(_admin, stages: 2);
-        (await PutStageNotesAsync(_admin, procedure.Id, procedure.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.OK);
-        var appointment = await RequestAppointmentAsync(_admin, procedure.PatientId, procedure.Id);
+        var pathway = await CreatePatientWithPathwayAsync(_admin, stages: 2);
+        (await PutStageNotesAsync(_admin, pathway.Id, pathway.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var appointment = await RequestAppointmentAsync(_admin, pathway.PatientId, pathway.Id);
 
-        var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
+        var response = await _admin.GetAsync($"{PatientUrl(pathway.PatientId)}/export");
 
         response.Headers.CacheControl!.NoStore.Should().BeTrue();
         var export = await response.ReadAsAsync<PatientExportResponse>();
-        export.Patient.Id.Should().Be(procedure.PatientId);
+        export.Patient.Id.Should().Be(pathway.PatientId);
         export.ExportedBy.Should().Be(AdminUsername);
-        var exported = export.Procedures.Should().ContainSingle().Subject;
+        var exported = export.Pathways.Should().ContainSingle().Subject;
         exported.Stages.Should().HaveCount(2);
         exported.Stages[0].Notes.Should().Be(StageNotes);
         exported.AssignedTo.Should().BeEmpty();
-        export.ProcedureHistory.Select(e => e.Action).Should().Contain(["Created", "StageNotesUpdated"]);
+        export.PathwayHistory.Select(e => e.Action).Should().Contain(["Created", "StageNotesUpdated"]);
         export.AccessLog.Select(e => e.Action).Should().Contain(["PatientCreated", "PatientExported"]);
         var exportedAppointment = export.Appointments.Should().ContainSingle().Subject;
         exportedAppointment.Id.Should().Be(appointment.Id);
@@ -354,7 +354,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
         exportedAppointment.CreatedBy.Should().Be(AdminUsername);
         export.AppointmentHistory.Should().ContainSingle().Which.Action.Should().Be("Requested");
 
-        var json = await (await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export")).Content.ReadAsStringAsync();
+        var json = await (await _admin.GetAsync($"{PatientUrl(pathway.PatientId)}/export")).Content.ReadAsStringAsync();
         json.Should().NotContainEquivalentOf("ipAddress").And.NotContainEquivalentOf("userId").And.NotContainEquivalentOf("readAtUtc");
         json.Should().Contain(AdminUsername, "staff are named by username");
     }
@@ -366,18 +366,18 @@ public sealed class PatientPrivacyTests : IntegrationTest
     [Test]
     public async Task Export_HoldsNoStaffAccountIds_AnywhereInItsJson()
     {
-        var procedure = await CreatePatientWithProcedureAsync(_admin, stages: 2);
+        var pathway = await CreatePatientWithPathwayAsync(_admin, stages: 2);
         var adminId = await GetUserIdAsync(_admin, AdminUsername);
         var staff = await CreateStaffAsync(UserRole);
-        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{adminId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _admin.DeleteAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{adminId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.DeleteAsync($"{PathwayUrl(pathway.Id)}/assignments/{staff.UserId}")).StatusCode.Should().Be(HttpStatusCode.OK);
         // Booked with the staff member, then moved to the admin: the history keeps who it was with before.
         var start = NextBookableStart();
-        var appointment = await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, start, procedureId: procedure.Id);
+        var appointment = await BookNewAppointmentAsync(_admin, pathway.PatientId, staff.UserId, start, pathwayId: pathway.Id);
         await (await PostRescheduleAsync(_admin, appointment.Id, adminId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
+        var response = await _admin.GetAsync($"{PatientUrl(pathway.PatientId)}/export");
         var json = await (await response.ShouldHaveStatusAsync(HttpStatusCode.OK)).Content.ReadAsStringAsync();
 
         foreach (var id in new[] { adminId, staff.UserId })
@@ -389,7 +389,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
         json.Should().NotContainEquivalentOf("userId");
         var export = System.Text.Json.JsonSerializer.Deserialize<PatientExportResponse>(
             json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
-        export.ProcedureHistory.Where(e => e.Action is "Assigned" or "Unassigned").Select(e => (e.Action, e.Details))
+        export.PathwayHistory.Where(e => e.Action is "Assigned" or "Unassigned").Select(e => (e.Action, e.Details))
             .Should().Equal(
                 ("Assigned", $$"""{"username":"{{staff.Username}}"}"""),
                 ("Assigned", $$"""{"username":"{{AdminUsername}}"}"""),

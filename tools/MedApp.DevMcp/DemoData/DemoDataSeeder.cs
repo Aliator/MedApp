@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using MedApp.DevMcp.Tools;
 using MedApp.Domain.Calendar;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -57,12 +57,12 @@ public static class DemoDataSeeder
 
         var staff = await DemoStaff.CreateAsync(services, timeline, ct);
         Mark("accounts");
-        var (definitions, templates) = await CreatePathwaysAsync(services, timeline, ct);
+        var (definitions, templates) = await CreatePathwayKindsAsync(services, timeline, ct);
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
         var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
 
-        var plans = ProcedurePlans.Create(timeline, random);
+        var plans = PathwayPlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
         patients.AssignPatients(plans);
         var imported = patients.AddImported();
@@ -82,17 +82,17 @@ public static class DemoDataSeeder
         };
 
         // The lead's diary day: a full clinic, with free time left.
-        calendars.Allocator.SetCap(world.Lead.Id, timeline.DiaryDay, DemoProcedures.LeadAppointmentsToday);
-        DemoProcedures.BookFreedSlot(world, patients.All);
-        DemoProcedures.Replay(world, plans);
-        DemoProcedures.BookStandalone(world, patients.All);
-        DemoProcedures.AddImported(world, imported);
+        calendars.Allocator.SetCap(world.Lead.Id, timeline.DiaryDay, DemoPathways.LeadAppointmentsToday);
+        DemoPathways.BookFreedSlot(world, patients.All);
+        DemoPathways.Replay(world, plans);
+        DemoPathways.BookStandalone(world, patients.All);
+        DemoPathways.AddImported(world, imported);
         // The meetings' invitations, moves and cancellations, as the app sent them, read or not like the rest.
         world.Notifications.AddRange(calendars.MeetingPlan.RecentNotifications);
-        DemoProcedures.MarkRead(world);
+        DemoPathways.MarkRead(world);
         Mark("replay");
-        await DemoProcedures.SaveAsync(services, world, ct);
-        var procedures = DemoProcedures.Summarise(world);
+        await DemoPathways.SaveAsync(services, world, ct);
+        var pathways = DemoPathways.Summarise(world);
         Mark("save");
 
         var privacy = await DemoPrivacy.CreateAsync(services, world, patients, ct);
@@ -147,7 +147,7 @@ public static class DemoDataSeeder
                 importedPatients = imported.Count,
                 stageDefinitions = definitions.Count,
                 templates = templates.Count,
-                procedures,
+                pathways,
                 calendar = new
                 {
                     activityTypesAdded = calendars.ActivityTypesAdded,
@@ -176,10 +176,10 @@ public static class DemoDataSeeder
     }
 
     /// <summary>The stage definitions and pathway templates, written as an admin set them up when the centre started.</summary>
-    private static async Task<(Dictionary<string, PatientProcedureStageDefinition> Definitions, Dictionary<Pathway, PatientProcedureStageTemplate> Templates)> CreatePathwaysAsync(
+    private static async Task<(Dictionary<string, PatientPathwayStageDefinition> Definitions, Dictionary<PathwayKind, PathwayTemplate> Templates)> CreatePathwayKindsAsync(
         SeedServices services, DemoTimeline timeline, CancellationToken ct)
     {
-        var definitions = DemoPathways.Definitions.ToDictionary(d => d.Name, d => new PatientProcedureStageDefinition
+        var definitions = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => new PatientPathwayStageDefinition
         {
             Id = Guid.NewGuid(),
             Name = d.Name,
@@ -191,15 +191,15 @@ public static class DemoDataSeeder
             IsArchived = d.IsArchived,
         });
 
-        var templates = DemoPathways.Pathways.ToDictionary(p => p.Pathway, p => new PatientProcedureStageTemplate
+        var templates = DemoPathwayKinds.PathwayKinds.ToDictionary(p => p.PathwayKind, p => new PathwayTemplate
         {
             Id = Guid.NewGuid(),
             Name = p.TemplateName,
             IsArchived = p.IsArchived,
-            Maps = p.Stages.Select((s, i) => new PatientProcedureStageTemplateMap
+            Maps = p.Stages.Select((s, i) => new PathwayTemplateMap
             {
                 StageDefinitionId = definitions[s.Definition].Id,
-                // Loaded, as the create handler reads the template: procedures are made from it (ProcedureCreation).
+                // Loaded, as the create handler reads the template: procedures are made from it (PathwayCreation).
                 StageDefinition = definitions[s.Definition],
                 StageOrder = i + 1,
             }).ToList(),
@@ -208,8 +208,8 @@ public static class DemoDataSeeder
         await services.Run(async sp =>
         {
             var db = sp.GetRequiredService<MedAppDbContext>();
-            db.PatientProcedureStageDefinitions.AddRange(definitions.Values);
-            db.PatientProcedureStageTemplates.AddRange(templates.Values);
+            db.PatientPathwayStageDefinitions.AddRange(definitions.Values);
+            db.PathwayTemplates.AddRange(templates.Values);
             await db.SaveChangesAsync(ct);
         });
 

@@ -10,14 +10,14 @@ public interface IActivityRepository
     Task AddAsync(IReadOnlyCollection<ActivityEntry> entries, CancellationToken ct);
 
     /// <summary>
-    /// Of these patients, the ones this user already has an entry for with this action (and procedure) since
+    /// Of these patients, the ones this user already has an entry for with this action (and pathway) since
     /// <paramref name="sinceUtc"/>.
     /// </summary>
     Task<IReadOnlySet<Guid>> GetRecentlyRecordedPatientIdsAsync(
         Guid? userId,
         ActivityAction action,
         IReadOnlyCollection<Guid> patientIds,
-        Guid? procedureId,
+        Guid? pathwayId,
         DateTime sinceUtc,
         CancellationToken ct);
 

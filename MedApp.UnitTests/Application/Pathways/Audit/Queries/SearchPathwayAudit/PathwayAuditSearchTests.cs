@@ -1,0 +1,97 @@
+using FluentAssertions;
+using MedApp.Application.Pathways.Audit.Queries.SearchPathwayAudit;
+using MedApp.Domain.Pathways.PatientPathways;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Action = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
+
+namespace MedApp.UnitTests.Application.Pathways.Audit.Queries.SearchPathwayAudit;
+
+[TestFixture]
+public sealed class PathwayAuditSearchTests
+{
+    private static readonly PatientPathwayAuditEntry Created =
+        CreateAuditEntry(Action.Created, Now.AddDays(-3), username: "k.ashford", pathwayTitle: "Knee replacement");
+    private static readonly PatientPathwayAuditEntry Finished =
+        CreateAuditEntry(Action.StageFinished, Now.AddDays(-1), stageName: "Consultation");
+    private static readonly PatientPathwayAuditEntry Unlocked =
+        CreateAuditEntry(Action.StageUnlocked, Now.AddHours(-1), username: "admin");
+
+    private static IQueryable<PatientPathwayAuditEntry> Entries() =>
+        new[] { Finished, Unlocked, Created }.AsQueryable();
+
+    [Test]
+    public void Filter_NoFilters_ReturnsEveryEntry()
+    {
+        Entries().Filter(CreateAuditSearchQuery()).Should().HaveCount(3);
+    }
+
+    [Test]
+    public void Filter_Action_ReturnsThatActionIgnoringCase()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Action = "stagefinished" }).Should().Equal(Finished);
+    }
+
+    [Test]
+    public void Filter_Actions_ReturnsAnyOfThemIgnoringCase()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["created", "StageUnlocked"] }).Should().BeEquivalentTo([Created, Unlocked]);
+    }
+
+    [TestCase("ASHFORD")]
+    [TestCase("knee")]
+    public void Filter_Search_MatchesUsernameOrPathwayTitle(string search)
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Search = search }).Should().Equal(Created);
+    }
+
+    [Test]
+    public void Filter_Search_MatchesStageName()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Search = "consult" }).Should().Equal(Finished);
+    }
+
+    [Test]
+    public void Filter_DateRange_IncludesWholeUkDays()
+    {
+        var query = CreateAuditSearchQuery() with { From = Today.AddDays(-1), To = Today.AddDays(-1) };
+
+        Entries().Filter(query).Should().Equal(Finished);
+    }
+
+    [Test]
+    public void Filter_Pathway_ReturnsItsEntries()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { PathwayId = Unlocked.PatientPathwayId }).Should().Equal(Unlocked);
+    }
+
+    [Test]
+    public void Filter_Patient_ReturnsTheirEntries()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { PatientId = Finished.PatientId }).Should().Equal(Finished);
+    }
+
+    [Test]
+    public void Filter_User_ReturnsTheirEntries()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { UserId = Created.UserId }).Should().Equal(Created);
+    }
+
+    [Test]
+    public void Filter_ActionsWithAnUnknownName_IgnoresTheUnknownOne()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["Exploded", "StageUnlocked"] }).Should().Equal(Unlocked);
+    }
+
+    [Test]
+    public void Filter_ActionsAllUnknown_ReturnsEveryEntry()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["Exploded"] }).Should().HaveCount(3);
+    }
+
+    [Test]
+    public void Sort_Default_IsNewestFirst()
+    {
+        Entries().Sort(false).Should().Equal(Unlocked, Finished, Created);
+        Entries().Sort(true).Should().Equal(Created, Finished, Unlocked);
+    }
+}

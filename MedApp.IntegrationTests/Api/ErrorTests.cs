@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
@@ -20,7 +20,7 @@ public sealed class ErrorTests : IntegrationTest
     [Test]
     public async Task Command_InvalidRequest_Returns400ValidationProblemDetails()
     {
-        var response = await _staff.PostAsJsonAsync("/api/procedures/patient-procedures", new CreatePatientProcedureRequest
+        var response = await _staff.PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
         {
             PatientId = Guid.Empty,
             TemplateId = Guid.Empty,
@@ -39,7 +39,7 @@ public sealed class ErrorTests : IntegrationTest
     [Test]
     public async Task Query_InvalidPaging_Returns400ValidationProblemDetails()
     {
-        var response = await _staff.GetAsync("/api/procedures/patient-procedures/search?page=0");
+        var response = await _staff.GetAsync("/api/pathways/patient-pathways/search?page=0");
 
         var problem = await response.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         problem.Errors.Should().ContainKey("Page");
@@ -56,7 +56,7 @@ public sealed class ErrorTests : IntegrationTest
 
     [TestCase("/api/no-such-endpoint")]
     [TestCase("/api/patients/not-a-guid")]
-    [TestCase("/api/procedures/nothing/here")]
+    [TestCase("/api/pathways/nothing/here")]
     public async Task ApiPath_MatchingNoEndpoint_Returns404NotTheApp(string path)
     {
         var response = await _staff.GetAsync(path);
@@ -79,7 +79,7 @@ public sealed class ErrorTests : IntegrationTest
     /// to, and only the <c>/api</c> route keeps API paths from getting it.
     /// </summary>
     [TestCase("/patients/anything")]
-    [TestCase("/procedures/00000000-0000-0000-0000-000000000000")]
+    [TestCase("/pathways/00000000-0000-0000-0000-000000000000")]
     public async Task PagePath_AnyRoute_ReturnsTheApp(string path)
     {
         var response = await NewClient().GetAsync(path);
@@ -92,7 +92,7 @@ public sealed class ErrorTests : IntegrationTest
     [Test]
     public async Task Query_UnknownRecord_Returns404ProblemDetails()
     {
-        var response = await _staff.GetAsync($"/api/procedures/patient-procedures/{Guid.NewGuid()}");
+        var response = await _staff.GetAsync($"/api/pathways/patient-pathways/{Guid.NewGuid()}");
 
         var problem = await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.NotFound);
         problem.Title.Should().Contain("was not found");

@@ -147,47 +147,47 @@ public sealed class SetPatientFlagHandlerTests
     }
 
     [Test]
-    public async Task Handle_RestrictWithProceduresUnderWay_Unconfirmed_IsAValidationErrorOnTheConfirmation()
+    public async Task Handle_RestrictWithPathwaysUnderWay_Unconfirmed_IsAValidationErrorOnTheConfirmation()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
 
         var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
 
         var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
-        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
-        failure.ErrorMessage.Should().Contain("2 procedures under way").And.Contain("blocking and cancelling");
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenPathways));
+        failure.ErrorMessage.Should().Contain("2 pathways under way").And.Contain("blocking and cancelling");
         patient.RestrictedAtUtc.Should().BeNull();
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Patient>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public async Task Handle_RestrictWithOneProcedureUnderWay_SaysIt()
+    public async Task Handle_RestrictWithOnePathwayUnderWay_SaysIt()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
 
         (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
-            .Which.Errors.Single().ErrorMessage.Should().Contain("1 procedure under way").And.Contain("work on it stops");
+            .Which.Errors.Single().ErrorMessage.Should().Contain("1 pathway under way").And.Contain("work on it stops");
     }
 
     [Test]
-    public async Task Handle_RestrictWithProceduresUnderWayAndOpenAppointments_CountsBoth()
+    public async Task Handle_RestrictWithPathwaysUnderWayAndOpenAppointments_CountsBoth()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
         using var cts = new CancellationTokenSource();
 
         var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), cts.Token);
 
         var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
-        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenPathways));
         failure.ErrorMessage.Should().Be(
-            "This patient has 1 procedure under way and 2 open appointments. Confirm that work on them stops while the record " +
-            "is restricted (blocking and cancelling procedures, and cancelling appointments, stay possible).");
+            "This patient has 1 pathway under way and 2 open appointments. Confirm that work on them stops while the record " +
+            "is restricted (blocking and cancelling pathways, and cancelling appointments, stay possible).");
         _repository.Verify(r => r.CountOpenAppointmentsAsync(patient.Id, cts.Token), Times.Once);
     }
 
@@ -195,27 +195,27 @@ public sealed class SetPatientFlagHandlerTests
     public async Task Handle_RestrictWithOneOpenAppointment_SaysIt()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
         _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
 
         (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
-            .Which.Errors.Single().ErrorMessage.Should().StartWith("This patient has 2 procedures under way and 1 open appointment.");
+            .Which.Errors.Single().ErrorMessage.Should().StartWith("This patient has 2 pathways under way and 1 open appointment.");
     }
 
     [Test]
     public async Task Handle_RestrictWithOpenAppointmentsButNothingUnderWay_AsksForTheConfirmation()
     {
-        // Appointments booked from the patient page, for no procedure, freeze too.
+        // Appointments booked from the patient page, for no pathway, freeze too.
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
         _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
 
         var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
 
         var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
-        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenPathways));
         failure.ErrorMessage.Should().Be(
             "This patient has 3 open appointments. Confirm that they can't be booked, moved or given an outcome while the " +
             "record is restricted (cancelling stays possible).");
@@ -241,34 +241,34 @@ public sealed class SetPatientFlagHandlerTests
         var patient = Given(PatientsTestConstants.CreateValidPatient());
         _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
 
-        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenProcedures: true), CancellationToken.None);
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenPathways: true), CancellationToken.None);
 
         patient.RestrictedAtUtc.Should().NotBeNull();
         _repository.Verify(r => r.CountOpenAppointmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public async Task Handle_RestrictWithProceduresUnderWay_Confirmed_RestrictsWithoutCounting()
+    public async Task Handle_RestrictWithPathwaysUnderWay_Confirmed_RestrictsWithoutCounting()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
 
-        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenProcedures: true), CancellationToken.None);
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenPathways: true), CancellationToken.None);
 
         patient.RestrictedAtUtc.Should().NotBeNull();
-        _repository.Verify(r => r.CountProceduresUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.CountPathwaysUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task Handle_RestrictWithNothingUnderWay_NeedsNoConfirmation_AndPassesTheToken()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
         using var cts = new CancellationTokenSource();
 
         await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), cts.Token);
 
         patient.RestrictedAtUtc.Should().NotBeNull();
-        _repository.Verify(r => r.CountProceduresUnderWayAsync(patient.Id, cts.Token), Times.Once);
+        _repository.Verify(r => r.CountPathwaysUnderWayAsync(patient.Id, cts.Token), Times.Once);
         _repository.Verify(r => r.CountOpenAppointmentsAsync(patient.Id, cts.Token), Times.Once);
     }
 
@@ -279,10 +279,10 @@ public sealed class SetPatientFlagHandlerTests
         var patient = PatientsTestConstants.CreateValidPatient();
         patient.RestrictedAtUtc = PrivacyTestConstants.FlaggedAtUtc;
         Given(patient);
-        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        _repository.Setup(r => r.CountPathwaysUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
 
         await Handler.Handle(new SetPatientFlagCommand(patient.Id, flag, set, "Because"), CancellationToken.None);
 
-        _repository.Verify(r => r.CountProceduresUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.CountPathwaysUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

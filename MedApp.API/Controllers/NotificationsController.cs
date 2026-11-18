@@ -52,5 +52,5 @@ public sealed class NotificationsController(IMediator mediator) : ControllerBase
     [HttpPut("preferences")]
     [ProducesResponseType<NotificationPreferencesResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateMyPreferences([FromBody] UpdateNotificationPreferencesRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateMyNotificationPreferencesCommand(User.GetUserId(), request.ProcedureAssigned), ct));
+        Ok(await mediator.Send(new UpdateMyNotificationPreferencesCommand(User.GetUserId(), request.PathwayAssigned), ct));
 }

@@ -15,7 +15,7 @@ describe('useSavedFavourites', () => {
 
     act(() => result.current.rename(saved.id, 'Renamed search'));
     expect(result.current.saved.map((f) => f.name)).toEqual(['Renamed search']);
-    expect(renderHook(() => useSavedFavourites('procedures')).result.current.saved).toEqual([]);
+    expect(renderHook(() => useSavedFavourites('pathways')).result.current.saved).toEqual([]);
 
     act(() => result.current.remove(saved.id));
     expect(result.current.saved).toEqual([]);
@@ -64,7 +64,7 @@ describe('useSavedFavourites', () => {
           ],
           startId: 'f2',
         },
-        procedures: {saved: 'not a list', startId: 'f1'},
+        pathways: {saved: 'not a list', startId: 'f1'},
         users: null,
       }),
     );
@@ -73,7 +73,7 @@ describe('useSavedFavourites', () => {
     expect(patients.saved.map((f) => f.id)).toEqual(['f1']);
     // It started on one it couldn't read: it starts on none.
     expect(patients.start).toBeUndefined();
-    expect(renderHook(() => useSavedFavourites('procedures')).result.current.saved).toEqual([]);
+    expect(renderHook(() => useSavedFavourites('pathways')).result.current.saved).toEqual([]);
     expect(renderHook(() => useSavedFavourites('users')).result.current.saved).toEqual([]);
   });
 

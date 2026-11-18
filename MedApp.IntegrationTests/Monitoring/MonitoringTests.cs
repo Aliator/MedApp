@@ -7,10 +7,10 @@ using MedApp.Contracts.Monitoring.Responses;
 using MedApp.Contracts.Notifications.Requests;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.IntegrationTests.Common;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -19,7 +19,7 @@ namespace MedApp.IntegrationTests.Monitoring;
 /// <summary>
 /// Admins' monitoring rules through the real pipeline: a staff member's change, saved and audited, fires the rule's
 /// notification for its admin; conditions filter it; and only admins can manage rules, each only their own. Also each
-/// person's switch for the "assigned to a procedure" notification.
+/// person's switch for the "assigned to a pathway" notification.
 /// </summary>
 [TestFixture]
 public sealed class MonitoringTests : IntegrationTest
@@ -28,9 +28,9 @@ public sealed class MonitoringTests : IntegrationTest
 
     private HttpClient _admin = null!;
     private StaffAccount _staff = null!;
-    private PatientProcedureStageDefinitionResponse _bloods = null!;
-    private PatientProcedureStageDefinitionResponse _review = null!;
-    private PatientProcedureStageTemplateResponse _template = null!;
+    private PatientPathwayStageDefinitionResponse _bloods = null!;
+    private PatientPathwayStageDefinitionResponse _review = null!;
+    private PathwayTemplateResponse _template = null!;
     private PatientResponse _patient = null!;
 
     [SetUp]
@@ -45,7 +45,7 @@ public sealed class MonitoringTests : IntegrationTest
     }
 
     [Test]
-    public async Task StaffFinishesTheWatchedStage_OnAHighPriorityProcedure_NotifiesTheAdminWithoutFreeTextOrThePatient()
+    public async Task StaffFinishesTheWatchedStage_OnAHighPriorityPathway_NotifiesTheAdminWithoutFreeTextOrThePatient()
     {
         await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest
         {
@@ -55,22 +55,22 @@ public sealed class MonitoringTests : IntegrationTest
             TemplateId = _template.Id,
             StageDefinitionId = _bloods.Id,
         });
-        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id, priority: "High");
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "High");
 
-        await (await FinishStageAsync(_staff.Client, procedure.Id, procedure.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var notification = (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle().Subject;
         notification.Should().BeEquivalentTo(new
         {
             Kind = "MonitoredStageFinished",
             Title = "Stage finished",
-            ProcedureId = (Guid?)procedure.Id,
+            PathwayId = (Guid?)pathway.Id,
             IsRead = false,
         });
         notification.Message.Should().Be(
-            $"{_staff.Username} finished the {_bloods.Name} stage on a High priority {_template.Name} procedure.");
+            $"{_staff.Username} finished the {_bloods.Name} stage on a High priority {_template.Name} pathway.");
         foreach (var text in new[] { notification.Title, notification.Message })
-            text.Should().NotContain(procedure.Title).And.NotContain(_patient.FirstName).And.NotContain(_patient.LastName);
+            text.Should().NotContain(pathway.Title).And.NotContain(_patient.FirstName).And.NotContain(_patient.LastName);
         // The staff member isn't told anything.
         (await NotificationsOfAsync(_staff.Client)).Items.Should().BeEmpty();
     }
@@ -86,62 +86,62 @@ public sealed class MonitoringTests : IntegrationTest
         });
 
         // Too low a priority: nothing.
-        var medium = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id, priority: "Medium");
+        var medium = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "Medium");
         await (await FinishStageAsync(_staff.Client, medium.Id, medium.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         // The other stage: nothing.
-        var urgent = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id, priority: "Urgent");
+        var urgent = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "Urgent");
         await (await FinishStageAsync(_staff.Client, urgent.Id, urgent.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var afterBloods = await NotificationsOfAsync(_admin);
         await (await FinishStageAsync(_staff.Client, urgent.Id, urgent.Stages[1].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        afterBloods.Items.Should().ContainSingle().Which.ProcedureId.Should().Be(urgent.Id);
+        afterBloods.Items.Should().ContainSingle().Which.PathwayId.Should().Be(urgent.Id);
         (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle("finishing the second stage matches no rule");
     }
 
     [Test]
     public async Task SwitchedOffRule_SendsNothing_UntilSwitchedOn()
     {
-        var rule = await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "ProcedureCreated", IsEnabled = false });
+        var rule = await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "PathwayCreated", IsEnabled = false });
 
-        await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id);
+        await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id);
         (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
 
-        await (await _admin.PutAsJsonAsync($"{RulesUrl}/{rule.Id}", new SaveMonitoringRuleRequest { Event = "ProcedureCreated", IsEnabled = true }))
+        await (await _admin.PutAsJsonAsync($"{RulesUrl}/{rule.Id}", new SaveMonitoringRuleRequest { Event = "PathwayCreated", IsEnabled = true }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id);
+        await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id);
 
         var notification = (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle().Subject;
-        notification.Kind.Should().Be("MonitoredProcedureCreated");
-        notification.Message.Should().Be($"{_staff.Username} created a Medium priority {_template.Name} procedure.");
+        notification.Kind.Should().Be("MonitoredPathwayCreated");
+        notification.Message.Should().Be($"{_staff.Username} created a Medium priority {_template.Name} pathway.");
     }
 
     [Test]
     public async Task AdminsOwnChange_DoesNotNotifyThem_ButNotifiesAnotherAdminWatching()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
-        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "ProcedureBlocked" });
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "ProcedureBlocked" });
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "ProcedureBlocked", MinimumPriority = "Low" });
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
+        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "PathwayBlocked" });
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayBlocked" });
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayBlocked", MinimumPriority = "Low" });
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status",
-                new ChangePatientProcedureStatusRequest { Status = "Blocked", Reason = BlockReason }))
+        await (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+                new ChangePatientPathwayStatusRequest { Status = "Blocked", Reason = BlockReason }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
         var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle("two matching rules of one admin make one notification").Subject;
-        told.Message.Should().Be($"{AdminUsername} blocked a Medium priority {_template.Name} procedure.").And.NotContain(BlockReason);
+        told.Message.Should().Be($"{AdminUsername} blocked a Medium priority {_template.Name} pathway.").And.NotContain(BlockReason);
     }
 
     [Test]
     public async Task OwnerNoLongerAnAdmin_IsNoLongerTold()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "ProcedureCreated" });
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayCreated" });
         (await _admin.PutAsJsonAsync($"/api/auth/users/{other.Username}/roles", new SetUserRolesRequest([UserRole])))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id);
+        await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id);
 
         (await NotificationsOfAsync(other.Client)).Items.Should().BeEmpty();
     }
@@ -150,13 +150,13 @@ public sealed class MonitoringTests : IntegrationTest
     public async Task AssignedRule_IsAboutWhoWasAssigned()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = _staff.UserId, Event = "ProcedureAssigned" });
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = _staff.UserId, Event = "PathwayAssigned" });
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle()
-            .Which.Message.Should().Be($"{AdminUsername} assigned {_staff.Username} to a Medium priority {_template.Name} procedure.");
+            .Which.Message.Should().Be($"{AdminUsername} assigned {_staff.Username} to a Medium priority {_template.Name} pathway.");
     }
 
     [Test]
@@ -165,30 +165,30 @@ public sealed class MonitoringTests : IntegrationTest
         var other = await CreateStaffAsync(AdminRole, UserRole);
         var adminId = await GetUserIdAsync(_admin, AdminUsername);
         await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = adminId, Event = "StageUnlocked", StageDefinitionId = _bloods.Id });
-        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id);
-        await (await FinishStageAsync(_staff.Client, procedure.Id, procedure.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id);
+        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await (await _admin.PostAsync($"{StageUrl(procedure.Id, procedure.Stages[0].Id)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PostAsync($"{StageUrl(pathway.Id, pathway.Stages[0].Id)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Subject;
         told.Kind.Should().Be("MonitoredStageUnlocked");
-        told.Message.Should().Be($"{AdminUsername} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} procedure.");
+        told.Message.Should().Be($"{AdminUsername} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} pathway.");
     }
 
     [Test]
     public async Task DueDateMovedWhileThePriorityIsLowered_StillMatchesAnUrgentRule()
     {
         await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "DueDateChanged", MinimumPriority = "Urgent" });
-        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id, priority: "Urgent");
-        var from = procedure.DueDate;
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "Urgent");
+        var from = pathway.DueDate;
         var to = from.AddDays(30);
 
-        await (await _staff.Client.PatchAsJsonAsync(ProcedureUrl(procedure.Id), new UpdatePatientProcedureRequest { DueDate = to, Priority = "Low" }))
+        await (await _staff.Client.PatchAsJsonAsync(PathwayUrl(pathway.Id), new UpdatePatientPathwayRequest { DueDate = to, Priority = "Low" }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var told = (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle().Subject;
         told.Kind.Should().Be("MonitoredDueDateChanged");
-        told.Message.Should().StartWith($"{_staff.Username} moved the due date of a Low priority {_template.Name} procedure from ");
+        told.Message.Should().StartWith($"{_staff.Username} moved the target date of a Low priority {_template.Name} pathway from ");
     }
 
     [Test]
@@ -231,12 +231,12 @@ public sealed class MonitoringTests : IntegrationTest
     public async Task AdminWatchingAssignments_IsAssigned_GetsOnlyTheAssignmentNotification()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "ProcedureAssigned" });
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayAssigned" });
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{other.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{other.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Which.Kind.Should().Be("ProcedureAssigned");
+        (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Which.Kind.Should().Be("PathwayAssigned");
     }
 
     [Test]
@@ -254,7 +254,7 @@ public sealed class MonitoringTests : IntegrationTest
             mine.Id, SubjectUsername = _staff.Username, Event = "StageFinished", StageName = _review.Name, TemplateName = _template.Name,
         });
         (await (await other.Client.GetAsync(RulesUrl)).ReadAsAsync<List<MonitoringRuleResponse>>()).Should().BeEmpty();
-        await (await other.Client.PutAsJsonAsync($"{RulesUrl}/{mine.Id}", new SaveMonitoringRuleRequest { Event = "ProcedureCreated" }))
+        await (await other.Client.PutAsJsonAsync($"{RulesUrl}/{mine.Id}", new SaveMonitoringRuleRequest { Event = "PathwayCreated" }))
             .ShouldHaveStatusAsync(HttpStatusCode.NotFound);
         await (await other.Client.DeleteAsync($"{RulesUrl}/{mine.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
 
@@ -266,9 +266,9 @@ public sealed class MonitoringTests : IntegrationTest
     public async Task NonAdmin_CannotManageRules()
     {
         await (await _staff.Client.GetAsync(RulesUrl)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
-        await (await _staff.Client.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "ProcedureCreated" }))
+        await (await _staff.Client.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "PathwayCreated" }))
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
-        await (await _staff.Client.PutAsJsonAsync($"{RulesUrl}/{Guid.NewGuid()}", new SaveMonitoringRuleRequest { Event = "ProcedureCreated" }))
+        await (await _staff.Client.PutAsJsonAsync($"{RulesUrl}/{Guid.NewGuid()}", new SaveMonitoringRuleRequest { Event = "PathwayCreated" }))
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         await (await _staff.Client.DeleteAsync($"{RulesUrl}/{Guid.NewGuid()}")).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
     }
@@ -276,7 +276,7 @@ public sealed class MonitoringTests : IntegrationTest
     [Test]
     public async Task CreateRule_Invalid_Returns400_AndUnknownStage_Returns404()
     {
-        await (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "ProcedureCreated", StageDefinitionId = _bloods.Id }))
+        await (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "PathwayCreated", StageDefinitionId = _bloods.Id }))
             .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
         await (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "Teleported" }))
             .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
@@ -288,23 +288,23 @@ public sealed class MonitoringTests : IntegrationTest
     public async Task AssignedNotification_TurnedOff_IsNotSent_AndTurnedOnAgain_Is()
     {
         (await (await _staff.Client.GetAsync("/api/notifications/preferences")).ReadAsAsync<NotificationPreferencesResponse>())
-            .ProcedureAssigned.Should().BeTrue();
-        (await (await _staff.Client.PutAsJsonAsync("/api/notifications/preferences", new UpdateNotificationPreferencesRequest { ProcedureAssigned = false }))
-            .ReadAsAsync<NotificationPreferencesResponse>()).ProcedureAssigned.Should().BeFalse();
-        var first = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
+            .PathwayAssigned.Should().BeTrue();
+        (await (await _staff.Client.PutAsJsonAsync("/api/notifications/preferences", new UpdateNotificationPreferencesRequest { PathwayAssigned = false }))
+            .ReadAsAsync<NotificationPreferencesResponse>()).PathwayAssigned.Should().BeFalse();
+        var first = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{ProcedureUrl(first.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PostAsync($"{PathwayUrl(first.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(_staff.Client)).Items.Should().BeEmpty();
         (await (await _staff.Client.GetAsync("/api/notifications/preferences")).ReadAsAsync<NotificationPreferencesResponse>())
-            .ProcedureAssigned.Should().BeFalse();
+            .PathwayAssigned.Should().BeFalse();
 
-        await (await _staff.Client.PutAsJsonAsync("/api/notifications/preferences", new UpdateNotificationPreferencesRequest { ProcedureAssigned = true }))
+        await (await _staff.Client.PutAsJsonAsync("/api/notifications/preferences", new UpdateNotificationPreferencesRequest { PathwayAssigned = true }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        var second = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
-        await (await _admin.PostAsync($"{ProcedureUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var second = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
+        await (await _admin.PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        (await NotificationsOfAsync(_staff.Client)).Items.Should().ContainSingle().Which.ProcedureId.Should().Be(second.Id);
+        (await NotificationsOfAsync(_staff.Client)).Items.Should().ContainSingle().Which.PathwayId.Should().Be(second.Id);
     }
 
     private static async Task<MonitoringRuleResponse> CreateRuleAsync(HttpClient admin, SaveMonitoringRuleRequest request) =>

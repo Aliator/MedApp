@@ -88,7 +88,7 @@ public sealed class DeletePatientHandlerTests
     }
 
     [Test]
-    public async Task Handle_PatientHasProcedures_ThrowsConflictAndKeepsThePatient()
+    public async Task Handle_PatientHasPathways_ThrowsConflictAndKeepsThePatient()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
 
@@ -96,12 +96,12 @@ public sealed class DeletePatientHandlerTests
             .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(patient);
         _repository
-            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountPathwaysAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
 
         var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 2 procedures*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 2 pathways*");
 
         _repository.Verify(
             r => r.DeleteAsync(
@@ -112,7 +112,7 @@ public sealed class DeletePatientHandlerTests
     }
 
     [Test]
-    public async Task Handle_PatientHasOneProcedure_ThrowsConflictWithASingularMessage()
+    public async Task Handle_PatientHasOnePathway_ThrowsConflictWithASingularMessage()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
 
@@ -120,13 +120,13 @@ public sealed class DeletePatientHandlerTests
             .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(patient);
         _repository
-            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountPathwaysAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("This patient has 1 procedure, so they can't be deleted.");
+            .WithMessage("This patient has 1 pathway, so they can't be deleted.");
 
         _repository.Verify(
             r => r.DeleteAsync(
@@ -201,14 +201,14 @@ public sealed class DeletePatientHandlerTests
     }
 
     [Test]
-    public async Task Handle_PatientHasProceduresAndAppointments_NamesTheProceduresFirst()
+    public async Task Handle_PatientHasPathwaysAndAppointments_NamesThePathwaysFirst()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
         _repository
             .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(patient);
         _repository
-            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountPathwaysAsync(patient.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
         _repository
             .Setup(r => r.CountAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>()))
@@ -216,7 +216,7 @@ public sealed class DeletePatientHandlerTests
 
         var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 1 procedure*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 1 pathway*");
     }
 
     [Test]

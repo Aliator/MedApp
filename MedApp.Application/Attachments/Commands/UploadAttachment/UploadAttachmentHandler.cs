@@ -5,10 +5,10 @@ using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Attachments.Responses;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
 namespace MedApp.Application.Attachments.Commands.UploadAttachment;
@@ -20,14 +20,14 @@ namespace MedApp.Application.Attachments.Commands.UploadAttachment;
 /// hashing it as it goes, so 20 MB is never held in memory; its type is found from its contents
 /// (<see cref="FileTypeSniffer"/>, at most two at a time: <see cref="FileWorkLimiter"/>); it's scanned for malware;
 /// what it's attached to is checked again, since the upload may have taken a minute (still there, the record still
-/// changeable, the stage or procedure still taking files); it's stored, with a thumbnail if it's an image; then its
+/// changeable, the stage or pathway still taking files); it's stored, with a thumbnail if it's an image; then its
 /// record and audit entry are saved together. If anything after storing fails, the stored bytes are deleted again,
 /// within <see cref="CleanUpTimeout"/>.
 /// </summary>
 public sealed class UploadAttachmentHandler(
     IAttachmentRepository attachments,
     IPatientRepository patients,
-    IPatientProcedureRepository procedures,
+    IPatientPathwayRepository pathways,
     IFileStore fileStore,
     IUploadStaging staging,
     IMalwareScanner scanner,
@@ -77,7 +77,7 @@ public sealed class UploadAttachmentHandler(
             {
                 Id = id,
                 PatientId = target.PatientId,
-                ProcedureId = target.Procedure?.Id,
+                PathwayId = target.Pathway?.Id,
                 StageId = target.Stage?.Id,
                 FileName = fileName,
                 ContentType = type.ContentType,
@@ -91,7 +91,7 @@ public sealed class UploadAttachmentHandler(
             };
 
             var audit = AttachmentAudit.Entry(
-                attachment, target, request.Actor, PatientProcedureAuditAction.AttachmentAdded, attachment.UploadedAtUtc);
+                attachment, target, request.Actor, PatientPathwayAuditAction.AttachmentAdded, attachment.UploadedAtUtc);
             await attachments.AddAsync(attachment, audit, cancellationToken);
 
             return AttachmentMapper.ToResponse(attachment, target, request.Actor.UserId, request.IsAdmin);
@@ -113,7 +113,7 @@ public sealed class UploadAttachmentHandler(
     private async Task<AttachmentTarget> CheckTargetAsync(UploadAttachmentCommand request, CancellationToken ct)
     {
         var target = await AttachmentTargets.ResolveAsync(
-            request.PatientId, request.ProcedureId, request.StageId, patients, procedures, attachments, ct);
+            request.PatientId, request.PathwayId, request.StageId, patients, pathways, attachments, ct);
         PatientRules.EnsureCanChange(target.Owner);
         if (target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);

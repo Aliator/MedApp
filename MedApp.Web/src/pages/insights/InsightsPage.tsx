@@ -6,7 +6,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useRouter} from '@tanstack/react-router';
 import {useState} from 'react';
 import {type OverdueByAssignee, type OverdueByPriority, type StageTime, type WeeklyThroughput} from '../../api/insights';
-import {allTemplatesQuery} from '../../api/procedureSetup';
+import {allTemplatesQuery} from '../../api/pathwaySetup';
 import {BarChart, type ChartSeries} from '../../components/charts/BarChart';
 import {ChartCard, type ChartView} from '../../components/charts/ChartCard';
 import {ChartTable} from '../../components/charts/ChartTable';
@@ -25,7 +25,7 @@ import {
   overdueByAssigneeSummary,
   overdueByPrioritySummary,
   priorityHref,
-  proceduresHref,
+  pathwaysHref,
   stageTimesSummary,
   throughputSummary,
 } from './insightsText';
@@ -57,13 +57,13 @@ type StageRow = StageTime & {name: string};
 type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
 
 /**
- * Insights (admin): an overview of the procedure work, to keep an eye on it. Headline counts against this time last
+ * Insights (admin): an overview of the pathway work, to keep an eye on it. Headline counts against this time last
  * week (open, in progress, overdue, completed), where the overdue work is (by assignee and by priority), how many
  * were created and completed each week, and how long each template's stages take, waiting and being worked on. A
  * period (4, 12 or 26 weeks) and a template filter everything, from the URL.
  *
  * Each chart is in a `ChartCard`, with a summary and a table of its numbers. A tile, or an overdue bar or row, opens
- * the procedures list filtered to what it counts.
+ * the pathways list filtered to what it counts.
  */
 export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
   const weeks = search.weeks ?? DEFAULT_INSIGHTS_WEEKS;
@@ -145,14 +145,14 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   value={data.open?.current ?? 0}
                   previous={data.open?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={proceduresHref({}, templateId)}
+                  href={pathwaysHref({}, templateId)}
                 />
                 <StatTile
                   label="In progress"
                   value={data.inProgress?.current ?? 0}
                   previous={data.inProgress?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={proceduresHref({status: 'InProgress'}, templateId)}
+                  href={pathwaysHref({status: 'InProgress'}, templateId)}
                 />
                 <StatTile
                   label="Overdue"
@@ -160,7 +160,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   previous={data.overdue?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood={false}
-                  href={proceduresHref({overdue: 'true'}, templateId)}
+                  href={pathwaysHref({overdue: 'true'}, templateId)}
                 />
                 <StatTile
                   label="Completed this week"
@@ -191,7 +191,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryHeader="Assigned to"
                       series={COUNT}
                       hrefFor={(row) => assigneeHref(row, templateId)}
-                      label="Overdue procedures by assignee"
+                      label="Overdue pathways by assignee"
                     />
                   )}
                 </ChartCard>
@@ -211,7 +211,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryHeader="Priority"
                       series={COUNT}
                       hrefFor={(row) => priorityHref(row, templateId)}
-                      label="Overdue procedures by priority"
+                      label="Overdue pathways by priority"
                     />
                   )}
                 </ChartCard>
@@ -223,7 +223,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       series={THROUGHPUT}
                       layout="columns"
                       formatCategory={formatWeek}
-                      description={`Column chart of procedures created and completed each week. ${throughputSummary(throughput)}`}
+                      description={`Column chart of pathways created and completed each week. ${throughputSummary(throughput)}`}
                     />
                   ) : (
                     <ChartTable
@@ -232,7 +232,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryHeader="Week of"
                       series={THROUGHPUT}
                       formatCategory={formatShortDate}
-                      label="Procedures created and completed each week"
+                      label="Pathways created and completed each week"
                     />
                   )}
                 </ChartCard>
@@ -240,11 +240,11 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   <VStack gap={6}>
                     {stageTimes.map((t) => {
                       const rows: StageRow[] = (t.stages ?? []).map((s) => ({...s, name: `${s.stageOrder}. ${s.stageName}`}));
-                      // Procedures made before templates were required have no template, only the name they were made under.
-                      // A template is named as it's called now (procedures keep the name it had when they were made).
+                      // Pathways made before templates were required have no template, only the name they were made under.
+                      // A template is named as it's called now (pathways keep the name it had when they were made).
                       const name = t.templateId
                         ? (templateNameOf(t.templateId) ?? t.templateName ?? '')
-                        : `${t.templateName || 'Procedures'} (no template)`;
+                        : `${t.templateName || 'Pathways'} (no template)`;
                       return (
                         <VStack key={t.templateId ?? 'none'} gap={2}>
                           {/* With every template showing, each has its own chart, under its name. */}

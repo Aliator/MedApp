@@ -12,7 +12,7 @@ namespace MedApp.UnitTests.Api.Notifications;
 public sealed class SignalRNotificationPublisherTests
 {
     private static readonly NotificationResponse Notification =
-        new(RecordId, "ProcedureAssigned", "Synthetic procedure", "test.admin assigned you to this procedure.", OtherId, ExpiresAtUtc, false);
+        new(RecordId, "PathwayAssigned", "Synthetic pathway", "test.admin assigned you to this pathway.", OtherId, ExpiresAtUtc, false);
 
     private Mock<IClientProxy> _client = null!;
     private Mock<IHubContext<NotificationsHub>> _hub = null!;

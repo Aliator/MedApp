@@ -11,7 +11,7 @@ public static class AppointmentRepositoryExtensions
 {
     /// <summary>
     /// The appointment, tracked for changes, or a 404. A 409 if its patient's record is restricted or anonymised
-    /// (<see cref="PatientRules"/>), since then nothing about it can change, as with their procedures. Every change to
+    /// (<see cref="PatientRules"/>), since then nothing about it can change, as with their pathways. Every change to
     /// an appointment loads it here, or, only to cancel it, through <see cref="GetForCancelOrThrowAsync"/>.
     /// </summary>
     public static async Task<Appointment> GetForUpdateOrThrowAsync(
@@ -25,7 +25,7 @@ public static class AppointmentRepositoryExtensions
 
     /// <summary>
     /// The appointment, tracked for changes, to cancel it, or a 404. Allowed while its patient's record is restricted,
-    /// so care can be paused safely (as a restricted record's procedures can be cancelled); a 409 if it's anonymised.
+    /// so care can be paused safely (as a restricted record's pathways can be cancelled); a 409 if it's anonymised.
     /// </summary>
     public static async Task<Appointment> GetForCancelOrThrowAsync(
         this IAppointmentRepository repository, Guid id, CancellationToken ct)

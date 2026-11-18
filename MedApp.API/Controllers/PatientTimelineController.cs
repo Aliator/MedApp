@@ -1,8 +1,8 @@
 using MedApp.API.Common.Authentication;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimelineOverview;
-using MedApp.Contracts.Procedures.Timeline.Requests;
-using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimelineOverview;
+using MedApp.Contracts.Pathways.Timeline.Requests;
+using MedApp.Contracts.Pathways.Timeline.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// A patient's timeline: everything that happened to their procedures and appointments, from the procedure audit log
-/// and appointments' history. Staff see it for procedures that still exist, without the free text the logs keep;
+/// A patient's timeline: everything that happened to their pathways and appointments, from the pathway audit log
+/// and appointments' history. Staff see it for pathways that still exist, without the free text the logs keep;
 /// admins see all of it (see <see cref="GetPatientTimelineQuery"/>).
 /// </summary>
 [ApiController]
@@ -31,10 +31,10 @@ public sealed class PatientTimelineController(IMediator mediator) : ControllerBa
             request.Before,
             request.PageSize,
             request.Kinds,
-            request.ProcedureIds,
+            request.PathwayIds,
             IsAdmin), ct));
 
-    /// <summary>The patient's procedures that are due, and the procedures to filter the timeline by.</summary>
+    /// <summary>The patient's pathways that are due, and the pathways to filter the timeline by.</summary>
     [HttpGet("overview")]
     [ProducesResponseType(typeof(PatientTimelineOverviewResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

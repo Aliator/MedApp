@@ -3,7 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendar;
 using MedApp.Application.Common.Exceptions;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
@@ -77,7 +77,7 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
         _lookedUp.Should().BeEquivalentTo([StaffUserId, OtherStaffUserId]);
         var appointment = response.Appointments.Single();
         appointment.StaffUsername.Should().Be(StaffUsername);
-        appointment.BookedByUsername.Should().Be(ProcedureMapper.DeletedUser);
+        appointment.BookedByUsername.Should().Be(PathwayMapper.DeletedUser);
     }
 
     /// <summary>The calendar also has a meeting the admin arranged for its owner and the other member of staff.</summary>
@@ -169,10 +169,10 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
 
         await Fixture.Create<GetCalendarHandler>().Handle(new GetCalendarQuery(null, NextMonday, NextFriday, StaffActor), Token);
 
-        var (action, ids, procedureId) = activity.Views.Should().ContainSingle().Subject;
+        var (action, ids, pathwayId) = activity.Views.Should().ContainSingle().Subject;
         action.Should().Be(ActivityAction.PatientListed);
         ids.Should().Equal(_appointment.PatientId);
-        procedureId.Should().BeNull();
+        pathwayId.Should().BeNull();
         activity.Tokens.Should().Equal(Token);
     }
 

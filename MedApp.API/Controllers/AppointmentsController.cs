@@ -18,7 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Appointments: a patient seeing a member of staff, optionally for a procedure and stage. Any member of staff can
+/// Appointments: a patient seeing a member of staff, optionally for a pathway and stage. Any member of staff can
 /// request, book, move, cancel and record the outcome of any appointment, for anyone. Every change is recorded in its
 /// history, which the patient's timeline shows.
 /// </summary>
@@ -38,13 +38,13 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     {
         var appointment = await mediator.Send(new CreateAppointmentCommand(
             request.PatientId,
-            request.ProcedureId,
+            request.PathwayId,
             request.StageId,
             request.StaffUserId,
             request.StartUtc,
             request.EndUtc,
             request.Notes,
-            User.ToProcedureActor()), ct);
+            User.ToPathwayActor()), ct);
 
         return Created($"/api/appointments/{appointment.Id}", appointment);
     }
@@ -62,14 +62,14 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     {
         var appointment = await mediator.Send(new RecordPastAppointmentCommand(
             request.PatientId,
-            request.ProcedureId,
+            request.PathwayId,
             request.StageId,
             request.StaffUserId,
             request.StartUtc,
             request.EndUtc,
             request.Outcome,
             request.Notes,
-            User.ToProcedureActor()), ct);
+            User.ToPathwayActor()), ct);
 
         return Created($"/api/appointments/{appointment.Id}", appointment);
     }
@@ -91,7 +91,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.Sort,
             request.Ascending,
             request.PatientId,
-            request.ProcedureId,
+            request.PathwayId,
             request.StageId,
             request.StaffUserId,
             request.Statuses,
@@ -112,7 +112,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.ExpectedStatus,
-            User.ToProcedureActor()), ct));
+            User.ToPathwayActor()), ct));
 
     /// <summary>Records Attended or DidNotAttend, once the appointment has started (or corrects it).</summary>
     [HttpPost("{id:guid}/outcome")]
@@ -121,7 +121,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RecordOutcome(Guid id, [FromBody] RecordAppointmentOutcomeRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new RecordAppointmentOutcomeCommand(id, request.Outcome, User.ToProcedureActor()), ct));
+        Ok(await mediator.Send(new RecordAppointmentOutcomeCommand(id, request.Outcome, User.ToPathwayActor()), ct));
 
     /// <summary>
     /// Withdraws an appointment recorded after the event as entered in error (it didn't happen, or it's on the wrong
@@ -134,7 +134,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] MarkEnteredInErrorRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToProcedureActor(), User.IsInRole("Admin")), ct));
+        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToPathwayActor(), User.IsInRole("Admin")), ct));
 
     [HttpPost("{id:guid}/cancel")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
@@ -142,7 +142,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new CancelAppointmentCommand(id, request.Reason, User.ToProcedureActor()), ct));
+        Ok(await mediator.Send(new CancelAppointmentCommand(id, request.Reason, User.ToPathwayActor()), ct));
 
     [HttpPut("{id:guid}/notes")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
@@ -150,5 +150,5 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateNotes(Guid id, [FromBody] UpdateAppointmentNotesRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateAppointmentNotesCommand(id, request.Notes, User.ToProcedureActor()), ct));
+        Ok(await mediator.Send(new UpdateAppointmentNotesCommand(id, request.Notes, User.ToPathwayActor()), ct));
 }

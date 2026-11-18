@@ -13,16 +13,16 @@ public sealed class NoteBuilderTests
     public void SetUp() => _random = new Random(Seed);
 
     private static IEnumerable<string> StageNames() =>
-        DemoPathways.Pathways.SelectMany(p => p.Stages).Select(s => s.Definition).Distinct();
+        DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Select(s => s.Definition).Distinct();
 
     private static IEnumerable<ProcedureKind> Kinds() =>
-        DemoPathways.Pathways.SelectMany(p => ProcedureKinds.For(p.Pathway)).Distinct();
+        DemoPathwayKinds.PathwayKinds.SelectMany(p => ProcedureKinds.For(p.PathwayKind)).Distinct();
 
     [TestCaseSource(nameof(StageNames))]
     public void StageNote_EveryStageOfEveryPathway_IsASentenceToAShortParagraph(string stage)
     {
-        foreach (var pathway in DemoPathways.Pathways.Where(p => p.Stages.Any(s => s.Definition == stage)))
-        foreach (var kind in ProcedureKinds.For(pathway.Pathway).Distinct())
+        foreach (var pathwayKind in DemoPathwayKinds.PathwayKinds.Where(p => p.Stages.Any(s => s.Definition == stage)))
+        foreach (var kind in ProcedureKinds.For(pathwayKind.PathwayKind).Distinct())
         for (var outcome = 0; outcome < kind.Outcomes.Length; outcome++)
         {
             var site = kind.Sites.Length > 0 ? kind.Sites[0] : null;
@@ -46,27 +46,27 @@ public sealed class NoteBuilderTests
     [Test]
     public void Kinds_HaveWhatTheirPathwaysStagesNeed()
     {
-        foreach (var pathway in DemoPathways.Pathways)
-        foreach (var kind in ProcedureKinds.For(pathway.Pathway).Distinct())
+        foreach (var pathwayKind in DemoPathwayKinds.PathwayKinds)
+        foreach (var kind in ProcedureKinds.For(pathwayKind.PathwayKind).Distinct())
         {
-            var stages = pathway.Stages.Select(s => s.Definition).ToHashSet();
-            var why = $"{kind.Title} on {pathway.TemplateName}";
+            var stages = pathwayKind.Stages.Select(s => s.Definition).ToHashSet();
+            var why = $"{kind.Title} on {pathwayKind.TemplateName}";
 
             kind.Indications.Should().NotBeEmpty(why);
             kind.Outcomes.Should().NotBeEmpty(why).And.OnlyContain(o => o.Seen.Length > 0 && o.Plan.Length > 0, why);
-            if (stages.Contains(DemoPathways.Histology) || stages.Contains(DemoPathways.LabTests) || stages.Contains(DemoPathways.ResultsAndTeamReview))
+            if (stages.Contains(DemoPathwayKinds.Histology) || stages.Contains(DemoPathwayKinds.LabTests) || stages.Contains(DemoPathwayKinds.ResultsAndTeamReview))
                 kind.Outcomes.Should().OnlyContain(o => o.Result.Length > 0, why);
-            if (stages.Contains(DemoPathways.BiopsyOrSample) || stages.Contains(DemoPathways.BloodAndUrineTests))
+            if (stages.Contains(DemoPathwayKinds.BiopsyOrSample) || stages.Contains(DemoPathwayKinds.BloodAndUrineTests))
                 kind.Sample.Should().NotBeEmpty(why);
-            if (stages.Contains(DemoPathways.BiopsyOrSample))
+            if (stages.Contains(DemoPathwayKinds.BiopsyOrSample))
                 kind.SampleNotes.Should().NotBeEmpty(why);
-            if (stages.Contains(DemoPathways.ResultsAndTeamReview))
+            if (stages.Contains(DemoPathwayKinds.ResultsAndTeamReview))
                 kind.Team.Should().NotBeEmpty(why);
-            if (stages.Contains(DemoPathways.Treatment))
+            if (stages.Contains(DemoPathwayKinds.Treatment))
                 kind.Outcomes.Should().OnlyContain(o => o.Treatment.Length > 0, why);
-            if (stages.Contains(DemoPathways.FollowUp))
+            if (stages.Contains(DemoPathwayKinds.FollowUp))
                 kind.FollowUps.Should().NotBeEmpty(why);
-            if (stages.Contains(DemoPathways.MedicinesReview))
+            if (stages.Contains(DemoPathwayKinds.MedicinesReview))
                 kind.Medicines.Should().NotBeEmpty(why);
         }
     }
@@ -75,7 +75,7 @@ public sealed class NoteBuilderTests
     public void StageNote_SameStageAndKind_RarelyReadsTheSame()
     {
         var notes = Enumerable.Range(0, Samples)
-            .Select(_ => NoteBuilder.StageNote(DemoPathways.ClinicReview, new NoteContext(KindWithoutASite, null, false), _random))
+            .Select(_ => NoteBuilder.StageNote(DemoPathwayKinds.ClinicReview, new NoteContext(KindWithoutASite, null, false), _random))
             .ToList();
 
         notes.Distinct().Count().Should().BeGreaterThan(Samples * 9 / 10);
@@ -84,8 +84,8 @@ public sealed class NoteBuilderTests
     [Test]
     public void StageNote_DependsOnTheKindOfReferral()
     {
-        var lesion = Enumerable.Range(0, Samples).Select(_ => NoteBuilder.StageNote(DemoPathways.BiopsyOrSample, new NoteContext(KindWithASite, "right calf", false), _random));
-        var bleeding = Enumerable.Range(0, Samples).Select(_ => NoteBuilder.StageNote(DemoPathways.BiopsyOrSample, new NoteContext(ProcedureKinds.PostMenopausalBleed, null, false), _random));
+        var lesion = Enumerable.Range(0, Samples).Select(_ => NoteBuilder.StageNote(DemoPathwayKinds.BiopsyOrSample, new NoteContext(KindWithASite, "right calf", false), _random));
+        var bleeding = Enumerable.Range(0, Samples).Select(_ => NoteBuilder.StageNote(DemoPathwayKinds.BiopsyOrSample, new NoteContext(ProcedureKinds.PostMenopausalBleed, null, false), _random));
 
         lesion.Should().OnlyContain(n => n.StartsWith("4 mm punch biopsy taken from the right calf."));
         bleeding.Should().OnlyContain(n => n.StartsWith("Endometrial sample taken."));
@@ -101,12 +101,12 @@ public sealed class NoteBuilderTests
             var expected = KindWithASite.Outcomes[outcome];
             string Note(string stage) => NoteBuilder.StageNote(stage, context, _random);
 
-            Note(DemoPathways.FirstClinicVisit).Should().Contain("Site: left temple.").And.Contain(expected.Seen);
-            Note(DemoPathways.BiopsyOrSample).Should().Contain("from the left temple");
-            Note(DemoPathways.Histology).Should().Contain(expected.Result);
-            Note(DemoPathways.ResultsAndTeamReview).Should().Contain(expected.Result).And.Contain("the skin cancer team meeting");
-            Note(DemoPathways.Treatment).Should().Contain("Site: left temple.").And.Contain(expected.Treatment);
-            Note(DemoPathways.DischargeLetter).Should().Contain(expected.Result);
+            Note(DemoPathwayKinds.FirstClinicVisit).Should().Contain("Site: left temple.").And.Contain(expected.Seen);
+            Note(DemoPathwayKinds.BiopsyOrSample).Should().Contain("from the left temple");
+            Note(DemoPathwayKinds.Histology).Should().Contain(expected.Result);
+            Note(DemoPathwayKinds.ResultsAndTeamReview).Should().Contain(expected.Result).And.Contain("the skin cancer team meeting");
+            Note(DemoPathwayKinds.Treatment).Should().Contain("Site: left temple.").And.Contain(expected.Treatment);
+            Note(DemoPathwayKinds.DischargeLetter).Should().Contain(expected.Result);
         }
     }
 
@@ -114,7 +114,7 @@ public sealed class NoteBuilderTests
     public void StageNote_SometimesUsesMarkdown()
     {
         var notes = Enumerable.Range(0, Samples * 3)
-            .Select(_ => NoteBuilder.StageNote(DemoPathways.FirstClinicVisit, new NoteContext(KindWithASite, "left forearm", false), _random))
+            .Select(_ => NoteBuilder.StageNote(DemoPathwayKinds.FirstClinicVisit, new NoteContext(KindWithASite, "left forearm", false), _random))
             .ToList();
 
         notes.Should().Contain(n => n.Contains("\n- "), "some notes list their plan");
@@ -125,7 +125,7 @@ public sealed class NoteBuilderTests
     [Test]
     public void StageNote_BiomechanicsSession_SaysWhichSessionOfHowMany()
     {
-        var note = NoteBuilder.StageNote(DemoPathways.BiomechanicsSession, new NoteContext(ProcedureKinds.HeelPain, "left heel", false, 2, 3), _random);
+        var note = NoteBuilder.StageNote(DemoPathwayKinds.BiomechanicsSession, new NoteContext(ProcedureKinds.HeelPain, "left heel", false, 2, 3), _random);
 
         note.Should().StartWith("Session 2 of 3.");
     }
@@ -133,7 +133,7 @@ public sealed class NoteBuilderTests
     [Test]
     public void StageNote_UrgentReferral_IsFlagged()
     {
-        var note = NoteBuilder.StageNote(DemoPathways.ReferralReceived, new NoteContext(KindWithASite, null, Urgent: true), _random);
+        var note = NoteBuilder.StageNote(DemoPathwayKinds.ReferralReceived, new NoteContext(KindWithASite, null, Urgent: true), _random);
 
         note.Should().Contain("**Urgent referral:**");
     }
@@ -151,20 +151,20 @@ public sealed class NoteBuilderTests
     /// pathway record: clinical text names the biopsy, the sample or the treatment instead.
     /// </summary>
     [Test]
-    public void Notes_NeverNameThePatient_NorSayProcedure()
+    public void Notes_NeverNameThePatient_NorSayPathway()
     {
         var notes = StageNames()
             .SelectMany(stage => Kinds().SelectMany(kind => Enumerable.Range(0, 5)
                 .Select(i => NoteBuilder.StageNote(stage, new NoteContext(kind, kind.Sites.FirstOrDefault(), i == 0, Outcome: i), _random))))
-            .Concat(Kinds().SelectMany(kind => Enumerable.Range(0, 10).Select(_ => NoteBuilder.ProcedureNote(new NoteContext(kind, null, false), _random))))
+            .Concat(Kinds().SelectMany(kind => Enumerable.Range(0, 10).Select(_ => NoteBuilder.PathwayNote(new NoteContext(kind, null, false), _random))))
             .Concat(Enumerable.Range(0, Samples).SelectMany(_ => new[]
             {
                 NoteBuilder.BlockReason(_random), NoteBuilder.CancelReason(_random), NoteBuilder.BypassReason(_random),
                 NoteBuilder.AppointmentNote(_random), NoteBuilder.PatientCancelReason(_random), NoteBuilder.ClinicianCancelReason(_random),
-                NoteBuilder.ProcedureNoteUpdate(string.Empty, _random), NoteBuilder.ProcedureCancelledAppointmentReason,
+                NoteBuilder.PathwayNoteUpdate(string.Empty, _random), NoteBuilder.PathwayCancelledAppointmentReason,
             }))
             .Concat(Enum.GetValues<StageRole>().SelectMany(role => Enumerable.Range(0, 10)
-                .Select(_ => NoteBuilder.ProcedureFollowUpNote(DemoPathways.Triage, role, _random))))
+                .Select(_ => NoteBuilder.PathwayFollowUpNote(DemoPathwayKinds.Triage, role, _random))))
             .ToList();
 
         notes.Should().NotContain(n => n.Contains("Mr ") || n.Contains("Mrs ") || n.Contains("Ms ") || n.Contains("Miss "));

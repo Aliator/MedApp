@@ -176,7 +176,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
 
         updated.Notes.Should().Be(AppointmentNotes);
         var timeline = await (await _admin.GetAsync($"/api/patients/{_patient.Id}/timeline?kinds=Appointments"))
-            .ReadAsAsync<Contracts.Procedures.Timeline.Responses.PatientTimelinePageResponse>();
+            .ReadAsAsync<Contracts.Pathways.Timeline.Responses.PatientTimelinePageResponse>();
         timeline.Items.Select(e => e.Action).Should().Equal("AppointmentNotesUpdated", "AppointmentBooked");
     }
 

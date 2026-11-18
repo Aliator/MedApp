@@ -119,9 +119,9 @@ export function ActivityLogPage({search, onSearchChange}: ActivityLogPageProps) 
             <Text type="body" maxLines={1}>
               <Link href={`/patients/${e.patientId}`}>{e.patientName}</Link>
             </Text>
-            {e.procedureId && (
+            {e.pathwayId && (
               <Text type="supporting" maxLines={1}>
-                <Link href={`/procedures/${e.procedureId}`}>Procedure</Link>
+                <Link href={`/pathways/${e.pathwayId}`}>Pathway</Link>
               </Text>
             )}
           </VStack>

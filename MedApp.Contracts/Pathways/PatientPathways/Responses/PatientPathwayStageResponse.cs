@@ -1,0 +1,44 @@
+namespace MedApp.Contracts.Pathways.PatientPathways.Responses;
+
+public sealed class PatientPathwayStageResponse
+{
+    public Guid Id { get; set; }
+    public Guid StageDefinitionId { get; set; }
+    public int StageOrder { get; set; }
+
+    /// <summary>Copied from the stage definition when the pathway was created.</summary>
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Instructions { get; set; } = string.Empty;
+
+    /// <summary>The SNOMED CT code and term, copied from the stage definition when the pathway was created, or null.</summary>
+    public string? SnomedCode { get; set; }
+    public string? SnomedTerm { get; set; }
+    /// <summary>Copied from the stage definition: None, Suggested or Required (a visit before it can be finished).</summary>
+    public string VisitRequirement { get; set; } = string.Empty;
+
+    public string Notes { get; set; } = string.Empty;
+
+    /// <summary>NotStarted, InProgress or Completed.</summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>The stage being worked on now.</summary>
+    public bool IsCurrent { get; set; }
+
+    /// <summary>A finished stage is locked until an admin unlocks it.</summary>
+    public bool IsLocked { get; set; }
+
+    /// <summary>Whether its notes can be edited and it can be finished now.</summary>
+    public bool CanEdit { get; set; }
+
+    /// <summary>Whether an admin can unlock it now: it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
+    public bool CanUnlock { get; set; }
+
+    public DateTime? StartedAtUtc { get; set; }
+    public Guid? StartedByUserId { get; set; }
+    public string? StartedByUsername { get; set; }
+
+    public DateTime? CompletedAtUtc { get; set; }
+    public Guid? CompletedByUserId { get; set; }
+    public string? CompletedByUsername { get; set; }
+}

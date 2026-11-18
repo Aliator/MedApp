@@ -101,10 +101,10 @@ export function parseUsersSearch(raw: Record<string, unknown>): UsersListSearch 
 
 export const hasUserFilters = (s: UsersListSearch) => Boolean(s.username || s.role);
 
-export const PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked', 'Completed', 'Cancelled', 'Archived'] as const;
-export type ProcedureStatus = (typeof PROCEDURE_STATUSES)[number];
-/** The statuses of a procedure still being worked on: the ones lists show unless asked for closed ones too. */
-export const OPEN_PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked'] as const satisfies readonly ProcedureStatus[];
+export const PATHWAY_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked', 'Completed', 'Cancelled', 'Archived'] as const;
+export type PathwayStatus = (typeof PATHWAY_STATUSES)[number];
+/** The statuses of a pathway still being worked on: the ones lists show unless asked for closed ones too. */
+export const OPEN_PATHWAY_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked'] as const satisfies readonly PathwayStatus[];
 
 // Choices ---------------------------------------------------------------------------------------------------
 
@@ -135,24 +135,24 @@ export function choiceValues(value: string | undefined, options: readonly string
   return values.length ? values : undefined;
 }
 
-// My Tasks ------------------------------------------------------------------------------------------------
+// My Worklist ------------------------------------------------------------------------------------------------
 
-/** URL sort names for My Tasks, and the API's names for them. Due date, soonest first, by default. */
-export const TASK_SORTS = {Procedure: 'title', Due: 'dueDate', Priority: 'priority'} as const;
+/** URL sort names for My Worklist, and the API's names for them. Target date, soonest first, by default. */
+export const TASK_SORTS = {Pathway: 'title', Due: 'dueDate', Priority: 'priority'} as const;
 export type TaskSortColumn = keyof typeof TASK_SORTS;
 
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
 /**
- * My Tasks' page, sort and filters. `progress` is Not started unless the URL says otherwise; `any` (its filter
+ * My Worklist's page, sort and filters. `progress` is Not started unless the URL says otherwise; `any` (its filter
  * removed) shows both.
  */
 export interface TasksSearch {
   page?: number;
   sort?: TaskSortColumn;
   asc?: boolean;
-  /** The procedure's title contains this. */
+  /** The pathway's title contains this. */
   title?: string;
   template?: string;
   patient?: string;
@@ -174,7 +174,7 @@ export function parseTasksSearch(raw: Record<string, unknown>): TasksSearch {
     template: text(raw.template),
     patient: text(raw.patient),
     progress: oneOf(raw.progress, ['started', 'any'] as const),
-    status: parseChoice(raw.status, OPEN_PROCEDURE_STATUSES),
+    status: parseChoice(raw.status, OPEN_PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
     overdue: bool(raw.overdue) ? true : undefined,
     dueFrom: date(raw.dueFrom),
@@ -186,18 +186,18 @@ export function parseTasksSearch(raw: Record<string, unknown>): TasksSearch {
 export const hasTaskFilters = (s: TasksSearch) =>
   Boolean(s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.dueFrom || s.dueTo);
 
-// Procedures --------------------------------------------------------------------------------------------
+// Pathways --------------------------------------------------------------------------------------------
 
-/** URL sort names for the procedure lists, and the API's names for them. Due date, soonest first, by default. */
-export const PROCEDURE_SORTS = {Procedure: 'title', Status: 'status', Due: 'dueDate', Priority: 'priority', Updated: 'lastUpdated'} as const;
-export type ProcedureSortColumn = keyof typeof PROCEDURE_SORTS;
+/** URL sort names for the pathway lists, and the API's names for them. Target date, soonest first, by default. */
+export const PATHWAY_SORTS = {Pathway: 'title', Status: 'status', Due: 'dueDate', Priority: 'priority', Updated: 'lastUpdated'} as const;
+export type PathwaySortColumn = keyof typeof PATHWAY_SORTS;
 
-/** The all-procedures list and a patient's procedures: page, sort and filters. */
-export interface ProceduresListSearch {
+/** The all-pathways list and a patient's pathways: page, sort and filters. */
+export interface PathwaysListSearch {
   page?: number;
-  sort?: ProcedureSortColumn;
+  sort?: PathwaySortColumn;
   asc?: boolean;
-  /** The procedure's title contains this. */
+  /** The pathway's title contains this. */
   title?: string;
   template?: string;
   patient?: string;
@@ -206,8 +206,8 @@ export interface ProceduresListSearch {
   /** A choice (see `parseChoice`). */
   priority?: string;
   overdue?: boolean;
-  /** Only procedures assigned to the signed-in user. */
-  /** Only procedures assigned to the signed-in user. `false` (in the URL) overrides starting on them (Account Settings). */
+  /** Only pathways assigned to the signed-in user. */
+  /** Only pathways assigned to the signed-in user. `false` (in the URL) overrides starting on them (Account Settings). */
   mine?: boolean;
   /** Include Completed, Cancelled and Archived (hidden by default). */
   closed?: boolean;
@@ -237,23 +237,23 @@ function assignee(value: unknown): string | undefined {
 }
 
 /**
- * The statuses a procedure list's search asks the API for: those chosen; for "not any of", the others (the open
+ * The statuses a pathway list's search asks the API for: those chosen; for "not any of", the others (the open
  * ones only, unless closed ones are included too). Undefined for none chosen (the API's default: open ones).
  */
-export function procedureStatuses(search: {status?: string; closed?: boolean}): string[] | undefined {
-  const pool = search.status?.startsWith('!') && !search.closed ? OPEN_PROCEDURE_STATUSES : PROCEDURE_STATUSES;
+export function pathwayStatuses(search: {status?: string; closed?: boolean}): string[] | undefined {
+  const pool = search.status?.startsWith('!') && !search.closed ? OPEN_PATHWAY_STATUSES : PATHWAY_STATUSES;
   return choiceValues(search.status, pool);
 }
 
-export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresListSearch {
+export function parsePathwaysSearch(raw: Record<string, unknown>): PathwaysListSearch {
   return compact({
     page: page(raw.page),
-    sort: oneOf(raw.sort, Object.keys(PROCEDURE_SORTS) as ProcedureSortColumn[]),
+    sort: oneOf(raw.sort, Object.keys(PATHWAY_SORTS) as PathwaySortColumn[]),
     asc: bool(raw.asc),
     title: text(raw.title),
     template: text(raw.template),
     patient: text(raw.patient),
-    status: parseChoice(raw.status, PROCEDURE_STATUSES),
+    status: parseChoice(raw.status, PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
     overdue: flag(raw.overdue),
     mine: bool(raw.mine),
@@ -265,12 +265,12 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
   });
 }
 
-export const hasProcedureFilters = (s: ProceduresListSearch) =>
+export const hasPathwayFilters = (s: PathwaysListSearch) =>
   Boolean(
     s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.assignee || s.templateId || s.dueFrom || s.dueTo,
   );
 
-// Procedure setup (admin): stage definitions and templates --------------------------------------------
+// Pathway setup (admin): stage definitions and templates --------------------------------------------
 
 /**
  * The stages and templates lists: the page and filters. `status` is Active unless the URL says otherwise; `any` (its
@@ -300,30 +300,30 @@ export interface AuditListSearch {
   page?: number;
   /** Oldest first. */
   asc?: boolean;
-  /** Matches the procedure title, stage name or username. */
+  /** Matches the pathway title, stage name or username. */
   q?: string;
   /** A choice (see `parseChoice`). */
   action?: string;
-  /** One procedure's entries, e.g. from its page's View Audit Log. */
-  procedureId?: string;
+  /** One pathway's entries, e.g. from its page's View Audit Log. */
+  pathwayId?: string;
   from?: string;
   to?: string;
 }
 
 export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch {
-  const procedureId = text(raw.procedureId);
+  const pathwayId = text(raw.pathwayId);
   return compact({
     page: page(raw.page),
     asc: bool(raw.asc),
     q: text(raw.q),
     action: parseChoice(raw.action, AUDIT_ACTIONS),
-    procedureId: procedureId && GUID.test(procedureId) ? procedureId : undefined,
+    pathwayId: pathwayId && GUID.test(pathwayId) ? pathwayId : undefined,
     from: date(raw.from),
     to: date(raw.to),
   });
 }
 
-export const hasAuditFilters = (s: AuditListSearch) => Boolean(s.q || s.action || s.procedureId || s.from || s.to);
+export const hasAuditFilters = (s: AuditListSearch) => Boolean(s.q || s.action || s.pathwayId || s.from || s.to);
 
 // The activity log (admin) ----------------------------------------------------------------------------
 

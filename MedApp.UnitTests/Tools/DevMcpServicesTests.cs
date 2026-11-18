@@ -63,7 +63,7 @@ public sealed class DevMcpServicesTests
 
         publisher.Should().BeOfType<NoLiveNotifications>();
         await publisher.Invoking(p => p.PublishAsync(Guid.NewGuid(),
-                new NotificationResponse(Guid.NewGuid(), "ProcedureAssigned", "Title", "Message", null, DateTime.UtcNow, false),
+                new NotificationResponse(Guid.NewGuid(), "PathwayAssigned", "Title", "Message", null, DateTime.UtcNow, false),
                 CancellationToken.None))
             .Should().NotThrowAsync();
     }

@@ -2,12 +2,12 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
 using MedApp.Application.Common.Exceptions;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Attachments.Commands.DeleteAttachment;
 
@@ -27,9 +27,9 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
         attachment.DeletedAtUtc.Should().Be(Now);
         attachment.DeletedByUserId.Should().Be(Staff.UserId);
         attachment.DeletedByUsername.Should().Be(Staff.Username);
-        SavedAudit.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.AttachmentDeleted
-                                               && e.PatientProcedureId == PatientProcedureAuditEntry.NoProcedure);
-        Attachments.Verify(a => a.SaveAsync(It.IsAny<PatientProcedureAuditEntry>(), cts.Token), Times.Once);
+        SavedAudit.Should().ContainSingle(e => e.Action == PatientPathwayAuditAction.AttachmentDeleted
+                                               && e.PatientPathwayId == PatientPathwayAuditEntry.NoPathway);
+        Attachments.Verify(a => a.SaveAsync(It.IsAny<PatientPathwayAuditEntry>(), cts.Token), Times.Once);
         Store.Deleted.Should().BeEmpty("the bytes are purged later, after the retention window");
     }
 
@@ -58,8 +58,8 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_StaffOwnFileOnAFinishedStage_ThrowsConflict()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.InProgress, finishedStages: 1));
-        var attachment = GivenAttachment(AttachmentOn(procedure, stageOrder: 1));
+        var pathway = GivenPathway(CreatePathway(Status.InProgress, finishedStages: 1));
+        var attachment = GivenAttachment(AttachmentOn(pathway, stageOrder: 1));
 
         var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
 
@@ -70,24 +70,24 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_AdminFileOnAFinishedStage_DeletesItAndRecordsTheStage()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.Completed, finishedStages: 3));
-        var attachment = GivenAttachment(AttachmentOn(procedure, stageOrder: 1));
+        var pathway = GivenPathway(CreatePathway(Status.Completed, finishedStages: 3));
+        var attachment = GivenAttachment(AttachmentOn(pathway, stageOrder: 1));
 
         await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, IsAdmin: true), CancellationToken.None);
 
         attachment.IsDeleted.Should().BeTrue();
-        SavedAudit.Single().StageId.Should().Be(procedure.StageAt(1).Id);
-        SavedAudit.Single().PatientProcedureId.Should().Be(procedure.Id);
+        SavedAudit.Single().StageId.Should().Be(pathway.StageAt(1).Id);
+        SavedAudit.Single().PatientPathwayId.Should().Be(pathway.Id);
     }
 
     [Test]
-    public async Task Handle_FileOfAProcedureThatHasGone_IsTreatedAsThePatients()
+    public async Task Handle_FileOfAPathwayThatHasGone_IsTreatedAsThePatients()
     {
-        var attachment = GivenAttachment(CreateAttachment(procedureId: Guid.NewGuid()));
+        var attachment = GivenAttachment(CreateAttachment(pathwayId: Guid.NewGuid()));
 
         await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
 
-        SavedAudit.Single().PatientProcedureId.Should().Be(PatientProcedureAuditEntry.NoProcedure);
+        SavedAudit.Single().PatientPathwayId.Should().Be(PatientPathwayAuditEntry.NoPathway);
     }
 
     [Test]

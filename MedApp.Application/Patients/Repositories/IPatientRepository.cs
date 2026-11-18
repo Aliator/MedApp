@@ -25,14 +25,14 @@ public interface IPatientRepository
     /// <summary>The patient with this NHS number (ten digits), or null.</summary>
     Task<Patient?> GetByNhsNumberAsync(string nhsNumber, CancellationToken cancellationToken);
 
-    /// <summary>How many procedures the patient has, in any status.</summary>
-    Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken);
+    /// <summary>How many pathways the patient has, in any status.</summary>
+    Task<int> CountPathwaysAsync(Guid patientId, CancellationToken cancellationToken);
 
     /// <summary>How many appointments the patient has, in any status.</summary>
     Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
 
-    /// <summary>How many of the patient's procedures are under way: not completed, cancelled or archived (blocked counts).</summary>
-    Task<int> CountProceduresUnderWayAsync(Guid patientId, CancellationToken cancellationToken);
+    /// <summary>How many of the patient's pathways are under way: not completed, cancelled or archived (blocked counts).</summary>
+    Task<int> CountPathwaysUnderWayAsync(Guid patientId, CancellationToken cancellationToken);
 
     /// <summary>How many of the patient's appointments are open: Requested (needing booking) or Booked.</summary>
     Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
@@ -44,8 +44,8 @@ public interface IPatientRepository
     Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Patients who might be past their retention period: not anonymised, with no procedure under way, and whose
-    /// record and procedures were last changed before <paramref name="changedBeforeUtc"/>.
+    /// Patients who might be past their retention period: not anonymised, with no pathway under way, and whose
+    /// record and pathways were last changed before <paramref name="changedBeforeUtc"/>.
     /// </summary>
     Task<IReadOnlyList<RetentionCandidate>> GetRetentionCandidatesAsync(DateTime changedBeforeUtc, CancellationToken cancellationToken);
 }

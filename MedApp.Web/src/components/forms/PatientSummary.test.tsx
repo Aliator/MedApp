@@ -20,14 +20,14 @@ describe('PatientSummary', () => {
         {...patient}
         showDateOfBirth={false}
         showEmail={false}
-        additionalItems={<MetadataListItem label="Procedures">3</MetadataListItem>}
+        additionalItems={<MetadataListItem label="Pathways">3</MetadataListItem>}
       />,
     );
 
     expect(await screen.findByText('Freya Ahmed')).toBeInTheDocument();
     expect(screen.queryByText('1 December 1976')).not.toBeInTheDocument();
     expect(screen.queryByText('freya.ahmed18@example.com')).not.toBeInTheDocument();
-    expect(screen.getByText('Procedures')).toBeInTheDocument();
+    expect(screen.getByText('Pathways')).toBeInTheDocument();
   });
 
   it('shows the NHS number when given, grouped, or says it was not given', async () => {

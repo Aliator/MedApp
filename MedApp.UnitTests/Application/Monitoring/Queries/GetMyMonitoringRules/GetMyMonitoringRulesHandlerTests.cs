@@ -6,7 +6,7 @@ using MedApp.Domain.Monitoring;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Monitoring.Queries.GetMyMonitoringRules;
 
@@ -23,7 +23,7 @@ public sealed class GetMyMonitoringRulesHandlerTests : MonitoringHandlerTestBase
         var deletedStageId = Guid.NewGuid();
         var first = CreateRule(MonitoringEvent.StageFinished, subjectUserId: Staff.UserId, templateId: TemplateId, stageDefinitionId: ConsultationDefinitionId);
         var second = CreateRule(MonitoringEvent.StageUnlocked, subjectUserId: deletedUserId, templateId: deletedTemplateId, stageDefinitionId: deletedStageId);
-        var third = CreateRule(MonitoringEvent.ProcedureCreated);
+        var third = CreateRule(MonitoringEvent.PathwayCreated);
         using var cts = new CancellationTokenSource();
         Rules.Setup(r => r.GetForOwnerAsync(OwnerId, cts.Token)).ReturnsAsync([first, second, third]);
 
@@ -37,10 +37,10 @@ public sealed class GetMyMonitoringRulesHandlerTests : MonitoringHandlerTestBase
             TemplateId = (Guid?)deletedTemplateId, TemplateName = (string?)null,
             StageDefinitionId = (Guid?)deletedStageId, StageName = (string?)null,
         });
-        response[2].Should().BeEquivalentTo(new { SubjectUserId = (Guid?)null, SubjectUsername = (string?)null, Event = "ProcedureCreated" });
+        response[2].Should().BeEquivalentTo(new { SubjectUserId = (Guid?)null, SubjectUsername = (string?)null, Event = "PathwayCreated" });
         // Every name in one lookup each.
         Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
-        Stages.Verify(s => s.GetStageTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
+        Stages.Verify(s => s.GetPathwayTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
         Stages.Verify(s => s.GetStageDefinitionsByIdAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
     }
 

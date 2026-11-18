@@ -151,7 +151,7 @@ dataProtection:
   # Empty: the keys are stored unwrapped.
   keyVaultKeyUri: ""
 
-# File attachments: the files staff attach to patients, procedures and stages (scans, photos, results, letters). Their
+# File attachments: the files staff attach to patients, pathways and stages (scans, photos, results, letters). Their
 # details are in the database; the files themselves go to Azure Blob Storage. The API gets an Azure Storage connection
 # string (ConnectionStrings__Attachments) from a Secret: from existingSecret, from externalSecrets, or the chart's own
 # for Azurite. With none of those (Azurite off, no existingSecret, and externalSecrets off or its attachments

@@ -1,10 +1,10 @@
 import {useCallback, useEffect, useMemo} from 'react';
 import {appSettings, defineSetting, useAppSetting} from '../../app/settingsStore';
 
-/** How many of each kind (patients, procedures) one user can pin in the side nav. */
+/** How many of each kind (patients, pathways) one user can pin in the side nav. */
 export const MAX_PINS = 5;
 
-export type PinKind = 'patients' | 'procedures';
+export type PinKind = 'patients' | 'pathways';
 
 /**
  * Pins are one of the account's settings (`settingsStore`), so they follow the user between browsers, and signing out
@@ -32,9 +32,9 @@ function ids(value: unknown): string[] {
 function parse(stored: string | null): AllPins {
   try {
     const parsed = JSON.parse(stored ?? '{}') as Partial<Record<PinKind, unknown>> | null;
-    return {patients: ids(parsed?.patients), procedures: ids(parsed?.procedures)};
+    return {patients: ids(parsed?.patients), pathways: ids(parsed?.pathways)};
   } catch {
-    return {patients: [], procedures: []};
+    return {patients: [], pathways: []};
   }
 }
 
@@ -57,7 +57,7 @@ export interface Pins {
 }
 
 /**
- * The signed-in user's pinned patients or procedures: up to MAX_PINS of each, kept until unpinned, and in step
+ * The signed-in user's pinned patients or pathways: up to MAX_PINS of each, kept until unpinned, and in step
  * across this browser's tabs. `username` is only for finding pins this browser kept before they moved to the account.
  */
 export function usePins(kind: PinKind, username: string): Pins {
@@ -68,8 +68,8 @@ export function usePins(kind: PinKind, username: string): Pins {
   // Pins this browser kept for the user before they were part of the account: carried over, the first time.
   useEffect(() => {
     if (stored !== null) return;
-    const legacy = {patients: readLegacy('patients', username), procedures: readLegacy('procedures', username)};
-    if (legacy.patients.length || legacy.procedures.length) store(JSON.stringify(legacy));
+    const legacy = {patients: readLegacy('patients', username), pathways: readLegacy('pathways', username)};
+    if (legacy.patients.length || legacy.pathways.length) store(JSON.stringify(legacy));
   }, [stored, store, username]);
 
   // From the latest pins, not this render's, so several changes in a row (dropping gone ones) all count.

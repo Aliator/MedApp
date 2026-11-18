@@ -16,7 +16,7 @@ export interface ViewCardProps {
 
 /**
  * Read-only details in a card (replaces Blazor's ViewCard); the read-only twin of FormCard. Each ViewSection's
- * title is a header bar across the card, as on the procedure page's cards.
+ * title is a header bar across the card, as on the pathway page's cards.
  */
 export function ViewCard({children, footerActions, showFooter = true, fill = false}: ViewCardProps) {
   return (

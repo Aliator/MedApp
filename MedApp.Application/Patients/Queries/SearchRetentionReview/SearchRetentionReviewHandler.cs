@@ -2,7 +2,7 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Activity;

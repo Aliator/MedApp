@@ -32,11 +32,11 @@ describe('saveProblem', () => {
     expect(saveProblem(new ApiError(409), action).message).toBe(message);
   });
 
-  it('names a procedure when that is what is being saved', () => {
-    expect(saveProblem(new ApiError(403), 'save', 'procedure').message).toBe('You do not have permission to change procedures.');
-    expect(saveProblem(new ApiError(404), 'save', 'procedure').message).toBe('Procedure not found. It may have been deleted.');
-    expect(saveProblem(new ApiError(418), 'add', 'procedure').message).toBe(
-      'An unexpected error occurred while adding the procedure.',
+  it('names a pathway when that is what is being saved', () => {
+    expect(saveProblem(new ApiError(403), 'save', 'pathway').message).toBe('You do not have permission to change pathways.');
+    expect(saveProblem(new ApiError(404), 'save', 'pathway').message).toBe('Pathway not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(418), 'add', 'pathway').message).toBe(
+      'An unexpected error occurred while adding the pathway.',
     );
   });
 
@@ -49,8 +49,8 @@ describe('saveProblem', () => {
   });
 
   it('shows the reason the API gives for a conflict', () => {
-    const conflict = new ApiError(409, undefined, "This patient has 2 procedures, so they can't be deleted.");
+    const conflict = new ApiError(409, undefined, "This patient has 2 pathways, so they can't be deleted.");
 
-    expect(saveProblem(conflict, 'delete').message).toBe("This patient has 2 procedures, so they can't be deleted.");
+    expect(saveProblem(conflict, 'delete').message).toBe("This patient has 2 pathways, so they can't be deleted.");
   });
 });

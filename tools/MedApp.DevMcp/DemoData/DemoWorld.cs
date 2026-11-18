@@ -2,12 +2,12 @@ using MedApp.Application.Monitoring.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>Someone read a patient's record (and a procedure's) around a moment: the activity log's views come from these.</summary>
-public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? ProcedureId);
+public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? PathwayId);
 
 /// <summary>A monitoring rule as the seed matches it: when it was made, and when (if ever) it was switched off.</summary>
 public sealed record RuleState(MonitoringRule Rule, DateTime CreatedUtc, DateTime? DisabledUtc);
@@ -23,19 +23,19 @@ public sealed class DemoWorld
     public required DemoCalendars Calendars { get; init; }
     public required IReadOnlyList<StaffMember> Staff { get; init; }
     /// <summary>The templates, with their maps' stage definitions, as procedures are made from them.</summary>
-    public required IReadOnlyDictionary<Pathway, PatientProcedureStageTemplate> Templates { get; init; }
+    public required IReadOnlyDictionary<PathwayKind, PathwayTemplate> Templates { get; init; }
 
-    public IReadOnlyDictionary<Pathway, Guid> TemplateIds => Templates.ToDictionary(t => t.Key, t => t.Value.Id);
-    public required IReadOnlyDictionary<string, PatientProcedureStageDefinition> Definitions { get; init; }
+    public IReadOnlyDictionary<PathwayKind, Guid> TemplateIds => Templates.ToDictionary(t => t.Key, t => t.Value.Id);
+    public required IReadOnlyDictionary<string, PatientPathwayStageDefinition> Definitions { get; init; }
     public required IReadOnlyList<RuleState> Rules { get; init; }
 
     public ScheduleAllocator Allocator => Calendars.Allocator;
 
-    public List<PatientProcedure> Procedures { get; } = [];
-    public List<PatientProcedureAuditEntry> Audit { get; } = [];
+    public List<PatientPathway> Pathways { get; } = [];
+    public List<PatientPathwayAuditEntry> Audit { get; } = [];
 
     /// <summary>Every version of every procedure note (the notes themselves are on their procedures).</summary>
-    public List<PatientProcedureNoteVersion> NoteVersions { get; } = [];
+    public List<PatientPathwayNoteVersion> NoteVersions { get; } = [];
     public List<Appointment> Appointments { get; } = [];
     public List<AppointmentEvent> AppointmentEvents { get; } = [];
     public List<Notification> Notifications { get; } = [];
@@ -45,7 +45,7 @@ public sealed class DemoWorld
     public Dictionary<Guid, string> Sites { get; } = [];
 
     /// <summary>Procedures to delete (by an admin, later), with when.</summary>
-    public List<(PatientProcedure Procedure, DateTime AtUtc)> Deletions { get; } = [];
+    public List<(PatientPathway Pathway, DateTime AtUtc)> Deletions { get; } = [];
 
     /// <summary>Stages finished by an admin without their visit (the audited bypass).</summary>
     public int Bypasses { get; set; }
@@ -67,7 +67,7 @@ public sealed class DemoWorld
     /// <summary>Someone's notification choices as they stood at a moment (Account Settings): one person turned assignments off.</summary>
     public NotificationPreferences PreferencesAt(StaffMember member, DateTime utc) =>
         member.Username == DemoStaff.NoAssignmentNotificationsUsername && utc >= Timeline.NotificationsTurnedOffUtc
-            ? new NotificationPreferences { UserId = member.Id, ProcedureAssigned = false, UpdatedAtUtc = Timeline.NotificationsTurnedOffUtc }
+            ? new NotificationPreferences { UserId = member.Id, PathwayAssigned = false, UpdatedAtUtc = Timeline.NotificationsTurnedOffUtc }
             : NotificationPreferences.Defaults(member.Id);
 
     /// <summary>
@@ -100,15 +100,15 @@ public sealed class DemoWorld
     public bool IsAdminAt(Guid userId, DateTime utc) => Staff.Any(s => s.Id == userId && s.IsAdminAt(utc));
 
     /// <summary>
-    /// What the app's monitor would send after a change (<c>ProcedureMonitor</c>): its own matching
-    /// (<c>ProcedureMonitor.FindMatchesAsync</c>)
+    /// What the app's monitor would send after a change (<c>PathwayMonitor</c>): its own matching
+    /// (<c>PathwayMonitor.FindMatchesAsync</c>)
     /// and messages, answering its two questions (the switched-on rules for some events, and which owners are admins)
     /// as they stood at that moment, from memory. Its tasks are already complete, so waiting on them never blocks.
     /// </summary>
-    public IEnumerable<Notification> Monitor(PatientProcedure procedure, IReadOnlyList<PatientProcedureAuditEntry> entries, Guid actorUserId, DateTime atUtc)
+    public IEnumerable<Notification> Monitor(PatientPathway pathway, IReadOnlyList<PatientPathwayAuditEntry> entries, Guid actorUserId, DateTime atUtc)
     {
-        var matches = ProcedureMonitor.FindMatchesAsync(
-                procedure,
+        var matches = PathwayMonitor.FindMatchesAsync(
+                pathway,
                 entries,
                 actorUserId,
                 (events, _) => Task.FromResult<IReadOnlyList<MonitoringRule>>(RulesEnabledAt(atUtc).Where(r => events.Contains(r.Event)).ToList()),
@@ -116,6 +116,6 @@ public sealed class DemoWorld
                 CancellationToken.None)
             .GetAwaiter().GetResult();
 
-        return matches.Select(m => MonitoringNotifications.Create(m.OwnerUserId, m.Activity, procedure, atUtc)).ToList();
+        return matches.Select(m => MonitoringNotifications.Create(m.OwnerUserId, m.Activity, pathway, atUtc)).ToList();
     }
 }

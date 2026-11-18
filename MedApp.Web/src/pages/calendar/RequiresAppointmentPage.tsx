@@ -8,12 +8,12 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {appointmentsQuery, type Appointment, type AppointmentSearch} from '../../api/appointments';
-import {procedureQuery} from '../../api/procedures';
+import {pathwayQuery} from '../../api/pathways';
 import {useListSettings} from '../../app/listSettings';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {Page} from '../../components/pages/Page';
-import {DueDateCell} from '../../components/procedures/ProcedureCells';
+import {DueDateCell} from '../../components/pathways/PathwayCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -25,7 +25,7 @@ import {REQUIRES_APPOINTMENT_SORTS, type RequiresAppointmentSearch, type Require
 
 type Row = Appointment & Record<string, unknown>;
 
-/** The API search behind the list: Requested appointments, soonest procedure due date first by default. */
+/** The API search behind the list: Requested appointments, soonest pathway target date first by default. */
 export function requiresAppointmentQuery(search: RequiresAppointmentSearch, pageSize?: number): AppointmentSearch {
   return {
     Statuses: ['Requested'],
@@ -46,8 +46,8 @@ export interface RequiresAppointmentPageProps {
 
 /**
  * Requires Appointment (docs/calendar-plan.md, decision 29): the appointments asked for but not yet booked (Requested), as a
- * list like the others, soonest procedure due date first, with overdue procedures flagged. Each row books its
- * appointment in `BookAppointmentDialog`, suggesting the procedure's assignee when it has exactly one; a row whose
+ * list like the others, soonest pathway target date first, with overdue pathways flagged. Each row books its
+ * appointment in `BookAppointmentDialog`, suggesting the pathway's assignee when it has exactly one; a row whose
  * patient's record is restricted or anonymised can't be booked, and says so. It has no side nav item: it's reached from
  * the Calendar page's "Requires Appointment (N)" link, and its Back button returns there.
  */
@@ -55,9 +55,9 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(appointmentsQuery(requiresAppointmentQuery(search, pageSize)));
   const [booking, setBooking] = useState<Appointment | null>(null);
-  // The procedure of the appointment being booked, for its assignee (fetched when the dialog opens).
-  const procedure = useQuery({...procedureQuery(booking?.procedureId ?? ''), enabled: !!booking?.procedureId});
-  const assignees = procedure.data?.assignments ?? [];
+  // The pathway of the appointment being booked, for its assignee (fetched when the dialog opens).
+  const pathway = useQuery({...pathwayQuery(booking?.pathwayId ?? ''), enabled: !!booking?.pathwayId});
+  const assignees = pathway.data?.assignments ?? [];
   const today = ukToday();
 
   const total = data?.totalCount ?? 0;
@@ -81,10 +81,10 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
       header: 'For',
       width: proportional(2, {minWidth: 96}),
       renderCell: (a) =>
-        a.procedureId ? (
+        a.pathwayId ? (
           <VStack gap={0.5}>
             <Text type="body" maxLines={1}>
-              <Link href={`/procedures/${a.procedureId}`}>{a.procedureTitle ?? ''}</Link>
+              <Link href={`/pathways/${a.pathwayId}`}>{a.pathwayTitle ?? ''}</Link>
             </Text>
             {a.stageName && (
               <Text type="supporting" color="secondary" maxLines={1}>
@@ -102,7 +102,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
       header: 'Due',
       sortable: true,
       width: pixel(112),
-      renderCell: (a) => (a.procedureDueDate ? <DueDateCell dueDate={a.procedureDueDate} isOverdue={a.procedureDueDate < today} /> : <TextCell text="—" />),
+      renderCell: (a) => (a.pathwayDueDate ? <DueDateCell dueDate={a.pathwayDueDate} isOverdue={a.pathwayDueDate < today} /> : <TextCell text="—" />),
     },
     {
       key: 'Requested',

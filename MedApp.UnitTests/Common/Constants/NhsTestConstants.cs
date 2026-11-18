@@ -22,7 +22,7 @@ public static class NhsTestConstants
 
     public const string NineDigits = "999000001";
 
-    /// <summary>A concept: Appendectomy (procedure).</summary>
+    /// <summary>A concept: Appendectomy (pathway).</summary>
     public const string SnomedCode = "80146002";
 
     public const string SnomedTerm = "Appendectomy";

@@ -3,20 +3,20 @@ using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Domain.Attachments;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Queries.GetAttachments;
 
 [TestFixture]
 public sealed class AttachmentSearchTests
 {
-    private static readonly MedApp.Domain.Procedures.PatientProcedures.PatientProcedure Procedure = CreateProcedure();
+    private static readonly MedApp.Domain.Pathways.PatientPathways.PatientPathway Pathway = CreatePathway();
 
     private static Attachment At(Attachment attachment, int minutesAgo) => new()
     {
         Id = attachment.Id,
         PatientId = attachment.PatientId,
-        ProcedureId = attachment.ProcedureId,
+        PathwayId = attachment.PathwayId,
         StageId = attachment.StageId,
         FileName = attachment.FileName,
         UploadedAtUtc = Now.AddMinutes(-minutesAgo),
@@ -24,39 +24,39 @@ public sealed class AttachmentSearchTests
     };
 
     private static readonly Attachment PatientFile = At(CreateAttachment(), 50);
-    private static readonly Attachment ProcedureFile = At(AttachmentOn(Procedure), 40);
-    private static readonly Attachment StageFile = At(AttachmentOn(Procedure, stageOrder: 2), 30);
+    private static readonly Attachment PathwayFile = At(AttachmentOn(Pathway), 40);
+    private static readonly Attachment StageFile = At(AttachmentOn(Pathway, stageOrder: 2), 30);
     private static readonly Attachment DeletedFile = At(CreateAttachment(deleted: true), 20);
     private static readonly Attachment OtherPatientsFile = new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), UploadedAtUtc = Now };
 
     private static readonly IQueryable<Attachment> All =
-        new[] { PatientFile, ProcedureFile, StageFile, DeletedFile, OtherPatientsFile }.AsQueryable();
+        new[] { PatientFile, PathwayFile, StageFile, DeletedFile, OtherPatientsFile }.AsQueryable();
 
     private static List<AttachmentRow> Run(GetAttachmentsQuery query) =>
-        AttachmentSearch.Newest(AttachmentSearch.Filter(All, query), new[] { Procedure }.AsQueryable(), Procedure.Stages.AsQueryable()).ToList();
+        AttachmentSearch.Newest(AttachmentSearch.Filter(All, query), new[] { Pathway }.AsQueryable(), Pathway.Stages.AsQueryable()).ToList();
 
     [Test]
     public void Patient_ListsEverythingAttachedToThemNewestFirstWithoutDeletedOnes()
     {
         var rows = Run(new GetAttachmentsQuery(PatientId, null, null, false, Staff.UserId, false));
 
-        rows.Select(r => r.Attachment).Should().Equal(StageFile, ProcedureFile, PatientFile);
-        rows[0].ProcedureTitle.Should().Be(ProcedureTitle);
-        rows[0].StageName.Should().Be(ProcedureStage);
-        rows[2].ProcedureTitle.Should().BeNull();
+        rows.Select(r => r.Attachment).Should().Equal(StageFile, PathwayFile, PatientFile);
+        rows[0].PathwayTitle.Should().Be(PathwayTitle);
+        rows[0].StageName.Should().Be(PathwayStage);
+        rows[2].PathwayTitle.Should().BeNull();
     }
 
     [Test]
-    public void Procedure_ListsOnlyItsOwnFiles()
+    public void Pathway_ListsOnlyItsOwnFiles()
     {
-        Run(new GetAttachmentsQuery(null, Procedure.Id, null, false, Staff.UserId, false))
-            .Select(r => r.Attachment).Should().Equal(ProcedureFile);
+        Run(new GetAttachmentsQuery(null, Pathway.Id, null, false, Staff.UserId, false))
+            .Select(r => r.Attachment).Should().Equal(PathwayFile);
     }
 
     [Test]
     public void Stage_ListsOnlyItsFiles()
     {
-        Run(new GetAttachmentsQuery(null, null, Procedure.StageAt(2).Id, false, Staff.UserId, false))
+        Run(new GetAttachmentsQuery(null, null, Pathway.StageAt(2).Id, false, Staff.UserId, false))
             .Select(r => r.Attachment).Should().Equal(StageFile);
     }
 
@@ -64,7 +64,7 @@ public sealed class AttachmentSearchTests
     public void IncludeDeleted_Admin_GetsThem()
     {
         Run(new GetAttachmentsQuery(PatientId, null, null, true, Admin.UserId, true))
-            .Select(r => r.Attachment).Should().Equal(DeletedFile, StageFile, ProcedureFile, PatientFile);
+            .Select(r => r.Attachment).Should().Equal(DeletedFile, StageFile, PathwayFile, PatientFile);
     }
 
     [Test]
@@ -87,8 +87,8 @@ public sealed class AttachmentSearchTests
             .Select(i => new Attachment { Id = Guid.NewGuid(), PatientId = PatientId, UploadedAtUtc = Now.AddMinutes(-i) })
             .AsQueryable();
 
-        AttachmentSearch.Newest(many, Enumerable.Empty<MedApp.Domain.Procedures.PatientProcedures.PatientProcedure>().AsQueryable(),
-                Enumerable.Empty<MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage>().AsQueryable())
+        AttachmentSearch.Newest(many, Enumerable.Empty<MedApp.Domain.Pathways.PatientPathways.PatientPathway>().AsQueryable(),
+                Enumerable.Empty<MedApp.Domain.Pathways.PatientPathways.PatientPathwayStage>().AsQueryable())
             .Should().HaveCount(AttachmentLimits.MaxListed);
     }
 }

@@ -1,7 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 
 namespace MedApp.Application.Appointments.Commands.BookAppointment;
@@ -17,7 +17,7 @@ public sealed class BookAppointmentValidator : AbstractValidator<BookAppointment
         RuleFor(x => x.StaffUserId).NotEmpty().WithMessage("Member of staff is required.");
 
         RuleFor(x => x.ExpectedStatus)
-            .Must(status => ProcedureEnums.TryParse<AppointmentStatus>(status, out var parsed) && AppointmentWorkflow.IsOpen(parsed))
+            .Must(status => PathwayEnums.TryParse<AppointmentStatus>(status, out var parsed) && AppointmentWorkflow.IsOpen(parsed))
             .WithMessage(ExpectedStatusMessage);
 
         RuleFor(x => x.StartUtc)

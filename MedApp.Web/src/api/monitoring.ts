@@ -17,17 +17,17 @@ export interface MonitoringRuleInput {
 
 /**
  * What a rule can watch for, in the order the page offers them, as the person's choice reads ("Sam … finishes a
- * stage"). For ProcedureAssigned the person is the one assigned, not who assigned them (only admins assign).
+ * stage"). For PathwayAssigned the person is the one assigned, not who assigned them (only admins assign).
  */
 export const MONITORING_EVENTS = [
-  {value: 'ProcedureCreated', label: 'Creates a procedure'},
+  {value: 'PathwayCreated', label: 'Creates a pathway'},
   {value: 'StageFinished', label: 'Finishes a stage', hasStage: true},
-  {value: 'ProcedureCompleted', label: 'Completes a procedure'},
-  {value: 'ProcedureBlocked', label: 'Blocks a procedure'},
-  {value: 'ProcedureCancelled', label: 'Cancels a procedure'},
-  {value: 'ProcedureAssigned', label: 'Is assigned to a procedure'},
+  {value: 'PathwayCompleted', label: 'Completes a pathway'},
+  {value: 'PathwayBlocked', label: 'Blocks a pathway'},
+  {value: 'PathwayCancelled', label: 'Cancels a pathway'},
+  {value: 'PathwayAssigned', label: 'Is assigned to a pathway'},
   {value: 'StageUnlocked', label: 'Unlocks a stage (admins only)', hasStage: true},
-  {value: 'DueDateChanged', label: "Changes a procedure's due date"},
+  {value: 'DueDateChanged', label: "Changes a pathway's target date"},
 ] as const;
 
 export type MonitoringEvent = (typeof MONITORING_EVENTS)[number]['value'];
@@ -90,7 +90,7 @@ export function useDeleteMonitoringRule() {
 export function inputOf(rule: MonitoringRule): MonitoringRuleInput {
   return {
     subjectUserId: rule.subjectUserId ?? null,
-    event: (monitoringEventOf(rule.event)?.value ?? 'ProcedureCreated') as MonitoringEvent,
+    event: (monitoringEventOf(rule.event)?.value ?? 'PathwayCreated') as MonitoringEvent,
     minimumPriority: rule.minimumPriority ?? null,
     templateId: rule.templateId ?? null,
     stageDefinitionId: rule.stageDefinitionId ?? null,

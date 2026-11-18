@@ -13,9 +13,9 @@ public sealed class SetPatientFlagRequest
     public string? Reason { get; set; }
 
     /// <summary>
-    /// For restricting a record with procedures under way or open (Requested or Booked) appointments: the admin
-    /// confirms that their work stops while it's restricted (procedures can still be blocked or cancelled, and
+    /// For restricting a record with pathways under way or open (Requested or Booked) appointments: the admin
+    /// confirms that their work stops while it's restricted (pathways can still be blocked or cancelled, and
     /// appointments cancelled). Without it, restricting such a record is a 400.
     /// </summary>
-    public bool ConfirmOpenProcedures { get; set; }
+    public bool ConfirmOpenPathways { get; set; }
 }

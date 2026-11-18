@@ -19,7 +19,7 @@ export interface AppointmentPatientState {
 /**
  * The details of the patient an appointment is for, for the dialogs to show who it is. An appointment carries only
  * the patient's name, so when the caller doesn't already have the patient (`known`, e.g. the patient's or the
- * procedure's page), they're read from the patient's record (`patientQuery`), which the activity log records as a
+ * pathway's page), they're read from the patient's record (`patientQuery`), which the activity log records as a
  * view. Nothing is read while `patientId` is undefined.
  */
 export function useAppointmentPatient(patientId: string | undefined, known?: BannerPatient & PatientFlags): AppointmentPatientState {

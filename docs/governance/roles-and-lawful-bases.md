@@ -23,7 +23,7 @@ This document settles who is responsible for the personal data in MedApp, and on
 
 | Personal data | Controller | Processor | Why |
 |---|---|---|---|
-| **Patients** recorded in MedApp: names, date of birth, email, NHS number, procedures, stage notes, attached files, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
+| **Patients** recorded in MedApp: names, date of birth, email, NHS number, pathways, stage notes, attached files, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
 | **The customer's staff** who use MedApp: usernames, password hashes, roles, sessions (IP address and browser), settings, notifications, calendars (blocked time, such as annual leave, their own day and week templates and default week, and meetings admins arrange), and their actions in the audit trail and appointment history | The customer | The supplier | The customer decides who gets an account and with which role, sets up the activity types (each member of staff, or an admin, their own templates), arranges meetings, and uses the audit trail to supervise its own staff. |
 | **Service logs and backups** of the hosted service that contain the above | The customer | The supplier | They exist only to run, secure and recover the customer's service. |
 | **The supplier's own business data:** customer contacts, contracts, billing, sales and marketing, support correspondence (the contact details, not the patient data), complaints, the supplier's own staff and contractors, and visitors to its website | The supplier | Not applicable | The supplier decides why and how these are processed, for its own business. |
@@ -33,7 +33,7 @@ The supplier and the customer are **not joint controllers**. The supplier doesn'
 ### Why the supplier is a processor
 
 The ICO's tests for a processor ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/controllers-and-processors/controllers-and-processors/what-does-it-mean-if-you-are-a-processor/)) fit the supplier's role:
-- **Instructions:** the customer decides what to collect and why. MedApp's features (patients, procedures, templates, calendars and appointments, audit) are the means the customer chooses to use.
+- **Instructions:** the customer decides what to collect and why. MedApp's features (patients, pathways, templates, calendars and appointments, audit) are the means the customer chooses to use.
 - **No own purpose:** the supplier gets no benefit from the data beyond payment for the service.
 - **Technical decisions only:** the supplier decides the "non-essential means": the hosting, the database, the security controls. The ICO allows a processor to make those.
 
@@ -122,7 +122,7 @@ The supplier processes no special category data for its own purposes, except whe
 | Lawfulness, fairness and transparency | The bases above; privacy notice templates | This document; [privacy-notice-patients-template.md](privacy-notice-patients-template.md); [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | Purpose limitation | The supplier's commitments in section 1; no secondary use | This document; [dpa-template.md](dpa-template.md) |
 | Data minimisation | A small patient record (name, date of birth, email, an optional NHS number); guidance against identifiers in free text | [data-inventory.md](data-inventory.md); [dpia.md](dpia.md) |
-| Accuracy | Patients and procedures can be edited; finished stages lock; unlocks are audited | [data-subject-rights.md](data-subject-rights.md) |
+| Accuracy | Patients and pathways can be edited; finished stages lock; unlocks are audited | [data-subject-rights.md](data-subject-rights.md) |
 | Storage limitation | The retention schedule. **Not enforced by the app yet.** | [retention-schedule.md](retention-schedule.md) |
 | Integrity and confidentiality | The security measures | [dpia.md](dpia.md); [security-policies.md](security-policies.md) |
 | Accountability | These documents, the DPO, training and the DSPT | [README.md](README.md); [dspt-readiness.md](dspt-readiness.md) |

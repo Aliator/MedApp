@@ -18,7 +18,7 @@ public sealed class Patient
 
     /// <summary>
     /// When an admin restricted the record (UK GDPR Article 18), or null. While it's restricted, nothing about the
-    /// patient or their procedures can be changed, until an admin lifts it.
+    /// patient or their pathways can be changed, until an admin lifts it.
     /// </summary>
     public DateTime? RestrictedAtUtc { get; set; }
 

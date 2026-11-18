@@ -33,15 +33,15 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
         if (!request.Set && !isSet)
             return PatientMapper.ToResponse(patient);
 
-        // Restricting freezes the procedures under way (all but blocking and cancelling) and the open appointments (all but
+        // Restricting freezes the pathways under way (all but blocking and cancelling) and the open appointments (all but
         // cancelling), so with either the admin must say they know.
-        if (request is { Flag: PatientFlag.Restricted, Set: true, ConfirmOpenProcedures: false })
+        if (request is { Flag: PatientFlag.Restricted, Set: true, ConfirmOpenPathways: false })
         {
-            var underWay = await repository.CountProceduresUnderWayAsync(patient.Id, cancellationToken);
+            var underWay = await repository.CountPathwaysUnderWayAsync(patient.Id, cancellationToken);
             var openAppointments = await repository.CountOpenAppointmentsAsync(patient.Id, cancellationToken);
             if (underWay > 0 || openAppointments > 0)
                 throw new ValidationException([
-                    new ValidationFailure(nameof(request.ConfirmOpenProcedures), ConfirmationMessage(underWay, openAppointments))
+                    new ValidationFailure(nameof(request.ConfirmOpenPathways), ConfirmationMessage(underWay, openAppointments))
                 ]);
         }
 
@@ -87,19 +87,19 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
     /// <summary>What freezes, counted, and what stays possible, for the admin to confirm.</summary>
     private static string ConfirmationMessage(int underWay, int openAppointments)
     {
-        var procedures = $"{underWay} procedure{(underWay == 1 ? "" : "s")} under way";
+        var pathways = $"{underWay} pathway{(underWay == 1 ? "" : "s")} under way";
         var appointments = $"{openAppointments} open appointment{(openAppointments == 1 ? "" : "s")}";
         return (underWay, openAppointments) switch
         {
             (_, 0) =>
-                $"This patient has {procedures}. Confirm that work on {(underWay == 1 ? "it" : "them")} stops while the record " +
+                $"This patient has {pathways}. Confirm that work on {(underWay == 1 ? "it" : "them")} stops while the record " +
                 "is restricted (blocking and cancelling stay possible).",
             (0, _) =>
                 $"This patient has {appointments}. Confirm that {(openAppointments == 1 ? "it" : "they")} can't be booked, " +
                 "moved or given an outcome while the record is restricted (cancelling stays possible).",
             _ =>
-                $"This patient has {procedures} and {appointments}. Confirm that work on them stops while the record is " +
-                "restricted (blocking and cancelling procedures, and cancelling appointments, stay possible)."
+                $"This patient has {pathways} and {appointments}. Confirm that work on them stops while the record is " +
+                "restricted (blocking and cancelling pathways, and cancelling appointments, stay possible)."
         };
     }
 }

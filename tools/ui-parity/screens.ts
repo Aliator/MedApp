@@ -20,7 +20,7 @@ export interface Screen {
 }
 
 /**
- * Changing a procedure that isn't assigned to you first asks "Not assigned to you". Continue only opens the
+ * Changing a pathway that isn't assigned to you first asks "Not assigned to you". Continue only opens the
  * next dialog; nothing is changed until that one is confirmed, which these screens never do.
  */
 async function passNotAssignedCheck(page: Page) {
@@ -232,10 +232,10 @@ export const screens: Screen[] = [
     },
   },
   { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
-  { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
+  { name: 'my-tasks', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
-    title: 'My Tasks on a narrow window: the same list, with its search',
+    title: 'My Worklist on a narrow window: the same list, with its search',
     path: '/tasks',
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
@@ -244,14 +244,14 @@ export const screens: Screen[] = [
   },
   {
     name: 'my-tasks-favourites',
-    title: "My Tasks' favourites open (the star beside the search): Not started, Started, ...",
+    title: "My Worklist's favourites open (the star beside the search): Not started, Started, ...",
     path: '/tasks',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Favourites' }).click();
       await page.getByRole('menuitem', { name: 'Started', exact: true }).waitFor();
     },
   },
-  { name: 'my-tasks-started', title: 'My Tasks, the started ones (from the favourites)', path: '/tasks?progress=started' },
+  { name: 'my-tasks-started', title: 'My Worklist, the started ones (from the favourites)', path: '/tasks?progress=started' },
   { name: 'account', title: 'Account', path: '/account' },
   {
     name: 'notifications',
@@ -304,22 +304,22 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'patient-procedures', title: "A patient's procedures", path: (d) => `/patients/${d.patientId}/procedures` },
-  { name: 'procedures-list', title: 'All procedures, page 1', path: '/procedures' },
+  { name: 'patient-pathways', title: "A patient's pathways", path: (d) => `/patients/${d.patientId}/pathways` },
+  { name: 'pathways-list', title: 'All pathways, page 1', path: '/pathways' },
   {
-    name: 'procedures-search',
-    title: 'Procedures search: "is any of" and "is not any of" tokens, and the field list open',
-    path: '/procedures?status=InProgress,Blocked&priority=!Low',
+    name: 'pathways-search',
+    title: 'Pathways search: "is any of" and "is not any of" tokens, and the field list open',
+    path: '/pathways?status=InProgress,Blocked&priority=!Low',
     prepare: async (page) => {
-      await page.getByRole('combobox', { name: 'Search procedures' }).click();
+      await page.getByRole('combobox', { name: 'Search pathways' }).click();
       await settle(page);
     },
   },
-  { name: 'procedure-view', title: 'Procedure page: details, current stage and files beside the stages', path: (d) => `/procedures/${d.procedureId}` },
+  { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {
-    name: 'procedure-notes',
-    title: "Procedure page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
-    path: (d) => `/procedures/${d.procedureId}`,
+    name: 'pathway-notes',
+    title: "Pathway page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Hide details' }).click();
       await page.getByRole('button', { name: 'Add Note' }).waitFor({ state: 'visible' });
@@ -328,8 +328,8 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-open',
-    title: "The notepad docked on the right of a procedure's page (opened from the side nav), the page beside it (narrow below 1,784 px)",
-    path: (d) => `/procedures/${d.procedureId}`,
+    title: "The notepad docked on the right of a pathway's page (opened from the side nav), the page beside it (narrow below 1,784 px)",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
       await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
@@ -338,8 +338,8 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-add-note',
-    title: "The notepad's Add Note to Procedure confirmation: the patient as the banner shows them, the procedure, the text, and Remove it from the notepad (only opened, never confirmed)",
-    path: (d) => `/procedures/${d.procedureId}`,
+    title: "The notepad's Add Note to Pathway confirmation: the patient as the banner shows them, the pathway, the text, and Remove it from the notepad (only opened, never confirmed)",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
       const notepad = page.getByRole('region', { name: 'Notepad' });
@@ -350,15 +350,15 @@ export const screens: Screen[] = [
         await box.click();
         await page.keyboard.type('Synthetic jotting for the parity screenshot.');
       }
-      await notepad.getByRole('button', { name: 'Add Note to Procedure' }).click();
+      await notepad.getByRole('button', { name: 'Add Note to Pathway' }).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
   },
   {
     name: 'notepad-half',
-    title: "The notepad in a half view (the side nav's Notepad row's menu), beside a procedure: the notepad filling the right half",
-    path: (d) => `/procedures/${d.procedureId}`,
+    title: "The notepad in a half view (the side nav's Notepad row's menu), beside a pathway: the notepad filling the right half",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/notepad'));
       await page.reload();
@@ -367,18 +367,18 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-narrow',
-    title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
-    path: (d) => `/procedures/${d.procedureId}`,
+    name: 'pathway-narrow',
+    title: 'Pathway page on a narrow window: one card, Details and Current stage open, Stages folded',
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await settle(page);
     },
   },
   {
-    name: 'procedure-narrow-stages',
-    title: 'Procedure page on a narrow window, Stages opened too: the three sections scroll together',
-    path: (d) => `/procedures/${d.procedureId}`,
+    name: 'pathway-narrow-stages',
+    title: 'Pathway page on a narrow window, Stages opened too: the three sections scroll together',
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await page.getByRole('button', { name: 'Show stages' }).click();
@@ -386,18 +386,18 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-stage-files',
-    title: "Procedure page, the current stage's files opened under its notes (the procedure's own files are open by default)",
-    path: (d) => `/procedures/${d.procedureId}`,
+    name: 'pathway-stage-files',
+    title: "Pathway page, the current stage's files opened under its notes (the pathway's own files are open by default)",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Files', exact: true }).first().click();
       await settle(page);
     },
   },
   {
-    name: 'procedure-new',
-    title: "New procedure for a patient, a template chosen: its stages listed and its name as the title",
-    path: (d) => `/procedures/new?patientId=${d.patientId}`,
+    name: 'pathway-new',
+    title: "New pathway for a patient, a template chosen: its stages listed and its name as the title",
+    path: (d) => `/pathways/new?patientId=${d.patientId}`,
     prepare: async (page) => {
       await page.getByRole('combobox', { name: /Template/ }).click();
       await page.getByRole('option').first().click();
@@ -405,9 +405,9 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-new-narrow',
-    title: 'New procedure on a narrow window: one form card that scrolls, its footer pinned',
-    path: (d) => `/procedures/new?patientId=${d.patientId}`,
+    name: 'pathway-new-narrow',
+    title: 'New pathway on a narrow window: one form card that scrolls, its footer pinned',
+    path: (d) => `/pathways/new?patientId=${d.patientId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await page.getByRole('combobox', { name: /Template/ }).click();
@@ -416,32 +416,32 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-visit',
+    name: 'pathway-visit',
     title:
-      "Procedure page with its Appointments in the details and, if its current stage involves a visit, the Visit part above the notes (the parity data's first procedure: it shows a visit only when the demo data gives that procedure's stage one)",
-    path: (d) => `/procedures/${d.procedureId}`,
+      "Pathway page with its Appointments in the details and, if its current stage involves a visit, the Visit part above the notes (the parity data's first pathway: it shows a visit only when the demo data gives that pathway's stage one)",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Appointments' }).waitFor();
       await settle(page);
     },
   },
   {
-    name: 'procedure-restricted',
+    name: 'pathway-restricted',
     title:
-      "A restricted patient's procedure at 1366px: the restricted label (\"Restricted record: changes paused\") beside the title, wrapping if it must, the actions on the same line",
-    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+      "A restricted patient's pathway at 1366px: the restricted label (\"Restricted record: changes paused\") beside the title, wrapping if it must, the actions on the same line",
+    path: (d) => `/pathways/${d.restrictedPathwayId}`,
     prepare: async (page, { data }) => {
-      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      test.skip(!data.restrictedPathwayId, 'No restricted patient with a pathway (reset_demo_data makes some).');
       await page.setViewportSize({ width: 1366, height: 768 });
       await settle(page);
     },
   },
   {
-    name: 'procedure-restricted-half',
-    title: "A restricted patient's procedure in a half view: the restricted label under the title, Close half view kept top right",
-    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    name: 'pathway-restricted-half',
+    title: "A restricted patient's pathway in a half view: the restricted label under the title, Close half view kept top right",
+    path: (d) => `/pathways/${d.restrictedPathwayId}`,
     prepare: async (page, { data }) => {
-      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      test.skip(!data.restrictedPathwayId, 'No restricted patient with a pathway (reset_demo_data makes some).');
       await page.setViewportSize({ width: 1366, height: 768 });
       await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/admin/audit'));
       await page.reload();
@@ -449,11 +449,11 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-restricted-details',
-    title: "A restricted patient's procedure with the restricted label focused: the whole message (the reason, since when, what can still be done) over the page",
-    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    name: 'pathway-restricted-details',
+    title: "A restricted patient's pathway with the restricted label focused: the whole message (the reason, since when, what can still be done) over the page",
+    path: (d) => `/pathways/${d.restrictedPathwayId}`,
     prepare: async (page, { data }) => {
-      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      test.skip(!data.restrictedPathwayId, 'No restricted patient with a pathway (reset_demo_data makes some).');
       await page.setViewportSize({ width: 1366, height: 768 });
       // Focus opens it, as the keyboard does; it stays open while nothing moves.
       await page.getByRole('button', { name: /^Restricted record.*, show details$/ }).focus();
@@ -462,22 +462,22 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-restricted-phone',
-    title: "A restricted patient's procedure on a phone, with the restricted label tapped: the label wraps, and the message fits the screen",
-    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    name: 'pathway-restricted-phone',
+    title: "A restricted patient's pathway on a phone, with the restricted label tapped: the label wraps, and the message fits the screen",
+    path: (d) => `/pathways/${d.restrictedPathwayId}`,
     prepare: async (page, { data }) => {
-      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      test.skip(!data.restrictedPathwayId, 'No restricted patient with a pathway (reset_demo_data makes some).');
       await page.setViewportSize({ width: 390, height: 844 });
       await page.getByRole('button', { name: /^Restricted record.*, show details$/ }).click();
       await page.getByRole('dialog', { name: 'Restricted record: details' }).waitFor();
       await settle(page);
     },
   },
-  { name: 'procedure-edit', title: "Edit a procedure's details", path: (d) => `/procedures/${d.procedureId}/edit` },
+  { name: 'pathway-edit', title: "Edit a pathway's details", path: (d) => `/pathways/${d.pathwayId}/edit` },
   {
-    name: 'procedure-block',
-    title: 'Block procedure dialog, asking for a reason (not confirmed)',
-    path: (d) => `/procedures/${d.procedureId}`,
+    name: 'pathway-block',
+    title: 'Block pathway dialog, asking for a reason (not confirmed)',
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Block' }).click();
       await passNotAssignedCheck(page);
@@ -485,9 +485,9 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'procedure-finish',
+    name: 'pathway-finish',
     title: 'Finish stage confirmation (not confirmed)',
-    path: (d) => `/procedures/${d.procedureId}`,
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Finish Stage' }).click();
       await passNotAssignedCheck(page);
@@ -566,11 +566,11 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'admin-templates', title: 'Templates (admin), archived ones shown too (no status filter)', path: '/admin/templates?status=any' },
+  { name: 'admin-templates', title: 'Templates (admin), archived ones shown too (no status filter)', path: '/admin/pathway-templates?status=any' },
   {
     name: 'admin-template-edit',
     title: 'Edit a template: its stages in order beside All Stages, to add from',
-    path: '/admin/templates',
+    path: '/admin/pathway-templates',
     prepare: async (page) => {
       // Edit is a link to the template's page.
       await page.getByRole('table').getByRole('link', { name: /edit template/i }).first().click();
@@ -581,7 +581,7 @@ export const screens: Screen[] = [
   {
     name: 'admin-template-new-narrow',
     title: 'New template on a narrow window: one form card',
-    path: '/admin/templates/new',
+    path: '/admin/pathway-templates/new',
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await settle(page);
@@ -664,9 +664,9 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'admin-audit-procedure',
-    title: "One procedure's audit log, from its View Audit Log",
-    path: (d) => `/admin/audit?procedureId=${d.procedureId}`,
+    name: 'admin-audit-pathway',
+    title: "One pathway's audit log, from its View Audit Log",
+    path: (d) => `/admin/audit?pathwayId=${d.pathwayId}`,
   },
   { name: 'admin-activity', title: 'Activity log (admin)', path: '/admin/activity' },
   {
@@ -679,8 +679,8 @@ export const screens: Screen[] = [
   { name: 'patient-export', title: "A patient's subject access export (admin)", path: (d) => `/patients/${d.patientId}/export` },
   {
     name: 'half-view',
-    title: "Half view: a procedure beside its patient's page, each in its narrow layout, the nav folded away",
-    path: (d) => `/procedures/${d.procedureId}`,
+    title: "Half view: a pathway beside its patient's page, each in its narrow layout, the nav folded away",
+    path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       // From the Patients row's menu (its button shows while the row is hovered, and opens it when rested on).
       await page.getByRole('navigation').getByRole('link', { name: 'Patients' }).hover();

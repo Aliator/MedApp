@@ -11,13 +11,13 @@ using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Requests;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Requests;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
-using MedApp.Application.Procedures.Common;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Requests;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
+using MedApp.Application.Pathways.Common;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -145,36 +145,36 @@ public abstract class IntegrationTest
         return await response.ReadAsAsync<PatientResponse>(HttpStatusCode.Created);
     }
 
-    protected static async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(
+    protected static async Task<PatientPathwayStageDefinitionResponse> CreateStageDefinitionAsync(
         HttpClient admin,
         string? name = null,
         string visitRequirement = "None")
     {
         name ??= UniqueName("Stage");
-        var response = await admin.PostAsJsonAsync("/api/procedures/patient-procedure-stage/definitions",
-            new CreatePatientProcedureStageDefinitionRequest
+        var response = await admin.PostAsJsonAsync("/api/pathways/patient-pathway-stage/definitions",
+            new CreatePatientPathwayStageDefinitionRequest
             {
                 Name = name,
                 Description = $"{name} description",
                 Instructions = $"{name} instructions",
                 VisitRequirement = visitRequirement,
             });
-        return await response.ReadAsAsync<PatientProcedureStageDefinitionResponse>(HttpStatusCode.Created);
+        return await response.ReadAsAsync<PatientPathwayStageDefinitionResponse>(HttpStatusCode.Created);
     }
 
-    protected static async Task<PatientProcedureStageTemplateResponse> CreateTemplateAsync(HttpClient admin, params Guid[] stageDefinitionIds)
+    protected static async Task<PathwayTemplateResponse> CreateTemplateAsync(HttpClient admin, params Guid[] stageDefinitionIds)
     {
-        var response = await admin.PostAsJsonAsync("/api/procedures/patient-procedure-stage/templates",
-            new CreatePatientProcedureStageTemplateRequest
+        var response = await admin.PostAsJsonAsync("/api/pathways/patient-pathway-stage/templates",
+            new CreatePathwayTemplateRequest
             {
                 Name = UniqueName("Template"),
                 StageDefinitionIdsInOrder = stageDefinitionIds,
             });
-        return await response.ReadAsAsync<PatientProcedureStageTemplateResponse>(HttpStatusCode.Created);
+        return await response.ReadAsAsync<PathwayTemplateResponse>(HttpStatusCode.Created);
     }
 
     /// <summary>A template of the given number of new stages.</summary>
-    protected static async Task<PatientProcedureStageTemplateResponse> CreateTemplateWithStagesAsync(HttpClient admin, int stages)
+    protected static async Task<PathwayTemplateResponse> CreateTemplateWithStagesAsync(HttpClient admin, int stages)
     {
         var ids = new List<Guid>();
         for (var i = 0; i < stages; i++)
@@ -182,34 +182,34 @@ public abstract class IntegrationTest
         return await CreateTemplateAsync(admin, [.. ids]);
     }
 
-    /// <summary>Today in the UK by the API's clock, the day due dates (and calendars) are counted in.</summary>
+    /// <summary>Today in the UK by the API's clock, the day target dates (and calendars) are counted in.</summary>
     protected static DateOnly UkToday => DueDates.ToUkDate(Now);
 
-    protected static async Task<PatientProcedureResponse> CreateProcedureAsync(
+    protected static async Task<PatientPathwayResponse> CreatePathwayAsync(
         HttpClient client,
         Guid patientId,
         Guid templateId,
         DateOnly? dueDate = null,
         string priority = "Medium")
     {
-        var response = await client.PostAsJsonAsync("/api/procedures/patient-procedures", new CreatePatientProcedureRequest
+        var response = await client.PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
         {
             PatientId = patientId,
             TemplateId = templateId,
-            Title = UniqueName("Procedure"),
+            Title = UniqueName("Pathway"),
             Notes = string.Empty,
             DueDate = dueDate ?? UkToday.AddDays(7),
             Priority = priority,
         });
-        return await response.ReadAsAsync<PatientProcedureResponse>(HttpStatusCode.Created);
+        return await response.ReadAsAsync<PatientPathwayResponse>(HttpStatusCode.Created);
     }
 
-    /// <summary>A patient and a procedure for them from a new template of the given number of stages.</summary>
-    protected static async Task<PatientProcedureResponse> CreatePatientWithProcedureAsync(HttpClient admin, int stages = 2)
+    /// <summary>A patient and a pathway for them from a new template of the given number of stages.</summary>
+    protected static async Task<PatientPathwayResponse> CreatePatientWithPathwayAsync(HttpClient admin, int stages = 2)
     {
         var patient = await CreatePatientAsync(admin);
         var template = await CreateTemplateWithStagesAsync(admin, stages);
-        return await CreateProcedureAsync(admin, patient.Id, template.Id);
+        return await CreatePathwayAsync(admin, patient.Id, template.Id);
     }
 
     /// <summary>A synthetic PDF, the smallest the API accepts as one.</summary>
@@ -217,7 +217,7 @@ public abstract class IntegrationTest
 
     /// <summary>
     /// Uploads a file as the web app does: its bytes as the body, its name percent-encoded in a header, and what it's
-    /// attached to (<c>patientId=…</c>, <c>procedureId=…</c> or <c>stageId=…</c>) in the query.
+    /// attached to (<c>patientId=…</c>, <c>pathwayId=…</c> or <c>stageId=…</c>) in the query.
     /// </summary>
     protected static Task<HttpResponseMessage> UploadAttachmentAsync(HttpClient client, string target, byte[] bytes, string fileName)
     {
@@ -233,27 +233,27 @@ public abstract class IntegrationTest
         await (await UploadAttachmentAsync(client, target, bytes, fileName))
             .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentResponse>(HttpStatusCode.Created);
 
-    protected static string ProcedureUrl(Guid procedureId) => $"/api/procedures/patient-procedures/{procedureId}";
+    protected static string PathwayUrl(Guid pathwayId) => $"/api/pathways/patient-pathways/{pathwayId}";
 
-    protected static string StageUrl(Guid procedureId, Guid stageId) => $"{ProcedureUrl(procedureId)}/stages/{stageId}";
+    protected static string StageUrl(Guid pathwayId, Guid stageId) => $"{PathwayUrl(pathwayId)}/stages/{stageId}";
 
-    protected static Task<HttpResponseMessage> PutStageNotesAsync(HttpClient client, Guid procedureId, Guid stageId, string notes) =>
-        client.PutAsJsonAsync($"{StageUrl(procedureId, stageId)}/notes", new UpdateProcedureStageNotesRequest { Notes = notes });
+    protected static Task<HttpResponseMessage> PutStageNotesAsync(HttpClient client, Guid pathwayId, Guid stageId, string notes) =>
+        client.PutAsJsonAsync($"{StageUrl(pathwayId, stageId)}/notes", new UpdatePathwayStageNotesRequest { Notes = notes });
 
     /// <summary>Finishes a stage with a POST that has no body, as before stages could involve a visit.</summary>
-    protected static Task<HttpResponseMessage> FinishStageAsync(HttpClient client, Guid procedureId, Guid stageId) =>
-        client.PostAsync($"{StageUrl(procedureId, stageId)}/finish", null);
+    protected static Task<HttpResponseMessage> FinishStageAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
+        client.PostAsync($"{StageUrl(pathwayId, stageId)}/finish", null);
 
     /// <summary>Finishes a stage with a body: an admin finishing a Required stage without its visit, and why.</summary>
     protected static Task<HttpResponseMessage> FinishStageAsync(
         HttpClient client,
-        Guid procedureId,
+        Guid pathwayId,
         Guid stageId,
-        FinishProcedureStageRequest request) =>
-        client.PostAsJsonAsync($"{StageUrl(procedureId, stageId)}/finish", request);
+        FinishPathwayStageRequest request) =>
+        client.PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/finish", request);
 
-    protected static Task<HttpResponseMessage> PostProcedureStatusAsync(HttpClient client, Guid procedureId, string status, string? reason = null) =>
-        client.PostAsJsonAsync($"{ProcedureUrl(procedureId)}/status", new ChangePatientProcedureStatusRequest { Status = status, Reason = reason });
+    protected static Task<HttpResponseMessage> PostPathwayStatusAsync(HttpClient client, Guid pathwayId, string status, string? reason = null) =>
+        client.PostAsJsonAsync($"{PathwayUrl(pathwayId)}/status", new ChangePatientPathwayStatusRequest { Status = status, Reason = reason });
 
     // Calendars and appointments.
 
@@ -301,13 +301,13 @@ public abstract class IntegrationTest
         DateTime startUtc,
         string outcome = "Attended",
         int minutes = AppointmentMinutes,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null,
         string? notes = null) =>
         client.PostAsJsonAsync("/api/appointments/past", new RecordPastAppointmentRequest
         {
             PatientId = patientId,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             StageId = stageId,
             StaffUserId = staffUserId,
             StartUtc = startUtc,
@@ -440,13 +440,13 @@ public abstract class IntegrationTest
         Guid staffUserId,
         DateTime startUtc,
         int minutes = AppointmentMinutes,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null,
         string? notes = null) =>
         client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = patientId,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             StageId = stageId,
             StaffUserId = staffUserId,
             StartUtc = startUtc,
@@ -460,22 +460,22 @@ public abstract class IntegrationTest
         Guid staffUserId,
         DateTime startUtc,
         int minutes = AppointmentMinutes,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null) =>
-        await (await PostBookingAsync(client, patientId, staffUserId, startUtc, minutes, procedureId, stageId))
+        await (await PostBookingAsync(client, patientId, staffUserId, startUtc, minutes, pathwayId, stageId))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
     /// <summary>Adds an appointment to Requires Appointment (no member of staff or time yet).</summary>
     protected static async Task<AppointmentResponse> RequestAppointmentAsync(
         HttpClient client,
         Guid patientId,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null)
     {
         var response = await client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = patientId,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             StageId = stageId,
         });
         return await response.ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
@@ -511,7 +511,7 @@ public abstract class IntegrationTest
     protected static async Task<AppointmentResponse> GetAppointmentAsync(HttpClient client, Guid appointmentId) =>
         await (await client.GetAsync(AppointmentUrl(appointmentId))).ReadAsAsync<AppointmentResponse>();
 
-    /// <summary>Every appointment matching a query string (e.g. <c>procedureId=...</c>), up to a page of 100.</summary>
+    /// <summary>Every appointment matching a query string (e.g. <c>pathwayId=...</c>), up to a page of 100.</summary>
     protected static async Task<IReadOnlyList<AppointmentResponse>> SearchAppointmentsAsync(HttpClient client, string query) =>
         (await (await client.GetAsync($"/api/appointments/search?pageSize=100&{query}"))
             .ReadAsAsync<PagedResponse<AppointmentResponse>>()).Items;

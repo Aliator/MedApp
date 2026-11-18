@@ -16,7 +16,7 @@ describe('auditActionLabel', () => {
 });
 
 describe('describeAuditDetails', () => {
-  it('says what a procedure was created from', () => {
+  it('says what a pathway was created from', () => {
     expect(describe_('Created', {template: 'Diagnostic procedure', dueDate: '2026-11-07', priority: 'High', stageCount: 7})).toBe(
       'From Diagnostic procedure, 7 stages, due 7 Nov 2026, high priority',
     );
@@ -45,14 +45,14 @@ describe('describeAuditDetails', () => {
   it("gives a deleted note's version and the admin's reason in words, with its detail, never its text", () => {
     expect(auditActionLabel('NoteDeleted')).toBe('Note deleted');
     expect(
-      describe_('NoteDeleted', {noteId: 'n1', version: 2, deletionReason: 'WrongPatient', detail: ' Synthetic: the other procedure. ', requestId: 'r1'}),
-    ).toBe('Version 2: Wrong patient: Synthetic: the other procedure.');
+      describe_('NoteDeleted', {noteId: 'n1', version: 2, deletionReason: 'WrongPatient', detail: ' Synthetic: the other pathway. ', requestId: 'r1'}),
+    ).toBe('Version 2: Wrong patient: Synthetic: the other pathway.');
     expect(describe_('NoteDeleted', {noteId: 'n1', version: 1, deletionReason: 'Duplicate'})).toBe('Version 1: Duplicate');
     expect(describe_('NoteDeleted', {noteId: 'n1', version: 1})).toBe('Version 1');
     expect(describe_('NoteDeleted', {detail: 'Synthetic detail.'})).toBe('Synthetic detail.');
   });
 
-  it('names who was assigned, the notes saved, and what a deleted procedure was', () => {
+  it('names who was assigned, the notes saved, and what a deleted pathway was', () => {
     expect(describe_('Assigned', {userId: 'u1', username: 'k.ashford'})).toBe('k.ashford');
     expect(describe_('StageNotesUpdated', {from: '', to: 'Sutures removed.'})).toBe('Nothing → "Sutures removed."');
     expect(describe_('Deleted', {status: 'Cancelled'})).toBe('Was cancelled');
@@ -105,7 +105,7 @@ describe('describeAuditDetails', () => {
     const details = {attachmentId: 'a1', fileName: 'scan.pdf', contentType: 'application/pdf', size: 1258291, attachedTo: 'Stage'};
     expect(describe_('AttachmentAdded', details)).toBe('scan.pdf (1.2 MB), on the stage');
     expect(describe_('AttachmentDeleted', {...details, attachedTo: 'Patient'})).toBe('scan.pdf (1.2 MB), on the patient');
-    expect(describe_('AttachmentDownloaded', {...details, attachedTo: 'Procedure'})).toBe('scan.pdf (1.2 MB), on the procedure');
+    expect(describe_('AttachmentDownloaded', {...details, attachedTo: 'Pathway'})).toBe('scan.pdf (1.2 MB), on the pathway');
   });
 
   it('copes with a file entry missing its details', () => {
@@ -115,8 +115,8 @@ describe('describeAuditDetails', () => {
 });
 
 describe('isPatientFileEntry', () => {
-  it("knows an entry about a patient's own file, which has no procedure", () => {
-    expect(isPatientFileEntry({patientProcedureId: '00000000-0000-0000-0000-000000000000'})).toBe(true);
-    expect(isPatientFileEntry({patientProcedureId: '00000034-0000-0000-0000-000000000001'})).toBe(false);
+  it("knows an entry about a patient's own file, which has no pathway", () => {
+    expect(isPatientFileEntry({patientPathwayId: '00000000-0000-0000-0000-000000000000'})).toBe(true);
+    expect(isPatientFileEntry({patientPathwayId: '00000034-0000-0000-0000-000000000001'})).toBe(false);
   });
 });

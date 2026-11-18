@@ -3,7 +3,7 @@ import {renderWithApp, pickFavourite, searchBar} from '../../test/render';
 import {dayFromToday, filtersFrom, ListFilterBar, valuesFrom, type ListFilterField} from './ListFilterBar';
 
 const fields: ListFilterField[] = [
-  {kind: 'text', key: 'title', label: 'Procedure'},
+  {kind: 'text', key: 'title', label: 'Pathway'},
   {kind: 'choice', key: 'status', label: 'Status', options: [{value: 'Open', label: 'Open'}, {value: 'Blocked', label: 'Blocked'}, {value: 'Done', label: 'Done'}], isMultiple: true},
   {kind: 'date', key: 'due', label: 'Due', fromKey: 'dueFrom', toKey: 'dueTo'},
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
@@ -43,7 +43,7 @@ describe('ListFilterBar', () => {
   it('shows the filters as tokens', async () => {
     renderWithApp(<ListFilterBar list="test" fields={fields} values={{title: 'knee', overdue: true}} onChange={() => {}} label="Search" placeholder="Search..." />);
 
-    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Procedure: contains\s*knee/));
+    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Pathway: contains\s*knee/));
     expect(searchBar()).toHaveTextContent(/Overdue: only/);
   });
 

@@ -2,26 +2,26 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Patients.Common;
 
 /// <summary>
 /// Anonymises a patient's record in place (<see cref="PatientRecord"/>, loaded for update): their identifying details
 /// and every piece of free text become placeholders, and everything else stays, so the record's structure, its
-/// statistics (procedures, templates, statuses, dates, who did what and when) and its audit trail survive.
+/// statistics (pathways, templates, statuses, dates, who did what and when) and its audit trail survive.
 /// <list type="bullet">
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
-/// <item>Procedure titles become the template's name; procedure notes (every version of each, those of deleted
-/// procedures too, and the old single notes field) and stage notes become <see cref="RemovedText"/>, and so do the
+/// <item>Pathway titles become the template's name; pathway notes (every version of each, those of deleted
+/// pathways too, and the old single notes field) and stage notes become <see cref="RemovedText"/>, and so do the
 /// details given when notes were deleted, or asked to be (the reasons themselves are a fixed choice, kept). A request still waiting is closed, by whoever
 /// anonymises: the record can't change any more.</item>
-/// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
-/// <item>Appointments' notes and cancellation reasons, and their history's procedure titles, notes and reasons, are replaced the same way.</item>
-/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
+/// <item>The pathway audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
+/// <item>Appointments' notes and cancellation reasons, and their history's pathway titles, notes and reasons, are replaced the same way.</item>
+/// <item>Notifications about the pathways take the new titles, except those whose title is fixed (the appointment
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
@@ -39,8 +39,8 @@ public static class PatientAnonymiser
     /// <summary>Takes the place of free text that had something in it; empty text stays empty.</summary>
     public const string RemovedText = "[Removed when the record was anonymised]";
 
-    /// <summary>The title of a procedure with no template name, or one that has been deleted.</summary>
-    public const string ProcedureTitle = "Anonymised procedure";
+    /// <summary>The title of a pathway with no template name, or one that has been deleted.</summary>
+    public const string PathwayTitle = "Anonymised pathway";
 
     /// <summary>An attached file's name, before its type's usual extension.</summary>
     public const string FileName = "Anonymised file";
@@ -51,10 +51,10 @@ public static class PatientAnonymiser
     /// <summary>
     /// Anonymises the record. <paramref name="by"/> is who's doing it, recorded as having deleted the files still
     /// live; without one, they're deleted by nobody in particular. Returns the audit entries for those deletions
-    /// (<see cref="PatientProcedureAuditAction.AttachmentDeleted"/>, with the file's new name), for the caller to save
+    /// (<see cref="PatientPathwayAuditAction.AttachmentDeleted"/>, with the file's new name), for the caller to save
     /// with the record.
     /// </summary>
-    public static IReadOnlyList<PatientProcedureAuditEntry> Apply(PatientRecord record, DateTime nowUtc, ActivityActor? by = null)
+    public static IReadOnlyList<PatientPathwayAuditEntry> Apply(PatientRecord record, DateTime nowUtc, ActivityActor? by = null)
     {
         var patient = record.Patient;
         patient.FirstName = FirstName;
@@ -72,20 +72,20 @@ public static class PatientAnonymiser
         patient.LastUpdated = nowUtc;
 
         var titles = new Dictionary<Guid, string>();
-        foreach (var procedure in record.Procedures)
+        foreach (var pathway in record.Pathways)
         {
-            procedure.Title = string.IsNullOrWhiteSpace(procedure.TemplateName) ? ProcedureTitle : procedure.TemplateName;
-            procedure.LegacyNotes = Removed(procedure.LegacyNotes);
-            foreach (var note in procedure.Notes)
+            pathway.Title = string.IsNullOrWhiteSpace(pathway.TemplateName) ? PathwayTitle : pathway.TemplateName;
+            pathway.LegacyNotes = Removed(pathway.LegacyNotes);
+            foreach (var note in pathway.Notes)
             {
                 note.Text = Removed(note.Text);
                 if (note.DeletionDetail is not null)
                     note.DeletionDetail = Removed(note.DeletionDetail);
                 note.PendingDeletionRequestId = null;
             }
-            foreach (var stage in procedure.Stages)
+            foreach (var stage in pathway.Stages)
                 stage.Notes = Removed(stage.Notes);
-            titles[procedure.Id] = procedure.Title;
+            titles[pathway.Id] = pathway.Title;
         }
 
         foreach (var version in record.NoteVersions)
@@ -99,10 +99,10 @@ public static class PatientAnonymiser
                 request.Close(NoteDeletionRequestStatus.Closed, by?.UserId, by?.Username, nowUtc);
         }
 
-        foreach (var entry in record.ProcedureHistory)
+        foreach (var entry in record.PathwayHistory)
         {
-            entry.ProcedureTitle = titles.GetValueOrDefault(entry.PatientProcedureId, ProcedureTitle);
-            entry.Details = ScrubDetails(entry.Details, entry.Action == PatientProcedureAuditAction.StageNotesUpdated);
+            entry.PathwayTitle = titles.GetValueOrDefault(entry.PatientPathwayId, PathwayTitle);
+            entry.Details = ScrubDetails(entry.Details, entry.Action == PatientPathwayAuditAction.StageNotesUpdated);
         }
 
         foreach (var entry in record.Activity)
@@ -117,17 +117,17 @@ public static class PatientAnonymiser
 
         foreach (var entry in record.AppointmentHistory)
         {
-            // An appointment not for a procedure has no title to replace.
-            if (entry.ProcedureId is { } procedureId)
-                entry.ProcedureTitle = titles.GetValueOrDefault(procedureId, ProcedureTitle);
+            // An appointment not for a pathway has no title to replace.
+            if (entry.PathwayId is { } pathwayId)
+                entry.PathwayTitle = titles.GetValueOrDefault(pathwayId, PathwayTitle);
             entry.Details = ScrubDetails(entry.Details, entry.Action == AppointmentEventAction.NotesUpdated);
         }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
-            notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;
+            notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;
 
-        var deletions = new List<PatientProcedureAuditEntry>();
-        var actor = new ProcedureActor(by?.UserId ?? Guid.Empty, by?.Username ?? string.Empty);
+        var deletions = new List<PatientPathwayAuditEntry>();
+        var actor = new PathwayActor(by?.UserId ?? Guid.Empty, by?.Username ?? string.Empty);
         foreach (var attachment in record.Attachments)
         {
             attachment.FileName = FileName + (AttachmentFileTypes.FromContentType(attachment.ContentType)?.Extensions[0] ?? string.Empty);
@@ -139,11 +139,11 @@ public static class PatientAnonymiser
             attachment.DeletedByUsername = by?.Username;
 
             // Audited like any other deletion, each a tick after the last so they keep their order.
-            var procedure = record.Procedures.FirstOrDefault(p => p.Id == attachment.ProcedureId);
-            var stage = procedure?.Stages.FirstOrDefault(s => s.Id == attachment.StageId);
-            var target = new AttachmentTarget(attachment.PatientId, procedure, stage);
+            var pathway = record.Pathways.FirstOrDefault(p => p.Id == attachment.PathwayId);
+            var stage = pathway?.Stages.FirstOrDefault(s => s.Id == attachment.StageId);
+            var target = new AttachmentTarget(attachment.PatientId, pathway, stage);
             deletions.Add(AttachmentAudit.Entry(
-                attachment, target, actor, PatientProcedureAuditAction.AttachmentDeleted, nowUtc.AddTicks(deletions.Count)));
+                attachment, target, actor, PatientPathwayAuditAction.AttachmentDeleted, nowUtc.AddTicks(deletions.Count)));
         }
 
         return deletions;
