@@ -2,6 +2,7 @@ using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Consent;
+using MedApp.Domain.DataRequests;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Clinics;
@@ -63,6 +64,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<MedApp.Domain.Results.Result> Results => Set<MedApp.Domain.Results.Result>();
     public DbSet<ConsentForm> ConsentForms => Set<ConsentForm>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+    public DbSet<DataRequest> DataRequests => Set<DataRequest>();
+    public DbSet<DataRequestWithheldItem> DataRequestWithheldItems => Set<DataRequestWithheldItem>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

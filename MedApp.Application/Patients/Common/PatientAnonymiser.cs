@@ -40,6 +40,8 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
 /// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their
 /// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
+/// <item>Data requests' requester names and relationships, identity check details, extension and refusal reasons, and
+/// the reasons items were withheld, become <see cref="RemovedText"/>; their dates, statuses and methods stay.</item>
 /// <item>Consent records' withdrawal and correction details become <see cref="RemovedText"/>; their scans are deleted
 /// with every other live file.</item>
 /// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
@@ -258,6 +260,24 @@ public static class PatientAnonymiser
         // detail goes. Their scans are files, deleted below with the rest.
         foreach (var consent in record.ConsentRecords.Where(c => c.StatusDetail is not null))
             consent.StatusDetail = Removed(consent.StatusDetail!);
+
+        // Data requests keep their dates, statuses, methods and who handled them; who asked and every reason go.
+        // (Anonymising is refused while one is open.)
+        foreach (var dataRequest in record.DataRequests)
+        {
+            if (dataRequest.RequesterName is not null)
+                dataRequest.RequesterName = Removed(dataRequest.RequesterName);
+            if (dataRequest.RequesterRelationship is not null)
+                dataRequest.RequesterRelationship = Removed(dataRequest.RequesterRelationship);
+            if (dataRequest.IdentityCheckDetail is not null)
+                dataRequest.IdentityCheckDetail = Removed(dataRequest.IdentityCheckDetail);
+            if (dataRequest.ExtensionReason is not null)
+                dataRequest.ExtensionReason = Removed(dataRequest.ExtensionReason);
+            if (dataRequest.RefusalReason is not null)
+                dataRequest.RefusalReason = Removed(dataRequest.RefusalReason);
+            foreach (var withheld in dataRequest.WithheldItems)
+                withheld.Reason = Removed(withheld.Reason);
+        }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;

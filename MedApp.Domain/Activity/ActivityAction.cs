@@ -144,5 +144,21 @@ public enum ActivityAction
     /// Someone's full name or job title was changed, by themselves or by an admin: the names of the fields changed, never
     /// their values.
     /// </summary>
-    StaffDetailsChanged = 48
+    StaffDetailsChanged = 48,
+
+    // 49 is InvoiceViewed (private patients, PR 34 of the centre plan).
+
+    /// <summary>
+    /// Someone made a data request's response pack (the report and the files) and downloaded it: the request's ID in
+    /// its details. The pack itself is never stored.
+    /// </summary>
+    DataRequestPackDownloaded = 50,
+
+    // 51 and 52 are OrganisationCreated and OrganisationOffboarded (multi-tenancy).
+
+    /// <summary>
+    /// A patient's data request was recorded or changed (identity checked, extended, reviewed, sent, refused or
+    /// withdrawn): the request's ID and what changed in its details, never the requester, a reason or anything withheld.
+    /// </summary>
+    DataRequestChanged = 53
 }

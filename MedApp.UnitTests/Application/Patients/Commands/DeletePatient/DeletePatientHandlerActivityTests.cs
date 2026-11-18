@@ -1,4 +1,4 @@
-using AutoFixture;
+﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Repositories;
@@ -30,6 +30,7 @@ public sealed class DeletePatientHandlerActivityTests
         _fixture.Inject<IActivityLog>(new RecordingActivityLog());
         _fixture.Inject(new Mock<IAttachmentRepository>().Object);
         _fixture.Inject(new Mock<MedApp.Application.Results.Repositories.IResultRepository>().Object);
+        _fixture.Inject(new Mock<MedApp.Application.DataRequests.Repositories.IDataRequestRepository>().Object);
     }
 
     [Test]

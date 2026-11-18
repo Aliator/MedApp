@@ -81,7 +81,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Reports for whoever pays for the service:** activity, waits, missed appointments and turnaround times, by specialty and month, with a CSV download, built on Insights.
 - **Outcome questionnaires:** scores before and after treatment, recorded and shown, never scored into advice.
 - **Private patients:** fees, invoices and insurer details.
-- **The full data-request pack:** see Privacy, "A GDPR report for a patient's data request".
+- **The full data-request pack:** built (PR 36); what's left is under Privacy, "The data-request pack".
 - **Several sites or organisations in one deployment:** multi-tenancy (roadmap step 8), before a second centre shares the system.
 - **Links to NHS systems:** the e-Referral Service, the real demographics lookup (Patient identity, "The real PDS lookup"), letters sent to GP systems, and the lab's own system. Each needs NHS onboarding, which takes months.
 - **Video and phone consultations:** an appointment type and a link; the call happens in another tool.
@@ -186,12 +186,7 @@ The first part is built: the activity log and access report, the subject access 
 - **Turn the operational purge on:** the job runner and the operational purge (sessions and sign-in and security events at 12 months, notifications at 6, untouched notepads at 30 days, expired sign-in codes) are built, but the purge **ships as a dry run** (`Retention:Operational:DryRun`), counting and deleting nothing, until the DPO confirms the periods (`docs/governance/retention-schedule.md`, section 3). Then set it to false in the chart's API settings (a deploy change), and check the first real run's counts on Scheduled Jobs.
 - **More operational purges, as jobs on the same runner:** staff calendar blocks (with day overrides and exceptions), meetings and closed default-week rows at 12 months, deactivated accounts, and a period for the activity log's account and role changes (kept for now: the DPO decides), and its patient search entries that match no single patient (12 months in the schedule).
 - **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
-- **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
-- **A GDPR report for a patient's data request** (the product owner's to-do, 18 November 2026). The subject access export exists (`GET api/patients/{id}/export`, with a printable page), but it's the raw record, not what a practice sends. Build the response pack on it:
-  - **The report:** a PDF in plain language, with what Article 15 asks for beside the data: why it's held, who it's shared with, how long it's kept, where it came from, and the patient's rights and how to complain to the ICO.
-  - **The files:** the attached files themselves, not only their details (the Attachments to-do above).
-  - **The request:** logging it (received, identity checked, target date), the one-month deadline with a reminder, and recording when and how the response was sent.
-  - **Before it goes:** the clinician review step above, and other people's details removed (a note flagged `IsAboutAnotherPatient`, staff beyond their names).
+- **The data-request pack (built, PR 36):** still to do: the review doesn't notice items added after it (re-review if the record changed before sending); characters the letter font lacks print as "?" in the report; the pack is written to the API's temporary folder while it downloads (deleted when it ends); a large record's pack can take a while (no size limit or progress yet).
 - **Count appointments in the retention review:** the conclusion of treatment should be the latest of the last closed pathway, the last appointment attended, not attended or cancelled, and the last change to the record, and wait while any appointment is Requested or Booked (`docs/governance/retention-schedule.md`, section 2). Today appointments don't move it.
 - **Retention classes:** built per template (PR 27). Still to do: **the DPO confirms the class years** (`Retention:Classes`: oncology 30, maternity 25, mental health 20, counted from the conclusion of treatment; the Code counts maternity from the last birth and oncology from diagnosis) before a customer relies on them; a deleted pathway's class stops counting (record it in the audit, or on the patient); per-customer settings (step 8).
 - **Retention, still to do:** the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.

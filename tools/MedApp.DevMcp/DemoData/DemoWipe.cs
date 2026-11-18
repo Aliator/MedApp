@@ -1,4 +1,4 @@
-using MedApp.Domain.Sites;
+﻿using MedApp.Domain.Sites;
 using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
@@ -44,6 +44,9 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
+                // Data requests hold their patients (a foreign key); their withheld items go with them.
+                await db.DataRequestWithheldItems.ExecuteDeleteAsync(cancellationToken);
+                await db.DataRequests.ExecuteDeleteAsync(cancellationToken);
                 // Consent records hold their patients, pathways and forms (foreign keys), so they go first.
                 await db.ConsentRecords.ExecuteDeleteAsync(cancellationToken);
                 await db.ConsentForms.ExecuteDeleteAsync(cancellationToken);

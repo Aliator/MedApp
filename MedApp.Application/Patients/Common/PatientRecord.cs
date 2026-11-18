@@ -103,4 +103,7 @@ public sealed record PatientRecord
     /// <see cref="PathwayHistory"/>; their scans are among <see cref="Attachments"/>.
     /// </summary>
     public required IReadOnlyList<ConsentRecord> ConsentRecords { get; init; }
+
+    /// <summary>The patient's data requests (subject access), in any status, oldest received first, with what was withheld.</summary>
+    public IReadOnlyList<Domain.DataRequests.DataRequest> DataRequests { get; init; } = [];
 }

@@ -102,6 +102,18 @@ export const requirePermission =
     if (!can(user, permission)) throw redirect({to: '/no-permission', search: {permission}, replace: true});
   };
 
+/**
+ * Like `requirePermission`, for a page open to holders of `permission` and of any one of `anyOf` (Data Requests:
+ * ViewPatients, with ManagePrivacy or SignOffResults). Anyone else goes to `/no-permission`, naming the first missing.
+ */
+export const requirePermissions =
+  (permission: Permission, anyOf: readonly Permission[]) =>
+  async ({context}: {context: {queryClient: QueryClient}}) => {
+    const user = await context.queryClient.ensureQueryData(whoamiQuery);
+    const missing = !can(user, permission) ? permission : anyOf.some((p) => can(user, p)) ? null : anyOf[0];
+    if (missing) throw redirect({to: '/no-permission', search: {permission: missing}, replace: true});
+  };
+
 /** The signed-in user. Only use it under the signed-in layout, whose guard has already loaded it. */
 export function useCurrentUser(): CurrentUser {
   return useSuspenseQuery(whoamiQuery).data;
