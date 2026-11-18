@@ -99,6 +99,21 @@ public static class TimelineMapper
                 ];
                 break;
 
+            // A deleted note: staff see that it was deleted, by whom and when; admins also see the text it had (from the
+            // note versions) and the reason.
+            case NoteDeleted:
+                response.Changes =
+                [
+                    new PatientTimelineChangeResponse
+                    {
+                        Field = NoteField,
+                        From = isAdmin ? row.NoteText : null,
+                        To = null,
+                    }
+                ];
+                response.Reason = isAdmin ? DeletionReason(details) : null;
+                break;
+
             case DetailsUpdated when details.TryGetValue("changes", out var changes) && changes.ValueKind == JsonValueKind.Object:
                 response.Changes = changes.EnumerateObject()
                     .Select(c => Change(c.Name, ObjectOf(c.Value), isAdmin || PublicValueFields.Contains(c.Name)))
@@ -172,6 +187,12 @@ public static class TimelineMapper
 
         return response;
     }
+
+    /// <summary>A note deletion's reason and detail in words ("Wrong patient: ..."), from its entry's details.</summary>
+    private static string? DeletionReason(IReadOnlyDictionary<string, JsonElement> details) =>
+        ProcedureEnums.TryParse<NoteDeletionReason>(Text(details, "deletionReason"), out var reason)
+            ? NoteDeletionReasons.Describe(reason, Text(details, "detail"))
+            : Text(details, "detail");
 
     /// <summary>A procedure that's due, flagged when it's overdue at <paramref name="nowUtc"/>.</summary>
     public static PatientTimelineUpcomingResponse ToUpcomingResponse(PatientProcedure procedure, DateTime nowUtc) => new()

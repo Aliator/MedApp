@@ -97,6 +97,9 @@ public sealed class TimelineAfterAnonymisationTests
             Appointments = [],
             AppointmentHistory = [],
             Notifications = [],
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
 
         PatientAnonymiser.Apply(record, Now);

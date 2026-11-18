@@ -63,13 +63,14 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     }
 
     /// <summary>
-    /// What a concurrency conflict means for this change: a note's row version changed since it was loaded (it was edited
-    /// meanwhile), or otherwise one of the procedure's appointments.
+    /// What a concurrency conflict means for this change: for a deletion, the note or the request to delete it (saved
+    /// with it) changed since they were loaded; for an add or edit, a note's row version changed (it was edited
+    /// meanwhile); otherwise one of the procedure's appointments.
     /// </summary>
     private static string ConflictMessage(ProcedureChange change) =>
-        change.NoteVersions.Count > 0
-            ? ProcedureNotes.ChangedMeanwhileMessage
-            : AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage;
+        change.DeletedNotes.Count > 0 ? ProcedureNotes.DeletedMeanwhileMessage
+        : change.NoteVersions.Count > 0 ? ProcedureNotes.ChangedMeanwhileMessage
+        : AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage;
 
     public async Task DeleteAsync(PatientProcedure procedure, IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct)
     {

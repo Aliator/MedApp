@@ -161,6 +161,7 @@ public static class ServiceExtensions
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IPatientProcedureRepository, PatientProcedureRepository>();
+        services.AddScoped<INoteDeletionRequestRepository, NoteDeletionRequestRepository>();
         services.AddScoped<IPatientProcedureStagesRepository, PatientProcedureStagesRepository>();
         services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
         services.AddScoped<INotepadRepository, NotepadRepository>();
