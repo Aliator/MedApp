@@ -16,8 +16,8 @@ using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Repositories;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Application.Pathways.Repositories;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Email;
@@ -160,12 +160,12 @@ public static class ServiceExtensions
         this IServiceCollection services)
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
-        services.AddScoped<IPatientProcedureRepository, PatientProcedureRepository>();
+        services.AddScoped<IPatientPathwayRepository, PatientPathwayRepository>();
         services.AddScoped<INoteDeletionRequestRepository, NoteDeletionRequestRepository>();
-        services.AddScoped<IPatientProcedureStagesRepository, PatientProcedureStagesRepository>();
-        services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
+        services.AddScoped<IPatientPathwayStagesRepository, PatientPathwayStagesRepository>();
+        services.AddScoped<IPathwayAuditRepository, PathwayAuditRepository>();
         services.AddScoped<INotepadRepository, NotepadRepository>();
-        services.AddScoped<IProcedureInsightsRepository, ProcedureInsightsRepository>();
+        services.AddScoped<IPathwayInsightsRepository, PathwayInsightsRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();

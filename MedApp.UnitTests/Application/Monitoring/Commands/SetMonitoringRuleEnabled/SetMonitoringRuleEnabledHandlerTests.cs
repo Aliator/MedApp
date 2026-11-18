@@ -6,7 +6,7 @@ using MedApp.Domain.Monitoring;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Monitoring.Commands.SetMonitoringRuleEnabled;
 
@@ -36,7 +36,7 @@ public sealed class SetMonitoringRuleEnabledHandlerTests : MonitoringHandlerTest
     public async Task Handle_AlreadyThatWay_SavesNothing()
     {
         Rules.Setup(r => r.GetAsync(RuleId, OwnerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateRule(MonitoringEvent.ProcedureCreated, id: RuleId));
+            .ReturnsAsync(CreateRule(MonitoringEvent.PathwayCreated, id: RuleId));
 
         var response = await Handler.Handle(new SetMonitoringRuleEnabledCommand(RuleId, OwnerId, true), CancellationToken.None);
 

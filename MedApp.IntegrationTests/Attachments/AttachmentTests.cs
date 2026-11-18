@@ -5,9 +5,9 @@ using System.Security.Cryptography;
 using System.Text;
 using FluentAssertions;
 using MedApp.Contracts.Attachments.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
-using MedApp.Contracts.Procedures.Timeline.Responses;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
+using MedApp.Contracts.Pathways.Timeline.Responses;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Data;
 using MedApp.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
@@ -45,8 +45,8 @@ public sealed class AttachmentTests : IntegrationTest
         return data.ToArray();
     }
 
-    private static Task<List<PatientProcedureAuditEntry>> AuditAsync(Guid patientId) =>
-        RunInScopeAsync(services => services.GetRequiredService<MedAppDbContext>().PatientProcedureAuditEntries
+    private static Task<List<PatientPathwayAuditEntry>> AuditAsync(Guid patientId) =>
+        RunInScopeAsync(services => services.GetRequiredService<MedAppDbContext>().PatientPathwayAuditEntries
             .Where(e => e.PatientId == patientId)
             .OrderBy(e => e.AtUtc)
             .ToListAsync());
@@ -85,9 +85,9 @@ public sealed class AttachmentTests : IntegrationTest
         download.Headers.GetValues("Cross-Origin-Resource-Policy").Should().Equal("same-origin");
 
         (await ListAsync(staff.Client, $"patientId={patient.Id}")).Items.Select(i => i.Id).Should().Equal(uploaded.Id);
-        (await AuditAsync(patient.Id)).Select(e => (e.Action, e.PatientProcedureId, e.UserId)).Should().Equal(
-            (PatientProcedureAuditAction.AttachmentAdded, PatientProcedureAuditEntry.NoProcedure, staff.UserId),
-            (PatientProcedureAuditAction.AttachmentDownloaded, PatientProcedureAuditEntry.NoProcedure, staff.UserId));
+        (await AuditAsync(patient.Id)).Select(e => (e.Action, e.PatientPathwayId, e.UserId)).Should().Equal(
+            (PatientPathwayAuditAction.AttachmentAdded, PatientPathwayAuditEntry.NoPathway, staff.UserId),
+            (PatientPathwayAuditAction.AttachmentDownloaded, PatientPathwayAuditEntry.NoPathway, staff.UserId));
     }
 
     [Test]
@@ -95,20 +95,20 @@ public sealed class AttachmentTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
         var staff = await CreateStaffAsync(UserRole);
-        var procedure = await CreatePatientWithProcedureAsync(admin);
-        var file = await UploadOkAsync(staff.Client, $"procedureId={procedure.Id}", Pdf, "synthetic-letter.pdf");
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+        var file = await UploadOkAsync(staff.Client, $"pathwayId={pathway.Id}", Pdf, "synthetic-letter.pdf");
         await (await staff.Client.GetAsync($"/api/attachments/{file.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var staffView = await (await staff.Client.GetAsync($"/api/patients/{procedure.PatientId}/timeline?kinds=Files"))
+        var staffView = await (await staff.Client.GetAsync($"/api/patients/{pathway.PatientId}/timeline?kinds=Files"))
             .ReadAsAsync<PatientTimelinePageResponse>();
-        var adminView = await (await admin.GetAsync($"/api/patients/{procedure.PatientId}/timeline?kinds=Files"))
+        var adminView = await (await admin.GetAsync($"/api/patients/{pathway.PatientId}/timeline?kinds=Files"))
             .ReadAsAsync<PatientTimelinePageResponse>();
 
         var seen = staffView.Items.Should().ContainSingle("downloads are never on the timeline").Subject;
         seen.Action.Should().Be("AttachmentAdded");
         seen.AttachmentId.Should().Be(file.Id);
-        seen.AttachedTo.Should().Be("Procedure");
-        seen.ProcedureId.Should().Be(procedure.Id);
+        seen.AttachedTo.Should().Be("Pathway");
+        seen.PathwayId.Should().Be(pathway.Id);
         seen.FileName.Should().BeNull();
         adminView.Items.Single().FileName.Should().Be("synthetic-letter.pdf");
     }
@@ -250,42 +250,42 @@ public sealed class AttachmentTests : IntegrationTest
         deleted.CanDelete.Should().BeFalse();
         staffList.Items.Should().BeEmpty();
         (await AuditAsync(patient.Id)).Select(e => e.Action).Should().Equal(
-            PatientProcedureAuditAction.AttachmentAdded, PatientProcedureAuditAction.AttachmentDeleted);
+            PatientPathwayAuditAction.AttachmentAdded, PatientPathwayAuditAction.AttachmentDeleted);
     }
 
     [Test]
     public async Task Stage_FilesFollowItsNotes_ItsOwnListAndLockedOnceFinished()
     {
         var admin = await SignInAsAdminAsync();
-        var procedure = await CreatePatientWithProcedureAsync(admin);
-        var first = procedure.Stages.OrderBy(s => s.StageOrder).First();
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+        var first = pathway.Stages.OrderBy(s => s.StageOrder).First();
 
         var onStage = await UploadOkAsync(admin, $"stageId={first.Id}", Pdf, "consent.pdf");
-        var onProcedure = await UploadOkAsync(admin, $"procedureId={procedure.Id}", Pdf, "referral.pdf");
-        await (await FinishStageAsync(admin, procedure.Id, first.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var onPathway = await UploadOkAsync(admin, $"pathwayId={pathway.Id}", Pdf, "referral.pdf");
+        await (await FinishStageAsync(admin, pathway.Id, first.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await ListAsync(admin, $"stageId={first.Id}")).Items.Select(i => i.Id).Should().Equal(onStage.Id);
-        (await ListAsync(admin, $"procedureId={procedure.Id}")).Items.Select(i => i.Id).Should().Equal(onProcedure.Id);
-        (await ListAsync(admin, $"patientId={procedure.PatientId}")).Items.Select(i => i.Id).Should().Equal(onProcedure.Id, onStage.Id);
+        (await ListAsync(admin, $"pathwayId={pathway.Id}")).Items.Select(i => i.Id).Should().Equal(onPathway.Id);
+        (await ListAsync(admin, $"patientId={pathway.PatientId}")).Items.Select(i => i.Id).Should().Equal(onPathway.Id, onStage.Id);
         var locked = await UploadAsync(admin, $"stageId={first.Id}", Pdf, "late.pdf");
         (await locked.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("finished and locked");
     }
 
     [Test]
-    public async Task Delete_PatientOrProcedureWithFiles_Returns409()
+    public async Task Delete_PatientOrPathwayWithFiles_Returns409()
     {
         var admin = await SignInAsAdminAsync();
-        var procedure = await CreatePatientWithProcedureAsync(admin);
+        var pathway = await CreatePatientWithPathwayAsync(admin);
         var patientOnly = await CreatePatientAsync(admin);
-        await UploadOkAsync(admin, $"procedureId={procedure.Id}", Pdf, "letter.pdf");
+        await UploadOkAsync(admin, $"pathwayId={pathway.Id}", Pdf, "letter.pdf");
         await UploadOkAsync(admin, $"patientId={patientOnly.Id}", Pdf, "letter.pdf");
-        await (await admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status",
-            new ChangePatientProcedureStatusRequest { Status = "Cancelled", Reason = BlockReason })).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+            new ChangePatientPathwayStatusRequest { Status = "Cancelled", Reason = BlockReason })).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var procedureDelete = await admin.DeleteAsync(ProcedureUrl(procedure.Id));
+        var pathwayDelete = await admin.DeleteAsync(PathwayUrl(pathway.Id));
         var patientDelete = await admin.DeleteAsync($"/api/patients/{patientOnly.Id}");
 
-        (await procedureDelete.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This procedure has 1 file attached");
+        (await pathwayDelete.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This pathway has 1 file attached");
         (await patientDelete.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This patient has 1 file attached");
     }
 
@@ -302,17 +302,17 @@ public sealed class AttachmentTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
         var staff = await CreateStaffAsync(UserRole);
-        var procedure = await CreatePatientWithProcedureAsync(admin);
-        var onPatient = await UploadOkAsync(staff.Client, $"patientId={procedure.PatientId}", Pdf, "letter.pdf");
-        await (await admin.PutAsJsonAsync($"/api/patients/{procedure.PatientId}/restriction",
-                new MedApp.Contracts.Patients.Requests.SetPatientFlagRequest { Set = true, Reason = "Synthetic restriction", ConfirmOpenProcedures = true }))
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+        var onPatient = await UploadOkAsync(staff.Client, $"patientId={pathway.PatientId}", Pdf, "letter.pdf");
+        await (await admin.PutAsJsonAsync($"/api/patients/{pathway.PatientId}/restriction",
+                new MedApp.Contracts.Patients.Requests.SetPatientFlagRequest { Set = true, Reason = "Synthetic restriction", ConfirmOpenPathways = true }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var uploads = new[]
         {
-            await UploadAsync(admin, $"patientId={procedure.PatientId}", Pdf, "more.pdf"),
-            await UploadAsync(admin, $"procedureId={procedure.Id}", Pdf, "more.pdf"),
-            await UploadAsync(admin, $"stageId={procedure.Stages[0].Id}", Pdf, "more.pdf"),
+            await UploadAsync(admin, $"patientId={pathway.PatientId}", Pdf, "more.pdf"),
+            await UploadAsync(admin, $"pathwayId={pathway.Id}", Pdf, "more.pdf"),
+            await UploadAsync(admin, $"stageId={pathway.Stages[0].Id}", Pdf, "more.pdf"),
         };
         var delete = await admin.DeleteAsync($"/api/attachments/{onPatient.Id}");
 
@@ -320,7 +320,7 @@ public sealed class AttachmentTests : IntegrationTest
             (await refused.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title
                 .Should().StartWith("This patient's record is restricted");
         await (await staff.Client.GetAsync($"/api/attachments/{onPatient.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        (await ListAsync(staff.Client, $"patientId={procedure.PatientId}")).Items.Select(i => i.Id).Should().Equal(onPatient.Id);
+        (await ListAsync(staff.Client, $"patientId={pathway.PatientId}")).Items.Select(i => i.Id).Should().Equal(onPatient.Id);
     }
 
     [Test]
@@ -348,7 +348,7 @@ public sealed class AttachmentTests : IntegrationTest
         var patient = await CreatePatientAsync(admin);
         var file = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "old-letter.pdf");
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {patient.Id}");
-        await ExecuteSqlAsync($"UPDATE PatientProcedureAuditEntries SET AtUtc = DATEADD(year, -10, SYSUTCDATETIME()) WHERE PatientId = {patient.Id}");
+        await ExecuteSqlAsync($"UPDATE PatientPathwayAuditEntries SET AtUtc = DATEADD(year, -10, SYSUTCDATETIME()) WHERE PatientId = {patient.Id}");
 
         // Reading the letter now (to decide whether to keep the record) is a read, not a change.
         await (await admin.GetAsync($"/api/attachments/{file.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.OK);
@@ -375,7 +375,7 @@ public sealed class AttachmentTests : IntegrationTest
                 new MedApp.Contracts.Patients.Requests.AnonymisePatientRequest { Reason = "ErasureRequest", Confirmation = "Ann Synthetic" }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var deletions = (await AuditAsync(patient.Id)).Where(e => e.Action == PatientProcedureAuditAction.AttachmentDeleted).ToList();
+        var deletions = (await AuditAsync(patient.Id)).Where(e => e.Action == PatientPathwayAuditAction.AttachmentDeleted).ToList();
         deletions.Should().ContainSingle().Which.Details.Should().Contain("\"fileName\":\"Anonymised file.pdf\"");
     }
 

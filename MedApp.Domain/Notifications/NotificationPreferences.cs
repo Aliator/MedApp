@@ -9,8 +9,8 @@ public sealed class NotificationPreferences
 {
     public Guid UserId { get; init; }
 
-    /// <summary>Whether to be told when someone assigns them to a procedure.</summary>
-    public bool ProcedureAssigned { get; set; } = true;
+    /// <summary>Whether to be told when someone assigns them to a pathway.</summary>
+    public bool PathwayAssigned { get; set; } = true;
 
     public DateTime UpdatedAtUtc { get; set; }
 
@@ -18,12 +18,12 @@ public sealed class NotificationPreferences
     public static NotificationPreferences Defaults(Guid userId) => new() { UserId = userId };
 
     /// <summary>Whether a person can turn this kind off (so it's worth looking up their preferences before sending).</summary>
-    public static bool IsOptional(NotificationKind kind) => kind == NotificationKind.ProcedureAssigned;
+    public static bool IsOptional(NotificationKind kind) => kind == NotificationKind.PathwayAssigned;
 
     /// <summary>Whether they want notifications of this kind.</summary>
     public bool Wants(NotificationKind kind) => kind switch
     {
-        NotificationKind.ProcedureAssigned => ProcedureAssigned,
+        NotificationKind.PathwayAssigned => PathwayAssigned,
         _ => true
     };
 }

@@ -24,7 +24,7 @@ export type CalendarRows = 15 | 5;
 interface ListSettingsContextValue {
   pageSize: number;
   setPageSize: (size: number) => void;
-  /** Whether the procedure lists start on "Assigned to me" (their URL can still say otherwise). */
+  /** Whether the pathway lists start on "Assigned to me" (their URL can still say otherwise). */
   startsOnMine: boolean;
   setStartsOnMine: (starts: boolean) => void;
   /**

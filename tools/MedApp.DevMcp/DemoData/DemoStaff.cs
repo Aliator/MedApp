@@ -9,7 +9,7 @@ using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Commands.UpdateMyNotificationPreferences;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.DevMcp.Tools;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -76,7 +76,7 @@ public sealed class StaffMember(StaffSeed seed, Guid id)
     public string Username => Seed.Username;
     public StaffKind Kind => Seed.Kind;
     public string? Password { get; set; }
-    public ProcedureActor Actor => new(Id, Username);
+    public PathwayActor Actor => new(Id, Username);
 
     /// <summary>The account's two-factor key (as typed into an app) and recovery codes, if it has two-factor.</summary>
     public string? TwoFactorKey { get; set; }
@@ -269,7 +269,7 @@ public static class DemoStaff
         var optedOut = Get(staff, NoAssignmentNotificationsUsername);
         services.At(timeline.NotificationsTurnedOffUtc, optedOut.ActivityActor);
         await services.Run(sp =>
-            sp.GetRequiredService<IMediator>().Send(new UpdateMyNotificationPreferencesCommand(optedOut.Id, ProcedureAssigned: false), ct));
+            sp.GetRequiredService<IMediator>().Send(new UpdateMyNotificationPreferencesCommand(optedOut.Id, PathwayAssigned: false), ct));
 
         foreach (var member in staff)
             if (member.Kind == StaffKind.Leaver)

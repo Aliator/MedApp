@@ -6,7 +6,7 @@ namespace MedApp.Application.Common.Email;
 /// <summary>
 /// Every email MedApp sends, as plain, accessible HTML (a language, a title, real paragraphs and links, no images or
 /// layout tables) and the same words as text. They hold only the account's username, a link and what changed: never
-/// clinical information (no patient, procedure or notification text), and never a password, an authenticator key or
+/// clinical information (no patient, pathway or notification text), and never a password, an authenticator key or
 /// recovery codes. The one secret an email may carry is a short-lived, single-use two-factor code
 /// (<see cref="TwoFactorCode"/>), with nothing else in that email but what it's for, how long it lasts and what to do if
 /// you didn't ask for it. Every value is HTML-encoded.

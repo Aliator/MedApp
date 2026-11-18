@@ -67,7 +67,7 @@ export interface AttachmentsProps {
   target: AttachmentTarget;
   /**
    * Whether files can change here now: shows the add area, and lets staff delete their own files. A patient's files
-   * always can; a procedure's unless it's cancelled or archived (`canEditDetails`); a stage's only while its notes
+   * always can; a pathway's unless it's cancelled or archived (`canEditDetails`); a stage's only while its notes
    * can be edited (`canEdit`). The server enforces the same. Admins can delete any file, wherever it is.
    */
   canChange: boolean;
@@ -84,7 +84,7 @@ export interface AttachmentsProps {
 }
 
 /**
- * Files attached to a patient, a procedure or a stage: an add area (drop files on it, or press it to choose them,
+ * Files attached to a patient, a pathway or a stage: an add area (drop files on it, or press it to choose them,
  * several at once), each file's progress as it's sent, and the list, newest first. Each file shows a thumbnail
  * (pictures) or its type's icon, its name, type, size, who attached it and when, and whether it was scanned, with
  * Download and (where allowed) Delete. Admins can show deleted files too.
@@ -283,24 +283,24 @@ function ScanToken({status}: {status: string | null | undefined}) {
   return <Token size="sm" label="Not scanned" color="orange" description={NOT_SCANNED_NOTE} />;
 }
 
-/** What a file in a patient's list is attached to: the patient, or a procedure (and stage), linked. */
+/** What a file in a patient's list is attached to: the patient, or a pathway (and stage), linked. */
 function AttachedTo({attachment}: {attachment: Attachment}) {
-  if (attachment.attachedTo === 'Patient' || !attachment.procedureId)
+  if (attachment.attachedTo === 'Patient' || !attachment.pathwayId)
     return (
       <Text type="supporting" color="secondary">
         Attached to the patient
       </Text>
     );
-  const procedure = <Link href={`/procedures/${attachment.procedureId}`}>{attachment.procedureTitle}</Link>;
+  const pathway = <Link href={`/pathways/${attachment.pathwayId}`}>{attachment.pathwayTitle}</Link>;
   return (
     <Text type="supporting" color="secondary" maxLines={2}>
       {attachment.attachedTo === 'Stage' ? (
         <>
           {`Attached to ${attachment.stageName ?? 'a stage'} in `}
-          {procedure}
+          {pathway}
         </>
       ) : (
-        <>Attached to {procedure}</>
+        <>Attached to {pathway}</>
       )}
     </Text>
   );

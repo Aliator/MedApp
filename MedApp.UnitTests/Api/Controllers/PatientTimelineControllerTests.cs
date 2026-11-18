@@ -1,9 +1,9 @@
 using FluentAssertions;
 using MedApp.API.Controllers;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimelineOverview;
-using MedApp.Contracts.Procedures.Timeline.Requests;
-using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimelineOverview;
+using MedApp.Contracts.Pathways.Timeline.Requests;
+using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
@@ -17,14 +17,14 @@ public sealed class PatientTimelineControllerTests
     [TestCase("Admin", true)]
     public async Task GetTimeline_SendsEveryFilterAndWhetherTheyAreAnAdmin(string role, bool isAdmin)
     {
-        var request = new GetPatientTimelineRequest { Before = "cursor", PageSize = 5, Kinds = ["Notes"], ProcedureIds = [OtherId] };
+        var request = new GetPatientTimelineRequest { Before = "cursor", PageSize = 5, Kinds = ["Notes"], PathwayIds = [OtherId] };
         var page = new PatientTimelinePageResponse();
         var mediator = new RecordingMediator(_ => page);
         using var cts = new CancellationTokenSource();
 
         var result = await new PatientTimelineController(mediator).WithRequest(SignedIn(role)).GetTimeline(RecordId, request, cts.Token);
 
-        mediator.Request.Should().Be(new GetPatientTimelineQuery(RecordId, "cursor", 5, request.Kinds, request.ProcedureIds, isAdmin));
+        mediator.Request.Should().Be(new GetPatientTimelineQuery(RecordId, "cursor", 5, request.Kinds, request.PathwayIds, isAdmin));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }

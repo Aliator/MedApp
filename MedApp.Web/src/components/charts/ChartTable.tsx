@@ -21,7 +21,7 @@ export interface ChartTableProps<T extends object> {
   formatCategory?: (value: string) => string;
   /** A row's link, e.g. to the list its count is of: the same place its bar goes when clicked. */
   hrefFor?: (item: T) => string | undefined;
-  /** Names the table for screen readers, e.g. "Overdue procedures by assignee". */
+  /** Names the table for screen readers, e.g. "Overdue pathways by assignee". */
   label: string;
 }
 

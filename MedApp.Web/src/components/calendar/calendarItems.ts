@@ -23,7 +23,7 @@ export interface CalendarGridItem {
   /** The first line: a patient's name, an activity, a meeting's title. */
   label: string;
   /**
-   * The second line: what it's for (nothing for an appointment that isn't for a procedure), a block's note, how many
+   * The second line: what it's for (nothing for an appointment that isn't for a pathway), a block's note, how many
    * are going to a meeting.
    */
   sublabel?: string | null;
@@ -48,9 +48,9 @@ export interface CalendarGridItem {
 }
 
 /** What an appointment is for, in words: "Knee review: Assessment", "Knee review", or "Appointment". */
-export function appointmentPurpose(appointment: Pick<Appointment, 'procedureTitle' | 'stageName'>): string {
-  if (!appointment.procedureTitle) return 'Appointment';
-  return appointment.stageName ? `${appointment.procedureTitle}: ${appointment.stageName}` : appointment.procedureTitle;
+export function appointmentPurpose(appointment: Pick<Appointment, 'pathwayTitle' | 'stageName'>): string {
+  if (!appointment.pathwayTitle) return 'Appointment';
+  return appointment.stageName ? `${appointment.pathwayTitle}: ${appointment.stageName}` : appointment.pathwayTitle;
 }
 
 /** An appointment's key on a grid. */
@@ -108,8 +108,8 @@ export function appointmentItem(appointment: Appointment): CalendarGridItem {
   const end = appointment.endUtc ?? '';
   const status = appointment.status ?? '';
   const patient = appointment.patientName ?? '';
-  // One that isn't for a procedure has nothing more to say on its card than whose it is.
-  const purpose = appointment.procedureTitle ? appointmentPurpose(appointment) : null;
+  // One that isn't for a pathway has nothing more to say on its card than whose it is.
+  const purpose = appointment.pathwayTitle ? appointmentPurpose(appointment) : null;
   return {
     key: appointmentKey(appointment.id),
     kind: 'appointment',

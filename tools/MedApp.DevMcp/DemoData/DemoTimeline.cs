@@ -1,5 +1,5 @@
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Procedures.Insights.Common;
+using MedApp.Application.Pathways.Insights.Common;
 
 namespace MedApp.DevMcp.DemoData;
 

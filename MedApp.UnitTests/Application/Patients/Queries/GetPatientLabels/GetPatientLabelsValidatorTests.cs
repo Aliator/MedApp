@@ -1,6 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Patients.Queries.GetPatientLabels;
-using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureLabels;
+using MedApp.Application.Pathways.PatientPathways.Queries.GetPatientPathwayLabels;
 
 namespace MedApp.UnitTests.Application.Patients.Queries.GetPatientLabels;
 
@@ -15,7 +15,7 @@ public sealed class GetPatientLabelsValidatorTests
     public void Validate_UpToTheLimit_IsValid(int count)
     {
         new GetPatientLabelsValidator().Validate(new GetPatientLabelsQuery(Ids(count))).IsValid.Should().BeTrue();
-        new GetPatientProcedureLabelsValidator().Validate(new GetPatientProcedureLabelsQuery(Ids(count))).IsValid.Should().BeTrue();
+        new GetPatientPathwayLabelsValidator().Validate(new GetPatientPathwayLabelsQuery(Ids(count))).IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -23,7 +23,7 @@ public sealed class GetPatientLabelsValidatorTests
     {
         new GetPatientLabelsValidator().Validate(new GetPatientLabelsQuery(Ids(GetPatientLabelsValidator.MaxIds + 1)))
             .Errors.Should().ContainSingle(e => e.PropertyName == "Ids").Which.ErrorMessage.Should().Contain("at most 20 patients");
-        new GetPatientProcedureLabelsValidator().Validate(new GetPatientProcedureLabelsQuery(Ids(GetPatientLabelsValidator.MaxIds + 1)))
-            .Errors.Should().ContainSingle(e => e.PropertyName == "Ids").Which.ErrorMessage.Should().Contain("at most 20 procedures");
+        new GetPatientPathwayLabelsValidator().Validate(new GetPatientPathwayLabelsQuery(Ids(GetPatientLabelsValidator.MaxIds + 1)))
+            .Errors.Should().ContainSingle(e => e.PropertyName == "Ids").Which.ErrorMessage.Should().Contain("at most 20 pathways");
     }
 }

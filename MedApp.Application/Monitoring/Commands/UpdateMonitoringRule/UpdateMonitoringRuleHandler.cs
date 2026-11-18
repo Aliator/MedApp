@@ -2,7 +2,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Monitoring.Repositories;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Monitoring.Responses;
 using MediatR;
 
@@ -11,7 +11,7 @@ namespace MedApp.Application.Monitoring.Commands.UpdateMonitoringRule;
 public sealed class UpdateMonitoringRuleHandler(
     IMonitoringRuleRepository repository,
     IIdentityReadService identityReadService,
-    IPatientProcedureStagesRepository stagesRepository,
+    IPatientPathwayStagesRepository stagesRepository,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateMonitoringRuleCommand, MonitoringRuleResponse>
 {

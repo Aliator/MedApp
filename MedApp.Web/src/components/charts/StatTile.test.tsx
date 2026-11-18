@@ -4,10 +4,10 @@ import {describeChange, StatTile} from './StatTile';
 
 describe('StatTile', () => {
   it('shows the count and how it compares, as a link to what it counts', async () => {
-    renderWithApp(<StatTile label="Overdue" value={5} previous={7} previousLabel="this time last week" isRiseGood={false} href="/procedures?overdue=true" />);
+    renderWithApp(<StatTile label="Overdue" value={5} previous={7} previousLabel="this time last week" isRiseGood={false} href="/pathways?overdue=true" />);
 
     const link = await screen.findByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'});
-    expect(link).toHaveAttribute('href', '/procedures?overdue=true');
+    expect(link).toHaveAttribute('href', '/pathways?overdue=true');
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('2 fewer than this time last week')).toBeInTheDocument();
   });

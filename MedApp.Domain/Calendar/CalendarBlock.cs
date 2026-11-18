@@ -9,7 +9,7 @@ public sealed class CalendarBlock
 {
     public Guid Id { get; init; }
 
-    /// <summary>Whose calendar it's on. No foreign key to the users table, as with procedure assignments.</summary>
+    /// <summary>Whose calendar it's on. No foreign key to the users table, as with pathway assignments.</summary>
     public Guid StaffUserId { get; set; }
 
     public Guid ActivityTypeId { get; set; }

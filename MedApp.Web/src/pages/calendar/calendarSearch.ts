@@ -80,7 +80,7 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
 export const REQUIRES_APPOINTMENT_SORTS = {Due: 'dueDate', Requested: 'requested', Patient: 'patient'} as const;
 export type RequiresAppointmentSortColumn = keyof typeof REQUIRES_APPOINTMENT_SORTS;
 
-/** Requires Appointment: its page, sort (due date, soonest first, by default) and a patient search. */
+/** Requires Appointment: its page, sort (target date, soonest first, by default) and a patient search. */
 export interface RequiresAppointmentSearch {
   page?: number;
   sort?: RequiresAppointmentSortColumn;

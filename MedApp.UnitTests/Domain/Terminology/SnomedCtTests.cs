@@ -8,7 +8,7 @@ namespace MedApp.UnitTests.Domain.Terminology;
 public sealed class SnomedCtTests
 {
     [TestCase(SnomedCode)]
-    [TestCase("71388002")] // Procedure
+    [TestCase("71388002")] // Pathway
     [TestCase("387713003")] // Surgical procedure
     [TestCase(ExtensionConceptCode)]
     public void IsConceptId_ValidConcept_IsTrue(string code)

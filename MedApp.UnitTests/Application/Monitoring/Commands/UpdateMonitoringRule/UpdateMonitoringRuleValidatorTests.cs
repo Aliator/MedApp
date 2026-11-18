@@ -1,7 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Monitoring.Commands.UpdateMonitoringRule;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Monitoring.Commands.UpdateMonitoringRule;
 
@@ -22,7 +22,7 @@ public sealed class UpdateMonitoringRuleValidatorTests
     [Test]
     public void Validate_StageOnAnEventWithoutOne_Fails()
     {
-        var command = new UpdateMonitoringRuleCommand(RuleId, OwnerId, null, "ProcedureBlocked", null, null, ConsultationDefinitionId, true);
+        var command = new UpdateMonitoringRuleCommand(RuleId, OwnerId, null, "PathwayBlocked", null, null, ConsultationDefinitionId, true);
 
         _validator.Validate(command).Errors.Should().ContainSingle().Which.PropertyName.Should().Be("StageDefinitionId");
     }

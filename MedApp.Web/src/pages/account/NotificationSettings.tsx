@@ -16,7 +16,7 @@ export function NotificationSettings() {
   const preferences = useQuery(notificationPreferencesQuery);
   const save = useSaveNotificationPreferences();
   const announce = useAnnounce();
-  const procedureAssigned = save.isPending ? (save.variables?.procedureAssigned ?? true) : (preferences.data?.procedureAssigned ?? true);
+  const pathwayAssigned = save.isPending ? (save.variables?.pathwayAssigned ?? true) : (preferences.data?.pathwayAssigned ?? true);
 
   return (
     <ViewCard showFooter={false}>
@@ -28,13 +28,13 @@ export function NotificationSettings() {
             />
           )}
           <Switch
-            label="When I'm assigned to a procedure"
-            description="Tells you in the bell when someone assigns you to a procedure. Notifications are a convenience: work from My Tasks, with its filter on all open work, so you see work handed to you that's already under way."
-            value={procedureAssigned}
+            label="When I'm assigned to a pathway"
+            description="Tells you in the bell when someone assigns you to a pathway. Notifications are a convenience: work from My Worklist, with its filter on all open work, so you see work handed to you that's already under way."
+            value={pathwayAssigned}
             isDisabled={preferences.isPending || save.isPending}
             onChange={(isOn) =>
               save.mutate(
-                {procedureAssigned: isOn},
+                {pathwayAssigned: isOn},
                 {onSuccess: () => announce(isOn ? 'Assignment notifications on' : 'Assignment notifications off')},
               )
             }

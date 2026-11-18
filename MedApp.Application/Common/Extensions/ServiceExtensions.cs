@@ -50,8 +50,8 @@ public static class ServiceExtensions
 
         // Per-account limits on two-factor codes and email changes: none unless the host provides them (the API does).
         services.TryAddSingleton<IAccountAttemptLimiter, UnlimitedAccountAttempts>();
-        // Tells admins about procedure changes that match their monitoring rules.
-        services.AddScoped<IProcedureMonitor, ProcedureMonitor>();
+        // Tells admins about pathway changes that match their monitoring rules.
+        services.AddScoped<IPathwayMonitor, PathwayMonitor>();
         // The activity log (the host provides IActivityContext, the request's actor), and its and the retention
         // schedule's settings, which the host binds to its configuration.
         services.AddScoped<IActivityLog, ActivityLog>();

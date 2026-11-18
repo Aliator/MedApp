@@ -1,11 +1,11 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.NoteDeletionRequests.Commands.DecideNoteDeletionRequest;
-using MedApp.Application.Procedures.NoteDeletionRequests.Queries.GetNoteDeletionRequest;
-using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
-using MedApp.Contracts.Procedures.NoteDeletionRequests.Responses;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.NoteDeletionRequests.Commands.DecideNoteDeletionRequest;
+using MedApp.Application.Pathways.NoteDeletionRequests.Queries.GetNoteDeletionRequest;
+using MedApp.Contracts.Pathways.NoteDeletionRequests.Requests;
+using MedApp.Contracts.Pathways.NoteDeletionRequests.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
@@ -16,7 +16,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 public sealed class NoteDeletionRequestsControllerTests
 {
     // Signed in as an admin, so the actor says so.
-    private static readonly ProcedureActor Actor = new(UserId, Username, IsAdmin: true);
+    private static readonly PathwayActor Actor = new(UserId, Username, IsAdmin: true);
     private NoteDeletionRequestResponse _response = null!;
     private RecordingMediator _mediator = null!;
     private CancellationTokenSource _cts = null!;

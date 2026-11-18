@@ -11,9 +11,9 @@ export const NOTIFICATION_MESSAGE = 'notification';
 export const NOTIFICATIONS_CONNECTION = {skipNegotiation: true, transport: HttpTransportType.WebSockets};
 
 /**
- * Keeps a live connection to the API while signed in, so new notifications (being assigned a procedure) show at
- * once, on whatever page is open: the bell's list and count refresh, procedure lists and pages refresh (My Tasks
- * gains the procedure), and screen readers hear it (with announcements on). It reconnects by itself after a drop,
+ * Keeps a live connection to the API while signed in, so new notifications (being assigned a pathway) show at
+ * once, on whatever page is open: the bell's list and count refresh, pathway lists and pages refresh (My Worklist
+ * gains the pathway), and screen readers hear it (with announcements on). It reconnects by itself after a drop,
  * and refreshes the list then, in case one came while it was away. Renders nothing.
  */
 export function LiveNotifications() {
@@ -37,7 +37,7 @@ export function LiveNotifications() {
 
     connection.on(NOTIFICATION_MESSAGE, (notification: AppNotification) => {
       void refresh();
-      if (notification.procedureId) void queryClient.invalidateQueries({queryKey: ['procedures']});
+      if (notification.pathwayId) void queryClient.invalidateQueries({queryKey: ['pathways']});
       announceRef.current(`New notification: ${notification.title}. ${notification.message}`);
     });
     connection.onreconnected(() => void refresh());

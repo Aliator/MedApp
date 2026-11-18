@@ -96,7 +96,7 @@ public sealed class DemoMeetingsTests
             Notification.HasFixedTitle(notification.Kind).Should().BeTrue();
             notification.Title.Should().Be(MeetingNotifications.TitleOf(notification.Kind));
             notification.CalendarDate.Should().NotBeNull();
-            notification.ProcedureId.Should().BeNull();
+            notification.PathwayId.Should().BeNull();
             notification.AppointmentId.Should().BeNull();
 
             // "admin invited you to 'Skin cancer team meeting', ...": by an admin, never to themselves, about a meeting by its title.

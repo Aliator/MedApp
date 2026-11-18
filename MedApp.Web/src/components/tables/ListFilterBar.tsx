@@ -79,7 +79,7 @@ export interface ListFilterBarProps {
   /** Shown while there are no filters, e.g. "Search patients...". */
   placeholder: string;
   /**
-   * A text field that whatever's typed searches, without picking a field first (e.g. the procedure lists' search
+   * A text field that whatever's typed searches, without picking a field first (e.g. the pathway lists' search
    * of title, template and patient). Without one, typing looks for a field to filter by.
    */
   textKey?: string;
@@ -92,7 +92,7 @@ export interface ListFilterBarProps {
   favourites?: ListFilterFavourite[];
   /**
    * Whether the list's URL has no filters (so it takes its starting search, if one is set). By default, when the bar
-   * shows none; a list that starts filtered (My Tasks on Not started) says, as its bar shows that filter.
+   * shows none; a list that starts filtered (My Worklist on Not started) says, as its bar shows that filter.
    */
   isUnfiltered?: boolean;
 }

@@ -18,10 +18,10 @@ public sealed class NotificationMapperTests
         unread.Should().BeEquivalentTo(new
         {
             Id = NotificationId,
-            Kind = "ProcedureAssigned",
+            Kind = "PathwayAssigned",
             Title,
             Message,
-            ProcedureId = (Guid?)ProcedureId,
+            PathwayId = (Guid?)PathwayId,
             CreatedAtUtc,
             IsRead = false,
         });
@@ -57,11 +57,11 @@ public sealed class NotificationMapperTests
 
         response.Kind.Should().Be(expected);
         response.AppointmentId.Should().Be(AppointmentId);
-        response.ProcedureId.Should().BeNull();
+        response.PathwayId.Should().BeNull();
     }
 
     [Test]
-    public void ToResponse_ProcedureNotification_HasNoAppointment()
+    public void ToResponse_PathwayNotification_HasNoAppointment()
     {
         NotificationMapper.ToResponse(CreateNotification()).AppointmentId.Should().BeNull();
     }
@@ -90,14 +90,14 @@ public sealed class NotificationMapperTests
         response.Kind.Should().Be(expected);
         response.CalendarDate.Should().Be(date);
         response.MeetingId.Should().Be(MeetingId);
-        response.ProcedureId.Should().BeNull();
+        response.PathwayId.Should().BeNull();
         response.AppointmentId.Should().BeNull();
     }
 
     private static readonly Guid MeetingId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
 
     [Test]
-    public void ToResponse_NoteDeletionRequested_CarriesTheRequestAndProcedure()
+    public void ToResponse_NoteDeletionRequested_CarriesTheRequestAndPathway()
     {
         var requestId = Guid.NewGuid();
         var notification = new Notification
@@ -106,28 +106,28 @@ public sealed class NotificationMapperTests
             UserId = UserId,
             Kind = NotificationKind.NoteDeletionRequested,
             Title = "Note deletion requested",
-            Message = "test.staff asked to delete a note on a procedure.",
-            ProcedureId = ProcedureId,
+            Message = "test.staff asked to delete a note on a pathway.",
+            PathwayId = PathwayId,
             NoteDeletionRequestId = requestId
         };
 
         NotificationMapper.ToResponse(notification).Should().BeEquivalentTo(new
         {
             Kind = "NoteDeletionRequested",
-            ProcedureId = (Guid?)ProcedureId,
+            PathwayId = (Guid?)PathwayId,
             NoteDeletionRequestId = (Guid?)requestId,
             AppointmentId = (Guid?)null
         });
     }
 
     [Test]
-    public void ToResponse_ProcedureNotification_HasNoCalendarDateOrRequest()
+    public void ToResponse_PathwayNotification_HasNoCalendarDateOrRequest()
     {
         NotificationMapper.ToResponse(CreateNotification()).NoteDeletionRequestId.Should().BeNull();
     }
 
     [Test]
-    public void ToResponse_ProcedureNotification_HasNoCalendarDate()
+    public void ToResponse_PathwayNotification_HasNoCalendarDate()
     {
         NotificationMapper.ToResponse(CreateNotification()).MeetingId.Should().BeNull();
         NotificationMapper.ToResponse(CreateNotification()).CalendarDate.Should().BeNull();
@@ -143,11 +143,11 @@ public sealed class NotificationMapperTests
 
     [TestCase(true)]
     [TestCase(false)]
-    public void ToResponse_Preferences_GivesTheirChoice(bool procedureAssigned)
+    public void ToResponse_Preferences_GivesTheirChoice(bool pathwayAssigned)
     {
-        var preferences = new NotificationPreferences { UserId = UserId, ProcedureAssigned = procedureAssigned };
+        var preferences = new NotificationPreferences { UserId = UserId, PathwayAssigned = pathwayAssigned };
 
-        NotificationMapper.ToResponse(preferences).Should().Be(new NotificationPreferencesResponse(procedureAssigned));
+        NotificationMapper.ToResponse(preferences).Should().Be(new NotificationPreferencesResponse(pathwayAssigned));
     }
 
     [Test]

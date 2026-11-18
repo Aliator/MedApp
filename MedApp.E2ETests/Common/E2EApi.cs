@@ -6,9 +6,9 @@ using MedApp.Contracts.Notepads.Requests;
 using MedApp.Contracts.Notepads.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using Microsoft.Playwright;
 
 namespace MedApp.E2ETests.Common;
@@ -20,8 +20,8 @@ namespace MedApp.E2ETests.Common;
 /// </summary>
 public sealed class E2EApi(IAPIRequestContext request)
 {
-    private const string Stages = "/api/procedures/patient-procedure-stage";
-    private const string Procedures = "/api/procedures/patient-procedures";
+    private const string Stages = "/api/pathways/patient-pathway-stage";
+    private const string Pathways = "/api/pathways/patient-pathways";
 
     public IAPIRequestContext Request => request;
 
@@ -42,9 +42,9 @@ public sealed class E2EApi(IAPIRequestContext request)
     public Task DeletePatientAsync(Guid id) => DeleteIfThereAsync($"/api/patients/{id}");
 
     /// <summary>A stage definition; <paramref name="visitRequirement"/> is None, Suggested or Required.</summary>
-    public async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(
+    public async Task<PatientPathwayStageDefinitionResponse> CreateStageDefinitionAsync(
         string name, string instructions, string visitRequirement = "None") =>
-        await SendAsync<PatientProcedureStageDefinitionResponse>("POST", $"{Stages}/definitions", new
+        await SendAsync<PatientPathwayStageDefinitionResponse>("POST", $"{Stages}/definitions", new
         {
             name,
             description = $"{name}: a synthetic stage for the end-to-end tests.",
@@ -54,8 +54,8 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     public Task DeleteStageDefinitionAsync(Guid id) => DeleteIfThereAsync($"{Stages}/definitions/{id}");
 
-    public async Task<PatientProcedureStageTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds) =>
-        await SendAsync<PatientProcedureStageTemplateResponse>("POST", $"{Stages}/templates", new
+    public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds) =>
+        await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
         {
             name,
             stageDefinitionIdsInOrder = stageDefinitionIds,
@@ -63,8 +63,8 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     public Task DeleteTemplateAsync(Guid id) => DeleteIfThereAsync($"{Stages}/templates/{id}");
 
-    public async Task<PatientProcedureResponse> CreateProcedureAsync(Guid patientId, Guid templateId, string title, DateOnly dueDate) =>
-        await SendAsync<PatientProcedureResponse>("POST", Procedures, new
+    public async Task<PatientPathwayResponse> CreatePathwayAsync(Guid patientId, Guid templateId, string title, DateOnly dueDate) =>
+        await SendAsync<PatientPathwayResponse>("POST", Pathways, new
         {
             patientId,
             templateId,
@@ -74,27 +74,27 @@ public sealed class E2EApi(IAPIRequestContext request)
             priority = "Medium",
         });
 
-    public Task<PatientProcedureResponse?> FindProcedureAsync(Guid id) => FindAsync<PatientProcedureResponse>($"{Procedures}/{id}");
+    public Task<PatientPathwayResponse?> FindPathwayAsync(Guid id) => FindAsync<PatientPathwayResponse>($"{Pathways}/{id}");
 
-    public async Task<IReadOnlyList<PatientProcedureSummaryResponse>> ProceduresOfPatientAsync(Guid patientId) =>
-        (await SendAsync<PagedResponse<PatientProcedureSummaryResponse>>(
-            "GET", $"{Procedures}/search?patientId={patientId}&includeClosed=true&pageSize=100")).Items;
+    public async Task<IReadOnlyList<PatientPathwaySummaryResponse>> PathwaysOfPatientAsync(Guid patientId) =>
+        (await SendAsync<PagedResponse<PatientPathwaySummaryResponse>>(
+            "GET", $"{Pathways}/search?patientId={patientId}&includeClosed=true&pageSize=100")).Items;
 
-    public async Task AssignAsync(Guid procedureId, Guid userId) =>
-        await SendAsync<PatientProcedureResponse>("POST", $"{Procedures}/{procedureId}/assignments/{userId}");
+    public async Task AssignAsync(Guid pathwayId, Guid userId) =>
+        await SendAsync<PatientPathwayResponse>("POST", $"{Pathways}/{pathwayId}/assignments/{userId}");
 
-    public async Task SaveStageNotesAsync(Guid procedureId, Guid stageId, string notes) =>
-        await SendAsync<PatientProcedureResponse>("PUT", $"{Procedures}/{procedureId}/stages/{stageId}/notes", new { notes });
+    public async Task SaveStageNotesAsync(Guid pathwayId, Guid stageId, string notes) =>
+        await SendAsync<PatientPathwayResponse>("PUT", $"{Pathways}/{pathwayId}/stages/{stageId}/notes", new { notes });
 
-    /// <summary>Cancels a procedure if it's still open, then deletes it (only cancelled ones can be). Needs an admin.</summary>
-    public async Task CancelAndDeleteProcedureAsync(Guid id)
+    /// <summary>Cancels a pathway if it's still open, then deletes it (only cancelled ones can be). Needs an admin.</summary>
+    public async Task CancelAndDeletePathwayAsync(Guid id)
     {
-        var procedure = await FindProcedureAsync(id);
-        if (procedure is null)
+        var pathway = await FindPathwayAsync(id);
+        if (pathway is null)
             return;
-        if (procedure.AllowedStatusChanges.Contains("Cancelled"))
-            await SendAsync<PatientProcedureResponse>("POST", $"{Procedures}/{id}/status", new { status = "Cancelled", reason = "End-to-end test clean-up." });
-        await DeleteIfThereAsync($"{Procedures}/{id}");
+        if (pathway.AllowedStatusChanges.Contains("Cancelled"))
+            await SendAsync<PatientPathwayResponse>("POST", $"{Pathways}/{id}/status", new { status = "Cancelled", reason = "End-to-end test clean-up." });
+        await DeleteIfThereAsync($"{Pathways}/{id}");
     }
 
     /// <summary>All of a patient's appointments, whatever their status.</summary>

@@ -43,7 +43,7 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError';
 
 /**
  * An appointment's details, and everything that can be done to it (docs/calendar-plan.md, decisions 15 and 16): who
- * it's for (links to the patient and the procedure), its status, when and with whom, its notes (editable), who asked
+ * it's for (links to the patient and the pathway), its status, when and with whom, its notes (editable), who asked
  * for it, booked it and recorded how it went, and why it was cancelled. Its buttons follow what the API allows
  * (`can...`): Book, Reschedule, Attended and Did not attend (once it has started), Cancel (with a reason), and Book
  * another (after Did not attend or Cancelled). Booking opens `BookAppointmentDialog` in its place, and comes back here.
@@ -54,7 +54,7 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError';
  * patient's appointment can only be cancelled, and an anonymised one's not changed at all (the API's flags say so),
  * and neither is offered Book another.
  *
- * Use it wherever an appointment is opened: the calendar, Requires Appointment, a procedure or a patient.
+ * Use it wherever an appointment is opened: the calendar, Requires Appointment, a pathway or a patient.
  */
 export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: AppointmentDialogProps) {
   const isOpen = initial !== null;
@@ -264,8 +264,8 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               </Link>
             </MetadataListItem>
             <MetadataListItem label="For">
-              {appointment.procedureId ? (
-                <Link href={`/procedures/${appointment.procedureId}`} onClick={onClose}>
+              {appointment.pathwayId ? (
+                <Link href={`/pathways/${appointment.pathwayId}`} onClick={onClose}>
                   {purpose}
                 </Link>
               ) : (
@@ -286,7 +286,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               <TextArea
                 label="Notes"
                 isOptional
-                description="About the visit, as procedure notes are."
+                description="About the visit, as pathway notes are."
                 value={shownNotes}
                 onChange={setNotes}
                 rows={3}
@@ -350,7 +350,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
       <BookAppointmentDialog
         isOpen={isOpen && mode === 'bookAnother'}
         patient={patient && {...patient, id: appointment.patientId ?? ''}}
-        procedure={appointment.procedureId ? {id: appointment.procedureId, title: appointment.procedureTitle ?? ''} : undefined}
+        pathway={appointment.pathwayId ? {id: appointment.pathwayId, title: appointment.pathwayTitle ?? ''} : undefined}
         stage={appointment.stageId ? {id: appointment.stageId, name: appointment.stageName ?? ''} : undefined}
         suggestedStaffUserId={appointment.staffUserId ?? undefined}
         stepMinutes={stepMinutes}

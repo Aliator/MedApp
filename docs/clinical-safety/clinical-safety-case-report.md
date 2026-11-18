@@ -20,11 +20,11 @@
 
 ## 1. Summary
 
-- **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates, attached documents and an audit trail, and books staff time for patients' appointments on staff calendars. It isn't a medical device (`intended-purpose-and-device-decision.md`, which checked the decision again for scheduling).
+- **What MedApp is:** software that records and coordinates the stages of patients' pathways, with task lists, target dates, attached documents and an audit trail, and books staff time for patients' appointments on staff calendars. It isn't a medical device (`intended-purpose-and-device-decision.md`, which checked the decision again for scheduling).
 - **The safety position at `88dc1fa`:**
   - 36 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-23 to H-28 came with file attachments, H-29 with admins' monitoring rules, and H-30 to H-36 with staff calendars and appointments (drafts whose ratings are left for the CSO).
-  - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
-  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-23) and malware in a file (H-25).
+  - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose pathway comes from it.
+  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue pathway (H-04), a forgotten blocked pathway (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching pathways under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-23) and malware in a file (H-25).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
   - **Staff calendars and appointments** add seven draft hazards, H-30 to H-36, whose ratings are left for the CSO. On their draft estimates, four start at 3 (a needed visit that doesn't happen, H-30; a stage finished without its visit, H-32; the wrong patient booked, H-34; a cancellation not passed on to the patient, H-36), and all come down to 2 at first live use with their "before first live use" controls. They aren't counted in the figures above.
@@ -36,14 +36,14 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Requires Appointment list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
+| **What's in it** | Patients; pathways from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; target dates and overdue; assignments and My Worklist; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, pathways and stages (download only, not yet scanned for malware); the pathway audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Requires Appointment list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
 | **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] Staff calendars and appointments are the first such change: their hazards are H-30 to H-36, and the device decision was checked for them (`intended-purpose-and-device-decision.md`, version 0.6). |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |
 
 ## 3. Intended purpose and scope
 
-The intended purpose, its users, population and environment, and what it's not for, are in `intended-purpose-and-device-decision.md`. In short: MedApp records and coordinates the steps of a procedure; it doesn't interpret clinical data, prioritise patients or recommend treatment.
+The intended purpose, its users, population and environment, and what it's not for, are in `intended-purpose-and-device-decision.md`. In short: MedApp records and coordinates the steps of a pathway; it doesn't interpret clinical data, prioritise patients or recommend treatment.
 
 **Out of scope of this report:** each organisation's deployment, configuration, templates, training and local processes, which its own DCB0160 safety case covers (`dcb0160-deploying-organisations.md`).
 
@@ -52,7 +52,7 @@ The intended purpose, its users, population and environment, and what it's not f
 - **The process:** `clinical-risk-management-plan.md`.
 - **The risk scheme:** DCB0129's consequence table (five levels, minor to catastrophic, each counting whether one or several patients are affected), its five likelihood levels (very low to very high), and its 5×5 matrix, giving ratings 1 (acceptable) to 5 (unacceptable). Each hazard has three ratings: today, at first live use, and residual. The go-live rule uses the rating at first live use (the plan, section 4.4).
 - **The CSO:** [name, profession, professional body and registration number].
-- **How the hazards were found:** by reading the code at `88dc1fa`, and walking each workflow in `docs/architecture.md` section 6.3 and `docs/procedures-ui-plan.md`. **Not yet done:** the hazard workshop with clinicians from a likely customer, and any review by the CSO. [CSO: record the workshop, its attendees and what it added.]
+- **How the hazards were found:** by reading the code at `88dc1fa`, and walking each workflow in `docs/architecture.md` section 6.3 and `docs/pathways-ui-plan.md`. **Not yet done:** the hazard workshop with clinicians from a likely customer, and any review by the CSO. [CSO: record the workshop, its attendees and what it added.]
 
 ## 5. Safety claims and the evidence for them
 
@@ -62,45 +62,45 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 | Evidence | Where |
 |---|---|
-| Stages can only be worked in order; only the current stage can be edited or finished; a finished stage is locked | `ProcedureWorkflow.WhyStageCantBeEdited`, `ProcedureChange.FinishStage` |
-| A change that breaks a rule is refused with a 409, whatever the screen shows | Every procedure command handler, for example `FinishProcedureStageHandler`, `UpdateProcedureStageNotesHandler` |
-| A procedure can only be completed with every stage finished and locked | `ChangePatientProcedureStatusHandler` |
-| Status changes follow one table; blocking and cancelling need a reason | `ProcedureWorkflow.AllowedStatusChanges`, `ChangePatientProcedureStatusValidator` |
-| Only admins can unlock stages, assign staff, delete procedures and change templates | `[Authorize(Roles = "Admin")]` on those endpoints (`docs/architecture.md`, section 5.7) |
-| Tests | `ProcedureWorkflowTests` (41 cases), `ProcedureChangeTests` (19), and a test class for every procedure handler and validator under `MedApp.UnitTests/Application/Procedures` |
+| Stages can only be worked in order; only the current stage can be edited or finished; a finished stage is locked | `PathwayWorkflow.WhyStageCantBeEdited`, `PathwayChange.FinishStage` |
+| A change that breaks a rule is refused with a 409, whatever the screen shows | Every pathway command handler, for example `FinishPathwayStageHandler`, `UpdatePathwayStageNotesHandler` |
+| A pathway can only be completed with every stage finished and locked | `ChangePatientPathwayStatusHandler` |
+| Status changes follow one table; blocking and cancelling need a reason | `PathwayWorkflow.AllowedStatusChanges`, `ChangePatientPathwayStatusValidator` |
+| Only admins can unlock stages, assign staff, delete pathways and change templates | `[Authorize(Roles = "Admin")]` on those endpoints (`docs/architecture.md`, section 5.7) |
+| Tests | `PathwayWorkflowTests` (41 cases), `PathwayChangeTests` (19), and a test class for every pathway handler and validator under `MedApp.UnitTests/Application/Pathways` |
 
 **Limits:** the role attributes on endpoints aren't covered by tests, except the own-password and create-user endpoints (`docs/architecture.md`, risk S7). Nothing stops two people's changes overwriting each other (H-15).
 
-### Claim 2: Every change to a procedure can be traced to a person and a time
+### Claim 2: Every change to a pathway can be traced to a person and a time
 
 | Evidence | Where |
 |---|---|
-| Every procedure change writes audit entries, saved in the same transaction as the change | `ProcedureChange.Audit`, `PatientProcedureRepository.SaveAsync` |
-| Notes changes keep the old and new text | `ProcedureChange.UpdateStageNotes` |
-| Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
+| Every pathway change writes audit entries, saved in the same transaction as the change | `PathwayChange.Audit`, `PatientPathwayRepository.SaveAsync` |
+| Notes changes keep the old and new text | `PathwayChange.UpdateStageNotes` |
+| Audit entries outlive deletion of the pathway (no foreign keys), and keep the username and title as they were | `PatientPathwayAuditEntry`; ADR-7 in `docs/architecture.md` |
 | Every file attached, deleted or downloaded is audited with who, when and which file; a deleted file's details stay, marked deleted, with who deleted it | `AttachmentAudit`; `Attachment`; `DeleteAttachmentHandler` |
-| Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
+| Tests | The pathway command handler tests check the audit entries the commands write, and `PathwayChangeTests` checks the entries `PathwayChange` writes |
 
 **Limits:** changes to templates and stage definitions aren't audited (H-13). Since roadmap step 7, patient changes (which fields, not their values) and reads are recorded in the activity log (H-03). Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
 
-### Claim 3: Due dates mean the same thing everywhere
+### Claim 3: Target dates mean the same thing everywhere
 
 | Evidence | Where |
 |---|---|
-| A due date is a whole day, due by the end of that day in UK time, stored as that moment in UTC | `DueDates` |
-| Overdue has one rule, used in memory and in SQL | `ProcedureWorkflow.IsOverdue`, `ProcedureSearch.Filter` |
+| A target date is a whole day, due by the end of that day in UK time, stored as that moment in UTC | `DueDates` |
+| Overdue has one rule, used in memory and in SQL | `PathwayWorkflow.IsOverdue`, `PathwaySearch.Filter` |
 | Tests cover summer, winter and both clock-change days | `DueDatesTests` |
 
-**Limits:** "overdue" is only a badge; today, nothing alerts anyone (H-04), and My Tasks opens on work not yet started, so started overdue work isn't on its default view (H-04, H-09). Blocked procedures are never overdue (H-05). Due dates have no time of day (H-11).
+**Limits:** "overdue" is only a badge; today, nothing alerts anyone (H-04), and My Worklist opens on work not yet started, so started overdue work isn't on its default view (H-04, H-09). Blocked pathways are never overdue (H-05). Target dates have no time of day (H-11).
 
 ### Claim 4: Finished work isn't rewritten by later changes to templates
 
 | Evidence | Where |
 |---|---|
-| Each procedure copies its template's stage names, descriptions and instructions when it's created | `CreatePatientProcedureHandler` |
+| Each pathway copies its template's stage names, descriptions and instructions when it's created | `CreatePatientPathwayHandler` |
 | Templates and definitions in use are archived, not deleted | the template and definition delete and archive handlers |
 
-**Limits:** the same rule means a correction doesn't reach procedures already under way (H-14), and template changes have no history or approval (H-13).
+**Limits:** the same rule means a correction doesn't reach pathways already under way (H-14), and template changes have no history or approval (H-13).
 
 ### Claim 5: Optional parts fail soft
 
@@ -120,7 +120,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Times are stored and sent in UTC and shown in UK time; template times are UK clock times turned into UTC for each date; the browser does no time zone arithmetic | `UkTime`, `CalendarProjection`; `docs/calendar-plan.md`, decision 3 |
 | Bookings and blocks outside the working day, at weekends or in the past are refused | `WorkingHours.WhyOutside`; decisions 2 and 17 |
 | Overlaps are refused with a 409, and two bookings racing for one slot can't both succeed (a lock per member of staff) | `CalendarClashes`, `ICalendarLock`; decision 6 |
-| A stage whose visit is required can't be finished by staff without an Attended appointment; an admin's bypass is recorded with its reason | `ProcedureWorkflow.WhyStageNeedsVisit`; decision 24 |
+| A stage whose visit is required can't be finished by staff without an Attended appointment; an admin's bypass is recorded with its reason | `PathwayWorkflow.WhyStageNeedsVisit`; decision 24 |
 | Every change to an appointment is kept in its history | `AppointmentChange`, `AppointmentEvent`; decision 19 |
 | Tests | Unit tests for `WorkingHours`, `TemplateHistory`, `CalendarProjection` (with a clock change), `CalendarClashes`, `AppointmentWorkflow` and the visit rule; integration tests for clashes (with two bookings racing), the visit rule and the admin bypass, projection across a clock change, and the status changes (plan, section 7) |
 
@@ -136,29 +136,29 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
-| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); date of birth in lists |
+| H-01 | The wrong patient's pathway is worked | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); date of birth in lists |
 | H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); patient named in confirmations |
 | H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | Patient changes recorded (fields, not old values; step 7) |
-| H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
-| H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |
+| H-04 | An overdue pathway is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Worklist; an unassigned-and-due view; local review process |
+| H-05 | A blocked pathway is forgotten | 3 | 2 | 2 | A "past target date" flag on blocked pathways; started work counted on My Worklist |
 | H-06 | A stage is finished in error | 2 | 2 | 2 | None |
 | H-07 | A stage is recorded as finished when the work wasn't done | 3 | **3** | 2 | Notes, or "nothing to record", before finishing; CSO justification |
-| H-08 | A procedure is cancelled, completed or archived in error | 2 | 2 | 2 | None |
-| H-09 | A member of staff doesn't learn of work assigned to them | 3 | 2 | 2 | Started work counted on My Tasks; information for users |
+| H-08 | A pathway is cancelled, completed or archived in error | 2 | 2 | 2 | None |
+| H-09 | A member of staff doesn't learn of work assigned to them | 3 | 2 | 2 | Started work counted on My Worklist; information for users |
 | H-10 | MedApp is unavailable | 3 | **3** | 2 | Printable task list and summary; downtime procedure; monitoring; CSO justification |
-| H-11 | Due dates don't mean what staff think | 2 | 2 | 2 | Information on the form |
+| H-11 | Target dates don't mean what staff think | 2 | 2 | 2 | Information on the form |
 | H-12 | Times are shown an hour out | 3 | 2 | 2 | The fix, built in PR #62; to verify |
 | H-13 | A template or stage definition has wrong content | **4** | **3** | **3** | Approval step for template changes (brought forward); audit of template and definition changes; local template governance; CSO justification |
-| H-14 | A correction to a template doesn't reach procedures under way | 3 | 2 | 2 | Open procedures listed when a template in use is edited; local review process |
-| H-15 | Two people edit the same procedure at once | 3 | 2 | 2 | Optimistic concurrency; keep the draft on a conflict |
+| H-14 | A correction to a template doesn't reach pathways under way | 3 | 2 | 2 | Open pathways listed when a template in use is edited; local review process |
+| H-15 | Two people edit the same pathway at once | 3 | 2 | 2 | Optimistic concurrency; keep the draft on a conflict |
 | H-16 | The screen shows out-of-date information | 2 | 2 | 2 | None |
 | H-17 | Stage instructions aren't read | 2 | 2 | 2 | None |
 | H-18 | A change is recorded under the wrong person's name | 2 | 2 | 2 | None |
-| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
+| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while pathways are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
-| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way and open appointments when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
-| H-23 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner (built, to verify); the patient and target named before files are sent |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the pathways under way and open appointments when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
+| H-23 | A file is attached to the wrong patient, pathway or stage | 3 | 2 | 2 | Patient banner (built, to verify); the patient and target named before files are sent |
 | H-24 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
 | H-25 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
 | H-26 | A file is deleted by mistake | 2 | 2 | 2 | None |
@@ -169,7 +169,7 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 | H-31 | A member of staff is double-booked | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified |
 | H-32 | A stage is finished without the visit it needed | (3) | (2) | (2) | A report of stages finished without a visit, reviewed locally; patient, stage and appointment named in the confirmations; clinical sign-off of which stages need a visit |
 | H-33 | An appointment is at the wrong time | (2) | (2) | (2) | Full date and day in confirmations; end-to-end tests outside UK time and on clock-change days |
-| H-34 | The wrong patient or procedure is booked | (3) | (2) | (2) | Date of birth in the patient picker and confirmations; the patient's name, date of birth and NHS number in the booking and appointment dialogs (built, to verify) |
+| H-34 | The wrong patient or pathway is booked | (3) | (2) | (2) | Date of birth in the patient picker and confirmations; the patient's name, date of birth and NHS number in the booking and appointment dialogs (built, to verify) |
 | H-35 | An appointment is left without its member of staff | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified; removing every role refused with upcoming bookings (built, to verify); local absence process |
 | H-36 | A cancelled or moved appointment isn't passed on to the patient | (3) | (2) | (2) | "Has the patient been told?" recorded on cancel and move; local process for telling patients |
 
@@ -208,8 +208,8 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Defect | Hazard | State |
 |---|---|---|
 | Timestamps read from the database are sent without a time zone, and the web app reads them as local time, so they show an hour early in summer | H-12 | Fixed by PR #62, which marks every time read from the database as UTC, so the API sends them with a `Z`, and reads times without an offset as UTC in the web app. To verify against SQL Server and in a browser during British Summer Time. |
-| My Tasks opens on work not yet started, so work already under way, including overdue and blocked work, isn't on its default view | H-04, H-05, H-09 | Known. A count of started work, or opening on all open work, proposed before first live use. |
-| Deleting an account leaves its open procedures assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
+| My Worklist opens on work not yet started, so work already under way, including overdue and blocked work, isn't on its default view | H-04, H-05, H-09 | Known. A count of started work, or opening on all open work, proposed before first live use. |
+| Deleting an account leaves its open pathways assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
 | Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. Sessions now end when a password is changed or reset, and an admin can sign a user out everywhere (`feature/security-baseline`, not yet merged). |
@@ -230,10 +230,10 @@ This report holds only if each deploying organisation:
 - **books and follows up visits:** reviews the Requires Appointment list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
 - **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp doesn't contact patients;
 - **reviews stages finished without a visit,** and limits the admin bypass to cases with a recorded reason;
-- **trains its staff** in MedApp, including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks must be set to all open work to show everything assigned to them;
+- **trains its staff** in MedApp, including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist must be set to all open work to show everything assigned to them;
 - **has at least two admins,** so assignment and unlocking never wait on one person;
-- **reassigns a leaver's open procedures** before their account is removed;
-- **reviews overdue, unassigned and blocked procedures** on a set schedule;
+- **reassigns a leaver's open pathways** before their account is removed;
+- **reviews overdue, unassigned and blocked pathways** on a set schedule;
 - **has a downtime procedure,** with printed task lists, and a way to enter work done during downtime afterwards;
 - **keeps the clinical record** of what was done in its own clinical systems, using MedApp to coordinate the steps, and keeps the master copy of each document attached in MedApp (results, letters, images) in its own systems too;
 - **checks a document's own identifiers** against the patient before acting on it, and has up-to-date anti-malware and software on every computer that opens attached files;
@@ -259,7 +259,7 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | Template, filled in for `88dc1fa` | AI coding agent, for review |
-| 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Tasks' default view, H-12's fix in PR #62 | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Worklist's default view, H-12's fix in PR #62 | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62 | AI coding agent, for review |
 | 0.4 | 16 November 2026 | File attachments: H-23 to H-28 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Merged with admins' monitoring (PR #84): H-29 in the hazard table and the count. After the review of #85: H-28's defect (a 500 after minutes of retries) fixed | AI coding agent, for review |

@@ -8,7 +8,7 @@ public sealed class RetentionReviewItemResponse
     public string LastName { get; set; } = string.Empty;
     public DateOnly DateOfBirth { get; set; }
 
-    /// <summary>The conclusion of treatment: the later of the last procedure closing and the record last changing (UK date).</summary>
+    /// <summary>The conclusion of treatment: the later of the last pathway closing and the record last changing (UK date).</summary>
     public DateOnly ConclusionOfTreatment { get; set; }
 
     /// <summary>Adult or Child, which sets the period.</summary>

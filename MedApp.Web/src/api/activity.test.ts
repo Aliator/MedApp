@@ -110,12 +110,12 @@ describe('describeActivity', () => {
 });
 
 describe('describeActivity: files', () => {
-  it("says whether the files were the patient's own or a procedure's (or a stage's), never which file", () => {
-    const procedureId = '00000037-0000-0000-0000-000000000001';
+  it("says whether the files were the patient's own or a pathway's (or a stage's), never which file", () => {
+    const pathwayId = '00000037-0000-0000-0000-000000000001';
     expect(describeActivity({action: 'AttachmentsViewed', details: '{}'})).toBe("All the patient's files");
-    expect(describeActivity({action: 'AttachmentsViewed', details: '{}', procedureId})).toBe("A procedure's or stage's files");
-    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', procedureId: null})).toBe('A file on the patient');
-    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', procedureId})).toBe('A file on a procedure or stage');
+    expect(describeActivity({action: 'AttachmentsViewed', details: '{}', pathwayId})).toBe("A pathway's or stage's files");
+    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', pathwayId: null})).toBe('A file on the patient');
+    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', pathwayId})).toBe('A file on a pathway or stage');
   });
 });
 

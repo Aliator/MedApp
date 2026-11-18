@@ -296,7 +296,7 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
         padding={0}
         label={entry.label}
         // No surface of its own: only the rows' rounded box sticks out, and only it takes the pointer, so the
-        // nav's icons beside the rows under an item (Procedures, under a pinned patient) can still be hovered.
+        // nav's icons beside the rows under an item (Pathways, under a pinned patient) can still be hovered.
         style={{
           background: 'transparent',
           boxShadow: 'none',

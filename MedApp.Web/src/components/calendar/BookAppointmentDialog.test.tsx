@@ -52,7 +52,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     withAnnouncements();
     const booked = testAppointment({date: MONDAY, start: '09:00', end: '09:30'});
     const {fetch, user, onSaved, onClose} = renderDialog(
-      {patient: TEST_PATIENT, procedure: {id: 'procedure-1', title: 'Knee review'}, stage: {id: 'stage-1', name: 'Assessment'}},
+      {patient: TEST_PATIENT, pathway: {id: 'pathway-1', title: 'Knee review'}, stage: {id: 'stage-1', name: 'Assessment'}},
       {'POST /api/appointments': () => json(booked)},
     );
 
@@ -79,7 +79,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await expectAnnounced('Appointment booked');
     expect(await bodyOf(fetch, 'POST', '/api/appointments')).toEqual({
       patientId: 'patient-1',
-      procedureId: 'procedure-1',
+      pathwayId: 'pathway-1',
       stageId: 'stage-1',
       staffUserId: STAFF_ME.userId,
       startUtc: '2026-11-23T09:00:00.000Z',
@@ -93,7 +93,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     const meeting = (start: string, end: string, reply: string) =>
       testMeeting({id: `m-${start}`, date: MONDAY, start, end, attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply}]});
     renderDialog({patient: TEST_PATIENT}, {
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
       'GET /api/calendar': (request) => calendarFor(request, {meetings: [meeting('09:00', '10:00', 'Declined'), meeting('11:00', '12:00', 'Accepted')]}),
     });
 
@@ -115,7 +115,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
         endUtc: ukTime('2026-11-25', '14:45'),
       },
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'POST /api/appointments': () => json(testAppointment()),
       },
     );
@@ -134,7 +134,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
         startUtc: '2026-11-25T14:00:00.000Z',
         endUtc: '2026-11-25T14:45:00.000Z',
         notes: 'Bring the scan.',
-        procedureId: null,
+        pathwayId: null,
         stageId: null,
       }),
     );
@@ -147,7 +147,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
       startUtc: ukTime('2026-11-25', '10:05'),
       endUtc: ukTime('2026-11-25', '10:20'),
       stepMinutes: 5,
-    }, {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))});
+    }, {'GET /api/pathways/patient-pathways/search': () => json(pageOf([]))});
 
     await screen.findByRole('dialog');
     expect(await dialog().findByText('Wednesday 25 November, 10:05 to 10:20 with test-user')).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     atMondayMorning();
     const {user} = renderDialog(
       {patient: TEST_PATIENT, startUtc: ukTime(MONDAY, '17:00'), endUtc: ukTime(MONDAY, '17:20')},
-      {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))},
+      {'GET /api/pathways/patient-pathways/search': () => json(pageOf([]))},
     );
 
     await screen.findByRole('dialog');
@@ -268,7 +268,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/book')).toMatchObject({expectedStatus: 'Booked'});
   });
 
-  it('finds a patient by name, then one of their procedures and its stage', async () => {
+  it('finds a patient by name, then one of their pathways and its stage', async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
       {},
@@ -280,11 +280,11 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
           const patient = {id: 'patient-9', firstName: 'Alex', lastName: 'Sample', dateOfBirth: '1980-03-14', nhsNumber: '9990000026'};
           return json(pageOf((first ?? '').startsWith('al') || (last ?? '').startsWith('sa') || first === 'Alex' ? [patient] : []));
         },
-        'GET /api/procedures/patient-procedures/search': () =>
-          json(pageOf([{id: 'procedure-9', title: 'Hip review', dueDate: '2026-12-10', currentStageName: 'Consent'}])),
-        'GET /api/procedures/patient-procedures/procedure-9': () =>
+        'GET /api/pathways/patient-pathways/search': () =>
+          json(pageOf([{id: 'pathway-9', title: 'Hip review', dueDate: '2026-12-10', currentStageName: 'Consent'}])),
+        'GET /api/pathways/patient-pathways/pathway-9': () =>
           json({
-            id: 'procedure-9',
+            id: 'pathway-9',
             stages: [
               {id: 'stage-a', name: 'Referral', state: 'Completed'},
               {id: 'stage-b', name: 'Consent', state: 'InProgress', isCurrent: true, visitRequirement: 'Required'},
@@ -319,7 +319,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await waitFor(async () =>
       expect(await bodyOf(fetch, 'POST', '/api/appointments')).toEqual({
         patientId: 'patient-9',
-        procedureId: 'procedure-9',
+        pathwayId: 'pathway-9',
         stageId: 'stage-b',
         notes: null,
       }),
@@ -328,14 +328,14 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     expect(calls(fetch)).toContain('GET /api/patients/search?PageSize=10&LastName=al');
   });
 
-  it('searches a first and a last name when two words are typed, and can go back to no procedure', async () => {
+  it('searches a first and a last name when two words are typed, and can go back to no pathway', async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
       {},
       {
         'GET /api/patients/search': () => json(pageOf([{id: 'patient-9', firstName: 'Alex', lastName: 'Sample'}])),
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([{id: 'procedure-9', title: 'Hip review', dueDate: '2026-12-10'}])),
-        'GET /api/procedures/patient-procedures/procedure-9': () => json({id: 'procedure-9', stages: []}),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([{id: 'pathway-9', title: 'Hip review', dueDate: '2026-12-10'}])),
+        'GET /api/pathways/patient-pathways/pathway-9': () => json({id: 'pathway-9', stages: []}),
       },
     );
 
@@ -350,17 +350,17 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await user.click(await screen.findByRole('option', {name: /Hip review/}));
     expect(await dialog().findByRole('combobox', {name: /Stage/})).toBeInTheDocument();
     await user.click(dialog().getByRole('combobox', {name: /For/}));
-    await user.click(screen.getByRole('option', {name: 'Not for a procedure'}));
+    await user.click(screen.getByRole('option', {name: 'Not for a pathway'}));
     expect(dialog().queryByRole('combobox', {name: /Stage/})).not.toBeInTheDocument();
   });
 
   it("shows the server's message when someone took the time, and refreshes the free times", async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
-      {patient: TEST_PATIENT, procedure: {id: 'procedure-1', title: 'Knee review'}},
+      {patient: TEST_PATIENT, pathway: {id: 'pathway-1', title: 'Knee review'}},
       {
         'POST /api/appointments': () => json({title: 'That time overlaps an appointment, 09:00 to 09:30.'}, 409),
-        'GET /api/procedures/patient-procedures/procedure-1': () => json({id: 'procedure-1', stages: []}),
+        'GET /api/pathways/patient-pathways/pathway-1': () => json({id: 'pathway-1', stages: []}),
       },
     );
 
@@ -378,7 +378,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     const {user} = renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'POST /api/appointments': () =>
           json({title: 'One or more validation errors occurred.', errors: {Notes: ['Notes are too long.'], StartUtc: ['Not on the hour.']}}, 400),
       },
@@ -397,7 +397,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     const {user} = renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'POST /api/appointments': () => json({}, 500),
       },
     );
@@ -413,7 +413,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     // Friday 27 November at 17:50: nothing more this week.
     atMondayMorning('2026-11-27T17:50:00Z');
     const {user, fetch} = renderDialog({patient: TEST_PATIENT}, {
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
       'GET /api/calendar': (request) => {
         const from = new URL(request.url).searchParams.get('From')!;
         return json(testCalendar({from, dayCount: 5, today: '2026-11-27'}));
@@ -439,7 +439,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
 
   it('moves between times with the arrow keys, as one tab stop', async () => {
     atMondayMorning();
-    const {user} = renderDialog({patient: TEST_PATIENT}, {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))});
+    const {user} = renderDialog({patient: TEST_PATIENT}, {'GET /api/pathways/patient-pathways/search': () => json(pageOf([]))});
 
     await screen.findByRole('dialog');
     const morning = await dialog().findByRole('group', {name: /Morning times/});
@@ -455,7 +455,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     const {user, fetch} = renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'GET /api/calendar': (request) =>
           calendarFor(request, new URL(request.url).searchParams.get('StaffUserId') === STAFF_OTHER.userId ? {blocks: [testBlock(MONDAY, '08:00', '12:00')]} : {}),
       },
@@ -475,7 +475,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
   it('says when the calendar cannot be loaded', async () => {
     atMondayMorning();
     renderDialog({patient: TEST_PATIENT}, {
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
       'GET /api/calendar': () => json({}, 500),
     });
 
@@ -488,7 +488,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     mockApi({
       'GET /api/calendar/staff': () => json(STAFF),
       'GET /api/calendar': (request) => calendarFor(request),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
     });
     function Harness() {
       const [isOpen, setIsOpen] = useState(false);
@@ -518,7 +518,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     const {user, fetch} = renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'POST /api/appointments': () => json(testAppointment()),
       },
     );
@@ -539,7 +539,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([])),
         'GET /api/calendar': (request) => {
           const from = new URL(request.url).searchParams.get('From')!;
           const calendar = testCalendar({from, dayCount: 5, today: MONDAY});
@@ -559,7 +559,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
       {patient: {...TEST_PATIENT, isRestricted: true, restrictionReason: 'Synthetic accuracy check'}},
-      {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))},
+      {'GET /api/pathways/patient-pathways/search': () => json(pageOf([]))},
     );
 
     await screen.findByRole('dialog');

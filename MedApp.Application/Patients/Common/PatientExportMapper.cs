@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Attachments.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -14,7 +14,7 @@ namespace MedApp.Application.Patients.Common;
 /// A patient's whole record (<see cref="PatientRecord"/>) as a subject access export. Staff appear by username only:
 /// their account IDs, network addresses and when they read a notification are the staff's data, so they're left out.
 /// So are admins' monitoring notifications (<see cref="Notification.IsMonitoring"/>): which admin watches which member
-/// of staff is about the staff, and what they did is in the procedures' history already.
+/// of staff is about the staff, and what they did is in the pathways' history already.
 /// History entries' details are stored with some staff account IDs (an assignment's <c>userId</c>, a rescheduled
 /// appointment's <c>previousStaffUserId</c>) beside their usernames, so the export removes them
 /// (<see cref="WithoutStaffIds"/>) and keeps the usernames.
@@ -26,11 +26,11 @@ public static class PatientExportMapper
         record.Notifications.Where(n => !Notification.IsMonitoring(n.Kind));
 
     /// <summary>
-    /// Every user the export names: on procedures (assignees, assigners, stage workers, note authors), on appointments (who they're
+    /// Every user the export names: on pathways (assignees, assigners, stage workers, note authors), on appointments (who they're
     /// with, who asked for, booked and recorded them) and as notification recipients.
     /// </summary>
     public static IEnumerable<Guid> UserIds(PatientRecord record) =>
-        record.Procedures.SelectMany(ProcedureMapper.UserIds)
+        record.Pathways.SelectMany(PathwayMapper.UserIds)
             .Concat(record.Appointments.SelectMany(AppointmentUserIds))
             .Concat(ExportedNotifications(record).Select(n => n.UserId))
             .Distinct();
@@ -46,16 +46,16 @@ public static class PatientExportMapper
         string exportedBy)
     {
         string Username(Guid? userId) =>
-            userId is { } id ? usernames.TryGetValue(id, out var name) ? name : ProcedureMapper.DeletedUser : string.Empty;
+            userId is { } id ? usernames.TryGetValue(id, out var name) ? name : PathwayMapper.DeletedUser : string.Empty;
 
         return new PatientExportResponse
         {
             ExportedAtUtc = nowUtc,
             ExportedBy = exportedBy,
             Patient = ToExported(record.Patient),
-            Procedures = record.Procedures
+            Pathways = record.Pathways
                 .OrderBy(p => p.CreatedAt)
-                .Select(p => new ExportedProcedureResponse
+                .Select(p => new ExportedPathwayResponse
                 {
                     Id = p.Id,
                     Title = p.Title,
@@ -67,15 +67,15 @@ public static class PatientExportMapper
                     LastUpdated = p.LastUpdated,
                     Notes = p.Notes
                         .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
-                        .Select(n => new ExportedProcedureNoteResponse
+                        .Select(n => new ExportedPathwayNoteResponse
                         {
                             Id = n.Id,
-                            Author = ProcedureNoteMapper.AuthorName(n.AuthorUserId, usernames),
+                            Author = PathwayNoteMapper.AuthorName(n.AuthorUserId, usernames),
                             Text = n.Text,
                             CreatedAtUtc = n.CreatedAtUtc,
                             LastEditedAtUtc = n.LastEditedAtUtc,
                             Version = n.Version,
-                            // A deleted note is hidden from the procedure page, but kept: the export says when, who and why.
+                            // A deleted note is hidden from the pathway page, but kept: the export says when, who and why.
                             DeletedAtUtc = n.DeletedAtUtc,
                             DeletedBy = n.DeletedByUserId is null ? null : Username(n.DeletedByUserId),
                             DeletionReason = n.DeletionReason?.ToString(),
@@ -100,14 +100,14 @@ public static class PatientExportMapper
                 })
                 .ToList(),
             // Staff by the username recorded at the time; never their account IDs or network addresses.
-            ProcedureHistory = record.ProcedureHistory
+            PathwayHistory = record.PathwayHistory
                 .Select(e => new ExportedHistoryEntryResponse
                 {
                     AtUtc = e.AtUtc,
                     Action = e.Action.ToString(),
                     Username = e.Username,
-                    ProcedureId = e.PatientProcedureId,
-                    ProcedureTitle = e.ProcedureTitle,
+                    PathwayId = e.PatientPathwayId,
+                    PathwayTitle = e.PathwayTitle,
                     StageName = e.StageName,
                     Details = WithoutStaffIds(e.Details)
                 })
@@ -117,10 +117,10 @@ public static class PatientExportMapper
                 .Select(v => new ExportedNoteVersionResponse
                 {
                     NoteId = v.NoteId,
-                    ProcedureId = v.PatientProcedureId,
+                    PathwayId = v.PatientPathwayId,
                     Version = v.Version,
                     Text = v.Text,
-                    Username = v.UserId is null ? ProcedureNoteMapper.UnknownAuthor : v.Username,
+                    Username = v.UserId is null ? PathwayNoteMapper.UnknownAuthor : v.Username,
                     AtUtc = v.AtUtc
                 })
                 .ToList(),
@@ -130,7 +130,7 @@ public static class PatientExportMapper
                 {
                     Id = r.Id,
                     NoteId = r.NoteId,
-                    ProcedureId = r.PatientProcedureId,
+                    PathwayId = r.PatientPathwayId,
                     RequestedBy = r.RequestedByUsername,
                     RequestedAtUtc = r.RequestedAtUtc,
                     Reason = r.Reason.ToString(),
@@ -144,9 +144,9 @@ public static class PatientExportMapper
                 .Select(a => new ExportedAppointmentResponse
                 {
                     Id = a.Id,
-                    ProcedureId = a.ProcedureId,
+                    PathwayId = a.PathwayId,
                     StageName = a.StageId is { } stageId
-                        ? record.Procedures.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
+                        ? record.Pathways.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
                         : null,
                     Status = a.Status.ToString(),
                     StaffUsername = a.StaffUserId is null ? null : Username(a.StaffUserId),
@@ -164,7 +164,7 @@ public static class PatientExportMapper
                     OutcomeBy = a.OutcomeByUserId is null ? null : Username(a.OutcomeByUserId)
                 })
                 .ToList(),
-            // As the procedures' history: staff by the username recorded at the time.
+            // As the pathways' history: staff by the username recorded at the time.
             AppointmentHistory = record.AppointmentHistory
                 .Select(e => new ExportedAppointmentHistoryEntryResponse
                 {
@@ -172,8 +172,8 @@ public static class PatientExportMapper
                     Action = e.Action.ToString(),
                     Username = e.Username,
                     AppointmentId = e.AppointmentId,
-                    ProcedureId = e.ProcedureId,
-                    ProcedureTitle = e.ProcedureTitle,
+                    PathwayId = e.PathwayId,
+                    PathwayTitle = e.PathwayTitle,
                     StageName = e.StageName,
                     StaffUsername = e.StaffUsername,
                     StartUtc = e.StartUtc,
@@ -187,7 +187,7 @@ public static class PatientExportMapper
                     AtUtc = e.AtUtc,
                     Action = e.Action.ToString(),
                     Username = e.Username,
-                    ProcedureId = e.ProcedureId,
+                    PathwayId = e.PathwayId,
                     Details = WithoutStaffIds(e.Details)
                 })
                 .ToList(),
@@ -199,19 +199,19 @@ public static class PatientExportMapper
                     Username = Username(n.UserId),
                     Title = n.Title,
                     Message = n.Message,
-                    ProcedureId = n.ProcedureId,
+                    PathwayId = n.PathwayId,
                     AppointmentId = n.AppointmentId
                 })
                 .ToList(),
-            // Who by the username recorded at the time, as the procedure history does.
+            // Who by the username recorded at the time, as the pathway history does.
             Attachments = record.Attachments
                 .Select(a => new ExportedAttachmentResponse
                 {
                     Id = a.Id,
                     AttachedTo = AttachmentTarget.KindOf(a).ToString(),
-                    ProcedureId = a.ProcedureId,
+                    PathwayId = a.PathwayId,
                     StageName = a.StageId is { } stageId
-                        ? record.Procedures.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
+                        ? record.Pathways.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
                         : null,
                     FileName = a.FileName,
                     ContentType = a.ContentType,

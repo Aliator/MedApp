@@ -119,7 +119,7 @@ public sealed class RetentionScheduleTests
     }
 
     [Test]
-    public void Due_Candidate_UsesTheLaterOfTheRecordsAndItsProceduresLastChange_AsAUkDate()
+    public void Due_Candidate_UsesTheLaterOfTheRecordsAndItsPathwaysLastChange_AsAUkDate()
     {
         var dob = new DateOnly(1970, 1, 1);
         // 23:30 UTC on 9 June is 00:30 on 10 June in the UK (BST).
@@ -154,19 +154,19 @@ public sealed class RetentionScheduleTests
     }
 
     [Test]
-    public void Due_Candidate_CountsTheLatestAuditEntry_WhichOutlivesADeletedProcedure()
+    public void Due_Candidate_CountsTheLatestAuditEntry_WhichOutlivesADeletedPathway()
     {
-        // Registered at 16; an archived procedure, deleted since, ran until 17 and a half (only its audit is left).
+        // Registered at 16; an archived pathway, deleted since, ran until 17 and a half (only its audit is left).
         var dob = new DateOnly(2000, 1, 1);
         var recordChange = new DateTime(2016, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var deletedProcedureLastAudit = new DateTime(2017, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        var deletedPathwayLastAudit = new DateTime(2017, 7, 1, 12, 0, 0, DateTimeKind.Utc);
         var withoutAudit = PrivacyTestConstants.CreateCandidate(dob, recordChange);
-        var withAudit = withoutAudit with { LastAuditUtc = deletedProcedureLastAudit };
+        var withAudit = withoutAudit with { LastAuditUtc = deletedPathwayLastAudit };
 
         RetentionSchedule.Due(withoutAudit, Defaults).DueOn.Should().Be(new DateOnly(2025, 1, 1), "16 at the record's last change: the 25th birthday");
         var due = RetentionSchedule.Due(withAudit, Defaults);
         due.ConclusionOfTreatment.Should().Be(new DateOnly(2017, 7, 1));
-        due.DueOn.Should().Be(new DateOnly(2026, 1, 1), "17 at the deleted procedure's last change: the 26th birthday");
+        due.DueOn.Should().Be(new DateOnly(2026, 1, 1), "17 at the deleted pathway's last change: the 26th birthday");
     }
 
     [Test]

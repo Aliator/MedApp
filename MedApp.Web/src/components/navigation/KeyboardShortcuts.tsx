@@ -12,9 +12,9 @@ import {DialogFrame} from '../modals/DialogFrame';
 /** "Go to" shortcuts: G, then a letter. The admin ones only for admins. */
 export const GO_TO = [
   {key: 'h', label: 'Home', href: '/'},
-  {key: 't', label: 'My Tasks', href: '/tasks'},
+  {key: 't', label: 'My Worklist', href: '/tasks'},
   {key: 'p', label: 'Patients', href: '/patients'},
-  {key: 'r', label: 'Procedures', href: '/procedures'},
+  {key: 'r', label: 'Pathways', href: '/pathways'},
   {key: 's', label: 'Account Settings', href: '/account'},
   {key: 'u', label: 'Users', href: '/admin/users', isAdmin: true},
   {key: 'a', label: 'Audit Log', href: '/admin/audit', isAdmin: true},

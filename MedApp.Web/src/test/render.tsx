@@ -105,7 +105,7 @@ export const isDisabled = (element: HTMLElement) =>
 /**
  * Opens a side nav row's menu, as a person does: the pointer on the row (which shows the menu's button), then on
  * the button (which opens the menu after a moment). `row` is the row's link name; `label` names the menu (the
- * row's full name, e.g. a procedure's), if different. Returns the menu's item with the given name.
+ * row's full name, e.g. a pathway's), if different. Returns the menu's item with the given name.
  */
 export async function rowMenuItem(user: ReturnType<typeof userEvent.setup>, row: string, item: RegExp | string, label = row) {
   // The nav's link comes first (a folded nav's icon, whose row then comes out with the menu's button).

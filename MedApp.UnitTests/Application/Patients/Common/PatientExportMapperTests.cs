@@ -1,12 +1,12 @@
 using FluentAssertions;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Patients.Common;
 
@@ -14,10 +14,10 @@ namespace MedApp.UnitTests.Application.Patients.Common;
 public sealed class PatientExportMapperTests
 {
     [Test]
-    public void UserIds_AreEveryoneNamedOnProceduresAndNotifications_OnceEach()
+    public void UserIds_AreEveryoneNamedOnPathwaysAndNotifications_OnceEach()
     {
-        var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
 
         PatientExportMapper.UserIds(record).Should().BeEquivalentTo([Staff.UserId, Admin.UserId]);
     }
@@ -25,8 +25,8 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_Record_HasEveryPart()
     {
-        var later = CreateProcedure(Status.Completed, finishedStages: 3);
-        var earlier = new PatientProcedure
+        var later = CreatePathway(Status.Completed, finishedStages: 3);
+        var earlier = new PatientPathway
         {
             Id = Guid.NewGuid(),
             Title = "Earlier",
@@ -38,22 +38,22 @@ public sealed class PatientExportMapperTests
         };
         // A note by someone whose account is gone, and one moved from the old notes field with no known author.
         var gone = later.AddNote(author: OtherUserId, text: "Synthetic note, edited.", createdAt: Now.AddDays(-3), version: 2);
-        var unknown = new PatientProcedureNote
+        var unknown = new PatientPathwayNote
         {
-            Id = Guid.NewGuid(), PatientProcedureId = later.Id, AuthorUserId = null, Text = "Synthetic imported note.",
+            Id = Guid.NewGuid(), PatientPathwayId = later.Id, AuthorUserId = null, Text = "Synthetic imported note.",
             CreatedAtUtc = Now.AddDays(-5), Version = 1
         };
         later.Notes.Add(unknown);
         var record = PrivacyTestConstants.WithNoteVersions(
             PrivacyTestConstants.CreateRecord(null, later, earlier),
-            new PatientProcedureNoteVersion
+            new PatientPathwayNoteVersion
             {
-                Id = Guid.NewGuid(), NoteId = gone.Id, Version = 1, PatientProcedureId = later.Id, Text = "Synthetic note.",
+                Id = Guid.NewGuid(), NoteId = gone.Id, Version = 1, PatientPathwayId = later.Id, Text = "Synthetic note.",
                 UserId = OtherUserId, Username = OtherUsername, AtUtc = Now.AddDays(-3)
             },
-            new PatientProcedureNoteVersion
+            new PatientPathwayNoteVersion
             {
-                Id = Guid.NewGuid(), NoteId = unknown.Id, Version = 1, PatientProcedureId = later.Id, Text = unknown.Text,
+                Id = Guid.NewGuid(), NoteId = unknown.Id, Version = 1, PatientPathwayId = later.Id, Text = unknown.Text,
                 UserId = null, Username = string.Empty, AtUtc = Now.AddDays(-5)
             });
         record.Notifications[1].ReadAtUtc = Now;
@@ -64,54 +64,54 @@ public sealed class PatientExportMapperTests
         export.ExportedAtUtc.Should().Be(Now);
         export.ExportedBy.Should().Be("exporter");
         export.Patient.Id.Should().Be(record.Patient.Id);
-        export.Procedures.Select(p => p.Id).Should().Equal(earlier.Id, later.Id);
-        var exported = export.Procedures[1];
+        export.Pathways.Select(p => p.Id).Should().Equal(earlier.Id, later.Id);
+        var exported = export.Pathways[1];
         exported.Title.Should().Be(later.Title);
         exported.TemplateName.Should().Be(TemplateName);
         exported.Status.Should().Be("Completed");
         exported.Priority.Should().Be(later.Priority.ToString());
         exported.DueDate.Should().Be(DueDates.ToUkDate(later.DueDateUtc));
         exported.Notes.Select(n => (n.Id, n.Author, n.Text, n.Version)).Should().Equal(
-            (unknown.Id, ProcedureNoteMapper.UnknownAuthor, unknown.Text, 1),
-            (gone.Id, ProcedureMapper.DeletedUser, gone.Text, 2));
+            (unknown.Id, PathwayNoteMapper.UnknownAuthor, unknown.Text, 1),
+            (gone.Id, PathwayMapper.DeletedUser, gone.Text, 2));
         exported.Notes[1].LastEditedAtUtc.Should().Be(gone.LastEditedAtUtc);
-        export.NoteHistory.Select(v => (v.NoteId, v.ProcedureId, v.Version, v.Username)).Should().Equal(
+        export.NoteHistory.Select(v => (v.NoteId, v.PathwayId, v.Version, v.Username)).Should().Equal(
             (gone.Id, later.Id, 1, OtherUsername),
-            (unknown.Id, later.Id, 1, ProcedureNoteMapper.UnknownAuthor));
+            (unknown.Id, later.Id, 1, PathwayNoteMapper.UnknownAuthor));
         export.NoteHistory[0].Text.Should().Be("Synthetic note.");
         exported.Notes.Should().AllSatisfy(n => n.DeletedAtUtc.Should().BeNull());
         export.NoteDeletionRequests.Should().BeEmpty();
-        exported.AssignedTo.Should().Equal(ProcedureMapper.DeletedUser);
+        exported.AssignedTo.Should().Equal(PathwayMapper.DeletedUser);
         exported.Stages.Select(s => s.Order).Should().Equal(1, 2, 3);
         exported.Stages[0].Name.Should().Be(later.Stages[0].Name);
         exported.Stages[0].FinishedAtUtc.Should().Be(later.Stages[0].CompletedAtUtc);
         exported.Stages[0].StartedBy.Should().NotBeNull();
-        export.Procedures[0].Stages.Should().BeEmpty();
-        export.Procedures[0].AssignedTo.Should().BeEmpty();
+        export.Pathways[0].Stages.Should().BeEmpty();
+        export.Pathways[0].AssignedTo.Should().BeEmpty();
 
-        var history = export.ProcedureHistory.Should().HaveCount(2).And.Subject.First();
+        var history = export.PathwayHistory.Should().HaveCount(2).And.Subject.First();
         history.Username.Should().Be(Staff.Username);
         history.Action.Should().Be("Created");
-        history.ProcedureTitle.Should().Be(record.ProcedureHistory[0].ProcedureTitle);
-        history.Details.Should().Be(record.ProcedureHistory[0].Details);
+        history.PathwayTitle.Should().Be(record.PathwayHistory[0].PathwayTitle);
+        history.Details.Should().Be(record.PathwayHistory[0].Details);
         var access = export.AccessLog.Should().ContainSingle().Subject;
         access.Username.Should().Be(Staff.Username);
         access.Action.Should().Be("PatientViewed");
         access.AtUtc.Should().Be(record.Activity[0].AtUtc);
 
         var notification = export.Notifications[1];
-        notification.Kind.Should().Be(nameof(NotificationKind.ProcedureAssigned));
-        notification.Username.Should().Be(ProcedureMapper.DeletedUser, "the lookup didn't know them");
+        notification.Kind.Should().Be(nameof(NotificationKind.PathwayAssigned));
+        notification.Username.Should().Be(PathwayMapper.DeletedUser, "the lookup didn't know them");
         notification.Title.Should().Be(record.Notifications[1].Title);
         notification.Message.Should().Be(record.Notifications[1].Message);
-        notification.ProcedureId.Should().Be(earlier.Id);
+        notification.PathwayId.Should().Be(earlier.Id);
         notification.CreatedAtUtc.Should().Be(record.Notifications[1].CreatedAtUtc);
     }
 
     [Test]
     public void ToResponse_NamesStaffByUsernameOnly_LeavingOutTheirIdsAddressesAndReadTimes()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress, finishedStages: 1));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress, finishedStages: 1));
         record.Notifications[0].ReadAtUtc = Now;
         var entry = record.Activity[0];
         var withAddress = new MedApp.Domain.Activity.ActivityEntry
@@ -122,8 +122,8 @@ public sealed class PatientExportMapperTests
         var withAddressRecord = new PatientRecord
         {
             Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory = record.ProcedureHistory,
+            Pathways = record.Pathways,
+            PathwayHistory = record.PathwayHistory,
             Activity = [withAddress],
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
@@ -145,7 +145,7 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_KnownRecipient_IsNamed()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure());
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway());
 
         var export = PatientExportMapper.ToResponse(record, Usernames, Now, "exporter");
 
@@ -155,14 +155,14 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_MonitoringNotification_IsLeftOut_WithItsAdmin()
     {
-        var procedure = CreateProcedure();
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway();
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var monitoringAdmin = Guid.NewGuid();
         var withMonitoring = new PatientRecord
         {
             Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory = record.ProcedureHistory,
+            Pathways = record.Pathways,
+            PathwayHistory = record.PathwayHistory,
             Activity = record.Activity,
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
@@ -172,8 +172,8 @@ public sealed class PatientExportMapperTests
                 new Notification
                 {
                     Id = Guid.NewGuid(), UserId = monitoringAdmin, Kind = NotificationKind.MonitoredStageFinished,
-                    Title = "Stage finished", Message = "test.staff finished a stage on a Medium priority Test template procedure.",
-                    ProcedureId = procedure.Id, CreatedAtUtc = Now,
+                    Title = "Stage finished", Message = "test.staff finished a stage on a Medium priority Test template pathway.",
+                    PathwayId = pathway.Id, CreatedAtUtc = Now,
                 },
             ],
             NoteVersions = [],
@@ -183,7 +183,7 @@ public sealed class PatientExportMapperTests
 
         var export = PatientExportMapper.ToResponse(withMonitoring, Usernames, Now, "exporter");
 
-        export.Notifications.Should().ContainSingle().Which.Kind.Should().Be(nameof(NotificationKind.ProcedureAssigned));
+        export.Notifications.Should().ContainSingle().Which.Kind.Should().Be(nameof(NotificationKind.PathwayAssigned));
         PatientExportMapper.UserIds(withMonitoring).Should().NotContain(monitoringAdmin);
         // Anonymisation still finds it: it's in the record, only the export leaves it out.
         withMonitoring.Notifications.Should().HaveCount(2);
@@ -225,7 +225,7 @@ public sealed class PatientExportMapperTests
     [Test]
     public void UserIds_IncludeEveryoneNamedOnAppointments()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         var appointment = record.Appointments.Single();
         var with = Guid.NewGuid();
         var outcomeBy = Guid.NewGuid();
@@ -239,8 +239,8 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_Appointments_AreExportedWithTheirHistory_StaffByUsername()
     {
-        var procedure = CreateProcedure(Status.InProgress);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.InProgress);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var appointment = record.Appointments.Single();
         appointment.StaffUserId = Admin.UserId;
         appointment.StartUtc = Now.AddDays(1);
@@ -253,8 +253,8 @@ public sealed class PatientExportMapperTests
 
         var exported = export.Appointments.Should().ContainSingle().Subject;
         exported.Id.Should().Be(appointment.Id);
-        exported.ProcedureId.Should().Be(procedure.Id);
-        exported.StageName.Should().Be(procedure.StageAt(1).Name);
+        exported.PathwayId.Should().Be(pathway.Id);
+        exported.StageName.Should().Be(pathway.StageAt(1).Name);
         exported.Status.Should().Be("Cancelled");
         exported.StaffUsername.Should().Be(Admin.Username);
         exported.StartUtc.Should().Be(appointment.StartUtc);
@@ -266,31 +266,31 @@ public sealed class PatientExportMapperTests
         exported.IsRecordedAfterEvent.Should().BeFalse();
         export.AppointmentHistory.Select(e => e.Action).Should().Equal("NotesUpdated", "Cancelled");
         export.AppointmentHistory.Should().OnlyContain(e => e.AppointmentId == appointment.Id && e.Username == Staff.Username
-                                                            && e.ProcedureTitle == procedure.Title);
+                                                            && e.PathwayTitle == pathway.Title);
     }
 
     [Test]
     public void ToResponse_AppointmentWithADeletedStaffMember_NamesThemAsDeleted()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         record.Appointments.Single().StaffUserId = Guid.NewGuid();
 
         var export = PatientExportMapper.ToResponse(record, new Dictionary<Guid, string>(), Now, "exporter");
 
-        export.Appointments.Single().StaffUsername.Should().Be(ProcedureMapper.DeletedUser);
-        export.Appointments.Single().CreatedBy.Should().Be(ProcedureMapper.DeletedUser);
+        export.Appointments.Single().StaffUsername.Should().Be(PathwayMapper.DeletedUser);
+        export.Appointments.Single().CreatedBy.Should().Be(PathwayMapper.DeletedUser);
     }
 
     [Test]
     public void ToResponse_AppointmentNotification_CarriesTheAppointment()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         var appointmentId = record.Appointments.Single().Id;
         var withAppointment = new PatientRecord
         {
             Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory = record.ProcedureHistory,
+            Pathways = record.Pathways,
+            PathwayHistory = record.PathwayHistory,
             Activity = record.Activity,
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
@@ -311,13 +311,13 @@ public sealed class PatientExportMapperTests
 
         var notification = export.Notifications.Single();
         notification.AppointmentId.Should().Be(appointmentId);
-        notification.ProcedureId.Should().BeNull();
+        notification.PathwayId.Should().BeNull();
     }
 
     [Test]
     public void ToResponse_Appointments_HoldNoAccountIds()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         record.Appointments.Single().StaffUserId = Admin.UserId;
 
         var json = System.Text.Json.JsonSerializer.Serialize(
@@ -330,19 +330,19 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_HistoryDetails_HoldNoStaffAccountIds_ButKeepTheirUsernames()
     {
-        var procedure = CreateProcedure(Status.InProgress);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.InProgress);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var appointmentEvent = record.AppointmentHistory[0];
         var withIds = new PatientRecord
         {
             Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory =
+            Pathways = record.Pathways,
+            PathwayHistory =
             [
-                .. record.ProcedureHistory,
-                HistoryEntry(procedure, PatientProcedureAuditAction.Assigned,
+                .. record.PathwayHistory,
+                HistoryEntry(pathway, PatientPathwayAuditAction.Assigned,
                     $$"""{"userId":"{{Staff.UserId}}","username":"{{Staff.Username}}"}"""),
-                HistoryEntry(procedure, PatientProcedureAuditAction.Unassigned,
+                HistoryEntry(pathway, PatientPathwayAuditAction.Unassigned,
                     $$"""{"userId":"{{Admin.UserId}}","username":"{{Admin.Username}}"}"""),
             ],
             Activity =
@@ -360,7 +360,7 @@ public sealed class PatientExportMapperTests
                 new AppointmentEvent
                 {
                     Id = Guid.NewGuid(), AppointmentId = appointmentEvent.AppointmentId, PatientId = appointmentEvent.PatientId,
-                    ProcedureId = procedure.Id, ProcedureTitle = procedure.Title, Action = AppointmentEventAction.Rescheduled,
+                    PathwayId = pathway.Id, PathwayTitle = pathway.Title, Action = AppointmentEventAction.Rescheduled,
                     UserId = Admin.UserId, Username = Admin.Username, AtUtc = Now,
                     Details = $$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUserId":"{{Staff.UserId}}","previousStaffUsername":"{{Staff.Username}}"}"""
                 }
@@ -376,9 +376,9 @@ public sealed class PatientExportMapperTests
             export, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
 
         json.Should().NotContainEquivalentOf(Staff.UserId.ToString()).And.NotContainEquivalentOf(Admin.UserId.ToString());
-        export.ProcedureHistory[1].Details.Should().Be($$"""{"username":"{{Staff.Username}}"}""");
-        export.ProcedureHistory[2].Details.Should().Be($$"""{"username":"{{Admin.Username}}"}""");
-        export.ProcedureHistory[0].Details.Should().Be(record.ProcedureHistory[0].Details, "it has no IDs, so it's as stored");
+        export.PathwayHistory[1].Details.Should().Be($$"""{"username":"{{Staff.Username}}"}""");
+        export.PathwayHistory[2].Details.Should().Be($$"""{"username":"{{Admin.Username}}"}""");
+        export.PathwayHistory[0].Details.Should().Be(record.PathwayHistory[0].Details, "it has no IDs, so it's as stored");
         export.AppointmentHistory.Single().Details.Should()
             .Be($$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUsername":"{{Staff.Username}}"}""");
         export.AccessLog.Single().Details.Should().Be("""{"fields":["email"]}""");
@@ -414,22 +414,22 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_DeletedNoteAndRequests_AreListedWithWhenWhoAndWhy()
     {
-        var procedure = CreateProcedure(Status.InProgress);
-        var deleted = procedure.AddNote();
-        var kept = procedure.AddNote(text: "Synthetic second note.", createdAt: Now.AddDays(-1));
-        var approved = procedure.RequestDeletion(deleted);
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
+        var pathway = CreatePathway(Status.InProgress);
+        var deleted = pathway.AddNote();
+        var kept = pathway.AddNote(text: "Synthetic second note.", createdAt: Now.AddDays(-1));
+        var approved = pathway.RequestDeletion(deleted);
+        new PathwayChange(pathway, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
         approved.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
-        var declined = procedure.RequestDeletion(kept, new ProcedureActor(OtherUserId, OtherUsername));
+        var declined = pathway.RequestDeletion(kept, new PathwayActor(OtherUserId, OtherUsername));
         declined.Close(NoteDeletionRequestStatus.Declined, Admin.UserId, Admin.Username, Now);
-        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, procedure), approved, declined);
+        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, pathway), approved, declined);
         var usernames = new Dictionary<Guid, string> { [Admin.UserId] = Admin.Username };
 
         PatientExportMapper.UserIds(record).Should().Contain(Admin.UserId);
         var export = PatientExportMapper.ToResponse(record, usernames, Now, "exporter");
 
         // The deleted note is still exported, saying it was deleted; the kept one isn't.
-        export.Procedures.Single().Notes.Should().BeEquivalentTo(
+        export.Pathways.Single().Notes.Should().BeEquivalentTo(
         [
             new
             {
@@ -446,23 +446,23 @@ public sealed class PatientExportMapperTests
         [
             new
             {
-                approved.Id, NoteId = deleted.Id, ProcedureId = procedure.Id, RequestedBy = Staff.Username,
+                approved.Id, NoteId = deleted.Id, PathwayId = pathway.Id, RequestedBy = Staff.Username,
                 approved.RequestedAtUtc, Reason = "WrongPatient", Detail = DeletionDetail, Status = "Approved", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
             },
             new
             {
-                declined.Id, NoteId = kept.Id, ProcedureId = procedure.Id, RequestedBy = OtherUsername,
+                declined.Id, NoteId = kept.Id, PathwayId = pathway.Id, RequestedBy = OtherUsername,
                 declined.RequestedAtUtc, Reason = "WrongPatient", Detail = DeletionDetail, Status = "Declined", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
             },
         ], o => o.WithStrictOrdering());
     }
 
-    private static PatientProcedureAuditEntry HistoryEntry(PatientProcedure procedure, PatientProcedureAuditAction action, string details) => new()
+    private static PatientPathwayAuditEntry HistoryEntry(PatientPathway pathway, PatientPathwayAuditAction action, string details) => new()
     {
         Id = Guid.NewGuid(),
-        PatientProcedureId = procedure.Id,
-        ProcedureTitle = procedure.Title,
-        PatientId = procedure.PatientId,
+        PatientPathwayId = pathway.Id,
+        PathwayTitle = pathway.Title,
+        PatientId = pathway.PatientId,
         Action = action,
         UserId = Admin.UserId,
         Username = Admin.Username,
@@ -473,7 +473,7 @@ public sealed class PatientExportMapperTests
     [Test]
     public void ToResponse_AnAppointmentRecordedAfterTheEvent_SaysSo()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         record.Appointments.Single().IsRecordedAfterEvent = true;
 
         PatientExportMapper.ToResponse(record, new Dictionary<Guid, string>(), Now, "exporter")

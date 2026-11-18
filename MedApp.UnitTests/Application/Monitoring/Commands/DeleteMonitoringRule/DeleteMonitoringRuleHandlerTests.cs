@@ -17,7 +17,7 @@ public sealed class DeleteMonitoringRuleHandlerTests : MonitoringHandlerTestBase
     [Test]
     public async Task Handle_TheirRule_DeletesIt()
     {
-        var rule = CreateRule(MonitoringEvent.ProcedureBlocked, id: RuleId);
+        var rule = CreateRule(MonitoringEvent.PathwayBlocked, id: RuleId);
         Rules.Setup(r => r.GetAsync(RuleId, OwnerId, It.IsAny<CancellationToken>())).ReturnsAsync(rule);
         using var cts = new CancellationTokenSource();
 

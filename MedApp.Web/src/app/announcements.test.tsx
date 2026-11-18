@@ -14,7 +14,7 @@ function Announces({messages}: {messages: string[]}) {
 function Titled() {
   const [title, setTitle] = useState('Patients');
   usePageTitle(title, true);
-  return <button type="button" onClick={() => setTitle('Procedures')}>Next page</button>;
+  return <button type="button" onClick={() => setTitle('Pathways')}>Next page</button>;
 }
 
 describe('announcements', () => {
@@ -48,14 +48,14 @@ describe('announcements', () => {
 
     await user.click(screen.getByRole('button', {name: 'Next page'}));
     await act(() => vi.advanceTimersByTimeAsync(200));
-    expect(document.title).toBe('Procedures - MedApp');
-    expect(announcer()).toHaveTextContent('Procedures page');
+    expect(document.title).toBe('Pathways - MedApp');
+    expect(announcer()).toHaveTextContent('Pathways page');
   });
   it('names the page beside in a half view without retitling the tab, and says it opened beside', async () => {
     function Beside() {
       const [title, setTitle] = useState('Patients');
       usePageTitle(title, false);
-      return <button type="button" onClick={() => setTitle('Procedures')}>Next page</button>;
+      return <button type="button" onClick={() => setTitle('Pathways')}>Next page</button>;
     }
     document.title = 'Home - MedApp';
     const {user} = renderWithApp(<Beside />);
@@ -65,7 +65,7 @@ describe('announcements', () => {
     await act(() => vi.advanceTimersByTimeAsync(200));
 
     expect(document.title).toBe('Home - MedApp');
-    expect(announcer()).toHaveTextContent('Procedures page, opened beside');
+    expect(announcer()).toHaveTextContent('Pathways page, opened beside');
   });
 
   it('does nothing outside the announcer (a part tested on its own)', () => {

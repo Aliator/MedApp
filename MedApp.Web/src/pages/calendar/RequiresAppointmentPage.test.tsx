@@ -12,13 +12,13 @@ function renderPage(search: RequiresAppointmentSearch = {}, handlers: Parameters
     'GET /api/appointments/search': () =>
       json(
         pageOf([
-          testRequested({id: 'req-1', procedureDueDate: '2026-11-20', isAutomatic: true}),
-          testRequested({id: 'req-2', patientName: 'Alex Sample', procedureId: null, procedureTitle: null, stageName: null, procedureDueDate: null, visitRequirement: null}),
+          testRequested({id: 'req-1', pathwayDueDate: '2026-11-20', isAutomatic: true}),
+          testRequested({id: 'req-2', patientName: 'Alex Sample', pathwayId: null, pathwayTitle: null, stageName: null, pathwayDueDate: null, visitRequirement: null}),
         ]),
       ),
     'GET /api/calendar/staff': () => json([STAFF_ME, STAFF_OTHER]),
     'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
-    'GET /api/procedures/patient-procedures/procedure-1': () => json({id: 'procedure-1', assignments: [{userId: STAFF_OTHER.userId, username: 'b.staff'}]}),
+    'GET /api/pathways/patient-pathways/pathway-1': () => json({id: 'pathway-1', assignments: [{userId: STAFF_OTHER.userId, username: 'b.staff'}]}),
     'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
@@ -42,19 +42,19 @@ describe('RequiresAppointmentPage', () => {
     expect(await screen.findByRole('heading', {name: 'Requires Appointment', level: 1})).toBeInTheDocument();
     expect(await screen.findByText('2 appointments to book')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
-    expect(screen.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', '/procedures/procedure-1');
+    expect(screen.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', '/pathways/pathway-1');
     expect(screen.getByText('Assessment')).toBeInTheDocument();
     expect(screen.getByText('Visit required')).toBeInTheDocument();
     expect(screen.getByText('Overdue')).toBeInTheDocument();
     expect(screen.getByText('Automatic')).toBeInTheDocument();
     expect(screen.getByText('Appointment')).toBeInTheDocument();
-    // No procedure, so no due date: a dash, as other lists show a missing value.
+    // No pathway, so no target date: a dash, as other lists show a missing value.
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(screen.queryByText('None')).not.toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/appointments/search?Statuses=Requested&Page=1&PageSize=10&Sort=dueDate&Ascending=true');
   });
 
-  it("books one, suggesting the procedure's only assignee", async () => {
+  it("books one, suggesting the pathway's only assignee", async () => {
     const {user} = renderPage();
 
     const rows = await screen.findAllByRole('button', {name: 'Book'});

@@ -18,7 +18,7 @@ public sealed class MonitoringRuleConfiguration : IEntityTypeConfiguration<Monit
         // An admin's own rules, for their Monitoring page.
         builder.HasIndex(rule => rule.OwnerUserId);
 
-        // The switched-on rules for a change's events, read on every procedure change that has one.
+        // The switched-on rules for a change's events, read on every pathway change that has one.
         builder.HasIndex(rule => new { rule.Event, rule.IsEnabled });
     }
 }

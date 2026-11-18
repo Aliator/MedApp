@@ -13,8 +13,8 @@ public sealed class AttachmentConfiguration : IEntityTypeConfiguration<Attachmen
 
         builder.HasKey(x => x.Id);
 
-        // No foreign keys, as with the audit log: a file's record must outlive its patient, procedure or stage until
-        // its bytes are purged, or nothing would know they're there. Deleting a patient or procedure with live files
+        // No foreign keys, as with the audit log: a file's record must outlive its patient, pathway or stage until
+        // its bytes are purged, or nothing would know they're there. Deleting a patient or pathway with live files
         // is refused (409) instead.
         builder.Property(x => x.FileName)
             .IsRequired()
@@ -39,9 +39,9 @@ public sealed class AttachmentConfiguration : IEntityTypeConfiguration<Attachmen
 
         builder.Ignore(x => x.IsDeleted);
 
-        // A patient's files, newest first; a procedure's and a stage's; and the deleted ones, for the purge.
+        // A patient's files, newest first; a pathway's and a stage's; and the deleted ones, for the purge.
         builder.HasIndex(x => new { x.PatientId, x.UploadedAtUtc });
-        builder.HasIndex(x => x.ProcedureId);
+        builder.HasIndex(x => x.PathwayId);
         builder.HasIndex(x => x.StageId);
         builder.HasIndex(x => x.DeletedAtUtc);
     }

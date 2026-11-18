@@ -21,7 +21,7 @@ public static class DemoMonitoring
     public static async Task<List<RuleState>> CreateAsync(
         SeedServices services,
         IReadOnlyList<StaffMember> staff,
-        IReadOnlyDictionary<Pathway, Guid> templates,
+        IReadOnlyDictionary<PathwayKind, Guid> templates,
         IReadOnlyDictionary<string, Guid> stageDefinitions,
         DemoTimeline timeline,
         CancellationToken ct)
@@ -32,23 +32,23 @@ public static class DemoMonitoring
 
         var leadRules = new Rule[]
         {
-            new(Id(DemoStaff.NewStarterUsername), MonitoringEvent.ProcedureCreated),
+            new(Id(DemoStaff.NewStarterUsername), MonitoringEvent.PathwayCreated),
             // Two rules that name a stage: the dermatologist's treatment on high-priority work, and the lab's reports on urgent work.
-            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.StageFinished, "High", Stage: stageDefinitions[DemoPathways.Treatment]),
-            new(null, MonitoringEvent.StageFinished, "Urgent", Stage: stageDefinitions[DemoPathways.Histology]),
-            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.ProcedureBlocked),
-            new(Id(DemoStaff.SkinGpUsername), MonitoringEvent.ProcedureBlocked),
-            new(null, MonitoringEvent.ProcedureBlocked, Template: templates[Pathway.PostMenopausalBleeding]),
+            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.StageFinished, "High", Stage: stageDefinitions[DemoPathwayKinds.Treatment]),
+            new(null, MonitoringEvent.StageFinished, "Urgent", Stage: stageDefinitions[DemoPathwayKinds.Histology]),
+            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.PathwayBlocked),
+            new(Id(DemoStaff.SkinGpUsername), MonitoringEvent.PathwayBlocked),
+            new(null, MonitoringEvent.PathwayBlocked, Template: templates[PathwayKind.PostMenopausalBleeding]),
             new(null, MonitoringEvent.DueDateChanged),
             // Switched off later: the lead stopped wanting every unlock by the service manager.
             new(manager.Id, MonitoringEvent.StageUnlocked),
         };
         var managerRules = new Rule[]
         {
-            new(null, MonitoringEvent.ProcedureCreated, "Urgent", templates[Pathway.PostMenopausalBleeding]),
-            new(null, MonitoringEvent.ProcedureCancelled),
-            new(null, MonitoringEvent.ProcedureCompleted, Template: templates[Pathway.Biomechanics]),
-            new(lead.Id, MonitoringEvent.ProcedureAssigned),
+            new(null, MonitoringEvent.PathwayCreated, "Urgent", templates[PathwayKind.PostMenopausalBleeding]),
+            new(null, MonitoringEvent.PathwayCancelled),
+            new(null, MonitoringEvent.PathwayCompleted, Template: templates[PathwayKind.Biomechanics]),
+            new(lead.Id, MonitoringEvent.PathwayAssigned),
         };
 
         var created = new List<(Guid Id, DateTime At)>();

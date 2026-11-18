@@ -1,7 +1,7 @@
 using MedApp.Application.Appointments.Queries.SearchAppointments;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
 namespace MedApp.UnitTests.Common.Constants;
@@ -13,12 +13,12 @@ namespace MedApp.UnitTests.Common.Constants;
 public static class AppointmentsTestConstants
 {
     /// <summary>The member of staff the appointments are with, acting on their own.</summary>
-    public static readonly ProcedureActor Self = new(StaffUserId, StaffUsername);
+    public static readonly PathwayActor Self = new(StaffUserId, StaffUsername);
 
     /// <summary>Someone else, changing the member of staff's appointments.</summary>
-    public static readonly ProcedureActor Colleague = new(Guid.Parse("0000000b-0000-0000-0000-000000000003"), "calendar.colleague");
+    public static readonly PathwayActor Colleague = new(Guid.Parse("0000000b-0000-0000-0000-000000000003"), "calendar.colleague");
 
-    public const string ProcedureTitle = "Synthetic procedure";
+    public const string PathwayTitle = "Synthetic pathway";
     public const string StageName = "Synthetic visit";
     public const string Notes = "Synthetic appointment notes.";
     public const string OtherNotes = "Other synthetic appointment notes.";
@@ -46,21 +46,21 @@ public static class AppointmentsTestConstants
     public static SearchAppointmentsQuery CreateSearchQuery() =>
         new(DefaultPage, DefaultPageSize, null, true, null, null, null, null, null, null, null, null);
 
-    /// <summary>A procedure for the appointment's patient, with the appointment linked to its first stage.</summary>
-    public static PatientProcedure LinkToProcedure(
+    /// <summary>A pathway for the appointment's patient, with the appointment linked to its first stage.</summary>
+    public static PatientPathway LinkToPathway(
         Appointment appointment,
-        PatientProcedureStatus status = PatientProcedureStatus.Assigned,
+        PatientPathwayStatus status = PatientPathwayStatus.Assigned,
         VisitRequirement requirement = VisitRequirement.Required)
     {
-        var procedure = ProceduresTestConstants.CreateProcedure(status, patient: appointment.Patient, title: ProcedureTitle);
-        var stage = procedure.StageAt(1);
+        var pathway = PathwaysTestConstants.CreatePathway(status, patient: appointment.Patient, title: PathwayTitle);
+        var stage = pathway.StageAt(1);
         stage.Name = StageName;
         stage.VisitRequirement = requirement;
 
-        appointment.ProcedureId = procedure.Id;
-        appointment.Procedure = procedure;
+        appointment.PathwayId = pathway.Id;
+        appointment.Pathway = pathway;
         appointment.StageId = stage.Id;
         appointment.Stage = stage;
-        return procedure;
+        return pathway;
     }
 }

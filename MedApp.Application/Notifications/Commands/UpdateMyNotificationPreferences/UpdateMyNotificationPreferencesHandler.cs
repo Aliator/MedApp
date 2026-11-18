@@ -12,12 +12,12 @@ public sealed class UpdateMyNotificationPreferencesHandler(INotificationPreferen
     public async Task<NotificationPreferencesResponse> Handle(UpdateMyNotificationPreferencesCommand request, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        await repository.SaveAsync(request.UserId, request.ProcedureAssigned, now, cancellationToken);
+        await repository.SaveAsync(request.UserId, request.PathwayAssigned, now, cancellationToken);
 
         return NotificationMapper.ToResponse(new NotificationPreferences
         {
             UserId = request.UserId,
-            ProcedureAssigned = request.ProcedureAssigned,
+            PathwayAssigned = request.PathwayAssigned,
             UpdatedAtUtc = now
         });
     }

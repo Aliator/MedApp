@@ -2,7 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MediatR;
@@ -25,7 +25,7 @@ public sealed class RecordAppointmentOutcomeHandler(
 
         var staffUsername = await identityReadService.GetStaffUsernameAsync(appointment, cancellationToken);
         var change = new AppointmentChange(appointment, request.Actor, now, staffUsername);
-        change.RecordOutcome(ProcedureEnums.Parse<AppointmentStatus>(request.Outcome));
+        change.RecordOutcome(PathwayEnums.Parse<AppointmentStatus>(request.Outcome));
 
         if (change.HasChanges)
             await repository.SaveAsync(change.Events, cancellationToken);

@@ -14,7 +14,7 @@ public static class NotificationMapper
         notification.Kind.ToString(),
         notification.Title,
         notification.Message,
-        notification.ProcedureId,
+        notification.PathwayId,
         notification.CreatedAtUtc,
         notification.ReadAtUtc is not null,
         notification.AppointmentId,
@@ -24,5 +24,5 @@ public static class NotificationMapper
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>
     public static NotificationPreferencesResponse ToResponse(NotificationPreferences preferences) =>
-        new(preferences.ProcedureAssigned);
+        new(preferences.PathwayAssigned);
 }

@@ -230,42 +230,42 @@ public sealed class AppointmentWorkflowTests
         AppointmentWorkflow.Describe(AppointmentStatus.EnteredInError).Should().Be("entered in error");
     }
 
-    // A walk-in for a procedure
+    // A walk-in for a pathway
 
     [Test]
     public void WhyStageNotReached_TheCurrentStageOrAnEarlierOne_IsNull_ALaterOneIsNamed()
     {
-        var procedure = MedApp.UnitTests.Common.Constants.ProceduresTestConstants.CreateProcedure(MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus.Assigned, finishedStages: 1);
+        var pathway = MedApp.UnitTests.Common.Constants.PathwaysTestConstants.CreatePathway(MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus.Assigned, finishedStages: 1);
 
-        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(1)).Should().BeNull();
-        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(2)).Should().BeNull();
-        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(3)).Should()
-            .Be($"The '{procedure.StageAt(3).Name}' stage hasn't been reached yet: the current stage is '{procedure.StageAt(2).Name}'. Record the visit for that stage, or without one.");
+        AppointmentWorkflow.WhyStageNotReached(pathway, pathway.StageAt(1)).Should().BeNull();
+        AppointmentWorkflow.WhyStageNotReached(pathway, pathway.StageAt(2)).Should().BeNull();
+        AppointmentWorkflow.WhyStageNotReached(pathway, pathway.StageAt(3)).Should()
+            .Be($"The '{pathway.StageAt(3).Name}' stage hasn't been reached yet: the current stage is '{pathway.StageAt(2).Name}'. Record the visit for that stage, or without one.");
     }
 
     [Test]
     public void WhyStageNotReached_EveryStageFinished_IsNullForAny()
     {
-        var procedure = MedApp.UnitTests.Common.Constants.ProceduresTestConstants.CreateProcedure(MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus.InReview, finishedStages: 3);
+        var pathway = MedApp.UnitTests.Common.Constants.PathwaysTestConstants.CreatePathway(MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus.InReview, finishedStages: 3);
 
-        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(3)).Should().BeNull();
+        AppointmentWorkflow.WhyStageNotReached(pathway, pathway.StageAt(3)).Should().BeNull();
     }
 
     [Test]
-    public void BeforeProcedureMessage_SaysWhenItWasCreated()
+    public void BeforePathwayMessage_SaysWhenItWasCreated()
     {
-        AppointmentWorkflow.BeforeProcedureMessage(At(Today, 11)).Should().Be(
-            "This visit was before the day the procedure was created (Monday 16 November at 11:00). Record it without the procedure, or for the procedure it was for.");
+        AppointmentWorkflow.BeforePathwayMessage(At(Today, 11)).Should().Be(
+            "This visit was before the day the pathway was created (Monday 16 November at 11:00). Record it without the pathway, or for the pathway it was for.");
     }
 
     [Test]
-    public void IsBeforeProcedure_ComparesUkDays()
+    public void IsBeforePathway_ComparesUkDays()
     {
         var created = At(Today, 10);
 
-        AppointmentWorkflow.IsBeforeProcedure(At(Today, 9), created).Should().BeFalse("earlier on the same day counts");
-        AppointmentWorkflow.IsBeforeProcedure(At(Today, 8), created).Should().BeFalse();
-        AppointmentWorkflow.IsBeforeProcedure(At(Today.AddDays(-1), 17), created).Should().BeTrue();
+        AppointmentWorkflow.IsBeforePathway(At(Today, 9), created).Should().BeFalse("earlier on the same day counts");
+        AppointmentWorkflow.IsBeforePathway(At(Today, 8), created).Should().BeFalse();
+        AppointmentWorkflow.IsBeforePathway(At(Today.AddDays(-1), 17), created).Should().BeTrue();
     }
 
     [TestCase("", "Seen.", "Seen.")]

@@ -2,7 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Attachments.Common;
 using MedApp.Domain.Attachments;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Common;
 
@@ -12,20 +12,20 @@ public sealed class AttachmentMapperTests
     [Test]
     public void ToResponse_StageFile_MapsEveryField()
     {
-        var procedure = CreateProcedure();
-        var attachment = AttachmentOn(procedure, stageOrder: 2);
+        var pathway = CreatePathway();
+        var attachment = AttachmentOn(pathway, stageOrder: 2);
 
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, ProcedureTitle, ProcedureStage), Staff.UserId, isAdmin: false);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, PathwayTitle, PathwayStage), Staff.UserId, isAdmin: false);
 
         response.Should().BeEquivalentTo(new
         {
             attachment.Id,
             attachment.PatientId,
             AttachedTo = "Stage",
-            ProcedureId = procedure.Id,
-            ProcedureTitle,
-            StageId = procedure.StageAt(2).Id,
-            StageName = ProcedureStage,
+            PathwayId = pathway.Id,
+            PathwayTitle,
+            StageId = pathway.StageAt(2).Id,
+            StageName = PathwayStage,
             attachment.FileName,
             attachment.ContentType,
             TypeName = "PDF",
@@ -43,26 +43,26 @@ public sealed class AttachmentMapperTests
     }
 
     [Test]
-    public void ToResponse_PatientFile_HasNoProcedureOrStage()
+    public void ToResponse_PatientFile_HasNoPathwayOrStage()
     {
         var response = AttachmentMapper.ToResponse(new AttachmentRow(CreateAttachment(), "stray", "stray"), Staff.UserId, false);
 
         response.AttachedTo.Should().Be("Patient");
-        response.ProcedureId.Should().BeNull();
-        response.ProcedureTitle.Should().BeNull();
+        response.PathwayId.Should().BeNull();
+        response.PathwayTitle.Should().BeNull();
         response.StageName.Should().BeNull();
     }
 
     [Test]
-    public void ToResponse_ProcedureFile_HasItsTitleButNoStage()
+    public void ToResponse_PathwayFile_HasItsTitleButNoStage()
     {
-        var procedure = CreateProcedure();
-        var target = new AttachmentTarget(procedure.PatientId, procedure, null);
+        var pathway = CreatePathway();
+        var target = new AttachmentTarget(pathway.PatientId, pathway, null);
 
-        var response = AttachmentMapper.ToResponse(AttachmentOn(procedure), target, Staff.UserId, false);
+        var response = AttachmentMapper.ToResponse(AttachmentOn(pathway), target, Staff.UserId, false);
 
-        response.AttachedTo.Should().Be("Procedure");
-        response.ProcedureTitle.Should().Be(ProcedureTitle);
+        response.AttachedTo.Should().Be("Pathway");
+        response.PathwayTitle.Should().Be(PathwayTitle);
         response.StageId.Should().BeNull();
     }
 

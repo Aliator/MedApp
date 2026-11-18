@@ -44,7 +44,7 @@ export const notificationPreferencesQuery = queryOptions({
 export function useSaveNotificationPreferences() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: {procedureAssigned: boolean}) => unwrap(api.PUT('/api/notifications/preferences', {body})),
+    mutationFn: (body: {pathwayAssigned: boolean}) => unwrap(api.PUT('/api/notifications/preferences', {body})),
     onSuccess: (saved) => queryClient.setQueryData(notificationPreferencesKey, saved),
   });
 }

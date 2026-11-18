@@ -1,7 +1,7 @@
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -19,7 +19,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         if (patient is null)
             return null;
 
-        var procedures = await Tracking(context.PatientProcedures, forUpdate)
+        var pathways = await Tracking(context.PatientPathways, forUpdate)
             .Include(p => p.Assignments)
             .Include(p => p.Stages.OrderBy(s => s.StageOrder))
             .Include(p => p.Notes)
@@ -27,23 +27,23 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        // Keeps the patient with each procedure, as the mappers expect, also when read without tracking.
-        foreach (var procedure in procedures)
-            procedure.Patient = patient;
+        // Keeps the patient with each pathway, as the mappers expect, also when read without tracking.
+        foreach (var pathway in pathways)
+            pathway.Patient = patient;
 
-        var history = await Tracking(context.PatientProcedureAuditEntries, forUpdate)
+        var history = await Tracking(context.PatientPathwayAuditEntries, forUpdate)
             .Where(e => e.PatientId == patientId)
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
-        // Every version of every note, those of deleted procedures included.
-        var noteVersions = await Tracking(context.PatientProcedureNoteVersions, forUpdate)
+        // Every version of every note, those of deleted pathways included.
+        var noteVersions = await Tracking(context.PatientPathwayNoteVersions, forUpdate)
             .Where(v => v.PatientId == patientId)
             .OrderBy(v => v.AtUtc).ThenBy(v => v.Version).ThenBy(v => v.Id)
             .ToListAsync(ct);
 
-        // Requests to delete notes, with their reasons, those about deleted procedures included.
-        var noteDeletionRequests = await Tracking(context.ProcedureNoteDeletionRequests, forUpdate)
+        // Requests to delete notes, with their reasons, those about deleted pathways included.
+        var noteDeletionRequests = await Tracking(context.PathwayNoteDeletionRequests, forUpdate)
             .Where(r => r.PatientId == patientId)
             .OrderBy(r => r.RequestedAtUtc).ThenBy(r => r.Id)
             .ToListAsync(ct);
@@ -63,10 +63,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
-        // Notifications point at procedures, including ones since deleted, which only the audit still names, or at
+        // Notifications point at pathways, including ones since deleted, which only the audit still names, or at
         // appointments.
-        var procedureIds = procedures.Select(p => p.Id)
-            .Concat(history.Select(e => e.PatientProcedureId))
+        var pathwayIds = pathways.Select(p => p.Id)
+            .Concat(history.Select(e => e.PatientPathwayId))
             .Distinct()
             .ToList();
         var appointmentIds = appointments.Select(a => a.Id)
@@ -74,7 +74,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .Distinct()
             .ToList();
         var notifications = await Tracking(context.Notifications, forUpdate)
-            .Where(n => (n.ProcedureId != null && procedureIds.Contains(n.ProcedureId.Value))
+            .Where(n => (n.PathwayId != null && pathwayIds.Contains(n.PathwayId.Value))
                         || (n.AppointmentId != null && appointmentIds.Contains(n.AppointmentId.Value)))
             .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
             .ToListAsync(ct);
@@ -88,8 +88,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         return new PatientRecord
         {
             Patient = patient,
-            Procedures = procedures,
-            ProcedureHistory = history,
+            Pathways = pathways,
+            PathwayHistory = history,
             NoteVersions = noteVersions,
             NoteDeletionRequests = noteDeletionRequests,
             Activity = activity,
@@ -100,9 +100,9 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         };
     }
 
-    public async Task SaveAsync(ActivityEntry activity, IReadOnlyCollection<PatientProcedureAuditEntry> audit, CancellationToken ct)
+    public async Task SaveAsync(ActivityEntry activity, IReadOnlyCollection<PatientPathwayAuditEntry> audit, CancellationToken ct)
     {
-        context.PatientProcedureAuditEntries.AddRange(audit);
+        context.PatientPathwayAuditEntries.AddRange(audit);
         await SaveAsync(activity, ct);
     }
 

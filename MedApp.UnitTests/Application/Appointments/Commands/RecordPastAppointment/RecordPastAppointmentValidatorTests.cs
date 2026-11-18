@@ -34,9 +34,9 @@ public sealed class RecordPastAppointmentValidatorTests
     }
 
     [Test]
-    public void Validate_NoProcedureStageOrNotes_Passes()
+    public void Validate_NoPathwayStageOrNotes_Passes()
     {
-        _validator.ValidateNow(Valid() with { ProcedureId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { PathwayId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
     }
 
     [TestCase("Attended")]
@@ -62,9 +62,9 @@ public sealed class RecordPastAppointmentValidatorTests
     }
 
     [Test]
-    public void Validate_StageWithoutItsProcedure_Fails()
+    public void Validate_StageWithoutItsPathway_Fails()
     {
-        Errors(Valid() with { ProcedureId = null }).Should().Equal("A stage needs its procedure.");
+        Errors(Valid() with { PathwayId = null }).Should().Equal("A stage needs its pathway.");
     }
 
     [Test]

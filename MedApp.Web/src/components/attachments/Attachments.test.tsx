@@ -20,21 +20,21 @@ import {AttachmentsFold} from './AttachmentsFold';
 import {useAttachmentsState} from './useAttachmentsState';
 
 const patientId = '00000036-0000-0000-0000-000000000001';
-const procedureId = '00000036-0000-0000-0000-000000000002';
+const pathwayId = '00000036-0000-0000-0000-000000000002';
 const stageId = '00000036-0000-0000-0000-000000000003';
 const MB = 1024 * 1024;
 const LIST = '/api/attachments';
 /** The API's refusal while the patient's record is restricted (`PatientRules.RestrictedMessage`). */
 const RESTRICTED =
-  "This patient's record is restricted, so it can't be changed until an admin lifts the restriction. Its procedures can still be blocked or cancelled, with a reason.";
+  "This patient's record is restricted, so it can't be changed until an admin lifts the restriction. Its pathways can still be blocked or cancelled, with a reason.";
 
 let next = 0;
 const attachment = (fields: Partial<Attachment> = {}): Attachment => ({
   id: `00000036-0000-0000-0001-${String(++next).padStart(12, '0')}`,
   patientId,
   attachedTo: 'Patient',
-  procedureId: null,
-  procedureTitle: null,
+  pathwayId: null,
+  pathwayTitle: null,
   stageId: null,
   stageName: null,
   fileName: 'scan.pdf',
@@ -87,12 +87,12 @@ describe('Attachments', () => {
         fileName: 'referral.docx',
         typeName: 'Word document',
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        attachedTo: 'Procedure',
-        procedureId,
-        procedureTitle: 'Knee assessment',
+        attachedTo: 'Pathway',
+        pathwayId,
+        pathwayTitle: 'Knee assessment',
         sizeBytes: 2048,
       }),
-      attachment({fileName: 'notes.txt', attachedTo: 'Stage', procedureId, procedureTitle: 'Knee assessment', stageId, stageName: 'Consultation'}),
+      attachment({fileName: 'notes.txt', attachedTo: 'Stage', pathwayId, pathwayTitle: 'Knee assessment', stageId, stageName: 'Consultation'}),
     ];
     const fetch = mockList(files);
     render();
@@ -104,8 +104,8 @@ describe('Attachments', () => {
     expect(screen.getAllByText('Added by test.staff, 3 Nov 2026, 14:05')).toHaveLength(3);
     expect(screen.getByText('Attached to the patient')).toBeInTheDocument();
     expect(screen.getAllByRole('link', {name: 'Knee assessment'}).map((link) => link.getAttribute('href'))).toEqual([
-      `/procedures/${procedureId}`,
-      `/procedures/${procedureId}`,
+      `/pathways/${pathwayId}`,
+      `/pathways/${pathwayId}`,
     ]);
     expect(screen.getByText(/Attached to Consultation in/)).toBeInTheDocument();
     expect(screen.getByText('Scanned')).toBeInTheDocument();
@@ -122,9 +122,9 @@ describe('Attachments', () => {
     expect(download).toHaveAttribute('download');
   });
 
-  it("doesn't say what a procedure's or a stage's own files are attached to", async () => {
-    mockList([attachment({attachedTo: 'Procedure', procedureId, procedureTitle: 'Knee assessment'})]);
-    render({procedureId});
+  it("doesn't say what a pathway's or a stage's own files are attached to", async () => {
+    mockList([attachment({attachedTo: 'Pathway', pathwayId, pathwayTitle: 'Knee assessment'})]);
+    render({pathwayId});
 
     expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
     expect(screen.queryByText(/Attached to/)).not.toBeInTheDocument();
@@ -161,8 +161,8 @@ describe('Attachments', () => {
         uploadedByUsername: null,
         uploadedAtUtc: undefined,
         attachedTo: 'Stage',
-        procedureId,
-        procedureTitle: 'Knee assessment',
+        pathwayId,
+        pathwayTitle: 'Knee assessment',
         stageName: null,
         scanStatus: null,
         canDelete: undefined,
@@ -223,13 +223,13 @@ describe('Attachments', () => {
     it("shows why a file couldn't be deleted, until dismissed", async () => {
       withAnnouncements();
       const mine = attachment();
-      mockList([mine], {[`DELETE ${LIST}/${mine.id}`]: () => json({title: "Files can't be added to or removed from a procedure while it's cancelled."}, 409)});
+      mockList([mine], {[`DELETE ${LIST}/${mine.id}`]: () => json({title: "Files can't be added to or removed from a pathway while it's cancelled."}, 409)});
       const {user} = render();
 
       await user.click(await screen.findByRole('button', {name: 'Delete scan.pdf'}));
       await user.click(within(openDialog()!).getByRole('button', {name: 'Delete File'}));
 
-      const message = "scan.pdf could not be deleted. Files can't be added to or removed from a procedure while it's cancelled.";
+      const message = "scan.pdf could not be deleted. Files can't be added to or removed from a pathway while it's cancelled.";
       expect(await findAlert(message)).toBeInTheDocument();
       await expectAnnounced(message);
       await user.click(screen.getByRole('button', {name: 'Dismiss'}));
@@ -240,7 +240,7 @@ describe('Attachments', () => {
     it("hides Delete from staff for others' files, files elsewhere, and where files can't change", async () => {
       const files = [
         attachment({fileName: 'theirs.pdf', canDelete: false}),
-        attachment({fileName: 'on-procedure.pdf', attachedTo: 'Procedure', procedureId, procedureTitle: 'Knee assessment'}),
+        attachment({fileName: 'on-pathway.pdf', attachedTo: 'Pathway', pathwayId, pathwayTitle: 'Knee assessment'}),
       ];
       mockList(files);
       const {unmount} = render();
@@ -257,7 +257,7 @@ describe('Attachments', () => {
     });
 
     it('lets admins delete any file, anywhere, even where files no longer change', async () => {
-      mockList([attachment({attachedTo: 'Stage', stageId, procedureId, procedureTitle: 'Knee assessment', stageName: 'Consultation'})]);
+      mockList([attachment({attachedTo: 'Stage', stageId, pathwayId, pathwayTitle: 'Knee assessment', stageName: 'Consultation'})]);
       render({patientId}, {canChange: false, user: adminUser});
 
       expect(await screen.findByRole('button', {name: 'Delete scan.pdf'})).toBeInTheDocument();
@@ -357,7 +357,7 @@ describe('Attachments', () => {
     it('takes files dropped on it', async () => {
       const sent = stubXhr();
       mockList([]);
-      render({procedureId});
+      render({pathwayId});
       await screen.findByText('No files attached yet.');
 
       const zone = fileInput().parentElement!;
@@ -365,7 +365,7 @@ describe('Attachments', () => {
       fireEvent.drop(zone, {dataTransfer: {files: [file('scan.pdf')], types: ['Files']}});
 
       await waitFor(() => expect(sent).toHaveLength(1));
-      expect(sent[0].url).toBe(`/api/attachments?procedureId=${procedureId}`);
+      expect(sent[0].url).toBe(`/api/attachments?pathwayId=${pathwayId}`);
     });
 
     it('sends several files one after another, each with its own progress, and cancels one still waiting', async () => {

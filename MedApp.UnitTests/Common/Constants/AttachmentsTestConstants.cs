@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using MedApp.Application.Attachments.Common;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using SkiaSharp;
 
 namespace MedApp.UnitTests.Common.Constants;
@@ -82,7 +82,7 @@ public static class AttachmentsTestConstants
 
     public static Attachment CreateAttachment(
         Guid? uploadedBy = null,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null,
         bool deleted = false,
         bool hasThumbnail = false,
@@ -91,7 +91,7 @@ public static class AttachmentsTestConstants
     {
         Id = Guid.NewGuid(),
         PatientId = PatientId,
-        ProcedureId = procedureId,
+        PathwayId = pathwayId,
         StageId = stageId,
         FileName = fileName,
         ContentType = contentType,
@@ -99,17 +99,17 @@ public static class AttachmentsTestConstants
         Sha256 = new string('a', 64),
         ScanStatus = AttachmentScanStatus.NotScanned,
         HasThumbnail = hasThumbnail,
-        UploadedByUserId = uploadedBy ?? ProceduresTestConstants.Staff.UserId,
-        UploadedByUsername = ProceduresTestConstants.Staff.Username,
-        UploadedAtUtc = ProceduresTestConstants.Now.AddHours(-1),
-        DeletedAtUtc = deleted ? ProceduresTestConstants.Now.AddMinutes(-5) : null,
-        DeletedByUserId = deleted ? ProceduresTestConstants.Admin.UserId : null,
-        DeletedByUsername = deleted ? ProceduresTestConstants.Admin.Username : null,
+        UploadedByUserId = uploadedBy ?? PathwaysTestConstants.Staff.UserId,
+        UploadedByUsername = PathwaysTestConstants.Staff.Username,
+        UploadedAtUtc = PathwaysTestConstants.Now.AddHours(-1),
+        DeletedAtUtc = deleted ? PathwaysTestConstants.Now.AddMinutes(-5) : null,
+        DeletedByUserId = deleted ? PathwaysTestConstants.Admin.UserId : null,
+        DeletedByUsername = deleted ? PathwaysTestConstants.Admin.Username : null,
     };
 
-    /// <summary>An attachment on the procedure's stage at <paramref name="order"/> (1-based), or on the procedure itself.</summary>
-    public static Attachment AttachmentOn(PatientProcedure procedure, int? stageOrder = null, Guid? uploadedBy = null) =>
-        CreateAttachment(uploadedBy, procedure.Id, stageOrder is { } order ? procedure.StageAt(order).Id : null);
+    /// <summary>An attachment on the pathway's stage at <paramref name="order"/> (1-based), or on the pathway itself.</summary>
+    public static Attachment AttachmentOn(PatientPathway pathway, int? stageOrder = null, Guid? uploadedBy = null) =>
+        CreateAttachment(uploadedBy, pathway.Id, stageOrder is { } order ? pathway.StageAt(order).Id : null);
 
     /// <summary>The file types every test of "all of them" goes through.</summary>
     public static IEnumerable<(byte[] Bytes, string Name, AttachmentFileType Type)> EveryAllowedFile() =>

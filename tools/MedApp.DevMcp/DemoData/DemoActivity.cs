@@ -5,7 +5,7 @@ using MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Queries.SearchPatients;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Infrastructure.Common.Identity;
@@ -18,7 +18,7 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// The activity log over the last 60 days, in its own format, written with the app's writer (<see cref="IActivityLog"/>,
-/// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and procedures
+/// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and pathways
 /// by the people working on them (once per view window, <see cref="ActivityOptions.ViewWindowMinutes"/>, as the app
 /// records them), the patients each list showed, and searches by their filter names
 /// (<see cref="PatientSearch.FiltersUsed"/>) and counts, never the terms. A patient is seen only while they're on the
@@ -103,7 +103,7 @@ public static class DemoActivity
         var lastView = new Dictionary<(Guid, ActivityAction, Guid, Guid?), DateTime>();
         var active = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting).ToList();
         var byId = patients.ToDictionary(p => p.Id);
-        var openPatients = world.Procedures.Where(p => ProcedureWorkflow.IsOpen(p.Status)).Select(p => p.PatientId).Distinct().ToList();
+        var openPatients = world.Pathways.Where(p => PathwayWorkflow.IsOpen(p.Status)).Select(p => p.PatientId).Distinct().ToList();
         var dueForReview = patients.Where(p => p.Role == PatientRole.ImportedDue).Select(p => p.Id).ToList();
         var touchesByDay = world.Touches
             .Where(t => t.AtUtc >= timeline.ActivityFromUtc && t.AtUtc < timeline.NowUtc)
@@ -112,25 +112,25 @@ public static class DemoActivity
             .Where(a => a.StartUtc is { } s && s >= timeline.ActivityFromUtc && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend)
             .ToLookup(a => (a.StaffUserId!.Value, UkTime.DateOf(a.StartUtc!.Value)));
 
-        void Add(DateTime at, ActivityAction action, StaffMember? by, Guid? patientId = null, object? details = null, Guid? procedureId = null, ActivityActor? actor = null)
+        void Add(DateTime at, ActivityAction action, StaffMember? by, Guid? patientId = null, object? details = null, Guid? pathwayId = null, ActivityActor? actor = null)
         {
             if (at >= timeline.NowUtc)
                 return;
             services.Clock.UtcNow = at;
-            entries.Add(log.Entry(action, patientId, details, procedureId: procedureId, actor: actor ?? by!.ActivityActor));
+            entries.Add(log.Entry(action, patientId, details, pathwayId: pathwayId, actor: actor ?? by!.ActivityActor));
         }
 
         // A view, unless the same person saw the same thing within the view window (ActivityLog.RecordViewsAsync); and
         // only of a patient on the system then (registered, and not yet anonymised).
-        void View(DateTime at, ActivityAction action, StaffMember by, Guid patientId, Guid? procedureId = null)
+        void View(DateTime at, ActivityAction action, StaffMember by, Guid patientId, Guid? pathwayId = null)
         {
             if (!byId[patientId].IsOnSystemAt(at))
                 return;
-            var key = (by.Id, action, patientId, procedureId);
+            var key = (by.Id, action, patientId, pathwayId);
             if (lastView.TryGetValue(key, out var last) && at - last < viewWindow && at >= last)
                 return;
             lastView[key] = at;
-            Add(at, action, by, patientId, procedureId: procedureId);
+            Add(at, action, by, patientId, pathwayId: pathwayId);
         }
 
         var first = UkTime.DateOf(timeline.ActivityFromUtc);
@@ -165,7 +165,7 @@ public static class DemoActivity
                         Add(signIn.AddSeconds(-25 * (steps.Count - 1 - step)), steps[step].Action, member, details: steps[step].Details);
                 }
 
-                // The day's diary (the calendar lists its appointments' patients), and the procedure list.
+                // The day's diary (the calendar lists its appointments' patients), and the pathway list.
                 var diary = appointmentsByDay[(member.Id, date)].ToList();
                 foreach (var appointment in diary)
                     View(signIn.AddMinutes(2), ActivityAction.PatientListed, member, appointment.PatientId);
@@ -187,12 +187,12 @@ public static class DemoActivity
                         View(at, ActivityAction.PatientListed, member, patient.Id);
                 }
 
-                // Every change they made, they made from the record: the patient's page, then the procedure's.
+                // Every change they made, they made from the record: the patient's page, then the pathway's.
                 foreach (var touch in touches)
                 {
                     View(touch.AtUtc.AddMinutes(-random.Next(2, 6)), ActivityAction.PatientViewed, member, touch.PatientId);
-                    if (touch.ProcedureId is { } procedureId)
-                        View(touch.AtUtc.AddSeconds(-random.Next(20, 110)), ActivityAction.ProcedureViewed, member, touch.PatientId, procedureId);
+                    if (touch.PathwayId is { } pathwayId)
+                        View(touch.AtUtc.AddSeconds(-random.Next(20, 110)), ActivityAction.PathwayViewed, member, touch.PatientId, pathwayId);
                 }
 
                 // Admins look over the retention review now and then.

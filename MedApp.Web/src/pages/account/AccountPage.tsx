@@ -25,7 +25,7 @@ import {NotificationSettings} from './NotificationSettings';
  * The signed-in user's Account Settings, as cards: the account (who they are, and pages of their own for the email
  * address, security (two-factor authentication) and Change Password); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
- * opens on, and what the side nav does while a half view is open); lists (rows per page, and where procedure lists
+ * opens on, and what the side nav does while a half view is open); lists (rows per page, and where pathway lists
  * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
  * `ACCESSIBILITY_SETTINGS`, with a link to the accessibility statement). All but the account and notifications are kept in this
  * browser and with the account.
@@ -138,8 +138,8 @@ export function AccountPage() {
                 <Button label="Apply" variant="secondary" isDisabled={rows === pageSize && !isEditingRows} onClick={applyRows} />
               </HStack>
               <Switch
-                label="Procedure lists start on Assigned to me"
-                description="Procedures, and a patient's procedures, show only yours to begin with. Remove the filter to see everyone's."
+                label="Pathway lists start on Assigned to me"
+                description="Pathways, and a patient's pathways, show only yours to begin with. Remove the filter to see everyone's."
                 value={startsOnMine}
                 onChange={setStartsOnMine}
               />

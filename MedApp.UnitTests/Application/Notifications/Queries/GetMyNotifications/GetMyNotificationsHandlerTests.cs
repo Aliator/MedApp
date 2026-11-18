@@ -36,10 +36,10 @@ public sealed class GetMyNotificationsHandlerTests
         result.Items.Should().HaveCount(2);
         var first = result.Items[0];
         first.Id.Should().Be(NotificationId);
-        first.Kind.Should().Be("ProcedureAssigned");
+        first.Kind.Should().Be("PathwayAssigned");
         first.Title.Should().Be(Title);
         first.Message.Should().Be(Message);
-        first.ProcedureId.Should().Be(ProcedureId);
+        first.PathwayId.Should().Be(PathwayId);
         first.CreatedAtUtc.Should().Be(CreatedAtUtc);
         first.IsRead.Should().BeFalse();
         result.Items[1].IsRead.Should().BeTrue();

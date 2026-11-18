@@ -6,9 +6,9 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Patients.Queries.SearchRetentionReview;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Insights.Queries.GetProcedureInsights;
-using MedApp.Contracts.Procedures.Insights.Responses;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
+using MedApp.Contracts.Pathways.Insights.Responses;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
@@ -16,7 +16,7 @@ using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -132,17 +132,17 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     public async Task Visits_EveryFinishedStageThatNeedsOne_WasAttendedBeforeIt_OrAnAdminFinishedItWithoutOne()
     {
         var (stages, attended, bypassed) = await Query(async db => (
-            await db.PatientProcedureStages.AsNoTracking()
+            await db.PatientPathwayStages.AsNoTracking()
                 .Where(s => s.VisitRequirement == VisitRequirement.Required && s.IsCompleted).ToListAsync(),
             await db.Appointments.AsNoTracking()
                 .Where(a => a.StageId != null && a.Status == AppointmentStatus.Attended).ToListAsync(),
-            await db.PatientProcedureAuditEntries.AsNoTracking()
-                .Where(a => a.Action == PatientProcedureAuditAction.StageFinished && a.Details.Contains("\"withoutVisit\":true"))
+            await db.PatientPathwayAuditEntries.AsNoTracking()
+                .Where(a => a.Action == PatientPathwayAuditAction.StageFinished && a.Details.Contains("\"withoutVisit\":true"))
                 .Select(a => new { a.StageId, a.Details }).ToListAsync()));
 
         stages.Should().NotBeEmpty();
-        var firstFinish = await Query(db => db.PatientProcedureAuditEntries.AsNoTracking()
-            .Where(a => a.Action == PatientProcedureAuditAction.StageFinished)
+        var firstFinish = await Query(db => db.PatientPathwayAuditEntries.AsNoTracking()
+            .Where(a => a.Action == PatientPathwayAuditAction.StageFinished)
             .GroupBy(a => a.StageId).Select(g => new { StageId = g.Key, At = g.Min(a => a.AtUtc) })
             .ToDictionaryAsync(x => x.StageId!.Value, x => x.At));
 
@@ -154,7 +154,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             (visited || bypass).Should().BeTrue($"stage {stage.Id} ({stage.Name}) was finished");
         }
 
-        requiredBypasses.Should().HaveCount(SummaryPart("counts").GetProperty("procedures").GetProperty("stageBypasses").GetInt32())
+        requiredBypasses.Should().HaveCount(SummaryPart("counts").GetProperty("pathways").GetProperty("stageBypasses").GetInt32())
             .And.HaveCountGreaterThan(0).And.HaveCountLessThan(4, "the admin bypass is rare");
         requiredBypasses.Should().OnlyContain(b => b.Details.Contains("\"reason\":"));
     }
@@ -281,7 +281,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// Meeting notifications are the app's: fixed titles, linked to a calendar day (not a procedure or appointment),
+    /// Meeting notifications are the app's: fixed titles, linked to a calendar day (not a pathway or appointment),
     /// and nothing about a patient in them, nor in the meetings themselves.
     /// </summary>
     [Test]
@@ -294,7 +294,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
         notifications.Select(n => n.Kind).Distinct().Should().BeEquivalentTo(kinds, "invitations, moves, cancellations and declines all happened");
         notifications.Should().OnlyContain(n => Notification.HasFixedTitle(n.Kind) && n.Title == MeetingNotifications.TitleOf(n.Kind)
-                                                && n.CalendarDate != null && n.ProcedureId == null && n.AppointmentId == null);
+                                                && n.CalendarDate != null && n.PathwayId == null && n.AppointmentId == null);
         notifications.Should().OnlyContain(n => n.CreatedAtUtc >= Now.AddDays(-30) && n.CreatedAtUtc <= Now);
 
         var text = notifications.Select(n => n.Message).Concat(meetings.SelectMany(m => new[] { m.Title, m.Notes })).ToList();
@@ -309,16 +309,16 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     [Test]
     public async Task Bookings_ForCurrentStages_AreWithWhoeverStartedTheStage()
     {
-        var procedures = await Query(db => db.PatientProcedures.AsNoTracking().Include(p => p.Stages)
-            .Where(p => p.Status == PatientProcedureStatus.InProgress || p.Status == PatientProcedureStatus.Assigned)
+        var pathways = await Query(db => db.PatientPathways.AsNoTracking().Include(p => p.Stages)
+            .Where(p => p.Status == PatientPathwayStatus.InProgress || p.Status == PatientPathwayStatus.Assigned)
             .ToListAsync());
         var booked = await Query(db => db.Appointments.AsNoTracking()
             .Where(a => a.Status == AppointmentStatus.Booked && a.StageId != null).ToListAsync());
 
         var checkedOnes = 0;
-        foreach (var procedure in procedures)
+        foreach (var pathway in pathways)
         {
-            if (ProcedureWorkflow.CurrentStage(procedure) is not { } current)
+            if (PathwayWorkflow.CurrentStage(pathway) is not { } current)
                 continue;
             foreach (var appointment in booked.Where(a => a.StageId == current.Id))
             {
@@ -337,15 +337,15 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     [Test]
     public async Task Insights_DifferForEveryPeriodAndTemplate()
     {
-        var templates = await Query(db => db.PatientProcedureStageTemplates.AsNoTracking().Select(t => (Guid?)t.Id).ToListAsync());
+        var templates = await Query(db => db.PathwayTemplates.AsNoTracking().Select(t => (Guid?)t.Id).ToListAsync());
         templates.Should().HaveCount(7, "six pathways the centre runs, and the archived one");
 
-        var results = new Dictionary<(int Weeks, Guid? Template), ProcedureInsightsResponse>();
+        var results = new Dictionary<(int Weeks, Guid? Template), PathwayInsightsResponse>();
         foreach (var weeks in Periods)
         foreach (var template in templates.Prepend(null))
         {
             _services.At(Now, new ActivityActor(null, "test", null));
-            var response = await _services.Run(sp => sp.GetRequiredService<IMediator>().Send(new GetProcedureInsightsQuery(weeks, template)));
+            var response = await _services.Run(sp => sp.GetRequiredService<IMediator>().Send(new GetPathwayInsightsQuery(weeks, template)));
             results[(weeks, template)] = WithoutTheQuestion(response);
         }
 
@@ -355,7 +355,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         foreach (var weeks in Periods)
             templates.Select(t => Charts(results[(weeks, t)])).Should().OnlyHaveUniqueItems($"the {weeks}-week charts");
 
-        static ProcedureInsightsResponse WithoutTheQuestion(ProcedureInsightsResponse response)
+        static PathwayInsightsResponse WithoutTheQuestion(PathwayInsightsResponse response)
         {
             response.Weeks = 0;
             response.TemplateId = null;
@@ -372,7 +372,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             return response;
         }
 
-        static string Charts(ProcedureInsightsResponse response) => JsonSerializer.Serialize(new
+        static string Charts(PathwayInsightsResponse response) => JsonSerializer.Serialize(new
         {
             response.OverdueByAssignee,
             response.OverdueByPriority,
@@ -418,10 +418,10 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     {
         var nowOffset = new DateTimeOffset(Now);
         var (deletedUserWork, restricted, disputed, anonymised, lockedOut, mustChange, twoFactor) = await Query(async db => (
-            await db.PatientProcedureAssignments.CountAsync(a => !db.Users.Any(u => u.Id == a.UserId)
-                                                                  && a.PatientProcedure.Status != PatientProcedureStatus.Completed
-                                                                  && a.PatientProcedure.Status != PatientProcedureStatus.Archived
-                                                                  && a.PatientProcedure.Status != PatientProcedureStatus.Cancelled),
+            await db.PatientPathwayAssignments.CountAsync(a => !db.Users.Any(u => u.Id == a.UserId)
+                                                                  && a.PatientPathway.Status != PatientPathwayStatus.Completed
+                                                                  && a.PatientPathway.Status != PatientPathwayStatus.Archived
+                                                                  && a.PatientPathway.Status != PatientPathwayStatus.Cancelled),
             await db.Patients.CountAsync(p => p.RestrictedAtUtc != null),
             await db.Patients.CountAsync(p => p.DisputedAtUtc != null),
             await db.Patients.CountAsync(p => p.AnonymisedAtUtc != null),
@@ -479,7 +479,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     {
         var patients = await Query(db => db.Patients.AsNoTracking()
             .Select(p => new { p.Id, p.CreatedAt, p.AnonymisedAtUtc }).ToDictionaryAsync(p => p.Id));
-        var views = new[] { ActivityAction.PatientViewed, ActivityAction.PatientListed, ActivityAction.ProcedureViewed };
+        var views = new[] { ActivityAction.PatientViewed, ActivityAction.PatientListed, ActivityAction.PathwayViewed };
 
         var activity = await Query(db => db.ActivityEntries.AsNoTracking()
             .Where(a => a.PatientId != null).Select(a => new { a.Id, PatientId = a.PatientId!.Value, a.AtUtc, a.Action }).ToListAsync());
@@ -494,7 +494,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         appointments.Where(a => a.CreatedAtUtc < patients[a.PatientId].CreatedAt || a.StartUtc < patients[a.PatientId].CreatedAt)
             .Should().BeEmpty("nobody is booked before they're registered");
 
-        var audit = await Query(db => db.PatientProcedureAuditEntries.AsNoTracking().Select(a => new { a.Id, a.PatientId, a.AtUtc }).ToListAsync());
+        var audit = await Query(db => db.PatientPathwayAuditEntries.AsNoTracking().Select(a => new { a.Id, a.PatientId, a.AtUtc }).ToListAsync());
         audit.Where(a => patients.ContainsKey(a.PatientId) && a.AtUtc < patients[a.PatientId].CreatedAt).Should().BeEmpty();
 
         // Nothing in the future.
@@ -505,26 +505,26 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// Procedures hold several notes, as the app writes them: each by a member of staff (or, for the imported ones, by
+    /// Pathways hold several notes, as the app writes them: each by a member of staff (or, for the imported ones, by
     /// nobody, as the migration left notes with no known author), with a version for each add and edit, each edit a
     /// NoteEdited audit entry by the note's own author, and the audit never holding the text.
     /// </summary>
     [Test]
-    public async Task Notes_AreSeveralPerProcedure_EditedOnlyByTheirAuthors_WithEveryVersionKept()
+    public async Task Notes_AreSeveralPerPathway_EditedOnlyByTheirAuthors_WithEveryVersionKept()
     {
-        var notes = await Query(db => db.PatientProcedureNotes.AsNoTracking().ToListAsync());
-        var versions = await Query(db => db.PatientProcedureNoteVersions.AsNoTracking().ToListAsync());
+        var notes = await Query(db => db.PatientPathwayNotes.AsNoTracking().ToListAsync());
+        var versions = await Query(db => db.PatientPathwayNoteVersions.AsNoTracking().ToListAsync());
         var staff = await Query(db => db.Users.AsNoTracking().Select(u => u.Id).ToListAsync());
-        var noteAudit = await Query(db => db.PatientProcedureAuditEntries.AsNoTracking()
-            .Where(e => e.Action == PatientProcedureAuditAction.NoteAdded || e.Action == PatientProcedureAuditAction.NoteEdited)
+        var noteAudit = await Query(db => db.PatientPathwayAuditEntries.AsNoTracking()
+            .Where(e => e.Action == PatientPathwayAuditAction.NoteAdded || e.Action == PatientPathwayAuditAction.NoteEdited)
             .ToListAsync());
 
         notes.Should().HaveCountGreaterThan(100);
-        notes.GroupBy(n => n.PatientProcedureId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many procedures have several notes");
+        notes.GroupBy(n => n.PatientPathwayId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many pathways have several notes");
         notes.Count(n => n.Version > 1).Should().BeGreaterThan(5, "a few notes were edited");
         // Each note by someone has its NoteAdded entry by them (some have left since: their notes show "Deleted user").
-        var added = noteAudit.Where(e => e.Action == PatientProcedureAuditAction.NoteAdded)
-            .Select(e => (ProcedureNotes.VersionOf(e)?.NoteId, e.UserId)).ToHashSet();
+        var added = noteAudit.Where(e => e.Action == PatientPathwayAuditAction.NoteAdded)
+            .Select(e => (PathwayNotes.VersionOf(e)?.NoteId, e.UserId)).ToHashSet();
         notes.Where(n => n.AuthorUserId is { } id && !added.Contains((n.Id, id))).Should().BeEmpty("each note is added by its author");
         notes.Count(n => n.AuthorUserId is { } id && staff.Contains(id)).Should().BeGreaterThan(notes.Count / 2, "most authors still work here");
         notes.Where(n => n.AuthorUserId is null).Should().NotBeEmpty("the imported records' notes have no known author");
@@ -543,7 +543,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         var key = notes.ToDictionary(n => n.Id);
         foreach (var entry in noteAudit)
         {
-            var named = ProcedureNotes.VersionOf(entry);
+            var named = PathwayNotes.VersionOf(entry);
             named.Should().NotBeNull();
             if (key.TryGetValue(named!.NoteId, out var note))
             {
@@ -552,7 +552,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             }
         }
 
-        noteAudit.Count(e => e.Action == PatientProcedureAuditAction.NoteEdited)
+        noteAudit.Count(e => e.Action == PatientPathwayAuditAction.NoteEdited)
             .Should().Be(versions.Count(v => v.Version > 1), "every edit is audited once");
     }
 

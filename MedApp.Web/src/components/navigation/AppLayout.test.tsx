@@ -123,7 +123,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await waitFor(() => expect(screen.queryByRole('heading', {name: 'Audit Log', level: 1})).not.toBeInTheDocument());
     expect(router.state.location.pathname).toBe('/patients');
     expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument();
-    expect(await halfViewItem(user, 'My Tasks')).toBeInTheDocument();
+    expect(await halfViewItem(user, 'My Worklist')).toBeInTheDocument();
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
@@ -208,9 +208,9 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    await user.click(await railRow(user, 'Templates'));
+    await user.click(await railRow(user, 'Pathway Templates'));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/templates'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
     expect(screen.queryByRole('heading', {name: 'Audit Log', level: 1})).not.toBeInTheDocument();
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
@@ -251,17 +251,17 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await user.click(await rowMenuItem(user, 'Users', 'Open on the right'));
     await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users'));
 
-    await user.click(await rowMenuItem(user, 'Templates', 'Open on the left'));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/templates'));
+    await user.click(await rowMenuItem(user, 'Pathway Templates', 'Open on the left'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users');
   });
 
   it('keeps the half view open across a reload', async () => {
     emptyApi();
-    sessionStorage.setItem('medapp.halfView', '/admin/templates');
+    sessionStorage.setItem('medapp.halfView', '/admin/pathway-templates');
     renderApp({path: '/patients', user: adminUser});
 
-    expect(await heading('Templates')).toBeInTheDocument();
+    expect(await heading('Pathway Templates')).toBeInTheDocument();
     expect(await heading('Patients')).toBeInTheDocument();
   });
 
@@ -296,8 +296,8 @@ describe('AppLayout notepad', {timeout: 20_000}, () => {
     expect(document.querySelector('[data-notepad-docked]')).not.toBeNull();
     expect(localStorage.getItem('medapp.notepadOpen')).toBe('true');
 
-    await user.click(nav.getAllByRole('link', {name: 'Procedures'})[0]);
-    await heading('Procedures');
+    await user.click(nav.getAllByRole('link', {name: 'Pathways'})[0]);
+    await heading('Pathways');
     expect(screen.getByRole('region', {name: 'Notepad'})).toBeInTheDocument();
 
     // The same button closes it.

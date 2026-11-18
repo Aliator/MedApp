@@ -78,10 +78,10 @@ public sealed class GetTeamCalendarHandlerTests : MeetingHandlerTestBase
 
         await _handler.Handle(new GetTeamCalendarQuery(NextMonday, [], AdminActor), Token);
 
-        var (action, ids, procedureId) = _activity.Views.Should().ContainSingle().Subject;
+        var (action, ids, pathwayId) = _activity.Views.Should().ContainSingle().Subject;
         action.Should().Be(ActivityAction.PatientListed);
         ids.Should().Equal(first.PatientId, second.PatientId);
-        procedureId.Should().BeNull();
+        pathwayId.Should().BeNull();
         _activity.Tokens.Should().Equal(Token);
     }
 

@@ -8,15 +8,15 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Http;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Attachments;
 
@@ -30,8 +30,8 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
 {
     private UploadAttachmentHandler Handler => Fixture.Create<UploadAttachmentHandler>();
 
-    private static UploadAttachmentCommand Upload(Guid? patientId = null, Guid? procedureId = null, Guid? stageId = null) =>
-        new(patientId, procedureId, stageId, FileName, Pdf.Length, Stream(Pdf), Staff, false);
+    private static UploadAttachmentCommand Upload(Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null) =>
+        new(patientId, pathwayId, stageId, FileName, Pdf.Length, Stream(Pdf), Staff, false);
 
     private static Patient PatientWith(Action<Patient> change)
     {
@@ -85,9 +85,9 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
     [Test]
     public async Task Upload_StageFinishedWhileTheFileArrived_IsRefused()
     {
-        var open = CreateProcedure(Status.InProgress);
-        var finished = CreateProcedure(Status.InProgress, finishedStages: 1, patient: open.Patient);
-        var finishedCopy = new PatientProcedure
+        var open = CreatePathway(Status.InProgress);
+        var finished = CreatePathway(Status.InProgress, finishedStages: 1, patient: open.Patient);
+        var finishedCopy = new PatientPathway
         {
             Id = open.Id, Title = open.Title, PatientId = open.PatientId, Patient = open.Patient, Status = finished.Status,
             Stages = finished.Stages.Select((s, i) => { var copy = CreateStage(open.Id, s.StageOrder, s.StageDefinitionId, s.Name); return copy; }).ToList(),
@@ -96,7 +96,7 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
         for (var i = 0; i < finishedCopy.Stages.Count; i++)
             finishedCopy.Stages[i] = WithId(finishedCopy.Stages[i], open.Stages[i].Id, finished: i == 0);
         var stage = open.StageAt(1);
-        Attachments.Setup(a => a.GetStageProcedureIdAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(open.Id);
+        Attachments.Setup(a => a.GetStagePathwayIdAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(open.Id);
         Repository.SetupSequence(r => r.GetByIdAsync(open.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(open)
             .ReturnsAsync(finishedCopy);
@@ -107,11 +107,11 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
         Store.Blobs.Should().BeEmpty();
     }
 
-    private static PatientProcedureStage WithId(PatientProcedureStage stage, Guid id, bool finished)
+    private static PatientPathwayStage WithId(PatientPathwayStage stage, Guid id, bool finished)
     {
-        var copy = new PatientProcedureStage
+        var copy = new PatientPathwayStage
         {
-            Id = id, PatientProcedureId = stage.PatientProcedureId, StageDefinitionId = stage.StageDefinitionId,
+            Id = id, PatientPathwayId = stage.PatientPathwayId, StageDefinitionId = stage.StageDefinitionId,
             StageOrder = stage.StageOrder, Name = stage.Name,
         };
         if (finished)
@@ -200,18 +200,18 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
     [Test]
     public void Anonymise_AuditsEachFileItDeletes_WithItsNewName()
     {
-        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.Completed, finishedStages: 3);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var onStage = new Attachment
         {
-            Id = Guid.NewGuid(), PatientId = record.Patient.Id, ProcedureId = procedure.Id, StageId = procedure.StageAt(1).Id,
+            Id = Guid.NewGuid(), PatientId = record.Patient.Id, PathwayId = pathway.Id, StageId = pathway.StageAt(1).Id,
             FileName = "synthetic-canary.pdf", ContentType = "application/pdf",
         };
         var onPatient = new Attachment { Id = Guid.NewGuid(), PatientId = record.Patient.Id, FileName = "a.png", ContentType = "image/png" };
         var alreadyDeleted = new Attachment { Id = Guid.NewGuid(), PatientId = record.Patient.Id, FileName = "b.pdf", ContentType = "application/pdf", DeletedAtUtc = Now };
         var withFiles = new PatientRecord
         {
-            Patient = record.Patient, Procedures = record.Procedures, ProcedureHistory = record.ProcedureHistory,
+            Patient = record.Patient, Pathways = record.Pathways, PathwayHistory = record.PathwayHistory,
             Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
             NoteVersions = [],
@@ -222,14 +222,14 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
 
         entries.Should().HaveCount(2).And.AllSatisfy(e =>
         {
-            e.Action.Should().Be(PatientProcedureAuditAction.AttachmentDeleted);
+            e.Action.Should().Be(PatientPathwayAuditAction.AttachmentDeleted);
             e.UserId.Should().Be(ActivityTestConstants.Actor.UserId!.Value);
             e.Details.Should().NotContain("canary");
         });
-        entries[0].PatientProcedureId.Should().Be(procedure.Id);
-        entries[0].StageId.Should().Be(procedure.StageAt(1).Id);
+        entries[0].PatientPathwayId.Should().Be(pathway.Id);
+        entries[0].StageId.Should().Be(pathway.StageAt(1).Id);
         entries[0].Details.Should().Contain("\"fileName\":\"Anonymised file.pdf\"");
-        entries[1].PatientProcedureId.Should().Be(PatientProcedureAuditEntry.NoProcedure);
+        entries[1].PatientPathwayId.Should().Be(PatientPathwayAuditEntry.NoPathway);
         entries[1].AtUtc.Should().BeAfter(entries[0].AtUtc);
     }
 
@@ -242,6 +242,6 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
     [Test]
     public void Retention_OnlyReadsAreLeftOut()
     {
-        RetentionSchedule.ReadOnlyAuditActions.Should().BeEquivalentTo([PatientProcedureAuditAction.AttachmentDownloaded]);
+        RetentionSchedule.ReadOnlyAuditActions.Should().BeEquivalentTo([PatientPathwayAuditAction.AttachmentDownloaded]);
     }
 }

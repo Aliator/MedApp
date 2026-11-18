@@ -1,5 +1,5 @@
 using FluentValidation;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 
 namespace MedApp.Application.Patients.Commands.AnonymisePatient;
 
@@ -12,7 +12,7 @@ public sealed class AnonymisePatientValidator : AbstractValidator<AnonymisePatie
     public AnonymisePatientValidator()
     {
         RuleFor(x => x.Reason)
-            .Must(reason => ProcedureEnums.TryParse<AnonymisationReason>(reason, out _))
+            .Must(reason => PathwayEnums.TryParse<AnonymisationReason>(reason, out _))
             .WithMessage($"Choose a reason: one of {ReasonNames}.");
 
         RuleFor(x => x.Note)

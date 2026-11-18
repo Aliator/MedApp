@@ -75,7 +75,7 @@ describe('formatDate', () => {
     expect(formatShortDate('1976-12-01')).toBe('1 Dec 1976');
   });
 
-  it('keeps a date-only value (a due date) on its day, summer and winter, whatever the time zone', () => {
+  it('keeps a date-only value (a target date) on its day, summer and winter, whatever the time zone', () => {
     expect(formatDate('2026-07-01')).toBe('1 July 2026');
     expect(formatShortDate('2026-07-01')).toBe('1 Jul 2026');
     expect(formatDate('2026-11-03')).toBe('3 November 2026');

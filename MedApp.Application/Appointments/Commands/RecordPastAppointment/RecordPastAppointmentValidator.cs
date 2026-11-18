@@ -1,6 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Appointments.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 
 namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
@@ -13,13 +13,13 @@ public sealed class RecordPastAppointmentValidator : AbstractValidator<RecordPas
 
         RuleFor(x => x.StageId)
             .Null()
-            .When(x => x.ProcedureId is null)
-            .WithMessage("A stage needs its procedure.");
+            .When(x => x.PathwayId is null)
+            .WithMessage("A stage needs its pathway.");
 
         RuleFor(x => x.StaffUserId).NotEmpty().WithMessage("Member of staff is required.");
 
         RuleFor(x => x.Outcome)
-            .Must(outcome => ProcedureEnums.TryParse<AppointmentStatus>(outcome, out var status)
+            .Must(outcome => PathwayEnums.TryParse<AppointmentStatus>(outcome, out var status)
                              && AppointmentWorkflow.IsOutcome(status))
             .WithMessage($"Outcome must be one of: {AppointmentWorkflow.OutcomeNames}.");
 

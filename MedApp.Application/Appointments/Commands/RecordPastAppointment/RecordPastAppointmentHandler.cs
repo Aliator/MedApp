@@ -7,11 +7,11 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
@@ -26,7 +26,7 @@ namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
 public sealed class RecordPastAppointmentHandler(
     IAppointmentRepository repository,
     IPatientRepository patientRepository,
-    IPatientProcedureRepository procedureRepository,
+    IPatientPathwayRepository pathwayRepository,
     ICalendarRepository calendarRepository,
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
@@ -42,24 +42,24 @@ public sealed class RecordPastAppointmentHandler(
         // A restricted or anonymised record can't gain appointments (409), recorded or booked.
         PatientRules.EnsureCanChange(patient);
 
-        PatientProcedure? procedure = null;
-        PatientProcedureStage? stage = null;
+        PatientPathway? pathway = null;
+        PatientPathwayStage? stage = null;
         Appointment? requestedVisit = null;
-        if (request.ProcedureId is { } procedureId)
+        if (request.PathwayId is { } pathwayId)
         {
-            procedure = await procedureRepository.GetByIdAsync(procedureId, cancellationToken)
-                        ?? throw new NotFoundException($"Procedure '{procedureId}' was not found.");
+            pathway = await pathwayRepository.GetByIdAsync(pathwayId, cancellationToken)
+                        ?? throw new NotFoundException($"Pathway '{pathwayId}' was not found.");
 
-            if (procedure.PatientId != patient.Id)
-                throw new ConflictException("That procedure is for another patient.");
+            if (pathway.PatientId != patient.Id)
+                throw new ConflictException("That pathway is for another patient.");
 
             if (request.StageId is { } stageId)
             {
-                stage = procedure.GetStageOrThrow(stageId);
+                stage = pathway.GetStageOrThrow(stageId);
 
-                if (ProcedureWorkflow.IsClosed(procedure.Status))
+                if (PathwayWorkflow.IsClosed(pathway.Status))
                     throw new ConflictException(
-                        $"A visit can't be recorded for a stage of a procedure that's {ProcedureWorkflow.Describe(procedure.Status)}.");
+                        $"A visit can't be recorded for a stage of a pathway that's {PathwayWorkflow.Describe(pathway.Status)}.");
 
                 if (await repository.GetOpenForStageAsync(stageId, cancellationToken) is { } open)
                 {
@@ -73,15 +73,15 @@ public sealed class RecordPastAppointmentHandler(
         }
 
         var start = UkTime.Utc(request.StartUtc);
-        // By UK day, so a visit earlier on the day the procedure was created (seen at 10:00, created at 10:40) counts.
-        if (procedure is not null && AppointmentWorkflow.IsBeforeProcedure(start, procedure.CreatedAt))
-            throw new ConflictException(AppointmentWorkflow.BeforeProcedureMessage(procedure.CreatedAt));
-        if (procedure is not null && stage is not null && AppointmentWorkflow.WhyStageNotReached(procedure, stage) is { } notReached)
+        // By UK day, so a visit earlier on the day the pathway was created (seen at 10:00, created at 10:40) counts.
+        if (pathway is not null && AppointmentWorkflow.IsBeforePathway(start, pathway.CreatedAt))
+            throw new ConflictException(AppointmentWorkflow.BeforePathwayMessage(pathway.CreatedAt));
+        if (pathway is not null && stage is not null && AppointmentWorkflow.WhyStageNotReached(pathway, stage) is { } notReached)
             throw new ConflictException(notReached);
 
         var staffUsername = await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId, cancellationToken);
         var end = UkTime.Utc(request.EndUtc);
-        var outcome = ProcedureEnums.Parse<AppointmentStatus>(request.Outcome);
+        var outcome = PathwayEnums.Parse<AppointmentStatus>(request.Outcome);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
         // Checked and saved holding the member of staff's calendar lock, so it can't race a booking for the same time.
@@ -117,7 +117,7 @@ public sealed class RecordPastAppointmentHandler(
                 throw new ConflictException(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage);
 
             var appointment = New(request, now);
-            var added = new AppointmentChange(appointment, request.Actor, now, procedureTitle: procedure?.Title, stageName: stage?.Name);
+            var added = new AppointmentChange(appointment, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
             added.RecordAfterEvent(request.StaffUserId, staffUsername, start, end, outcome);
             await repository.AddAsync(appointment, added.Events, ct);
             return appointment;
@@ -126,7 +126,7 @@ public sealed class RecordPastAppointmentHandler(
         foreach (var notification in AppointmentNotifications.AfterRecording(recorded, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        // Read back with its patient, procedure and stage, for the response.
+        // Read back with its patient, pathway and stage, for the response.
         var saved = await repository.GetByIdAsync(recorded.Id, cancellationToken) ?? recorded;
         return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken);
     }
@@ -135,7 +135,7 @@ public sealed class RecordPastAppointmentHandler(
     {
         Id = Guid.NewGuid(),
         PatientId = request.PatientId,
-        ProcedureId = request.ProcedureId,
+        PathwayId = request.PathwayId,
         StageId = request.StageId,
         Status = AppointmentStatus.Requested,
         Notes = request.Notes ?? string.Empty,

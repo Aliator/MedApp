@@ -15,8 +15,8 @@ public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppoint
 
         RuleFor(x => x.StageId)
             .Null()
-            .When(x => x.ProcedureId is null)
-            .WithMessage("A stage needs its procedure.");
+            .When(x => x.PathwayId is null)
+            .WithMessage("A stage needs its pathway.");
 
         RuleFor(x => x.StaffUserId)
             .Must((x, _) => x.IsBooking || x.IsRequest)

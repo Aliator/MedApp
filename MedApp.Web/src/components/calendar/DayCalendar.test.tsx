@@ -19,11 +19,11 @@ describe('DayCalendar', () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });
 
-  it("shows today's appointments, blocks and meetings; an appointment opens its procedure, or its patient", async () => {
+  it("shows today's appointments, blocks and meetings; an appointment opens its pathway, or its patient", async () => {
     mockDay({
       appointments: [
         testAppointment({id: 'a1', date: MONDAY, start: '09:00', end: '09:30'}),
-        testAppointment({id: 'a2', date: MONDAY, start: '11:00', end: '11:30', procedureId: null, procedureTitle: null, patientId: 'patient-7'}),
+        testAppointment({id: 'a2', date: MONDAY, start: '11:00', end: '11:30', pathwayId: null, pathwayTitle: null, patientId: 'patient-7'}),
       ],
       blocks: [testBlock(MONDAY, '12:00', '13:00')],
       meetings: [testMeeting({date: MONDAY, start: '14:00', end: '15:00', title: 'MDT'})],
@@ -44,7 +44,7 @@ describe('DayCalendar', () => {
     expect(screen.getByRole('group', {name: 'Monday 23 November, today'})).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', {name: /^Test Patient, Knee review/}));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures/procedure-1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways/pathway-1'));
     await user.click(screen.getByRole('button', {name: /^Test Patient, appointment/}));
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-7'));
   });

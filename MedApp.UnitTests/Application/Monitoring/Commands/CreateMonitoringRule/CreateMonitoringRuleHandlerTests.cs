@@ -9,8 +9,8 @@ using MedApp.Domain.Monitoring;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePriority;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 
 namespace MedApp.UnitTests.Application.Monitoring.Commands.CreateMonitoringRule;
 
@@ -55,7 +55,7 @@ public sealed class CreateMonitoringRuleHandlerTests : MonitoringHandlerTestBase
     [Test]
     public async Task Handle_NoConditions_NamesNothing()
     {
-        var response = await Handler.Handle(new CreateMonitoringRuleCommand(OwnerId, null, "ProcedureCreated", null, null, null, false), CancellationToken.None);
+        var response = await Handler.Handle(new CreateMonitoringRuleCommand(OwnerId, null, "PathwayCreated", null, null, null, false), CancellationToken.None);
 
         response.Should().BeEquivalentTo(new { SubjectUsername = (string?)null, TemplateName = (string?)null, StageName = (string?)null, IsEnabled = false });
         Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);

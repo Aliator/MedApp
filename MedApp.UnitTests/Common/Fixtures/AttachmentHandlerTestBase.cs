@@ -4,18 +4,18 @@ using MedApp.Application.Attachments.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using Moq;
 
 namespace MedApp.UnitTests.Common.Fixtures;
 
 /// <summary>
-/// Shared setup for attachment handler tests, on top of the procedure mocks: a patient repository, an in-memory file
+/// Shared setup for attachment handler tests, on top of the pathway mocks: a patient repository, an in-memory file
 /// store, staging in memory, a scanner that scans nothing, and a thumbnail generator that makes none, unless a test
-/// says otherwise. Audit entries the attachment repository is given are in <see cref="ProcedureHandlerTestBase.SavedAudit"/>.
+/// says otherwise. Audit entries the attachment repository is given are in <see cref="PathwayHandlerTestBase.SavedAudit"/>.
 /// </summary>
-public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
+public abstract class AttachmentHandlerTestBase : PathwayHandlerTestBase
 {
     protected Mock<IPatientRepository> Patients { get; private set; } = null!;
     protected InMemoryFileStore Store { get; private set; } = null!;
@@ -44,20 +44,20 @@ public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
             .ReturnsAsync((byte[]?)null);
 
         Attachments
-            .Setup(a => a.AddAsync(It.IsAny<Attachment>(), It.IsAny<PatientProcedureAuditEntry>(), It.IsAny<CancellationToken>()))
-            .Callback((Attachment attachment, PatientProcedureAuditEntry audit, CancellationToken _) =>
+            .Setup(a => a.AddAsync(It.IsAny<Attachment>(), It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
+            .Callback((Attachment attachment, PatientPathwayAuditEntry audit, CancellationToken _) =>
             {
                 Added.Add(attachment);
                 SavedAudit.Add(audit);
             })
             .Returns(Task.CompletedTask);
         Attachments
-            .Setup(a => a.SaveAsync(It.IsAny<PatientProcedureAuditEntry>(), It.IsAny<CancellationToken>()))
-            .Callback((PatientProcedureAuditEntry audit, CancellationToken _) => SavedAudit.Add(audit))
+            .Setup(a => a.SaveAsync(It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
+            .Callback((PatientPathwayAuditEntry audit, CancellationToken _) => SavedAudit.Add(audit))
             .Returns(Task.CompletedTask);
         Attachments
-            .Setup(a => a.AddAuditAsync(It.IsAny<PatientProcedureAuditEntry>(), It.IsAny<CancellationToken>()))
-            .Callback((PatientProcedureAuditEntry audit, CancellationToken _) => SavedAudit.Add(audit))
+            .Setup(a => a.AddAuditAsync(It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
+            .Callback((PatientPathwayAuditEntry audit, CancellationToken _) => SavedAudit.Add(audit))
             .Returns(Task.CompletedTask);
 
         Fixture.Inject(Patients.Object);
@@ -84,12 +84,12 @@ public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
         return withId;
     }
 
-    /// <summary>Makes the stage lookup find the stage at <paramref name="order"/> on this procedure.</summary>
-    protected PatientProcedureStage GivenStage(PatientProcedure procedure, int order)
+    /// <summary>Makes the stage lookup find the stage at <paramref name="order"/> on this pathway.</summary>
+    protected PatientPathwayStage GivenStage(PatientPathway pathway, int order)
     {
-        GivenProcedure(procedure);
-        var stage = procedure.StageAt(order);
-        Attachments.Setup(a => a.GetStageProcedureIdAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure.Id);
+        GivenPathway(pathway);
+        var stage = pathway.StageAt(order);
+        Attachments.Setup(a => a.GetStagePathwayIdAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway.Id);
         return stage;
     }
 

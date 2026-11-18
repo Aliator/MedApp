@@ -37,7 +37,7 @@ const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ').toLowerCase
 export const ANONYMISE_MESSAGE =
   "The patient's name, email and every note are replaced with placeholders, and their date of birth keeps only its year. " +
   "Attached files' names are replaced and the files deleted. " +
-  "The result is pseudonymised rather than anonymous: the patient's ID, the dates and the structure of their procedures " +
+  "The result is pseudonymised rather than anonymous: the patient's ID, the dates and the structure of their pathways " +
   "and audit trail remain, so it's still personal data while they do. This can't be undone.";
 
 /**
@@ -45,7 +45,7 @@ export const ANONYMISE_MESSAGE =
  * reason chosen from a list (so it holds no patient details) and an optional note, which the activity log keeps. Their
  * name, email and notes are replaced with placeholders, their date of birth keeps only its year, and their attached files'
  * names are replaced and the files deleted; the rest stays, for
- * statistics and the audit trail. It can't be undone, and the API refuses it while a procedure is under way or the
+ * statistics and the audit trail. It can't be undone, and the API refuses it while a pathway is under way or the
  * record is restricted. It warns that specialty records keep longer periods than the ones MedApp applies. Give it a
  * `key` per patient so the fields start empty.
  */

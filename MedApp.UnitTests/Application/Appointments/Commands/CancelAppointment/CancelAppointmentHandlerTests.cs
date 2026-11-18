@@ -96,17 +96,17 @@ public sealed class CancelAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ForAProcedure_NotificationLinksToItWithAFixedTitle()
+    public async Task Handle_ForAPathway_NotificationLinksToItWithAFixedTitle()
     {
         var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked);
-        var procedure = LinkToProcedure(appointment);
+        var pathway = LinkToPathway(appointment);
         GivenAppointment(appointment);
 
         await _handler.Handle(new CancelAppointmentCommand(appointment.Id, CancelReason, Colleague), CancellationToken.None);
 
         var notification = SentNotifications.Single();
         notification.Title.Should().Be("Appointment cancelled");
-        notification.ProcedureId.Should().Be(procedure.Id);
+        notification.PathwayId.Should().Be(pathway.Id);
     }
 
     [Test]

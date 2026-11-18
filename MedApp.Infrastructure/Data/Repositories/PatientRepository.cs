@@ -4,7 +4,7 @@ using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
 using Microsoft.EntityFrameworkCore;
@@ -37,16 +37,16 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public async Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken) =>
-        await context.PatientProcedures.CountAsync(p => p.PatientId == patientId, cancellationToken);
+    public async Task<int> CountPathwaysAsync(Guid patientId, CancellationToken cancellationToken) =>
+        await context.PatientPathways.CountAsync(p => p.PatientId == patientId, cancellationToken);
 
     public async Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken) =>
         await context.Appointments.CountAsync(a => a.PatientId == patientId, cancellationToken);
 
-    public async Task<int> CountProceduresUnderWayAsync(Guid patientId, CancellationToken cancellationToken)
+    public async Task<int> CountPathwaysUnderWayAsync(Guid patientId, CancellationToken cancellationToken)
     {
-        var closed = ProcedureWorkflow.ClosedStatuses.ToList();
-        return await context.PatientProcedures.CountAsync(p => p.PatientId == patientId && !closed.Contains(p.Status), cancellationToken);
+        var closed = PathwayWorkflow.ClosedStatuses.ToList();
+        return await context.PatientPathways.CountAsync(p => p.PatientId == patientId && !closed.Contains(p.Status), cancellationToken);
     }
 
     public async Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken)
@@ -90,17 +90,17 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
 
     public async Task<IReadOnlyList<RetentionCandidate>> GetRetentionCandidatesAsync(DateTime changedBeforeUtc, CancellationToken cancellationToken)
     {
-        var closed = ProcedureWorkflow.ClosedStatuses.ToList();
+        var closed = PathwayWorkflow.ClosedStatuses.ToList();
         // A download is a read, not a change to the record: it mustn't move the conclusion of treatment.
         var readsOnly = RetentionSchedule.ReadOnlyAuditActions.ToList();
-        var changes = context.PatientProcedureAuditEntries.Where(a => !readsOnly.Contains(a.Action));
+        var changes = context.PatientPathwayAuditEntries.Where(a => !readsOnly.Contains(a.Action));
 
         return await context.Patients
             .AsNoTracking()
             .Where(p => p.AnonymisedAtUtc == null && p.LastUpdated <= changedBeforeUtc)
-            .Where(p => !context.PatientProcedures.Any(pp =>
+            .Where(p => !context.PatientPathways.Any(pp =>
                 pp.PatientId == p.Id && (!closed.Contains(pp.Status) || pp.LastUpdated > changedBeforeUtc)))
-            // The audit trail outlives a deleted procedure, so it counts towards the conclusion of treatment too.
+            // The audit trail outlives a deleted pathway, so it counts towards the conclusion of treatment too.
             .Where(p => !changes.Any(a => a.PatientId == p.Id && a.AtUtc > changedBeforeUtc))
             .Select(p => new RetentionCandidate(
                 p.Id,
@@ -108,7 +108,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 p.LastName,
                 p.DateOfBirth,
                 p.LastUpdated,
-                context.PatientProcedures.Where(pp => pp.PatientId == p.Id).Max(pp => (DateTime?)pp.LastUpdated),
+                context.PatientPathways.Where(pp => pp.PatientId == p.Id).Max(pp => (DateTime?)pp.LastUpdated),
                 p.RetentionKeptUntil,
                 p.RetentionKeptReason,
                 changes.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc)))

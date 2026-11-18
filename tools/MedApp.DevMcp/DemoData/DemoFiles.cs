@@ -4,12 +4,12 @@ using MedApp.Application.Attachments.Commands.DeleteAttachment;
 using MedApp.Application.Attachments.Commands.DownloadAttachment;
 using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Queries.GetAttachments;
-using MedApp.Application.Procedures.Common;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Application.Pathways.Common;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.DevMcp.DemoData;
 
@@ -57,15 +57,15 @@ public static class DemoFiles
         var uploaded = new List<(Guid Id, StaffMember By, Guid PatientId, DateTime At)>();
         var deleted = 0;
 
-        async Task<Guid?> Upload(StaffMember by, DateTime at, string name, byte[] bytes, Guid? patientId = null, Guid? procedureId = null, Guid? stageId = null)
+        async Task<Guid?> Upload(StaffMember by, DateTime at, string name, byte[] bytes, Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null)
         {
             if (at >= now)
                 at = now.AddMinutes(-random.Next(5, 60));
             services.At(at, by.ActivityActor);
             await using var content = new MemoryStream(bytes, writable: false);
             var response = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
-                new UploadAttachmentCommand(patientId, procedureId, stageId, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
-            var patient = patientId ?? world.Procedures.Single(p => p.Id == procedureId || p.Stages.Any(s => s.Id == stageId)).PatientId;
+                new UploadAttachmentCommand(patientId, pathwayId, stageId, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
+            var patient = patientId ?? world.Pathways.Single(p => p.Id == pathwayId || p.Stages.Any(s => s.Id == stageId)).PatientId;
             uploaded.Add((response.Id, by, patient, at));
             return response.Id;
         }
@@ -79,66 +79,66 @@ public static class DemoFiles
 
         // On pathway records that are open or completed (files can't be added to cancelled or archived ones).
         var restricted = patients.Where(p => p.Restricted).Select(p => p.Id).ToHashSet();
-        var takesFiles = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && p.TemplateId is not null && p.Status is not (Status.Cancelled or Status.Archived) && p.CreatedAt >= now.AddDays(-150)).ToList();
-        PatientProcedure? Pick(Func<PatientProcedure, bool> where) =>
+        var takesFiles = world.Pathways.Where(p => !restricted.Contains(p.PatientId) && p.TemplateId is not null && p.Status is not (Status.Cancelled or Status.Archived) && p.CreatedAt >= now.AddDays(-150)).ToList();
+        PatientPathway? Pick(Func<PatientPathway, bool> where) =>
             takesFiles.Where(where).OrderBy(_ => random.Next()).FirstOrDefault();
-        DateTime When(PatientProcedure p) => Max(p.CreatedAt.AddDays(random.Next(1, 20)), recent.AddDays(random.Next(0, 50)));
-        bool Finished(PatientProcedure p, string stage) => p.Stages.Any(s => s.Name == stage && s.IsCompleted);
-        bool IsSkinLesion(PatientProcedure p) => p.TemplateId == world.TemplateIds[Pathway.SkinLesion] || p.TemplateId == world.TemplateIds[Pathway.SkinLesion2024];
+        DateTime When(PatientPathway p) => Max(p.CreatedAt.AddDays(random.Next(1, 20)), recent.AddDays(random.Next(0, 50)));
+        bool Finished(PatientPathway p, string stage) => p.Stages.Any(s => s.Name == stage && s.IsCompleted);
+        bool IsSkinLesion(PatientPathway p) => p.TemplateId == world.TemplateIds[PathwayKind.SkinLesion] || p.TemplateId == world.TemplateIds[PathwayKind.SkinLesion2024];
 
         // The lab's reports, by the biomedical scientist.
         foreach (var _ in Enumerable.Range(0, 6))
         {
-            var p = Pick(x => Finished(x, DemoPathways.Histology));
+            var p = Pick(x => Finished(x, DemoPathwayKinds.Histology));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, DemoPathways.Histology), When(p), "Histology report.pdf",
+            await Upload(Worker(world, p, DemoPathwayKinds.Histology), When(p), "Histology report.pdf",
                 SyntheticFiles.Pdf("Histology report (synthetic)",
                     [$"Specimen for: {p.Title}", $"Lab number: S{random.Next(10000, 99999)}", "Description and conclusion: as recorded in the stage notes.",
                      "Authorised by the biomedical scientist."]),
-                procedureId: p.Id);
+                pathwayId: p.Id);
         }
 
         foreach (var _ in Enumerable.Range(0, 4))
         {
-            var p = Pick(x => Finished(x, DemoPathways.LabTests));
+            var p = Pick(x => Finished(x, DemoPathwayKinds.LabTests));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, DemoPathways.LabTests), When(p), "Blood and urine results.pdf",
+            await Upload(Worker(world, p, DemoPathwayKinds.LabTests), When(p), "Blood and urine results.pdf",
                 SyntheticFiles.Pdf("Blood and urine results (synthetic)",
                     [$"Sodium: {random.Next(136, 144)} mmol/L", $"Creatinine: {random.Next(55, 98)} micromol/L", $"Cholesterol: {random.Next(3, 6)}.{random.Next(0, 9)} mmol/L",
                      "Urine: no infection", "The tests asked for: as recorded in the stage notes."]),
-                procedureId: p.Id);
+                pathwayId: p.Id);
         }
 
         // Pictures (with thumbnails): where a lesion is, sketched at the first visit; and a flow test's trace.
         foreach (var _ in Enumerable.Range(0, 4))
         {
-            var p = Pick(x => IsSkinLesion(x) && Finished(x, DemoPathways.FirstClinicVisit) && world.Sites.ContainsKey(x.Id));
+            var p = Pick(x => IsSkinLesion(x) && Finished(x, DemoPathwayKinds.FirstClinicVisit) && world.Sites.ContainsKey(x.Id));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, DemoPathways.FirstClinicVisit), When(p), "Lesion site map.png",
-                SyntheticFiles.SiteMapPng(world.Sites[p.Id]), procedureId: p.Id);
+            await Upload(Worker(world, p, DemoPathwayKinds.FirstClinicVisit), When(p), "Lesion site map.png",
+                SyntheticFiles.SiteMapPng(world.Sites[p.Id]), pathwayId: p.Id);
         }
 
         foreach (var _ in Enumerable.Range(0, 3))
         {
-            var p = Pick(x => x.TemplateId == world.TemplateIds[Pathway.Prostate] && Finished(x, DemoPathways.FirstClinicVisit));
+            var p = Pick(x => x.TemplateId == world.TemplateIds[PathwayKind.Prostate] && Finished(x, DemoPathwayKinds.FirstClinicVisit));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, DemoPathways.FirstClinicVisit), When(p), "Flow test.png", SyntheticFiles.FlowTracePng(random.Next(7, 19), random), procedureId: p.Id);
+            await Upload(Worker(world, p, DemoPathwayKinds.FirstClinicVisit), When(p), "Flow test.png", SyntheticFiles.FlowTracePng(random.Next(7, 19), random), pathwayId: p.Id);
         }
 
         // Clinic letters after a visit, and discharge letters at the end.
         foreach (var _ in Enumerable.Range(0, 5))
         {
-            var visit = random.NextDouble() < 0.7 ? DemoPathways.FirstClinicVisit : DemoPathways.ClinicReview;
+            var visit = random.NextDouble() < 0.7 ? DemoPathwayKinds.FirstClinicVisit : DemoPathwayKinds.ClinicReview;
             var p = Pick(x => Finished(x, visit));
             if (p is null)
                 continue;
             await Upload(Worker(world, p, visit), When(p), "Clinic letter.pdf",
                 SyntheticFiles.Pdf("Clinic letter (synthetic copy)", [$"Seen about: {p.Title}", "Findings and plan: as recorded in the stage notes.", "Copy to the GP and the patient."]),
-                procedureId: p.Id);
+                pathwayId: p.Id);
         }
 
         foreach (var _ in Enumerable.Range(0, 4))
@@ -148,25 +148,25 @@ public static class DemoFiles
                 continue;
             await Upload(Worker(world, p, p.Stages.OrderBy(s => s.StageOrder).Last().Name), When(p), "Discharge letter to GP.pdf",
                 SyntheticFiles.Pdf("Discharge letter (synthetic copy)", [$"Seen about: {p.Title}", "Outcome: as in the record.", "For the GP: as in the plan.", "Copy to the patient."]),
-                procedureId: p.Id);
+                pathwayId: p.Id);
         }
 
         // On stages under way: a home programme for a biomechanics session, and a phone note.
-        var sessions = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status)
-                                                   && ProcedureWorkflow.CurrentStage(p) is { Name: DemoPathways.BiomechanicsSession, StartedAtUtc: not null }).Take(2).ToList();
+        var sessions = world.Pathways.Where(p => !restricted.Contains(p.PatientId) && PathwayWorkflow.IsOpen(p.Status)
+                                                   && PathwayWorkflow.CurrentStage(p) is { Name: DemoPathwayKinds.BiomechanicsSession, StartedAtUtc: not null }).Take(2).ToList();
         foreach (var p in sessions)
         {
-            var stage = ProcedureWorkflow.CurrentStage(p)!;
+            var stage = PathwayWorkflow.CurrentStage(p)!;
             await Upload(world.Member(DemoStaff.PodiatristUsername), Max(stage.StartedAtUtc!.Value.AddMinutes(20), recent), "Home programme.png",
                 SyntheticFiles.DiagramPng("Home programme", ["Stretch", "Strength", "Balance", "Walking"]), stageId: stage.Id);
         }
 
-        var underWay = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status) && p.Status != Status.Unassigned
-                                                   && ProcedureWorkflow.CurrentStage(p) is { StartedAtUtc: not null } s && s.Name != DemoPathways.BiomechanicsSession)
+        var underWay = world.Pathways.Where(p => !restricted.Contains(p.PatientId) && PathwayWorkflow.IsOpen(p.Status) && p.Status != Status.Unassigned
+                                                   && PathwayWorkflow.CurrentStage(p) is { StartedAtUtc: not null } s && s.Name != DemoPathwayKinds.BiomechanicsSession)
             .OrderBy(_ => random.Next()).Take(3).ToList();
         foreach (var p in underWay)
         {
-            var stage = ProcedureWorkflow.CurrentStage(p)!;
+            var stage = PathwayWorkflow.CurrentStage(p)!;
             await Upload(Worker(world, p, stage.Name), Max(stage.StartedAtUtc!.Value.AddMinutes(15), recent), "Phone note.txt",
                 SyntheticFiles.Text("Telephone note (synthetic)", ["Called the patient to confirm the plan.", "No new concerns.", "Next step as in the record."]),
                 stageId: stage.Id);
@@ -220,11 +220,11 @@ public static class DemoFiles
         return new { uploaded = uploaded.Count, deleted, downloaded = downloads };
     }
 
-    /// <summary>Who worked on a stage of a procedure (who started it), else its first assignee, else the coordinator.</summary>
-    private static StaffMember Worker(DemoWorld world, PatientProcedure procedure, string stageName)
+    /// <summary>Who worked on a stage of a pathway (who started it), else its first assignee, else the coordinator.</summary>
+    private static StaffMember Worker(DemoWorld world, PatientPathway pathway, string stageName)
     {
-        var started = procedure.Stages.FirstOrDefault(s => s.Name == stageName && s.StartedByUserId is not null)?.StartedByUserId
-                      ?? procedure.Assignments.FirstOrDefault()?.UserId;
+        var started = pathway.Stages.FirstOrDefault(s => s.Name == stageName && s.StartedByUserId is not null)?.StartedByUserId
+                      ?? pathway.Assignments.FirstOrDefault()?.UserId;
         return world.Staff.FirstOrDefault(s => s.Id == started && s.LeftUtc is null) ?? world.Coordinator;
     }
 

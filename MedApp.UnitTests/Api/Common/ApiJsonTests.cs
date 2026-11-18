@@ -1,13 +1,13 @@
 using System.Text.Json;
 using FluentAssertions;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Infrastructure.Data.Conversions;
 using MedApp.UnitTests.Common.Fixtures;
 using static MedApp.UnitTests.Common.Constants.PatientsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Api.Common;
 
@@ -25,7 +25,7 @@ public sealed class ApiJsonTests
     [Test]
     public void Hub_NotificationReadFromTheDatabase_IsSentAsUtcWithZ()
     {
-        var notification = new NotificationResponse(Guid.Empty, "ProcedureAssigned", "Assigned", "Synthetic", null, ReadFromTheDatabase(), false);
+        var notification = new NotificationResponse(Guid.Empty, "PathwayAssigned", "Assigned", "Synthetic", null, ReadFromTheDatabase(), false);
 
         JsonSerializer.Serialize(notification, ApiJson.Hub).Should().Contain("\"createdAtUtc\":\"2026-06-15T12:00:00Z\"");
     }
@@ -41,7 +41,7 @@ public sealed class ApiJsonTests
     [Test]
     public void Controllers_DueDate_IsSentAsADateAndItsEndAsUtcWithZ()
     {
-        var summary = new PatientProcedureSummaryResponse
+        var summary = new PatientPathwaySummaryResponse
         {
             DueDate = Today,
             DueDateUtc = (DateTime)new UtcDateTimeConverter().ConvertFromProvider(

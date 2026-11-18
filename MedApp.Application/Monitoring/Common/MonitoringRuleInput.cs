@@ -2,10 +2,10 @@ using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Monitoring;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Monitoring.Common;
 
@@ -28,13 +28,13 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
     protected MonitoringRuleInputValidator()
     {
         RuleFor(x => x.Event)
-            .Must(value => ProcedureEnums.TryParse<MonitoringEvent>(value, out _))
+            .Must(value => PathwayEnums.TryParse<MonitoringEvent>(value, out _))
             .WithMessage($"Event must be one of: {EventNames}.");
 
         RuleFor(x => x.MinimumPriority)
-            .Must(ProcedureEnums.IsPriority)
+            .Must(PathwayEnums.IsPriority)
             .When(x => x.MinimumPriority is not null)
-            .WithMessage($"Priority must be one of: {ProcedureEnums.PriorityNames}.");
+            .WithMessage($"Priority must be one of: {PathwayEnums.PriorityNames}.");
 
         RuleFor(x => x.SubjectUserId)
             .NotEqual(Guid.Empty)
@@ -50,7 +50,7 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
 
         RuleFor(x => x.StageDefinitionId)
             .Null()
-            .When(x => ProcedureEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasStage(e))
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasStage(e))
             .WithMessage("A stage can only be chosen for a stage being finished or unlocked.");
     }
 }
@@ -80,11 +80,11 @@ public static class MonitoringRuleInput
         IMonitoringRuleInput input,
         MonitoringRule? existing,
         IIdentityReadService identityReadService,
-        IPatientProcedureStagesRepository stagesRepository,
+        IPatientPathwayStagesRepository stagesRepository,
         CancellationToken cancellationToken)
     {
         Guid? Newly(Guid? id, Guid? stored) => existing is not null && id == stored ? null : id;
-        var monitoringEvent = ProcedureEnums.Parse<MonitoringEvent>(input.Event);
+        var monitoringEvent = PathwayEnums.Parse<MonitoringEvent>(input.Event);
 
         if (Newly(input.SubjectUserId, existing?.SubjectUserId) is { } userId)
         {
@@ -101,7 +101,7 @@ public static class MonitoringRuleInput
             await CheckIsAdminAsync(name, identityReadService, cancellationToken);
 
         if (Newly(input.TemplateId, existing?.TemplateId) is { } templateId
-            && !(await stagesRepository.GetStageTemplateNamesAsync([templateId], cancellationToken)).ContainsKey(templateId))
+            && !(await stagesRepository.GetPathwayTemplateNamesAsync([templateId], cancellationToken)).ContainsKey(templateId))
             throw new NotFoundException($"Template '{templateId}' was not found.");
 
         if (Newly(input.StageDefinitionId, existing?.StageDefinitionId) is { } stageId
@@ -120,8 +120,8 @@ public static class MonitoringRuleInput
     public static void Apply(MonitoringRule rule, IMonitoringRuleInput input, DateTime nowUtc)
     {
         rule.SubjectUserId = input.SubjectUserId;
-        rule.Event = ProcedureEnums.Parse<MonitoringEvent>(input.Event);
-        rule.MinimumPriority = input.MinimumPriority is null ? null : ProcedureEnums.Parse<PatientProcedurePriority>(input.MinimumPriority);
+        rule.Event = PathwayEnums.Parse<MonitoringEvent>(input.Event);
+        rule.MinimumPriority = input.MinimumPriority is null ? null : PathwayEnums.Parse<PatientPathwayPriority>(input.MinimumPriority);
         rule.TemplateId = input.TemplateId;
         rule.StageDefinitionId = input.StageDefinitionId;
         rule.IsEnabled = input.IsEnabled;
