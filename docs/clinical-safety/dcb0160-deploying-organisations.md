@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.7, draft |
+| **Version** | 0.8, draft |
 | **Date** | 18 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -59,6 +59,7 @@ The manufacturer's safety case holds only if you:
 - **tell patients about their appointments,** and about every cancellation and change, by your own process. MedApp doesn't contact patients;
 - **train staff,** including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist opens on work not yet started;
 - **handle referrals safely,** once you use them: give the permission to register referrals (`RegisterReferrals`), and later to triage them (`TriageReferrals`, with membership of the specialty), only to the right people, with at least one triager for every specialty; check the referral inbox every working day; keep a paper or downtime process for referrals; and, once the waiting-time clock exists, set its targets and review your waiting list;
+- **handle specimens safely,** once you use them: give the permissions to record specimens (`RecordSpecimens`) and to receive, reject and report them (`ProcessSpecimens`) only to the right people; set up specimen types with realistic expected turnaround days, and the labs you use; check the lab worklist every working day; check each label against the patient before a specimen leaves; and keep a downtime process for lab work;
 - **have at least two admins** who are available while staff work;
 - **reassign a leaver's open pathways** before removing their account;
 - **review overdue, unassigned and blocked pathways** on a set schedule;
@@ -104,16 +105,17 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-42 A paused waiting-time clock is forgotten | Once the clock is built: a weekly look at the Paused clocks view, and pauses only for patient-initiated delays |
 | H-43 A breach of a waiting-time target goes unnoticed, or the target is wrong | Once the clock is built: set each specialty's targets under your clinical governance, review them, and review your waiting list on a set schedule |
 | H-44 A duplicate referral leads to two pathways for one need | Read MedApp's warning of an open referral to the same specialty before confirming; mark a duplicate registered by mistake as entered in error |
+| H-45 A specimen is lost, or its report never comes back | **Available now** (branch `feature/specimens`): **a daily check of the lab worklist** (Lab: Expected and Overdue, and To send for specimens left in the clinic), with a named owner and cover, and a process for chasing the lab; act on the "Specimen lost" and "Specimen rejected" notifications (ask the patient back for another specimen) |
+| H-47 A report is attached to the wrong patient or specimen | **Available now:** positive patient identification when labelling (check the label's name, date of birth and NHS number against the patient before the specimen leaves); the lab checks each label against its request sheet; attach a report from the specimen found by its number, and check the patient shown first. **Until results sign-off is built (PR 14), a report attached to the wrong specimen can't be corrected in MedApp:** tell the manufacturer, and record the error in your own systems |
 
 ### Planned: what you'll provide for the centre's Phases 3 to 5
 
-Specimens, results, letters, clinics, reminders, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO.
+Results, letters, clinics, reminders, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO. **Specimens are built** (branch `feature/specimens`, PR 13): their controls for H-45 and H-47 apply now, and are in the table above.
 
 | Hazard | What you'll provide |
 |---|---|
-| H-45 A specimen is lost, or its report never comes back | **A daily check of the lab worklist** (Expected and Overdue), and a process for chasing the lab |
 | H-46 A result is never seen or acted on | **A daily check of results** awaiting sign-off and Needs a clinician, and cover for clinicians who are away |
-| H-47 A report is attached to the wrong patient or specimen | Positive patient identification when labelling; the lab checks each label against its request |
+| H-47 A report is attached to the wrong patient or specimen | Once results sign-off is built: mark a report attached in error as entered in error, which sends the specimen back to be reported again (the rest is above) |
 | H-48 A letter goes to the wrong practice or person | Check the patient's address and GP practice with them at each visit |
 | H-49 A letter isn't sent, or goes late | A daily check of letters to send and awaiting approval, and **a downtime process for letters** (below) |
 | H-50 A letter shows another patient's details, or an unapproved version is sent | Check the identifiers on every page before posting or handing a letter over |
@@ -140,6 +142,7 @@ Specimens, results, letters, clinics, reminders, the MDT list, consent and the N
   - Archive a template rather than editing it heavily; create a new one for a new way of working.
 - **Roles:** admins can manage users, templates, assignments and the audit log. Give the role to few people, but at least two. Remove it when someone changes job.
 - **Referrals:** give the permission to register referrals to the staff who receive referral letters (the starting roles Clinician, Nurse and Booking have it, and so do Admin and "All staff (before roles)"), and, once triage is built, the triage permission only to clinicians, each a member of the specialties they triage. Check every specialty has at least one. Decide who checks the referral inbox each working day, who covers them, and what happens to a letter MedApp refuses because the patient's record is restricted (it goes to an admin).
+- **Specimens:** give the permission to record specimens (`RecordSpecimens`) to the staff who take and send them (the starting roles Clinician, Nurse and Lab have it), and to receive, reject and report them (`ProcessSpecimens`) to your lab's staff (the starting role Lab). Neither is in Admin's fixed set. Set up the specimen types, each with the days its lab is expected to take (Overdue at lab counts from them), and the labs you use (Administration). Decide who checks the lab worklist each working day, and who covers them. The label and request sheet print on A4 today; check they suit your printers and pots. The requesting clinician must hold the permission to work on pathways (until results sign-off, which will need the permission to sign off results).
 - **Accounts:** one account per person; no shared accounts. Reassign a leaver's open pathways, then remove the account. Deleting an account doesn't reassign its work, which then shows as assigned to "Deleted user" and is on nobody's task list (H-21).
 - **Target dates:** decide locally what a target date means for each kind of pathway, and tell staff. In MedApp, a pathway is due by the end of its day, UK time.
 - **Attached files:** decide what may be attached (for example referral letters, results, consent forms, wound photos), where the master copy lives, and how files are named. Files aren't scanned for malware yet: each shows "Not scanned" (H-25). Any member of staff can open any patient's files, and each download is recorded.
@@ -162,6 +165,7 @@ Before anyone uses MedApp with patients, they need to know:
 - how to attach a file to the right patient, pathway or stage, and what to do if it goes to the wrong one (H-23);
 - that files are only downloaded, never shown in the page, what "Not scanned" means, and to delete downloaded copies when finished;
 - how to book an appointment, check the patient, and find free time; that Requires Appointment (from the Calendar page) lists the visits still to book; that a stage whose visit is required can't be finished until the appointment is marked Attended; and that MedApp doesn't tell patients anything, so a cancellation or change must be passed on;
+- for staff who take or process specimens: to check the label against the patient before the specimen leaves; that the Lab page's Expected and Overdue views are the list to check daily; that a pathway's last stage can't be finished while a specimen is open; to attach a report from the specimen found by its number, checking the patient shown; and that a report attached to the wrong specimen can't be corrected in MedApp yet;
 - what to do when MedApp is unavailable;
 - how to report a problem or a safety incident.
 
@@ -175,7 +179,7 @@ Plan for MedApp being unavailable, whether for minutes or a day:
 - **After:** enter the work into MedApp, saying in the notes that it was done during downtime and when; check for work that was done twice or missed.
 - **Letters (planned, Phase 3):** once letters are built, keep a way to write and send an urgent letter outside MedApp (your own template and secure mailbox); afterwards, record it in MedApp as sent outside MedApp, with the date, so the To send list and the letter gates stay right.
 - **Referrals:** keep a paper log of referrals received while MedApp is unavailable (patient, specialty, date received, referrer, priority asked for), with the letters; register them afterwards with the date they were received, not the date entered; urgent ones go straight to a clinician of the specialty.
-- **Lab work (planned, Phase 3):** during downtime, keep a paper log of specimens taken and sent (with their numbers, if labels were printed), and enter them afterwards; reports that arrive meanwhile go to the responsible clinician on paper.
+- **Lab work:** during downtime, keep a paper log of specimens taken and sent (with their numbers, if labels were printed), and enter them afterwards with the times they were taken and sent (MedApp accepts times up to 7 days back); reports that arrive meanwhile go to the requesting clinician on paper, and are attached to the specimen afterwards.
 - **After a restore** from backup: the manufacturer will tell you the restore point. Re-enter work done since then from your downtime records.
 
 ## A starter hazard log for your deployment
@@ -199,6 +203,7 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | D-13 | Staff absence isn't in MedApp, so appointments are booked when nobody is there | Leave and sickness recorded only elsewhere | Record absence in MedApp before booking; a daily check of the next day's calendars |
 | D-14 | Visit requirements don't match local practice | Set without clinical review; left at none | Clinical sign-off of each stage's visit requirement |
 | D-15 | A referral letter is never registered, or the inbox isn't read | Letters arriving by post, email and fax to different people; no owner for the inbox | One route for referral letters; a named owner and cover for the daily inbox check; a paper log during downtime |
+| D-16 | Specimens aren't tracked, or the lab worklist isn't read | Specimens sent without being recorded; expected turnaround days left unrealistic; no owner for the worklist | Every specimen recorded and labelled from MedApp; turnaround days agreed with each lab; a named owner and cover for the daily worklist check; a paper log during downtime |
 
 ## Reporting incidents
 
@@ -223,3 +228,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | 0.6 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), before they're built: the controls planned to transfer to you for H-45 to H-64 (among them a daily check of the lab worklist and of results awaiting sign-off), and downtime for letters and lab work. The hazard count brought up to date (64) | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-12 to D-14 (drafted as D-11 to D-13, renumbered after file attachments took D-11) | AI coding agent, for review |
 | 0.7 | 18 November 2026 | Referrals (branch `feature/referrals`, Phase 2's PR 5): your duties for referrals among the assumptions (the register and triage permissions to the right people, a triager for every specialty, a daily inbox check, a downtime process for referrals, and later the clock's targets), the controls that transfer to you for H-40 to H-44, configuring referral permissions and the inbox's owner, downtime for referrals, and starter hazard D-15; and a warning not to use referrals with patients until triage is built | AI coding agent, for review |
+| 0.8 | 18 November 2026 | Specimens (branch `feature/specimens`, Phase 3's PR 13): your duties for specimens among the assumptions, the controls for H-45 (the daily lab worklist check, now available) and H-47 (checking the label against the patient, attaching a report from the specimen found by its number) moved from planned to the table of what you provide now, with what to do until a wrong report can be corrected (PR 14); configuring specimen permissions, types and labs; training; downtime for lab work; starter hazard D-16 | AI coding agent, for review |

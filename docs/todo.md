@@ -27,6 +27,10 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 
 **Phase 3: clinic to lab to result to letter.**
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
+  - **Specimens are built** (PR 13, `feature/specimens`: `docs/agents/specimens.md`). **Results sign-off is next** (PR 14): make a result from each report, in the same save as the report (`SaveReportAsync`), and switch the requesting clinician check from `WorkPathways` to `SignOffResults` (`SpecimenChoices.RequestingClinicianPermission`). Until then a reported specimen tells nobody its report is back, so specimens' reports mustn't be relied on with patients (hazards H-45 and H-46).
+  - **No correction for a wrong report yet:** a reported specimen is closed, and its report can't be deleted on its own, so a report attached to the wrong specimen stays there until PR 14's "entered in error" sends the specimen back to Received (hazard H-47; the safety case lists it as a known defect).
+  - **Demo specimens** (PR 17): the demo data has the specimen types and labs only (`DemoSpecimens`); specimens with their reports, through the specimen rules, come with Phase 3's demo data.
+  - **A label printer format:** the label and request sheet are printable pages, laid out for A4, today (`/specimens/{id}/print`). Add a layout for a label printer (a small label of the number, its QR code and the patient's identifiers), so the label fits the pot.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
 
@@ -36,7 +40,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Roles that limit what people see:** the starting roles (Clinician, Nurse, Booking, Lab, Manager) limit what each does since Phase 2, but every role still sees every patient. The privacy items naming roles (hiding restricted patients from lists, an `Auditor` read permission) build on it.
 - **Patient reminders:** texts or emails before an appointment, and the rule for a missed one. A job on the scheduled job runner (`docs/agents/jobs.md`).
 - **Adjusted with them:**
-  - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked.
+  - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked, a specimen days past its expected turnaround at the lab (hazard H-45's service alert, PR 25).
   - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin.
 
 **Phase 5: soon after, and before a real team uses it.**

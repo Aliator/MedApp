@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft template), 16 November 2026: adds appointments; 0.3 (draft template), 18 November 2026: adds referrals (the referral and its letter, received from the professional who referred the patient) |
+| **Version** | 0.2 (draft template), 16 November 2026: adds appointments; 0.3 (draft template), 18 November 2026: adds referrals (the referral and its letter, received from the professional who referred the patient); 0.4 (draft template), 18 November 2026: adds specimens and lab reports, with the labs specimens are sent to as recipients |
 | **For** | Customers, to adapt and publish to their patients |
 | **Prepared by** | [Company name], the supplier of MedApp |
 
@@ -18,7 +18,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 
 > **The systems we use to coordinate your care**
 >
-> We use a system called MedApp to record your details, to record the referral that asked us to see you (with its letter), to organise the steps of pathways you have with us, such as [pre-assessment, the pathway itself and follow-up], and to book your appointments with our staff. Our staff record notes at each step and about appointments, and may keep copies of documents about your care in it, such as letters, test results, scans and photos. The system keeps a record of who made each change, and who opened each document, and when, including whether you attended an appointment and why one was cancelled.
+> We use a system called MedApp to record your details, to record the referral that asked us to see you (with its letter), to organise the steps of pathways you have with us, such as [pre-assessment, the pathway itself and follow-up], to book your appointments with our staff, and to track any samples (specimens) we take from you to the laboratory and back. Our staff record notes at each step and about appointments, and may keep copies of documents about your care in it, such as letters, test results, scans and photos. The system keeps a record of who made each change, and who opened each document, and when, including whether you attended an appointment and why one was cancelled.
 >
 > MedApp is provided by [Company name], which runs it for us. [Company name] acts only on our instructions. It can't use your information for its own purposes, and it's bound by a contract and a duty of confidentiality.
 >
@@ -32,9 +32,9 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; the pathways you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); the referral that asked us to see you (who referred you, when, to which of our services, how soon they asked for you to be seen and why), with a copy of the referral letter; notes our staff write about your care; and copies of documents about your care, such as letters, test results, scans and photos [of the area being treated]. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; the pathways you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); the referral that asked us to see you (who referred you, when, to which of our services, how soon they asked for you to be seen and why), with a copy of the referral letter; any samples (specimens) we take from you for testing: what kind, where on your body it was taken from, any notes for the laboratory, which laboratory it went to and when, and a copy of the laboratory's report; notes our staff write about your care; and copies of documents about your care, such as letters, test results, scans and photos [of the area being treated]. [Add anything else you hold in other systems.]
 >
-> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you]. When you're referred to us, the referral letter comes from the professional who referred you (usually your GP practice); our staff record its details in MedApp, including the name of the professional and their practice, and keep a copy of the letter. [*Only once MedApp is connected to it:* We may check your name and date of birth against the NHS's national record of patients' details (the Personal Demographics Service), using your NHS number.]
+> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you]. When you're referred to us, the referral letter comes from the professional who referred you (usually your GP practice); our staff record its details in MedApp, including the name of the professional and their practice, and keep a copy of the letter. When we send a sample from you for testing, the laboratory sends us its report, and we keep a copy. [*Only once MedApp is connected to it:* We may check your name and date of birth against the NHS's national record of patients' details (the Personal Demographics Service), using your NHS number.]
 >
 > **Why we use it.** To provide and coordinate your care, to book your appointments, to keep an accurate record of it, and to make sure the right staff do the right things at the right time.
 >
@@ -45,7 +45,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Everyone who sees your information is a health professional or has a duty to keep it confidential.
 >
-> **Who we share it with.** Our staff caring for you. Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, who can reach it only to run and support the system, under contracts that only let them use it for us. [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
+> **Who we share it with.** Our staff caring for you. The laboratories that test samples we take from you, [our own laboratory, and name partner laboratories]: each sample goes with a label and a request form showing your name, date of birth and NHS number, and what the laboratory needs to test it (where it was taken from, any notes for the laboratory and the clinician who asked for it). Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, who can reach it only to run and support the system, under contracts that only let them use it for us. [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
 >
 > **Where it's kept.** Stored in the United Kingdom. In rare cases Microsoft's support engineers may reach it from outside the UK to support the system, under the safeguards UK law requires.
 >
@@ -76,4 +76,5 @@ Write it so your patients can understand it: plain words, short sentences, and a
 - **Where to publish it.** On your website, in waiting areas, in appointment letters, and in the information given before a pathway.
 - **Keep it true.** If you change how you use MedApp (for example sharing records with another organisation), update the notice before you do it.
 - **Referrals.** If you accept referrals, say who they come from in "Where it comes from" (the patient didn't give you this information, so Article 14 applies). A referral names the referring clinician; that's their personal data too, which your notice for professionals, or your contracts with referrers, should cover.
+- **Laboratories.** If you send specimens to a laboratory outside your organisation, name it in "Who we share it with" (or describe the kind of laboratory), and make sure your agreement with it covers the specimens, their labels and request forms, and its reports. MedApp only prints the label and request form; it sends nothing to a laboratory.
 - **Appointment reminders.** MedApp doesn't send patients reminders or confirmations. If you send them from another system, your notice should say so.
