@@ -3,26 +3,31 @@ using MedApp.Application.Procedures.Insights.Common;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>The demo clinic's pathways, one per procedure template.</summary>
+/// <summary>The demo centre's pathways, one per pathway template.</summary>
 public enum Pathway
 {
-    DayCase,
-    DayCase2024,
-    Surgical,
-    Diagnostic,
-    Minor,
-    Physio,
+    /// <summary>The skin lesion pathway as redesigned <see cref="VolumeCurves.SkinLesionRedesignedWeeksAgo"/> weeks ago.</summary>
+    SkinLesion,
+
+    /// <summary>The older skin lesion pathway it replaced: archived, with a few still finishing.</summary>
+    SkinLesion2024,
+    InflammatorySkin,
+    PostMenopausalBleeding,
+    Prostate,
+    Diabetes,
+    Biomechanics,
 }
 
 /// <summary>
-/// How many procedures each pathway starts a week, over the clinic's 18 months: the shape Insights shows. Weeks are
+/// How many referrals each pathway takes a week, over the centre's 18 months: the shape Insights shows. Weeks are
 /// counted back from this one (0), as UK weeks, Monday to Sunday, as Insights counts them. The last 26 weeks are the
 /// detailed history; before that it's thinner (<see cref="ThinHistory"/>), as if fewer were recorded in the app's
-/// first months.
+/// first months. Two pathways follow the seasons (<see cref="Season"/>), and one the calendar month, so the shape
+/// depends on the time of year the seed is run, as a centre's does.
 /// </summary>
 public static class VolumeCurves
 {
-    /// <summary>How far back the clinic's use of the app goes: about 18 months.</summary>
+    /// <summary>How far back the centre's use of the app goes: about 18 months.</summary>
     public const int HistoryWeeks = 78;
 
     /// <summary>The detailed weeks: what Insights' longest period shows.</summary>
@@ -31,25 +36,31 @@ public static class VolumeCurves
     /// <summary>The share of the usual volume recorded before the detailed weeks.</summary>
     public const double ThinHistory = 0.2;
 
-    /// <summary>The new day-case pathway's first week (weeks ago); it replaced the 2024 one, archived then.</summary>
-    public const int DayCaseLaunchedWeeksAgo = 9;
+    /// <summary>The redesigned skin lesion pathway's first week (weeks ago); it replaced the 2024 one, archived then.</summary>
+    public const int SkinLesionRedesignedWeeksAgo = 18;
 
-    /// <summary>The physiotherapy service's first week (weeks ago).</summary>
-    public const int PhysioStartedWeeksAgo = 15;
+    /// <summary>How many weeks the redesigned pathway took to reach its full volume.</summary>
+    public const int SkinLesionRampWeeks = 6;
+
+    /// <summary>The biomechanics service's first week (weeks ago).</summary>
+    public const int BiomechanicsStartedWeeksAgo = 20;
 
     /// <summary>
-    /// The expected number of procedures a pathway starts in a whole week, <paramref name="weeksAgo"/> weeks back.
+    /// The expected number of referrals a pathway takes in a whole week, <paramref name="weeksAgo"/> weeks back, the
+    /// week starting <paramref name="monday"/>.
     /// <list type="bullet">
-    /// <item>Day-case: launched <see cref="DayCaseLaunchedWeeksAgo"/> weeks ago, ramping up from 3 to 9 a week.</item>
-    /// <item>Day-case (2024): about 5 a week until the new one replaced it; nothing since.</item>
-    /// <item>Surgical: a steady 2.5 a week.</item>
-    /// <item>Diagnostic: about 6 a week, 3 in the summer (8 to 11 weeks ago), and 12 in the waiting-list initiative
-    /// (2 and 3 weeks ago).</item>
-    /// <item>Minor procedures: 3.5 a week, but 1 last week, when a clinic was cancelled.</item>
-    /// <item>Physiotherapy: 2 a week since it started <see cref="PhysioStartedWeeksAgo"/> weeks ago.</item>
+    /// <item>Skin lesion: launched <see cref="SkinLesionRedesignedWeeksAgo"/> weeks ago, ramping up from 3 to 8 a week
+    /// over <see cref="SkinLesionRampWeeks"/> weeks; more in summer, fewer in winter.</item>
+    /// <item>Skin lesion (2024): about 5 a week (with the same seasons) until the redesign replaced it; nothing since.</item>
+    /// <item>Inflammatory skin review: 3.5 a week, more in winter; but 1 last week, when a clinic was cancelled.</item>
+    /// <item>Post-menopausal bleeding: 2 a week; 1 every other week while the visiting consultant was away (8 to 11
+    /// weeks ago), and 4 in the two weeks of extra clinics (2 and 3 weeks ago).</item>
+    /// <item>Prostate assessment: a steady 2 a week.</item>
+    /// <item>Diabetes review: 2 a week, and 6 in the week the month's recall letters go out (the week with the 1st).</item>
+    /// <item>Biomechanics course: 2 a week since it started <see cref="BiomechanicsStartedWeeksAgo"/> weeks ago.</item>
     /// </list>
     /// </summary>
-    public static double Expected(Pathway pathway, int weeksAgo)
+    public static double Expected(Pathway pathway, int weeksAgo, DateOnly monday)
     {
         if (weeksAgo < 0 || weeksAgo >= HistoryWeeks)
             return 0;
@@ -57,25 +68,55 @@ public static class VolumeCurves
         var thin = weeksAgo >= DetailedWeeks ? ThinHistory : 1.0;
         return pathway switch
         {
-            Pathway.DayCase => weeksAgo > DayCaseLaunchedWeeksAgo
+            Pathway.SkinLesion => weeksAgo > SkinLesionRedesignedWeeksAgo
                 ? 0
-                : 3 + (DayCaseLaunchedWeeksAgo - weeksAgo) * 6.0 / DayCaseLaunchedWeeksAgo,
-            Pathway.DayCase2024 => weeksAgo <= DayCaseLaunchedWeeksAgo ? 0 : 5 * thin,
-            Pathway.Surgical => 2.5 * thin,
-            Pathway.Diagnostic => weeksAgo switch
+                : Math.Min(8, 3 + (SkinLesionRedesignedWeeksAgo - weeksAgo) * 5.0 / SkinLesionRampWeeks) * Season(pathway, monday),
+            Pathway.SkinLesion2024 => weeksAgo <= SkinLesionRedesignedWeeksAgo ? 0 : 5 * thin * Season(pathway, monday),
+            Pathway.InflammatorySkin => weeksAgo == 1 ? 1 : 3.5 * thin * Season(pathway, monday),
+            Pathway.PostMenopausalBleeding => weeksAgo switch
             {
-                2 or 3 => 12,
-                >= 8 and <= 11 => 3,
-                _ => 6 * thin,
+                2 or 3 => 4,
+                >= 8 and <= 11 => 0.5,
+                _ => 2 * thin,
             },
-            Pathway.Minor => weeksAgo == 1 ? 1 : 3.5 * thin,
-            Pathway.Physio => weeksAgo <= PhysioStartedWeeksAgo ? 2 : 0,
+            Pathway.Prostate => 2 * thin,
+            Pathway.Diabetes => (IsRecallWeek(monday) ? 6 : 2) * thin,
+            Pathway.Biomechanics => weeksAgo <= BiomechanicsStartedWeeksAgo ? 2 : 0,
             _ => 0,
         };
     }
 
+    /// <summary>The same, for the week <paramref name="weeksAgo"/> weeks before the one <paramref name="nowUtc"/> is in.</summary>
+    public static double Expected(Pathway pathway, int weeksAgo, DateTime nowUtc) =>
+        Expected(pathway, weeksAgo, InsightsPeriod.MondayOf(UkTime.DateOf(nowUtc)).AddDays(-7 * weeksAgo));
+
     /// <summary>
-    /// When a pathway's procedures were created, oldest first: each week's expected number (this week's in proportion
+    /// How the time of year changes a pathway's referrals, by the month its week starts in: people notice moles in
+    /// summer clothes (May to September), and eczema and psoriasis flare in the cold (November to March). 1 for the
+    /// pathways that don't follow the seasons.
+    /// </summary>
+    public static double Season(Pathway pathway, DateOnly monday) => pathway switch
+    {
+        Pathway.SkinLesion or Pathway.SkinLesion2024 => monday.Month switch
+        {
+            >= 5 and <= 9 => 1.25,
+            12 or 1 or 2 => 0.8,
+            _ => 1,
+        },
+        Pathway.InflammatorySkin => monday.Month switch
+        {
+            >= 11 or <= 3 => 1.25,
+            >= 6 and <= 8 => 0.8,
+            _ => 1,
+        },
+        _ => 1,
+    };
+
+    /// <summary>Whether a week (Monday to Sunday) has the 1st of a month in it: when the diabetes recall letters go out.</summary>
+    public static bool IsRecallWeek(DateOnly monday) => monday.Day == 1 || monday.AddDays(6).Month != monday.Month;
+
+    /// <summary>
+    /// When a pathway's referrals were recorded, oldest first: each week's expected number (this week's in proportion
     /// to how much of it has gone), rounded up or down at random, each at a random moment of the working day on a
     /// weekday of that week, and never after <paramref name="nowUtc"/>.
     /// </summary>
@@ -92,7 +133,7 @@ public static class VolumeCurves
                 ? Math.Clamp((nowUtc - weekStart).TotalDays / 7, 0, 1)
                 : 1;
 
-            var expected = Expected(pathway, weeksAgo) * share;
+            var expected = Expected(pathway, weeksAgo, monday) * share;
             var count = (int)Math.Floor(expected) + (random.NextDouble() < expected - Math.Floor(expected) ? 1 : 0);
 
             var week = new List<DateTime>();

@@ -13,7 +13,7 @@ public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? Pr
 public sealed record RuleState(MonitoringRule Rule, DateTime CreatedUtc, DateTime? DisabledUtc);
 
 /// <summary>
-/// What every procedure's replay shares: the clinic (staff, calendars, templates, rules), the random choices, and
+/// What every procedure's replay shares: the centre (staff, calendars, templates, rules), the random choices, and
 /// everything the replays produce, to be saved together.
 /// </summary>
 public sealed class DemoWorld
@@ -40,6 +40,9 @@ public sealed class DemoWorld
     public List<AppointmentEvent> AppointmentEvents { get; } = [];
     public List<Notification> Notifications { get; } = [];
     public List<Touch> Touches { get; } = [];
+
+    /// <summary>Where on the body each record with a site is about (its notes name it), by the record's ID.</summary>
+    public Dictionary<Guid, string> Sites { get; } = [];
 
     /// <summary>Procedures to delete (by an admin, later), with when.</summary>
     public List<(PatientProcedure Procedure, DateTime AtUtc)> Deletions { get; } = [];

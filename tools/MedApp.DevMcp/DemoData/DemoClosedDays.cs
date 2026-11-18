@@ -6,7 +6,7 @@ using MedApp.Domain.Calendar;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// The demo clinic's closed days: England and Wales bank holidays (<see cref="BankHolidays"/>), saved as closed days
+/// The demo centre's closed days: England and Wales bank holidays (<see cref="BankHolidays"/>), saved as closed days
 /// for every year the story covers, and kept clear by everything the seed plans (appointments, blocks, meetings,
 /// sign-ins), as the app keeps new things off them. The seed's working day checks come here rather than to
 /// <see cref="WorkingHours"/> alone.
@@ -29,8 +29,8 @@ public static class DemoClosedDays
     public static string? WhyOutside(DateTime startUtc, DateTime endUtc) => WorkingHours.WhyOutside(startUtc, endUtc, Set);
 
     /// <summary>
-    /// The closed days to save: every bank holiday from the year the clinic started using MedApp to next year, added by
-    /// the lead (an admin throughout) when the clinic started.
+    /// The closed days to save: every bank holiday from the year the centre started using MedApp to next year, added by
+    /// the lead (an admin throughout) when the centre started.
     /// </summary>
     public static IReadOnlyList<ClosedDay> Rows(DemoTimeline timeline, Guid addedBy) =>
         Enumerable.Range(UkTime.DateOf(timeline.AppStartUtc).Year, timeline.Today.Year - UkTime.DateOf(timeline.AppStartUtc).Year + 2)

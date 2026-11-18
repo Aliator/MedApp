@@ -16,8 +16,9 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// Attached files, uploaded through the app's own command (its type sniffing, SHA-256, thumbnails, scan state, audit
 /// entry and record), by the staff working on each record, at moments in the record's story: referral letters on
-/// patients, reports, consent copies, discharge summaries and traces on procedures, and a diagram and a note on
-/// stages under way (files go on a stage only while it can be edited). Two are deleted, one by its uploader and one
+/// patients; histology reports, blood results, clinic and discharge letters, a lesion's site map (the site its notes
+/// name) and a flow test's trace on pathway records; and a home programme and a phone note on stages under way (files go on a stage only
+/// while it can be edited). Two are deleted, one by its uploader and one
 /// by an admin. Some are listed and downloaded, as the activity log and audit record. Only when the attachment store
 /// (the AppHost's Azurite) answers; otherwise skipped, and the summary says so.
 /// </summary>
@@ -73,43 +74,70 @@ public static class DemoFiles
         var referred = patients.Where(p => p.Role == PatientRole.Active && !p.Restricted && p.CreatedUtc >= recent).OrderBy(p => p.CreatedUtc).Take(10).ToList();
         foreach (var patient in referred)
             await Upload(world.Coordinator, patient.CreatedUtc.AddMinutes(random.Next(5, 90)), "Referral letter.pdf",
-                SyntheticFiles.Pdf("Referral letter (synthetic)", ["From: the GP", "Reason for referral: see the procedure record.", "Please see and treat."]),
+                SyntheticFiles.Pdf("Referral letter (synthetic)", ["From: the GP", "Reason for referral: see the pathway record.", "Please see and advise."]),
                 patientId: patient.Id);
 
-        // On procedures that are open or completed (files can't be added to cancelled or archived ones).
+        // On pathway records that are open or completed (files can't be added to cancelled or archived ones).
         var restricted = patients.Where(p => p.Restricted).Select(p => p.Id).ToHashSet();
         var takesFiles = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && p.TemplateId is not null && p.Status is not (Status.Cancelled or Status.Archived) && p.CreatedAt >= now.AddDays(-150)).ToList();
         PatientProcedure? Pick(Func<PatientProcedure, bool> where) =>
             takesFiles.Where(where).OrderBy(_ => random.Next()).FirstOrDefault();
         DateTime When(PatientProcedure p) => Max(p.CreatedAt.AddDays(random.Next(1, 20)), recent.AddDays(random.Next(0, 50)));
+        bool Finished(PatientProcedure p, string stage) => p.Stages.Any(s => s.Name == stage && s.IsCompleted);
+        bool IsSkinLesion(PatientProcedure p) => p.TemplateId == world.TemplateIds[Pathway.SkinLesion] || p.TemplateId == world.TemplateIds[Pathway.SkinLesion2024];
 
+        // The lab's reports, by the biomedical scientist.
         foreach (var _ in Enumerable.Range(0, 6))
         {
-            var p = Pick(x => x.Stages.Any(s => s.Name == "Pre-assessment" && s.IsCompleted));
+            var p = Pick(x => Finished(x, DemoPathways.Histology));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, "Pre-assessment"), When(p), "Pre-op bloods report.pdf",
-                SyntheticFiles.Pdf("Pre-operative bloods (synthetic)",
-                    [$"Haemoglobin: {random.Next(118, 156)} g/L (normal)", $"White cells: {random.Next(4, 10)}.{random.Next(0, 9)} (normal)",
-                     $"Sodium: {random.Next(136, 144)} mmol/L", $"Creatinine: {random.Next(55, 98)} micromol/L", "Group and save: done"]),
+            await Upload(Worker(world, p, DemoPathways.Histology), When(p), "Histology report.pdf",
+                SyntheticFiles.Pdf("Histology report (synthetic)",
+                    [$"Specimen for: {p.Title}", $"Lab number: S{random.Next(10000, 99999)}", "Description and conclusion: as recorded in the stage notes.",
+                     "Authorised by the biomedical scientist."]),
                 procedureId: p.Id);
         }
 
         foreach (var _ in Enumerable.Range(0, 4))
         {
-            var p = Pick(x => x.Stages.Any(s => s.Name == "Pre-assessment" && s.IsCompleted));
+            var p = Pick(x => Finished(x, DemoPathways.LabTests));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, "Pre-assessment"), When(p), "ECG.png", SyntheticFiles.TracePng(random.Next(58, 92), random), procedureId: p.Id);
+            await Upload(Worker(world, p, DemoPathways.LabTests), When(p), "Blood and urine results.pdf",
+                SyntheticFiles.Pdf("Blood and urine results (synthetic)",
+                    [$"Sodium: {random.Next(136, 144)} mmol/L", $"Creatinine: {random.Next(55, 98)} micromol/L", $"Cholesterol: {random.Next(3, 6)}.{random.Next(0, 9)} mmol/L",
+                     "Urine: no infection", "The tests asked for: as recorded in the stage notes."]),
+                procedureId: p.Id);
         }
 
-        foreach (var _ in Enumerable.Range(0, 5))
+        // Pictures (with thumbnails): where a lesion is, sketched at the first visit; and a flow test's trace.
+        foreach (var _ in Enumerable.Range(0, 4))
         {
-            var p = Pick(x => x.Stages.Any(s => s.Name == "Consent" && s.IsCompleted));
+            var p = Pick(x => IsSkinLesion(x) && Finished(x, DemoPathways.FirstClinicVisit) && world.Sites.ContainsKey(x.Id));
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, "Consent"), When(p), "Consent form copy.pdf",
-                SyntheticFiles.Pdf("Consent form (synthetic copy)", [$"Procedure: {p.Title}", "Benefits, risks and alternatives discussed.", "Signed by the patient and the clinician."]),
+            await Upload(Worker(world, p, DemoPathways.FirstClinicVisit), When(p), "Lesion site map.png",
+                SyntheticFiles.SiteMapPng(world.Sites[p.Id]), procedureId: p.Id);
+        }
+
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            var p = Pick(x => x.TemplateId == world.TemplateIds[Pathway.Prostate] && Finished(x, DemoPathways.FirstClinicVisit));
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, DemoPathways.FirstClinicVisit), When(p), "Flow test.png", SyntheticFiles.FlowTracePng(random.Next(7, 19), random), procedureId: p.Id);
+        }
+
+        // Clinic letters after a visit, and discharge letters at the end.
+        foreach (var _ in Enumerable.Range(0, 5))
+        {
+            var visit = random.NextDouble() < 0.7 ? DemoPathways.FirstClinicVisit : DemoPathways.ClinicReview;
+            var p = Pick(x => Finished(x, visit));
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, visit), When(p), "Clinic letter.pdf",
+                SyntheticFiles.Pdf("Clinic letter (synthetic copy)", [$"Seen about: {p.Title}", "Findings and plan: as recorded in the stage notes.", "Copy to the GP and the patient."]),
                 procedureId: p.Id);
         }
 
@@ -118,23 +146,23 @@ public static class DemoFiles
             var p = Pick(x => x.Status == Status.Completed || x.Status == Status.InReview);
             if (p is null)
                 continue;
-            await Upload(Worker(world, p, p.Stages.OrderBy(s => s.StageOrder).Last().Name), When(p), "Discharge summary.pdf",
-                SyntheticFiles.Pdf("Discharge summary (synthetic)", [$"Procedure: {p.Title}", "Outcome: as planned.", "Follow-up: as in the record.", "Copy to the GP."]),
+            await Upload(Worker(world, p, p.Stages.OrderBy(s => s.StageOrder).Last().Name), When(p), "Discharge letter to GP.pdf",
+                SyntheticFiles.Pdf("Discharge letter (synthetic copy)", [$"Seen about: {p.Title}", "Outcome: as in the record.", "For the GP: as in the plan.", "Copy to the patient."]),
                 procedureId: p.Id);
         }
 
-        // On stages under way: a diagram for a physiotherapy session, and a phone note.
-        var physio = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status)
-                                                 && ProcedureWorkflow.CurrentStage(p) is { Name: "Physiotherapy session", StartedAtUtc: not null }).Take(2).ToList();
-        foreach (var p in physio)
+        // On stages under way: a home programme for a biomechanics session, and a phone note.
+        var sessions = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status)
+                                                   && ProcedureWorkflow.CurrentStage(p) is { Name: DemoPathways.BiomechanicsSession, StartedAtUtc: not null }).Take(2).ToList();
+        foreach (var p in sessions)
         {
             var stage = ProcedureWorkflow.CurrentStage(p)!;
-            await Upload(world.Member("a.pemberton"), Max(stage.StartedAtUtc!.Value.AddMinutes(20), recent), "Exercise plan.png",
-                SyntheticFiles.DiagramPng(["Range", "Strength", "Balance", "Function"]), stageId: stage.Id);
+            await Upload(world.Member(DemoStaff.PodiatristUsername), Max(stage.StartedAtUtc!.Value.AddMinutes(20), recent), "Home programme.png",
+                SyntheticFiles.DiagramPng("Home programme", ["Stretch", "Strength", "Balance", "Walking"]), stageId: stage.Id);
         }
 
         var underWay = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status) && p.Status != Status.Unassigned
-                                                   && ProcedureWorkflow.CurrentStage(p) is { StartedAtUtc: not null } s && s.Name != "Physiotherapy session")
+                                                   && ProcedureWorkflow.CurrentStage(p) is { StartedAtUtc: not null } s && s.Name != DemoPathways.BiomechanicsSession)
             .OrderBy(_ => random.Next()).Take(3).ToList();
         foreach (var p in underWay)
         {

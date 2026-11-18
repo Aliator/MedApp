@@ -3,7 +3,7 @@ using MedApp.Application.Calendar.Common;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// When the clinic's meetings happen and when an admin arranged them: plain date arithmetic, with tests. The app has no
+/// When the centre's meetings happen and when an admin arranged them: plain date arithmetic, with tests. The app has no
 /// repeating meetings, so an admin arranges each one; the recurring ones are arranged in batches some weeks ahead, as
 /// someone setting up the next couple of months would.
 /// </summary>

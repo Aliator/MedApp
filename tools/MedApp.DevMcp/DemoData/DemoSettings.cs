@@ -9,7 +9,7 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// App settings saved with accounts, in the web app's own keys and shapes (<c>src/app/settingsStore.ts</c>: each a
 /// string under a <c>medapp.</c> key): the lead's rows per page, saved searches on the procedures and patients lists
-/// (one the procedures list starts on), and pins; a saved search each for two members of staff. Saved through the
+/// (one the procedures list starts on), and pins; saved searches for two members of staff. Saved through the
 /// app's command.
 /// </summary>
 public static class DemoSettings
@@ -19,8 +19,9 @@ public static class DemoSettings
         var timeline = world.Timeline;
         var lead = world.Lead;
         var today = timeline.Today;
-        var surgical = world.TemplateIds[Pathway.Surgical].ToString();
-        var diagnostic = world.TemplateIds[Pathway.Diagnostic].ToString();
+        var skinLesion = world.TemplateIds[Pathway.SkinLesion].ToString();
+        var prostate = world.TemplateIds[Pathway.Prostate].ToString();
+        var bleeding = world.TemplateIds[Pathway.PostMenopausalBleeding].ToString();
         var deleted = world.Deletions.Select(d => d.Procedure.Id).ToHashSet();
 
         var mine = world.Procedures
@@ -39,9 +40,9 @@ public static class DemoSettings
                     saved = new[]
                     {
                         myWork,
-                        Favourite("Overdue surgical", new() { ["templateId"] = surgical, ["overdue"] = true }),
+                        Favourite("Urgent skin referrals", new() { ["templateId"] = skinLesion, ["priority"] = "Urgent" }),
+                        Favourite("Overdue prostate assessments", new() { ["templateId"] = prostate, ["overdue"] = true }),
                         Favourite("Blocked", new() { ["status"] = "Blocked" }),
-                        Favourite("Urgent diagnostics", new() { ["templateId"] = diagnostic, ["priority"] = "Urgent" }),
                     },
                     startId = myWork.id,
                 },
@@ -66,12 +67,19 @@ public static class DemoSettings
         {
             ["medapp.favourites"] = Json(new Dictionary<string, object>
             {
-                ["procedures"] = new { saved = new[] { Favourite("Diagnostics under way", new() { ["templateId"] = diagnostic, ["status"] = "InProgress" }) } },
+                ["procedures"] = new
+                {
+                    saved = new[]
+                    {
+                        Favourite("Skin lesions in progress", new() { ["templateId"] = skinLesion, ["status"] = "InProgress" }),
+                        Favourite("Urgent bleeding referrals", new() { ["templateId"] = bleeding, ["priority"] = "Urgent" }),
+                    },
+                },
             }),
         };
 
-        var surgeon = world.Member("r.calloway");
-        var surgeonSettings = new Dictionary<string, string>
+        var dermatologist = world.Member(DemoStaff.DermatologistUsername);
+        var dermatologistSettings = new Dictionary<string, string>
         {
             ["medapp.pageSize"] = "50",
             ["medapp.favourites"] = Json(new Dictionary<string, object>
@@ -80,13 +88,13 @@ public static class DemoSettings
             }),
         };
 
-        foreach (var (member, settings, daysAgo) in new[] { (lead, leadSettings, 6), (coordinator, coordinatorSettings, 20), (surgeon, surgeonSettings, 33) })
+        foreach (var (member, settings, daysAgo) in new[] { (lead, leadSettings, 6), (coordinator, coordinatorSettings, 20), (dermatologist, dermatologistSettings, 33) })
         {
             services.At(DemoTimeline.WorkingMoment(timeline.NowUtc.AddDays(-daysAgo), 9, 5), member.ActivityActor);
             await services.Run(sp => sp.GetRequiredService<IMediator>().Send(new SaveMySettingsCommand(member.Id, Json(settings)), ct));
         }
 
-        return new { savedFor = new[] { lead.Username, coordinator.Username, surgeon.Username }, leadPins = mine.Count > 0 };
+        return new { savedFor = new[] { lead.Username, coordinator.Username, dermatologist.Username }, leadPins = mine.Count > 0 };
 
         static FavouriteSeed Favourite(string name, Dictionary<string, object> values) => new(Guid.NewGuid().ToString(), name, values);
     }

@@ -39,8 +39,7 @@ public sealed class ProcedureReplay
 
     private StaffMember _lead;
     private readonly StaffMember? _secondAssignee;
-    private readonly StaffMember _preAssessmentNurse;
-    private readonly StaffMember _wardNurse;
+    private readonly StaffMember _samplesTaker;
     private readonly StaffMember _followUpNurse;
 
     /// <summary>Nothing in this procedure happens before this (after a correction, the next stage waits for it).</summary>
@@ -55,15 +54,18 @@ public sealed class ProcedureReplay
         _waitScale = waitScale;
         _lead = lead;
 
-        var nurses = new[] { world.Member("k.ellison"), world.Member("l.northcott") };
-        _preAssessmentNurse = _random.NextDouble() < 0.8 ? nurses[0] : nurses[1];
-        _wardNurse = _random.NextDouble() < 0.5 ? nurses[0] : world.Member(DemoStaff.LockedUsername);
-        _followUpNurse = _random.NextDouble() < 0.6 ? nurses[1] : nurses[0];
+        // Bloods and samples are taken by the healthcare assistant, or the skin cancer nurse specialist when she's free;
+        // follow-up is the nurse specialist's for that service (for diabetes, the lead's own when the nurse leads it).
+        var skinNurse = world.Member(DemoStaff.SkinCancerNurseUsername);
+        var diabetesNurse = world.Member(DemoStaff.DiabetesNurseUsername);
+        _samplesTaker = _random.NextDouble() < 0.65 ? world.Member(DemoStaff.LockedUsername) : skinNurse;
+        _followUpNurse = plan.Pathway == Pathway.Diabetes ? diabetesNurse : skinNurse;
         if (plan.SecondAssignee)
         {
-            _secondAssignee = _random.NextDouble() < 0.6 ? nurses[0] : nurses[1];
-            _preAssessmentNurse = _secondAssignee;
-            _followUpNurse = _secondAssignee;
+            // Assigned alongside the lead: the nurse specialist for the service; the pharmacist when the nurse leads it.
+            _secondAssignee = plan.Pathway != Pathway.Diabetes ? skinNurse
+                : lead.Id == diabetesNurse.Id ? world.Member(DemoStaff.PharmacistUsername)
+                : diabetesNurse;
         }
 
         var template = world.Templates[plan.Pathway];
@@ -94,6 +96,8 @@ public sealed class ProcedureReplay
     public void Commit()
     {
         _plan.ProcedureId = _procedure.Id;
+        if (_plan.Side is { } site)
+            _world.Sites[_procedure.Id] = site;
         _world.Procedures.Add(_procedure);
         _world.Audit.AddRange(_audit);
         _world.NoteVersions.AddRange(_noteVersions);
@@ -195,7 +199,7 @@ public sealed class ProcedureReplay
         if (index == _plan.ReassignStage)
         {
             var at = Working(Later(reached).AddHours(1 + _random.NextDouble() * 20));
-            var replacement = _world.Staff.FirstOrDefault(s => s.Kind is StaffKind.Surgeon && s.Id != _lead.Id && s.WorksAt(at));
+            var replacement = _world.Staff.FirstOrDefault(s => s.Kind is StaffKind.Dermatologist or StaffKind.SkinGp && s.Id != _lead.Id && s.WorksAt(at));
             if (at < _now && replacement is not null && ProcedureWorkflow.CanChangeAssignments(_procedure))
             {
                 var admin = _world.AdminAt(at);
@@ -207,12 +211,11 @@ public sealed class ProcedureReplay
             }
         }
 
-        // Recovery follows the procedure on the same day, however late the list runs; everything else is done in working hours.
-        // Two-week-wait referrals move faster; the waiting-list initiative cleared the diagnostic scheduling backlog lately.
-        var pace = _waitScale * (_plan.Urgent && _plan.Pathway == Pathway.Diagnostic ? 0.4 : 1)
-                   * (_plan.Pathway == Pathway.Diagnostic && spec.Definition == "Scheduling" && reached > _now.AddDays(-28) ? 0.3 : 1);
-        var wait = Later(reached).AddDays(spec.Wait.Pick(_random) * pace);
-        var startAt = spec.Definition == "Recovery" ? wait : Working(wait);
+        // Urgent referrals on the two suspected cancer routes move faster; the extra visiting clinics lately cut the wait
+        // for a first post-menopausal bleeding visit.
+        var pace = _waitScale * (_plan.Urgent && _plan.Pathway is Pathway.PostMenopausalBleeding or Pathway.SkinLesion ? 0.4 : 1)
+                   * (_plan.Pathway == Pathway.PostMenopausalBleeding && spec.Definition == DemoPathways.FirstClinicVisit && reached > _now.AddDays(-28) ? 0.3 : 1);
+        var startAt = Working(Later(reached).AddDays(spec.Wait.Pick(_random) * pace));
         if (startAt >= _now)
             return StageOutcome.Stopped;
 
@@ -224,8 +227,8 @@ public sealed class ProcedureReplay
         // there's none, a note from the person starting this stage.
         if (_plan.EditNotes && index == 1)
             UpdateFirstNote(worker, startAt.AddMinutes(_random.Next(2, 30)));
-        // A due date moved: at scheduling for surgery (the theatre date is known), otherwise part-way through.
-        if (_plan.EditDueDate && (_plan.Pathway == Pathway.Surgical ? spec.Definition == "Scheduling" : index == 2))
+        // A due date moved: for a prostate assessment once the visiting clinic's date is known, otherwise part-way through.
+        if (_plan.EditDueDate && (_plan.Pathway == Pathway.Prostate ? spec.Definition == DemoPathways.FirstClinicVisit : index == 2))
         {
             var due = DueDates.ToUkDate(_procedure.DueDateUtc).AddDays(7 * _random.Next(3, 9));
             EditDetails(_world.AdminAt(startAt), Working(startAt.AddMinutes(_random.Next(5, 120))), due: due);
@@ -253,7 +256,7 @@ public sealed class ProcedureReplay
         else
         {
             var work = spec.Work.Pick(_random) * _waitScale;
-            var finishAt = spec.Definition == "Recovery" ? startAt.AddDays(work) : Working(startAt.AddDays(work));
+            var finishAt = Working(startAt.AddDays(work));
             notesAt = finishAt.AddMinutes(-_random.Next(1, 8));
             if (notesAt <= startAt)
                 notesAt = startAt.AddMinutes(1);
@@ -272,8 +275,8 @@ public sealed class ProcedureReplay
         reached = finishedAt;
         MaybeProcedureNote(spec, stage, worker, finishedAt);
 
-        // A diagnostic referral upgraded at triage: urgent, and due sooner.
-        if (_plan.RaisePriority && spec.Definition == "Triage")
+        // A referral upgraded at triage, by the clinician who read it: urgent, and due sooner.
+        if (_plan.RaisePriority && spec.Definition == DemoPathways.Triage)
             EditDetails(worker, finishedAt.AddMinutes(_random.Next(1, 5)), priority: Priority.Urgent,
                 due: DueDates.ToUkDate(_procedure.CreatedAt).AddDays(7 * _plan.Spec.UrgentDueWeeks));
 
@@ -631,20 +634,24 @@ public sealed class ProcedureReplay
 
     // People and times -------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Who records the referral: the booking coordinator, as the referral letters arrive; for a diabetes review (a
+    /// recall the service sends itself) or a biomechanics course (often asked for by a colleague in clinic), the
+    /// clinician half the time.
+    /// </summary>
     private StaffMember Creator() => _plan.Pathway switch
     {
-        Pathway.Surgical => _lead,
-        Pathway.Physio => _lead,
-        Pathway.Minor => _random.NextDouble() < 0.5 ? _lead : _world.Coordinator,
+        Pathway.Diabetes or Pathway.Biomechanics => _random.NextDouble() < 0.5 ? _lead : _world.Coordinator,
         _ => _world.Coordinator,
     };
 
     private StaffMember WorkerFor(StageSpec spec) => spec.Role switch
     {
         StageRole.Coordinator => _world.Coordinator,
-        StageRole.PreAssessment => _preAssessmentNurse,
-        StageRole.Ward => _wardNurse,
-        StageRole.FollowUp => _followUpNurse,
+        StageRole.Lab => _world.Member(DemoStaff.ScientistUsername),
+        StageRole.Samples => _samplesTaker,
+        StageRole.Nurse => _followUpNurse,
+        StageRole.Pharmacist => _world.Member(DemoStaff.PharmacistUsername),
         _ => _lead,
     };
 

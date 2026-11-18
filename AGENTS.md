@@ -211,11 +211,11 @@ All UI work goes in `MedApp.Web`; its conventions are in `MedApp.Web/AGENTS.md` 
 
 ### Dev MCP server (`medapp-dev`)
 
-`.mcp.json` registers `medapp-dev` (`tools/MedApp.DevMcp`) and the Astryx docs MCP (`astryx`). **Use `medapp-dev` for local account and app-state chores** (accounts, roles, sessions, synthetic patients, migrations, snapshots, `reset_demo_data`), not hand-written SQL or one-off programs. Take a `save_snapshot` before a destructive experiment. Everything else, including the demo data: `docs/agents/dev-mcp.md`.
+`.mcp.json` registers `medapp-dev` (`tools/MedApp.DevMcp`) and the Astryx docs MCP (`astryx`). **Use `medapp-dev` for local account and app-state chores** (accounts, roles, sessions, synthetic patients, migrations, snapshots, `reset_demo_data`), not hand-written SQL or one-off programs. Take a `save_snapshot` before a destructive experiment. **Demo data comes from one script, never by hand:** `tools/seed-demo-data.sh --confirm --keep-users dev-parity` (or `.ps1`) applies pending migrations, then runs the same seeder as `reset_demo_data`. Everything else: `docs/agents/dev-mcp.md`.
 
 ## Local dev gotchas
 
-Docker, memory, the dev server, server-side rendering and the production image: `docs/agents/local-dev.md`. In short: Docker Desktop must be running for the AppHost; an empty database isn't migrated at startup (apply the migrations, then `reset_demo_data`); if `/api` calls return the app's HTML, restart the AppHost.
+Docker, memory, the dev server, server-side rendering and the production image: `docs/agents/local-dev.md`. In short: Docker Desktop must be running for the AppHost; an empty database isn't migrated at startup (`tools/seed-demo-data.sh --confirm` applies the migrations, then loads the demo data); if `/api` calls return the app's HTML, restart the AppHost.
 
 ## Testing conventions
 

@@ -231,6 +231,7 @@ What the security baseline left, so the app would work exactly as before (`docs/
 - **Run more of the web tests under StrictMode.** Only the tests that pass `strict` to `renderWithApp` run effects twice as development does, and `renderApp` has no such option. Use Testing Library's own `reactStrictMode` option, give `renderApp` it too, then try `configure({reactStrictMode: true})` across the suite to find other effects that break when run twice (review of #109, finding 3).
 
 - **Split `MedApp.Web/AGENTS.md` like the root one.** It's over 50,000 characters, loaded whenever an agent works in `MedApp.Web`. Keep its core rules there and move long component and page detail to `docs/agents/web-*.md`, with a Read before you change table, as the root `AGENTS.md` does.
+- **The seeding script's rough edges** (review of #142): snapshot before applying migrations, not after (`tools/seed-demo-data.sh`, `DemoDataReset`); validate `--save-snapshot`'s name before the wipe, or print the summary first; build the connection string with the password escaped.
 
 ## Long term
 

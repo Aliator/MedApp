@@ -9,8 +9,8 @@ namespace MedApp.UnitTests.Tools.DemoData;
 
 /// <summary>
 /// The demo data's calendars (<see cref="DemoCalendars"/>), planned in memory at many moments, since the story is told
-/// relative to "now": every stored block obeys the app's no-overlap rule, and the nurse's freed slot is reserved once
-/// it's booked, so no visit is booked over it.
+/// relative to "now": every stored block obeys the app's no-overlap rule, and the pharmacist's freed slot is reserved
+/// once it's booked, so no visit is booked over it.
 /// </summary>
 [TestFixture]
 public sealed class DemoCalendarsTests
@@ -66,28 +66,28 @@ public sealed class DemoCalendarsTests
     }
 
     [Test]
-    public void Plan_HistoryChangesPartWay_ThePartTimeWeekAndTheEndoscopistsLaterLunch()
+    public void Plan_HistoryChangesPartWay_ThePartTimeWeekAndTheDermatologistsLaterLunch()
     {
         var timeline = new DemoTimeline(Now);
         var staff = Staff(timeline);
         var calendars = DemoCalendars.Plan(staff, timeline, new Random(Seed));
-        var partTime = staff.Single(s => s.Kind == StaffKind.PartTimeNurse);
-        var endoscopist = DemoStaff.Get(staff, DemoTemplates.LateLunchUsername);
+        var partTime = staff.Single(s => s.Kind == StaffKind.DiabetesNurse);
+        var dermatologist = DemoStaff.Get(staff, DemoTemplates.LateLunchUsername);
         var changed = timeline.ThisMonday.AddDays(-7 * 20);
 
         calendars.DefaultWeeks.Where(d => d.StaffUserId == partTime.Id).OrderBy(d => d.ValidFrom).Select(d => (d.ValidTo, d.ValidFrom))
             .Should().HaveCount(2).And.Satisfy(d => d.ValidTo == changed.AddDays(-1), d => d.ValidFrom == changed && d.ValidTo == null);
 
-        // Monday list days (not on leave, nor bank holidays, when no template applies) before the change, and after it:
+        // Tuesday list days (not on leave, nor bank holidays, when no template applies) before the change, and after it:
         // the lunch moved later.
-        var mondays = Enumerable.Range(1, 20).Select(w => timeline.ThisMonday.AddDays(-7 * w))
-            .Where(d => !calendars.IsOnLeave(endoscopist.Id, d) && DemoClosedDays.IsWorkingDay(d)).ToList();
-        LunchOn(mondays.First(d => d < timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(12, 45));
-        LunchOn(mondays.First(d => d >= timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(13, 15));
+        var tuesdays = Enumerable.Range(1, 20).Select(w => timeline.ThisMonday.AddDays(1 - 7 * w))
+            .Where(d => !calendars.IsOnLeave(dermatologist.Id, d) && DemoClosedDays.IsWorkingDay(d)).ToList();
+        LunchOn(tuesdays.First(d => d < timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(12, 45));
+        LunchOn(tuesdays.First(d => d >= timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(13, 15));
 
-        TimeOnly? LunchOn(DateOnly monday)
+        TimeOnly? LunchOn(DateOnly tuesday)
         {
-            var data = calendars.DataFor(endoscopist.Id, monday, monday);
+            var data = calendars.DataFor(dermatologist.Id, tuesday, tuesday);
             return CalendarProjection.TemplateBlocks(data)
                 .Where(b => b.Source.Note != "List preparation" && b.Source.Note != "Trainee supervision")
                 .Select(b => (TimeOnly?)UkTime.TimeOf(b.StartUtc)).SingleOrDefault();
@@ -95,23 +95,23 @@ public sealed class DemoCalendarsTests
     }
 
     [Test]
-    public void Plan_DiaryDayIsAThursday_MovesTheSurgeonsFridayLunchIntoFreeTime()
+    public void Plan_DiaryDayIsAThursday_MovesTheDermatologistsFridayLunchIntoFreeTime()
     {
         var timeline = new DemoTimeline(UkTime.ToUtc(new DateOnly(2026, 11, 19), new TimeOnly(10, 0)));
         var staff = Staff(timeline);
-        var surgeon = DemoStaff.Get(staff, "r.calloway");
+        var dermatologist = DemoStaff.Get(staff, DemoStaff.DermatologistUsername);
         var calendars = DemoCalendars.Plan(staff, timeline, new Random(Seed));
         var friday = new DateOnly(2026, 11, 20);
 
-        var moved = calendars.StoredBlocks.Should().ContainSingle(b => b.StaffUserId == surgeon.Id && UkTime.DateOf(b.StartUtc) == friday).Subject;
-        CalendarClashes.Find(calendars.DataFor(surgeon.Id, friday, friday), moved.StartUtc, moved.EndUtc, ignoreBlockId: moved.Id)
-            .Should().BeNull("the Friday's admin day has its admin time and the MDT meeting, and the lunch goes round them");
-        CalendarProjection.TemplateBlocks(calendars.DataFor(surgeon.Id, friday, friday))
+        var moved = calendars.StoredBlocks.Should().ContainSingle(b => b.StaffUserId == dermatologist.Id && UkTime.DateOf(b.StartUtc) == friday).Subject;
+        CalendarClashes.Find(calendars.DataFor(dermatologist.Id, friday, friday), moved.StartUtc, moved.EndUtc, ignoreBlockId: moved.Id)
+            .Should().BeNull("the Friday's admin day has its admin time and the skin cancer team meeting, and the lunch goes round them");
+        CalendarProjection.TemplateBlocks(calendars.DataFor(dermatologist.Id, friday, friday))
             .Should().NotContain(p => p.StartUtc == UkTime.ToUtc(friday, new TimeOnly(12, 0)), "the template's lunch is left off that day");
     }
 
     [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
-    public void BookFreedSlot_BooksTheNursesFreedTime_AndReservesIt(DateTime nowUtc)
+    public void BookFreedSlot_BooksThePharmacistsFreedTime_AndReservesIt(DateTime nowUtc)
     {
         var timeline = new DemoTimeline(nowUtc);
         var staff = Staff(timeline);
@@ -135,13 +135,13 @@ public sealed class DemoCalendarsTests
             CreatedUtc = timeline.AppStartUtc,
             Role = PatientRole.Active,
         }).ToList();
-        var (nurse, start, end) = world.Calendars.FreedSlot!.Value;
+        var (pharmacist, start, end) = world.Calendars.FreedSlot!.Value;
 
         DemoProcedures.BookFreedSlot(world, patients);
 
-        world.Appointments.Should().ContainSingle(a => a.StaffUserId == nurse && a.StartUtc == start && a.EndUtc == end);
-        world.Allocator.IsFree(nurse, start, end).Should().BeFalse("a booked time is reserved, so no visit can be booked over it");
-        world.Allocator.FreeStarts(nurse, UkTime.DateOf(start), 15, start.AddHours(-1))
+        world.Appointments.Should().ContainSingle(a => a.StaffUserId == pharmacist && a.StartUtc == start && a.EndUtc == end);
+        world.Allocator.IsFree(pharmacist, start, end).Should().BeFalse("a booked time is reserved, so no visit can be booked over it");
+        world.Allocator.FreeStarts(pharmacist, UkTime.DateOf(start), 15, start.AddHours(-1))
             .Should().NotContain(s => CalendarClashes.Overlaps(s, s.AddMinutes(15), start, end));
     }
 }
