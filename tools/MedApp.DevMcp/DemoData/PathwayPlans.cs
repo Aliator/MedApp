@@ -81,6 +81,32 @@ public sealed class PathwayPlan
     public int ReassignStage { get; set; } = -1;
 
     public bool SecondAssignee { get; set; }
+
+    // Phase 3 to 5's special cases (each on one or a few plans; PathwayReplay.Lab).
+
+    /// <summary>The lab rejects the unlabelled urine pot, and it's taken again.</summary>
+    public bool RejectsSpecimen { get; set; }
+
+    /// <summary>The biopsy is lost on the way to the partner lab, and the pathway put on hold.</summary>
+    public bool LosesSpecimen { get; set; }
+
+    /// <summary>A report filed against the wrong specimen: its result is marked entered in error and the right one attached.</summary>
+    public bool ResultInError { get; set; }
+
+    /// <summary>Its results wait weeks for sign-off.</summary>
+    public bool SlowSignOff { get; set; }
+
+    /// <summary>The patient withdraws consent before the biopsy.</summary>
+    public bool WithdrawsConsent { get; set; }
+
+    /// <summary>Its discharge summary is returned by the approver once, then approved.</summary>
+    public bool LetterReturned { get; set; }
+
+    /// <summary>Its optional stage is skipped when the patient declines, then reinstated when they change their mind.</summary>
+    public bool ReinstatesSkipped { get; set; }
+
+    /// <summary>Whether it has one of Phase 3 to 5's special cases (its story is kept plain otherwise).</summary>
+    public bool HasLabTwist => RejectsSpecimen || LosesSpecimen || ResultInError || SlowSignOff || WithdrawsConsent || LetterReturned || ReinstatesSkipped;
     public bool EditDueDate { get; set; }
     public bool RaisePriority { get; set; }
     public bool EditNotes { get; set; }
@@ -204,7 +230,8 @@ public static class PathwayPlans
         // Pauses, each asked for when an early stage was reached: about ten still paused now (each reason), one paused
         // so long ago that its review date has passed, and some resumed in the past.
         bool Pausable(PathwayPlan p) => p.FromReferral && p.Fate == Fate.Normal && !p.Straggler && p.NeverBookStage < 0
-                                        && p.BypassStage < 0 && p.UnlockStage < 0 && p.RedirectedFrom is null && p.Pause == PauseFate.None;
+                                        && p.BypassStage < 0 && p.UnlockStage < 0 && p.RedirectedFrom is null && p.Pause == PauseFate.None
+                                        && !p.HasLabTwist;
         var reasons = Enum.GetValues<ClockPauseReason>();
         var index = 0;
         foreach (var plan in Choose(plans.Where(p => Pausable(p) && p.CreatedUtc >= now.AddDays(-55) && p.CreatedUtc <= now.AddDays(-6)), 10))
@@ -274,6 +301,24 @@ public static class PathwayPlans
 
         foreach (var plan in Choose(plans, p => Free(p) && Between(p, 180, 21) && p.Spec.Stages.Length >= 4, 6))
             plan.UnlockStage = random.Next(1, Math.Min(4, plan.Spec.Stages.Length - 1));
+
+        // Phases 3 to 5's special cases, on pathways created since the lab, results and letters went live (ten weeks
+        // ago), whose stories otherwise run plainly.
+        bool Plain(PathwayPlan p) => Free(p) && p.NeverBookStage < 0 && p.BypassStage < 0 && p.UnlockStage < 0;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 50, 25) && p.PathwayKind is PathwayKind.Prostate or PathwayKind.Diabetes, 1))
+            plan.RejectsSpecimen = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 60, 40) && p.PathwayKind == PathwayKind.SkinLesion, 1))
+            plan.LosesSpecimen = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 60, 35) && p.PathwayKind == PathwayKind.PostMenopausalBleeding, 1))
+            plan.ResultInError = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 60, 35) && p.PathwayKind is PathwayKind.SkinLesion or PathwayKind.PostMenopausalBleeding or PathwayKind.Prostate, 4))
+            plan.SlowSignOff = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 40, 25) && p.PathwayKind == PathwayKind.SkinLesion, 1))
+            plan.WithdrawsConsent = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 68, 40) && p.PathwayKind == PathwayKind.Diabetes, 4))
+            plan.LetterReturned = true;
+        foreach (var plan in Choose(plans, p => Plain(p) && Between(p, 75, 50) && p.PathwayKind == PathwayKind.Biomechanics, 1))
+            plan.ReinstatesSkipped = true;
 
         foreach (var plan in plans)
         {

@@ -1,6 +1,12 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Attachments;
+using MedApp.Domain.Calendar;
+using MedApp.Domain.Consent;
+using MedApp.Domain.Mdt;
+using MedApp.Domain.Results;
+using MedApp.Domain.Specimens;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -58,6 +64,31 @@ public sealed class DemoWorld
 
     /// <summary>Where on the body each record with a site is about (its notes name it), by the record's ID.</summary>
     public Dictionary<Guid, string> Sites { get; } = [];
+
+    /// <summary>Phase 3 to 5's setup: practices, sites and rooms, consent forms and letter templates.</summary>
+    public CentreSetup Setup { get; init; } = null!;
+
+    /// <summary>The specimen types and labs.</summary>
+    public SpecimenSetup SpecimenSetup { get; init; } = null!;
+
+    /// <summary>The skin cancer team's MDTs (meetings marked as MDTs once the MDT list went live), in order.</summary>
+    public IReadOnlyList<Meeting> MdtMeetings { get; init; } = [];
+
+    /// <summary>Specimens taken, results, consent records and MDT items, as the replays made them, to save together.</summary>
+    public List<Specimen> Specimens { get; } = [];
+    public List<Result> Results { get; } = [];
+    public List<ConsentRecord> ConsentRecords { get; } = [];
+    public List<MdtItem> MdtItems { get; } = [];
+
+    /// <summary>Files MedApp made or took in (reports), with their bytes, stored once the records are saved.</summary>
+    public List<Attachment> Attachments { get; } = [];
+    public Dictionary<Guid, byte[]> FileBytes { get; } = [];
+
+    /// <summary>Letters the replays planned, written and sent through the app's commands once the pathways are saved.</summary>
+    public List<LetterPlan> LetterPlans { get; } = [];
+
+    /// <summary>The next specimen number from the sequence (the seed restarts the sequence after it once saved).</summary>
+    public long NextSpecimenNumber { get; set; } = 1;
 
     /// <summary>Pathways to delete (by an admin, later), with when.</summary>
     public List<(PatientPathway Pathway, DateTime AtUtc)> Deletions { get; } = [];

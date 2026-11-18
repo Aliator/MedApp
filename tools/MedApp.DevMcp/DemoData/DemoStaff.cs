@@ -83,6 +83,9 @@ public sealed class StaffMember(StaffSeed seed, Guid id)
     public string? Password { get; set; }
     public PathwayActor Actor => new(Id, Username);
 
+    /// <summary>As a handler sees them at a moment: with what their roles allowed then.</summary>
+    public PathwayActor ActorAt(DateTime utc) => new(Id, Username, PermissionsAt(utc));
+
     /// <summary>The account's two-factor key (as typed into an app) and recovery codes, if it has two-factor.</summary>
     public string? TwoFactorKey { get; set; }
     public IReadOnlyList<string>? RecoveryCodes { get; set; }

@@ -40,7 +40,9 @@ public static class DemoDataSeeder
 
         var random = new Random(options.Seed);
         var timeline = new DemoTimeline(options.NowUtc);
-        await using var services = new SeedServices(configuration, timeline.NowUtc);
+        // Whether files can be stored: without a store, the files the app's commands make are dropped (their records stay).
+        var filesSkipped = await DemoFiles.WhyNotAvailableAsync(configuration, ct);
+        await using var services = new SeedServices(configuration, timeline.NowUtc, discardFiles: filesSkipped is not null);
 
         var keep = options.KeepUsers.Append(TestAdminTools.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
         // The standard roles, with their permissions put back as they start (an admin may have edited them locally).
@@ -69,10 +71,11 @@ public static class DemoDataSeeder
         var specialtyTargets = await DemoSpecialties.LoadAsync(services, ct);
         Mark("accounts");
         var (definitions, templates) = await CreatePathwayKindsAsync(services, specialties.Ids, ct);
-        var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
+        var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, specialties.Ids[DemoSpecialties.Dermatology], ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
         var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
         var specimenSetup = await DemoSpecimens.CreateSetupAsync(services, timeline, ct);
+        var setup = await DemoCentreSetup.CreateAsync(services, staff, timeline, ct);
 
         var plans = PathwayPlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
@@ -81,7 +84,7 @@ public static class DemoDataSeeder
         var stories = ReferralStories.Plan(plans, patients, timeline, random);
         var imported = patients.AddImported();
         Mark("pathways, calendars, rules and plans");
-        await patients.CreateAsync(services, staff, ct);
+        await patients.CreateAsync(services, staff, setup, ct);
         Mark("patients");
 
         var world = new DemoWorld
@@ -94,6 +97,9 @@ public static class DemoDataSeeder
             Definitions = definitions,
             Rules = rules,
             Specialties = specialtyTargets,
+            Setup = setup,
+            SpecimenSetup = specimenSetup,
+            MdtMeetings = calendars.Meetings.Where(m => m.IsMdt).OrderBy(m => m.StartUtc).ToList(),
         };
 
         // The lead's diary day: a full clinic, with free time left.
@@ -109,20 +115,30 @@ public static class DemoDataSeeder
         world.Notifications.AddRange(calendars.MeetingPlan.RecentNotifications);
         DemoPathways.MarkRead(world);
         Mark("replay");
+        DemoLab.AddLeaversResult(world, patients.All);
         await DemoPathways.SaveAsync(services, world, ct);
         await DemoReferrals.SaveAsync(services, world, ct);
+        await DemoLab.SaveAsync(services, world, ct);
         var pathways = DemoPathways.Summarise(world);
         var referrals = DemoReferrals.Summarise(world, played);
+        var lab = DemoLab.Summarise(world);
         Mark("save");
 
+        // Letters through the letter commands, before any record is restricted (which stops letters).
+        var letters = await DemoLetters.CreateAsync(services, world, ct);
+        var clinics = await DemoClinics.CreateAsync(services, world, patients.All, ct);
+        Mark("letters and clinics");
+
         var privacy = await DemoPrivacy.CreateAsync(services, world, patients, ct);
-        Mark("privacy");
+        var reminders = await DemoReminders.CreateAsync(services, world, ct);
+        var dataRequestFor = await DemoDataRequests.CreateAsync(services, world, patients.All, ct);
+        Mark("privacy and reminders");
 
         object files;
-        if (await DemoFiles.WhyNotAvailableAsync(configuration, ct) is { } skipped)
-            files = new { skipped };
+        if (filesSkipped is { } skipped)
+            files = new { skipped, reportsWithoutTheirBytes = world.Attachments.Count };
         else
-            files = await DemoFiles.CreateAsync(services, world, patients.All, ct);
+            files = new { uploaded = await DemoFiles.CreateAsync(services, world, patients.All, ct), reports = await DemoLab.UploadReportsAsync(services, world, ct) };
 
         Mark("files");
         var activity = await DemoActivity.CreateAsync(services, world, patients.All, ct);
@@ -189,12 +205,22 @@ public static class DemoDataSeeder
                     meetingsDeclined = calendars.Meetings.Sum(m => m.Attendees.Count(a => a.Reply == MeetingReply.Declined)),
                 },
                 monitoringRules = rules.Count,
-                specimenTypes = specimenSetup.Types,
-                laboratories = specimenSetup.Labs,
+                specimenTypes = specimenSetup.Types.Count,
+                laboratories = specimenSetup.Labs.Count,
+                practices = setup.Practices.Count,
+                rooms = setup.Rooms.Count,
+                sitesWithHours = setup.SitesWithHours,
+                staffWithHours = setup.StaffWithHours,
+                letterTemplates = setup.LetterTemplates.Count,
+                lab,
+                letters = letters.Counts,
+                clinics = clinics.Counts,
+                reminders,
                 activityEntries = activity,
             },
             ["privacy"] = privacy,
-            ["tour"] = DemoTour.Build(world, plans, patients.All, stories),
+            ["openDataRequestFor"] = dataRequestFor,
+            ["tour"] = DemoTour.Build(world, plans, patients.All, stories, letters.Records, clinics.Tour),
             ["files"] = files,
             ["settings"] = settings,
             ["today"] = today,
@@ -215,6 +241,10 @@ public static class DemoDataSeeder
             SnomedTerm = d.SnomedTerm,
             VisitRequirement = d.Visit,
             IsArchived = d.IsArchived,
+            // What a stage needs before it's finished (Phases 3 to 5): copied onto pathways created from then on.
+            WaitsForResults = d.WaitsForResults,
+            NeedsLetterKind = d.NeedsLetter,
+            NeedsConsent = d.NeedsConsent,
         });
 
         var templates = DemoPathwayKinds.PathwayKinds.ToDictionary(p => p.PathwayKind, p => new PathwayTemplate
@@ -235,6 +265,9 @@ public static class DemoDataSeeder
                 StageOrder = i + 1,
                 // "The waiting-time clock stops when this stage is finished": one per template.
                 StopsClock = i == p.ClockStopIndex,
+                IsOptional = s.Optional,
+                ChoosesBranch = s.ChoosesBranch,
+                Branch = s.Branch,
             }).ToList(),
         });
 
