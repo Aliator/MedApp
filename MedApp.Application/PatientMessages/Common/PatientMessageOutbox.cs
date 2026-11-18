@@ -18,7 +18,7 @@ public interface IPatientMessageOutbox
     /// <summary>
     /// Stages the messages telling the appointment's patient (loaded with it) of <paramref name="kind"/>, for its start
     /// now: one per channel they chose, or one saying why none could go. Nothing when messages are off, or when this
-    /// appointment already has a message of this kind about this start.
+    /// appointment already has a message of this kind about this start and room.
     /// </summary>
     Task StageAsync(Appointment appointment, PatientMessageKind kind, Guid requestedByUserId, DateTime nowUtc, CancellationToken ct);
 }
@@ -34,7 +34,7 @@ public sealed class PatientMessageOutbox(IPatientMessageRepository repository, I
         if (!IsOn || appointment.StartUtc is not { } startUtc)
             return;
 
-        if (await repository.ExistsAsync(appointment.Id, kind, startUtc, ct))
+        if (await repository.ExistsAsync(appointment.Id, kind, startUtc, appointment.RoomId, ct))
             return;
 
         MessageSite? site = null;

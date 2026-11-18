@@ -63,6 +63,18 @@ public sealed class PatientMessageRulesTests
     }
 
     [Test]
+    public void WhyNotToSend_MovedToAnotherRoomAtTheSameTime_NoLongerApplies()
+    {
+        var reminder = Message(_appointment);
+        var moved = Message(_appointment, PatientMessageKind.AppointmentMoved);
+        _appointment.RoomId = Guid.NewGuid();
+
+        PatientMessageRules.WhyNotToSend(reminder, _appointment, _patient, Now).Should().Be(PatientMessageReasons.NoLongerApplies);
+        PatientMessageRules.WhyNotToSend(moved, _appointment, _patient, Now)
+            .Should().Be(PatientMessageReasons.NoLongerApplies, "a message made before the move names the old room's site");
+    }
+
+    [Test]
     public void WhyNotToSend_ReminderForAnAppointmentThatHasStarted_NoLongerApplies() =>
         PatientMessageRules.WhyNotToSend(Message(_appointment), _appointment, _patient, _appointment.StartUtc!.Value)
             .Should().Be(PatientMessageReasons.NoLongerApplies);

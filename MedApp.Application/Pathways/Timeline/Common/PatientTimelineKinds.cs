@@ -40,7 +40,7 @@ public static class PatientTimelineKinds
     public static PatientTimelineKind Of(PatientPathwayAuditEntry entry) => entry.Action switch
     {
         Created => PatientTimelineKind.Created,
-        StageStarted or StageFinished or StageUnlocked => PatientTimelineKind.Stages,
+        StageStarted or StageFinished or StageUnlocked or StageSkipped or BranchChosen or StageReinstated => PatientTimelineKind.Stages,
         StageNotesUpdated or NoteAdded or NoteEdited or NoteDeleted => PatientTimelineKind.Notes,
         Assigned or Unassigned => PatientTimelineKind.Assignments,
         StatusChanged => IsBlockChange(entry.Details) ? PatientTimelineKind.Blocks : PatientTimelineKind.Status,
@@ -72,7 +72,8 @@ public static class PatientTimelineKinds
 
         return entries.Where(e =>
             (created && e.Action == Created)
-            || (stages && (e.Action == StageStarted || e.Action == StageFinished || e.Action == StageUnlocked))
+            || (stages && (e.Action == StageStarted || e.Action == StageFinished || e.Action == StageUnlocked
+                           || e.Action == StageSkipped || e.Action == BranchChosen || e.Action == StageReinstated))
             || (notes && (e.Action == StageNotesUpdated || e.Action == NoteAdded || e.Action == NoteEdited || e.Action == NoteDeleted))
             || (assignments && (e.Action == Assigned || e.Action == Unassigned))
             || (blocks && e.Action == StatusChanged

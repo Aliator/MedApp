@@ -249,6 +249,40 @@ describe('PatientExportPage', () => {
     expect(calls(fetch)).toEqual([`GET ${EXPORT}`]);
   });
 
+  it('shows skipped stages struck through, when, by whom and why, with the branch each is in', async () => {
+    const pathway = data.pathways![0];
+    renderExport({
+      ...data,
+      pathways: [
+        {
+          ...pathway,
+          stages: [
+            ...pathway.stages!,
+            {order: 3, name: 'Follow-up', notes: '', branch: 'Benign', skippedAtUtc: '2026-09-04T09:00:00Z', skippedBy: 'l.northcott', skipReason: 'BranchNotChosen'},
+            {
+              order: 4,
+              name: 'Physio',
+              notes: '',
+              startedAtUtc: '2026-09-04T10:00:00Z',
+              startedBy: 'k.ashford',
+              skippedAtUtc: '2026-09-05T09:00:00Z',
+              skippedBy: 'k.ashford',
+              skipReason: 'Other',
+              skipDetail: 'Synthetic: seen elsewhere',
+            },
+          ],
+        },
+      ],
+    });
+
+    // Struck through: the skipped stage's name is styled differently from a finished one's.
+    const followUp = await screen.findByText('3. Follow-up (Benign branch)');
+    expect(followUp.className).not.toBe(screen.getByText('1. Consent').className);
+    expect(screen.getByText(/^Skipped .* by l\.northcott\. Reason: Another branch was chosen$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Started .* by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Skipped .* by k\.ashford\. Reason: Other: Synthetic: seen elsewhere$/)).toBeInTheDocument();
+  });
+
   it('says when there is nothing in a part', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 

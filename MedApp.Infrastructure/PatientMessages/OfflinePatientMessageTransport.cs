@@ -36,6 +36,10 @@ public sealed class OfflinePatientMessageTransport(
 
     public async Task<PatientMessageSendResult> SendAsync(PatientMessage message, CancellationToken ct)
     {
+        // Checked at startup too: never a mailbox a real mail server would deliver to.
+        if (!PatientMessageOptions.IsSafeOfflineRecipient(options.Value.OfflineRecipient))
+            throw new InvalidOperationException(PatientMessageOptions.UnsafeOfflineRecipient);
+
         if (emailOptions.Value.CanSend)
         {
             var subject = $"[{message.Channel} to {message.Destination}] {PatientMessageTexts.Subject(message.Kind)}";

@@ -40,8 +40,19 @@ public sealed class PatientMessageTransportTests
         }
     }
 
-    private static NotifyPatientMessageTransport Notify(StubHandler handler) =>
-        new(new HttpClient(handler),
+    private sealed class StubFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    }
+
+    private sealed class ThrowingHandler(Exception exception) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromException<HttpResponseMessage>(exception);
+    }
+
+    private static NotifyPatientMessageTransport Notify(HttpMessageHandler handler) =>
+        new(new StubFactory(handler),
             MsOptions.Create(new NotifyOptions { ApiKey = ApiKey, SmsTemplateId = SmsTemplate, EmailTemplateId = EmailTemplate }),
             new FixedTimeProvider(Now));
 
@@ -162,6 +173,51 @@ public sealed class PatientMessageTransportTests
         var act = () => Notify(new StubHandler(_ => new HttpResponseMessage(status))).SendAsync(Text(), CancellationToken.None);
 
         await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Test]
+    public async Task Send_Timeout_IsUnconfirmed()
+    {
+        var result = await Notify(new ThrowingHandler(new TaskCanceledException("timeout", new TimeoutException())))
+            .SendAsync(Text(), CancellationToken.None);
+
+        result.Outcome.Should().Be(PatientMessageSendOutcome.Unconfirmed);
+    }
+
+    [Test]
+    public async Task Send_NoConnection_Throws_SoTheJobMayTryAgain()
+    {
+        var act = () => Notify(new ThrowingHandler(new HttpRequestException("refused"))).SendAsync(Text(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Test]
+    public async Task Offline_UnsafeMailbox_RefusesToSend()
+    {
+        var options = Options();
+        options.OfflineRecipient = "someone@example.com";
+        var transport = new OfflinePatientMessageTransport(
+            new Mock<IEmailTransport>().Object, MsOptions.Create(new EmailDeliveryOptions()), MsOptions.Create(options));
+
+        var act = () => transport.SendAsync(Text(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [TestCase("patient-messages@medapp.invalid", true)]
+    [TestCase("messages@clinic.test", true)]
+    [TestCase("messages@localhost", true)]
+    [TestCase("messages@mailpit.localhost", true)]
+    [TestCase("someone@example.com", false)]
+    [TestCase("someone@nhs.net", false)]
+    [TestCase("", false)]
+    [TestCase(null, false)]
+    public void Options_OfflineMailbox_MustBeOneNoMailServerDelivers(string? address, bool safe)
+    {
+        PatientMessageOptions.IsSafeOfflineRecipient(address).Should().Be(safe);
+        new PatientMessageOptions { Mode = PatientMessageMode.Offline, OfflineRecipient = address! }.IsValid.Should().Be(safe);
+        new PatientMessageOptions { Mode = PatientMessageMode.Off, OfflineRecipient = address! }.IsValid.Should().BeTrue();
     }
 
     [TestCase("delivered", PatientMessageStatus.Delivered)]

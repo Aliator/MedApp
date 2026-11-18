@@ -71,14 +71,19 @@ public sealed record NotifyApiKey(string ServiceId, string Secret)
 /// <list type="bullet">
 /// <item>400 (an invalid number or address, say): rejected, with Notify's error code; it won't go if tried again.</item>
 /// <item>429 (rate or daily limit): the rest wait for the next run.</item>
-/// <item>403, 5xx and timeouts: thrown, so the job counts an attempt and tries again later.</item>
+/// <item>403 and 5xx: thrown, so the job counts an attempt and tries again later.</item>
+/// <item>A timeout: unconfirmed (it may have been taken), never sent again. Its client has no resilience handler, so
+/// nothing retries a POST inside either (Notify has no idempotency key).</item>
 /// </list>
 /// Delivery comes from <c>GET /v2/notifications/{id}</c>: <c>delivered</c>, the three failures, or still on its way.
 /// </summary>
-public sealed class NotifyPatientMessageTransport(HttpClient http, IOptions<NotifyOptions> options, TimeProvider timeProvider)
+public sealed class NotifyPatientMessageTransport(IHttpClientFactory clients, IOptions<NotifyOptions> options, TimeProvider timeProvider)
     : IPatientMessageTransport
 {
+    /// <summary>Its named HttpClient, from which the API removes the default resilience handler.</summary>
     public const string ClientName = "notify";
+
+    private HttpClient Http() => clients.CreateClient(ClientName);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -112,7 +117,18 @@ public sealed class NotifyPatientMessageTransport(HttpClient http, IOptions<Noti
         };
         Authorise(request);
 
-        using var response = await http.SendAsync(request, ct);
+        HttpResponseMessage response;
+        try
+        {
+            response = await Http().SendAsync(request, ct);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // HttpClient's timeout: the request may have reached Notify and been taken.
+            return PatientMessageSendResult.Unconfirmed();
+        }
+
+        using var _ = response;
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
             return PatientMessageSendResult.TryLater();
 
@@ -133,7 +149,7 @@ public sealed class NotifyPatientMessageTransport(HttpClient http, IOptions<Noti
         using var request = new HttpRequestMessage(HttpMethod.Get, Url($"v2/notifications/{Uri.EscapeDataString(providerReference)}"));
         Authorise(request);
 
-        using var response = await http.SendAsync(request, ct);
+        using var response = await Http().SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"Notify answered {(int)response.StatusCode}.", null, response.StatusCode);
 

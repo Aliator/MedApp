@@ -17,6 +17,7 @@ import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {messageKindLabel, messageOutcome, reminderChannelLabel, type ExportedPatientMessage} from '../../api/patientMessages';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
+import {describeSkipReason} from '../../api/stageSkips';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -47,6 +48,17 @@ export const ANOTHER_PATIENTS_DETAILS = "Another patient's details: check before
 export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason' | 'deletionDetail'>): string {
   const reason = describeNoteDeletionReason(note.deletionReason, note.deletionDetail);
   return `Deleted by ${note.deletedBy ?? 'an admin'}, ${formatDateTime(note.deletedAtUtc ?? '')}.${reason ? ` Reason: ${reason}` : ''}`;
+}
+
+type ExportedStage = NonNullable<NonNullable<PatientExport['pathways']>[number]['stages']>[number];
+
+/**
+ * A skipped stage's line: "Skipped 3 Sep 2026, 09:00 by l.northcott. Reason: Patient declined", with the detail
+ * after the reason ("Other: seen at another hospital"), and "Another branch was chosen" for a branch not taken.
+ */
+export function skippedStageText(stage: Pick<ExportedStage, 'skippedAtUtc' | 'skippedBy' | 'skipReason' | 'skipDetail'>): string {
+  const reason = describeSkipReason(stage.skipReason, stage.skipDetail);
+  return `Skipped ${formatDateTime(stage.skippedAtUtc ?? '')} by ${stage.skippedBy ?? 'unknown'}.${reason ? ` Reason: ${reason}` : ''}`;
 }
 
 /** Where a request to delete a note stands: waiting, or what an admin decided, by whom and when. */
@@ -517,20 +529,29 @@ function ExportContent({data}: {data: PatientExport}) {
                         key={stage.order}
                         align="first-line"
                         label={
-                          <Text type="body" weight="semibold">
-                            {`${stage.order}. ${stage.name}`}
+                          // A skipped stage is struck through, as the pathway page shows it.
+                          <Text type="body" weight="semibold" hasStrikethrough={Boolean(stage.skippedAtUtc)}>
+                            {`${stage.order}. ${stage.name}${stage.branch ? ` (${stage.branch} branch)` : ''}`}
                           </Text>
                         }
                         description={
                           <VStack gap={1}>
                             <Text type="supporting" color="secondary">
-                              {[
-                                stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedBy}` : 'Not started',
-                                stage.finishedAtUtc ? `finished ${when(stage.finishedAtUtc)} by ${stage.finishedBy}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(', ')}
+                              {stage.skippedAtUtc && !stage.startedAtUtc
+                                ? skippedStageText(stage)
+                                : [
+                                    stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedBy}` : 'Not started',
+                                    stage.finishedAtUtc ? `finished ${when(stage.finishedAtUtc)} by ${stage.finishedBy}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(', ')}
                             </Text>
+                            {/* Started, then skipped: both are said. */}
+                            {stage.skippedAtUtc && stage.startedAtUtc && (
+                              <Text type="supporting" color="secondary">
+                                {skippedStageText(stage)}
+                              </Text>
+                            )}
                             {stage.notes ? <RichText>{stage.notes}</RichText> : null}
                           </VStack>
                         }

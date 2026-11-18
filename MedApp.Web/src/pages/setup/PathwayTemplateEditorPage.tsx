@@ -1,11 +1,13 @@
 import {createReorderable} from '@astryxdesign/core';
+import {CheckboxInput} from '@astryxdesign/core/CheckboxInput';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
-import {HStack} from '@astryxdesign/core/Stack';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
+import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
@@ -27,9 +29,20 @@ import {AppIcon} from '../../components/shared/icons';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {stageDescription} from '../../components/pathways/SnomedConcept';
+import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
+import {
+  isAfterBranchPoint,
+  PLAIN_STAGE,
+  stageOptionProblems,
+  stageOptionsToSend,
+  type StageOptionsInput,
+} from './templateBranches';
 
-/** A stage in the template being edited. The key is the row's own, as a definition may appear more than once. */
-export interface StageRow {
+/**
+ * A stage in the template being edited, with its options (optional, branch point, branch). The key is the row's own,
+ * as a definition may appear more than once.
+ */
+export interface StageRow extends StageOptionsInput {
   key: string;
   definitionId: string;
 }
@@ -71,20 +84,44 @@ export const CLOCK_STOP_DESCRIPTION = 'The waiting-time clock stops when this st
  * The row whose stage stops the waiting-time clock, from a saved template: its `clockStopStageOrder` (1-based), or
  * the stage marked `stopsClock`; none when it has neither.
  */
-export function startingStopKey(template: PathwayTemplate | null, rows: readonly StageRow[]): string {
+export function startingStopKey(template: PathwayTemplate | null, rows: readonly Pick<StageRow, 'key'>[]): string {
   const order = template?.clockStopStageOrder ?? (template?.stages ?? []).find((s) => s.stopsClock)?.stageOrder ?? null;
   return (order != null && rows[order - 1]?.key) || NO_STOP;
 }
 
 /** The 1-based position of the row that stops the clock, or null when none does (or it has been removed). */
-export function stopStageOrder(rows: readonly StageRow[], stopKey: string): number | null {
+export function stopStageOrder(rows: readonly Pick<StageRow, 'key'>[], stopKey: string): number | null {
   const index = rows.findIndex((r) => r.key === stopKey);
   return index < 0 ? null : index + 1;
 }
 
 let rowCount = 0;
-/** A new row for a stage, with a key of its own (a definition can be in a template more than once). */
-const row = (definitionId: string): StageRow => ({key: `stage-${++rowCount}`, definitionId});
+/** A new row for a stage, with a key of its own (a definition can be in a template more than once), plain unless given options. */
+const row = (definitionId: string, options: Partial<StageOptionsInput> = {}): StageRow => ({
+  key: `stage-${++rowCount}`,
+  definitionId,
+  ...PLAIN_STAGE,
+  ...options,
+});
+
+/** A saved template's rows: its stages in order, each with the options the template gave it (plain when it has none). */
+function templateRows(template: PathwayTemplate | null): StageRow[] {
+  const stages = [...(template?.stages ?? [])].sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0));
+  return (template?.stageDefinitionIdsInOrder ?? []).map((definitionId, i) => {
+    const stage = stages[i]?.stageDefinitionId === definitionId ? stages[i] : undefined;
+    return row(definitionId, {
+      isOptional: stage?.isOptional ?? false,
+      choosesBranch: stage?.choosesBranch ?? false,
+      branch: stage?.branch ?? '',
+    });
+  });
+}
+
+/** A stage's options in a few words, for the confirmation ("optional", "branch point", "Benign"); empty when plain. */
+function optionWords(stage: StageRow): string {
+  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim()].filter(Boolean);
+  return words.length > 0 ? ` (${words.join(', ')})` : '';
+}
 
 /**
  * A new template (no `id`), or one to edit. This part loads the template and the stage definitions; an unknown
@@ -121,7 +158,9 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
 /**
  * The template editor (decision 17): its name, the specialty it belongs to, and its stages in order. Stages are added from the active stage
  * definitions (a definition may be added more than once), dragged into order (or moved with the keyboard from
- * each row's handle) and removed. Saving asks first, then goes back to the list.
+ * each row's handle) and removed. Each stage can be made optional or a branch point, and a stage after a branch point
+ * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
+ * refuse in them shows on the stage. Saving asks first, then goes back to the list.
  *
  * Wide, the stages and the definitions to add sit side by side; narrow, they're one form card. Either way the
  * cards scroll, not the page.
@@ -144,7 +183,7 @@ function TemplateEditor({
   const startingSpecialty = template?.specialtyId && template.specialtyId !== NO_ID ? template.specialtyId : '';
   const [specialtyId, setSpecialtyId] = useState(startingSpecialty);
   const [isSpecialtyMissing, setIsSpecialtyMissing] = useState(false);
-  const [stages, setStages] = useState<StageRow[]>(() => (template?.stageDefinitionIdsInOrder ?? []).map(row));
+  const [stages, setStages] = useState<StageRow[]>(() => templateRows(template));
   // The stage that stops the clock, by its row's own key: it moves with the row, and goes with it when it's removed.
   const [stopKey, setStopKey] = useState(() => startingStopKey(template, stages));
   const stopOrder = stopStageOrder(stages, stopKey);
@@ -176,6 +215,11 @@ function TemplateEditor({
 
   const add = (definitionId: string) => setStages((current) => [...current, row(definitionId)]);
   const remove = (key: string) => setStages((current) => current.filter((s) => s.key !== key));
+  const change = (key: string, options: Partial<StageOptionsInput>) =>
+    setStages((current) => current.map((s) => (s.key === key ? {...s, ...options} : s)));
+  // What the API would refuse in the stages' options, said on each stage before saving (the API's check is the last word).
+  const optionProblems = stageOptionProblems(stages);
+  const stageOptions = stageOptionsToSend(stages);
 
   const submit = () =>
     save.mutate(
@@ -184,6 +228,8 @@ function TemplateEditor({
         name: name.trim(),
         stageDefinitionIdsInOrder: stages.map((s) => s.definitionId),
         clockStopStageOrder: stopOrder,
+        // Only when a stage has an option: a template without any saves exactly as before.
+        ...(stageOptions ? {stageOptions} : {}),
         // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
         ...(specialtyId && specialtyId !== startingSpecialty ? {specialtyId} : {}),
       },
@@ -248,12 +294,25 @@ function TemplateEditor({
       <List reorderable={reorderable} hasDividers aria-label="Stages in order">
         {stages.map((stage, i) => {
           const definition = byId.get(stage.definitionId);
+          const afterBranchPoint = isAfterBranchPoint(stages, i);
+          // A stage in a branch sits indented under the branch point before it, so the branches read as groups.
+          const isInBranch = afterBranchPoint && !stage.choosesBranch && stage.branch.trim() !== '';
           return (
             <ListItem
               key={stage.key}
               itemKey={stage.key}
+              style={isInBranch ? BRANCH_INDENT : undefined}
               label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}`}
-              description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
+              description={
+                <StageOptionFields
+                  stage={stage}
+                  description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
+                  canBeInBranch={afterBranchPoint}
+                  problem={optionProblems.get(i)}
+                  isDisabled={save.isPending}
+                  onChange={(options) => change(stage.key, options)}
+                />
+              }
               endContent={
                 <HStack gap={2} vAlign="center">
                   {stage.key === stopKey && <Token size="sm" label="Stops the clock" color="blue" />}
@@ -371,7 +430,7 @@ function TemplateEditor({
             <MetadataListItem label="Template">{name.trim() || 'No name'}</MetadataListItem>
             <MetadataListItem label="Specialty">{choices.find((c) => c.value === specialtyId)?.label ?? 'None'}</MetadataListItem>
             <MetadataListItem label="Stages">
-              {stages.length ? stages.map((s, i) => `${i + 1}. ${byId.get(s.definitionId)?.name}`).join(', ') : 'None'}
+              {stages.length ? stages.map((s, i) => `${i + 1}. ${byId.get(s.definitionId)?.name}${optionWords(s)}`).join(', ') : 'None'}
             </MetadataListItem>
             <MetadataListItem label="Clock stops">
               {stopOrder === null ? 'At no stage' : `When ${stageLabel(stages[stopOrder - 1], stopOrder - 1)} is finished`}
@@ -411,5 +470,72 @@ function TemplateEditor({
         />
       )}
     </Page>
+  );
+}
+
+/** Indents a stage in a branch under its branch point (a layout value the list has no prop for). */
+const BRANCH_INDENT = {marginInlineStart: 'var(--spacing-8)'} as const;
+
+interface StageOptionFieldsProps {
+  stage: StageOptionsInput;
+  /** The definition's description and SNOMED CT concept, as the row showed before options. */
+  description: ReactNode;
+  /** It comes after a branch point, so it can be put in a branch. */
+  canBeInBranch: boolean;
+  /** What the API would refuse in its options, if anything. */
+  problem?: string;
+  isDisabled: boolean;
+  onChange: (options: Partial<StageOptionsInput>) => void;
+}
+
+/**
+ * A template stage's description, then its options (decisions 113 and 117): Optional (staff may skip it, with a
+ * reason, while it's current), Branch point (finishing it, the clinician chooses one of the branches after it) and,
+ * for a stage after a branch point, the Branch it's in (left empty, it always runs). Any problem the API would refuse
+ * shows under them. Plain stages show just the two boxes, unticked.
+ */
+function StageOptionFields({stage, description, canBeInBranch, problem, isDisabled, onChange}: StageOptionFieldsProps) {
+  // The branch field stays while it has a name, so one left after its branch point moved can still be cleared.
+  const hasBranchField = (canBeInBranch && !stage.choosesBranch) || stage.branch !== '';
+  return (
+    <VStack as="span" gap={2}>
+      {description}
+      <HStack as="span" gap={4} vAlign="center" wrap="wrap">
+        <CheckboxInput
+          label="Optional"
+          size="sm"
+          value={stage.isOptional}
+          onChange={(isOptional) => onChange({isOptional})}
+          isDisabled={isDisabled}
+        />
+        <CheckboxInput
+          label="Branch point"
+          size="sm"
+          value={stage.choosesBranch}
+          onChange={(choosesBranch) => onChange({choosesBranch})}
+          isDisabled={isDisabled}
+        />
+        {hasBranchField && (
+          <TextInput
+            label="Branch"
+            size="sm"
+            value={stage.branch}
+            onChange={(branch) => onChange({branch})}
+            placeholder="e.g. Treatment"
+            autoComplete="off"
+            isDisabled={isDisabled}
+            containerStyle={NO_STATUS_LINE}
+          />
+        )}
+      </HStack>
+      {problem && (
+        <HStack as="span" gap={1} vAlign="center">
+          <Icon icon={AppIcon.Warning} size="xsm" color="warning" />
+          <Text type="supporting" color="primary">
+            {problem}
+          </Text>
+        </HStack>
+      )}
+    </VStack>
   );
 }

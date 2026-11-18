@@ -27,6 +27,11 @@ public static class PatientMessageReasons
     /// <summary>The provider refused it (an invalid number or address, say).</summary>
     public const string Rejected = "Rejected";
 
+    /// <summary>
+    /// The provider didn't answer in time: it may have been sent or not. Not tried again, so it can't go twice.
+    /// </summary>
+    public const string Unconfirmed = "Unconfirmed";
+
     /// <summary>Sending kept failing for a reason that might have passed, and was given up.</summary>
     public const string TooManyAttempts = "TooManyAttempts";
 }

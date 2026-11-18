@@ -46,7 +46,7 @@ describe('patient messages in words', () => {
       '',
     ]);
     expect(
-      ['NoConsent', 'NoMobile', 'NoEmail', 'NoLongerApplies', 'ChoiceChanged', 'RecordClosed', 'Rejected', 'TooManyAttempts', 'permanent-failure', '', null].map(
+      ['NoConsent', 'NoMobile', 'NoEmail', 'NoLongerApplies', 'ChoiceChanged', 'RecordClosed', 'Rejected', 'TooManyAttempts', 'Unconfirmed', 'permanent-failure', '', null].map(
         messageReasonLabel,
       ),
     ).toEqual([
@@ -58,6 +58,7 @@ describe('patient messages in words', () => {
       'the record is restricted or anonymised',
       'the provider refused it',
       'it failed too many times',
+      "the provider didn't confirm it in time, so it may have gone; it isn't sent again",
       'permanent-failure',
       null,
       null,

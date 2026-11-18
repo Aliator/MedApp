@@ -26,6 +26,25 @@ public sealed class PatientMessageOptions
     /// </summary>
     public string OfflineRecipient { get; set; } = "patient-messages@medapp.invalid";
 
+    public const string UnsafeOfflineRecipient =
+        "PatientMessages:OfflineRecipient must be an address no real mail server delivers to: one ending .invalid, .test or localhost.";
+
+    /// <summary>
+    /// Whether the offline mailbox is one no real mail server delivers to (a domain ending <c>.invalid</c>, <c>.test</c>
+    /// or <c>localhost</c>), so offline mode can't email a patient's details anywhere real, whatever SMTP server the staff
+    /// email settings name.
+    /// </summary>
+    public static bool IsSafeOfflineRecipient(string? address)
+    {
+        var domain = address?.Trim().Split('@') is [_, var d] ? d.TrimEnd('.').ToLowerInvariant() : null;
+        return domain is not null
+               && (domain.EndsWith(".invalid", StringComparison.Ordinal) || domain.EndsWith(".test", StringComparison.Ordinal)
+                   || domain == "localhost" || domain.EndsWith(".localhost", StringComparison.Ordinal));
+    }
+
+    /// <summary>Whether the settings can start: offline mode only with a safe mailbox.</summary>
+    public bool IsValid => Mode != PatientMessageMode.Offline || IsSafeOfflineRecipient(OfflineRecipient);
+
     /// <summary>Whether messages are made and sent at all.</summary>
     public bool IsOn => Mode != PatientMessageMode.Off;
 }

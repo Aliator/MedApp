@@ -138,23 +138,28 @@ export function DueDateCell({dueDate, isOverdue}: {dueDate: string; isOverdue: b
 
 /**
  * The stage being worked on ("Completed" once every stage is finished), and how far through its stages the
- * pathway is ("2 of 7 stages done"). Each is one line, truncated.
+ * pathway is ("2 of 7 stages done"; skipped stages count as done, and are said: "3 of 7 stages done, 1 skipped").
+ * Each is one line, truncated.
  *
  * A list without a status column passes `status`, and a pathway on hold or awaiting review says so beside the
  * progress, since nobody can carry on with it. A list with one leaves it out.
  */
 export function StageProgressCell({
   completed,
+  skipped = 0,
   total,
   currentStageName,
   status,
 }: {
   completed: number;
+  /** Stages skipped (optional ones, or another branch's). */
+  skipped?: number;
   total: number;
   currentStageName?: string | null;
   status?: string;
 }) {
   const isHeld = status === 'Blocked' || status === 'InReview';
+  const progress = `${completed + skipped} of ${total} stages done${skipped > 0 ? `, ${skipped} skipped` : ''}`;
   return (
     <VStack gap={0}>
       <Text type="body" maxLines={1}>
@@ -164,7 +169,7 @@ export function StageProgressCell({
         {isHeld && <StatusToken status={status} />}
         <StackItem size="fill">
           <Text type="supporting" color="secondary" maxLines={1}>
-            {completed} of {total} stages done
+            {progress}
           </Text>
         </StackItem>
       </HStack>

@@ -113,6 +113,8 @@ export function messageReasonLabel(reason: string | null | undefined): string | 
       return 'the provider refused it';
     case 'TooManyAttempts':
       return 'it failed too many times';
+    case 'Unconfirmed':
+      return "the provider didn't confirm it in time, so it may have gone; it isn't sent again";
     default:
       return reason;
   }

@@ -214,6 +214,42 @@ public sealed class PatientRemindersJobTests
     }
 
     [Test]
+    public async Task RunAsync_Unconfirmed_IsFailedAsUnconfirmed_AndNeverSentAgain()
+    {
+        var message = Message(Booked(MondayMorning.AddDays(1)));
+        _pending.Add(message);
+        _transport.Setup(t => t.SendAsync(message, It.IsAny<CancellationToken>())).ReturnsAsync(PatientMessageSendResult.Unconfirmed());
+
+        await Job().RunAsync(MondayMorning, CancellationToken.None);
+        _pending.Clear();
+        await Job().RunAsync(MondayMorning.AddMinutes(15), CancellationToken.None);
+
+        message.Status.Should().Be(PatientMessageStatus.Failed);
+        message.StatusReason.Should().Be(PatientMessageReasons.Unconfirmed);
+        message.SendAttempts.Should().Be(0);
+        _transport.Verify(t => t.SendAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task RunAsync_RecordRestrictedDuringTheRun_StopsTheRest()
+    {
+        var first = Message(Booked(MondayMorning.AddDays(1)));
+        var secondAppointment = Booked(MondayMorning.AddDays(1).AddHours(1));
+        var second = Message(secondAppointment);
+        _pending.AddRange([first, second]);
+        _transport.Setup(t => t.SendAsync(first, It.IsAny<CancellationToken>()))
+            .Callback(() => secondAppointment.Patient.RestrictedAtUtc = MondayMorning)
+            .ReturnsAsync(PatientMessageSendResult.Accepted("a"));
+
+        await Job().RunAsync(MondayMorning, CancellationToken.None);
+
+        first.Status.Should().Be(PatientMessageStatus.Sent);
+        second.Status.Should().Be(PatientMessageStatus.Cancelled);
+        second.StatusReason.Should().Be(PatientMessageReasons.RecordClosed);
+        _repository.Verify(r => r.GetAppointmentsAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == secondAppointment.Id), It.IsAny<CancellationToken>()));
+    }
+
+    [Test]
     public async Task RunAsync_ProviderAsksToSlowDown_StopsSendingWithoutCountingAnAttempt()
     {
         var first = Message(Booked(MondayMorning.AddDays(1)));

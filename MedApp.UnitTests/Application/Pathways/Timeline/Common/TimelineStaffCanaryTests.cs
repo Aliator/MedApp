@@ -63,6 +63,7 @@ public sealed class TimelineStaffCanaryTests
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
                 Action.AttachmentAdded, Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
+                Action.StageSkipped, Action.StageReinstated,
             ]);
         foreach (var row in withText)
             Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
@@ -194,13 +195,22 @@ public sealed class TimelineStaffCanaryTests
             AttachmentAudit.Entry(pathwayFile, onPathway, Staff, Action.AttachmentDownloaded, Now),
         };
 
-        return change.AuditEntries.Concat(files).ToList();
+        // As FinishPathwayStageHandler, SkipPathwayStageHandler and ReinstatePathwayStageHandler: a branch chosen, an
+        // optional stage skipped with the canary as its detail, and a stage reinstated with the canary as the reason.
+        var branching = CreateBranchingPathway();
+        branching.Title = Canary;
+        var branchChange = new PathwayChange(branching, Staff, Now);
+        branchChange.FinishStage(branching.StageAt(1), branch: TreatmentBranch);
+        branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
+        branchChange.ReinstateStage(branching.StageAt(2), Canary);
+
+        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).ToList();
     }
 
     [Test]
     public void ToResponse_StaffFinishedWithoutVisit_SaysSoButNotTheReason()
     {
-        var finished = EntriesHoldingTheCanary().Single(e => e.Action == Action.StageFinished);
+        var finished = EntriesHoldingTheCanary().Single(e => e.Action == Action.StageFinished && e.Details.Contains(Canary));
 
         var response = TimelineMapper.ToResponse(new PatientTimelineRow(finished, CurrentTitle), isAdmin: false);
 
@@ -399,5 +409,47 @@ public sealed class TimelineStaffCanaryTests
         recorded.MarkEnteredInError(Canary);
 
         return [.. pathwayChange.AppointmentEvents, .. change.Events, .. cancel.Events, .. recorded.Events];
+    }
+
+    [Test]
+    public void ToResponse_StaffStageSkipped_GivesTheReasonByNameButNotTheDetail()
+    {
+        var skipped = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.StageSkipped);
+
+        var staff = TimelineMapper.ToResponse(skipped, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(skipped, isAdmin: true);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.StageName.Should().Be(FollowUpStage);
+        staff.SkipReason.Should().Be(nameof(StageSkipReason.Other));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be(Canary);
+    }
+
+    [Test]
+    public void ToResponse_BranchChosen_EveryoneSeesTheBranchAndTheStagesItSkipped()
+    {
+        var chosen = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.BranchChosen);
+
+        var staff = TimelineMapper.ToResponse(chosen, isAdmin: false);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.StageName.Should().Be(ResultsStage);
+        staff.Branch.Should().Be(TreatmentBranch);
+        staff.SkippedStageNames.Should().Equal(BenignStage);
+    }
+
+    [Test]
+    public void ToResponse_StaffStageReinstated_GivesHowItWasSkippedButNotWhyItWasReinstated()
+    {
+        var reinstated = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.StageReinstated);
+
+        var staff = TimelineMapper.ToResponse(reinstated, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(reinstated, isAdmin: true);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be(Canary);
     }
 }

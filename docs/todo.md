@@ -44,6 +44,10 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
+  - **Built** (PR 20, `feature/branching-pathways`: `docs/agents/pathways.md`). **Not to be used with patients until the CSO has verified H-51's controls.** Left for later:
+    - **Reinstating** needs `OverrideStages` until PR 24 splits it; then `UnlockStages`.
+    - **Demo data** gets its branches, optional stages and skips in PR 28.
+    - **During a rollout,** an API copy from before this release doesn't know stages can be skipped: it shows a skipped stage as the current one, and would let staff finish it. Make no template with optional stages or branches until every copy runs this release (the chart's two-release rule).
 - **Clinics, rooms and longer hours:** clinic sessions with a set number of slots, in a named room at a named site; evening and weekend clinics; working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday, except closed days).
 - **Roles that limit what people see:** the starting roles (Clinician, Nurse, Booking, Lab, Manager) limit what each does since Phase 2, but every role still sees every patient. The privacy items naming roles (hiding restricted patients from lists, an `Auditor` read permission) build on it.
 - **Patient reminders and the Did not attend list are built** (PR 26, `feature/patient-reminders`: `docs/agents/calendar.md`, Patient reminders). Left from it:

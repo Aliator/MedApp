@@ -144,11 +144,12 @@ public sealed class PatientRemindersJob(
         if (pending.Count == 0)
             return (0, 0, 0);
 
-        var appointments = await repository.GetAppointmentsAsync(pending.Select(m => m.AppointmentId).Distinct(), ct);
         int sent = 0, failed = 0, cancelled = 0;
 
         foreach (var message in pending)
         {
+            // Read just before sending, so a restriction, anonymisation or move made during the run counts.
+            var appointments = await repository.GetAppointmentsAsync([message.AppointmentId], ct);
             if (!appointments.TryGetValue(message.AppointmentId, out var appointment))
             {
                 Close(message, PatientMessageStatus.Cancelled, PatientMessageReasons.NoLongerApplies, nowUtc);
@@ -194,7 +195,14 @@ public sealed class PatientRemindersJob(
             if (result.Outcome == PatientMessageSendOutcome.TryLater)
                 break;
 
-            if (result.Outcome == PatientMessageSendOutcome.Rejected)
+            if (result.Outcome == PatientMessageSendOutcome.Unconfirmed)
+            {
+                // It may have gone: never sent again, and shown as not confirmed.
+                logger.LogWarning("A patient message's sending wasn't confirmed in time; it isn't tried again.");
+                Close(message, PatientMessageStatus.Failed, PatientMessageReasons.Unconfirmed, nowUtc);
+                failed++;
+            }
+            else if (result.Outcome == PatientMessageSendOutcome.Rejected)
             {
                 Close(message, PatientMessageStatus.Failed, result.Reason ?? PatientMessageReasons.Rejected, nowUtc);
                 failed++;

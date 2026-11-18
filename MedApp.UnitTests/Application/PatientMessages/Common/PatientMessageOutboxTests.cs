@@ -60,13 +60,14 @@ public sealed class PatientMessageOutboxTests
             m.Body.Should().Contain(Site.Name);
             m.RequestedByUserId.Should().Be(_requester);
         });
-        _repository.Verify(r => r.ExistsAsync(_appointment.Id, PatientMessageKind.AppointmentCancelled, _appointment.StartUtc!.Value, cts.Token));
+        _repository.Verify(r => r.ExistsAsync(_appointment.Id, PatientMessageKind.AppointmentCancelled, _appointment.StartUtc!.Value, _appointment.RoomId, cts.Token));
+        _staged.Should().AllSatisfy(m => m.AppointmentRoomId.Should().Be(_appointment.RoomId));
     }
 
     [Test]
     public async Task StageAsync_AlreadyMessaged_StagesNothing()
     {
-        _repository.Setup(r => r.ExistsAsync(_appointment.Id, PatientMessageKind.AppointmentCancelled, _appointment.StartUtc!.Value, It.IsAny<CancellationToken>()))
+        _repository.Setup(r => r.ExistsAsync(_appointment.Id, PatientMessageKind.AppointmentCancelled, _appointment.StartUtc!.Value, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         await Outbox().StageAsync(_appointment, PatientMessageKind.AppointmentCancelled, _requester, Now, CancellationToken.None);

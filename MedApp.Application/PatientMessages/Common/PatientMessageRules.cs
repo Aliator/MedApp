@@ -65,7 +65,7 @@ public static class PatientMessageRules
 
     /// <summary>
     /// Why a message waiting to be sent shouldn't go any more (a <see cref="PatientMessageReasons"/> code), or null if
-    /// it still applies: the appointment is still as the message says, still to come (for a reminder, a move or a
+    /// it still applies: the appointment is still as the message says (its time and room), still to come (for a reminder, a move or a
     /// cancellation), the record is open (a cancellation goes to a restricted record too, as cancelling does), and the
     /// patient still chose this channel and has the contact.
     /// </summary>
@@ -78,9 +78,11 @@ public static class PatientMessageRules
 
         var stillApplies = message.Kind switch
         {
+            // The room too: its site is in the text, and a room can move to another site at the same time.
             PatientMessageKind.AppointmentReminder or PatientMessageKind.AppointmentMoved =>
                 appointment.Status == AppointmentStatus.Booked
                 && appointment.StartUtc == message.AppointmentStartUtc
+                && appointment.RoomId == message.AppointmentRoomId
                 && appointment.StartUtc > nowUtc,
             PatientMessageKind.AppointmentCancelled =>
                 appointment.Status == AppointmentStatus.Cancelled && message.AppointmentStartUtc > nowUtc,

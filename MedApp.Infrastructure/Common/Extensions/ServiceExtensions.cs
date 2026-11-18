@@ -77,7 +77,10 @@ public static class ServiceExtensions
     /// </summary>
     private static IServiceCollection AddPatientMessages(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<PatientMessageOptions>().BindConfiguration(PatientMessageOptions.Section);
+        services.AddOptions<PatientMessageOptions>()
+            .BindConfiguration(PatientMessageOptions.Section)
+            .Validate(options => options.IsValid, PatientMessageOptions.UnsafeOfflineRecipient)
+            .ValidateOnStart();
         services.AddOptions<ReminderOptions>()
             .BindConfiguration(ReminderOptions.Section)
             .Validate(options => options.IsValid, ReminderOptions.InvalidSettings)
@@ -94,8 +97,11 @@ public static class ServiceExtensions
                     .BindConfiguration(NotifyOptions.Section)
                     .Validate(options => options.IsComplete, NotifyOptions.Incomplete)
                     .ValidateOnStart();
-                services.AddHttpClient<IPatientMessageTransport, NotifyPatientMessageTransport>((provider, client) =>
+                // A named client: the API takes the default resilience handler off it (NotifyPatientMessageTransport.ClientName),
+                // as a retried POST could send a message twice (Notify has no idempotency key).
+                services.AddHttpClient(NotifyPatientMessageTransport.ClientName, (provider, client) =>
                     client.Timeout = TimeSpan.FromSeconds(Math.Max(1, provider.GetRequiredService<IOptions<NotifyOptions>>().Value.TimeoutSeconds)));
+                services.AddSingleton<IPatientMessageTransport, NotifyPatientMessageTransport>();
                 break;
             default:
                 services.AddSingleton<IPatientMessageTransport, NoPatientMessageTransport>();

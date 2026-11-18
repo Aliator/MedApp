@@ -14,8 +14,8 @@ public interface IPatientMessageRepository
     /// <summary>Adds messages to be saved with the request's next save (the appointment change they're about).</summary>
     void Stage(IEnumerable<PatientMessage> messages);
 
-    /// <summary>Whether the appointment already has a message of this kind about this start (on any channel).</summary>
-    Task<bool> ExistsAsync(Guid appointmentId, PatientMessageKind kind, DateTime appointmentStartUtc, CancellationToken ct);
+    /// <summary>Whether the appointment already has a message of this kind about this start and room (on any channel).</summary>
+    Task<bool> ExistsAsync(Guid appointmentId, PatientMessageKind kind, DateTime appointmentStartUtc, Guid? roomId, CancellationToken ct);
 
     /// <summary>An appointment's messages, newest first, read-only.</summary>
     Task<IReadOnlyList<PatientMessage>> GetForAppointmentAsync(Guid appointmentId, CancellationToken ct);
@@ -25,7 +25,8 @@ public interface IPatientMessageRepository
 
     /// <summary>
     /// Booked appointments starting after <paramref name="fromUtc"/> and no later than <paramref name="toUtc"/>, of
-    /// patients whose records are open, with no reminder about that start yet, soonest first, with their patients.
+    /// patients whose records are open, with no reminder about that start and room yet (or only ones that couldn't go,
+    /// <c>NotSent</c>, when the patient can now be reached), soonest first, with their patients.
     /// </summary>
     Task<IReadOnlyList<Appointment>> GetDueRemindersAsync(DateTime fromUtc, DateTime toUtc, int limit, CancellationToken ct);
 
@@ -36,7 +37,10 @@ public interface IPatientMessageRepository
     /// </summary>
     Task<IReadOnlyList<Appointment>> GetDueMissedAsync(DateTime fromUtc, DateTime toUtc, int limit, CancellationToken ct);
 
-    /// <summary>Adds messages and saves them.</summary>
+    /// <summary>
+    /// Adds messages and saves them, in place of any <c>NotSent</c> message with the same appointment, kind, channel,
+    /// start and room (a patient who has since chosen a channel, or given a number), deleted just before.
+    /// </summary>
     Task AddAsync(IReadOnlyCollection<PatientMessage> messages, CancellationToken ct);
 
     /// <summary>Messages waiting to be sent, oldest first, tracked so <see cref="SaveAsync"/> saves changes to them.</summary>
@@ -51,6 +55,9 @@ public interface IPatientMessageRepository
     /// </summary>
     Task<IReadOnlyList<PatientMessage>> GetAwaitingDeliveryAsync(DateTime sentSinceUtc, int limit, CancellationToken ct);
 
-    /// <summary>Saves changes to tracked messages.</summary>
+    /// <summary>
+    /// Saves changes to tracked messages. One that someone else changed meanwhile (anonymisation, its row version) keeps
+    /// their change: it's read again, and this one's is dropped.
+    /// </summary>
     Task SaveAsync(CancellationToken ct);
 }

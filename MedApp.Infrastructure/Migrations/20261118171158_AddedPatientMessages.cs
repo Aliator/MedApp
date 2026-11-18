@@ -48,6 +48,7 @@ namespace MedApp.Infrastructure.Migrations
                     Destination = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: false, defaultValue: ""),
                     Body = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false, defaultValue: ""),
                     AppointmentStartUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    AppointmentRoomId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
                     StatusReason = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     ProviderReference = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
@@ -55,7 +56,8 @@ namespace MedApp.Infrastructure.Migrations
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     SentAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
                     StatusAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    SendAttempts = table.Column<int>(type: "int", nullable: false)
+                    SendAttempts = table.Column<int>(type: "int", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -63,9 +65,9 @@ namespace MedApp.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc",
+                name: "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc_AppointmentRoomId",
                 table: "PatientMessages",
-                columns: new[] { "AppointmentId", "Kind", "Channel", "AppointmentStartUtc" },
+                columns: new[] { "AppointmentId", "Kind", "Channel", "AppointmentStartUtc", "AppointmentRoomId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(

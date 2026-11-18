@@ -6,8 +6,8 @@ namespace MedApp.Infrastructure.Data.Configurations.PatientMessages;
 
 public sealed class PatientMessageConfiguration : IEntityTypeConfiguration<PatientMessage>
 {
-    /// <summary>One message per appointment, kind, channel and appointment start, so nothing is sent twice.</summary>
-    public const string UniqueIndex = "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc";
+    /// <summary>One message per appointment, kind, channel, appointment start and room, so nothing is sent twice.</summary>
+    public const string UniqueIndex = "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc_AppointmentRoomId";
 
     public void Configure(EntityTypeBuilder<PatientMessage> builder)
     {
@@ -36,8 +36,12 @@ public sealed class PatientMessageConfiguration : IEntityTypeConfiguration<Patie
         builder.Property(x => x.AppointmentStartUtc).IsRequired();
         builder.Property(x => x.CreatedAtUtc).IsRequired();
 
-        builder.HasIndex(x => new { x.AppointmentId, x.Kind, x.Channel, x.AppointmentStartUtc }, UniqueIndex)
-            .IsUnique();
+        // Unfiltered, so two messages for no room count as the same (SQL Server treats the nulls as equal).
+        builder.HasIndex(x => new { x.AppointmentId, x.Kind, x.Channel, x.AppointmentStartUtc, x.AppointmentRoomId }, UniqueIndex)
+            .IsUnique()
+            .HasFilter(null);
+
+        builder.Property(x => x.RowVersion).IsRowVersion();
 
         // The job's work: what's waiting, and what's awaiting delivery.
         builder.HasIndex(x => new { x.Status, x.CreatedAtUtc });

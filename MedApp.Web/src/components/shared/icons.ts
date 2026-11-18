@@ -84,6 +84,8 @@ import {
   RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
+  RiSkipForwardLine,
+  RiGitBranchLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -303,6 +305,9 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Pathways that branch: skipping an optional stage, and a branch point (where the clinician chooses a branch)
+  Skip: remix(RiSkipForwardLine),
+  Branch: remix(RiGitBranchLine),
   // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
   Wait: remix(RiTimeLine),
   PauseClock: remix(RiPauseCircleLine),

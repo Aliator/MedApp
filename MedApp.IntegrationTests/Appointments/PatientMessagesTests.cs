@@ -108,6 +108,59 @@ public sealed class PatientMessagesTests : IntegrationTest
     }
 
     [Test]
+    public async Task Reminders_PatientOptsInLater_ReplacesTheNotSentOne()
+    {
+        var patient = await CreatePatientWithChoiceAsync("None");
+        var start = NextBookableStart();
+        var appointment = await BookNewAppointmentAsync(_staff.Client, patient.Id, _staff.UserId, start);
+        Clock.SetUtcNow(start.AddHours(-23));
+        await RunRemindersAsync();
+        (await MessagesAsync(appointment.Id)).Single().Status.Should().Be("NotSent");
+
+        (await _staff.Client.PatchAsJsonAsync($"/api/patients/{patient.Id}", new UpdatePatientRequest
+        {
+            FirstName = patient.FirstName, LastName = patient.LastName, DateOfBirth = patient.DateOfBirth, Email = patient.Email,
+            ReminderChannel = "Text",
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        await RunRemindersAsync();
+        await RunRemindersAsync();
+
+        var message = (await MessagesAsync(appointment.Id)).Should().ContainSingle().Subject;
+        message.Should().BeEquivalentTo(new { Channel = "Text", Status = "Delivered", Destination = Mobile });
+        Api.PatientMessages.Sent.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task MovedToAnotherSitesRoomAtTheSameTime_TellsThePatientTheNewPlace()
+    {
+        var first = await CreateSiteAsync(_admin);
+        var firstRoom = await CreateRoomAsync(_admin, first.Id);
+        var second = await CreateSiteAsync(_admin);
+        var secondRoom = await CreateRoomAsync(_admin, second.Id);
+        var patient = await CreatePatientWithChoiceAsync("Text");
+        var start = NextBookableStart();
+        var appointment = await (await _staff.Client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+        {
+            PatientId = patient.Id, StaffUserId = _staff.UserId, StartUtc = start, EndUtc = start.AddMinutes(AppointmentMinutes), RoomId = firstRoom.Id,
+        })).ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
+        Clock.SetUtcNow(start.AddHours(-23));
+        await RunRemindersAsync();
+
+        (await _staff.Client.PostAsJsonAsync($"{AppointmentUrl(appointment.Id)}/book", new BookAppointmentRequest
+        {
+            StaffUserId = _staff.UserId, StartUtc = start, EndUtc = start.AddMinutes(AppointmentMinutes), ExpectedStatus = "Booked",
+            RoomId = secondRoom.Id, TellPatient = true,
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        await RunRemindersAsync();
+
+        var messages = await MessagesAsync(appointment.Id);
+        messages.Single(m => m.Kind == "AppointmentMoved").Should().Match<PatientMessageResponse>(m =>
+            m.Status == "Delivered" && m.Body.Contains(second.Name) && !m.Body.Contains(first.Name));
+        messages.Where(m => m.Kind == "AppointmentReminder").Select(m => m.Body.Contains(second.Name))
+            .Should().BeEquivalentTo([false, true], "the first reminder named the first site; a new one names the second");
+    }
+
+    [Test]
     public async Task Cancelling_AndTellingThePatient_SendsTheCancellationOnTheNextRun()
     {
         var patient = await CreatePatientWithChoiceAsync("Text");

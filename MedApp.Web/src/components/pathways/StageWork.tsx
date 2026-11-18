@@ -34,6 +34,10 @@ export interface StageWorkProps {
   visit?: ReactNode;
   /** Why the stage can't be finished yet (e.g. "Needs an attended visit first"): Finish is disabled, with this beside it. */
   finishDisabledReason?: string;
+  /** Skip an optional stage, with a reason: offered while the API says it can be (`canSkip`). */
+  onSkip?: () => void;
+  /** Reinstate a skipped stage, with a reason: offered while the API says the viewer can (`canReinstate`). */
+  onReinstate?: () => void;
 }
 
 /** The notes box's usual height (five lines), and the least a fitted one has: fitting only ever grows it. */
@@ -72,7 +76,8 @@ function fittedHeight(box: HTMLElement): number | undefined {
 /**
  * The working part of a stage. While it can be edited (it's the current stage, or an admin unlocked it): its visit,
  * if it involves one, then a notes box with Save Notes and Finish Stage, and Start Stage before work begins.
- * Otherwise its notes, read-only, and for a holder of OverrideStages, Unlock Stage on a finished stage.
+ * Otherwise its notes, read-only, and for a holder of OverrideStages, Unlock Stage on a finished stage. Skip Stage
+ * shows on an optional current stage, and Reinstate Stage on a skipped one, as the API's flags allow.
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.
  * Ctrl+S (⌘S on a Mac) in it saves the notes.
@@ -89,6 +94,8 @@ export function StageWork({
   onFitNotes,
   visit,
   finishDisabledReason,
+  onSkip,
+  onReinstate,
 }: StageWorkProps) {
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
@@ -125,19 +132,31 @@ export function StageWork({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // An optional stage can be skipped while it's current, whether or not work on it has begun.
+  const skip = onSkip && stage.canSkip && (
+    <Button label="Skip Stage" variant="ghost" icon={<Icon icon={AppIcon.Skip} />} onClick={onSkip} isDisabled={isBusy} />
+  );
+
   if (!stage.canEdit) {
+    const reinstate = onReinstate && stage.canReinstate && (
+      <Button label="Reinstate Stage" variant="secondary" icon={<Icon icon={AppIcon.Restore} />} onClick={onReinstate} isDisabled={isBusy} />
+    );
     return (
       <VStack gap={3}>
         <StageNotes notes={saved} />
-        {canUnlock && stage.canUnlock && (
-          <HStack>
-            <Button
-              label="Unlock Stage"
-              variant="secondary"
-              icon={<Icon icon={AppIcon.Lock} />}
-              onClick={onUnlock}
-              isDisabled={isBusy}
-            />
+        {((canUnlock && stage.canUnlock) || skip || reinstate) && (
+          <HStack gap={2} wrap="wrap">
+            {canUnlock && stage.canUnlock && (
+              <Button
+                label="Unlock Stage"
+                variant="secondary"
+                icon={<Icon icon={AppIcon.Lock} />}
+                onClick={onUnlock}
+                isDisabled={isBusy}
+              />
+            )}
+            {reinstate}
+            {skip}
           </HStack>
         )}
       </VStack>
@@ -171,6 +190,7 @@ export function StageWork({
             {finishDisabledReason}
           </Text>
         )}
+        {skip}
         {stage.state === 'NotStarted' && <Button label="Start Stage" variant="ghost" onClick={onStart} isDisabled={isBusy} />}
         <Button
           label="Save Notes"

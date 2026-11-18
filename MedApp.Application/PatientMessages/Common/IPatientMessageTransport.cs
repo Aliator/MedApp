@@ -12,8 +12,11 @@ public interface IPatientMessageTransport
     PatientMessageMode Mode { get; }
 
     /// <summary>
-    /// Sends one message (its destination, channel and text as stored; an email's subject from its kind). A failure that
-    /// may pass (the provider away, a timeout) throws; one that won't is <see cref="PatientMessageSendResult.Rejected"/>.
+    /// Sends one message (its destination, channel and text as stored; an email's subject from its kind), once: never
+    /// retried inside (the provider has no idempotency key). A failure before the provider can have taken it (no
+    /// connection, a refusal of the request) throws, and the job may try again; one that won't pass is
+    /// <see cref="PatientMessageSendResult.Rejected"/>; a timeout, after which it may or may not have been taken, is
+    /// <see cref="PatientMessageSendResult.Unconfirmed"/>, and is never sent again.
     /// </summary>
     Task<PatientMessageSendResult> SendAsync(PatientMessage message, CancellationToken ct);
 
@@ -47,13 +50,21 @@ public sealed record PatientMessageSendResult
 
     /// <summary>The provider asked to slow down: try this and the rest on the next run, without counting an attempt.</summary>
     public static PatientMessageSendResult TryLater() => new(PatientMessageSendOutcome.TryLater, null, null);
+
+    /// <summary>
+    /// No answer in time: the provider may have taken it or not. It isn't sent again (that could send it twice), and staff
+    /// see that it wasn't confirmed.
+    /// </summary>
+    public static PatientMessageSendResult Unconfirmed() =>
+        new(PatientMessageSendOutcome.Unconfirmed, null, PatientMessageReasons.Unconfirmed);
 }
 
 public enum PatientMessageSendOutcome
 {
     Accepted,
     Rejected,
-    TryLater
+    TryLater,
+    Unconfirmed
 }
 
 /// <summary>A provider's answer about delivery: still on its way, delivered, or failed (with its status name).</summary>

@@ -16,4 +16,10 @@ public sealed class UpdatePathwayTemplateRequest
     /// clock, or null for none. Only new pathways take it.
     /// </summary>
     public int? ClockStopStageOrder { get; set; }
+
+    /// <summary>
+    /// Each stage's options, one for each of <see cref="StageDefinitionIdsInOrder"/> in the same order (only with it);
+    /// left out with a new stage list, every stage is plain.
+    /// </summary>
+    public List<PathwayTemplateStageOptionsRequest>? StageOptions { get; set; }
 }

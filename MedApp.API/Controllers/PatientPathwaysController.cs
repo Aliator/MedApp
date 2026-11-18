@@ -9,6 +9,8 @@ using MedApp.Application.Pathways.PatientPathways.Commands.DeletePatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.DeletePathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.EditPathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.FinishPathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.ReinstatePathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.SkipPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.StartPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnassignPatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnlockPathwayStage;
@@ -278,7 +280,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             User.ToPathwayActor(),
             request?.WithoutVisit ?? false,
             request?.Reason,
-            User.HasPermission(Permission.OverrideStages)), ct));
+            User.HasPermission(Permission.OverrideStages),
+            request?.Branch), ct));
 
     /// <summary>Reopens a finished stage for editing.</summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/unlock")]
@@ -288,4 +291,31 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [RequirePermission(Permission.OverrideStages)]
     public async Task<IActionResult> UnlockPathwayStage(Guid id, Guid stageId, CancellationToken ct) =>
         Ok(await mediator.Send(new UnlockPathwayStageCommand(id, stageId, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Skips an optional stage while it's current, with a reason (NotNeeded, PatientDeclined or Other, with a detail for
+    /// Other). The pathway moves on to its next stage. One whose visit is Required needs OverrideStages and a detail (409, 400).
+    /// </summary>
+    [HttpPost("{id:guid}/stages/{stageId:guid}/skip")]
+    [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.WorkPathways)]
+    public async Task<IActionResult> SkipPathwayStage(Guid id, Guid stageId, [FromBody] SkipPathwayStageRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SkipPathwayStageCommand(
+            id, stageId, request.Reason, request.Detail, User.ToPathwayActor(), User.HasPermission(Permission.OverrideStages)), ct));
+
+    /// <summary>
+    /// Reinstates a skipped stage, with a reason, so it runs again in its place (before the current stage, it becomes
+    /// current). A branch can be changed only by reinstating its stages.
+    /// </summary>
+    [HttpPost("{id:guid}/stages/{stageId:guid}/reinstate")]
+    [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.OverrideStages)]
+    public async Task<IActionResult> ReinstatePathwayStage(Guid id, Guid stageId, [FromBody] ReinstatePathwayStageRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new ReinstatePathwayStageCommand(id, stageId, request.Reason, User.ToPathwayActor()), ct));
 }

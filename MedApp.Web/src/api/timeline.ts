@@ -4,6 +4,7 @@ import {statusWords} from '../utils/statusWords';
 import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
 import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
+import {skipReasonLabel} from './stageSkips';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -184,6 +185,23 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
         : {title: `Finished ${stage}`, detail: ''};
     case 'StageUnlocked':
       return {title: `Unlocked ${stage}`, detail: ''};
+    // Skipping: the reason is a fixed choice, for everyone; its detail (in `reason`) is free text, for admins only.
+    case 'StageSkipped':
+      return {title: `Skipped ${stage}`, detail: sentences(skipReasonLabel(entry.skipReason), entry.reason)};
+    // The clinician's choice at a branch point, and the other branches' stages it skipped (names the template's author wrote).
+    case 'BranchChosen': {
+      const skipped = entry.skippedStageNames ?? [];
+      return {
+        title: entry.branch ? `Chose the ${entry.branch} branch at ${stage}` : `Chose a branch at ${stage}`,
+        detail: skipped.length > 0 ? `Skipped: ${skipped.join(', ')}` : '',
+      };
+    }
+    // How it had been skipped, for everyone; why it's reinstated (free text), for admins only.
+    case 'StageReinstated':
+      return {
+        title: `Reinstated ${stage}`,
+        detail: sentences(entry.skipReason ? `Had been skipped: ${skipReasonLabel(entry.skipReason)}` : null, entry.reason),
+      };
     case 'StageNotesUpdated':
       return {title: `Saved notes on ${stage}`, detail: changes.filter(hasValues).map(describeChange).join('; ')};
     // Staff are told that a note was added or edited, and by whom; only admins get its text.

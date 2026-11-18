@@ -52,6 +52,7 @@ public static class PatientMessagesTestConstants
         Destination = channel == PatientMessageChannel.Text ? Mobile : Email,
         Body = "Synthetic message",
         AppointmentStartUtc = startUtc ?? appointment.StartUtc!.Value,
+        AppointmentRoomId = appointment.RoomId,
         Status = status,
         CreatedAtUtc = createdAtUtc ?? CalendarTestConstants.Now,
         StatusAtUtc = createdAtUtc ?? CalendarTestConstants.Now,

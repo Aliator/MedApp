@@ -4,6 +4,7 @@ import {formatFileSize} from '../utils/fileSize';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
 import {describeNoteDeletionReason} from './noteDeletion';
+import {describeSkipReason, skipReasonLabel} from './stageSkips';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -29,6 +30,9 @@ export const AUDIT_ACTIONS = [
   'NoteAdded',
   'NoteEdited',
   'NoteDeleted',
+  'StageSkipped',
+  'BranchChosen',
+  'StageReinstated',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -49,6 +53,9 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   NoteAdded: 'Note added',
   NoteEdited: 'Note edited',
   NoteDeleted: 'Note deleted',
+  StageSkipped: 'Stage skipped',
+  BranchChosen: 'Branch chosen',
+  StageReinstated: 'Stage reinstated',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -77,6 +84,7 @@ export function auditSearchQuery(search: AuditSearch) {
 type Details = Record<string, unknown>;
 type FromTo = {from?: unknown; to?: unknown};
 
+const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
 const words = (value: unknown) => (typeof value === 'string' ? statusWords(value) : String(value ?? ''));
 const quoted = (value: unknown) => (typeof value === 'string' && value.trim() ? `"${value.trim()}"` : 'nothing');
 const date = (value: unknown) => (typeof value === 'string' && value ? formatShortDate(value) : 'none');
@@ -166,6 +174,21 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
         typeof d.detail === 'string' ? d.detail : null,
       );
       return [version, reason].filter(Boolean).join(': ');
+    }
+    // An optional stage skipped: the reason chosen, and its detail ("Other: seen at another hospital").
+    case 'StageSkipped':
+      return describeSkipReason(text(d.skipReason), text(d.detail));
+    // The clinician's choice at a branch point, and the other branches' stages it skipped.
+    case 'BranchChosen': {
+      const skipped = Array.isArray(d.skippedStages) ? d.skippedStages.filter((s): s is string => typeof s === 'string') : [];
+      return [text(d.branch) ? `Chose ${text(d.branch)}` : null, skipped.length > 0 ? `skipped ${skipped.join(', ')}` : null]
+        .filter(Boolean)
+        .join('; ');
+    }
+    // A skipped stage to run again: how it had been skipped, and why it's reinstated.
+    case 'StageReinstated': {
+      const was = text(d.skipReason) ? `Was skipped (${skipReasonLabel(text(d.skipReason)).toLowerCase()})` : '';
+      return [was, text(d.reason)].filter(Boolean).join(': ');
     }
     default:
       return '';

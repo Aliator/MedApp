@@ -4,8 +4,8 @@ namespace MedApp.Domain.PatientMessages;
 /// One text or email to a patient about an appointment (centre plan decisions 128 to 133): what was (or would have
 /// been) sent, to where, and what became of it. Every message is stored, those never sendable too
 /// (<see cref="PatientMessageStatus.NotSent"/>), so the appointment shows whether the patient was told. A message is
-/// unique per appointment, kind, channel and appointment start, so a job cut short, or a reschedule, never sends one
-/// twice. No foreign keys, like the appointment's history: it outlives what it's about.
+/// unique per appointment, kind, channel, appointment start and room, so a job cut short, or a reschedule, never sends one
+/// twice, and a move to another room (perhaps another site) is a new message. No foreign keys, like the appointment's history: it outlives what it's about.
 /// <para>
 /// It's patient data: exported, anonymised (destination and text replaced) and shown on the appointment. Its text holds
 /// no clinical words: the organisation, the date and time, the site's name, address and phone (<c>PatientMessageTexts</c>).
@@ -41,6 +41,12 @@ public sealed class PatientMessage
     /// <summary>The appointment's start the message is about (part of its unique key).</summary>
     public DateTime AppointmentStartUtc { get; init; }
 
+    /// <summary>
+    /// The appointment's room the message is about, whose site its text names (part of its unique key); null for an
+    /// appointment with no room. A message for another room than the appointment's now no longer applies.
+    /// </summary>
+    public Guid? AppointmentRoomId { get; init; }
+
     public PatientMessageStatus Status { get; set; }
 
     /// <summary>
@@ -66,4 +72,10 @@ public sealed class PatientMessage
 
     /// <summary>How many times sending it failed for a reason that may pass (the provider away), before it's given up.</summary>
     public int SendAttempts { get; set; }
+
+    /// <summary>
+    /// The database's row version, a concurrency token: the job's save after sending can't overwrite an anonymisation
+    /// (or another change) saved meanwhile.
+    /// </summary>
+    public byte[] RowVersion { get; set; } = [];
 }
