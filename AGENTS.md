@@ -6,6 +6,14 @@ Guidance for AI coding agents working in this repository.
 
 MedApp is a patient and procedure management app: a .NET 10 Web API (Clean Architecture, CQRS, MediatR) and a React frontend (`MedApp.Web`: React 19, TypeScript, Vite and Astryx). The original Blazor WebAssembly frontend is kept, deprecated, as `MedApp.Client.Deprecated`. Data is in SQL Server through EF Core, ASP.NET Core Identity handles users, and authentication is a custom cookie-based session scheme.
 
+## Keeping this file small
+
+- **The limit:** Claude Code loads at most 150,000 characters of this file. Check with `wc -m AGENTS.md`; CI's `web` job fails above it.
+- **When to check:** whenever a change edits this file, before committing it.
+- **Over 150,000:** open a separate PR (`feature/condense-agents-md`) that condenses it to about 125,000, without waiting to be asked. It isn't merged without the owner's "merge it", like any PR. If a change would itself push the file over, condense first or in the same PR.
+- **How to condense:** keep every heading's exact text and level (sections link to their anchors), every rule and its force, stored enum numbers, names of classes, files, endpoints and settings, limits, commands and links. Cut repetition (say it once, point to it), narrative, examples and long rationale. Compare the two versions with `python .github/scripts/check-agents-md.py <old> <new>`: no heading, anchor or backticked name may be lost unless dropped on purpose.
+- **Prefer not growing it:** new feature detail should be as short as the rules need; depth belongs in `docs/`.
+
 ## Commands
 
 Run everything from the repo root. `global.json` pins the SDK to 10.0.x; every project targets `net10.0`.
@@ -537,7 +545,7 @@ All UI work goes in `MedApp.Web`; its conventions are in `MedApp.Web/AGENTS.md` 
   - `changes` failing (the jobs run unless it says `false`)
 
   It compares the push, not the whole PR (which `paths-ignore` can't), and the run's summary says why. Never put a file that a build or test reads under `docs/`.
-- `web`: `npm ci`, `npm audit --audit-level=high` (high or critical fails, except IDs in `ACCEPTED`: see the supply chain rules), lint, type check, a check the built theme is current, Vitest with coverage, and `npm run build` (client, server rendering bundle, page server).
+- `web`: `AGENTS.md` at most 150,000 characters, `npm ci`, `npm audit --audit-level=high` (high or critical fails, except IDs in `ACCEPTED`: see the supply chain rules), lint, type check, a check the built theme is current, Vitest with coverage, and `npm run build` (client, server rendering bundle, page server).
 - `image` builds `MedApp.API/Dockerfile` as Publish does, without pushing, sharing Publish's build cache. Trivy then scans it: findings with a fix go to code scanning (SARIF), and a critical one with a fix fails the job. Trivy runs from its own image pinned by digest (`TRIVY_IMAGE`), never `aquasecurity/trivy-action`, whose tags were hijacked in March 2026.
 - `dependency-review` fails, and comments on, a PR adding or updating a dependency (npm, NuGet, actions) with a known high or critical advisory.
 - `helm` lints and renders the chart (`deploy/helm/medapp`) in its main configurations (own SQL Server, kind's values with External Secrets and TLS, an external database, Azure's), and compiles and lints the Bicep (`deploy/azure`). It also renders Traefik, cert-manager, External Secrets and Argo CD at `deploy/versions.sh`'s versions with every values file and `--set` that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` use: after changing one of those values files, run the same `helm template` locally.

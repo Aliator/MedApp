@@ -74,6 +74,11 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      # Claude Code loads at most 150,000 characters of AGENTS.md (AGENTS.md, Keeping this file small).
+      - name: Check AGENTS.md is under Claude Code's limit
+        working-directory: .
+        run: python3 -c "import sys; n = len(open('AGENTS.md', encoding='utf-8').read()); print(f'AGENTS.md has {n:,} characters (limit 150,000)'); sys.exit(n > 150000)"
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
