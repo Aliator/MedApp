@@ -36,7 +36,7 @@ What each CI job does, coverage, CodeQL, Dependabot and the supply chain rules: 
 
 `.github/workflows/codeql.yml` runs CodeQL (C#, JavaScript and TypeScript, and the workflows) on PRs to `main`, pushes to `main` and weekly, into code scanning alerts.
 
-`.github/dependabot.yml` proposes weekly grouped updates (minor and patch together) for GitHub Actions, NuGet, npm (`MedApp.Web`, `tools/ui-parity`) and Docker. Bump the Dockerfile's `ARG` image tags and `DOTNET_EF_VERSION` by hand: it can't read them.
+`.github/dependabot.yml` proposes monthly grouped updates (minor and patch in one pull request per ecosystem, major versions in another) for GitHub Actions, NuGet, npm (`MedApp.Web`, `tools/ui-parity`) and Docker. Bump the Dockerfile's `ARG` image tags and `DOTNET_EF_VERSION` by hand: it can't read them.
 
 **Supply chain rules:**
 - **Pin every third-party action to a full commit SHA,** its tag in a comment (`uses: actions/checkout@<sha> # v4.4.0`). Resolve the SHA from the tag yourself (`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`, dereferencing an annotated tag), never from a README. Dependabot keeps them current.
