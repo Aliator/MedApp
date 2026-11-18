@@ -112,6 +112,23 @@ describe('describeAuditDetails', () => {
     expect(describe_('AttachmentAdded', {})).toBe('A file');
     expect(describe_('AttachmentAdded', {fileName: ' ', size: '12', attachedTo: 'Elsewhere'})).toBe('A file');
   });
+
+  it('names the skipping actions, and gives a skip’s reason in words with its detail', () => {
+    expect(['StageSkipped', 'BranchChosen', 'StageReinstated'].map(auditActionLabel)).toEqual(['Stage skipped', 'Branch chosen', 'Stage reinstated']);
+    expect(describe_('StageSkipped', {skipReason: 'PatientDeclined', detail: null})).toBe('Patient declined');
+    expect(describe_('StageSkipped', {skipReason: 'Other', detail: 'Seen at another hospital'})).toBe('Other: Seen at another hospital');
+  });
+
+  it('gives the branch chosen and the stages it skipped, and why a skipped stage was reinstated', () => {
+    expect(describe_('BranchChosen', {branch: 'Treatment', skippedStageIds: ['s4'], skippedStages: ['Discharge letter', 'Follow-up']})).toBe(
+      'Chose Treatment; skipped Discharge letter, Follow-up',
+    );
+    expect(describe_('BranchChosen', {branch: 'Treatment', skippedStages: 'not a list'})).toBe('Chose Treatment');
+    expect(describe_('StageReinstated', {reason: 'Chose the wrong branch', skipReason: 'BranchNotChosen'})).toBe(
+      'Was skipped (another branch was chosen): Chose the wrong branch',
+    );
+    expect(describe_('StageReinstated', {})).toBe('');
+  });
 });
 
 describe('isPatientFileEntry', () => {

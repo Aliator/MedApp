@@ -9784,6 +9784,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pathways/patient-pathways/{id}/stages/{stageId}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SkipPathwayStageRequest"];
+                    "text/json": components["schemas"]["SkipPathwayStageRequest"];
+                    "application/*+json": components["schemas"]["SkipPathwayStageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientPathwayResponse"];
+                        "application/json": components["schemas"]["PatientPathwayResponse"];
+                        "text/json": components["schemas"]["PatientPathwayResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pathways/patient-pathways/{id}/stages/{stageId}/reinstate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ReinstatePathwayStageRequest"];
+                    "text/json": components["schemas"]["ReinstatePathwayStageRequest"];
+                    "application/*+json": components["schemas"]["ReinstatePathwayStageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientPathwayResponse"];
+                        "application/json": components["schemas"]["PatientPathwayResponse"];
+                        "text/json": components["schemas"]["PatientPathwayResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/patients/{id}/timeline": {
         parameters: {
             query?: never;
@@ -14465,6 +14623,7 @@ export interface components {
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;
+            stageOptions?: components["schemas"]["PathwayTemplateStageOptionsRequest"][] | null;
         };
         CreatePatientPathwayRequest: {
             /** Format: uuid */
@@ -14947,6 +15106,12 @@ export interface components {
             /** Format: date-time */
             finishedAtUtc?: string | null;
             finishedBy?: string | null;
+            /** Format: date-time */
+            skippedAtUtc?: string | null;
+            skippedBy?: string | null;
+            skipReason?: string | null;
+            skipDetail?: string | null;
+            branch?: string | null;
         };
         FhirAddress: {
             use?: string | null;
@@ -15074,6 +15239,7 @@ export interface components {
         FinishPathwayStageRequest: {
             withoutVisit?: boolean;
             reason?: string | null;
+            branch?: string | null;
         };
         ForgotPasswordRequest: {
             usernameOrEmail?: string | null;
@@ -15362,6 +15528,11 @@ export interface components {
             /** Format: int32 */
             clockStopStageOrder?: number | null;
         };
+        PathwayTemplateStageOptionsRequest: {
+            isOptional?: boolean;
+            choosesBranch?: boolean;
+            branch?: string | null;
+        };
         PathwayTemplateStageResponse: {
             /** Format: int32 */
             stageOrder?: number;
@@ -15373,6 +15544,9 @@ export interface components {
             snomedTerm?: string | null;
             isArchived?: boolean;
             visitRequirement?: string | null;
+            isOptional?: boolean;
+            choosesBranch?: boolean;
+            branch?: string | null;
             stopsClock?: boolean;
         };
         PatientExportResponse: {
@@ -15450,6 +15624,11 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        PatientPathwayBranchResponse: {
+            name?: string | null;
+            stageNames?: string[] | null;
+            stageNamesToDo?: string[] | null;
+        };
         PatientPathwayLabelResponse: {
             /** Format: uuid */
             id?: string;
@@ -15506,6 +15685,8 @@ export interface components {
             /** Format: int32 */
             completedStageCount?: number;
             /** Format: int32 */
+            skippedStageCount?: number;
+            /** Format: int32 */
             stageCount?: number;
             allowedStatusChanges?: string[] | null;
             canWorkOnStages?: boolean;
@@ -15548,11 +15729,25 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             notes?: string | null;
+            isOptional?: boolean;
+            choosesBranch?: boolean;
+            branch?: string | null;
+            branches?: components["schemas"]["PatientPathwayBranchResponse"][] | null;
+            needsBranchChoice?: boolean;
             state?: string | null;
             isCurrent?: boolean;
             isLocked?: boolean;
             canEdit?: boolean;
             canUnlock?: boolean;
+            canSkip?: boolean;
+            canReinstate?: boolean;
+            /** Format: date-time */
+            skippedAtUtc?: string | null;
+            /** Format: uuid */
+            skippedByUserId?: string | null;
+            skippedByUsername?: string | null;
+            skipReason?: string | null;
+            skipDetail?: string | null;
             /** Format: date-time */
             startedAtUtc?: string | null;
             /** Format: uuid */
@@ -15581,6 +15776,8 @@ export interface components {
             isOverdue?: boolean;
             /** Format: int32 */
             completedStageCount?: number;
+            /** Format: int32 */
+            skippedStageCount?: number;
             /** Format: int32 */
             stageCount?: number;
             currentStageName?: string | null;
@@ -15670,6 +15867,9 @@ export interface components {
             changes?: components["schemas"]["PatientTimelineChangeResponse"][] | null;
             finishedWithoutVisit?: boolean;
             visitRequirement?: string | null;
+            skipReason?: string | null;
+            branch?: string | null;
+            skippedStageNames?: string[] | null;
             /** Format: uuid */
             appointmentId?: string | null;
             /** Format: date-time */
@@ -15988,6 +16188,9 @@ export interface components {
             reason?: string | null;
             confirmPossibleDuplicate?: boolean;
         };
+        ReinstatePathwayStageRequest: {
+            reason?: string | null;
+        };
         RejectReferralRequest: {
             reason?: string | null;
             detail?: string | null;
@@ -16204,6 +16407,10 @@ export interface components {
             /** Format: date-time */
             lastUpdated?: string;
         };
+        SkipPathwayStageRequest: {
+            reason?: string | null;
+            detail?: string | null;
+        };
         SkippedBankHolidayResponse: {
             /** Format: date */
             date?: string;
@@ -16419,6 +16626,7 @@ export interface components {
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;
+            stageOptions?: components["schemas"]["PathwayTemplateStageOptionsRequest"][] | null;
         };
         UpdatePatientPathwayRequest: {
             title?: string | null;

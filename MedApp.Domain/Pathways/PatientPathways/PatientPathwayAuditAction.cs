@@ -33,5 +33,22 @@ public enum PatientPathwayAuditAction
     /// An admin deleted a note on the pathway (soft: it's hidden, but kept). The details hold its ID and latest version,
     /// the admin's reason, and the request it approved, if any; never its text.
     /// </summary>
-    NoteDeleted = 15
+    NoteDeleted = 15,
+
+    // 16 to 34 are kept for Phase 3's specimens, results and letters (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// A stage was skipped: an optional stage, by hand, with a reason (<c>skipReason</c> by name, and a <c>detail</c>
+    /// for Other). Stages skipped because another branch was chosen are listed in that <see cref="BranchChosen"/> entry.
+    /// </summary>
+    StageSkipped = 35,
+
+    /// <summary>
+    /// Finishing a branch point chose one of its branches (<c>branch</c>); the other branches' stages after it were
+    /// skipped (<c>skippedStageIds</c>, <c>skippedStages</c>). Written on the branch point, after its StageFinished.
+    /// </summary>
+    BranchChosen = 36,
+
+    /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
+    StageReinstated = 37
 }

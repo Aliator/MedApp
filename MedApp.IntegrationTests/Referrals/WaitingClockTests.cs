@@ -224,4 +224,39 @@ public sealed class WaitingClockTests : IntegrationTest
         referral.Clock!.TargetDays.Should().Be(21);
         referral.Clock.TargetOn.Should().Be(UkToday.AddDays(20));
     }
+
+    [Test]
+    public async Task SkippedClockStopStage_StopsNothingUntilDischarge_AndReinstatingNeverRestartsIt()
+    {
+        var patient = await CreatePatientAsync(_admin);
+        var template = await CreateTemplateWithStagesAsync(_admin, 3);
+        // The second stage stops the clock, and is optional.
+        template = await (await _admin.PatchAsJsonAsync($"/api/pathways/patient-pathway-stage/templates/{template.Id}",
+                new UpdatePathwayTemplateRequest
+                {
+                    StageDefinitionIdsInOrder = template.StageDefinitionIdsInOrder,
+                    ClockStopStageOrder = 2,
+                    StageOptions = [new(), new() { IsOptional = true }, new()],
+                }))
+            .ReadAsAsync<PathwayTemplateResponse>();
+        var referral = await RegisterAsync(patient.Id);
+        var pathway = await (await _clinician.Client.PostAsJsonAsync($"{Referrals}/{referral.Id}/accept",
+                new AcceptReferralRequest { TemplateId = template.Id, Priority = "High", ExpectedVersion = referral.Version }))
+            .ReadAsAsync<PatientPathwayResponse>(HttpStatusCode.Created);
+        var stages = pathway.Stages;
+
+        await (await FinishStageAsync(_clinician.Client, pathway.Id, stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _clinician.Client.PostAsJsonAsync($"{StageUrl(pathway.Id, stages[1].Id)}/skip",
+            new SkipPathwayStageRequest { Reason = "NotNeeded" })).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        (await PathwayAsync(pathway.Id)).Referral!.Clock!.State.Should().Be("Running");
+
+        await (await FinishStageAsync(_clinician.Client, pathway.Id, stages[2].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostPathwayStatusAsync(_clinician.Client, pathway.Id, "Completed")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        (await PathwayAsync(pathway.Id)).Referral!.Clock!.Should().BeEquivalentTo(new { State = "Stopped", StopReason = "PathwayDischarged" });
+
+        var reinstated = await (await _admin.PostAsJsonAsync($"{StageUrl(pathway.Id, stages[1].Id)}/reinstate",
+            new ReinstatePathwayStageRequest { Reason = "Synthetic: needed after all." })).ReadAsAsync<PatientPathwayResponse>();
+        reinstated.Status.Should().Be("InProgress");
+        (await PathwayAsync(pathway.Id)).Referral!.Clock!.Should().BeEquivalentTo(new { State = "Stopped", StopReason = "PathwayDischarged" });
+    }
 }

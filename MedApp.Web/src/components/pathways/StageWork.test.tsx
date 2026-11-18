@@ -196,3 +196,37 @@ describe('StageWork fitting its notes box', () => {
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 });
+
+describe('StageWork: skipping', () => {
+  function renderSkippable(overrides: Partial<PathwayStage>) {
+    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn(), onSkip: vi.fn(), onReinstate: vi.fn()};
+    const result = renderWithApp(<StageWork stage={stage(overrides)} canUnlock={false} isBusy={false} {...handlers} />);
+    return {...result, ...handlers};
+  }
+
+  it('offers Skip Stage on an optional current stage, only when the API says it can be skipped', async () => {
+    const {user, onSkip} = renderSkippable({isOptional: true, canSkip: true});
+
+    await user.click(await screen.findByRole('button', {name: 'Skip Stage'}));
+    expect(onSkip).toHaveBeenCalled();
+  });
+
+  it('offers no Skip Stage when the stage cannot be skipped', async () => {
+    renderSkippable({isOptional: true, canSkip: false});
+
+    await screen.findByRole('button', {name: 'Finish Stage'});
+    expect(screen.queryByRole('button', {name: 'Skip Stage'})).not.toBeInTheDocument();
+  });
+
+  it('offers Reinstate Stage on a skipped stage, as the API allows', async () => {
+    const {user, onReinstate, unmount} = renderSkippable({state: 'Skipped', isCurrent: false, canEdit: false, canReinstate: true});
+
+    await user.click(await screen.findByRole('button', {name: 'Reinstate Stage'}));
+    expect(onReinstate).toHaveBeenCalled();
+    unmount();
+
+    renderSkippable({state: 'Skipped', isCurrent: false, canEdit: false, canReinstate: false});
+    await screen.findByText('Notes');
+    expect(screen.queryByRole('button', {name: 'Reinstate Stage'})).not.toBeInTheDocument();
+  });
+});

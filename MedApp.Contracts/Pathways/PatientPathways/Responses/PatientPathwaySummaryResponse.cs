@@ -16,6 +16,9 @@ public sealed class PatientPathwaySummaryResponse
     public string Status { get; set; } = string.Empty;
     public bool IsOverdue { get; set; }
     public int CompletedStageCount { get; set; }
+
+    /// <summary>How many stages were skipped (an optional stage, or another branch chosen).</summary>
+    public int SkippedStageCount { get; set; }
     public int StageCount { get; set; }
 
     /// <summary>The name of the stage being worked on, or null when every stage is finished.</summary>

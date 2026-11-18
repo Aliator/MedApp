@@ -226,4 +226,77 @@ public sealed class PathwayChangeClockTests
 
         pathway.Stages.Select(s => s.StopsClock).Should().Equal(false, true);
     }
+
+    [Test]
+    public void SkipStage_TheClockStopStage_StopsNothingAndDischargeStopsIt()
+    {
+        var (pathway, referral) = AcceptedPathway();
+        var stage = pathway.Stages[0];
+        stage.StopsClock = true;
+        stage.IsOptional = true;
+        var change = new PathwayChange(pathway, Staff, Now);
+
+        change.SkipStage(stage, StageSkipReason.NotNeeded, null);
+
+        WaitingClock.State(referral).Should().Be(WaitingClock.Running);
+        change.ReferralEvents.Should().BeEmpty();
+
+        foreach (var other in pathway.Stages.Skip(1))
+            change.FinishStage(other);
+        change.ChangeStatus(PatientPathwayStatus.Completed, null);
+
+        referral.StopReason.Should().Be(ClockStopReason.PathwayDischarged);
+        change.ReferralEvents.Should().ContainSingle(e => e.Action == ReferralEventAction.ClockStopped);
+    }
+
+    [Test]
+    public void FinishStage_BranchNotChosenHoldsTheClockStopStage_StopsNothing()
+    {
+        var (pathway, referral) = AcceptedPathway();
+        var branching = CreateBranchingPathway();
+        foreach (var stage in branching.Stages)
+            stage.PatientPathwayId = pathway.Id;
+        pathway.Stages = branching.Stages;
+        pathway.StageAt(2).StopsClock = true;
+        var change = new PathwayChange(pathway, Staff, Now);
+
+        change.FinishStage(pathway.StageAt(1), branch: TreatmentBranch);
+
+        pathway.StageAt(2).IsSkipped.Should().BeTrue();
+        WaitingClock.State(referral).Should().Be(WaitingClock.Running);
+        change.ReferralEvents.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ReinstateStage_AfterTheClockStopped_NeverRestartsIt()
+    {
+        var (pathway, referral) = AcceptedPathway(PatientPathwayStatus.InReview, finishedStages: 2);
+        Skip(pathway.StageAt(3));
+        new PathwayChange(pathway, Staff, Now).ChangeStatus(PatientPathwayStatus.Completed, null);
+        referral.StopReason.Should().Be(ClockStopReason.PathwayDischarged);
+
+        var later = new PathwayChange(pathway, Admin, Now.AddDays(3));
+        later.ReinstateStage(pathway.StageAt(3), "Synthetic: needed after all.");
+
+        pathway.Status.Should().Be(PatientPathwayStatus.InProgress);
+        WaitingClock.IsStopped(referral).Should().BeTrue();
+        referral.StoppedOn.Should().Be(Today);
+        later.ReferralEvents.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ReinstateStage_TheClockStopStageWhileTheClockRuns_StopsItWhenFinished()
+    {
+        var (pathway, referral) = AcceptedPathway();
+        var stage = pathway.Stages[0];
+        stage.StopsClock = true;
+        Skip(stage);
+        var change = new PathwayChange(pathway, Admin, Now);
+
+        change.ReinstateStage(stage, "Synthetic: needed after all.");
+        WaitingClock.State(referral).Should().Be(WaitingClock.Running);
+        change.FinishStage(stage);
+
+        referral.StopReason.Should().Be(ClockStopReason.StopStageFinished);
+    }
 }

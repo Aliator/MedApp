@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
@@ -71,5 +72,27 @@ public sealed class UpdatePathwayTemplateValidatorTests
             .Should().Be("Send the stage list with the stage that stops the waiting-time clock.");
         validator.Validate(new UpdatePathwayTemplateCommand(id, null, null, [Guid.NewGuid()], 2)).Errors.Single().ErrorMessage
             .Should().Be(MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate.CreatePathwayTemplateValidator.ClockStopStageMessage);
+    }
+
+    [Test]
+    public void Validate_OptionsWithoutAStageList_Fails()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, null, StageOptions: [TemplateStageOptions.Plain]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
+    }
+
+    [Test]
+    public void Validate_BranchWithoutABranchPoint_Fails()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null,
+                [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [new(Branch: "Benign"), TemplateStageOptions.Plain]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.BranchWithoutPointMessage);
+    }
+
+    [Test]
+    public void Validate_StagesWithoutOptions_PassesAsBefore()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, [ConsultationDefinitionId]))
+            .IsValid.Should().BeTrue();
     }
 }

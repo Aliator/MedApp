@@ -596,6 +596,26 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'pathway-branches',
+    title: "Pathway page of a template that branches: its stages' Optional, Branch point and Branch tokens, and skipped ones struck through with the reason",
+    path: (d) => `/pathways/${d.branchingPathwayId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingPathwayId, 'No pathway from a template that branches (the demo data has them from PR 28).');
+      await page.getByRole('heading', { name: 'Stages' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'template-branches',
+    title: 'Template editor: Optional and Branch point on each stage, a Branch name after a branch point, branches indented',
+    path: (d) => `/admin/pathway-templates/${d.branchingTemplateId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingTemplateId, 'No template that branches (the demo data has them from PR 28).');
+      await page.getByRole('list', { name: 'Stages in order' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'pathway-restricted',
     title:
       "A restricted patient's pathway at 1366px: the restricted label (\"Restricted record: changes paused\") beside the title, wrapping if it must, the actions on the same line",
