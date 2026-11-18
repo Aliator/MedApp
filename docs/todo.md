@@ -15,9 +15,9 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 ## Features
 
 - **Calendar follow-ups.** What staff calendars and appointments left out (`docs/calendar-plan.md`, section 8):
-  - **Closed days and working hours:** bank holidays and other closed days, and working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday).
+  - **Working hours, and more closed days:** working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday except closed days). Closed days are built (`docs/calendar-plan.md`, decisions 70 to 73); still to do: Scotland's and Northern Ireland's bank holidays, a closed day for some people or sites only, and **listing what's already on a day when an admin closes it** (booked appointments, blocks, meetings), so they're moved or cancelled and the patients told (hazard H-35).
   - **More kinds of booking:** recurring appointments, rooms and resources, and booking several staff for one appointment.
-  - **Walk-ins:** recording an appointment after the event. Booking is only in the future today.
+  - **After walk-ins** (built: decisions 72 to 76): a list of appointments recorded after the event, for admins to review (hazard H-38), and monitoring them as an event.
   - **Patients:** reminders by email or SMS, and booking for themselves.
   - **Requested appointments left waiting:** flag or notify ones requested long ago and still not booked.
   - **Printing a day list.**
