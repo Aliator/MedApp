@@ -34,15 +34,26 @@ public sealed record MonitoredActivity(
     /// <summary>
     /// What these audit entries of one change to the pathway did that rules can watch for, in the order they happened.
     /// Entries no rule watches for (notes saved, a stage started, an unassignment, automatic status changes) give none.
+    /// A Required stage finished without its visit gives two: <see cref="MonitoringEvent.StageFinishedWithoutVisit"/>
+    /// first (so an admin with rules for both is told the more particular one), then
+    /// <see cref="MonitoringEvent.StageFinished"/>.
     /// </summary>
     public static IReadOnlyList<MonitoredActivity> From(PatientPathway pathway, IEnumerable<PatientPathwayAuditEntry> entries) =>
         entries
             .OrderBy(e => e.AtUtc)
-            .Select(e => From(pathway, e))
-            .OfType<MonitoredActivity>()
+            .SelectMany(e => From(pathway, e))
             .ToList();
 
-    private static MonitoredActivity? From(PatientPathway pathway, PatientPathwayAuditEntry entry)
+    private static IEnumerable<MonitoredActivity> From(PatientPathway pathway, PatientPathwayAuditEntry entry)
+    {
+        if (entry.Action == Action.StageFinished && FinishedWithoutRequiredVisit(entry))
+            yield return ForStage(MonitoringEvent.StageFinishedWithoutVisit, pathway, entry);
+
+        if (Single(pathway, entry) is { } activity)
+            yield return activity;
+    }
+
+    private static MonitoredActivity? Single(PatientPathway pathway, PatientPathwayAuditEntry entry)
     {
         switch (entry.Action)
         {
@@ -91,6 +102,21 @@ public sealed record MonitoredActivity(
             StageDefinitionId = pathway.Stages.FirstOrDefault(s => s.Id == entry.StageId)?.StageDefinitionId,
             StageName = entry.StageName
         };
+
+    // A Required stage finished without its visit, as PathwayChange.FinishStage writes it:
+    // {"withoutVisit":true,"visitRequirement":"Required","reason":…}. A Suggested one finished without its visit isn't
+    // the bypass (anyone may, after confirming), so it's only a StageFinished.
+    private static bool FinishedWithoutRequiredVisit(PatientPathwayAuditEntry entry)
+    {
+        using var details = JsonDocument.Parse(entry.Details);
+        var root = details.RootElement;
+        return root.ValueKind == JsonValueKind.Object
+               && root.TryGetProperty("withoutVisit", out var withoutVisit)
+               && withoutVisit.ValueKind == JsonValueKind.True
+               && root.TryGetProperty("visitRequirement", out var requirement)
+               && requirement.ValueKind == JsonValueKind.String
+               && requirement.GetString() == nameof(VisitRequirement.Required);
+    }
 
     // Completed, Blocked and Cancelled are only ever chosen by someone (never automatic), as PathwayChange writes them:
     // {"from":"…","to":"…","reason":…,"automatic":…}.

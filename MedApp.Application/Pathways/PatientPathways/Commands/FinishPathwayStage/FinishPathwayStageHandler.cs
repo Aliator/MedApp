@@ -42,10 +42,10 @@ public sealed class FinishPathwayStageHandler(
             StageFinishing.StagesTouchedByFinish(pathway, stage, request.Branch).ToList(), cancellationToken);
         var stageAppointments = appointments.Where(a => a.StageId == stage.Id).ToList();
 
-        // A Required visit: only an admin can finish without it, on purpose and with a reason.
+        // A Required visit: only a holder of FinishWithoutVisit can finish without it, on purpose and with a reason.
         if (PathwayWorkflow.WhyStageNeedsVisit(stage, stageAppointments) is { } needsVisit)
         {
-            if (!request.CanOverrideStages || !request.WithoutVisit)
+            if (!request.CanFinishWithoutVisit || !request.WithoutVisit)
                 throw new ConflictException(needsVisit);
 
             if (string.IsNullOrWhiteSpace(request.Reason))

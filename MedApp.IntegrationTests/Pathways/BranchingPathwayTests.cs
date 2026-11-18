@@ -146,7 +146,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
     }
 
     [Test]
-    public async Task SkipAndReinstate_StaffSkipAnOptionalStageAndOnlyHoldersOfOverrideStagesReinstateIt()
+    public async Task SkipAndReinstate_StaffSkipAnOptionalStageAndOnlyHoldersOfUnlockStagesReinstateIt()
     {
         var pathway = await CreateBranchingPathwayAsync();
         await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Branch = "Treatment" }))
@@ -165,7 +165,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
         // A stage that isn't optional can't be skipped.
         await (await SkipAsync(_staff.Client, pathway.Id, pathway.Stages[4].Id, "NotNeeded", null)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
-        // Reinstating needs OverrideStages.
+        // Reinstating needs UnlockStages, which the built-in Admin role keeps.
         await (await ReinstateAsync(_staff.Client, pathway.Id, followUp.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         var reinstated = await (await ReinstateAsync(_admin, pathway.Id, followUp.Id)).ReadAsAsync<PatientPathwayResponse>();
         reinstated.CurrentStageId.Should().Be(followUp.Id);

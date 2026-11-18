@@ -398,4 +398,28 @@ public sealed class AccessBeforeAndAfterPermissionsTests
                 useAppOnly.Should().Contain(endpoint, $"{endpoint} is gained only through UseApp");
         }
     }
+
+    /// <summary>
+    /// The deliberate loss of decision 138 (<c>docs/centre-phases-3-5-plan.md</c>, PR 24): <c>OverrideStages</c> split
+    /// into <see cref="Permission.UnlockStages"/> and <see cref="Permission.FinishWithoutVisit"/>. The built-in Admin role
+    /// keeps UnlockStages (unlocking and reinstating, whose rows above are unchanged) and loses FinishWithoutVisit, which
+    /// handlers check (finishing, or skipping, a stage whose visit is Required without it), and so its notices too. That's
+    /// all Admin loses. The endpoints can't show it, as finishing and skipping need only WorkPathways, so this checks the
+    /// permissions each session is given. All staff (before roles) had neither half, and gains neither; the starting
+    /// Clinician role, which had OverrideStages, keeps both (the migration renames its rows).
+    /// </summary>
+    [Test]
+    public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
+    {
+        // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
+        var adminBefore = Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
+
+        adminBefore.Except(adminNow).Should().Equal(Permission.FinishWithoutVisit);
+        adminNow.Except(adminBefore).Should().BeEmpty();
+        TestPermissions.ForRoles(AppRoles.AllStaffBeforeRoles).Should()
+            .NotContain(Permission.UnlockStages).And.NotContain(Permission.FinishWithoutVisit);
+        TestPermissions.ForRoles(StandardRoles.Clinician.Name).Should()
+            .Contain(Permission.UnlockStages).And.Contain(Permission.FinishWithoutVisit);
+    }
 }

@@ -80,7 +80,7 @@ public sealed class RolePermissionsMigrationTests
         roles[MadeClinicianRoleId].Should().Be(("Clinician", "CLINICIAN", false, false));
         (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty();
 
-        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
+        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician && r != StandardRoles.SeniorClinician))
         {
             roles[role.Id].Should().Be((role.Name, role.Name.ToUpperInvariant(), false, false));
             // ManageClinics came later, with AddedWorkingHours.
@@ -95,7 +95,7 @@ public sealed class RolePermissionsMigrationTests
         await SeedOldRolesAsync();
         await _context.GetService<IMigrator>().MigrateAsync(WorkingHoursMigration);
 
-        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
+        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician && r != StandardRoles.SeniorClinician))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
         (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty("a role an admin made with a starting role's name is left alone");
 
@@ -111,7 +111,8 @@ public sealed class RolePermissionsMigrationTests
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
         var roles = await RolesAsync();
-        roles.Keys.Should().BeEquivalentTo(StandardRoles.All.Select(r => r.Id));
+        // Senior clinician came later, with SplitOverrideStages.
+        roles.Keys.Should().BeEquivalentTo(StandardRoles.All.Where(r => r != StandardRoles.SeniorClinician).Select(r => r.Id));
         roles[StandardRoles.Admin.Id].IsBuiltIn.Should().BeTrue();
         (await PermissionsOfAsync(StandardRoles.Clinician.Id)).Should().Contain(nameof(Permission.TriageReferrals));
     }

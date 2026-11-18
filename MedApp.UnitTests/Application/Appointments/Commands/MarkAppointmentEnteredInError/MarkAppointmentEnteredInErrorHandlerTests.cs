@@ -35,7 +35,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _holders = new Mock<IPermissionHolders>();
-        _holders.Setup(h => h.GetUserIdsAsync(Permission.OverrideStages, It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
+        _holders.Setup(h => h.GetUserIdsAsync(Permission.FinishWithoutVisit, It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
         Fixture.Inject(_holders.Object);
         Fixture.Inject(_pathways.Object);
         _handler = Fixture.Create<MarkAppointmentEnteredInErrorHandler>();
@@ -239,7 +239,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         Added.Should().BeEmpty();
         response.VisitRequestedAgain.Should().BeFalse();
         response.StageMessage.Should().Contain("is finished, and now has no attended visit")
-            .And.Contain("an admin can unlock it").And.Contain("The pathway's assignees and the admins are told.");
+            .And.Contain("someone who can unlock stages can unlock it").And.Contain("The pathway's assignees and those who can finish a stage without its visit are told.");
         Sent.Select(s => s.Notification.UserId).Should().Equal(StaffUserId, AdminId);
         Sent.Should().AllSatisfy(s =>
         {

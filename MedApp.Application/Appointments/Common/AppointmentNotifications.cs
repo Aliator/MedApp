@@ -27,8 +27,8 @@ public static class AppointmentNotifications
 
     /// <summary>
     /// After a walk-in was marked entered in error that was the only attended visit of a finished stage that requires
-    /// one (<c>StageVisits.AfterVisitWithdrawn</c>): the pathway's assignees and every admin (<paramref name="adminIds"/>),
-    /// but not whoever withdrew it, are told, since only an admin can unlock the stage. A fixed title, and a message of
+    /// one (<c>StageVisits.AfterVisitWithdrawn</c>): the pathway's assignees and every holder of FinishWithoutVisit
+    /// (<paramref name="deciderIds"/>), but not whoever withdrew it, are told: they decide whether it may stand without it. A fixed title, and a message of
     /// who, the stage's (admin-written) name and dates, never the patient, the pathway's title or a reason. Links to
     /// the pathway, not the appointment, which is off the calendar.
     /// </summary>
@@ -36,7 +36,7 @@ public static class AppointmentNotifications
         Appointment withdrawn,
         PatientPathway pathway,
         PatientPathwayStage stage,
-        IEnumerable<Guid> adminIds,
+        IEnumerable<Guid> deciderIds,
         PathwayActor actor,
         DateTime nowUtc)
     {
@@ -45,10 +45,10 @@ public static class AppointmentNotifications
         var message =
             $"{actor.Username} marked {visit} for the '{stage.Name}' stage entered in error. " +
             $"The stage was finished{finished} and now has no attended visit, though it requires one. " +
-            "If it still needs its visit, an admin can unlock it, and then book one.";
+            "If it still needs its visit, someone who can unlock stages can unlock it, and then book one.";
 
         return pathway.Assignments.Select(a => a.UserId)
-            .Concat(adminIds)
+            .Concat(deciderIds)
             .Where(userId => userId != actor.UserId)
             .Distinct()
             .Select(userId => new Notification

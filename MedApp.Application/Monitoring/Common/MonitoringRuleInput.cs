@@ -51,7 +51,7 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
         RuleFor(x => x.StageDefinitionId)
             .Null()
             .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasStage(e))
-            .WithMessage("A stage can only be chosen for a stage being finished or unlocked.");
+            .WithMessage("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked.");
     }
 }
 
@@ -65,16 +65,16 @@ public static class MonitoringRuleInput
 
     /// <summary>Whether a rule for this event can name a stage.</summary>
     public static bool HasStage(MonitoringEvent monitoringEvent) =>
-        monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked;
+        monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked or MonitoringEvent.StageFinishedWithoutVisit;
 
     /// <summary>The message when "Stage unlocked" names someone who can't unlock stages.</summary>
-    public const string UnlockNeedsAdmin = "Only people who can override stages unlock them, so choose one of them, or anyone.";
+    public const string UnlockNeedsAdmin = "Only people whose roles let them unlock stages do, so choose one of them, or anyone.";
 
     /// <summary>
     /// Checks what the input newly names: every person, template and stage it names (all of them for a new rule; for an
     /// edit, only those that differ from the stored rule's, so a rule may keep naming something since deleted) must
     /// exist, archived or not (404 otherwise). And a person named for "Stage unlocked" must hold
-    /// <see cref="Permission.OverrideStages"/>, as only they unlock (400 otherwise; checked again whenever the person or
+    /// <see cref="Permission.UnlockStages"/>, as only they unlock (400 otherwise; checked again whenever the person or
     /// the event changes, as roles do).
     /// </summary>
     public static async Task CheckAsync(
@@ -113,7 +113,7 @@ public static class MonitoringRuleInput
 
     private static async Task CheckCanUnlockAsync(Guid userId, IPermissionHolders permissionHolders, CancellationToken cancellationToken)
     {
-        var holders = await permissionHolders.WhoHoldsAsync([userId], Permission.OverrideStages, cancellationToken);
+        var holders = await permissionHolders.WhoHoldsAsync([userId], Permission.UnlockStages, cancellationToken);
         if (!holders.Contains(userId))
             throw new ValidationException([new ValidationFailure(nameof(IMonitoringRuleInput.SubjectUserId), UnlockNeedsAdmin)]);
     }

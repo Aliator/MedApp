@@ -45,7 +45,6 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
   - **Built** (PR 20, `feature/branching-pathways`: `docs/agents/pathways.md`). **Not to be used with patients until the CSO has verified H-51's controls.** Left for later:
-    - **Reinstating** needs `OverrideStages` until PR 24 splits it; then `UnlockStages`.
     - **Demo data** gets its branches, optional stages and skips in PR 28.
     - **During a rollout,** an API copy from before this release doesn't know stages can be skipped: it shows a skipped stage as the current one, and would let staff finish it. Make no template with optional stages or branches until every copy runs this release (the chart's two-release rule).
 - **Clinics, rooms and longer hours:** clinic sessions with a set number of slots, in a named room at a named site; evening and weekend clinics; working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday, except closed days).
@@ -61,7 +60,10 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **Demo data:** offline messages for past appointments, some not sent and some failed, follow-ups recorded and three waiting (PR 28).
 - **Adjusted with them:**
   - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked.
-  - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin.
+  - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin. **Built** (PR 24, `feature/stage-permissions`): `OverrideStages` split into `UnlockStages` and `FinishWithoutVisit`, the starting role Senior clinician, the built-in Admin role without `FinishWithoutVisit`, and the `StageFinishedWithoutVisit` monitoring event. Left for later:
+    - **Demo data** moves the consultants and the GP with a special interest to Senior clinician, and takes both off Clinician (PR 28), as the release note asks admins to do where their senior clinicians alone should unlock stages and finish one without its visit. Until then Clinician keeps both, so nobody lost anything.
+    - **Skipping a stage whose visit is Required** needs `FinishWithoutVisit` too, but isn't a monitoring event (decision 136 names finishing only): add `StageSkippedWithoutVisit`, or fire `StageFinishedWithoutVisit` for it, if admins ask.
+    - **During a rollout,** an API copy from before this release doesn't know the two new names (a name code doesn't know grants nothing), so for the minutes of a rollout it refuses unlocking, reinstating and the visit bypass to everyone but the built-in Admin role: it fails closed.
 
 **Phase 5: soon after, and before a real team uses it.**
 - **Team meeting (MDT) list:** pathways put forward for discussion, and the outcome recorded on each.
@@ -112,7 +114,6 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Template edits that undo a day's changes.** Editing a day template's block gives it a new row, and a day's exception (the block removed or moved for one day) points at the old row, so the block comes back on that day, possibly over an appointment booked in its place. Keep a block's identity across versions (a lineage ID the exceptions key on), or at least list the future days' changes an edit will drop before saving (review of #93, finding 2).
 - **More monitoring.** Admins' monitoring rules (Administration, Monitoring) and each person's switch for assignment notifications are built (`docs/agents/monitoring.md`). Still to do:
   - **An overdue event,** for rules and for the assignees. It isn't a change anyone makes, so it's a job on the scheduled job runner (`docs/agents/jobs.md`), with a record of which pathways it has already reported.
-  - **Monitor visit bypasses:** an event for an admin finishing a stage without the visit it required (`docs/calendar-plan.md`, decision 24), so a rule can watch for it, with its own `NotificationKind` (a new number: 18 to 22 are taken). Staff calendars added the bypass after #84's eight events, and it isn't one of them yet.
   - **Audit the rules** (who added, changed or deleted which rule), and let a staff member, or the DPO, see the rules that name them (DPIA risk 24).
   - **Tidy up with accounts:** deleting an account should delete the rules it owns and the rules that name it, and its notification choices (`docs/governance/retention-schedule.md`). Until then they stay, and send nothing.
   - **More people in the picker:** the Monitoring page offers the first 100 accounts by username (the API's largest page), and says so under the field when there are more. A searchable picker, on `api/auth/users/search`, would suit a bigger organisation.

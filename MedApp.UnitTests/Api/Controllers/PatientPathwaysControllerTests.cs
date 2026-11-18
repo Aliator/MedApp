@@ -231,29 +231,44 @@ public sealed class PatientPathwaysControllerTests
     {
         var result = await Controller.FinishPathwayStage(RecordId, OtherId, new FinishPathwayStageRequest(), _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, CanOverrideStages: false), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, CanFinishWithoutVisit: false), result);
     }
 
+    /// <summary>Whether they may finish without the visit is FinishWithoutVisit, which the built-in Admin role hasn't.</summary>
     [TestCase("User", false)]
-    [TestCase("Admin", true)]
-    public async Task FinishPathwayStage_WithoutVisit_SendsTheReasonAndWhetherTheyAreAnAdmin(string role, bool isAdmin)
+    [TestCase("Admin", false)]
+    [TestCase("Clinician", true)]
+    [TestCase("Senior clinician", true)]
+    public async Task FinishPathwayStage_WithoutVisit_SendsTheReasonAndWhetherTheyMayFinishWithoutAVisit(string role, bool mayFinishWithoutVisit)
     {
         var controller = new PatientPathwaysController(_mediator).WithRequest(SignedIn(role));
         var request = new FinishPathwayStageRequest { WithoutVisit = true, Reason = "Synthetic reason." };
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, request, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.For(isAdmin) }, WithoutVisit: true, Reason: "Synthetic reason.", CanOverrideStages: isAdmin), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles(role) }, WithoutVisit: true, Reason: "Synthetic reason.", CanFinishWithoutVisit: mayFinishWithoutVisit), result);
     }
 
     [Test]
-    public async Task FinishPathwayStage_NoBodyAsAnAdmin_FinishesWithAVisit()
+    public async Task FinishPathwayStage_NoBodyAsASeniorClinician_FinishesWithAVisit()
     {
-        var controller = new PatientPathwaysController(_mediator).WithRequest(SignedIn("Admin"));
+        var controller = new PatientPathwaysController(_mediator).WithRequest(SignedIn("Senior clinician"));
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, null, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.Admin }, WithoutVisit: false, Reason: null, CanOverrideStages: true), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles("Senior clinician") }, WithoutVisit: false, Reason: null, CanFinishWithoutVisit: true), result);
+    }
+
+    [TestCase("Admin", false)]
+    [TestCase("Senior clinician", true)]
+    public async Task SkipPathwayStage_SendsWhetherTheyMayFinishWithoutAVisit(string role, bool mayFinishWithoutVisit)
+    {
+        var controller = new PatientPathwaysController(_mediator).WithRequest(SignedIn(role));
+
+        var result = await controller.SkipPathwayStage(RecordId, OtherId, new SkipPathwayStageRequest { Reason = "Other", Detail = "Synthetic detail." }, _cts.Token);
+
+        ExpectSentAndOk(new SkipPathwayStageCommand(RecordId, OtherId, "Other", "Synthetic detail.",
+            Actor with { Permissions = TestPermissions.ForRoles(role) }, mayFinishWithoutVisit), result);
     }
 
     [Test]

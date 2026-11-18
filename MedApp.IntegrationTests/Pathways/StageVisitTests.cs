@@ -16,20 +16,23 @@ namespace MedApp.IntegrationTests.Pathways;
 
 /// <summary>
 /// Stages that involve a visit: the Requested appointment made when such a stage becomes current, the Required rule
-/// (an attended appointment, or an admin's bypass with a reason), Suggested stages, the tidying up of Requested
-/// appointments, and the audit and timeline entries each writes.
+/// (an attended appointment, or the bypass with a reason by a holder of FinishWithoutVisit, such as a senior
+/// clinician; the built-in Admin role hasn't it), Suggested stages, the tidying up of Requested appointments, and the
+/// audit and timeline entries each writes.
 /// </summary>
 [TestFixture]
 public sealed class StageVisitTests : IntegrationTest
 {
     private HttpClient _admin = null!;
     private StaffAccount _staff = null!;
+    private StaffAccount _senior = null!;
 
     [SetUp]
     public async Task SignInAsync()
     {
         _admin = await SignInAsAdminAsync();
         _staff = await CreateStaffAsync(UserRole);
+        _senior = await CreateStaffAsync(SeniorClinicianRole);
     }
 
     [Test]
@@ -52,7 +55,7 @@ public sealed class StageVisitTests : IntegrationTest
     }
 
     [Test]
-    public async Task FinishStage_RequiredWithoutAVisit_Returns409ForStaffAndForAnAdminWithoutABody()
+    public async Task FinishStage_RequiredWithoutAVisit_Returns409ForStaff_ForAnAdminEvenWithTheBypass_AndWithoutTheBypassBody()
     {
         var pathway = await CreatePathwayWithStagesAsync("Required");
         var stage = pathway.Stages[0].Id;
@@ -60,37 +63,40 @@ public sealed class StageVisitTests : IntegrationTest
         var staff = await FinishStageAsync(_staff.Client, pathway.Id, stage);
         var staffBypass = await FinishStageAsync(_staff.Client, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason });
         var admin = await FinishStageAsync(_admin, pathway.Id, stage);
-        var adminNoBypass = await FinishStageAsync(_admin, pathway.Id, stage, new FinishPathwayStageRequest { Reason = WithoutVisitReason });
+        var adminBypass = await FinishStageAsync(_admin, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason });
+        var seniorNoBypass = await FinishStageAsync(_senior.Client, pathway.Id, stage, new FinishPathwayStageRequest { Reason = WithoutVisitReason });
 
-        (await staff.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("admin");
+        (await staff.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("senior clinician");
         await staffBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         await admin.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        await adminNoBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        // The built-in Admin role hasn't FinishWithoutVisit (decision 138): an admin who is a senior clinician holds that role too.
+        await adminBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await seniorNoBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         (await GetPathwayAsync(pathway.Id)).Stages[0].State.Should().Be("NotStarted");
     }
 
     [Test]
-    public async Task FinishStage_AdminBypassWithoutAReason_Returns400()
+    public async Task FinishStage_BypassWithoutAReason_Returns400()
     {
         var pathway = await CreatePathwayWithStagesAsync("Required");
 
-        var response = await FinishStageAsync(_admin, pathway.Id, pathway.Stages[0].Id,
+        var response = await FinishStageAsync(_senior.Client, pathway.Id, pathway.Stages[0].Id,
             new FinishPathwayStageRequest { WithoutVisit = true, Reason = "  " });
 
         (await response.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Should().ContainKey("Reason");
     }
 
     /// <summary>
-    /// An admin finishes a Required stage without its visit, with a reason: the audit entry records it, the patient's
+    /// A senior clinician finishes a Required stage without its visit, with a reason: the audit entry records it, the patient's
     /// timeline shows it (the reason only to admins), and the stage's Requested appointment is cancelled by the app.
     /// </summary>
     [Test]
-    public async Task FinishStage_AdminBypassWithAReason_FinishesItAndRecordsWhy()
+    public async Task FinishStage_SeniorClinicianBypassWithAReason_FinishesItAndRecordsWhy()
     {
         var pathway = await CreatePathwayWithStagesAsync("Required", "None");
         var stage = pathway.Stages[0];
 
-        var finished = await (await FinishStageAsync(_admin, pathway.Id, stage.Id,
+        var finished = await (await FinishStageAsync(_senior.Client, pathway.Id, stage.Id,
                 new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason }))
             .ReadAsAsync<PatientPathwayResponse>();
 
@@ -105,7 +111,7 @@ public sealed class StageVisitTests : IntegrationTest
         var staffEntry = (await TimelineAsync(_staff.Client, pathway.PatientId, "Stages")).Single(e => e.Action == "StageFinished");
         staffEntry.Should().BeEquivalentTo(new { FinishedWithoutVisit = true, VisitRequirement = "Required", Reason = (string?)null });
         var adminEntry = (await TimelineAsync(_admin, pathway.PatientId, "Stages")).Single(e => e.Action == "StageFinished");
-        adminEntry.Should().BeEquivalentTo(new { FinishedWithoutVisit = true, VisitRequirement = "Required", Reason = WithoutVisitReason, Username = AdminUsername });
+        adminEntry.Should().BeEquivalentTo(new { FinishedWithoutVisit = true, VisitRequirement = "Required", Reason = WithoutVisitReason, Username = _senior.Username });
 
         var cancelled = (await AppointmentsOfAsync(pathway.Id)).Should().ContainSingle().Subject;
         cancelled.Should().BeEquivalentTo(new { Status = "Cancelled", CancelReason = PathwayChange.StageFinishedReason });
@@ -235,7 +241,7 @@ public sealed class StageVisitTests : IntegrationTest
     {
         var pathway = await CreatePathwayWithStagesAsync("Required");
         var stage = pathway.Stages[0].Id;
-        await (await FinishStageAsync(_admin, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason }))
+        await (await FinishStageAsync(_senior.Client, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await _admin.PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
