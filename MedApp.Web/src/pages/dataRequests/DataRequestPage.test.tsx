@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, renderWithApp, seniorClinicianUser, withAnnouncements} from '../../test/render';
-import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, DATA_REQUEST_PATIENT_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
+import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, DATA_REQUEST_PATIENT_ID, FILE_ID, NOTE_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
 import type {DataRequest} from '../../api/dataRequests';
 import type {CurrentUser} from '../../auth/auth';
 import {askedByWords, DataRequestPage, outcomeWords} from './DataRequestPage';
@@ -31,7 +31,14 @@ describe('DataRequestPage', () => {
     expect(askedByWords({requestedByPatient: false, requesterName: 'Synthetic Requester', requesterRelationship: 'Parent'})).toBe(
       'Synthetic Requester (Parent)',
     );
+    expect(askedByWords({requestedByPatient: false})).toBe('Someone on their behalf');
     expect(outcomeWords(testDataRequest())).toBeNull();
+    expect(outcomeWords(testDataRequest({status: 'Sent', sentOn: '2026-11-20'}))).toBe('Sent 20 November 2026');
+    expect(outcomeWords(testDataRequest({status: 'Refused'}))).toBe('Refused');
+    expect(outcomeWords(testDataRequest({status: 'Withdrawn'}))).toBe('Withdrawn');
+    expect(outcomeWords(testDataRequest({status: 'Withdrawn', closedAtUtc: '2026-11-10T12:00:00Z', closedByUsername: 'test-admin'}))).toBe(
+      'Withdrawn 10 Nov 2026, 12:00 by test-admin',
+    );
     expect(outcomeWords(testDataRequest({status: 'Sent', sentOn: '2026-11-20', sendMethod: 'SecureEmail', closedByUsername: 'test-admin'}))).toBe(
       'Sent 20 November 2026, secure email by test-admin',
     );
@@ -121,6 +128,96 @@ describe('DataRequestPage', () => {
     expect(await screen.findByText(/^Refused 10 Nov 2026, 12:00 by test-admin$/)).toBeInTheDocument();
     expect(screen.getByText('Manifestly excessive')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Record as Sent'})).not.toBeInTheDocument();
+  });
+
+  it('shows an extended request asked for on their behalf, checked by someone and reviewed with several items withheld', async () => {
+    render(
+      readyDataRequest({
+        requestedByPatient: false,
+        requesterName: 'Synthetic Requester',
+        requesterRelationship: null,
+        extensionMonths: 1,
+        dueOn: '2027-01-02',
+        extensionReason: 'Several requests at once',
+        identityCheckedByUsername: null,
+        identityCheckDetail: null,
+        reviewedByUsername: null,
+        withheld: [
+          {kind: 'Note', itemId: NOTE_ID, reason: 'Likely to cause serious harm'},
+          {kind: 'File', itemId: FILE_ID, reason: null},
+        ],
+      }),
+    );
+
+    expect(await screen.findByText('Synthetic Requester')).toBeInTheDocument();
+    expect(screen.getByText('By one month')).toBeInTheDocument();
+    expect(screen.getByText('Several requests at once')).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(2);
+    expect(screen.getByText('2 items withheld')).toBeInTheDocument();
+    expect(screen.getByText(/The pack is ready to make/)).toBeInTheDocument();
+  });
+
+  it('says how long an extension of two months is, and offers no more', async () => {
+    const {user} = render(testDataRequest({extensionMonths: 2, extensionReason: null}));
+
+    expect(await screen.findByText('By 2 months')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'More'}));
+    expect(await screen.findByRole('menuitem', {name: /Refuse/})).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Extend Due Date/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Change Identity Check/})).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['Change Identity Check', 'Record Identity Check'],
+    ['Extend Due Date', 'Extend Due Date'],
+    ['Refuse', 'Refuse Request?'],
+    ['Withdraw', 'Withdraw Request?'],
+  ])('opens %s from More, and closes it on Cancel', async (item, title) => {
+    const {user} = render(readyDataRequest({canMakePack: false, packBlockedReason: 'Wait.'}));
+
+    await user.click(await screen.findByRole('button', {name: 'More'}));
+    await user.click(await screen.findByRole('menuitem', {name: new RegExp(item)}));
+    const dialog = within(await dialogOpen());
+    expect(dialog.getByRole('heading', {name: title})).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('records it as sent from its dialog, and closes the review dialog on Cancel', async () => {
+    withAnnouncements();
+    const {user} = render(readyDataRequest({canReview: true}), {
+      [`POST ${BASE}/sent`]: () => json(readyDataRequest({status: 'Sent', sentOn: '2026-11-20', canManage: false, canMakePack: false})),
+      [`GET ${BASE}/review-items`]: () => json(testReviewItems()),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Review'}));
+    const review = within(await dialogOpen());
+    await user.click(review.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'Record as Sent'}));
+    const dialog = within(await dialogOpen());
+    await user.click(dialog.getByRole('radio', {name: 'Secure email'}));
+    await user.click(dialog.getByRole('button', {name: 'Record as Sent'}));
+    await expectAnnounced('Data request recorded as sent');
+  });
+
+  it('folds and unfolds its sections', async () => {
+    const {user} = render(readyDataRequest());
+
+    await user.click(await screen.findByRole('button', {name: 'Hide identity check'}));
+    await waitFor(() => expect(screen.queryByText('Passport seen')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', {name: 'Show identity check'}));
+    expect(await screen.findByText('Passport seen')).toBeInTheDocument();
+  });
+
+  it('lets an error from the pack be dismissed', async () => {
+    const {user} = render(readyDataRequest(), {[`GET ${BASE}/pack`]: () => json({title: 'No pack today.'}, 409)});
+
+    await user.click(await screen.findByRole('button', {name: 'Download Pack'}));
+    expect(await findAlert('No pack today.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: /Dismiss/}));
+    await waitFor(() => expect(screen.queryByText('No pack today.')).not.toBeInTheDocument());
   });
 
   it("says when the request isn't there, or can't be loaded", async () => {

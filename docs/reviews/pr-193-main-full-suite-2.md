@@ -11,6 +11,9 @@
 - `NoteBuilderTests.Kinds_HaveWhatTheirPathwaysStagesNeed`, `StageNote_OneReferral_KeepsItsSiteAndItsOutcomeFromStageToStage` (unit): stale after #190's no-treatment outcomes (the Benign branch, `PathwayReplay.BranchFor`). Treatment is required from every outcome only when a Treatment stage is unbranched; otherwise from at least one; the per-outcome treatment note is checked only when the outcome has one.
 - `DataRequestPage.test.tsx` "shows an open request to a privacy manager..." (web): race; the heading renders during loading, the subtitle after. Now `findByText`.
 
+- **`web-coverage` (round 2, hidden on `main` behind the failing web tests):** #189's data-request screens left React coverage at 98.91% functions, 98.99% statements, 91.62% branches, under `vite.config.ts`'s 99/99/92. Added tests for what they didn't reach (the More menu's dialogs and Cancel, folding sections, an extended or on-behalf request, the date inputs, 400s about no field, other failures, the export's sparse and refused requests, unknown statuses and icons, paging back); locally 99.16% / 99.14% / 92.02%+. No thresholds changed.
+- Merged `main` at `db1028ca` (#192, #194) before the second `ci:full` round.
+
 ## Findings
 
 None beyond the above.
