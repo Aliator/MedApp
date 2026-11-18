@@ -1,0 +1,17 @@
+# Integration and end-to-end tests
+
+How to write integration tests (`MedApp.IntegrationTests`) and end-to-end tests (`MedApp.E2ETests`): read before adding or changing one. Unit test conventions are in the root `AGENTS.md` (Testing conventions).
+
+**Integration tests** (`MedApp.IntegrationTests`) test through HTTP what unit tests can't: SQL translation, Identity stores and transactions, the authentication handler and policies, the middleware.
+- `TestEnvironment` (a `[SetUpFixture]`) starts SQL Server and Azurite (the chart's image, `--skipApiVersionCheck`) once per run, migrates and starts the API. Blobs aren't emptied (every file has a new ID). Before each test, `IntegrationTest` empties the database with Respawn (keeping the migrations history, seeded stage definition and activity types, and data protection keys), then makes the first admin with `FirstAdminSetup`.
+- Work through the API where you can, with `IntegrationTest`'s helpers (`SignInAsAdminAsync`, `CreateStaffAsync`, `CreatePatientWithProcedureAsync`, ...); `RunInScopeAsync` for a service; `ExecuteSqlAsync` only for what the API can't do (expiring a session).
+- **Generated passwords:** an account an admin made must change its password first, or every other `/api` call is a 403 `password_change_required`. `CreateStaffAsync` does when the account has a role; one without can't (that needs the Staff policy) and stays held. To test the Staff policy, give a role, change the password, then remove the role (`AuthorisationTests.StaffEndpoint_RolesRemoved_*`). `Auth/PasswordChangeRequiredTests` tests the hold, with `CreateForcedUserAsync`.
+- Constants: `Common/Constants/IntegrationTestConstants.cs`.
+- **Emails and the clock:** `IEmailSender` is a `FakeEmailSender` (`Api.Emails`) keeping every message; `TimeProvider` is a `TestClock` (`Api.Clock`, or `Clock`) that tests move (`Advance`) or set (`SetUtcNow`, `MoveClockPast`). Both reset before each test. `AccountSecurity` has helpers to confirm an emailed address, turn two-factor on, make the next code and sign in in two steps. `SmtpEmailTransportTests` sends through the real transport to Mailpit in Docker.
+
+**End-to-end tests** (`MedApp.E2ETests`, deriving from `E2ETest`) drive the React app in Chromium, against the AppHost locally and the production image in CI.
+- Open pages with `OpenAsync`, which waits until React has taken over the server-rendered page; input before then is lost.
+- Find elements by `GetByRole` and `GetByLabel`, with accessible names.
+- Make each journey's data through the API (`Api`), with unique synthetic names (`E2EData.UniqueName`), registering every clean-up with `Data.OnCleanUp`. Rely on nothing you didn't make except the signed-in account (which must be an admin) and the default stage definition.
+- Passwords for accounts a test makes come from `E2EData.NewPassword()`, new each run, never written in the source; keep passwords out of messages.
+- Missing `E2E_USERNAME` or `E2E_PASSWORD` fails the suite in CI (`CI=true`) and skips it locally. With `E2E_TRACE_DIR` set (only `main.yml` does), failed tests' Playwright traces go there.
