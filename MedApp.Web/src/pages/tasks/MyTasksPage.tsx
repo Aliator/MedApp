@@ -81,7 +81,7 @@ const stageColumn: DataTableColumn<TaskRow> = {
 
 const dueColumn: DataTableColumn<TaskRow> = {
   key: 'Due',
-  header: 'Due',
+  header: 'Target date',
   sortable: true,
   width: PATHWAY_COLUMN_WIDTH.due,
   renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
@@ -142,7 +142,7 @@ const FILTER_FIELDS: ListFilterField[] = [
     isMultiple: true,
   },
   {kind: 'choice', key: 'priority', label: 'Priority', options: TASK_PRIORITIES.map((p) => ({value: p, label: p})), isMultiple: true},
-  {kind: 'date', key: 'due', label: 'Due', fromKey: 'dueFrom', toKey: 'dueTo'},
+  {kind: 'date', key: 'due', label: 'Target date', fromKey: 'dueFrom', toKey: 'dueTo'},
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
 ];
 

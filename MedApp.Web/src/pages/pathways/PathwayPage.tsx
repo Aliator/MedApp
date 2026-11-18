@@ -593,7 +593,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               <Link href={`/patients/${pathway.patientId}`}>{pathway.patientName}</Link>
             </MetadataListItem>
             <MetadataListItem label="Template">{pathway.templateName || '—'}</MetadataListItem>
-            <MetadataListItem label="Due">
+            <MetadataListItem label="Target date">
               <DueDateCell dueDate={pathway.dueDate ?? ''} isOverdue={pathway.isOverdue ?? false} />
             </MetadataListItem>
             <MetadataListItem label="Created">{formatDateTime(pathway.createdAt ?? '')}</MetadataListItem>
