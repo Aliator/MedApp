@@ -1726,6 +1726,22 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("MdtItemAttendees", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringAlertSent", b =>
+                {
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SubjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RuleId", "SubjectId");
+
+                    b.ToTable("MonitoringAlertsSent", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1747,6 +1763,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("StageDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1755,6 +1774,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<Guid?>("TemplateId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ThresholdDays")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -4013,6 +4035,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasOne("MedApp.Domain.Mdt.MdtItem", null)
                         .WithMany("Attendees")
                         .HasForeignKey("MdtItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringAlertSent", b =>
+                {
+                    b.HasOne("MedApp.Domain.Monitoring.MonitoringRule", null)
+                        .WithMany()
+                        .HasForeignKey("RuleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

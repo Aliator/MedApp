@@ -21,6 +21,27 @@ const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'Lette
 const RESULT_KINDS = new Set(['ResultReady', 'ResultReassigned', 'ResultSignedOffByOther']);
 
 /**
+ * The service alerts' lists: each alert opens the list it counts, narrowed to the rule's specialty (its `subjectId`)
+ * where the list takes one.
+ */
+const SERVICE_ALERT_LISTS: Record<string, {path: string; specialty: boolean}> = {
+  MonitoredReferralNotTriaged: {path: '/referrals?', specialty: true},
+  MonitoredResultNotSignedOff: {path: '/results?view=Awaiting&', specialty: true},
+  MonitoredVisitNotBooked: {path: '/calendar/requires-appointment?', specialty: false},
+  MonitoredSpecimenOverdue: {path: '/lab?view=Overdue&', specialty: false},
+  MonitoredWaitBreached: {path: '/referrals?view=waiting&', specialty: true},
+  MonitoredPauseReviewPassed: {path: '/referrals?view=paused&', specialty: true},
+};
+
+/** A service alert's link: its list, with the specialty when it has one and the list takes it. */
+function serviceAlertHref(notification: AppNotification) {
+  const list = SERVICE_ALERT_LISTS[notification.kind ?? ''];
+  if (!list) return undefined;
+  const href = list.specialty && notification.subjectId ? `${list.path}specialty=${notification.subjectId}` : list.path;
+  return href.replace(/[?&]$/, '');
+}
+
+/**
  * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
  * pathway's page (for the admin to decide), a pathway on its page, and anything else about a day on the calendar
  * (a meeting, a day closed with something of yours on it) opens that day there, with the meeting itself open when it
@@ -30,10 +51,10 @@ const RESULT_KINDS = new Set(['ResultReady', 'ResultReassigned', 'ResultSignedOf
  * A specimen rejected by the lab or lost opens the specimen (its `subjectId`).
  * The letter kinds (a letter awaiting your approval, yours approved or returned) open the letter (`subjectId`).
  * The result kinds (a result ready for your sign-off, reassigned to you, or signed off by someone else) open the result
- * (`subjectId`).
+ * (`subjectId`). A service alert opens the list it counts.
  * "Data request due soon" (a patient's data request near its due date) opens the request (`subjectId`).
  */
-const hrefOf = (notification: AppNotification) =>
+const itemHrefOf = (notification: AppNotification) =>
   notification.kind === 'ScheduledJobFailing'
     ? '/admin/jobs'
     : notification.kind === 'DataRequestDueSoon' && notification.subjectId
@@ -55,6 +76,8 @@ const hrefOf = (notification: AppNotification) =>
                     : notification.calendarDate
                       ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
                       : undefined;
+
+const hrefOf = (notification: AppNotification) => serviceAlertHref(notification) ?? itemHrefOf(notification);
 
 /** The kinds about a specimen, whose `subjectId` is the specimen. */
 const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost'];
@@ -88,6 +111,12 @@ const KIND_ICONS: Record<string, IconType> = {
   ResultSignedOffByOther: AppIcon.SignOff,
   MdtOutcomeRecorded: AppIcon.Mdt,
   DataRequestDueSoon: AppIcon.DataRequests,
+  MonitoredReferralNotTriaged: AppIcon.Referrals,
+  MonitoredResultNotSignedOff: AppIcon.Results,
+  MonitoredVisitNotBooked: AppIcon.Warning,
+  MonitoredSpecimenOverdue: AppIcon.Warning,
+  MonitoredWaitBreached: AppIcon.Warning,
+  MonitoredPauseReviewPassed: AppIcon.Warning,
 };
 
 /** The bell, which the unread count is placed over. */

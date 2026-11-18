@@ -201,4 +201,13 @@ public sealed class MonitoringRuleMatcherTests
         MonitoringRuleMatcher.Match([CreateRule(MonitoringEvent.PathwayBlocked)], [StaffCreated], _pathway, Staff.UserId)
             .Should().BeEmpty();
     }
+
+    [Test]
+    public void Matches_ThatSpecialty_Matches_AnotherDoesNot()
+    {
+        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, specialtyId: _pathway.SpecialtyId), StaffFinishedConsultation, _pathway)
+            .Should().BeTrue();
+        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, specialtyId: Guid.NewGuid()), StaffFinishedConsultation, _pathway)
+            .Should().BeFalse();
+    }
 }

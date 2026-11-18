@@ -190,6 +190,9 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
     full: 'Every read and change of a patient’s record is logged, admins can export everything held about a patient, and a data request is answered with a pack made on the server: a PDF report, the record as JSON and the files.',
   },
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
-  {title: 'Background jobs', full: 'Appointment reminders to patients, purges of old operational data, and other jobs on a schedule.'},
+  {
+    title: 'Background jobs',
+    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens overdue in time), purges of old operational data, and other jobs on a schedule.',
+  },
   {title: 'Letters, the lab and setup', full: 'Letters from templates, specimens and the lab’s worklist, and the setup pages (templates, sites, roles).'},
 ];

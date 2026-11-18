@@ -2,7 +2,8 @@ namespace MedApp.Contracts.Monitoring.Responses;
 
 /// <summary>
 /// One of the signed-in admin's monitoring rules. Each name is the one now (null for "any" when its ID is null too,
-/// and null for a deleted account, template or stage when its ID is set).
+/// and null for a deleted account, template, stage or specialty when its ID is set). <c>ThresholdDays</c> is a service
+/// alert's days, null for the other events.
 /// </summary>
 public sealed record MonitoringRuleResponse(
     Guid Id,
@@ -14,6 +15,9 @@ public sealed record MonitoringRuleResponse(
     string? TemplateName,
     Guid? StageDefinitionId,
     string? StageName,
+    int? ThresholdDays,
+    Guid? SpecialtyId,
+    string? SpecialtyName,
     bool IsEnabled,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

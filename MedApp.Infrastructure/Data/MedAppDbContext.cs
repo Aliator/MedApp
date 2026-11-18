@@ -38,6 +38,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreferences> NotificationPreferences => Set<NotificationPreferences>();
     public DbSet<MonitoringRule> MonitoringRules => Set<MonitoringRule>();
+    public DbSet<MonitoringAlertSent> MonitoringAlertsSent => Set<MonitoringAlertSent>();
     public DbSet<PatientPathway> PatientPathways => Set<PatientPathway>();
     public DbSet<PatientPathwayStage> PatientPathwayStages => Set<PatientPathwayStage>();
     public DbSet<PatientPathwayAssignment> PatientPathwayAssignments => Set<PatientPathwayAssignment>();
