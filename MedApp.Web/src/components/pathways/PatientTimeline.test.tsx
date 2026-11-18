@@ -416,8 +416,8 @@ describe('PatientTimeline', () => {
 
     release(json({items: [entry({kind: 'Notes', action: 'NoteAdded', stageName: 'Follow-up'})], nextCursor: null}));
 
-    await waitFor(() => expect(screen.queryByText(/Consultation/)).not.toBeInTheDocument());
-    expect(screen.queryByText('Updating the timeline...')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Updating the timeline...')).not.toBeInTheDocument());
+    expect(screen.queryByText(/Consultation/)).not.toBeInTheDocument();
   });
 
   it('offers the Deleted filter to admins only, and pathway filters only when there is more than one', async () => {
