@@ -18,7 +18,9 @@ namespace MedApp.Application.Patients.Commands.UpdatePatient;
 /// anonymised record can't be edited (409). The NHS number is left as it is when not given, removed when given empty,
 /// and a 409 when another patient has it. The contact details follow the same rule (null leaves one as it is, empty
 /// removes it; the practice is removed with <see cref="Guid.Empty"/>), and a newly chosen practice must exist (404) and
-/// not be archived (409); one that's archived since it was chosen stays.
+/// not be archived (409); one that's archived since it was chosen stays. A practice that isn't in the directory
+/// (<see cref="UpdatePatientCommand.UnlistedPractice"/>) replaces a directory one, and a directory practice (or removing
+/// it) replaces an unlisted one: a patient never has both. The activity log names it <c>unlistedPractice</c>.
 /// </summary>
 public sealed class UpdatePatientHandler(
     IPatientRepository repository,
@@ -127,6 +129,25 @@ public sealed class UpdatePatientHandler(
                 patient.PracticeId = chosen;
                 changed.Add("practice");
             }
+
+            // A directory practice, or none, replaces an unlisted one (unless one is given with it, below).
+            if (request.UnlistedPractice is null && UnlistedPractices.Clear(patient))
+                changed.Add("unlistedPractice");
+        }
+
+        if (request.UnlistedPractice is { } unlisted)
+        {
+            // An unlisted practice replaces a directory one: a patient has one or the other.
+            if (patient.PracticeId is not null)
+            {
+                patient.PracticeId = null;
+                practice = null;
+                if (!changed.Contains("practice"))
+                    changed.Add("practice");
+            }
+
+            if (UnlistedPractices.Set(patient, unlisted) && !changed.Contains("unlistedPractice"))
+                changed.Add("unlistedPractice");
         }
 
         practice ??= patient.PracticeId is { } current ? await practices.GetAsync(current, cancellationToken) : null;

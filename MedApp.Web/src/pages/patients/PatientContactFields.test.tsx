@@ -1,16 +1,37 @@
 import {screen, waitFor} from '@testing-library/react';
 import {useState} from 'react';
+import type {ValidationErrors} from '../../api/errors';
 import type {PatientInput} from '../../api/patients';
 import {adminUser, json, mockApi, renderWithApp} from '../../test/render';
-import {CONTACT_MESSAGES, contactProblems, PatientContactFields, PatientPracticeField, PatientReminderField, REMINDER_HINT, reminderContactGap} from './PatientContactFields';
+import {
+  CONTACT_MESSAGES,
+  contactProblems,
+  PatientContactFields,
+  PatientPracticeField,
+  PatientReminderField,
+  REMINDER_HINT,
+  reminderContactGap,
+  UNLISTED_HINT,
+} from './PatientContactFields';
 import {EMPTY_PATIENT} from './PatientFormFields';
 
-function Harness({start = EMPTY_PATIENT, current}: {start?: PatientInput; current?: {id: string; name: string; isArchived: boolean}}) {
+function Harness({
+  start = EMPTY_PATIENT,
+  current,
+  errors,
+  seen,
+}: {
+  start?: PatientInput;
+  current?: {id: string; name: string; isArchived: boolean};
+  errors?: ValidationErrors;
+  seen?: (value: PatientInput) => void;
+}) {
   const [value, setValue] = useState(start);
+  seen?.(value);
   return (
     <>
       <PatientContactFields value={value} onChange={setValue} />
-      <PatientPracticeField value={value} onChange={setValue} currentPractice={current} />
+      <PatientPracticeField value={value} onChange={setValue} currentPractice={current} errors={errors} />
     </>
   );
 }
@@ -53,12 +74,47 @@ describe('PatientContactFields and PatientPracticeField', () => {
     await waitFor(() => expect(practice).toHaveTextContent('Oldfield Practice (archived)'));
     expect(practice).toHaveAccessibleDescription(/No address in the directory/);
     await user.click(practice);
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Oldfield Practice (archived)', 'Testbrook Surgery']);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Oldfield Practice (archived)', 'Testbrook Surgery', 'Not listed here']);
 
     // Once another is chosen, theirs is still offered, so the choice can be undone.
     await user.click(screen.getByRole('option', {name: 'Testbrook Surgery'}));
     await user.click(practice);
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Oldfield Practice (archived)', 'Testbrook Surgery']);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Oldfield Practice (archived)', 'Testbrook Surgery', 'Not listed here']);
+  });
+});
+
+describe('PatientPracticeField, Not listed here', () => {
+  it("asks for the practice's name, address and phone, kept on this patient only, showing the API's errors on them", async () => {
+    mockApi({'GET /api/practices': () => json([{id: 'p-test', name: 'Testbrook Surgery', isArchived: false}])});
+    const seen = vi.fn();
+    const errors: ValidationErrors = {
+      title: 'Check the practice.',
+      fields: {unlistedPracticeName: ['Enter the practice’s name.'], unlistedPracticePhone: ['Phone must be a UK phone number.']},
+      general: [],
+    };
+    const {user} = renderWithApp(<Harness seen={seen} errors={errors} />, {user: adminUser});
+
+    expect(screen.queryByRole('textbox', {name: /^Practice name/})).not.toBeInTheDocument();
+    const practice = await screen.findByRole('combobox', {name: /^Practice/});
+    await user.click(practice);
+    await user.click(await screen.findByRole('option', {name: 'Not listed here'}));
+    expect(practice).toHaveAccessibleDescription(UNLISTED_HINT);
+
+    const name = screen.getByRole('textbox', {name: /^Practice name/});
+    expect(name).toHaveAccessibleDescription(/Enter the practice’s name/);
+    expect(screen.getByRole('textbox', {name: /^Practice phone/})).toHaveAccessibleDescription(/UK phone number/);
+    await user.type(name, 'Nowhereville Health Centre');
+    await user.type(screen.getByRole('textbox', {name: /^Practice address line 2/}), 'Fictionton');
+    await user.type(screen.getByRole('textbox', {name: /^Practice postcode/}), 'ZZ9 9ZZ');
+    await user.type(screen.getByRole('textbox', {name: /^Practice phone/}), '01632 960111');
+
+    expect(seen.mock.calls.at(-1)![0]).toMatchObject({
+      practiceId: 'unlisted',
+      unlistedPracticeName: 'Nowhereville Health Centre',
+      unlistedPracticeAddressLines: ['', 'Fictionton', ''],
+      unlistedPracticePostcode: 'ZZ9 9ZZ',
+      unlistedPracticePhone: '01632 960111',
+    });
   });
 });
 

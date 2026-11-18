@@ -35,10 +35,9 @@ export function addMonths(date: string, months: number): string {
 const dueOn = (request: DemoDataRequest) => addMonths(request.firstDueOn ?? '', request.extensionMonths ?? 0);
 const isOpen = (request: DemoDataRequest) => request.status === 'Open';
 
-/** Who may see data requests: viewers of patients who answer them (ManagePrivacy) or review them (SignOffResults). */
+/** Who may see data requests: admins only (ManagePrivacy), who log, review and answer them. */
 function requireAccess() {
-  requirePermission('ViewPatients');
-  if (!can('ManagePrivacy') && !can('SignOffResults')) requirePermission('ManagePrivacy');
+  requirePermission('ManagePrivacy');
 }
 
 function response(request: DemoDataRequest): Schemas['DataRequestResponse'] {
@@ -47,7 +46,7 @@ function response(request: DemoDataRequest): Schemas['DataRequestResponse'] {
   const blocked = !request.identityCheckedOn
     ? 'Record the identity check first.'
     : !request.reviewedAtUtc
-      ? 'A clinician must review the record first.'
+      ? 'Review the record first.'
       : null;
   return {
     ...request,
@@ -55,7 +54,7 @@ function response(request: DemoDataRequest): Schemas['DataRequestResponse'] {
     dueOn: dueOn(request),
     isOverdue: open && dueOn(request) < today(),
     canManage,
-    canReview: open && can('SignOffResults'),
+    canReview: canManage,
     canMakePack: canManage && !blocked,
     packBlockedReason: canManage ? blocked : null,
   };
@@ -190,7 +189,7 @@ export function registerDataRequests() {
   });
 
   on('put', '/api/data-requests/{id}/review', ({params, body}) => {
-    requirePermission('SignOffResults');
+    requirePermission('ManagePrivacy');
     const request = changing(params.id, body.expectedVersion);
     const withheld = (body.withheld ?? []).map((w) => ({kind: w.kind ?? '', itemId: w.itemId ?? '', reason: reason(w.reason)}));
     if (withheld.some((w) => !w.reason)) refuse(invalid({reason: ['Give a reason for each item withheld.']}));

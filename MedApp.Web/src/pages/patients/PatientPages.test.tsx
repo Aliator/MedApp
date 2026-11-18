@@ -355,7 +355,7 @@ describe('AddPatientPage', () => {
     await user.type(screen.getByRole('textbox', {name: /^Address line 3/}), 'Testbrook');
     const practice = screen.getByRole('combobox', {name: /^Practice/});
     await user.click(practice);
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Testbrook Surgery (ZZZ123)']);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Testbrook Surgery (ZZZ123)', 'Not listed here']);
     await user.click(screen.getByRole('option', {name: 'Testbrook Surgery (ZZZ123)'}));
     expect(practice).toHaveAccessibleDescription(/2 Surgery Lane, ZZ2 2ZZ/);
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));

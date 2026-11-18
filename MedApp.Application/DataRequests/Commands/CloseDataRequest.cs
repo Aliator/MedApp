@@ -108,6 +108,7 @@ public sealed class CloseDataRequestHandler(
         Guid id, int expectedVersion, PathwayActor actor, DataRequestChange change, Action<DataRequest, DateOnly> close,
         CancellationToken cancellationToken)
     {
+        DataRequestRules.EnsureCanHandle(actor);
         var dataRequest = await repository.GetForUpdateAsync(id, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{id}' was not found.");
         DataRequestRules.EnsureCanChange(dataRequest, expectedVersion);

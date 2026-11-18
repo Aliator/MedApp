@@ -231,7 +231,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             AttachmentId = file.Id, Title = "Synthetic CT report", PathwayId = pathway.Id, ResponsibleUserId = writer.UserId
         })).ReadAsAsync<MedApp.Contracts.Results.Responses.ResultResponse>(HttpStatusCode.Created);
 
-        // A data request, with its identity check (admin) and review (a clinician), so its pack can be made.
+        // A data request, with its identity check and review (both by the admin: only admins deal with them), so its
+        // pack can be made.
         var dataRequest = await (await admin.PostAsJsonAsync("/api/data-requests", new MedApp.Contracts.DataRequests.CreateDataRequestRequest
         {
             PatientId = patientId, ReceivedOn = UkToday, RequestedByPatient = true
@@ -240,7 +241,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         {
             CheckedOn = UkToday, Method = "InPerson", ExpectedVersion = dataRequest.Version
         })).ReadAsAsync<MedApp.Contracts.DataRequests.DataRequestResponse>();
-        (await writer.Client.PutAsJsonAsync($"/api/data-requests/{dataRequest.Id}/review", new MedApp.Contracts.DataRequests.RecordDataRequestReviewRequest
+        (await admin.PutAsJsonAsync($"/api/data-requests/{dataRequest.Id}/review", new MedApp.Contracts.DataRequests.RecordDataRequestReviewRequest
         {
             ExpectedVersion = dataRequest.Version
         })).StatusCode.Should().Be(HttpStatusCode.OK);

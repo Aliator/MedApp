@@ -29,7 +29,7 @@ public sealed class DataRequestRulesTests
         DataRequestRules.WhyNoPack(request).Should().Contain("identity check");
 
         request.IdentityCheckedOn = Today;
-        DataRequestRules.WhyNoPack(request).Should().Contain("clinician must review");
+        DataRequestRules.WhyNoPack(request).Should().StartWith("Review the record");
 
         request.ReviewedAtUtc = PathwaysTestConstants.Now;
         DataRequestRules.WhyNoPack(request).Should().BeNull();
@@ -70,13 +70,13 @@ public sealed class DataRequestRulesTests
     }
 
     [Test]
-    public void CanRead_ManagePrivacyOrSignOffResults_NotOtherStaff()
+    public void CanHandle_OnlyManagePrivacy_NotClinicians_NorOtherStaff()
     {
-        DataRequestRules.CanRead(Admin).Should().BeTrue();
-        DataRequestRules.CanRead(Clinician).Should().BeTrue();
-        DataRequestRules.CanRead(Clerk).Should().BeFalse();
-        var act = () => DataRequestRules.EnsureCanRead(Clerk);
-        act.Should().Throw<ForbiddenException>();
+        DataRequestRules.CanHandle(Admin).Should().BeTrue();
+        DataRequestRules.CanHandle(Clinician).Should().BeFalse();
+        DataRequestRules.CanHandle(Clerk).Should().BeFalse();
+        var act = () => DataRequestRules.EnsureCanHandle(Clinician);
+        act.Should().Throw<ForbiddenException>().WithMessage(DataRequestRules.CantHandleMessage);
     }
 
     [Test]
@@ -86,7 +86,7 @@ public sealed class DataRequestRulesTests
 
         var forAdmin = DataRequestMapper.ToResponse(request, Admin, Today);
         forAdmin.CanManage.Should().BeTrue();
-        forAdmin.CanReview.Should().BeFalse();
+        forAdmin.CanReview.Should().BeTrue();
         forAdmin.CanMakePack.Should().BeFalse();
         forAdmin.PackBlockedReason.Should().Contain("identity check");
         forAdmin.FirstDueOn.Should().Be(Today.AddMonths(1));
@@ -95,7 +95,7 @@ public sealed class DataRequestRulesTests
 
         var forClinician = DataRequestMapper.ToResponse(request, Clinician, Today);
         forClinician.CanManage.Should().BeFalse();
-        forClinician.CanReview.Should().BeTrue();
+        forClinician.CanReview.Should().BeFalse();
         forClinician.PackBlockedReason.Should().BeNull();
 
         DataRequestMapper.ToResponse(Ready(), Admin, Today).CanMakePack.Should().BeTrue();

@@ -150,6 +150,8 @@ export function registerPatients() {
     if (!body.firstName?.trim()) errors.firstName = ['Enter a first name.'];
     if (!body.lastName?.trim()) errors.lastName = ['Enter a last name.'];
     if (!body.dateOfBirth) errors.dateOfBirth = ['Enter a date of birth.'];
+    if (body.unlistedPractice && body.practiceId) errors.unlistedPractice = [BOTH_PRACTICES];
+    if (body.unlistedPractice && !body.unlistedPractice.name?.trim()) errors.unlistedPracticeName = ['Enter the practice’s name.'];
     if (Object.keys(errors).length > 0) return invalid(errors);
     const patient: Schemas['PatientResponse'] = {
       id: newId(),
@@ -162,7 +164,8 @@ export function registerPatients() {
       postcode: body.postcode ?? null,
       mobilePhone: body.mobilePhone ?? null,
       reminderChannel: body.reminderChannel ?? 'None',
-      practiceId: practiceChoice(body.practiceId) ?? null,
+      practiceId: body.unlistedPractice ? null : (practiceChoice(body.practiceId) ?? null),
+      unlistedPractice: body.unlistedPractice ? unlistedPractice(body.unlistedPractice) : undefined,
       isRestricted: false,
       isDisputed: false,
       isAnonymised: false,
@@ -183,10 +186,29 @@ export function registerPatients() {
         (patient as Record<string, unknown>)[key] = body[key];
         changed.push(key);
       }
+    const unlisted = body.unlistedPractice;
+    if (unlisted && body.practiceId && !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(body.practiceId)) return invalid({unlistedPractice: [BOTH_PRACTICES]});
+    if (unlisted && !unlisted.name?.trim()) return invalid({unlistedPracticeName: ['Enter the practice’s name.']});
     const practiceId = practiceChoice(body.practiceId);
     if (practiceId !== undefined && practiceId !== patient.practiceId) {
       patient.practiceId = practiceId;
       changed.push('practice');
+    }
+    // A directory practice (or none) replaces an unlisted one, and an unlisted one replaces a directory one: never both.
+    if (practiceId !== undefined && !unlisted && patient.unlistedPractice) {
+      patient.unlistedPractice = undefined;
+      changed.push('unlistedPractice');
+    }
+    if (unlisted) {
+      if (patient.practiceId) {
+        patient.practiceId = null;
+        if (!changed.includes('practice')) changed.push('practice');
+      }
+      const next = unlistedPractice(unlisted);
+      if (JSON.stringify(next) !== JSON.stringify(patient.unlistedPractice)) {
+        patient.unlistedPractice = next;
+        if (!changed.includes('unlistedPractice')) changed.push('unlistedPractice');
+      }
     }
     // Field names only, never their values.
     logActivity('PatientUpdated', {patientId: patient.id, details: JSON.stringify({fields: changed})});
@@ -227,6 +249,18 @@ export function registerPatients() {
 
   // No files in the light demo: the list is empty.
   on('get', '/api/attachments', () => ({items: [], totalCount: 0, maxFileBytes: 0, allowedExtensions: []}));
+}
+
+const BOTH_PRACTICES = 'Choose a practice from the directory or enter one that isn’t listed, not both.';
+
+/** A GP practice that isn't in the directory, kept on the patient only (trimmed; blank lines and fields left out). */
+function unlistedPractice(practice: Schemas['UnlistedPracticeRequest']): Schemas['UnlistedPracticeResponse'] {
+  return {
+    name: (practice.name ?? '').trim(),
+    addressLines: (practice.addressLines ?? []).map((line) => line.trim()).filter(Boolean),
+    postcode: practice.postcode?.trim().toUpperCase() || null,
+    phone: practice.phone?.trim() || null,
+  };
 }
 
 /** A practice chosen on the patient form: its ID, null to remove it (`Guid.Empty`), undefined to leave it. */

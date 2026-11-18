@@ -3,6 +3,7 @@ using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.DataRequests.Commands;
+using MedApp.Application.DataRequests.Common;
 using MedApp.Application.DataRequests.Jobs;
 using MedApp.Application.DataRequests.Queries;
 using MedApp.Application.DataRequests.Repositories;
@@ -171,29 +172,56 @@ public sealed class DataRequestHandlerTests
         var handler = new RecordDataRequestReviewHandler(_repository.Object, _records.Object, _identity.Object, _activity, _clock);
 
         var unknown = () => handler.Handle(new RecordDataRequestReviewCommand(
-            request.Id, [new WithheldItemInput("Note", Guid.NewGuid(), WithheldReason)], 1, Clinician), _cts.Token);
+            request.Id, [new WithheldItemInput("Note", Guid.NewGuid(), WithheldReason)], 1, Admin), _cts.Token);
         await unknown.Should().ThrowAsync<ValidationException>();
 
         var response = await handler.Handle(new RecordDataRequestReviewCommand(
-            request.Id, [new WithheldItemInput("Note", noteId, $" {WithheldReason} ")], 1, Clinician), _cts.Token);
+            request.Id, [new WithheldItemInput("Note", noteId, $" {WithheldReason} ")], 1, Admin), _cts.Token);
 
-        response.ReviewedByUsername.Should().Be(Clinician.Username);
+        response.ReviewedByUsername.Should().Be(Admin.Username);
         response.Withheld.Should().ContainSingle(w => w.Kind == "Note" && w.ItemId == noteId && w.Reason == WithheldReason);
         _saved.Single().Details.Should().Contain("Reviewed").And.NotContain(WithheldReason);
     }
 
     [Test]
-    public async Task Get_SomeoneWithoutEitherPermission_IsForbidden_OthersRecordAView()
+    public async Task Get_SomeoneWithoutManagePrivacy_IsForbidden_ClinicianToo_AdminsRecordAView()
     {
         var request = Given(Open());
         var handler = new GetDataRequestHandler(_repository.Object, _activity, _clock);
 
         var act = () => handler.Handle(new GetDataRequestQuery(request.Id, Clerk), _cts.Token);
         await act.Should().ThrowAsync<ForbiddenException>();
+        var clinician = () => handler.Handle(new GetDataRequestQuery(request.Id, Clinician), _cts.Token);
+        await clinician.Should().ThrowAsync<ForbiddenException>();
 
-        await handler.Handle(new GetDataRequestQuery(request.Id, Clinician), _cts.Token);
+        await handler.Handle(new GetDataRequestQuery(request.Id, Admin), _cts.Token);
         _activity.SingleViews.Should().ContainSingle(v => v.Action == ActivityAction.PatientViewed && v.PatientId == request.PatientId
                                                           && v.Details.Contains(request.Id.ToString()));
+    }
+
+    [Test]
+    public async Task EveryChange_WithoutManagePrivacy_IsForbidden_BeforeAnythingIsRead()
+    {
+        var request = Given(Open());
+        var record = PrivacyTestConstants.CreateRecord(null, PathwaysTestConstants.CreatePathway());
+        var acts = new Func<Task>[]
+        {
+            () => new CreateDataRequestHandler(_patients.Object, _repository.Object, _activity, _clock)
+                .Handle(new CreateDataRequestCommand(request.PatientId, Today, true, null, null, Clinician), _cts.Token),
+            () => new RecordIdentityCheckHandler(_repository.Object, _activity, _clock)
+                .Handle(new RecordIdentityCheckCommand(request.Id, Today, "Documents", null, 1, Clinician), _cts.Token),
+            () => new ExtendDataRequestHandler(_repository.Object, _activity, _clock)
+                .Handle(new ExtendDataRequestCommand(request.Id, 1, "Synthetic.", 1, Clinician), _cts.Token),
+            () => new RecordDataRequestReviewHandler(_repository.Object, _records.Object, _identity.Object, _activity, _clock)
+                .Handle(new RecordDataRequestReviewCommand(request.Id, [], 1, Clinician), _cts.Token),
+            () => new CloseDataRequestHandler(_repository.Object, _activity, _clock)
+                .Handle(new WithdrawDataRequestCommand(request.Id, 1, Clinician), _cts.Token),
+        };
+
+        foreach (var act in acts)
+            await act.Should().ThrowAsync<ForbiddenException>().WithMessage(DataRequestRules.CantHandleMessage);
+        _saved.Should().BeEmpty();
+        _repository.Verify(r => r.GetForUpdateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -209,7 +237,7 @@ public sealed class DataRequestHandlerTests
 
         var act = () => handler.Handle(new GetDataRequestPackQuery(request.Id, Admin), _cts.Token);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("*clinician must review*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("Review the record*");
         _activity.Recorded.Should().BeEmpty();
     }
 

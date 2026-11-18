@@ -1,3 +1,4 @@
+using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Patients.Responses;
 using MediatR;
 
@@ -20,5 +21,8 @@ public sealed record UpdatePatientCommand(
     // Null leaves it as it is; Guid.Empty removes it.
     Guid? PracticeId = null,
     // None, Text, Email or TextAndEmail; null leaves it as it is.
-    string? ReminderChannel = null
+    string? ReminderChannel = null,
+    // A GP practice not in the directory, held on this patient only: null leaves it as it is; given, it replaces a
+    // directory practice. Not with a PracticeId other than Guid.Empty (which removes both).
+    UnlistedPracticeInput? UnlistedPractice = null
 ) : IRequest<PatientResponse?>;

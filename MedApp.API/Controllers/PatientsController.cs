@@ -1,3 +1,4 @@
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MedApp.Application.Patients.Commands.AnonymisePatient;
@@ -42,7 +43,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.Postcode,
             request.MobilePhone,
             request.PracticeId,
-            request.ReminderChannel
+            request.ReminderChannel,
+            UnlistedPracticeInput.From(request.UnlistedPractice)
         );
 
         var patient = await mediator.Send(command);
@@ -140,7 +142,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.Postcode,
             request.MobilePhone,
             request.PracticeId,
-            request.ReminderChannel
+            request.ReminderChannel,
+            UnlistedPracticeInput.From(request.UnlistedPractice)
         );
 
         var patient = await mediator.Send(command);

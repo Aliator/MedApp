@@ -135,6 +135,29 @@ describe('the light demo’s setup and admin handlers', () => {
     expect((await call('POST', `/api/patients/${PATIENTS.ellisVarden}/anonymise`, {reason: 'ErasureRequest', confirmation: 'Ellis Varden'})).status).toBe(409);
   });
 
+  it('keeps a GP practice that isn’t listed on the patient only, never with a directory one, and exports it', async () => {
+    startLightDemo(ADMIN);
+    const unlisted = {name: ' Nowhereville Health Centre ', addressLines: ['2 Pretend Road', ' '], postcode: 'zz9 9zz', phone: ''};
+    const created = await call('POST', '/api/patients', {firstName: 'Ada', lastName: 'Synthetic', dateOfBirth: '1980-05-17', unlistedPractice: unlisted});
+    expect(created.body.unlistedPractice).toEqual({name: 'Nowhereville Health Centre', addressLines: ['2 Pretend Road'], postcode: 'ZZ9 9ZZ', phone: null});
+    expect(created.body.practiceId).toBeNull();
+    const both = await call('POST', '/api/patients', {firstName: 'B', lastName: 'C', dateOfBirth: '1980-05-17', practiceId: PRACTICES.exampleLane, unlistedPractice: unlisted});
+    expect(both.status).toBe(400);
+    expect((await call('POST', '/api/patients', {firstName: 'B', lastName: 'C', dateOfBirth: '1980-05-17', unlistedPractice: {name: ' '}})).status).toBe(400);
+
+    const patient = `/api/patients/${created.body.id}`;
+    expect((await call('GET', `${patient}/export`)).body.patient.unlistedPractice.name).toBe('Nowhereville Health Centre');
+    const directory = (await call('PATCH', patient, {practiceId: PRACTICES.exampleLane})).body;
+    expect(directory).toMatchObject({practiceId: PRACTICES.exampleLane});
+    expect(directory.unlistedPractice).toBeUndefined();
+    const back = (await call('PATCH', patient, {unlistedPractice: unlisted})).body;
+    expect(back.practiceId).toBeNull();
+    expect(back.unlistedPractice.name).toBe('Nowhereville Health Centre');
+    expect(db().activityLog.at(-1)?.details).toBe(JSON.stringify({fields: ['practice', 'unlistedPractice']}));
+    expect((await call('PATCH', patient, {practiceId: PRACTICES.exampleLane, unlistedPractice: unlisted})).status).toBe(400);
+    expect((await call('PATCH', patient, {unlistedPractice: {name: ''}})).status).toBe(400);
+  });
+
   it('exports what’s held about a patient, and records the export', async () => {
     startLightDemo(ADMIN);
     const exported = (await call('GET', `/api/patients/${PATIENTS.harrietQuill}/export`)).body;

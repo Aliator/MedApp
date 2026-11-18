@@ -31,6 +31,22 @@ public sealed class Patient
     /// <summary>The GP practice the patient is registered with, from the directory, or null when it isn't known.</summary>
     public Guid? PracticeId { get; set; }
 
+    /// <summary>
+    /// The GP practice's name when it isn't in the directory ("Not listed here"), or null. Its name, address and phone
+    /// are held on this patient only, never added to the directory. A patient has a directory practice
+    /// (<see cref="PracticeId"/>) or an unlisted one, never both.
+    /// </summary>
+    public string? UnlistedPracticeName { get; set; }
+
+    /// <summary>The unlisted practice's address lines, stored as one value (<see cref="PostalAddress"/>), or null.</summary>
+    public string? UnlistedPracticeAddressLines { get; set; }
+
+    /// <summary>The unlisted practice's postcode, normalised (<see cref="UkPostcodes"/>), or null.</summary>
+    public string? UnlistedPracticePostcode { get; set; }
+
+    /// <summary>The unlisted practice's phone number, as typed (tidied), or null.</summary>
+    public string? UnlistedPracticePhone { get; set; }
+
     /// <summary>How they want appointment reminders; <see cref="ReminderChannel.None"/> until asked.</summary>
     public ReminderChannel ReminderChannel { get; set; }
 

@@ -13,8 +13,9 @@ namespace MedApp.API.Controllers;
 
 /// <summary>
 /// Patients' data requests (subject access, UK GDPR Article 15; <c>docs/centre-phases-3-5-plan.md</c>, decisions 160 to
-/// 163): logged by a holder of ManagePrivacy with the identity check and the one-month due date, reviewed by a clinician
-/// (SignOffResults) who withholds what meets the serious harm test, and answered with a pack (a plain-language PDF, the
+/// 163): handled only by holders of ManagePrivacy (admins; the owner's decision): logged with the identity check and the
+/// one-month due date, reviewed (withholding what meets the serious harm test, on an appropriate health professional's
+/// opinion taken outside MedApp), and answered with a pack (a plain-language PDF, the
 /// record as JSON and the files) built on request and downloaded, never stored. Every change carries the version the
 /// caller saw (<c>expectedVersion</c>) and is recorded in the activity log, as are reads.
 /// </summary>
@@ -23,11 +24,10 @@ namespace MedApp.API.Controllers;
 public sealed class DataRequestsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    /// Data requests, open ones first by due date. For holders of ManagePrivacy, and of SignOffResults (who review them);
-    /// the handler checks. Records each patient listed.
+    /// Data requests, open ones first by due date. Records each patient listed.
     /// </summary>
     [HttpGet("search")]
-    [RequirePermission(Permission.ViewPatients)]
+    [RequirePermission(Permission.ManagePrivacy)]
     [ProducesResponseType(typeof(PagedResponse<DataRequestSummaryResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -51,9 +51,9 @@ public sealed class DataRequestsController(IMediator mediator) : ControllerBase
         return Created($"/api/data-requests/{created.Id}", created);
     }
 
-    /// <summary>One data request (ManagePrivacy or SignOffResults; the handler checks). Recorded as viewing the patient.</summary>
+    /// <summary>One data request. Recorded as viewing the patient.</summary>
     [HttpGet("{id:guid}")]
-    [RequirePermission(Permission.ViewPatients)]
+    [RequirePermission(Permission.ManagePrivacy)]
     [ProducesResponseType(typeof(DataRequestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -61,20 +61,20 @@ public sealed class DataRequestsController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new GetDataRequestQuery(id, User.ToPathwayActor()), ct));
 
     /// <summary>
-    /// The items of the record a clinician may withhold (notes, files, letters, results, MDT items, referrals), with their
-    /// text, for the review (ManagePrivacy or SignOffResults; the handler checks). Recorded as viewing the patient.
+    /// The items of the record the review may withhold (notes, files, letters, results, MDT items, referrals), with their
+    /// text. Recorded as viewing the patient.
     /// </summary>
     [HttpGet("{id:guid}/review-items")]
-    [RequirePermission(Permission.ViewPatients)]
+    [RequirePermission(Permission.ManagePrivacy)]
     [ProducesResponseType(typeof(IReadOnlyList<DataRequestReviewItemResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDataRequestReviewItems(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetDataRequestReviewItemsQuery(id, User.ToPathwayActor()), ct));
 
-    /// <summary>Records the clinician review: what's withheld under the serious harm test, each with why.</summary>
+    /// <summary>Records the review: what's withheld under the serious harm test, each with why.</summary>
     [HttpPut("{id:guid}/review")]
-    [RequirePermission(Permission.SignOffResults)]
+    [RequirePermission(Permission.ManagePrivacy)]
     [ProducesResponseType(typeof(DataRequestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

@@ -31,6 +31,10 @@ export const EMPTY_PATIENT: PatientInput = {
   postcode: '',
   mobilePhone: '',
   practiceId: '',
+  unlistedPracticeName: '',
+  unlistedPracticeAddressLines: ['', '', ''],
+  unlistedPracticePostcode: '',
+  unlistedPracticePhone: '',
   reminderChannel: 'None',
 };
 

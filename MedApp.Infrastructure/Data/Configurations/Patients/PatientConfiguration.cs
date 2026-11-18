@@ -10,7 +10,9 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
 {
     public void Configure(EntityTypeBuilder<Patient> builder)
     {
-        builder.ToTable("Patients");
+        // A patient's GP practice is from the directory or held on them (unlisted), never both.
+        builder.ToTable("Patients", table =>
+            table.HasCheckConstraint("CK_Patients_OnePractice", "[PracticeId] IS NULL OR [UnlistedPracticeName] IS NULL"));
 
         builder.HasKey(x => x.Id);
 
@@ -51,6 +53,21 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .WithMany()
             .HasForeignKey(x => x.PracticeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // A GP practice that isn't in the directory, held on this patient only (never both it and PracticeId).
+        builder.Property(x => x.UnlistedPracticeName)
+            .HasMaxLength(Practice.MaxNameLength);
+
+        builder.Property(x => x.UnlistedPracticeAddressLines)
+            .HasMaxLength(PostalAddress.MaxStoredLength);
+
+        builder.Property(x => x.UnlistedPracticePostcode)
+            .HasMaxLength(UkPostcodes.MaxLength)
+            .IsUnicode(false);
+
+        builder.Property(x => x.UnlistedPracticePhone)
+            .HasMaxLength(UkPhoneNumbers.MaxPhoneLength)
+            .IsUnicode(false);
 
         builder.Property(x => x.DateOfBirth)
             .IsRequired()
