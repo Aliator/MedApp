@@ -15,25 +15,10 @@ describe('DemoBanner', () => {
 
     expect(await screen.findByText('Light demo: synthetic data, kept only in this browser')).toBeInTheDocument();
     expect(screen.getByText(/Don’t enter real patient details\. You’re signed in as Clinical lead \(admin\)/)).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Read Me'})).toHaveAttribute('href', '/read-me');
-  });
-
-  it('opens the Read Me on the first visit', async () => {
-    startLightDemo(ADMIN);
-    const {router} = renderWithApp(<DemoBanner />, {user: asCurrentUser(ADMIN), path: '/patients'});
-    await waitFor(() => expect(router.state.location.pathname).toBe('/read-me'));
-  });
-
-  it('switches to the other account on the same page', async () => {
-    const {state} = startLightDemo(ADMIN);
-    markReadMeSeen();
-    const assign = vi.spyOn(demoNavigation, 'assign').mockImplementation(() => {});
-    const {user} = renderWithApp(<DemoBanner />, {user: asCurrentUser(ADMIN), path: '/calendar'});
-
-    await user.click(await screen.findByRole('button', {name: `Switch to ${STAFF.fullName}`}));
-
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/calendar'));
-    expect(state.user).toBe(STAFF.username);
+    // Only Reset: the Read Me it sits on has the account switch, and is the Read Me.
+    expect(screen.queryByRole('link', {name: 'Read Me'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: `Switch to ${STAFF.fullName}`})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Reset'})).toBeInTheDocument();
   });
 
   it('resets the demo once confirmed', async () => {

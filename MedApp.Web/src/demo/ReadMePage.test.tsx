@@ -14,6 +14,8 @@ describe('ReadMePage', () => {
     renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
 
     expect(await screen.findByRole('heading', {name: 'Read Me', level: 1})).toBeInTheDocument();
+    // The demo's banner sits at the top of the Read Me (not above every page).
+    expect(screen.getByText('Light demo: synthetic data, kept only in this browser')).toBeInTheDocument();
     expect(screen.getByText(/runs entirely in your browser/)).toBeInTheDocument();
     expect(screen.getByText('Clinical lead (admin): you, now')).toBeInTheDocument();
     expect(screen.getByText(`${STAFF.fullName} (${STAFF.username})`)).toBeInTheDocument();
