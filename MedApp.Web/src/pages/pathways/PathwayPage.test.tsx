@@ -225,13 +225,21 @@ describe('PathwayPage', () => {
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
     expect(await screen.findByRole('heading', {name: 'Current stage', level: 2})).toBeInTheDocument();
-    // Details, then the Current stage, then Stages (the right-hand card's first section).
-    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 3).map((h) => h.textContent)).toEqual(['Details', 'Current stage', 'Stages']);
+    // Details and the Current stage on the left; Stages, Appointments and Assigned staff first on the right.
+    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 6).map((h) => h.textContent)).toEqual([
+      'Details',
+      'Current stage',
+      'Stages',
+      'Appointments',
+      'Assigned staff',
+      'Notes',
+    ]);
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: 'Hide notes'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Hide appointments'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Hide assigned staff'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
     // The current stage's title shows in its section, and once Stages is opened, as its (closed) header in the list.
     expect(screen.getAllByText('2. Procedure')).toHaveLength(1);
@@ -695,13 +703,20 @@ describe('PathwayPage on a narrow window', () => {
     expect(screen.getByRole('heading', {name: 'Stages', level: 2})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'View Patient'})).toBeInTheDocument();
     // Details first (it never folds), then the Current stage, then Stages and the rest.
-    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 4).map((h) => h.textContent)).toEqual(['Details', 'Current stage', 'Stages', 'Notes']);
+    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 6).map((h) => h.textContent)).toEqual([
+      'Details',
+      'Current stage',
+      'Stages',
+      'Appointments',
+      'Assigned staff',
+      'Notes',
+    ]);
     expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     // Patient info starts open; Assigned staff starts folded here, to save room.
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', {name: 'Show assigned staff'})).toHaveAttribute('aria-expanded', 'false');
     expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Prep done.');
   });
 
@@ -740,7 +755,7 @@ describe('PathwayPage on a narrow window', () => {
     const {user} = renderWithApp(<Switchable />, {user: staffUser});
 
     // Half view: open Assigned staff, fold the Current stage, open the first stage in the list.
-    await user.click(await screen.findByRole('button', {name: 'Assigned staff'}));
+    await user.click(await screen.findByRole('button', {name: 'Show assigned staff'}));
     await user.click(screen.getByRole('button', {name: 'Hide current stage'}));
     await user.click(screen.getByRole('button', {name: 'Show stages'}));
     await user.click(screen.getByRole('button', {name: /^1\. Consultation/}));
@@ -749,7 +764,7 @@ describe('PathwayPage on a narrow window', () => {
     await user.click(screen.getByRole('button', {name: 'Switch layout'}));
 
     // Full view: the same things open and folded, not the full view's own defaults.
-    expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Hide assigned staff'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show current stage'})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: /^1\. Consultation/})).toHaveAttribute('aria-expanded', 'true');
     // The instructions were opened in half view, and stay open.
@@ -996,9 +1011,9 @@ describe('PathwayPage: visits and appointments', () => {
     const {user} = renderVisit(working(), [], staffUser, {[`GET ${APPOINTMENTS}`]: () => new Promise<Response>(() => {})});
 
     expect(await screen.findByText('Loading appointments...')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Appointments'}));
+    await user.click(screen.getByRole('button', {name: 'Hide appointments'}));
 
-    expect(screen.getByRole('button', {name: 'Appointments'})).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', {name: 'Show appointments'})).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('points out appointments still booked for a cancelled pathway, and books nothing more for it', async () => {

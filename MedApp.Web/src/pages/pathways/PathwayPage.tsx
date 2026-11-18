@@ -112,7 +112,7 @@ interface Booking {
 /**
  * One pathway, and the place it's worked on: its details (with who the patient is, always open) and the current
  * stage on the left, beside everything else on the right: all its stages, folded into their progress bar, then its
- * notes, MDT, specimens, results, consent, files and letters. Like Home, the two cards fill the page and each
+ * appointments, assigned staff, notes, MDT, specimens, results, consent, files and letters. Like Home, the two cards fill the page and each
  * scrolls on its own, so the page itself never does; a narrow window has one card instead (see PathwayView).
  *
  * It has no `PatientBanner` (the owner's decision, 18 November 2026): the patient's name, date of birth and NHS number
@@ -696,7 +696,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     </Page>
   );
 
-  /** Who the patient is, the status, then parts that fold: Patient info, Appointments and Assigned staff. */
+  /** Who the patient is and the status, then Patient info (the pathway's template and dates), which folds. */
   function details(pathway: Pathway) {
     return (
       <>
@@ -731,38 +731,6 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             <MetadataListItem label="Created">{formatDateTime(pathway.createdAt ?? '')}</MetadataListItem>
             <MetadataListItem label="Last updated">{formatDateTime(pathway.lastUpdated ?? '')}</MetadataListItem>
           </ViewSection>
-        </DetailPart>
-        <DetailPart title="Appointments" isOpen={open.appointments} onToggle={() => toggle('appointments')}>
-          {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
-          <VStack gap={3}>
-            {appointmentsList(pathway)}
-            {canBook && !CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
-              <HStack>
-                <Button
-                  label="Book Appointment"
-                  variant="secondary"
-                  icon={<Icon icon={AppIcon.Book} />}
-                  onClick={() => {
-                    setActionError(null);
-                    setBooking({});
-                  }}
-                  isDisabled={isBusy}
-                />
-              </HStack>
-            )}
-          </VStack>
-        </DetailPart>
-        <DetailPart title="Assigned staff" isOpen={open.assignedStaff} onToggle={() => toggle('assignedStaff')}>
-          <AssigneeList
-            isTitled={false}
-            assignments={pathway.assignments ?? []}
-            canManage={canAssign(pathway)}
-            isBusy={isBusy}
-            onUnassign={(a) => {
-              setActionError(null);
-              setDialog({kind: 'unassign', userId: a.userId ?? '', username: a.username ?? ''});
-            }}
-          />
         </DetailPart>
       </>
     );
@@ -1085,9 +1053,69 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
+  /**
+   * Every appointment for the pathway, and Book Appointment (booking sits with them, not in the footer, which has no
+   * room for another button).
+   */
+  function appointmentsSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'appointments',
+      title: 'Appointments',
+      isOpen: open.appointments,
+      onToggle: () => toggle('appointments'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <VStack gap={3}>
+            {appointmentsList(pathway)}
+            {canBook && !CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
+              <HStack>
+                <Button
+                  label="Book Appointment"
+                  variant="secondary"
+                  icon={<Icon icon={AppIcon.Book} />}
+                  onClick={() => {
+                    setActionError(null);
+                    setBooking({});
+                  }}
+                  isDisabled={isBusy}
+                />
+              </HStack>
+            )}
+          </VStack>
+        </Section>
+      ),
+    };
+  }
+
+  /** Who is assigned, each with Unassign for holders of AssignPathways. */
+  function assignedStaffSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'assignedStaff',
+      title: 'Assigned staff',
+      isOpen: open.assignedStaff,
+      onToggle: () => toggle('assignedStaff'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <AssigneeList
+            isTitled={false}
+            assignments={pathway.assignments ?? []}
+            canManage={canAssign(pathway)}
+            isBusy={isBusy}
+            onUnassign={(a) => {
+              setActionError(null);
+              setDialog({kind: 'unassign', userId: a.userId ?? '', username: a.username ?? ''});
+            }}
+          />
+        </Section>
+      ),
+    };
+  }
+
   /** Everything after Details, the Current stage and Stages, in its order. */
   function otherSections(pathway: Pathway): FoldingSection[] {
     return [
+      appointmentsSection(pathway),
+      assignedStaffSection(pathway),
       ...referralWaitSection(pathway),
       notesSection(pathway),
       mdtSection(pathway),
@@ -1100,9 +1128,9 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details and the Current stage on the left, and on the right Stages (folded into their
-   * progress bar), Referral and wait (from a referral only), Notes, MDT, Specimens, Results, Consent, Files and
-   * Letters. With no current stage (every stage finished or skipped), Stages takes its place on the left.
+   * Two cards side by side: Details and the Current stage on the left, so the current stage starts on the first
+   * screen, and on the right Stages (folded into their progress bar), Appointments, Assigned staff, Referral and wait
+   * (from a referral only), Notes, MDT, Specimens, Results, Consent, Files and Letters. With no current stage (every stage finished or skipped), Stages takes its place on the left.
    */
   function wideLayout(pathway: Pathway) {
     return (
