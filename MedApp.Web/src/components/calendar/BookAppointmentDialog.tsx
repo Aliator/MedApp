@@ -8,7 +8,7 @@ import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
-import {ToggleButton} from '@astryxdesign/core/ToggleButton';
+import {ToggleButton, ToggleButtonGroup} from '@astryxdesign/core/ToggleButton';
 import {Typeahead, type SearchableItem, type SearchSource} from '@astryxdesign/core/Typeahead';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useMemo, useRef, useState, type ReactNode, type RefObject} from 'react';
@@ -21,6 +21,7 @@ import {
   type Appointment,
 } from '../../api/appointments';
 import {calendarKeys, calendarQuery, staffQuery} from '../../api/calendar';
+import {clinicKeys} from '../../api/clinics';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {pathwayQuery} from '../../api/pathways';
@@ -51,6 +52,7 @@ import {ValidationAlert, AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
+import {ClinicSlotPicker, type ClinicSlotChoice} from './ClinicSlotPicker';
 
 export interface BookAppointmentDialogProps {
   isOpen: boolean;
@@ -74,6 +76,8 @@ export interface BookAppointmentDialogProps {
    * times are listed every 15 minutes either way; finer ones are added only around the chosen time (`shownStarts`).
    */
   stepMinutes?: number;
+  /** A clinic session's slot to book into (from the session's dialog): the dialog opens on Clinic slots with it chosen. */
+  clinicSlot?: ClinicSlotChoice;
 }
 
 /**
@@ -141,6 +145,11 @@ export function shownStarts(quarters: string[], fine: string[] | undefined, anch
 /** How many weeks ahead the dialog looks for a free day when it opens, before settling on the first. */
 const WEEKS_TO_LOOK_AHEAD = 4;
 
+/** How many days of clinic sessions Clinic slots lists, from today. */
+const CLINIC_DAYS = 28;
+
+type BookInto = 'times' | 'clinics';
+
 function BookingForm({
   isOpen,
   onClose,
@@ -154,6 +163,7 @@ function BookingForm({
   endUtc,
   suggestedStaffUserId,
   stepMinutes,
+  clinicSlot,
 }: BookAppointmentDialogProps) {
   const me = useCurrentUser();
   // Its size and layout follow the window, as a dialog sits over all of it (not a half view it was opened from).
@@ -193,6 +203,10 @@ function BookingForm({
   const [fineAnchor, setFineAnchor] = useState<string | undefined>(startUtc ?? (isRescheduling ? (appointment?.startUtc ?? undefined) : undefined));
   const [notes, setNotes] = useState('');
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
+  // Into a time on someone's calendar, or into a clinic session's slot (centre plan decision 124).
+  const [bookInto, setBookInto] = useState<BookInto>(clinicSlot ? 'clinics' : 'times');
+  const [slot, setSlot] = useState<ClinicSlotChoice | undefined>(clinicSlot);
+  const isClinic = bookInto === 'clinics';
 
   const staff = useQuery({...staffQuery, enabled: isOpen});
   const myId = staff.data?.find((s) => s.username === me.username)?.userId;
@@ -219,6 +233,8 @@ function BookingForm({
     enabled: isOpen && fixedStage === undefined && chosenPathwayId !== undefined,
   });
   const openStages = (pathwayDetail.data?.stages ?? []).filter((s) => s.state !== 'Completed');
+  // The pathway's specialty, so Clinic slots lists only its sessions (the same query, shared with the stages').
+  const pathwayForClinics = useQuery({...pathwayQuery(chosenPathwayId ?? ''), enabled: isOpen && isClinic && chosenPathwayId !== undefined});
 
   const weekEnd = addDays(week, 4);
   const calendar = useQuery({...calendarQuery({staffUserId: staffId, from: week, to: weekEnd}), enabled: isOpen && staffId !== undefined});
@@ -246,11 +262,14 @@ function BookingForm({
     setChosenStart(next);
     if (next && dayAnchor === undefined) setFineAnchor(next);
   };
-  const start = dayStarts.find((s) => sameMoment(s, chosenStart));
-  const end = start ? addMinutes(start, length) : undefined;
+  const timeStart = dayStarts.find((s) => sameMoment(s, chosenStart));
+  // What's booked: the time chosen on the calendar, or the clinic slot (its clinician and times).
+  const start = isClinic ? slot?.startUtc : timeStart;
+  const end = isClinic ? slot?.endUtc : timeStart ? addMinutes(timeStart, length) : undefined;
+  const bookedStaffId = isClinic ? slot?.staffUserId : staffId;
 
   const isSaving = create.isPending || book.isPending;
-  const canBook = patientId !== undefined && staffId !== undefined && start !== undefined && !isSaving && !isRefused;
+  const canBook = patientId !== undefined && bookedStaffId !== undefined && start !== undefined && !isSaving && !isRefused;
   const canRequest = !appointment && patientId !== undefined && start === undefined && !isSaving && !isRefused;
 
   const title = isRescheduling ? 'Reschedule Appointment' : fixedStage || (stageId !== NO_STAGE && stageId) ? 'Book Visit' : 'Book Appointment';
@@ -265,8 +284,10 @@ function BookingForm({
       // Someone took the time, or booked or changed this appointment first (the server's message says which): show
       // what's free now, and refresh the lists the appointment is in, so they show it as it is.
       setChosenStart(undefined);
+      setSlot(undefined);
       void queryClient.invalidateQueries({queryKey: calendarKeys.all});
       void queryClient.invalidateQueries({queryKey: appointmentKeys.all});
+      void queryClient.invalidateQueries({queryKey: clinicKeys.all});
     }
   };
 
@@ -279,7 +300,10 @@ function BookingForm({
   const save = () => {
     if (!canBook) return false;
     setProblem(NO_PROBLEM);
-    const time = {staffUserId: staffId, startUtc: start, endUtc: end};
+    const time =
+      isClinic && slot
+        ? {staffUserId: slot.staffUserId, startUtc: slot.startUtc, endUtc: slot.endUtc, clinicSessionId: slot.clinicSessionId}
+        : {staffUserId: staffId, startUtc: start, endUtc: end};
     if (appointment) {
       // Says what this is, by the status the page showed: booking a Requested one, or moving a Booked one. If someone
       // else has booked or changed it since, the API refuses (409) rather than book over them or move theirs.
@@ -389,24 +413,28 @@ function BookingForm({
           ]}
         />
       )}
-      <AnchoredSelector
-        label="With"
-        value={staffId ?? ''}
-        onChange={(id) => {
-          setChosenStaff(id);
-          setChosenStart(undefined);
-        }}
-        isLoading={staff.isLoading}
-        hasSearch={(staff.data?.length ?? 0) > 8}
-        status={fieldStatus(problem.validation, 'staffUserId')}
-        options={(staff.data ?? []).map((s) => ({value: s.userId ?? '', label: s.userId === myId ? `${s.username} (you)` : (s.username ?? '')}))}
-      />
-      <AnchoredSelector
-        label="Length"
-        value={String(length)}
-        onChange={(value) => setLength(Number(value))}
-        options={lengths.map((minutes) => ({value: String(minutes), label: lengthLabel(minutes)}))}
-      />
+      {!isClinic && (
+        <>
+          <AnchoredSelector
+            label="With"
+            value={staffId ?? ''}
+            onChange={(id) => {
+              setChosenStaff(id);
+              setChosenStart(undefined);
+            }}
+            isLoading={staff.isLoading}
+            hasSearch={(staff.data?.length ?? 0) > 8}
+            status={fieldStatus(problem.validation, 'staffUserId')}
+            options={(staff.data ?? []).map((s) => ({value: s.userId ?? '', label: s.userId === myId ? `${s.username} (you)` : (s.username ?? '')}))}
+          />
+          <AnchoredSelector
+            label="Length"
+            value={String(length)}
+            onChange={(value) => setLength(Number(value))}
+            options={lengths.map((minutes) => ({value: String(minutes), label: lengthLabel(minutes)}))}
+          />
+        </>
+      )}
       {!appointment && (
         <TextArea
           label="Notes"
@@ -422,8 +450,35 @@ function BookingForm({
     </VStack>
   );
 
-  const times = (
+  const bookIntoChoice = (
+    <ToggleButtonGroup
+      type="single"
+      label="Book into"
+      value={bookInto}
+      onChange={(value) => {
+        if (value === 'times' || value === 'clinics') setBookInto(value);
+      }}>
+      <ToggleButton value="times" label="Times" icon={<Icon icon={AppIcon.Calendar} />} />
+      <ToggleButton value="clinics" label="Clinic slots" icon={<Icon icon={AppIcon.Clinics} />} />
+    </ToggleButtonGroup>
+  );
+
+  const clinicSlots = (
     <VStack gap={4} hAlign="stretch">
+      {bookIntoChoice}
+      <ClinicSlotPicker
+        from={today}
+        to={addDays(today, CLINIC_DAYS - 1)}
+        specialtyId={pathwayForClinics.data?.specialtyId ?? undefined}
+        chosen={slot}
+        onChoose={setSlot}
+      />
+    </VStack>
+  );
+
+  const calendarTimes = (
+    <VStack gap={4} hAlign="stretch">
+      {bookIntoChoice}
       <HStack gap={2} vAlign="center">
         <StackItem size="fill">
           <Text type="label" weight="semibold">
@@ -510,8 +565,14 @@ function BookingForm({
     </VStack>
   );
 
+  const times = isClinic ? clinicSlots : calendarTimes;
+
   const summary =
-    start && end && day ? (
+    isClinic && slot ? (
+      <Text type="body" weight="semibold" aria-live="polite">
+        {`${formatCalendarDay(ukDay(slot.startUtc))}, ${formatTimeRange(slot.startUtc, slot.endUtc)} with ${slot.staffUsername}, ${slot.roomName}`}
+      </Text>
+    ) : start && end && day ? (
       <Text type="body" weight="semibold" aria-live="polite">
         {`${formatCalendarDay(day)}, ${formatTimeRange(start, end)} with ${staffName}`}
       </Text>

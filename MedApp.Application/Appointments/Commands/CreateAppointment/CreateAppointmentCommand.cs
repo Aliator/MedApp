@@ -7,7 +7,8 @@ namespace MedApp.Application.Appointments.Commands.CreateAppointment;
 /// <summary>
 /// A new appointment for a patient, optionally for one of their pathways and one of its stages. With a member of
 /// staff, a start and an end it's Booked (in the future, inside the working day, clash-free); with none of them it's
-/// Requested, to be booked later.
+/// Requested, to be booked later. A booking can go into a clinic session's slot (<paramref name="ClinicSessionId"/>) or a
+/// room (<paramref name="RoomId"/>).
 /// </summary>
 public sealed record CreateAppointmentCommand(
     Guid PatientId,
@@ -17,7 +18,9 @@ public sealed record CreateAppointmentCommand(
     DateTime? StartUtc,
     DateTime? EndUtc,
     string? Notes,
-    PathwayActor Actor)
+    PathwayActor Actor,
+    Guid? ClinicSessionId = null,
+    Guid? RoomId = null)
     : IRequest<AppointmentResponse>
 {
     /// <summary>A member of staff, a start and an end are all given: it's booked straight away.</summary>

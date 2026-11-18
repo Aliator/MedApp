@@ -6,9 +6,10 @@ namespace MedApp.Application.Calendar.Common;
 public sealed record CalendarClash(DateTime StartUtc, DateTime EndUtc, string What);
 
 /// <summary>
-/// No overlaps: a new or moved appointment, block or meeting may not overlap any appointment (Booked, Attended or Did
-/// not attend), block (stored, or from a template) or meeting on that person's calendar (except a meeting they
-/// declined, <see cref="MeetingReplies"/>). This finds what a time would overlap, and lists what a calendar is busy
+/// No overlaps: a new or moved appointment, block, meeting or clinic session may not overlap any appointment (Booked,
+/// Attended or Did not attend), block (stored, or from a template), meeting (except one they declined,
+/// <see cref="MeetingReplies"/>) or clinic session on that person's calendar; an appointment booked into a session's
+/// slot overlaps that session by design (<c>ignoreSessionId</c>), but not its other appointments. This finds what a time would overlap, and lists what a calendar is busy
 /// with (for <see cref="Availability"/>).
 /// </summary>
 public static class CalendarClashes
@@ -33,9 +34,10 @@ public static class CalendarClashes
         Guid? ignoreBlockId = null,
         Guid? ignoreTemplateBlockId = null,
         Guid? ignoreAppointmentId = null,
-        Guid? ignoreMeetingId = null) =>
+        Guid? ignoreMeetingId = null,
+        Guid? ignoreSessionId = null) =>
         WhyOutsideWorkingDay(data, startUtc, endUtc)
-        ?? (FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId) is { } clash
+        ?? (FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId, ignoreSessionId) is { } clash
             ? $"That time overlaps {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}."
             : null);
 
@@ -54,13 +56,14 @@ public static class CalendarClashes
         Guid? ignoreBlockId = null,
         Guid? ignoreTemplateBlockId = null,
         Guid? ignoreAppointmentId = null,
-        Guid? ignoreMeetingId = null)
+        Guid? ignoreMeetingId = null,
+        Guid? ignoreSessionId = null)
     {
         var start = UkTime.Utc(startUtc);
         var end = UkTime.Utc(endUtc);
         var date = UkTime.DateOf(start);
 
-        return BusyTimes(data, ignoreBlockId, ignoreAppointmentId, ignoreMeetingId, (ignoreTemplateBlockId, date))
+        return BusyTimes(data, ignoreBlockId, ignoreAppointmentId, ignoreMeetingId, (ignoreTemplateBlockId, date), ignoreSessionId)
             .FirstOrDefault(c => Overlaps(start, end, c.StartUtc, c.EndUtc));
     }
 
@@ -70,7 +73,7 @@ public static class CalendarClashes
     /// meeting being moved is left out (<paramref name="ignoreMeetingId"/>).
     /// </summary>
     public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
-        BusyTimes(data, null, null, ignoreMeetingId, (null, default));
+        BusyTimes(data, null, null, ignoreMeetingId, (null, default), null);
 
     /// <summary>
     /// For an appointment recorded after the event: a message naming the first of the person's appointments (Booked,
@@ -101,6 +104,10 @@ public static class CalendarClashes
     /// <summary>What a meeting is called in a clash or a busy time: "the meeting 'MDT'".</summary>
     public static string Describe(Domain.Calendar.Meeting meeting) => $"the meeting '{meeting.Title}'";
 
+    /// <summary>What a clinic session is called in a clash or a busy time: "a clinic session in Room 2".</summary>
+    public static string Describe(Domain.Clinics.ClinicSession session) =>
+        session.Room is { Name.Length: > 0 } room ? $"a clinic session in {room.Name}" : "a clinic session";
+
     /// <summary>Whether two times overlap; touching (one ends as the other starts) doesn't.</summary>
     public static bool Overlaps(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) =>
         aStart < bEnd && bStart < aEnd;
@@ -110,7 +117,8 @@ public static class CalendarClashes
         Guid? ignoreBlockId,
         Guid? ignoreAppointmentId,
         Guid? ignoreMeetingId,
-        (Guid? Id, DateOnly Date) ignoreTemplateBlock)
+        (Guid? Id, DateOnly Date) ignoreTemplateBlock,
+        Guid? ignoreSessionId)
     {
         var appointments = data.Appointments
             .Where(a => a.Id != ignoreAppointmentId
@@ -131,7 +139,11 @@ public static class CalendarClashes
             .Where(m => m.Id != ignoreMeetingId && !MeetingReplies.HasDeclined(m, data.StaffUserId))
             .Select(m => new CalendarClash(m.StartUtc, m.EndUtc, Describe(m)));
 
-        return appointments.Concat(blocks).Concat(templateBlocks).Concat(meetings)
+        var sessions = data.Sessions
+            .Where(s => s.Id != ignoreSessionId && s.Status == Domain.Clinics.ClinicSessionStatus.Planned)
+            .Select(s => new CalendarClash(s.StartUtc, s.EndUtc, Describe(s)));
+
+        return appointments.Concat(blocks).Concat(templateBlocks).Concat(meetings).Concat(sessions)
             .OrderBy(c => c.StartUtc)
             .ThenBy(c => c.EndUtc)
             .ToList();

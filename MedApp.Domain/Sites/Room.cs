@@ -10,6 +10,7 @@ public sealed class Room
 
     /// <summary>The site it's at. A room never moves to another site.</summary>
     public Guid SiteId { get; init; }
+    public Site Site { get; set; } = null!;
 
     public string Name { get; set; } = string.Empty;
 

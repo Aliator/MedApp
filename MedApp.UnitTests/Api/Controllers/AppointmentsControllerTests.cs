@@ -61,7 +61,8 @@ public sealed class AppointmentsControllerTests
         var result = await Controller.CreateAppointment(request, _cts.Token);
 
         _mediator.Request.Should().Be(new CreateAppointmentCommand(
-            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor));
+            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor,
+            request.ClinicSessionId, request.RoomId));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/appointments/{_appointment.Id}");
@@ -145,7 +146,8 @@ public sealed class AppointmentsControllerTests
         var request = _fixture.Create<BookAppointmentRequest>();
 
         ExpectSentAndOk(
-            new BookAppointmentCommand(RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, request.ExpectedStatus, Actor),
+            new BookAppointmentCommand(
+                RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, request.ExpectedStatus, Actor, request.ClinicSessionId, request.RoomId),
             await Controller.BookAppointment(RecordId, request, _cts.Token));
     }
 
