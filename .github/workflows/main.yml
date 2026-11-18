@@ -8,7 +8,7 @@ name: CI
 # The light tiers are a deliberate choice while MedApp isn't live (docs/todo.md, Testing).
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, ci-proof-base ]
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
   push:
     branches: [ main ]
