@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /**
  * Where a notification leads: an appointment opens on the calendar, a procedure on its page, and anything else about a
- * day on the calendar (a meeting) opens that day there.
+ * day on the calendar (a meeting, a day closed with something of yours on it) opens that day there.
  */
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
@@ -37,6 +37,7 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingInvited: AppIcon.Meeting,
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,
+  DayClosed: AppIcon.ClosedDays,
 };
 
 /** The bell, which the unread count is placed over. */

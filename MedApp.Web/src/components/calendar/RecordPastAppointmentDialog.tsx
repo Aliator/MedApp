@@ -16,14 +16,14 @@ import {
   useRecordPastAppointment,
   type Appointment,
 } from '../../api/appointments';
-import {calendarKeys, calendarQuery, staffQuery, type CalendarDay} from '../../api/calendar';
+import {calendarDaysQuery, calendarKeys, staffQuery, type CalendarDay} from '../../api/calendar';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {procedureQuery} from '../../api/procedures';
 import {procedureSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
-import {addDays, addMinutes, busyTimes, formatCalendarDay, formatTimeRange, intervalOf, overlaps, SLOT_MINUTES, ukToday, type Interval} from '../../utils/calendarSlots';
+import {addDays, addMinutes, formatCalendarDay, formatTimeRange, intervalOf, isWeekday, SLOT_MINUTES, ukToday} from '../../utils/calendarSlots';
 import {formatShortDate, formatTime} from '../../utils/dates';
 import {lengthLabel} from '../../utils/meetingTimes';
 import {useSaveShortcut} from '../forms/SaveShortcut';
@@ -46,6 +46,11 @@ export interface RecordPastAppointmentDialogProps {
   patient?: AppointmentPatientDetails;
   procedure?: {id: string; title: string};
   stage?: {id: string; name: string};
+  /**
+   * The notes of the stage's visit waiting in Requires Appointment, when it has one (a stage's Record Past Visit): the
+   * server records that visit and keeps its notes, adding any new ones after them, so they're shown read-only.
+   */
+  waitingVisitNotes?: string | null;
   /** The member of staff to start with (the calendar's owner); otherwise the signed-in user. */
   staffUserId?: string;
   /** The steps start times come in: 15 minutes (the default), or 5 from a calendar showing 5-minute rows. */
@@ -53,19 +58,25 @@ export interface RecordPastAppointmentDialogProps {
 }
 
 /**
- * Recording an appointment that has already happened (docs/calendar-plan.md): a walk-in, or one booked outside MedApp,
- * recorded after the event with its outcome. Like booking (`BookAppointmentDialog`), whatever is known is filled in:
- * the patient (or a picker), what it was for, with whom and how long; then the day (a working day in the last 30,
- * today included: never a weekend or a closed day), the start (inside the working day, only times that had started by
- * now, and none over another of that person's appointments), the outcome (Attended or Did not attend: nothing chosen
- * until someone chooses) and notes. It says it's recorded with the signed-in user's name.
+ * Recording an appointment that has already happened (docs/calendar-plan.md, decisions 74 and 76 to 78): a walk-in, or one
+ * booked outside MedApp, recorded after the event with its outcome. Like booking (`BookAppointmentDialog`), whatever is
+ * known is filled in: the patient (or a picker), what it was for (a stage up to the procedure's current one: a later one
+ * hasn't been reached), with whom and how long; then the day (a weekday in the last 30, today included, closed days too,
+ * labelled, as what happened, happened; never a weekend), the start (inside the working day, any time that had started by
+ * now), the outcome (Attended or Did not attend: nothing chosen until someone chooses) and notes. It says it's recorded
+ * with the signed-in user's name.
+ *
+ * It reads the person's days without their appointments (`calendarDaysQuery`), so it names no patients and records no
+ * reads of them. So it doesn't know which times are taken: the server's 409 says when one overlaps another of their
+ * appointments.
  *
  * Once the patient is known, their banner heads it (name, date of birth and NHS number), so staff can check who they're
- * recording (hazard H-34, and the walk-in hazard: the wrong patient). A restricted or anonymised record can't be
+ * recording (hazard H-34, and the walk-in hazard H-39: the wrong patient). A restricted or anonymised record can't be
  * changed, so it says why and offers no Record. The server has the final word: a 400 shows on the fields; a 409 (it
- * overlaps another appointment, the stage's visit is booked already) keeps the dialog open with its message and
- * refreshes the calendars and appointment lists. For a stage whose visit is in Requires Appointment, the server records that
- * visit rather than a new one.
+ * overlaps another appointment, the stage's visit is booked already, the visit was before the procedure was created, the
+ * stage hasn't been reached) keeps the dialog open with its message and refreshes the calendars and appointment lists.
+ * For a stage whose visit is in Requires Appointment, the server records that visit rather than a new one, keeping its
+ * notes (shown read-only, `waitingVisitNotes`) and adding the new ones after them.
  *
  * Use it from the Calendar page's New menu and a stage's visit (Record Past Visit).
  */
@@ -86,6 +97,10 @@ const FIELDS = ['patientId', 'procedureId', 'stageId', 'staffUserId', 'startUtc'
 const NO_PROCEDURE = 'none';
 const NO_STAGE = 'none';
 const MINUTE = 60_000;
+/** The most an appointment's notes can hold (the API's limit): a waiting visit's own and the new ones together. */
+const NOTES_MAX = 2000;
+/** What joins new notes to a waiting visit's own: a blank line. */
+const NOTES_JOIN = 2;
 
 const OUTCOMES = [
   {value: 'Attended', label: 'Attended'},
@@ -101,21 +116,38 @@ interface Problem {
 const NO_PROBLEM: Problem = {validation: null, message: null};
 
 /**
- * The start times (UTC, ISO) on a past working day for an appointment `lengthMinutes` long: every `stepMinutes` from the
- * start of the working day, ending by its end, that had started by `now`, and overlapping nothing in `taken` (the
- * person's other appointments). None on a day that isn't a working day.
+ * The start times (UTC, ISO) on a past weekday for an appointment `lengthMinutes` long: every `stepMinutes` from the
+ * start of the working day, ending by its end, that had started by `now`. A closed weekday counts (a visit that happened
+ * on it can be recorded); a weekend never does. Whether a time overlaps another appointment is the server's to say.
  */
-export function pastStarts(day: CalendarDay, taken: Interval[], lengthMinutes: number, now: Date, stepMinutes: number = SLOT_MINUTES): string[] {
-  if (!day.isWorkingDay || !day.workStartUtc || !day.workEndUtc || lengthMinutes <= 0) return [];
+export function pastStarts(day: CalendarDay, lengthMinutes: number, now: Date, stepMinutes: number = SLOT_MINUTES): string[] {
+  if (!day.date || !isWeekday(day.date) || !day.workStartUtc || !day.workEndUtc || lengthMinutes <= 0) return [];
   const {start: dayStart, end: dayEnd} = intervalOf(day.workStartUtc, day.workEndUtc);
   const starts: string[] = [];
   for (let start = dayStart; start + lengthMinutes * MINUTE <= dayEnd && start <= now.getTime(); start += stepMinutes * MINUTE) {
-    if (!taken.some((t) => overlaps({start, end: start + lengthMinutes * MINUTE}, t))) starts.push(new Date(start).toISOString());
+    starts.push(new Date(start).toISOString());
   }
   return starts;
 }
 
-function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, staffUserId, stepMinutes = SLOT_MINUTES}: RecordPastAppointmentDialogProps) {
+/** A day to choose, in words: "Today, Wednesday 18 November", and a closed one's name ("…, closed: Christmas Day"). */
+export function pastDayLabel(day: CalendarDay, today: string): string {
+  const date = day.date ?? '';
+  const words = date === today ? `Today, ${formatCalendarDay(date)}` : formatCalendarDay(date);
+  return day.closedDayName ? `${words}, closed: ${day.closedDayName}` : words;
+}
+
+function RecordPastForm({
+  isOpen,
+  onClose,
+  onSaved,
+  patient,
+  procedure,
+  stage,
+  waitingVisitNotes,
+  staffUserId,
+  stepMinutes = SLOT_MINUTES,
+}: RecordPastAppointmentDialogProps) {
   const me = useCurrentUser();
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
@@ -155,22 +187,25 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
     ...procedureQuery(chosenProcedureId ?? ''),
     enabled: isOpen && stage === undefined && chosenProcedureId !== undefined,
   });
-  const openStages = (procedureDetail.data?.stages ?? []).filter((s) => s.state !== 'Completed');
+  // The current stage and those before it: a later one hasn't been reached (the server refuses it). Every stage when
+  // none is current (a procedure that's finished).
+  const allStages = procedureDetail.data?.stages ?? [];
+  const current = allStages.findIndex((s) => s.isCurrent);
+  const reachedStages = current < 0 ? allStages : allStages.slice(0, current + 1);
   const chosenStageId = stage?.id ?? (chosenProcedureId && stageId !== NO_STAGE ? stageId : undefined);
 
-  // The person's last 30 days and today: which were working days (not weekends or closed days), and their appointments,
-  // which a past one can't overlap.
-  const calendar = useQuery({...calendarQuery({staffUserId: staffId, from, to: today}), enabled: isOpen && staffId !== undefined});
-  const startsByDay = useMemo(() => {
-    const taken = busyTimes({appointments: calendar.data?.appointments ?? []});
-    return new Map((calendar.data?.days ?? []).map((d) => [d.date ?? '', pastStarts(d, taken, length, now, stepMinutes)]));
-  }, [calendar.data, length, now, stepMinutes]);
-  // Newest first; a day with no time that fits (today before 08:00, a full day) isn't offered.
-  const days = (calendar.data?.days ?? [])
-    .filter((d) => d.isWorkingDay && (startsByDay.get(d.date ?? '')?.length ?? 0) > 0)
-    .map((d) => d.date ?? '')
-    .reverse();
+  // The person's last 30 days and today, without their appointments (so no patient is named or recorded as listed):
+  // their working hours, and which were closed. Whether a time is taken is the server's to say (a 409).
+  const calendar = useQuery({...calendarDaysQuery({staffUserId: staffId, from, to: today}), enabled: isOpen && staffId !== undefined});
+  const startsByDay = useMemo(
+    () => new Map((calendar.data?.days ?? []).map((d) => [d.date ?? '', pastStarts(d, length, now, stepMinutes)])),
+    [calendar.data, length, now, stepMinutes],
+  );
+  // Newest first; a day with no time that fits (a weekend, today before 08:00) isn't offered.
+  const offered = (calendar.data?.days ?? []).filter((d) => (startsByDay.get(d.date ?? '')?.length ?? 0) > 0).reverse();
+  const days = offered.map((d) => d.date ?? '');
   const day = chosenDay !== undefined && days.includes(chosenDay) ? chosenDay : days[0];
+  const closedName = offered.find((d) => d.date === day)?.closedDayName;
   const starts = day ? (startsByDay.get(day) ?? []) : [];
   const start = starts.find((s) => s === chosenStart);
   const end = start ? addMinutes(start, length) : undefined;
@@ -227,6 +262,9 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
 
   const lengths = [...APPOINTMENT_LENGTHS];
   const startStatus = fieldStatus(problem.validation, 'startUtc') ?? fieldStatus(problem.validation, 'endUtc');
+  // The waiting visit's notes are kept, with the new ones after them, all within the API's limit.
+  const existingNotes = stage !== undefined ? waitingVisitNotes?.trim() || null : null;
+  const notesMax = existingNotes ? Math.max(0, NOTES_MAX - existingNotes.length - NOTES_JOIN) : NOTES_MAX;
 
   const details = (
     <VStack gap={4} hAlign="stretch">
@@ -269,18 +307,28 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
           status={fieldStatus(problem.validation, 'stageId')}
           options={[
             {value: NO_STAGE, label: 'No particular stage'},
-            ...openStages.map((s) => ({
+            ...reachedStages.map((s) => ({
               value: s.id ?? '',
               label: s.name ?? '',
-              description: [s.isCurrent ? 'Current stage' : null, visitWords(s.visitRequirement)].filter(Boolean).join(' · ') || undefined,
+              description:
+                [s.isCurrent ? 'Current stage' : s.state === 'Completed' ? 'Finished' : null, visitWords(s.visitRequirement)]
+                  .filter(Boolean)
+                  .join(' · ') || undefined,
             })),
           ]}
         />
       )}
-      {chosenStageId !== undefined && (
-        <Text type="supporting" color="secondary">
-          If the stage&apos;s visit is waiting in Requires Appointment, this records that visit.
-        </Text>
+      {existingNotes ? (
+        <MetadataList label={{position: 'top'}}>
+          <MetadataListItem label="Its notes, which are kept">{existingNotes}</MetadataListItem>
+        </MetadataList>
+      ) : (
+        chosenStageId !== undefined && (
+          <Text type="supporting" color="secondary">
+            If the stage&apos;s visit is waiting in Requires Appointment, this records that visit, keeping its notes and adding
+            these after them.
+          </Text>
+        )
       )}
       <Selector
         label="With"
@@ -297,11 +345,15 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
       <TextArea
         label="Notes"
         isOptional
-        description="About the visit, as procedure notes are. Staff see them on the appointment."
+        description={
+          existingNotes
+            ? 'About the visit, added after its own notes. Staff see them on the appointment.'
+            : 'About the visit, as procedure notes are. Staff see them on the appointment.'
+        }
         value={notes}
         onChange={setNotes}
         rows={3}
-        maxLength={2000}
+        maxLength={notesMax}
         status={fieldStatus(problem.validation, 'notes')}
       />
     </VStack>
@@ -315,7 +367,7 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
         <>
           <Selector
             label="Day"
-            description={`A working day in the last ${PAST_APPOINTMENT_DAYS} days, or today.`}
+            description={`A weekday in the last ${PAST_APPOINTMENT_DAYS} days, or today; closed days too.`}
             value={day ?? ''}
             placeholder="Choose a day"
             onChange={(next) => {
@@ -324,8 +376,8 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
             }}
             isLoading={calendar.isLoading}
             isDisabled={calendar.data !== undefined && days.length === 0}
-            disabledMessage={`Nothing fits on a working day in the last ${PAST_APPOINTMENT_DAYS} days.`}
-            options={days.map((d) => ({value: d, label: d === today ? `Today, ${formatCalendarDay(d)}` : formatCalendarDay(d)}))}
+            disabledMessage={`Nothing fits on a weekday in the last ${PAST_APPOINTMENT_DAYS} days.`}
+            options={offered.map((d) => ({value: d.date ?? '', label: pastDayLabel(d, today)}))}
           />
           <HStack gap={3} vAlign="start">
             <StackItem size="fill">
@@ -353,7 +405,8 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
             </StackItem>
           </HStack>
           <Text type="supporting" color="secondary">
-            Times that had started by now, and don&apos;t overlap {staffName ? `${staffName}'s` : 'their'} other appointments.
+            Times that had started by now. If one overlaps another of {staffName ? `${staffName}'s` : 'their'} appointments,
+            you&apos;ll be told when you record it.
           </Text>
         </>
       )}
@@ -374,7 +427,7 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
   const summary =
     start && end && day ? (
       <Text type="body" weight="semibold" aria-live="polite">
-        {`${formatCalendarDay(day)}, ${formatTimeRange(start, end)} with ${staffName}${outcomeWords ? `, ${outcomeWords}` : ''}`}
+        {`${formatCalendarDay(day)}${closedName ? ` (closed: ${closedName})` : ''}, ${formatTimeRange(start, end)} with ${staffName}${outcomeWords ? `, ${outcomeWords}` : ''}`}
       </Text>
     ) : (
       <Text type="body" color="secondary" aria-live="polite">

@@ -29,6 +29,15 @@ async function passNotAssignedCheck(page: Page) {
   if (asked) await proceed.click();
 }
 
+/**
+ * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
+ * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
+ */
+function christmasWeekDate(now: Date = new Date()): string {
+  const year = now.getUTCMonth() === 11 && now.getUTCDate() > 28 ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+  return `${year}-12-28`;
+}
+
 export const screens: Screen[] = [
   { name: 'login', title: 'Login', path: '/login', signedOut: true },
   {
@@ -113,6 +122,16 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-closed-day-week',
+    title: 'Calendar: the Christmas week, with its bank holiday greyed as "Closed: …" (the demo data saves bank holidays as closed days)',
+    path: () => `/calendar?view=week&date=${christmasWeekDate()}`,
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await page.getByText(/^Closed: /).first().waitFor();
       await settle(page);
     },
   },

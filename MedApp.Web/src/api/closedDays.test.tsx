@@ -3,7 +3,18 @@ import {renderHook, waitFor} from '@testing-library/react';
 import type {ReactNode} from 'react';
 import {AppProviders} from '../app/AppProviders';
 import {calls, json, mockApi} from '../test/render';
-import {closedDayKeys, closedDaysOfYearQuery, closedDaysQuery, useAddBankHolidays, useAddClosedDay, useDeleteClosedDay} from './closedDays';
+import {
+  bookingsWords,
+  closedDayBookingsQuery,
+  closedDayKeys,
+  closedDaysOfYearQuery,
+  closedDaysQuery,
+  hasBookings,
+  listWords,
+  useAddBankHolidays,
+  useAddClosedDay,
+  useDeleteClosedDay,
+} from './closedDays';
 
 const CHRISTMAS = {id: '0000003c-0000-0000-0000-000000000001', date: '2026-12-25', name: 'Christmas Day', isPast: false};
 
@@ -78,5 +89,38 @@ describe('closed day changes', () => {
 
     expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({year: 2027});
     await expectRefreshed(queryClient);
+  });
+});
+
+describe('closedDayBookingsQuery', () => {
+  it("fetches what's on a day", async () => {
+    const bookings = {date: '2026-12-24', appointments: 1, blocks: 0, meetings: 0, staff: []};
+    const fetch = mockApi({'GET /api/calendar/closed-days/bookings': () => json(bookings)});
+
+    expect(await new QueryClient().fetchQuery(closedDayBookingsQuery('2026-12-24'))).toEqual(bookings);
+    expect(calls(fetch)).toEqual(['GET /api/calendar/closed-days/bookings?date=2026-12-24']);
+  });
+});
+
+describe('bookings in words', () => {
+  const staff = (username: string) => ({userId: `id-${username}`, username, appointments: 1, blocks: 0, meetings: 0});
+
+  it('lists things as people do', () => {
+    expect(listWords([])).toBe('');
+    expect(listWords(['a'])).toBe('a');
+    expect(listWords(['a', 'b'])).toBe('a and b');
+    expect(listWords(['a', 'b', 'c'])).toBe('a, b and c');
+  });
+
+  it("says what's on a day, for whom, and who is told", () => {
+    const day = {date: '2026-12-24', appointments: 1, blocks: 2, meetings: 0, staff: [staff('k.ashford')]};
+    expect(bookingsWords(day, 'Thu 24 Dec')).toBe('On Thu 24 Dec: 1 appointment and 2 blocks, for k.ashford. They stay; k.ashford will be told.');
+    expect(bookingsWords({...day, staff: [staff('a.one'), staff('b.two'), staff('c.three')]}, 'Thu 24 Dec', {isDone: true})).toBe(
+      'On Thu 24 Dec: 1 appointment and 2 blocks, for a.one, b.two and c.three. They stay; each of them has been told.',
+    );
+    expect(bookingsWords({date: '2026-12-24', meetings: 1}, 'Thu 24 Dec')).toBe('On Thu 24 Dec: 1 meeting. They stay.');
+    expect(bookingsWords({date: '2026-12-24', appointments: 0, blocks: 0, meetings: 0}, 'Thu 24 Dec')).toBe('Nothing is booked then.');
+    expect(hasBookings(null)).toBe(false);
+    expect(hasBookings({blocks: 1})).toBe(true);
   });
 });

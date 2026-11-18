@@ -289,6 +289,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const onlyAssignee = procedure?.assignments?.length === 1 ? (procedure.assignments[0].userId ?? undefined) : undefined;
   const withoutVisit = dialog?.kind === 'finishWithoutVisit' ? dialog.stage : null;
   const withoutVisitState = withoutVisit ? stageVisit(withoutVisit.id, appointments) : null;
+  // A stage's visit waiting in Requires Appointment is the one Record Past Visit records: its notes are kept, so it shows them.
+  const recordingPastVisit = recordingPast ? stageVisit(recordingPast.id, appointments) : null;
 
   /** A stage's files, folded under its notes: they can change while its notes can. */
   const filesFor = (stage: ProcedureStage) => (
@@ -453,6 +455,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
               patient={{...procedure.patient, ...procedure.patientFlags, id: procedure.patientId ?? ''}}
               procedure={{id: procedure.id ?? '', title: procedure.title ?? ''}}
               stage={recordingPast ? {id: recordingPast.id ?? '', name: recordingPast.name ?? ''} : undefined}
+              waitingVisitNotes={recordingPastVisit?.status === 'Requested' ? recordingPastVisit.appointment?.notes : undefined}
               staffUserId={onlyAssignee}
             />
           )}

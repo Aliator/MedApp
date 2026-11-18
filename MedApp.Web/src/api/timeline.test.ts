@@ -238,6 +238,9 @@ describe('describeTimelineEntry', () => {
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'Attended', stageName: null}, 'Appointment recorded after the event: attended', slot],
       [{action: 'AppointmentCancelled', reason: 'Patient asked to cancel.'}, 'Appointment cancelled for Review', `${slot}. Patient asked to cancel.`],
       [{action: 'AppointmentCancelled', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment cancelled for Review', 'Cancelled automatically'],
+      // Why comes to admins only; staff see just when and with whom.
+      [{action: 'AppointmentEnteredInError', reason: 'Recorded on the wrong patient.'}, 'Appointment marked entered in error for Review', `${slot}. Recorded on the wrong patient.`],
+      [{action: 'AppointmentEnteredInError', reason: null}, 'Appointment marked entered in error for Review', slot],
       [{action: 'AppointmentSomethingNew', appointmentStartUtc: null}, 'Appointment changed for Review', 'With test.doctor'],
     ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
       expect(describeTimelineEntry(appointment(fields))).toEqual({title, detail});

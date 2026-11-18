@@ -1,7 +1,14 @@
 import {screen, waitFor} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
-import {appointmentChangeLabel, describeAppointmentChange, describeExportedAppointment, exportFileName, PatientExportPage} from './PatientExportPage';
+import {
+  appointmentChangeLabel,
+  appointmentHistoryWords,
+  describeAppointmentChange,
+  describeExportedAppointment,
+  exportFileName,
+  PatientExportPage,
+} from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
 const procedureId = 'e184a7b8-2585-4437-bcd4-e1700be38212';
@@ -261,6 +268,30 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('About the appointment: no longer held')).toBeInTheDocument();
   });
 
+  it('says a visit was recorded after the event, not booked, and one marked entered in error with why', async () => {
+    renderExport({
+      ...data,
+      appointments: [
+        {id: 'a3', procedureId: null, status: 'EnteredInError', startUtc: '2026-11-12T10:00:00Z', endUtc: '2026-11-12T10:30:00Z', staffUsername: 'k.ashford',
+          createdAtUtc: '2026-11-18T09:00:00Z', createdBy: 'j.smith', bookedAtUtc: '2026-11-18T09:00:00Z', bookedBy: 'j.smith',
+          outcomeAtUtc: '2026-11-18T09:00:00Z', outcomeBy: 'j.smith', isRecordedAfterEvent: true, cancelReason: 'Synthetic: on the wrong patient'},
+      ],
+      appointmentHistory: [
+        {atUtc: '2026-11-18T09:00:00Z', action: 'RecordedAfterEvent', username: 'j.smith', appointmentId: 'a3', procedureTitle: '', details: '{"outcome":"Attended"}'},
+        {atUtc: '2026-11-19T09:00:00Z', action: 'EnteredInError', username: 'j.smith', appointmentId: 'a3', procedureTitle: '', details: '{"reason":"Synthetic: on the wrong patient"}'},
+      ],
+    });
+
+    expect(await screen.findByText(/^Entered in error: /)).toBeInTheDocument();
+    expect(screen.getByText(/^Not for a procedure, recorded after the event .* by j\.smith, outcome recorded .* by j\.smith$/)).toBeInTheDocument();
+    expect(screen.queryByText(/requested .* by j\.smith/)).not.toBeInTheDocument();
+    expect(screen.getByText('Why entered in error: Synthetic: on the wrong patient')).toBeInTheDocument();
+    expect(screen.getByText(/: Recorded after the event by j\.smith$/)).toBeInTheDocument();
+    expect(screen.getByText(/: Marked entered in error by j\.smith$/)).toBeInTheDocument();
+    expect(screen.getByText(/· Attended$/)).toBeInTheDocument();
+    expect(screen.getByText(/· Synthetic: on the wrong patient$/)).toBeInTheDocument();
+  });
+
   it('downloads the export as a JSON file named by the patient ID and the day, never their name', async () => {
     const createObjectURL = vi.fn((blob: Blob) => {
       void blob;
@@ -333,7 +364,11 @@ describe('PatientExportPage', () => {
 
 describe('appointment history in words', () => {
   it('names each action', () => {
-    expect(['Requested', 'Booked', 'Rescheduled', 'Attended', 'DidNotAttend', 'Cancelled', 'NotesUpdated', 'Other', null].map(appointmentChangeLabel)).toEqual([
+    expect(
+      ['Requested', 'Booked', 'Rescheduled', 'Attended', 'DidNotAttend', 'Cancelled', 'NotesUpdated', 'RecordedAfterEvent', 'EnteredInError', 'Other', null].map(
+        appointmentChangeLabel,
+      ),
+    ).toEqual([
       'Appointment requested',
       'Appointment booked',
       'Appointment rescheduled',
@@ -341,6 +376,8 @@ describe('appointment history in words', () => {
       'Marked Did not attend',
       'Appointment cancelled',
       'Appointment notes changed',
+      'Recorded after the event',
+      'Marked entered in error',
       'Other',
       '',
     ]);
@@ -361,8 +398,24 @@ describe('appointment history in words', () => {
     expect(say('Cancelled', {reason: 'Synthetic reason', automatic: true})).toBe('Cancelled automatically: Synthetic reason');
     expect(say('NotesUpdated', {from: '', to: 'Synthetic note'})).toBe('Nothing → "Synthetic note"');
     expect(say('Booked', {})).toBe('');
+    expect(say('RecordedAfterEvent', {outcome: 'DidNotAttend', previousStatus: 'Requested'})).toBe('Did not attend, was in Requires Appointment');
+    expect(say('RecordedAfterEvent', {outcome: 'Attended'})).toBe('Attended');
+    expect(say('RecordedAfterEvent', {})).toBe('');
+    expect(say('EnteredInError', {reason: ' Synthetic: never happened '})).toBe('Synthetic: never happened');
     expect(describeAppointmentChange({action: 'Cancelled', details: 'not json'})).toBe('');
     expect(describeAppointmentChange({action: 'Cancelled', details: '"text"'})).toBe('');
+  });
+
+  it("says who asked for, booked and recorded an appointment, and a walk-in's waiting visit as requested", () => {
+    const walkIn = {
+      isRecordedAfterEvent: true,
+      createdAtUtc: '2026-11-10T09:00:00Z',
+      isAutomatic: true,
+      bookedAtUtc: '2026-11-18T09:00:00Z',
+      bookedBy: 'j.smith',
+    };
+    expect(appointmentHistoryWords(walkIn)).toMatch(/^requested .* automatically, recorded after the event .* by j\.smith$/);
+    expect(appointmentHistoryWords({...walkIn, createdAtUtc: walkIn.bookedAtUtc})).toMatch(/^recorded after the event .* by j\.smith$/);
   });
 
   it('describes an appointment by its status and time', () => {

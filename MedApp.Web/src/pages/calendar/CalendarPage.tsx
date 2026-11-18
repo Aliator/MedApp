@@ -444,8 +444,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const newMeetingWith = isTeam ? search.who : isOwn ? undefined : staffUserId ? [staffUserId] : undefined;
 
   const shown = isTeam ? team : calendar;
-  const teamDay = team.data?.day;
   const teamDate = team.data?.date ?? date;
+  // The team view's own day knows nothing of a closed day, but each person's day does: "Everyone free" is greyed and
+  // labelled "Closed: …" like their columns, with nothing to select.
+  const closedName = members.map((m) => m.days?.find((d) => d.date === teamDate)?.closedDayName).find(Boolean);
+  const teamDay = team.data?.day && closedName ? {...team.data.day, isWorkingDay: false, closedDayName: closedName} : team.data?.day;
   // A block being saved shows at its new time; meanwhile no block can be picked up, so one move finishes before the next.
   const shownPerson =
     person && movingBlock

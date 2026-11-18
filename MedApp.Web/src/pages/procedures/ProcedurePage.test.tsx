@@ -681,7 +681,7 @@ describe('ProcedurePage: visits and appointments', () => {
   });
 
   it('records a past visit from the stage, for this patient, procedure and stage, which it shows', async () => {
-    const {user} = renderVisit(visiting(), [requested]);
+    const {user} = renderVisit(visiting(), [{...requested, notes: 'Needs an interpreter.'}]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
     await user.click(visit.getByRole('button', {name: 'Record Past Visit'}));
@@ -691,6 +691,9 @@ describe('ProcedurePage: visits and appointments', () => {
     expect(dialog.getByText(/: Procedure$/)).toBeInTheDocument();
     // The patient and what it's for are fixed, so there's no picker.
     expect(dialog.queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
+    // The visit waiting in Requires Appointment is the one recorded, and its notes are kept: they're shown.
+    expect(dialog.getByText('Its notes, which are kept')).toBeInTheDocument();
+    expect(dialog.getByText('Needs an interpreter.')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
   });

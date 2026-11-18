@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /** Where a stage's visit stands: the appointment that says so, if any. */
 export interface StageVisitState {
-  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones). */
+  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones or ones entered in error). */
   status: 'Attended' | 'Booked' | 'Requested' | 'DidNotAttend' | 'None';
   appointment?: Appointment;
 }
@@ -26,10 +26,11 @@ const latest = (appointments: Appointment[]) => [...appointments].sort((a, b) =>
 
 /**
  * A stage's visit, from its appointments: Attended if any was; otherwise its open one (Booked, or Requested: a stage
- * has at most one); otherwise the latest it didn't attend; otherwise none. Cancelled ones don't count.
+ * has at most one); otherwise the latest it didn't attend; otherwise none. Cancelled ones don't count, nor do walk-ins
+ * marked entered in error (they didn't happen).
  */
 export function stageVisit(stageId: string | undefined, appointments: readonly Appointment[]): StageVisitState {
-  const own = appointments.filter((a) => a.stageId === stageId && a.status !== 'Cancelled');
+  const own = appointments.filter((a) => a.stageId === stageId);
   const of = (status: string) => own.filter((a) => a.status === status);
   const attended = latest(of('Attended'));
   if (attended) return {status: 'Attended', appointment: attended};

@@ -749,6 +749,28 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(screen.queryByRole('link', {name: /calendar templates/})).not.toBeInTheDocument();
   });
 
+  it('greys "Everyone free" on a closed day, labelled as the person columns are, with nothing to select', async () => {
+    const closed = (c: NonNullable<TeamCalendar['members']>[number]) => ({
+      ...c,
+      days: c.days!.map((d) => ({...d, isWorkingDay: false, closedDayName: 'Staff training day'})),
+    });
+    renderPage({
+      user: adminUser,
+      search: {view: 'team'},
+      handlers: {
+        'GET /api/calendar/team': () => {
+          const team = teamDay(MONDAY);
+          return json({...team, members: team.members!.map(closed), everyoneFree: []});
+        },
+      },
+    });
+
+    const everyone = await screen.findByRole('group', {name: 'Everyone free, Monday 23 November, closed: Staff training day'});
+    expect(everyone).toHaveTextContent('Closed: Staff training day');
+    expect(within(everyone).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', {name: 'b.staff, Monday 23 November, closed: Staff training day'})).toBeInTheDocument();
+  });
+
   it("offers a meeting when everyone shown is free, and booking or blocking in a person's column", async () => {
     const {user} = renderPage({user: adminUser, search: {view: 'team'}});
     await screen.findByRole('group', {name: /^Team,/});

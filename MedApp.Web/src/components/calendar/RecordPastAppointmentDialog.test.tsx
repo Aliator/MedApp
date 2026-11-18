@@ -4,30 +4,32 @@ import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {HalfViewContext} from '../pages/halfView';
 import {calendarDay, STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testCalendar, ukTime} from '../../test/calendar';
 import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
-import {pastStarts, RecordPastAppointmentDialog, type RecordPastAppointmentDialogProps} from './RecordPastAppointmentDialog';
+import {pastDayLabel, pastStarts, RecordPastAppointmentDialog, type RecordPastAppointmentDialogProps} from './RecordPastAppointmentDialog';
 
 /** Today in these tests: Wednesday 18 November 2026, 10:20 UK time (UTC in November). */
 const TODAY = '2026-11-18';
 const FROM = '2026-10-19';
-/** Monday this week, closed (a staff training day), and so not offered. */
+/** Monday this week, closed (a staff training day): a visit that happened on it can still be recorded. */
 const CLOSED = '2026-11-16';
 const STAFF = [STAFF_ME, STAFF_OTHER];
 
-/** The last 31 days of a person's calendar: Monday closed, and the signed-in user with a booked appointment at 09:00 today. */
+/**
+ * The last 31 days of a person's calendar, Monday closed, as asked for without appointments (so no patient is named, or
+ * recorded as listed); anything else is refused, so a test fails if the dialog ever asks for them.
+ */
 function lastMonth(request: Request) {
   const url = new URL(request.url);
+  if (url.searchParams.get('WithoutAppointments') !== 'true') return json({title: 'Asked for appointments'}, 500);
   const staffId = url.searchParams.get('StaffUserId');
   const staff = STAFF.find((s) => s.userId === staffId) ?? STAFF_ME;
-  const calendar = testCalendar({
-    from: url.searchParams.get('From')!,
-    dayCount: 31,
-    today: TODAY,
-    staff,
-    appointments: staff === STAFF_ME ? [testAppointment({id: 'busy', date: TODAY, start: '09:00', end: '09:30'})] : [],
-  });
+  const calendar = testCalendar({from: url.searchParams.get('From')!, dayCount: 31, today: TODAY, staff});
   calendar.days = calendar.days!.map((d) => (d.date === CLOSED ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
   return json(calendar);
 }
+
+/** The calendar reads the dialog made. */
+const calendarReads = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((c) => c.startsWith('GET /api/calendar?'));
+const daysOf = (staffId: string) => `GET /api/calendar?StaffUserId=${staffId}&From=${FROM}&To=${TODAY}&WithoutAppointments=true`;
 
 const recorded = testAppointment({id: 'walk-in', date: TODAY, start: '10:00', end: '10:30', status: 'Attended', isRecordedAfterEvent: true});
 
@@ -83,23 +85,36 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     expect(dialog().getByText(/already happened: a walk-in, or one booked outside MedApp\. It.s recorded with your\s+name \(test-user\)/)).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
     expect(dialog().queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
-    expect(dialog().getByText(/waiting in Requires Appointment, this records that visit/)).toBeInTheDocument();
-    expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_ME.userId}&From=${FROM}&To=${TODAY}`);
+    expect(dialog().getByText(/waiting in Requires Appointment, this records that visit, keeping its notes/)).toBeInTheDocument();
+    // Only the person's days, never their appointments: no patient is named, or recorded as listed.
+    await waitFor(() => expect(calendarReads(fetch)).toEqual([daysOf(STAFF_ME.userId!)]));
 
-    // Today first; then the working days back to 30 days ago, never a weekend or the closed day.
+    // Today first; then the weekdays back to 30 days ago, the closed one labelled, never a weekend.
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Today, Wednesday 18 November'));
     await user.click(dialog().getByRole('combobox', {name: /Day/}));
     const days = screen.getAllByRole('option').map((o) => o.textContent);
     expect(days[0]).toBe('Today, Wednesday 18 November');
     expect(days).toContain('Tuesday 17 November');
-    expect(days).not.toContain('Monday 16 November');
+    expect(days).toContain('Monday 16 November, closed: Staff training day');
     expect(days).not.toContain('Sunday 15 November');
     expect(days.at(-1)).toBe('Monday 19 October');
     await user.click(screen.getByRole('option', {name: /^Today/}));
 
-    // Only times that had started by 10:20, and none over the 09:00 appointment.
+    // Every time that had started by 10:20: whether one overlaps another appointment is the server's to say.
     await user.click(dialog().getByRole('combobox', {name: /Start/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['08:00', '08:15', '08:30', '09:30', '09:45', '10:00', '10:15']);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '08:00',
+      '08:15',
+      '08:30',
+      '08:45',
+      '09:00',
+      '09:15',
+      '09:30',
+      '09:45',
+      '10:00',
+      '10:15',
+    ]);
+    expect(dialog().getByText(/If one overlaps another of test-user's appointments,\s+you.ll be told when you record it/)).toBeInTheDocument();
     await user.click(screen.getByRole('option', {name: '10:00'}));
 
     // Nothing is chosen as the outcome until someone chooses.
@@ -138,6 +153,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
             stages: [
               {id: 'stage-a', name: 'Referral', state: 'Completed'},
               {id: 'stage-b', name: 'Consent', state: 'InProgress', isCurrent: true, visitRequirement: 'Required'},
+              {id: 'stage-c', name: 'Surgery', state: 'NotStarted', visitRequirement: 'Required'},
             ],
           }),
       },
@@ -151,7 +167,9 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
 
     await choose(user, /For/, /Hip review/);
     await user.click(await dialog().findByRole('combobox', {name: /Stage/}));
-    expect(screen.queryByRole('option', {name: /Referral/})).not.toBeInTheDocument();
+    // The current stage and those before it; a later one hasn't been reached.
+    expect(screen.getByRole('option', {name: /Referral/})).toHaveTextContent('Finished');
+    expect(screen.queryByRole('option', {name: /Surgery/})).not.toBeInTheDocument();
     expect(screen.getByRole('option', {name: /Consent/})).toHaveTextContent('Current stage · Visit required');
     await user.click(screen.getByRole('option', {name: /Consent/}));
     expect(await screen.findByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
@@ -177,7 +195,74 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
         notes: null,
       }),
     );
-    expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_OTHER.userId}&From=${FROM}&To=${TODAY}`);
+    expect(calendarReads(fetch)).toContain(daysOf(STAFF_OTHER.userId!));
+    expect(calendarReads(fetch).every((c) => c === daysOf(STAFF_OTHER.userId!))).toBe(true);
+  });
+
+  it('offers every stage of a procedure with none current', async () => {
+    const {user} = renderDialog(
+      {patient: TEST_PATIENT},
+      {
+        'GET /api/procedures/patient-procedures/search': () => json(pageOf([{id: 'procedure-9', title: 'Hip review', dueDate: '2026-12-10'}])),
+        'GET /api/procedures/patient-procedures/procedure-9': () =>
+          json({
+            id: 'procedure-9',
+            stages: [
+              {id: 'stage-a', name: 'Referral', state: 'Completed'},
+              {id: 'stage-b', name: 'Consent', state: 'Completed', visitRequirement: 'Suggested'},
+            ],
+          }),
+      },
+    );
+
+    await dialog().findByRole('combobox', {name: /For/});
+    await choose(user, /For/, /Hip review/);
+    await user.click(await dialog().findByRole('combobox', {name: /Stage/}));
+    expect(screen.getByRole('option', {name: /Referral/})).toHaveTextContent('Finished');
+    expect(screen.getByRole('option', {name: /Consent/})).toHaveTextContent('Finished · Visit suggested');
+  });
+
+  it("reads another person's days when With changes, and clears the start", async () => {
+    const {user, fetch} = renderDialog(FOR_STAGE);
+
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Today'));
+    await choose(user, /Start/, '10:00');
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('10:00');
+    await choose(user, /With/, 'b.staff');
+
+    await waitFor(() => expect(calendarReads(fetch)).toContain(daysOf(STAFF_OTHER.userId!)));
+    expect(calendarReads(fetch).every((c) => c.endsWith('&WithoutAppointments=true'))).toBe(true);
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('Choose a time');
+  });
+
+  it('records a visit on a closed day, saying so', async () => {
+    const {user, fetch} = renderDialog(FOR_STAGE);
+
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Today'));
+    await choose(user, /Day/, 'Monday 16 November, closed: Staff training day');
+    await choose(user, /Start/, '11:00');
+    await user.click(dialog().getByRole('radio', {name: 'Attended'}));
+    expect(dialog().getByText('Monday 16 November (closed: Staff training day), 11:00 to 11:30 with test-user, Attended')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Record'}));
+
+    await waitFor(async () => expect(await bodyOf(fetch)).toMatchObject({startUtc: ukTime(CLOSED, '11:00').replace('Z', '.000Z')}));
+  });
+
+  it("shows the waiting visit's notes, which are kept, with new ones added after them", async () => {
+    const {user, fetch} = renderDialog({...FOR_STAGE, waitingVisitNotes: ' Needs an interpreter. '});
+
+    expect(await dialog().findByText('Its notes, which are kept')).toBeInTheDocument();
+    expect(dialog().getByText('Needs an interpreter.')).toBeInTheDocument();
+    expect(dialog().queryByText(/this records that visit/)).not.toBeInTheDocument();
+    const notes = dialog().getByRole('textbox', {name: /Notes/});
+    expect(dialog().getByText(/added after its own notes/)).toBeInTheDocument();
+
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Today'));
+    await choose(user, /Start/, '10:00');
+    await user.click(dialog().getByRole('radio', {name: 'Attended'}));
+    await user.type(notes, 'Seen, bloods taken');
+    await user.click(dialog().getByRole('button', {name: 'Record'}));
+    await waitFor(async () => expect(await bodyOf(fetch)).toMatchObject({notes: 'Seen, bloods taken'}));
   });
 
   it("shows the API's field messages, and keeps a 409 open with its message, refreshing the calendars", async () => {
@@ -196,12 +281,11 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
 
     expect((await dialog().findAllByText('That time had not started yet.')).length).toBeGreaterThan(0);
     expect(dialog().getAllByText('Choose an outcome.').length).toBeGreaterThan(0);
-    const calendarReads = () => calls(fetch).filter((c) => c.startsWith('GET /api/calendar?')).length;
-    const before = calendarReads();
+    const before = calendarReads(fetch).length;
     await user.click(dialog().getByRole('button', {name: 'Record'}));
 
     expect(await dialog().findByText("That overlaps test-user's appointment with Test Patient, 10:00 to 10:30.")).toBeInTheDocument();
-    await waitFor(() => expect(calendarReads()).toBeGreaterThan(before));
+    await waitFor(() => expect(calendarReads(fetch).length).toBeGreaterThan(before));
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -253,17 +337,26 @@ describe('pastStarts', () => {
   const day = calendarDay(TODAY, TODAY);
   const now = new Date('2026-11-18T10:20:00Z');
 
-  it('offers the times that had started, inside the working day, in steps, around what is taken', () => {
-    expect(pastStarts(day, [], 30, new Date('2026-11-18T08:20:00Z')).map((s) => s.slice(11, 16))).toEqual(['08:00', '08:15']);
-    expect(pastStarts(day, [], 30, now, 5).length).toBe(29);
+  it('offers the times that had started, inside the working day, in steps', () => {
+    expect(pastStarts(day, 30, new Date('2026-11-18T08:20:00Z')).map((s) => s.slice(11, 16))).toEqual(['08:00', '08:15']);
+    expect(pastStarts(day, 30, now, 5).length).toBe(29);
     // Late on a past day, the last start still ends by 18:00.
-    expect(pastStarts(calendarDay('2026-11-17', TODAY), [], 60, now).at(-1)).toBe(new Date(ukTime('2026-11-17', '17:00')).toISOString());
+    expect(pastStarts(calendarDay('2026-11-17', TODAY), 60, now).at(-1)).toBe(new Date(ukTime('2026-11-17', '17:00')).toISOString());
   });
 
-  it('offers nothing on a day that is not a working day, or before the day starts', () => {
-    expect(pastStarts({...day, isWorkingDay: false, closedDayName: 'Staff training day'}, [], 30, now)).toEqual([]);
-    expect(pastStarts({...day, workStartUtc: undefined}, [], 30, now)).toEqual([]);
-    expect(pastStarts(day, [], 0, now)).toEqual([]);
-    expect(pastStarts(day, [], 30, new Date('2026-11-18T07:59:00Z'))).toEqual([]);
+  it('offers a closed weekday, but nothing on a weekend, or before the day starts', () => {
+    expect(pastStarts({...day, isWorkingDay: false, closedDayName: 'Staff training day'}, 30, now)).toHaveLength(10);
+    expect(pastStarts({...calendarDay('2026-11-15', TODAY), isWorkingDay: false}, 30, now)).toEqual([]);
+    expect(pastStarts({...day, date: undefined}, 30, now)).toEqual([]);
+    expect(pastStarts({...day, workStartUtc: undefined}, 30, now)).toEqual([]);
+    expect(pastStarts(day, 0, now)).toEqual([]);
+    expect(pastStarts(day, 30, new Date('2026-11-18T07:59:00Z'))).toEqual([]);
+  });
+
+  it('names a day, today and a closed one', () => {
+    expect(pastDayLabel(day, TODAY)).toBe('Today, Wednesday 18 November');
+    expect(pastDayLabel({...calendarDay('2026-11-16', TODAY), closedDayName: 'Staff training day'}, TODAY)).toBe(
+      'Monday 16 November, closed: Staff training day',
+    );
   });
 });

@@ -68,6 +68,8 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.RecordPast;
     case 'AppointmentCancelled':
       return AppIcon.StatusCancelled;
+    case 'AppointmentEnteredInError':
+      return AppIcon.EnteredInError;
     case 'AppointmentNotesUpdated':
       return AppIcon.Notes;
     case 'StageUnlocked':

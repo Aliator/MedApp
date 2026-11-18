@@ -1,16 +1,39 @@
-import {screen, waitFor, within} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {SaveShortcutProvider} from '../../components/forms/SaveShortcut';
 import {adminUser, calls, expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
-import {bankHolidaysOutcome, ClosedDaysPage, parseClosedDaysSearch, shownYear, type ClosedDaysSearch} from './ClosedDaysPage';
+import {bankHolidaysOutcome, closedDayOutcome, ClosedDaysPage, parseClosedDaysSearch, shownYear, type ClosedDaysSearch} from './ClosedDaysPage';
 
 const BASE = '/api/calendar/closed-days';
 
 const SPRING = {id: '0000003c-0000-0000-0000-000000000001', date: '2026-05-25', name: 'Spring bank holiday', isPast: true};
 const CHRISTMAS = {id: '0000003c-0000-0000-0000-000000000002', date: '2026-12-25', name: 'Christmas Day', isPast: false};
 
+/** What's on a day: 14 appointments, a block and a meeting, for two people. */
+const BUSY = {
+  date: '2026-12-24',
+  appointments: 14,
+  blocks: 1,
+  meetings: 1,
+  staff: [
+    {userId: '0000003d-0000-0000-0000-000000000001', username: 'k.ashford', appointments: 9, blocks: 1, meetings: 1},
+    {userId: '0000003d-0000-0000-0000-000000000002', username: 's.brightwell', appointments: 5, blocks: 0, meetings: 1},
+  ],
+};
+const EMPTY = {date: '2026-12-24', appointments: 0, blocks: 0, meetings: 0, staff: []};
+
 function renderPage(search: ClosedDaysSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({[`GET ${BASE}`]: () => json([SPRING, CHRISTMAS]), ...extra});
   const onSearchChange = vi.fn();
-  return {fetch, onSearchChange, ...renderWithApp(<ClosedDaysPage search={search} onSearchChange={onSearchChange} />, {user: adminUser})};
+  return {
+    fetch,
+    onSearchChange,
+    ...renderWithApp(
+      <SaveShortcutProvider>
+        <ClosedDaysPage search={search} onSearchChange={onSearchChange} />
+      </SaveShortcutProvider>,
+      {user: adminUser},
+    ),
+  };
 }
 
 const rowOf = async (name: string) => (await screen.findByText(name)).closest('tr')!;
@@ -94,6 +117,57 @@ describe('ClosedDaysPage', () => {
     await expectAnnounced('Training day added as a closed day');
   });
 
+  it("says what's already on the date before closing it, and after, until dismissed", async () => {
+    withAnnouncements();
+    const {user, fetch} = renderPage(
+      {},
+      {
+        [`GET ${BASE}/bookings`]: () => json(BUSY),
+        [`POST ${BASE}`]: () => json({id: '0000003c-0000-0000-0000-000000000006', date: '2026-12-24', name: 'Training day', isPast: false, bookings: BUSY}, 201),
+      },
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Add Closed Day'}));
+    await user.type(dialog().getByRole('combobox', {name: /Date/}), '24 December 2026{Enter}');
+    const before = 'On Thu 24 Dec: 14 appointments, 1 block and 1 meeting, for k.ashford and s.brightwell. They stay; each of them will be told.';
+    expect(await dialog().findByText(before)).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET ${BASE}/bookings?date=2026-12-24`);
+    await user.type(dialog().getByRole('textbox', {name: /Name/}), 'Training day');
+    await user.click(dialog().getByRole('button', {name: 'Add Closed Day'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    const after = 'On Thu 24 Dec: 14 appointments, 1 block and 1 meeting, for k.ashford and s.brightwell. They stay; each of them has been told.';
+    expect(await screen.findByText('Training day added as a closed day.')).toBeInTheDocument();
+    expect(screen.getByText(after)).toBeInTheDocument();
+    await expectAnnounced(`Training day added as a closed day. ${after}`);
+    await user.click(screen.getByRole('button', {name: /^Dismiss/}));
+    await waitFor(() => expect(screen.queryByText('Training day added as a closed day.')).not.toBeInTheDocument());
+  });
+
+  it('says when nothing is booked on the date, or it could not be checked', async () => {
+    let attempt = 0;
+    const {user} = renderPage({}, {[`GET ${BASE}/bookings`]: () => (++attempt === 1 ? json(EMPTY) : json({title: 'Server error'}, 500))});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Closed Day'}));
+    await user.type(dialog().getByRole('combobox', {name: /Date/}), '24 December 2026{Enter}');
+    expect(await dialog().findByText('Nothing is booked then.')).toBeInTheDocument();
+    await user.clear(dialog().getByRole('combobox', {name: /Date/}));
+    await user.type(dialog().getByRole('combobox', {name: /Date/}), '23 December 2026{Enter}');
+    expect(await dialog().findByText("What's already booked then could not be checked.")).toBeInTheDocument();
+  });
+
+  it('adds nothing when Add Closed Day is cancelled, or Ctrl+S is pressed without a name', async () => {
+    const {user, fetch} = renderPage({}, {[`GET ${BASE}/bookings`]: () => json(EMPTY)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Closed Day'}));
+    await user.type(dialog().getByRole('combobox', {name: /Date/}), '24 December 2026{Enter}');
+    fireEvent.keyDown(dialog().getByRole('textbox', {name: /Name/}), {key: 's', ctrlKey: true});
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(calls(fetch).some((c) => c.startsWith('POST'))).toBe(false);
+  });
+
   it("goes to the year of one added in another year", async () => {
     const {user, onSearchChange} = renderPage(
       {},
@@ -106,6 +180,7 @@ describe('ClosedDaysPage', () => {
     await user.click(dialog().getByRole('button', {name: 'Add Closed Day'}));
 
     await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({year: 2027}));
+    expect(await screen.findByText('Training day added as a closed day.')).toBeInTheDocument();
   });
 
   it('removes one still to come, after asking, but never a past one', async () => {
@@ -121,6 +196,16 @@ describe('ClosedDaysPage', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`DELETE ${BASE}/${CHRISTMAS.id}`));
     await waitFor(() => expect(openDialog()).toBeNull());
     await expectAnnounced('Christmas Day removed');
+  });
+
+  it('removes nothing when Remove is called off', async () => {
+    const {user, fetch} = renderPage();
+
+    await user.click(within(await rowOf('Christmas Day')).getByRole('button', {name: 'Remove Christmas Day'}));
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(calls(fetch).some((c) => c.startsWith('DELETE'))).toBe(false);
   });
 
   it("shows the API's reason when one can't be removed", async () => {
@@ -140,7 +225,16 @@ describe('ClosedDaysPage', () => {
         [`POST ${BASE}/bank-holidays`]: () =>
           json({
             year: 2027,
-            added: [{id: '0000003c-0000-0000-0000-000000000005', date: '2027-01-01', name: "New Year's Day", isPast: false}],
+            added: [
+              {id: '0000003c-0000-0000-0000-000000000005', date: '2027-01-01', name: "New Year's Day", isPast: false, bookings: {...EMPTY, date: '2027-01-01'}},
+              {
+                id: '0000003c-0000-0000-0000-000000000007',
+                date: '2027-03-26',
+                name: 'Good Friday',
+                isPast: false,
+                bookings: {date: '2027-03-26', appointments: 2, blocks: 0, meetings: 0, staff: [BUSY.staff[0]]},
+              },
+            ],
             skipped: [{date: '2027-12-27', name: 'Christmas Day', reason: 'AlreadyClosed'}],
           }),
       },
@@ -148,10 +242,15 @@ describe('ClosedDaysPage', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Add Bank Holidays for 2027'}));
 
-    expect(await screen.findByText('Added 1 bank holiday.')).toBeInTheDocument();
-    expect(screen.getByText('Christmas Day, Mon 27 Dec: already closed')).toBeInTheDocument();
+    // In the page, above the list (not squeezed into the header), until dismissed.
+    const outcome = (await screen.findByText('Added 2 bank holidays.')).closest('.astryx-banner') as HTMLElement;
+    expect(within(outcome).getByText('Christmas Day, Mon 27 Dec: already closed')).toBeInTheDocument();
+    expect(within(outcome).getByText('On Fri 26 Mar: 2 appointments, for k.ashford. They stay; k.ashford has been told.')).toBeInTheDocument();
+    expect(within(outcome).queryByText(/Fri 1 Jan/)).not.toBeInTheDocument();
     expect(await lastBody(fetch, 'POST')).toEqual({year: 2027});
-    await expectAnnounced('Added 1 bank holiday. 1 left out.');
+    await expectAnnounced('Added 2 bank holidays. 1 left out. On Fri 26 Mar: 2 appointments, for k.ashford. They stay; k.ashford has been told.');
+    await user.click(screen.getByRole('button', {name: /^Dismiss/}));
+    await waitFor(() => expect(screen.queryByText('Added 2 bank holidays.')).not.toBeInTheDocument());
   });
 
   it("says so when the bank holidays can't be added", async () => {
@@ -182,6 +281,14 @@ describe('closed days search and words', () => {
     expect(bankHolidaysOutcome({year: 2027, added: [{}, {}], skipped: [{date: '2027-01-01', name: 'Odd', reason: 'Other'}]})).toEqual({
       message: 'Added 2 bank holidays.',
       details: ['Odd, Fri 1 Jan: other'],
+    });
+  });
+
+  it('says what adding one closed day did', () => {
+    expect(closedDayOutcome({date: '2026-12-24', name: 'Training day'}, 'typed')).toEqual({message: 'Training day added as a closed day.', details: []});
+    expect(closedDayOutcome({date: '2026-12-24', bookings: {...EMPTY, meetings: 2}}, 'Typed name')).toEqual({
+      message: 'Typed name added as a closed day.',
+      details: ['On Thu 24 Dec: 2 meetings. They stay.'],
     });
   });
 });

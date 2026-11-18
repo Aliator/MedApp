@@ -13,7 +13,17 @@ import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
-import {closedDaysOfYearQuery, useAddBankHolidays, useAddClosedDay, useDeleteClosedDay, type AddedBankHolidays, type ClosedDay} from '../../api/closedDays';
+import {
+  bookingsWords,
+  closedDayBookingsQuery,
+  closedDaysOfYearQuery,
+  hasBookings,
+  useAddBankHolidays,
+  useAddClosedDay,
+  useDeleteClosedDay,
+  type AddedBankHolidays,
+  type ClosedDay,
+} from '../../api/closedDays';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
@@ -51,18 +61,41 @@ export const closedDaysPageQuery = (search: ClosedDaysSearch, today?: string) =>
 /** Why a bank holiday wasn't added, in words. */
 const SKIPPED_REASONS: Record<string, string> = {AlreadyClosed: 'already closed', Past: 'past'};
 
-/** What adding a year's bank holidays did, in words: "Added 8 bank holidays.", and each one left out and why. */
-export function bankHolidaysOutcome(result: AddedBankHolidays): {message: string; details: string[]} {
+/** What a change did, shown above the list until it's dismissed: a headline, and a line for each thing to know. */
+export interface Outcome {
+  message: string;
+  details: string[];
+}
+
+/** What's on a closed day, in words, once it's closed: nothing when it was empty. */
+const bookedOn = (day: ClosedDay) =>
+  day.bookings && hasBookings(day.bookings)
+    ? [bookingsWords(day.bookings, formatShortDayDate(day.date ?? '', {withYear: false}), {isDone: true})]
+    : [];
+
+/**
+ * What adding a year's bank holidays did, in words: "Added 8 bank holidays.", each one left out and why, and what was
+ * already on each one added ("On Mon 28 Dec: 2 appointments, for k.ashford. They stay; k.ashford has been told.").
+ */
+export function bankHolidaysOutcome(result: AddedBankHolidays): Outcome {
   const added = result.added?.length ?? 0;
   const skipped = result.skipped ?? [];
   const message =
     added === 0
       ? `No bank holidays added for ${result.year}.`
       : `Added ${added === 1 ? '1 bank holiday' : `${added} bank holidays`}.`;
-  const details = skipped.map(
-    (s) => `${s.name ?? ''}, ${formatShortDayDate(s.date ?? '', {withYear: false})}: ${SKIPPED_REASONS[s.reason ?? ''] ?? (s.reason ?? '').toLowerCase()}`,
-  );
+  const details = [
+    ...skipped.map(
+      (s) => `${s.name ?? ''}, ${formatShortDayDate(s.date ?? '', {withYear: false})}: ${SKIPPED_REASONS[s.reason ?? ''] ?? (s.reason ?? '').toLowerCase()}`,
+    ),
+    ...(result.added ?? []).flatMap(bookedOn),
+  ];
   return {message, details};
+}
+
+/** What adding one closed day did, in words: that it was added, and what was already on it. */
+export function closedDayOutcome(saved: ClosedDay, name: string): Outcome {
+  return {message: `${saved.name ?? name} added as a closed day.`, details: bookedOn(saved)};
 }
 
 type ClosedDayRow = ClosedDay & Record<string, unknown>;
@@ -83,11 +116,13 @@ export interface ClosedDaysPageProps {
 }
 
 /**
- * Closed days (admin, decisions 61 to 69): the days the whole clinic is closed, such as bank holidays and staff
- * training days, one year at a time (the year in the address). A closed day is like a weekend on every calendar:
- * nothing new can be booked, blocked or arranged on it, and anything already there stays, flagged. Admins add one by
- * hand (a date from today on, and a name), add a year's England and Wales bank holidays in one go (saying which were
- * left out, and why), and remove one still to come. Past days can't change.
+ * Closed days (admin, docs/calendar-plan.md decisions 72 to 75): the days the whole clinic is closed, such as bank
+ * holidays and staff training days, one year at a time (the year in the address). A closed day is like a weekend on
+ * every calendar: nothing new can be booked, blocked or arranged on it, and anything already there stays, flagged.
+ * Admins add one by hand (a date from today on, and a name: once the date is chosen, the dialog says what's already on
+ * it and whose, `closedDayBookingsQuery`), add a year's England and Wales bank holidays in one go, and remove one still
+ * to come. Past days can't change. After adding, what was on each day closed (whose staff are told), and any bank
+ * holidays left out and why, show above the list until dismissed.
  */
 export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
   const [today] = useState(() => ukToday());
@@ -104,7 +139,15 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
   const [removing, setRemoving] = useState<ClosedDay | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<{message: string; details: string[]} | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // Each outcome is a new banner, so one dismissed doesn't hide the next.
+  const [outcomeKey, setOutcomeKey] = useState(0);
+  const show = (next: Outcome) => {
+    setOutcome(next);
+    setOutcomeKey((k) => k + 1);
+  };
+  // What's already on the date chosen in Add Closed Day.
+  const bookings = useQuery({...closedDayBookingsQuery(date ?? ''), enabled: isAdding && date !== undefined});
 
   const goToYear = (next: number) => {
     setError(null);
@@ -117,21 +160,24 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
     setName('');
     setProblem(NO_PROBLEM);
     setError(null);
+    setOutcome(null);
     setIsAdding(true);
   };
 
-  const saveClosedDay = () => {
-    if (!date || !name.trim()) return false;
+  // Only called while Add Closed Day can be confirmed: a date and a name (`confirmDisabled` holds Ctrl+S back too).
+  const saveClosedDay = (day: string) => {
     setProblem(NO_PROBLEM);
     add.mutate(
-      {date, name: name.trim()},
+      {date: day, name: name.trim()},
       {
         onSuccess: (saved) => {
-          announce(`${saved.name ?? name.trim()} added as a closed day`);
+          const next = closedDayOutcome(saved, name.trim());
+          announce([next.message, ...next.details].join(' '));
           setIsAdding(false);
-          // Show the year it's in, so it's there to see.
-          const savedYear = Number((saved.date ?? date).slice(0, 4));
+          // Show the year it's in, so it's there to see; then what adding it did (moving year clears the last outcome).
+          const savedYear = Number((saved.date ?? day).slice(0, 4));
           if (savedYear !== year) goToYear(savedYear);
+          show(next);
         },
         onError: (e) =>
           setProblem(
@@ -143,11 +189,10 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
     );
   };
 
-  const confirmRemove = () => {
-    if (!removing) return;
-    remove.mutate(removing.id ?? '', {
+  const confirmRemove = (day: ClosedDay) => {
+    remove.mutate(day.id ?? '', {
       onSuccess: () => {
-        announce(`${removing.name ?? 'Closed day'} removed`);
+        announce(`${day.name ?? 'Closed day'} removed`);
         setRemoving(null);
       },
       onError: (e) => {
@@ -163,8 +208,9 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
     addBankHolidays.mutate(year, {
       onSuccess: (result) => {
         const next = bankHolidaysOutcome(result);
-        setOutcome(next);
-        announce(next.details.length > 0 ? `${next.message} ${next.details.length} left out.` : next.message);
+        show(next);
+        const skipped = result.skipped?.length ?? 0;
+        announce([next.message, skipped > 0 ? `${skipped} left out.` : null, ...next.details.slice(skipped)].filter(Boolean).join(' '));
       },
       onError: (e) => setError(problemMessage(e, 'The bank holidays could not be added. Please try again.')),
     });
@@ -222,10 +268,8 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
       message={
         error ? (
           <AlertMessage message={error} />
-        ) : isError ? (
-          <AlertMessage message="The closed days could not be loaded. Please try again." />
         ) : (
-          outcome && <AlertMessage status="success" message={outcome.message} details={outcome.details} />
+          isError && <AlertMessage message="The closed days could not be loaded. Please try again." />
         )
       }
       actions={
@@ -267,7 +311,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
             isProcessing={add.isPending}
             confirmDisabled={!date || !name.trim()}
             hasSaveShortcut
-            onConfirm={saveClosedDay}
+            onConfirm={() => date !== undefined && saveClosedDay(date)}
             onCancel={() => setIsAdding(false)}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
@@ -292,6 +336,19 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
                 isRequired
                 status={fieldStatus(problem.validation, 'name')}
               />
+              {date !== undefined &&
+                (bookings.isError ? (
+                  <AlertMessage status="warning" message="What's already booked then could not be checked." />
+                ) : bookings.data ? (
+                  <AlertMessage
+                    status={hasBookings(bookings.data) ? 'warning' : 'info'}
+                    message={bookingsWords(bookings.data, formatShortDayDate(date, {withYear: false}))}
+                  />
+                ) : (
+                  <Text type="supporting" color="secondary">
+                    Checking what&apos;s booked then...
+                  </Text>
+                ))}
             </VStack>
           </ConfirmDialog>
 
@@ -302,7 +359,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
             isDanger
             confirmText="Remove"
             isProcessing={remove.isPending}
-            onConfirm={confirmRemove}
+            onConfirm={() => removing && confirmRemove(removing)}
             onCancel={() => setRemoving(null)}>
             {removing && (
               <MetadataList>
@@ -319,11 +376,22 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
         idKey="id"
         isLoading={isPending}
         search={
-          <Text type="body" color="secondary">
-            A closed day is like a weekend on every calendar: nothing new can be booked, blocked or arranged on it, and
-            anything already there stays, flagged. Bank holidays are England and Wales&apos;; add a one-off extra one (a
-            coronation, say) by hand.
-          </Text>
+          <VStack gap={3} hAlign="stretch">
+            <Text type="body" color="secondary">
+              A closed day is like a weekend on every calendar: nothing new can be booked, blocked or arranged on it, and
+              anything already there stays, flagged, and whoever it belongs to is told. Bank holidays are England and
+              Wales&apos;; add a one-off extra one (a coronation, say) by hand.
+            </Text>
+            {outcome && (
+              <AlertMessage
+                key={outcomeKey}
+                status="success"
+                message={outcome.message}
+                details={outcome.details}
+                onDismiss={() => setOutcome(null)}
+              />
+            )}
+          </VStack>
         }
         emptyState={
           <EmptyState

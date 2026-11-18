@@ -40,6 +40,7 @@ import {
   RiDeleteBinLine,
   RiDoorClosedLine,
   RiEqualizerLine,
+  RiEraserLine,
   RiErrorWarningLine,
   RiEyeLine,
   RiFileImageLine,
@@ -236,6 +237,8 @@ export const AppIcon = {
   ClosedDays: remix(RiDoorClosedLine),
   /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
   RecordPast: remix(RiFileHistoryLine),
+  /** An appointment recorded after the event, withdrawn as entered in error (it didn't happen, or is on the wrong patient). */
+  EnteredInError: remix(RiEraserLine),
   // Attached files: adding and downloading them, and each type's icon where there's no thumbnail
   Attachment: remix(RiAttachment2),
   Upload: remix(RiUpload2Line),

@@ -17,6 +17,19 @@ describe('AlertMessage', () => {
     expect(await screen.findByText('Patient saved.')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('offers Dismiss only when asked to, and says when it was pressed', async () => {
+    const onDismiss = vi.fn();
+    const {user, unmount} = renderWithApp(<AlertMessage status="success" message="Added 8 bank holidays." onDismiss={onDismiss} />);
+
+    await user.click(await screen.findByRole('button', {name: /^Dismiss/}));
+    expect(onDismiss).toHaveBeenCalled();
+    unmount();
+
+    renderWithApp(<AlertMessage status="success" message="Patient saved." />);
+    expect(await screen.findByText('Patient saved.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Dismiss/})).not.toBeInTheDocument();
+  });
 });
 
 describe('ValidationAlert', () => {

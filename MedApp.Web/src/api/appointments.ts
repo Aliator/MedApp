@@ -7,14 +7,15 @@ import {procedureKeys} from './procedures';
  * Appointments: a patient seen by one member of staff, optionally for a procedure's stage. Requested ones ("Needs
  * booking") have no time yet; Booked ones have a member of staff and a time; then Attended or Did not attend, or
  * Cancelled (docs/calendar-plan.md, decision 16). Any staff member can book, reschedule, cancel or record the outcome
- * of any appointment.
+ * of any appointment. One recorded after the event (a walk-in) can be withdrawn as Entered in error, by whoever
+ * recorded it or an admin: it stays in the history, off every calendar.
  */
 export type Appointment = Schemas['AppointmentResponse'];
 export type AppointmentPage = Schemas['AppointmentResponsePagedResponse'];
 export type AppointmentSearch = NonNullable<paths['/api/appointments/search']['get']['parameters']['query']>;
 
 /** The statuses, by the names the API uses. */
-export const APPOINTMENT_STATUSES = ['Requested', 'Booked', 'Attended', 'DidNotAttend', 'Cancelled'] as const;
+export const APPOINTMENT_STATUSES = ['Requested', 'Booked', 'Attended', 'DidNotAttend', 'Cancelled', 'EnteredInError'] as const;
 export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
 /** The lengths an appointment can be booked for, in minutes; 30 by default (decision 30). */
@@ -121,6 +122,17 @@ export function useRecordPastAppointment() {
 
 const APPOINTMENT = '/api/appointments/{id}';
 
+/** What marking a walk-in Entered in error did: the appointment, and what the server says about its stage, if any. */
+export type EnteredInErrorResult = Schemas['EnteredInErrorResponse'];
+
+/**
+ * Whether `user` may mark an appointment Entered in error: the API allows it (`canMarkEnteredInError`: recorded after
+ * the event, still Attended or Did not attend, in the last 30 days, the patient not anonymised), and they recorded it
+ * or are an admin (the API's 403 otherwise).
+ */
+export const canMarkEnteredInError = (appointment: Appointment, user: {username: string; isAdmin: boolean}) =>
+  appointment.canMarkEnteredInError === true && (user.isAdmin || appointment.bookedByUsername === user.username);
+
 /**
  * Everything that can be done to an existing appointment. Each returns the updated appointment, which replaces the
  * cached one; calendars, lists, procedures and timelines are refreshed.
@@ -150,16 +162,27 @@ export function useAppointmentActions() {
       mutationFn: ({id, notes}: {id: string; notes: string}) => unwrap(api.PUT(`${APPOINTMENT}/notes`, {...path(id), body: {notes}})),
       onSuccess: refresh,
     }),
+    /**
+     * Withdraws a walk-in recorded in error (a visit that didn't happen, or on the wrong patient), with a reason: off the
+     * calendar, kept in the history. A stage's visit it took over is asked for again where it can be (`stageMessage`).
+     */
+    markEnteredInError: useMutation({
+      mutationFn: ({id, reason}: {id: string; reason: string}) =>
+        unwrap(api.POST(`${APPOINTMENT}/entered-in-error`, {...path(id), body: {reason}})),
+      onSuccess: (result: EnteredInErrorResult) => refresh(result.appointment),
+    }),
   };
 }
 
-/** A status in words: "Requires appointment", "Booked", "Attended", "Did not attend", "Cancelled". */
+/** A status in words: "Requires appointment", "Booked", "Attended", "Did not attend", "Cancelled", "Entered in error". */
 export function appointmentStatusLabel(status: string | null | undefined): string {
   switch (status) {
     case 'Requested':
       return 'Requires appointment';
     case 'DidNotAttend':
       return 'Did not attend';
+    case 'EnteredInError':
+      return 'Entered in error';
     default:
       return status ?? '';
   }

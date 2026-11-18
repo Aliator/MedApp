@@ -146,6 +146,7 @@ describe('PatientTimeline', () => {
             entry({kind: 'Appointments', action: 'AppointmentAttended'}),
             entry({kind: 'Appointments', action: 'AppointmentNotesUpdated'}),
             entry({kind: 'Appointments', action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}),
+            entry({kind: 'Appointments', action: 'AppointmentEnteredInError'}),
             entry({action: 'StageFinished', finishedWithoutVisit: true, visitRequirement: 'Suggested'}),
           ],
           nextCursor: null,
@@ -157,6 +158,7 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Mon 22 Jun 2026, 10:00 to 10:30 with test.doctor')).toBeInTheDocument();
     expect(screen.getByText('Finished Consultation without a visit')).toBeInTheDocument();
     expect(screen.getByText('Appointment recorded after the event for Consultation: did not attend')).toBeInTheDocument();
+    expect(screen.getByText('Appointment marked entered in error for Consultation')).toBeInTheDocument();
     // Not for a procedure: no link, just when and who.
     const missed = within(screen.getByText('Marked Did not attend').closest('li')!);
     expect(missed.queryByRole('link')).not.toBeInTheDocument();

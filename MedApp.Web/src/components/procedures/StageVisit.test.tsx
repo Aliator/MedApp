@@ -29,6 +29,8 @@ describe('stageVisit', () => {
     const later = missed('later', '2026-11-19');
     expect(stageVisit('stage-1', [missed('earlier', '2026-11-16'), later, cancelled])).toEqual({status: 'DidNotAttend', appointment: later});
     expect(stageVisit('stage-1', [cancelled, otherStage])).toEqual({status: 'None'});
+    // A walk-in withdrawn as entered in error didn't happen.
+    expect(stageVisit('stage-1', [testAppointment({id: 'withdrawn', status: 'EnteredInError'})])).toEqual({status: 'None'});
   });
 
   it('copes with appointments without a time', () => {
