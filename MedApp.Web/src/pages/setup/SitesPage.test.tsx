@@ -46,7 +46,8 @@ const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
     .json();
 const roomItem = (name: string) => dialog().getByText(name).closest('li')!;
 
-describe('SitesPage', () => {
+// Its dialogs are typed into a lot, which is slow under coverage on CI's runners.
+describe('SitesPage', {timeout: 15_000}, () => {
   it('lists the open sites by name, with their addresses, phones and rooms', async () => {
     const {fetch} = renderPage();
 
