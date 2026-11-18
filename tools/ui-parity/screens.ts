@@ -29,6 +29,15 @@ async function passNotAssignedCheck(page: Page) {
   if (asked) await proceed.click();
 }
 
+/**
+ * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
+ * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
+ */
+function christmasWeekDate(now: Date = new Date()): string {
+  const year = now.getUTCMonth() === 11 && now.getUTCDate() > 28 ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+  return `${year}-12-28`;
+}
+
 export const screens: Screen[] = [
   { name: 'login', title: 'Login', path: '/login', signedOut: true },
   {
@@ -117,6 +126,16 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-closed-day-week',
+    title: 'Calendar: the Christmas week, with its bank holiday greyed as "Closed: …" (the demo data saves bank holidays as closed days)',
+    path: () => `/calendar?view=week&date=${christmasWeekDate()}`,
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await page.getByText(/^Closed: /).first().waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-5min-rows',
     title: 'Calendar with 5-minute rows: the week three times taller, scrolling, with quarter hours down the side',
     path: '/calendar?rows=5',
@@ -132,6 +151,17 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
       await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-record-past-dialog',
+    title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Record past appointment' }).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
@@ -542,6 +572,16 @@ export const screens: Screen[] = [
     path: '/admin/activity-types',
     prepare: async (page) => {
       await rowAction(page, /edit activity type/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'closed-days', title: "Closed days (admin): this year's bank holidays and other days the clinic is closed", path: '/admin/closed-days' },
+  {
+    name: 'closed-day-dialog',
+    title: 'Add Closed Day dialog: a date from today on, and a name (not saved)',
+    path: '/admin/closed-days',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Closed Day' }).click();
       await waitVisible(page, DIALOG);
     },
   },

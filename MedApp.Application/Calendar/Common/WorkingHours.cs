@@ -1,9 +1,10 @@
 namespace MedApp.Application.Calendar.Common;
 
 /// <summary>
-/// The working day: 08:00 to 18:00 UK time, Monday to Friday. Everything on a calendar (appointments, blocks and
-/// template blocks) sits inside it, starting and ending on the same weekday, on 5-minute boundaries. Weekends are
-/// shown, greyed, as non-working. Bank holidays aren't known yet.
+/// The working day: 08:00 to 18:00 UK time, Monday to Friday, except closed days (bank holidays and any other day the
+/// clinic is closed: <see cref="ClosedDaySet"/>). Everything on a calendar (appointments, blocks, meetings and template
+/// blocks) sits inside it, starting and ending on the same working day, on 5-minute boundaries. Weekends and closed
+/// days are shown, greyed, as non-working. Validators ask <see cref="WorkingDays"/>, which looks the closed days up.
 /// </summary>
 public static class WorkingHours
 {
@@ -25,7 +26,21 @@ public static class WorkingHours
     public const string NotOnBoundary = "Times must be on 5-minute boundaries.";
     public const string NotSameDay = "An appointment or block must start and end on the same day.";
 
+    /// <summary>Monday to Friday (closed days aside: see the overload).</summary>
     public static bool IsWorkingDay(DateOnly date) => date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday);
+
+    /// <summary>Monday to Friday, and not a closed day.</summary>
+    public static bool IsWorkingDay(DateOnly date, ClosedDaySet closedDays) => IsWorkingDay(date) && !closedDays.IsClosed(date);
+
+    /// <summary>Why nothing new can go on a closed day: "The clinic is closed on Friday 25 December (Christmas Day)."</summary>
+    public static string ClosedDay(DateOnly date, string name) =>
+        $"The clinic is closed on {UkTime.DescribeDate(date)} ({name}): nothing can be booked, blocked or arranged then.";
+
+    /// <summary>Why a UK date can't have anything new on it (a weekend or a closed day), or null if it can.</summary>
+    public static string? WhyNotWorkingDay(DateOnly date, ClosedDaySet closedDays) =>
+        !IsWorkingDay(date) ? Weekend
+        : closedDays.NameOn(date) is { } name ? ClosedDay(date, name)
+        : null;
 
     /// <summary>The working day's start on a UK date, in UTC.</summary>
     public static DateTime DayStartUtc(DateOnly date) => UkTime.ToUtc(date, Start);
@@ -33,8 +48,12 @@ public static class WorkingHours
     /// <summary>The working day's end on a UK date, in UTC.</summary>
     public static DateTime DayEndUtc(DateOnly date) => UkTime.ToUtc(date, End);
 
-    /// <summary>Why an appointment or block can't be at these times, or null if it can.</summary>
-    public static string? WhyOutside(DateTime startUtc, DateTime endUtc)
+    /// <summary>
+    /// Why an appointment, block or meeting can't be at these times, or null if it can. <paramref name="closedDays"/>
+    /// must cover the date; pass <see cref="ClosedDaySet.None"/> only where closed days deliberately don't count (a
+    /// walk-in, decision 74) or are looked up next (<see cref="WorkingDays"/>). Validators use <see cref="WorkingDays"/>.
+    /// </summary>
+    public static string? WhyOutside(DateTime startUtc, DateTime endUtc, ClosedDaySet closedDays)
     {
         var start = UkTime.Utc(startUtc);
         var end = UkTime.Utc(endUtc);
@@ -46,8 +65,8 @@ public static class WorkingHours
         if (UkTime.DateOf(end) != date)
             return NotSameDay;
 
-        if (!IsWorkingDay(date))
-            return Weekend;
+        if (WhyNotWorkingDay(date, closedDays) is { } notWorking)
+            return notWorking;
 
         if (UkTime.TimeOf(start) < Start || UkTime.TimeOf(end) > End)
             return OutsideWorkingDay;

@@ -30,6 +30,12 @@ public sealed class MeetingResponse
     /// <summary>Whether the signed-in user can change or cancel it: an admin, and it isn't on a past day.</summary>
     public bool CanEdit { get; set; }
 
+    /// <summary>
+    /// On a calendar: whether an appointment on it overlaps the meeting (one recorded after the event may, as what
+    /// happened, happened). Always false outside a calendar.
+    /// </summary>
+    public bool OverlapsAppointment { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime LastUpdated { get; set; }

@@ -426,4 +426,41 @@ public sealed class CalendarMapperTests
         response.WeekTemplateName.Should().BeNull();
         response.Since.Should().BeNull();
     }
+
+    // Closed days and what's on them
+
+    [Test]
+    public void ToResponse_ClosedDay_IsNotWorkingAndNamed_AndWhatsOnItStillShows()
+    {
+        var booked = CreateAppointment(AppointmentStatus.Booked, At(ClosedWednesday, 10));
+        var block = CreateBlock(At(ClosedWednesday, 12), At(ClosedWednesday, 13));
+        var meeting = MeetingsTestConstants.NewMeeting(At(ClosedWednesday, 14), At(ClosedWednesday, 15));
+        var data = CreateData(NextMonday, NextFriday, [CreateTemplateBlock(16, 17)], blocks: [block], appointments: [booked])
+            with { Meetings = [meeting], ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now);
+
+        var day = response.Days.Single(d => d.Date == ClosedWednesday);
+        day.IsWorkingDay.Should().BeFalse();
+        day.ClosedDayName.Should().Be(ClosedDayName);
+        response.Days.Where(d => d.Date != ClosedWednesday).Should().OnlyContain(d => d.ClosedDayName == null);
+        response.Appointments.Should().ContainSingle(a => a.Id == booked.Id);
+        response.Blocks.Should().ContainSingle(b => b.BlockId == block.Id);
+        response.Blocks.Should().NotContain(b => b.IsFromTemplate && b.Date == ClosedWednesday);
+        response.Meetings.Should().ContainSingle(m => m.Id == meeting.Id);
+    }
+
+    [Test]
+    public void ToResponse_MeetingAnAppointmentOverlaps_IsFlagged()
+    {
+        var walkIn = CreateAppointment(AppointmentStatus.Attended, At(NextMonday, 9, 30));
+        var overlapped = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10), id: MeetingsTestConstants.MeetingId);
+        var clear = MeetingsTestConstants.NewMeeting(At(NextMonday, 11), At(NextMonday, 12), id: MeetingsTestConstants.OtherMeetingId);
+        var data = CreateData(NextMonday, appointments: [walkIn]) with { Meetings = [overlapped, clear] };
+
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now);
+
+        response.Meetings.Select(m => (m.Id, m.OverlapsAppointment))
+            .Should().Equal((MeetingsTestConstants.MeetingId, true), (MeetingsTestConstants.OtherMeetingId, false));
+    }
 }

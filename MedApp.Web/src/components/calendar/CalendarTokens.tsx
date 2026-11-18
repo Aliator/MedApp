@@ -18,6 +18,7 @@ export const APPOINTMENT_STATUS_COLOURS: Record<string, TokenColor> = {
   Attended: 'green',
   DidNotAttend: 'red',
   Cancelled: 'gray',
+  EnteredInError: 'gray',
 };
 
 const APPOINTMENT_STATUS_ICONS: Record<string, IconType> = {
@@ -26,6 +27,7 @@ const APPOINTMENT_STATUS_ICONS: Record<string, IconType> = {
   Attended: AppIcon.Success,
   DidNotAttend: AppIcon.AppointmentDidNotAttend,
   Cancelled: AppIcon.StatusCancelled,
+  EnteredInError: AppIcon.EnteredInError,
 };
 
 /** A token's icon, if the person wants icons on statuses (Account Settings, Accessibility). */
@@ -34,7 +36,10 @@ function useStatusIcon(icon: IconType | undefined) {
   return flags.statusIcons && icon ? <Icon icon={icon} /> : undefined;
 }
 
-/** An appointment's status: Requires appointment (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled (gray). */
+/**
+ * An appointment's status: Requires appointment (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled
+ * (gray), Entered in error (gray: a walk-in withdrawn).
+ */
 export function AppointmentStatusToken({status}: {status: string}) {
   const icon = useStatusIcon(APPOINTMENT_STATUS_ICONS[status]);
   return (

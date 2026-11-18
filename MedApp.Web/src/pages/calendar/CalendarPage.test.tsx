@@ -293,6 +293,18 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
   });
 
+  it("records a past appointment from New, with the calendar's owner to start with", async () => {
+    const {user} = renderPage({search: {staff: STAFF_OTHER.userId}});
+
+    await user.click(await screen.findByRole('button', {name: 'New'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Record past appointment'}));
+
+    expect(await screen.findByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /With/})).toHaveTextContent('b.staff'));
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
   it("opens an appointment from the grid, and keeps it in the address", async () => {
     const appointment = testAppointment({id: 'appt-1', date: '2026-11-24'});
     const {user, onSearchChange} = renderPage({
@@ -735,6 +747,28 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(screen.queryByRole('combobox', {name: 'Whose calendar'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name: /^Default week/})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /calendar templates/})).not.toBeInTheDocument();
+  });
+
+  it('greys "Everyone free" on a closed day, labelled as the person columns are, with nothing to select', async () => {
+    const closed = (c: NonNullable<TeamCalendar['members']>[number]) => ({
+      ...c,
+      days: c.days!.map((d) => ({...d, isWorkingDay: false, closedDayName: 'Staff training day'})),
+    });
+    renderPage({
+      user: adminUser,
+      search: {view: 'team'},
+      handlers: {
+        'GET /api/calendar/team': () => {
+          const team = teamDay(MONDAY);
+          return json({...team, members: team.members!.map(closed), everyoneFree: []});
+        },
+      },
+    });
+
+    const everyone = await screen.findByRole('group', {name: 'Everyone free, Monday 23 November, closed: Staff training day'});
+    expect(everyone).toHaveTextContent('Closed: Staff training day');
+    expect(within(everyone).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', {name: 'b.staff, Monday 23 November, closed: Staff training day'})).toBeInTheDocument();
   });
 
   it("offers a meeting when everyone shown is free, and booking or blocking in a person's column", async () => {

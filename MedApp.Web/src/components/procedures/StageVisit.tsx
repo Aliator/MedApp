@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /** Where a stage's visit stands: the appointment that says so, if any. */
 export interface StageVisitState {
-  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones). */
+  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones or ones entered in error). */
   status: 'Attended' | 'Booked' | 'Requested' | 'DidNotAttend' | 'None';
   appointment?: Appointment;
 }
@@ -26,10 +26,11 @@ const latest = (appointments: Appointment[]) => [...appointments].sort((a, b) =>
 
 /**
  * A stage's visit, from its appointments: Attended if any was; otherwise its open one (Booked, or Requested: a stage
- * has at most one); otherwise the latest it didn't attend; otherwise none. Cancelled ones don't count.
+ * has at most one); otherwise the latest it didn't attend; otherwise none. Cancelled ones don't count, nor do walk-ins
+ * marked entered in error (they didn't happen).
  */
 export function stageVisit(stageId: string | undefined, appointments: readonly Appointment[]): StageVisitState {
-  const own = appointments.filter((a) => a.stageId === stageId && a.status !== 'Cancelled');
+  const own = appointments.filter((a) => a.stageId === stageId);
   const of = (status: string) => own.filter((a) => a.status === status);
   const attended = latest(of('Attended'));
   if (attended) return {status: 'Attended', appointment: attended};
@@ -91,15 +92,21 @@ export interface StageVisitProps {
   onReschedule: (booked: Appointment) => void;
   /** Record whether the patient came, once the visit has started. */
   onOutcome: (booked: Appointment, outcome: 'Attended' | 'DidNotAttend') => void;
+  /**
+   * Record a visit that has already happened (a walk-in, or one booked outside MedApp), with its outcome: offered while
+   * nothing is booked (none, Requires appointment, or after one the patient didn't attend). Left out, it isn't offered.
+   */
+  onRecordPast?: () => void;
 }
 
 /**
  * The Visit part of the current stage's work (`StageWork`'s `visit`), for a stage that involves one: where its visit
  * stands, and the next thing to do. Requires appointment, or none: **Book Visit**. Booked: when and with whom,
  * **Reschedule**, and once it has started **Attended** and **Did not attend**. Did not attend: **Book Another**.
- * Attended: when, and nothing more to do. Each appointment links to the Calendar, where it can also be cancelled.
+ * Attended: when, and nothing more to do. While nothing is booked, **Record Past Visit** records one that has already
+ * happened (a walk-in). Each appointment links to the Calendar, where it can also be cancelled.
  */
-export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, onOutcome}: StageVisitProps) {
+export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, onOutcome, onRecordPast}: StageVisitProps) {
   const visit = stageVisit(stage.id, appointments);
   const {appointment} = visit;
   const what =
@@ -164,6 +171,9 @@ export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, o
         )}
         {visit.status === 'DidNotAttend' && (
           <Button label="Book Another" variant="secondary" icon={<Icon icon={AppIcon.Book} />} isDisabled={isBusy} onClick={() => onBook()} />
+        )}
+        {onRecordPast && (visit.status === 'Requested' || visit.status === 'None' || visit.status === 'DidNotAttend') && (
+          <Button label="Record Past Visit" variant="ghost" icon={<Icon icon={AppIcon.RecordPast} />} isDisabled={isBusy} onClick={onRecordPast} />
         )}
       </HStack>
     </VStack>

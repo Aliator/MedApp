@@ -309,4 +309,91 @@ public sealed class AppointmentChangeTests
         ChangeOf(appointment).Appointment.Should().BeSameAs(appointment);
         ChangeOf(appointment).HasChanges.Should().BeFalse();
     }
+
+    // RecordAfterEvent
+
+    [Test]
+    public void RecordAfterEvent_NewAppointment_SetsEverythingAndRecordsOneEntryWithTheOutcome()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested);
+        var change = ChangeOf(appointment, null);
+        var start = At(Today.AddDays(-3), 10);
+
+        change.RecordAfterEvent(OtherStaffUserId, OtherStaffUsername, start, start.AddMinutes(20), AppointmentStatus.DidNotAttend);
+
+        appointment.Status.Should().Be(AppointmentStatus.DidNotAttend);
+        appointment.IsRecordedAfterEvent.Should().BeTrue();
+        appointment.StaffUserId.Should().Be(OtherStaffUserId);
+        appointment.StartUtc.Should().Be(start);
+        appointment.EndUtc.Should().Be(start.AddMinutes(20));
+        appointment.BookedAtUtc.Should().Be(Now);
+        appointment.BookedByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.OutcomeAtUtc.Should().Be(Now);
+        appointment.OutcomeByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.LastUpdated.Should().Be(Now);
+
+        var entry = change.Events.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(AppointmentEventAction.RecordedAfterEvent);
+        entry.StaffUserId.Should().Be(OtherStaffUserId);
+        entry.StaffUsername.Should().Be(OtherStaffUsername);
+        entry.StartUtc.Should().Be(start);
+        entry.Username.Should().Be(ProcedureData.Staff.Username);
+        Details(entry).GetProperty("outcome").GetString().Should().Be("DidNotAttend");
+        Details(entry).TryGetProperty("previousStatus", out _).Should().BeFalse();
+    }
+
+    [Test]
+    public void RecordAfterEvent_StagesVisitInNeedsBooking_RecordsItWasRequested()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested);
+        var change = ChangeOf(appointment, null);
+
+        change.RecordAfterEvent(StaffUserId, StaffUsername, At(Today, 8), At(Today, 8, 30), AppointmentStatus.Attended, wasRequested: true);
+
+        var details = Details(change.Events.Single());
+        details.GetProperty("outcome").GetString().Should().Be("Attended");
+        details.GetProperty("previousStatus").GetString().Should().Be("Requested");
+    }
+
+    [TestCase(AppointmentStatus.Booked)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public void RecordAfterEvent_NotAnOutcome_Throws(AppointmentStatus outcome)
+    {
+        var change = ChangeOf(CreateAppointment(AppointmentStatus.Requested));
+
+        var act = () => change.RecordAfterEvent(StaffUserId, StaffUsername, At(Today, 8), At(Today, 8, 30), outcome);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [TestCase(AppointmentStatus.Booked)]
+    [TestCase(AppointmentStatus.Attended)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public void RecordAfterEvent_AnAppointmentAlreadyUnderWay_Throws(AppointmentStatus status)
+    {
+        var change = ChangeOf(CreateAppointment(status));
+
+        var act = () => change.RecordAfterEvent(StaffUserId, StaffUsername, At(Today, 8), At(Today, 8, 30), AppointmentStatus.Attended);
+
+        act.Should().Throw<InvalidOperationException>();
+        change.HasChanges.Should().BeFalse();
+    }
+
+    [Test]
+    public void MarkEnteredInError_KeepsTheReasonAndTheOutcomeItHad()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Attended);
+        appointment.IsRecordedAfterEvent = true;
+        var change = ChangeOf(appointment);
+
+        change.MarkEnteredInError("Wrong patient.");
+
+        appointment.Status.Should().Be(AppointmentStatus.EnteredInError);
+        appointment.CancelReason.Should().Be("Wrong patient.");
+        appointment.LastUpdated.Should().Be(Now);
+        var entry = change.Events.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(AppointmentEventAction.EnteredInError);
+        Details(entry).GetProperty("reason").GetString().Should().Be("Wrong patient.");
+        Details(entry).GetProperty("previousStatus").GetString().Should().Be("Attended");
+    }
 }

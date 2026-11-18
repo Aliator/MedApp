@@ -35,7 +35,9 @@ public sealed class NotificationPreferencesTests
                             || k.ToString().StartsWith("Appointment")
                             || k.ToString().StartsWith("Meeting")
                             || k.ToString().StartsWith("NoteDeletion")
-                            || k == NotificationKind.AuthorsNoteDeleted));
+                            || k == NotificationKind.AuthorsNoteDeleted
+                            || k == NotificationKind.DayClosed
+                            || k == NotificationKind.StageVisitWithdrawn));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
     }
 

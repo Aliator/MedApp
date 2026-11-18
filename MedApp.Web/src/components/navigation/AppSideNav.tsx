@@ -41,6 +41,7 @@ const ADMIN_PAGES = [
   {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},
+  {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},

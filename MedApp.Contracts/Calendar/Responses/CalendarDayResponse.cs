@@ -5,8 +5,17 @@ public sealed class CalendarDayResponse
 {
     public DateOnly Date { get; set; }
 
-    /// <summary>Monday to Friday. Weekends are shown greyed: nothing can be booked or blocked on them.</summary>
+    /// <summary>
+    /// Monday to Friday, and not a closed day. Weekends and closed days are shown greyed: nothing new can be booked,
+    /// blocked or arranged on them.
+    /// </summary>
     public bool IsWorkingDay { get; set; }
+
+    /// <summary>
+    /// The closed day's name ("Christmas Day") when the clinic is closed that day; null otherwise. Anything already on
+    /// a day that later closed stays, and is shown flagged.
+    /// </summary>
+    public string? ClosedDayName { get; set; }
 
     /// <summary>Before today (UK): its blocks and template can't be changed.</summary>
     public bool IsPast { get; set; }

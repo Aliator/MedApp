@@ -33,7 +33,10 @@ export interface CalendarGridItem {
   isMovable?: boolean;
   /** Can only be dragged within its own day (a template block, changed for its day only). */
   movesWithinDay?: boolean;
-  /** Flagged with a warning: a block a template change put over an appointment. */
+  /**
+   * Flagged with a warning: a block a template change put over an appointment, a meeting an appointment recorded after
+   * the event overlaps, or anything on a day that closed after it was put there (the grid flags those itself).
+   */
   isFlagged?: boolean;
   /** Shown, but not opened (e.g. blocks on Home's day calendar). */
   isReadOnly?: boolean;
@@ -63,7 +66,10 @@ export const MEETING_COLOUR: TokenColor = 'teal';
 /** How many are going to a meeting: "1 attending", "4 attending". */
 export const attendingCount = (meeting: Pick<Meeting, 'attendees'>) => `${(meeting.attendees ?? []).length} attending`;
 
-/** A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). */
+/**
+ * A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). One an
+ * appointment overlaps (recorded after the event, which may) is flagged, as an overlapping block is.
+ */
 export function meetingItem(meeting: Meeting): CalendarGridItem {
   const start = meeting.startUtc ?? '';
   const end = meeting.endUtc ?? '';
@@ -78,8 +84,11 @@ export function meetingItem(meeting: Meeting): CalendarGridItem {
     colour: MEETING_COLOUR,
     label: title,
     sublabel: attending,
-    description: `${title}, meeting, ${formatTimeRange(start, end)}, ${attending}`,
+    description: [`${title}, meeting, ${formatTimeRange(start, end)}, ${attending}`, meeting.overlapsAppointment ? 'overlaps an appointment' : null]
+      .filter(Boolean)
+      .join(', '),
     isMovable: meeting.canEdit === true,
+    isFlagged: meeting.overlapsAppointment === true,
   };
 }
 

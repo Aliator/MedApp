@@ -136,6 +136,55 @@ public static class DemoProcedures
             var bookedAt = DemoTimeline.InWorkingHours(start.AddDays(-random.Next(4, 15)), random);
             Standalone(world, Pick(world, patients, bookedAt), lead, start, start.AddMinutes(minutes), world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
         }
+
+        WalkIn(world, patients);
+    }
+
+    /// <summary>
+    /// One walk-in (decision 74): a patient seen without a booking by s.brightwell on the last working day before today,
+    /// recorded after the event, the next working morning, by the booking coordinator, through
+    /// <see cref="AppointmentChange.RecordAfterEvent"/>. It's on the calendar flagged "Recorded after the event", and
+    /// s.brightwell has the "Appointment recorded" notification.
+    /// </summary>
+    private static void WalkIn(DemoWorld world, IReadOnlyList<PatientSeed> patients)
+    {
+        var nurse = world.Member("s.brightwell");
+        var day = world.Timeline.Today.AddDays(-1);
+        while (!DemoClosedDays.IsWorkingDay(day))
+            day = day.AddDays(-1);
+        var free = world.Allocator.FreeStarts(nurse.Id, day, 20, WorkingHours.DayStartUtc(day));
+        if (free.Count == 0)
+            return;
+
+        var start = free[free.Count / 2];
+        var end = start.AddMinutes(20);
+        var recordedAt = DemoTimeline.WorkingMoment(end.AddDays(1), 8, 40);
+        if (recordedAt >= world.Timeline.NowUtc)
+            recordedAt = end.AddMinutes(45) < world.Timeline.NowUtc ? end.AddMinutes(45) : world.Timeline.NowUtc.AddMinutes(-5);
+        if (recordedAt <= end)
+            return;
+
+        world.Allocator.Reserve(nurse.Id, start, end);
+        var by = world.Coordinator;
+        var patient = Pick(world, patients, start);
+        var appointment = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            PatientId = patient.Id,
+            Status = AppointmentStatus.Requested,
+            Notes = "Walked in with a dressing query; dressing changed.",
+            IsAutomatic = false,
+            CreatedAtUtc = recordedAt,
+            CreatedByUserId = by.Id,
+            LastUpdated = recordedAt,
+        };
+        var change = new AppointmentChange(appointment, by.Actor, recordedAt);
+        change.RecordAfterEvent(nurse.Id, nurse.Username, start, end, AppointmentStatus.Attended);
+        world.Appointments.Add(appointment);
+        world.AppointmentEvents.AddRange(change.Events);
+        world.Touches.Add(new Touch(by.Id, recordedAt, patient.Id, null));
+        if (recordedAt >= world.Timeline.NotificationsFromUtc)
+            world.Notifications.AddRange(AppointmentNotifications.AfterRecording(appointment, by.Actor, recordedAt));
     }
 
     /// <summary>
