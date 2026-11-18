@@ -53,7 +53,7 @@ describe('ReferralsListPage', () => {
     expect(table.getByText('Yes')).toBeInTheDocument();
     expect(table.getByText('No')).toBeInTheDocument();
     expect(table.getAllByText('Awaiting triage')).toHaveLength(2);
-    expect(searchBar()).toHaveTextContent(/Showing: is\s*Awaiting triage/);
+    expect(await screen.findByRole('tab', {name: 'Awaiting triage', selected: true})).toBeInTheDocument();
     // Holders of RegisterReferrals (every staff role but Lab and Manager).
     expect(screen.getByRole('link', {name: 'Register Referral'})).toHaveAttribute('href', '/referrals/new');
   });
@@ -117,7 +117,7 @@ describe('ReferralsListPage', () => {
     expect(screen.getByRole('columnheader', {name: /Target date/})).toBeInTheDocument();
     expect(screen.getByText('30 Dec 2026')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
-    expect(searchBar()).toHaveTextContent(/Showing: is\s*Waiting list/);
+    expect(await screen.findByRole('tab', {name: 'Waiting list', selected: true})).toBeInTheDocument();
   });
 
   it('shows the paused clocks by review date, flagging past ones', async () => {

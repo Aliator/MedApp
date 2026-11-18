@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_app/data-requests/')({
   validateSearch: parseDataRequestsSearch,
   loaderDeps: ({search}) => search,
   loader: ({context, deps}) =>
-    preload(context.queryClient, dataRequestsListQuery(deps.view ?? DEFAULT_DATA_REQUEST_VIEW, deps.page ?? 1, listSettingsFor(context.queryClient).pageSize)),
+    preload(context.queryClient, dataRequestsListQuery(deps.view ?? DEFAULT_DATA_REQUEST_VIEW, deps, listSettingsFor(context.queryClient).pageSize)),
   component: function DataRequestsRoute() {
     const navigate = Route.useNavigate();
     return <DataRequestsPage search={Route.useSearch()} onSearchChange={(next) => void navigate({search: next})} />;

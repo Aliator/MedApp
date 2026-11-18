@@ -87,8 +87,9 @@ function templateField(templates: readonly {id?: string; name?: string | null}[]
   return {kind: 'choice', key: 'templateId', label: 'From template', options};
 }
 
-/** Quick look-ups: mine, and the ones needing attention. */
+/** Its tabs: every pathway, mine, and the ones needing attention. */
 const FAVOURITES: ListFilterFavourite[] = [
+  {label: 'All', values: {}},
   {label: 'Assigned to me', values: {mine: true}},
   {label: 'Overdue', values: {overdue: true}},
   {label: 'Breached', values: {breached: true}},

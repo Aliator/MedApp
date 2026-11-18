@@ -1,8 +1,14 @@
+import {DropdownMenu, type DropdownMenuOption} from '@astryxdesign/core/DropdownMenu';
+import {Icon} from '@astryxdesign/core/Icon';
+import {IconButton} from '@astryxdesign/core/IconButton';
 import {PowerSearch, type PowerSearchConfig, type PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
-import {useEffect, useMemo, useRef} from 'react';
-import {ListFavourites} from './ListFavourites';
+import {Tab, TabList} from '@astryxdesign/core/TabList';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useListTabs} from '../../app/favourites';
 import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
+import {AppIcon} from '../shared/icons';
+import {ListTabsDialog} from './ListTabsDialog';
 
 /** A text field the list's API filters by "contains" (e.g. a patient's first name), kept in the URL under `key`. */
 export interface TextFilterField {
@@ -66,7 +72,7 @@ export function dayFromToday({days = 0, years = 0}: {days?: number; years?: numb
 /** The list's filter values, by URL key: what `ListFilterBar` reads and writes. Unset ones are undefined. */
 export type ListFilterValues = Record<string, string | boolean | undefined>;
 
-/** A quick look-up: a name, and the filters it sets (every other filter is cleared). */
+/** A tab: a name, and the filters it sets (every other filter is cleared). */
 export interface ListFilterFavourite {
   label: string;
   values: ListFilterValues;
@@ -88,19 +94,30 @@ export interface ListFilterBarProps {
    * of title, template and patient). Without one, typing looks for a field to filter by.
    */
   textKey?: string;
-  /**
-   * Which list this is (e.g. `patients`), for the searches people save from its star (`ListFavourites`), kept with
-   * their account.
-   */
+  /** Which list this is (e.g. `patients`), for the person's changes to its tabs, kept with their account. */
   list: string;
-  /** The list's own quick look-ups, in the star's menu with the saved ones. */
+  /**
+   * The list's own tabs, in order (the defaults the person can change). The first is where the list opens. Without
+   * any, one tab, All, showing everything.
+   */
   favourites?: ListFilterFavourite[];
   /**
-   * Whether the list's URL has no filters (so it takes its starting search, if one is set). By default, when the bar
-   * shows none; a list that starts filtered (My Worklist on Not started) says, as its bar shows that filter.
+   * Whether the list's URL has no filters (so it takes its first tab, if the person moved another there). By default,
+   * when the bar shows none; a list that starts filtered (My Worklist on Not started) says, as its bar shows that filter.
    */
   isUnfiltered?: boolean;
 }
+
+/** A list with no tabs of its own has one, showing everything. */
+const ALL_ONLY: ListFilterFavourite[] = [{label: 'All', values: {}}];
+
+/** A search, as a key that's the same for the same filters (whatever order, and leaving out unset ones). */
+const keyOf = (values: ListFilterValues) =>
+  JSON.stringify(
+    Object.entries(values)
+      .filter(([, v]) => v !== undefined && v !== '')
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
 
 // Dates are whole days, kept in the URL as yyyy-mm-dd; PowerSearch holds a day as its midnight UTC in seconds
 // (with no timezoneID, it reads a date-only value as its UTC day).
@@ -236,11 +253,14 @@ export function valuesFrom(fields: ListFilterField[], filters: readonly PowerSea
 }
 
 /**
- * A list's search as a power search bar (Astryx PowerSearch): each filter a token, "field: operator value"
- * (e.g. "First name: contains fre", "Status: is any of In progress, Blocked"), added by typing a field's name (or,
- * with `textKey`, by typing what to search for). The filters live in the list's search (the URL), like its page
- * and sort, so the bar shows what the list is filtered by however it got there (a link, or Back). Favourites, if
- * the list has them, are a star at the bar's end.
+ * A list's tabs, or its search, with a menu beside them (the owner's design, 18 November 2026). The list opens on its
+ * tabs (Astryx `TabList`): each a search, the list's own to start with (`favourites`), which the person can add to,
+ * edit, remove, reorder and reset (**Configuration** in the menu: `ListTabsDialog`; only their changes are kept,
+ * `useListTabs`). **Search** in the menu swaps the tabs for the power search bar (Astryx PowerSearch): each filter a
+ * token, "field: operator value" (e.g. "First name: contains fre", "Status: is any of In progress, Blocked"), added by
+ * typing a field's name (or, with `textKey`, what to search for); **Tabs** in the same menu goes back. A search that
+ * no tab shows (a link, or Back) shows the bar. The filters live in the list's search (the URL), like its page and
+ * sort; which of the two shows does not.
  *
  * Use it above a list's table, as wide as it (`DataTable`'s `search`), for the filters the list's API supports.
  */
@@ -257,32 +277,102 @@ export function ListFilterBar({
 }: ListFilterBarProps) {
   const config = useMemo(() => configFor(fields, textKey), [fields, textKey]);
   const filters = filtersFrom(fields, values);
+  const current = valuesFrom(fields, filters);
+  const normalize = (saved: ListFilterValues) => valuesFrom(fields, filtersFrom(fields, saved));
+  const defaults = favourites?.length ? favourites : ALL_ONLY;
+  const listTabs = useListTabs(list, defaults);
+  const {tabs} = listTabs;
+  const currentKey = keyOf(current);
+  const selected = tabs.find((t) => keyOf(normalize(t.values)) === currentKey);
+  // The search shows when chosen, or when the list's search changes to one no tab shows (a link, or Back).
+  const [showsSearch, setShowsSearch] = useState(!selected);
+  const [isConfiguring, setIsConfiguring] = useState(false);
+  const shownKey = useRef(currentKey);
+  useEffect(() => {
+    if (shownKey.current === currentKey) return;
+    shownKey.current = currentKey;
+    if (!selected) setShowsSearch(true);
+  }, [currentKey, selected]);
+  const apply = (saved: ListFilterValues) => onChange({...cleared(fields), ...saved});
   const bar = useRef<HTMLElement>(null);
   useNoAutofill(bar);
+
+  // Opened with no filters, on a list whose tabs the person changed: its first tab (it was where the list opened
+  // before, a list's own first tab is where it opens anyway). Only then, so clearing the search later clears it.
+  useEffect(() => {
+    const first = tabs[0];
+    if ((isUnfiltered ?? filters.length === 0) && listTabs.isCustomised && first && first !== selected) apply(first.values);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Back to the tabs: the first one, if none shows the search.
+  const showTabs = () => {
+    setShowsSearch(false);
+    if (!selected && tabs[0]) apply(tabs[0].values);
+  };
+
+  const menu: DropdownMenuOption[] = [
+    showsSearch
+      ? {id: 'tabs', label: 'Tabs', description: 'Show the tabs', icon: AppIcon.Favourite, onClick: showTabs}
+      : {id: 'search', label: 'Search', description: 'Search with filters', icon: AppIcon.Search, onClick: () => setShowsSearch(true)},
+    {id: 'configure', label: 'Configuration…', description: 'Add, edit, order or reset the tabs', icon: AppIcon.Settings, onClick: () => setIsConfiguring(true)},
+  ];
+
   return (
-    // The search fills the row; favourites sit beside it (inside it, a press would open its field list too).
+    // The tabs or the search fill the row; the menu sits beside them.
     <HStack ref={bar} gap={2} vAlign="center" style={NO_FIELD_STATUS_LINE}>
-      <StackItem size="fill">
-        <PowerSearch
-          config={config}
-          filters={filters}
-          onChange={(next) => onChange(valuesFrom(fields, next))}
-          label={label}
-          placeholder={placeholder}
-          presentation="popover"
-        />
+      <StackItem size="fill" style={MIN_WIDTH_ZERO}>
+        {showsSearch ? (
+          <PowerSearch
+            config={config}
+            filters={filters}
+            onChange={(next) => onChange(valuesFrom(fields, next))}
+            label={label}
+            placeholder={placeholder}
+            presentation="popover"
+          />
+        ) : (
+          <TabList value={selected?.id ?? ''} onChange={(id) => apply(tabs.find((t) => t.id === id)?.values ?? {})} role="tablist" hasDivider>
+            {tabs.map((t) => (
+              <Tab key={t.id} value={t.id} label={t.label} />
+            ))}
+          </TabList>
+        )}
       </StackItem>
-      <ListFavourites
-        list={list}
-        quick={favourites}
-        current={valuesFrom(fields, filters)}
-        normalize={(saved) => valuesFrom(fields, filtersFrom(fields, saved))}
-        onApply={(saved) => onChange({...cleared(fields), ...saved})}
-        isUnfiltered={isUnfiltered ?? filters.length === 0}
+      <DropdownMenu
+        items={menu}
+        alignment="end"
+        renderTrigger={(trigger) => (
+          <IconButton
+            {...trigger}
+            label={selected ? `List options (showing ${selected.label})` : 'List options'}
+            icon={<Icon icon={AppIcon.Menu} />}
+            variant="secondary"
+          />
+        )}
+      />
+      <ListTabsDialog
+        isOpen={isConfiguring}
+        onClose={() => setIsConfiguring(false)}
+        tabs={tabs}
+        isCustomised={listTabs.isCustomised}
+        config={config}
+        toFilters={(saved) => filtersFrom(fields, saved)}
+        toValues={(next) => valuesFrom(fields, next)}
+        current={current}
+        label={label}
+        onAdd={listTabs.add}
+        onEdit={listTabs.edit}
+        onRemove={listTabs.remove}
+        onMove={listTabs.move}
+        onReset={listTabs.reset}
       />
     </HStack>
   );
 }
+
+/** Lets the tab row shrink below its tabs' width, so it scrolls rather than pushing the menu off the row. */
+const MIN_WIDTH_ZERO = {minWidth: 0} as const;
 
 /**
  * What password managers and browsers look for to leave a text box alone: `autocomplete="off"` alone doesn't stop

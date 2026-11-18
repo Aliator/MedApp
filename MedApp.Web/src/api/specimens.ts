@@ -18,6 +18,7 @@ export type SpecimenSummary = Schemas['SpecimenSummaryResponse'];
 export type SpecimenType = Schemas['SpecimenTypeResponse'];
 export type Laboratory = Schemas['LaboratoryResponse'];
 export type SpecimenSearch = NonNullable<paths['/api/specimens/search']['get']['parameters']['query']>;
+export type SpecimenWorklistSearch = Schemas['SpecimenWorklistRequest'];
 
 /** The statuses, by the names the API uses. Taken, Sent and Received are open: still to come back from the lab. */
 export const SPECIMEN_STATUSES = ['Taken', 'Sent', 'Received', 'Reported', 'RejectedByLab', 'Lost', 'EnteredInError'] as const;
@@ -119,6 +120,20 @@ export function specimenSearchQuery(search: SpecimenSearch) {
   return queryOptions({
     queryKey: specimenKeys.search(query),
     queryFn: () => unwrap(api.GET('/api/specimens/search', {params: {query}})),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The Lab page's worklist (`POST api/specimens/search`): a view, searched (the specimen's number, the patient's name or
+ * NHS number, the type) and sorted by a column. A POST, so the search, which may be a specimen number, is in the body
+ * and never in a URL. Each patient shown is recorded as listed.
+ */
+export function specimenWorklistQuery(search: SpecimenWorklistSearch) {
+  const body = compact(search);
+  return queryOptions({
+    queryKey: [...specimenKeys.all, 'worklist', body] as const,
+    queryFn: () => unwrap(api.POST('/api/specimens/search', {body})),
     placeholderData: keepPreviousData,
   });
 }

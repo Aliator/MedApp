@@ -1,6 +1,16 @@
-import {within} from '@testing-library/react';
-import {renderWithApp, pickFavourite, searchBar} from '../../test/render';
-import {configFor, dayFromToday, filtersFrom, ListFilterBar, valuesFrom, type ListFilterField} from './ListFilterBar';
+import {screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
+import {openDialog, openSearch, pickFavourite, pickListOption, renderWithApp, searchBar} from '../../test/render';
+import {
+  configFor,
+  dayFromToday,
+  filtersFrom,
+  ListFilterBar,
+  valuesFrom,
+  type ListFilterFavourite,
+  type ListFilterField,
+  type ListFilterValues,
+} from './ListFilterBar';
 
 const fields: ListFilterField[] = [
   {kind: 'text', key: 'title', label: 'Pathway'},
@@ -48,7 +58,8 @@ describe('ListFilterBar', () => {
   });
 
   it('marks its text box as not for autofill, so a saved login is never filled in', async () => {
-    renderWithApp(<ListFilterBar list="test" fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+    const {user} = renderWithApp(<ListFilterBar list="test" fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+    await openSearch(user);
 
     const input = await vi.waitFor(() => {
       const box = searchBar().querySelector('input');
@@ -61,19 +72,8 @@ describe('ListFilterBar', () => {
     expect(input).toHaveAttribute('data-bwignore', 'true');
   });
 
-  it("sets a favourite's filters, clearing the others", async () => {
-    const onChange = vi.fn();
-    const {user} = renderWithApp(
-      <ListFilterBar
-        list="test"
-        fields={fields}
-        values={{title: 'knee'}}
-        onChange={onChange}
-        label="Search"
-        placeholder="Search..."
-        favourites={[{label: 'Blocked', values: {status: 'Blocked'}}]}
-      />,
-    );
+  it("sets a tab's filters, clearing the others", async () => {
+    const {user, onChange} = renderHarness({title: 'knee'}, [{label: 'Blocked', values: {status: 'Blocked'}}]);
 
     await pickFavourite(user, 'Blocked');
 
@@ -134,8 +134,177 @@ describe('ListFilterBar, more', () => {
 
   it('still marks its text box as not for autofill in a browser without MutationObserver', async () => {
     vi.stubGlobal('MutationObserver', undefined);
-    renderWithApp(<ListFilterBar list="test" fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+    renderWithApp(<ListFilterBar list="test" fields={fields} values={{title: 'x'}} onChange={() => {}} label="Search users" placeholder="Search..." />);
 
     await vi.waitFor(() => expect(searchBar().querySelector('input')).toHaveAttribute('data-1p-ignore', 'true'));
+  });
+});
+
+/** The bar as a page holds it: its search in state (the URL), changed by what the bar reports. */
+function renderHarness(start: ListFilterValues = {}, favourites?: ListFilterFavourite[], list = 'test') {
+  const onChange = vi.fn();
+  function Harness() {
+    const [values, setValues] = useState<ListFilterValues>(start);
+    return (
+      <ListFilterBar
+        list={list}
+        fields={fields}
+        values={values}
+        onChange={(next) => {
+          onChange(next);
+          setValues(next);
+        }}
+        label="Search pathways"
+        placeholder="Search..."
+        favourites={favourites}
+      />
+    );
+  }
+  return {...renderWithApp(<Harness />), onChange};
+}
+
+const TABS: ListFilterFavourite[] = [
+  {label: 'Open', values: {status: 'Open'}},
+  {label: 'Overdue', values: {overdue: true}},
+  {label: 'Everything', values: {}},
+];
+
+/** An element's visible words, leaving out the copies kept for layout (a tab holds its label twice, one hidden). */
+function shownText(element: HTMLElement) {
+  const copy = element.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+  return copy.textContent;
+}
+const tabNames = () => screen.getAllByRole('tab').map(shownText);
+const selectedTab = () => shownText(screen.getByRole('tab', {selected: true}));
+const dialog = () => within(openDialog()!);
+
+describe('ListFilterBar, tabs', () => {
+  it('opens on its tabs, the one showing selected and named on the menu', async () => {
+    const {user, onChange} = renderHarness({status: 'Open'}, TABS);
+
+    await screen.findAllByRole('tab');
+    expect(tabNames()).toEqual(['Open', 'Overdue', 'Everything']);
+    expect(selectedTab()).toBe('Open');
+    expect(searchBar()).toBeNull();
+    expect(screen.getByRole('button', {name: 'List options (showing Open)'})).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', {name: 'Overdue'}));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({overdue: true, status: undefined}));
+    expect(selectedTab()).toBe('Overdue');
+  });
+
+  it('has one tab, All, when the list has none of its own', async () => {
+    renderHarness();
+
+    await screen.findAllByRole('tab');
+    expect(tabNames()).toEqual(['All']);
+    expect(selectedTab()).toBe('All');
+  });
+
+  it('swaps the tabs for the search, and back to them', async () => {
+    const {user, onChange} = renderHarness({status: 'Open'}, TABS);
+
+    await pickListOption(user, 'Search');
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Status: is\s*Open/));
+    expect(screen.queryByRole('tab')).toBeNull();
+
+    await pickListOption(user, 'Tabs');
+    expect(selectedTab()).toBe('Open');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('shows a search no tab shows as the bar, and going back to the tabs takes the first', async () => {
+    const {user, onChange} = renderHarness({title: 'knee'}, TABS);
+
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Pathway: contains\s*knee/));
+    expect(screen.getByRole('button', {name: 'List options'})).toBeInTheDocument();
+
+    await pickListOption(user, 'Tabs');
+
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({status: 'Open', title: undefined}));
+    expect(selectedTab()).toBe('Open');
+  });
+
+  it('opens, unfiltered, on the first tab the person moved there', async () => {
+    localStorage.setItem('medapp.favourites', JSON.stringify({test: {added: [], edited: {}, removed: [], order: ['default:Overdue']}}));
+
+    const {onChange} = renderHarness({}, TABS);
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({overdue: true})));
+    expect(selectedTab()).toBe('Overdue');
+  });
+});
+
+describe('ListFilterBar, configuration', () => {
+  const configure = async (user: ReturnType<typeof renderHarness>['user']) => {
+    await pickListOption(user, 'Configuration');
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+  };
+  const listed = () => dialog().getAllByRole('listitem').map((item) => item.textContent ?? '');
+
+  it('adds a tab with its name and search, starting from the search showing', async () => {
+    const {user} = renderHarness({status: 'Open'}, TABS);
+    await configure(user);
+
+    await user.click(dialog().getByRole('button', {name: 'Add Tab'}));
+    expect(dialog().getByRole('button', {name: 'Save Tab'})).toHaveAttribute('aria-disabled', 'true');
+    await waitFor(() => expect(openDialog()!.querySelector('.astryx-power-search')).toHaveTextContent(/Status: is\s*Open/));
+    await user.type(dialog().getByRole('textbox', {name: /Name/}), 'Open ones');
+    await user.click(dialog().getByRole('button', {name: 'Save Tab'}));
+
+    await waitFor(() => expect(listed().some((t) => t.includes('4. Open ones') && t.includes('Added by you'))).toBe(true));
+    expect(tabNames()).toEqual(['Open', 'Overdue', 'Everything', 'Open ones']);
+    expect(JSON.parse(localStorage.getItem('medapp.favourites')!).test.added[0]).toMatchObject({name: 'Open ones', values: {status: 'Open'}});
+  });
+
+  it('edits and removes a tab, keeping one at least', async () => {
+    const {user} = renderHarness({}, [{label: 'Open', values: {status: 'Open'}}, {label: 'Everything', values: {}}]);
+    await configure(user);
+
+    await user.click(dialog().getByRole('button', {name: 'Edit Open'}));
+    const name = dialog().getByRole('textbox', {name: /Name/});
+    await user.clear(name);
+    await user.type(name, 'Still open');
+    await user.click(dialog().getByRole('button', {name: 'Save Tab'}));
+    await waitFor(() => expect(tabNames()).toEqual(['Still open', 'Everything']));
+
+    await user.click(dialog().getByRole('button', {name: 'Edit Still open'}));
+    await user.click(dialog().getByRole('button', {name: 'Back'}));
+    expect(tabNames()).toEqual(['Still open', 'Everything']);
+
+    await user.click(dialog().getByRole('button', {name: 'Remove Still open'}));
+    await waitFor(() => expect(tabNames()).toEqual(['Everything']));
+    expect(dialog().getByRole('button', {name: 'Remove Everything'})).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('moves a tab with the keyboard from its handle', async () => {
+    const {user} = renderHarness({}, TABS);
+    await configure(user);
+
+    await user.click(dialog().getByRole('button', {name: /Reorder.*1\. Open/}));
+    await user.keyboard('{ArrowDown}');
+
+    await waitFor(() => expect(tabNames()).toEqual(['Overdue', 'Open', 'Everything']));
+  });
+
+  it('resets to the defaults after asking, and only once something changed', async () => {
+    localStorage.setItem('medapp.favourites', JSON.stringify({test: {added: [{id: 'a1', name: 'Mine', values: {}}], edited: {}, removed: ['default:Overdue']}}));
+    const {user} = renderHarness({status: 'Open'}, TABS);
+    await screen.findAllByRole('tab');
+    expect(tabNames()).toEqual(['Open', 'Everything', 'Mine']);
+    await configure(user);
+
+    await user.click(dialog().getByRole('button', {name: 'Reset to Default'}));
+    await user.click(dialog().getByRole('button', {name: 'Back'}));
+    await user.click(dialog().getByRole('button', {name: 'Reset to Default'}));
+    await user.click(dialog().getByRole('button', {name: 'Reset'}));
+
+    await waitFor(() => expect(tabNames()).toEqual(['Open', 'Overdue', 'Everything']));
+    expect(dialog().getByRole('button', {name: 'Reset to Default'})).toHaveAttribute('aria-disabled', 'true');
+    expect(localStorage.getItem('medapp.favourites')).toBeNull();
+
+    await user.click(dialog().getByRole('button', {name: 'Done'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
   });
 });

@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
 import {richText, typeRichText} from '../../test/richText';
@@ -53,12 +53,9 @@ describe('StageDefinitionsPage', () => {
     expect(screen.getByText('2 active stages')).toBeInTheDocument();
 
     // The search starts on the active ones; the archived ones are a favourite away.
-    expect(searchBar()).toHaveTextContent(/Status: is\s*Active/);
-    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
-    expect(screen.getByRole('button', {name: 'Favourites (showing Active)'})).toBeInTheDocument();
-    // (Each active row says Active in its status column too.)
-    const outsideBarMenuAndTable = (el: HTMLElement) => !searchBar().contains(el) && !el.closest('[role="menu"]') && !el.closest('table');
-    expect(screen.queryAllByText('Active').filter(outsideBarMenuAndTable)).toEqual([]);
+    // The list opens on its first tab, Active, named on the menu beside the tabs too.
+    expect(await screen.findByRole('tab', {name: 'Active', selected: true})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'List options (showing Active)'})).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     await pickFavourite(user, 'Archived');
     expect(onSearchChange).toHaveBeenCalledWith({name: undefined, status: 'archived', page: undefined});

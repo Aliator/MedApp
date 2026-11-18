@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {calls, findAlert, json, managerUser, mockApi, openAlertDetails, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {calls, findAlert, json, managerUser, mockApi, openAlertDetails, pageOf, openSearch, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {HalfViewContext} from '../../components/pages/halfView';
 import type {PathwaysListSearch} from '../listSearch';
@@ -127,7 +127,7 @@ describe('PathwaysListPage', () => {
     expect(table.getByText('Breached')).toBeInTheDocument();
     expect(table.getByText('No clock')).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=daysWaited&Ascending=false&BreachedOnly=true`]);
-    await waitFor(() => expect(searchBar()).toHaveTextContent(/Breached/));
+    expect(await screen.findByRole('tab', {name: 'Breached', selected: true})).toBeInTheDocument();
   });
 
   it('asks the API for the specialties and stage reached in the URL, and names them in the search', async () => {
@@ -156,10 +156,10 @@ describe('PathwaysListPage', () => {
 
     await screen.findByText('Colonoscopy');
     expect(searchCalls(fetch)[0]).toContain('AssignedToMe=true');
+    expect(await screen.findByRole('tab', {name: 'Assigned to me', selected: true})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'List options (showing Assigned to me)'})).toBeInTheDocument();
+    await openSearch(user);
     expect(searchBar()).toHaveTextContent(/Assigned to me: only/);
-    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
-    expect(screen.getByRole('button', {name: 'Favourites (showing Assigned to me)'})).toBeInTheDocument();
-    expect(screen.queryAllByText('Assigned to me').filter((el) => !searchBar().contains(el) && !el.closest('[role="menu"]'))).toEqual([]);
 
     await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({mine: false}));
