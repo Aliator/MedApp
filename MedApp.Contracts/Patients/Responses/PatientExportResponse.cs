@@ -328,7 +328,7 @@ public sealed class ExportedMdtItemResponse
     public Guid Id { get; set; }
     public Guid PathwayId { get; set; }
     public string PathwayTitle { get; set; } = string.Empty;
-    public string Specialty { get; set; } = string.Empty;
+    public string Team { get; set; } = string.Empty;
 
     /// <summary>Listed, Discussed, Deferred or Withdrawn.</summary>
     public string Status { get; set; } = string.Empty;
@@ -695,7 +695,7 @@ public sealed class ExportedAppointmentHistoryEntryResponse
 public sealed class ExportedReferralResponse
 {
     public Guid Id { get; set; }
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
     public DateOnly ReceivedOn { get; set; }
     public string ReferrerPractice { get; set; } = string.Empty;
     public string? ReferrerClinician { get; set; }
@@ -711,7 +711,7 @@ public sealed class ExportedReferralResponse
     public string? DecisionDetail { get; set; }
     public string? RedirectedTo { get; set; }
 
-    /// <summary>Why it was redirected here from another specialty (the latest such redirection).</summary>
+    /// <summary>Why it was redirected here from another team (the latest such redirection).</summary>
     public string? RedirectDetail { get; set; }
 
     /// <summary>The pathway it was accepted into, if any.</summary>

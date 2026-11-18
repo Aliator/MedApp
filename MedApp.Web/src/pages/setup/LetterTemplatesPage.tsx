@@ -11,7 +11,7 @@ import {
   compareLetterTemplates,
   letterKindLabel,
   letterTemplatesQuery,
-  letterTemplateSpecialty,
+  letterTemplateTeam,
   useLetterTemplateActions,
   type LetterTemplate,
 } from '../../api/letterTemplates';
@@ -37,8 +37,8 @@ export const letterTemplatesPageQuery = letterTemplatesQuery(true);
 export const letterTemplateHref = (id: string) => `/admin/letter-templates/${id}`;
 export const NEW_LETTER_TEMPLATE_HREF = '/admin/letter-templates/new';
 
-/** A template's second line: its kind and specialty, "Clinic letter · Dermatology". */
-export const letterTemplateSummary = (template: LetterTemplate) => `${letterKindLabel(template.kind)} · ${letterTemplateSpecialty(template)}`;
+/** A template's second line: its kind and team, "Clinic letter · Dermatology". */
+export const letterTemplateSummary = (template: LetterTemplate) => `${letterKindLabel(template.kind)} · ${letterTemplateTeam(template)}`;
 
 export interface LetterTemplatesPageProps {
   search: SetupListSearch;
@@ -47,7 +47,7 @@ export interface LetterTemplatesPageProps {
 
 /**
  * Letter templates (decision 99): the letterhead, body and closing letters start from, each for a kind of letter and
- * a specialty or every specialty. Templates for every specialty come first, then by specialty and name. Each is added
+ * a team or every team. Templates for every team come first, then by team and name. Each is added
  * and edited on its own page; one no longer wanted is archived (letters made from it keep it, but it isn't offered for
  * new ones) and can be restored; one no letter has been written from (`canBeDeleted`) can be deleted instead, after
  * asking. Archiving and restoring send the version shown, so a change made meanwhile is refused (409) with the API's
@@ -100,10 +100,10 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
     },
     {key: 'kind', header: 'Kind', width: proportional(1, {minWidth: 120}), renderCell: (t) => <TextCell text={letterKindLabel(t.kind)} />},
     {
-      key: 'specialty',
-      header: 'Specialty',
+      key: 'team',
+      header: 'Team',
       width: proportional(1, {minWidth: 120}),
-      renderCell: (t) => <TextCell text={letterTemplateSpecialty(t)} />,
+      renderCell: (t) => <TextCell text={letterTemplateTeam(t)} />,
     },
     {key: 'status', header: 'Status', width: pixel(100), renderCell: (t) => <SetupStatusToken isArchived={t.isArchived ?? false} />},
     {

@@ -32,7 +32,7 @@ export const patternRepeat = (p: Pick<ClinicPattern, 'everyWeeks' | 'fromDate' |
 
 /**
  * Clinic Patterns (`/calendar/clinics/patterns`, ManageClinics; centre plan decision 125): clinics that repeat, each
- * with its clinician, room, specialty, day and times, slot length and how often. **Create sessions** makes a pattern's
+ * with its clinician, room, team, day and times, slot length and how often. **Create sessions** makes a pattern's
  * sessions for the next 1 to 13 weeks, when asked (nothing makes them in the background), and lists what it made and the
  * dates it skipped, with why (already made, a closed day, a clash).
  *
@@ -76,7 +76,7 @@ export function ClinicPatternsPage() {
         </VStack>
       ),
     },
-    {key: 'specialty', header: 'Specialty', width: proportional(1, {minWidth: 140}), renderCell: (p) => <Text type="body">{p.specialtyName}</Text>},
+    {key: 'team', header: 'Team', width: proportional(1, {minWidth: 140}), renderCell: (p) => <Text type="body">{p.teamName}</Text>},
     {
       key: 'actions',
       header: 'Actions',

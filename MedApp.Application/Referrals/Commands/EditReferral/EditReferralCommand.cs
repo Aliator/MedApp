@@ -10,7 +10,7 @@ namespace MedApp.Application.Referrals.Commands.EditReferral;
 /// </summary>
 public sealed record EditReferralCommand(
     Guid ReferralId,
-    Guid SpecialtyId,
+    Guid TeamId,
     DateOnly ReceivedOn,
     string ReferrerPractice,
     string? ReferrerClinician,

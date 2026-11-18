@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
 
-/// <summary>Letter templates. A setup list: the handler sorts it once its specialties' names are known.</summary>
+/// <summary>Letter templates. A setup list: the handler sorts it once its teams' names are known.</summary>
 public sealed class LetterTemplateRepository(MedAppDbContext context) : ILetterTemplateRepository
 {
     public async Task<IReadOnlyList<LetterTemplate>> GetAllAsync(bool includeArchived, CancellationToken ct) =>
@@ -21,11 +21,11 @@ public sealed class LetterTemplateRepository(MedAppDbContext context) : ILetterT
     public async Task<LetterTemplate?> GetAsync(Guid id, CancellationToken ct) =>
         await context.LetterTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
 
-    public async Task<bool> NameExistsAsync(string name, Guid? specialtyId, Guid? exceptId, CancellationToken ct)
+    public async Task<bool> NameExistsAsync(string name, Guid? teamId, Guid? exceptId, CancellationToken ct)
     {
         var lower = name.ToLower();
         return await context.LetterTemplates.AnyAsync(
-            t => t.Name.ToLower() == lower && t.SpecialtyId == specialtyId && (exceptId == null || t.Id != exceptId), ct);
+            t => t.Name.ToLower() == lower && t.TeamId == teamId && (exceptId == null || t.Id != exceptId), ct);
     }
 
     public async Task AddAsync(LetterTemplate template, CancellationToken ct)
@@ -35,7 +35,7 @@ public sealed class LetterTemplateRepository(MedAppDbContext context) : ILetterT
         {
             await context.SaveChangesAsync(ct);
         }
-        // Another was given this name in this specialty meanwhile.
+        // Another was given this name in this team meanwhile.
         catch (DbUpdateException e) when (e.IsViolationOf(LetterTemplateConfiguration.NameIndex))
         {
             context.Entry(template).State = EntityState.Detached;

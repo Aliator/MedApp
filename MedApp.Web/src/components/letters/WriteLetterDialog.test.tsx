@@ -10,19 +10,19 @@ const UROLOGY = '00000061-0000-0000-0000-0000000000d2';
 const template = (fields: Partial<LetterTemplate>): LetterTemplate => ({
   id: `t-${fields.name}`,
   kind: 'ClinicLetter',
-  specialtyId: DERMATOLOGY,
-  specialtyName: 'Dermatology',
+  teamId: DERMATOLOGY,
+  teamName: 'Dermatology',
   isArchived: false,
   ...fields,
 });
 
 const templates = [
   template({name: 'Skin follow-up'}),
-  template({name: 'Any discharge', kind: 'DischargeSummary', specialtyId: null, specialtyName: null}),
+  template({name: 'Any discharge', kind: 'DischargeSummary', teamId: null, teamName: null}),
   template({name: 'Referral reply', kind: 'ReferralResponse'}),
-  template({name: 'More please', kind: 'InformationRequest', specialtyId: null, specialtyName: null}),
+  template({name: 'More please', kind: 'InformationRequest', teamId: null, teamName: null}),
   template({name: 'Old letter', isArchived: true}),
-  template({name: 'Urology letter', specialtyId: UROLOGY, specialtyName: 'Urology'}),
+  template({name: 'Urology letter', teamId: UROLOGY, teamName: 'Urology'}),
 ];
 
 const dialogOpen = () =>
@@ -37,7 +37,7 @@ function render(about: LetterAbout, handlers: Parameters<typeof mockApi>[0] = {}
   const onCreated = vi.fn();
   const onCancel = vi.fn();
   const result = renderWithApp(
-    <WriteLetterDialog about={about} specialtyId={DERMATOLOGY} patient={LETTER_PATIENT} onCancel={onCancel} onCreated={onCreated} />,
+    <WriteLetterDialog about={about} teamId={DERMATOLOGY} patient={LETTER_PATIENT} onCancel={onCancel} onCreated={onCreated} />,
     {user: staffUser},
   );
   return {...result, fetch, onCreated, onCancel};
@@ -46,7 +46,7 @@ function render(about: LetterAbout, handlers: Parameters<typeof mockApi>[0] = {}
 describe('WriteLetterDialog', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("offers the specialty's and every specialty's templates (not archived), every kind from a pathway, only replies from a referral", () => {
+  it("offers the team's and every team's templates (not archived), every kind from a pathway, only replies from a referral", () => {
     const names = (about: LetterAbout) => templatesForLetter(templates, DERMATOLOGY, about).map((t) => t.name);
     expect(names({pathwayId: 'p'})).toEqual(['Any discharge', 'More please', 'Referral reply', 'Skin follow-up']);
     expect(names({referralId: 'r'})).toEqual(['More please', 'Referral reply']);
@@ -100,18 +100,18 @@ describe('WriteLetterDialog', () => {
 
   it('says when there are no templates, for a pathway or a referral', async () => {
     mockApi({'GET /api/letter-templates': () => json([])});
-    const {unmount} = renderWithApp(<WriteLetterDialog about={{pathwayId: 'p'}} specialtyId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {
+    const {unmount} = renderWithApp(<WriteLetterDialog about={{pathwayId: 'p'}} teamId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {
       user: staffUser,
     });
-    expect(await screen.findByText(/no letter templates for this specialty/)).toBeInTheDocument();
+    expect(await screen.findByText(/no letter templates for this team/)).toBeInTheDocument();
     unmount();
-    renderWithApp(<WriteLetterDialog about={{referralId: 'r'}} specialtyId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {user: staffUser});
+    renderWithApp(<WriteLetterDialog about={{referralId: 'r'}} teamId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {user: staffUser});
     expect(await screen.findByText(/no templates for replies to referrals/)).toBeInTheDocument();
   });
 
   it("says when the templates can't be loaded", async () => {
     mockApi({'GET /api/letter-templates': () => json({title: 'Boom'}, 500)});
-    renderWithApp(<WriteLetterDialog about={{pathwayId: 'p'}} specialtyId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {user: staffUser});
+    renderWithApp(<WriteLetterDialog about={{pathwayId: 'p'}} teamId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {user: staffUser});
     expect(await screen.findByText('The templates could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });

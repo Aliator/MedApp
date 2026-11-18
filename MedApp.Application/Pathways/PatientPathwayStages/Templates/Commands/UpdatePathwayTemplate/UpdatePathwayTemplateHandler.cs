@@ -2,8 +2,8 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Specialties.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
@@ -13,7 +13,7 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 
 public sealed class UpdatePathwayTemplateHandler(
     IPatientPathwayStagesRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     IOptions<RetentionOptions> retention)
     : IRequestHandler<UpdatePathwayTemplateCommand, PathwayTemplateResponse>
 {
@@ -32,13 +32,13 @@ public sealed class UpdatePathwayTemplateHandler(
             template.Name = name;
         }
 
-        // Moving it: an archived specialty can only be kept, not newly chosen (409).
-        if (request.SpecialtyId is { } specialtyId && specialtyId != template.SpecialtyId)
+        // Moving it: an archived team can only be kept, not newly chosen (409).
+        if (request.TeamId is { } teamId && teamId != template.TeamId)
         {
-            var specialty = (await SpecialtyRules.CheckChosenAsync(
-                specialties, [specialtyId], new HashSet<Guid> { template.SpecialtyId }, cancellationToken))[specialtyId];
-            template.SpecialtyId = specialty.Id;
-            template.Specialty = specialty;
+            var team = (await TeamRules.CheckChosenAsync(
+                teams, [teamId], new HashSet<Guid> { template.TeamId }, cancellationToken))[teamId];
+            template.TeamId = team.Id;
+            template.Team = team;
         }
 
         var classBefore = template.RetentionClass;

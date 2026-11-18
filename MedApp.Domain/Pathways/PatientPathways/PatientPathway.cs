@@ -38,10 +38,10 @@ public sealed class PatientPathway
     public string TemplateName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Its template's specialty when it was created, copied as the stages are, so moving the template later doesn't
-    /// move old pathways in lists and reports. Pathways from before specialties are in General.
+    /// Its template's team when it was created, copied as the stages are, so moving the template later doesn't
+    /// move old pathways in lists and reports. Pathways from before teams are in General.
     /// </summary>
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
     /// <summary>
     /// Its template's retention class, copied when it's created, and raised (never lowered) when the template is given a

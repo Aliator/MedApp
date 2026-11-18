@@ -6,7 +6,7 @@ namespace MedApp.Application.Referrals.Commands.RedirectReferral;
 public sealed class RedirectReferralValidator : AbstractValidator<RedirectReferralCommand>
 {
     public const string OneDestinationMessage =
-        "Choose where to redirect it: another specialty here, or elsewhere (another provider), not both.";
+        "Choose where to redirect it: another team here, or elsewhere (another provider), not both.";
 
     public const string DetailRequiredMessage = "Say why it's redirected.";
 
@@ -15,8 +15,8 @@ public sealed class RedirectReferralValidator : AbstractValidator<RedirectReferr
         RuleFor(x => x.ReferralId).NotEmpty().WithMessage("Referral id is required.");
 
         RuleFor(x => x)
-            .Must(x => (x.SpecialtyId is { } id && id != Guid.Empty) != !string.IsNullOrWhiteSpace(x.Elsewhere))
-            .OverridePropertyName(nameof(RedirectReferralCommand.SpecialtyId))
+            .Must(x => (x.TeamId is { } id && id != Guid.Empty) != !string.IsNullOrWhiteSpace(x.Elsewhere))
+            .OverridePropertyName(nameof(RedirectReferralCommand.TeamId))
             .WithMessage(OneDestinationMessage);
 
         RuleFor(x => x.Elsewhere)

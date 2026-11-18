@@ -37,7 +37,7 @@ import {
   type TasksSearch,
 } from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
-import {useSpecialtyAndStageFields} from '../pathways/pathwayFilterFields';
+import {useTeamAndStageFields} from '../pathways/pathwayFilterFields';
 
 type TaskRow = PathwaySummary & Record<string, unknown>;
 
@@ -186,7 +186,7 @@ export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch
     PatientName: search.patient,
     Statuses: choiceValues(search.status, OPEN_PATHWAY_STATUSES),
     Priorities: choiceValues(search.priority, TASK_PRIORITIES),
-    SpecialtyIds: idChoiceValues(search.specialty),
+    TeamIds: idChoiceValues(search.team),
     StageDefinitionIds: idChoiceValues(search.stage),
     OverdueOnly: search.overdue,
     BreachedOnly: search.breached,
@@ -230,8 +230,8 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
 
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(pathwaySearchQuery(taskQuery(search, pageSize)));
-  const specialtyAndStage = useSpecialtyAndStageFields(search);
-  const fields = useMemo(() => [...FILTER_FIELDS, ...specialtyAndStage], [specialtyAndStage]);
+  const teamAndStage = useTeamAndStageFields(search);
+  const fields = useMemo(() => [...FILTER_FIELDS, ...teamAndStage], [teamAndStage]);
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as TaskRow[];
 

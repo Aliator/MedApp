@@ -10,7 +10,7 @@ public static class MdtMapper
 {
     /// <summary>
     /// An item as <paramref name="viewer"/> sees it (its <c>Can…</c> flags follow their permissions), read with its
-    /// patient, pathway, specialty, meeting and who was present.
+    /// patient, pathway, team, meeting and who was present.
     /// </summary>
     public static MdtItemResponse ToResponse(MdtItem item, PathwayActor viewer, DateTime nowUtc) => new()
     {
@@ -19,8 +19,8 @@ public static class MdtMapper
         Patient = PathwayMapper.ToPatient(item.Patient),
         PathwayId = item.PathwayId,
         PathwayTitle = item.Pathway?.Title ?? string.Empty,
-        SpecialtyId = item.SpecialtyId,
-        SpecialtyName = item.Specialty?.Name ?? string.Empty,
+        TeamId = item.TeamId,
+        TeamName = item.Team?.Name ?? string.Empty,
         MeetingId = item.MeetingId,
         MeetingTitle = item.Meeting?.Title,
         MeetingStartUtc = item.Meeting?.StartUtc,
@@ -48,8 +48,8 @@ public static class MdtMapper
         Title = row.Meeting.Title,
         StartUtc = row.Meeting.StartUtc,
         EndUtc = row.Meeting.EndUtc,
-        SpecialtyId = row.Meeting.SpecialtyId ?? Guid.Empty,
-        SpecialtyName = row.SpecialtyName,
+        TeamId = row.Meeting.TeamId ?? Guid.Empty,
+        TeamName = row.TeamName,
         OpenItemCount = row.OpenItemCount,
         ItemCount = row.ItemCount,
         Attendees = row.Meeting.Attendees

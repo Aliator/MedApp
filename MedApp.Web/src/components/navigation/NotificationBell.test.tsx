@@ -314,9 +314,9 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
   });
 
-  it("opens a service alert's list, narrowed to the rule's specialty where the list takes one", async () => {
-    const specialty = '0000000c-0000-0000-0000-0000000000a1';
-    const base = {...unread, pathwayId: null, appointmentId: null, subjectId: specialty};
+  it("opens a service alert's list, narrowed to the rule's team where the list takes one", async () => {
+    const team = '0000000c-0000-0000-0000-0000000000a1';
+    const base = {...unread, pathwayId: null, appointmentId: null, subjectId: team};
     const referrals = {...base, id: '0000000c-0000-0000-0000-000000000041', kind: 'MonitoredReferralNotTriaged', title: 'Referrals awaiting triage'};
     const specimens = {...base, id: '0000000c-0000-0000-0000-000000000042', kind: 'MonitoredSpecimenOverdue', title: 'Specimens overdue'};
     mockApi({
@@ -327,7 +327,7 @@ describe('NotificationBell', () => {
 
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
-    expect(list.getByRole('link', {name: /^Referrals awaiting triage/})).toHaveAttribute('href', `/referrals?specialty=${specialty}`);
+    expect(list.getByRole('link', {name: /^Referrals awaiting triage/})).toHaveAttribute('href', `/referrals?team=${team}`);
     expect(list.getByRole('link', {name: /^Specimens overdue/})).toHaveAttribute('href', '/lab?view=Overdue');
   });
 

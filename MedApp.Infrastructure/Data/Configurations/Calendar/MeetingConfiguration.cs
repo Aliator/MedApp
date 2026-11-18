@@ -31,10 +31,10 @@ public sealed class MeetingConfiguration : IEntityTypeConfiguration<Meeting>
             .HasForeignKey(x => x.MeetingId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // An MDT's specialty: one with any is archived, not deleted (the key refuses, should that race).
-        builder.HasOne<MedApp.Domain.Specialties.Specialty>()
+        // An MDT's team: one with any is archived, not deleted (the key refuses, should that race).
+        builder.HasOne<MedApp.Domain.Teams.Team>()
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.StartUtc);

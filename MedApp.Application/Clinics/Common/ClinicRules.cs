@@ -28,7 +28,7 @@ public static class ClinicRules
     public const string NotSessionsRoom = "An appointment in a clinic session is in the session's room.";
 
     public const string HasBookings =
-        "This clinic session has appointments booked into it, so only its room and specialty can change. Cancel it and make another to change its time or slots.";
+        "This clinic session has appointments booked into it, so only its room and team can change. Cancel it and make another to change its time or slots.";
 
     public const string SlotTaken = "That slot has just been booked. Choose another.";
 

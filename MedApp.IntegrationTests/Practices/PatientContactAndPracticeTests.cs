@@ -12,7 +12,7 @@ using MedApp.Contracts.Practices.Requests;
 using MedApp.Contracts.Practices.Responses;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -211,7 +211,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
         var referral = await (await _admin.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
             {
                 PatientId = patient.Id,
-                SpecialtyId = Specialty.GeneralId,
+                TeamId = Team.GeneralId,
                 ReceivedOn = UkToday.AddDays(-2),
                 PracticeId = practice.Id,
                 ReferrerPractice = "",
@@ -225,7 +225,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
 
         var edited = await (await _admin.PutAsJsonAsync($"/api/referrals/{referral.Id}", new EditReferralRequest
             {
-                SpecialtyId = Specialty.GeneralId,
+                TeamId = Team.GeneralId,
                 ReceivedOn = referral.ReceivedOn,
                 ReferrerPractice = referral.ReferrerPractice,
                 ReferrerOdsCode = referral.ReferrerOdsCode,

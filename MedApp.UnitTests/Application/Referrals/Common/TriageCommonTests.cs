@@ -3,7 +3,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
-using MedApp.Application.Specialties.Common;
+using MedApp.Application.Teams.Common;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
@@ -24,7 +24,7 @@ public sealed class TriageCommonTests
         ReferralWorkflow.WhyCantTriage(CreateReferral(status: ReferralStatus.Accepted), Triager, true).Should().BeNull();
         ReferralWorkflow.WhyCantTriage(referral, Registrar, true).Should().Be(ReferralWorkflow.NoTriagePermissionMessage);
         ReferralWorkflow.WhyCantTriage(referral, Triager, false)
-            .Should().Be(ReferralWorkflow.NotInSpecialtyMessage(SpecialtiesTestConstants.SpecialtyName));
+            .Should().Be(ReferralWorkflow.NotInTeamMessage(TeamsTestConstants.TeamName));
         ReferralWorkflow.WhyCantTriage(referral, Triager, true).Should().BeNull();
 
         referral.Patient.AnonymisedAtUtc = NowUtc;
@@ -86,20 +86,20 @@ public sealed class TriageCommonTests
     }
 
     [Test]
-    public void RedirectToSpecialty_KeepsItOpenFromTheSameDate()
+    public void RedirectToTeam_KeepsItOpenFromTheSameDate()
     {
         var referral = CreateReferral();
-        var urology = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
+        var urology = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName);
         var change = new ReferralChange(referral, Triager, NowUtc);
 
-        change.RedirectToSpecialty(urology, Detail);
+        change.RedirectToTeam(urology, Detail);
 
         referral.Status.Should().Be(ReferralStatus.AwaitingTriage);
-        referral.SpecialtyId.Should().Be(urology.Id);
+        referral.TeamId.Should().Be(urology.Id);
         referral.RedirectDetail.Should().Be(Detail);
         referral.ReceivedOn.Should().Be(ReceivedOn);
         referral.DecidedAtUtc.Should().BeNull();
-        change.Events.Single().Action.Should().Be(ReferralEventAction.SpecialtyChanged);
+        change.Events.Single().Action.Should().Be(ReferralEventAction.TeamChanged);
     }
 
     [Test]
@@ -115,7 +115,7 @@ public sealed class TriageCommonTests
         notification.UserId.Should().Be(Registrar.UserId);
         notification.Kind.Should().Be(NotificationKind.ReferralTriaged);
         notification.Title.Should().Be("Referral triaged");
-        notification.Message.Should().Be($"c.synthetic rejected a {SpecialtiesTestConstants.SpecialtyName} referral.");
+        notification.Message.Should().Be($"c.synthetic rejected a {TeamsTestConstants.TeamName} referral.");
         notification.ReferralId.Should().Be(referral.Id);
         notification.PathwayId.Should().BeNull();
         notification.CreatedAtUtc.Should().Be(NowUtc);
@@ -133,9 +133,9 @@ public sealed class TriageCommonTests
     [TestCase(ReferralStatus.RedirectedElsewhere, "Audiology", null, "k.synthetic redirected an Audiology referral elsewhere.")]
     [TestCase(ReferralStatus.AwaitingTriage, "Urology", "Orthopaedics", "k.synthetic redirected an Orthopaedics referral to Urology.")]
     [TestCase(ReferralStatus.AwaitingTriage, "Urology", null, "k.synthetic triaged a Urology referral.")]
-    public void Message_ByOutcome(ReferralStatus status, string specialty, string? previous, string expected)
+    public void Message_ByOutcome(ReferralStatus status, string team, string? previous, string expected)
     {
-        var referral = CreateReferral(specialty: SpecialtiesTestConstants.CreateSpecialty(specialty), status: status);
+        var referral = CreateReferral(team: TeamsTestConstants.CreateTeam(team), status: status);
 
         ReferralNotifications.Message(referral, "k.synthetic", previous).Should().Be(expected);
     }
@@ -170,7 +170,7 @@ public sealed class TriageCommonTests
     }
 
     [Test]
-    public void SpecialtyMapper_GivesHowManyMembersCanTriage() =>
-        SpecialtyMapper.ToResponse(SpecialtiesTestConstants.CreateSpecialty(), new SpecialtyUsage(1, 2, 3, 4, 1, TriagerCount: 2))
+    public void TeamMapper_GivesHowManyMembersCanTriage() =>
+        TeamMapper.ToResponse(TeamsTestConstants.CreateTeam(), new TeamUsage(1, 2, 3, 4, 1, TriagerCount: 2))
             .TriagerCount.Should().Be(2);
 }

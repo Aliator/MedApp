@@ -80,7 +80,7 @@ describe('result queries', () => {
     });
 
     expect((await new QueryClient().fetchQuery(resultQuery(RESULT_ID))).title).toBe('Skin biopsy (punch) report');
-    await new QueryClient().fetchQuery(resultSearchQuery({View: 'Awaiting', SpecialtyId: undefined, Page: 2}));
+    await new QueryClient().fetchQuery(resultSearchQuery({View: 'Awaiting', TeamId: undefined, Page: 2}));
     await new QueryClient().fetchQuery(pathwayResultsQuery(RESULT_PATHWAY_ID));
     expect((await new QueryClient().fetchQuery(resultCountQuery)).awaitingMine).toBe(4);
 

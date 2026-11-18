@@ -19,7 +19,7 @@ namespace MedApp.Application.Referrals.Common;
 /// that care can be stopped safely, a restricted record's referral can still be withdrawn or marked entered in error,
 /// as its pathways can be cancelled; an anonymised one's can't (anonymising waits until none awaits triage).</item>
 /// <item>Triage (accept, reject, redirect) needs the <c>TriageReferrals</c> permission and membership of the
-/// referral's specialty (<see cref="WhyCantTriage"/>, a 403 otherwise), and a record that can change. Once triaged, a
+/// referral's team (<see cref="WhyCantTriage"/>, a 403 otherwise), and a record that can change. Once triaged, a
 /// referral isn't triaged again: a wrong acceptance is corrected by cancelling the pathway.</item>
 /// </list>
 /// </summary>
@@ -51,17 +51,17 @@ public static class ReferralWorkflow
     public const string NoTriagePermissionMessage =
         "Only clinicians who can triage referrals (their roles give them the Triage referrals permission) can accept, reject or redirect a referral.";
 
-    /// <summary>Why the viewer can't triage: they hold the permission but don't belong to the referral's specialty (403).</summary>
-    public static string NotInSpecialtyMessage(string specialtyName) =>
-        $"Only members of {specialtyName} can triage this referral. If you should, ask an admin to add you to {specialtyName}.";
+    /// <summary>Why the viewer can't triage: they hold the permission but don't belong to the referral's team (403).</summary>
+    public static string NotInTeamMessage(string teamName) =>
+        $"Only members of {teamName} can triage this referral. If you should, ask an admin to add you to {teamName}.";
 
-    public const string SameSpecialtyMessage = "The referral is already in that specialty. Choose another one.";
+    public const string SameTeamMessage = "The referral is already in that team. Choose another one.";
 
-    public static string ArchivedSpecialtyMessage(string specialtyName) =>
-        $"{specialtyName} is archived, so referrals can't be redirected to it.";
+    public static string ArchivedTeamMessage(string teamName) =>
+        $"{teamName} is archived, so referrals can't be redirected to it.";
 
-    public static string TemplateNotInSpecialtyMessage(string templateName, string specialtyName) =>
-        $"The '{templateName}' template isn't one of {specialtyName}'s. To use another specialty's template, redirect the referral to that specialty first.";
+    public static string TemplateNotInTeamMessage(string templateName, string teamName) =>
+        $"The '{templateName}' template isn't one of {teamName}'s. To use another team's template, redirect the referral to that team first.";
 
     public const string EnteredInErrorFilesMessage =
         "Files can't be added to or removed from a referral that was entered in error.";
@@ -113,13 +113,13 @@ public static class ReferralWorkflow
 
     /// <summary>
     /// Why <paramref name="viewer"/> can't triage the referral now, or null if they can: it must await triage, they must
-    /// hold <c>TriageReferrals</c> and belong to its specialty (<paramref name="isMember"/>), and its patient's record
+    /// hold <c>TriageReferrals</c> and belong to its team (<paramref name="isMember"/>), and its patient's record
     /// mustn't be restricted or anonymised. Null for a closed referral (there's nothing to triage).
     /// </summary>
     public static string? WhyCantTriage(Referral referral, PathwayActor viewer, bool isMember) =>
         !IsOpen(referral.Status) ? null
         : !viewer.Has(Permission.TriageReferrals) ? NoTriagePermissionMessage
-        : !isMember ? NotInSpecialtyMessage(referral.Specialty?.Name ?? "its specialty")
+        : !isMember ? NotInTeamMessage(referral.Team?.Name ?? "its team")
         : PatientRules.WhyCantChange(referral.Patient);
 
     /// <summary>
@@ -132,7 +132,7 @@ public static class ReferralWorkflow
         if (!actor.Has(Permission.TriageReferrals))
             throw new ForbiddenException(NoTriagePermissionMessage);
         if (!isMember)
-            throw new ForbiddenException(NotInSpecialtyMessage(referral.Specialty?.Name ?? "its specialty"));
+            throw new ForbiddenException(NotInTeamMessage(referral.Team?.Name ?? "its team"));
         if (!IsOpen(referral.Status))
             throw new ConflictException(AlreadyTriagedMessage(referral));
         PatientRules.EnsureCanChange(referral.Patient);
@@ -169,15 +169,15 @@ public static class ReferralWorkflow
         ?? (IsOpen(referral.Status) ? null : $"This referral has been {Describe(referral.Status)}, so it can't be changed.");
 
     /// <summary>
-    /// What a possible duplicate's confirmation says: the patient's open referrals to the same specialty, with when each
+    /// What a possible duplicate's confirmation says: the patient's open referrals to the same team, with when each
     /// was received and where it is (never what the letter said).
     /// </summary>
-    public static string PossibleDuplicateMessage(string specialtyName, IReadOnlyList<Referral> open)
+    public static string PossibleDuplicateMessage(string teamName, IReadOnlyList<Referral> open)
     {
         var each = open
             .OrderBy(r => r.ReceivedOn)
             .Select(r => $"received {r.ReceivedOn.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)} ({Describe(r.Status)})");
-        var count = open.Count == 1 ? $"an open {specialtyName} referral" : $"{open.Count} open {specialtyName} referrals";
+        var count = open.Count == 1 ? $"an open {teamName} referral" : $"{open.Count} open {teamName} referrals";
         return $"This patient already has {count}: {string.Join("; ", each)}. " +
                "If this is a different referral, confirm it to register it anyway.";
     }

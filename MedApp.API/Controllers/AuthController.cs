@@ -15,12 +15,12 @@ using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
-using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
+using MedApp.Application.Authentication.Users.Commands.SetUserTeams;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
-using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetMyTeams;
 using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
-using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetUserTeams;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
@@ -28,7 +28,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -351,28 +351,28 @@ public sealed class AuthController(
         return BadRequest(result.Errors);
     }
 
-    /// <summary>The specialties a member of staff belongs to, sorted by name.</summary>
-    [HttpGet("users/{username}/specialties")]
+    /// <summary>The teams a member of staff belongs to, sorted by name.</summary>
+    [HttpGet("users/{username}/teams")]
     [RequirePermission(Permission.ManageUsers)]
-    [Tags("Specialties")]
-    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
+    [Tags("Teams")]
+    [ProducesResponseType(typeof(IReadOnlyList<TeamMembershipResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetUserSpecialties(string username, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetUserSpecialtiesQuery(username), ct));
+    public async Task<IActionResult> GetUserTeams(string username, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetUserTeamsQuery(username), ct));
 
     /// <summary>
-    /// Sets the specialties a member of staff belongs to, exactly: any others are removed. An unknown specialty is a
+    /// Sets the teams a member of staff belongs to, exactly: any others are removed. An unknown team is a
     /// 404; an archived one can be kept but not newly given (409). Returns them as they are now.
     /// </summary>
-    [HttpPut("users/{username}/specialties")]
+    [HttpPut("users/{username}/teams")]
     [RequirePermission(Permission.ManageUsers)]
-    [Tags("Specialties")]
-    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
+    [Tags("Teams")]
+    [ProducesResponseType(typeof(IReadOnlyList<TeamMembershipResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> SetUserSpecialties(string username, SetUserSpecialtiesRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetUserSpecialtiesCommand(username, request.SpecialtyIds ?? []), ct));
+    public async Task<IActionResult> SetUserTeams(string username, SetUserTeamsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetUserTeamsCommand(username, request.TeamIds ?? []), ct));
 
     /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
     [HttpGet("me/settings")]
@@ -394,13 +394,13 @@ public sealed class AuthController(
         return NoContent();
     }
 
-    /// <summary>The specialties the signed-in user belongs to (admins set them on the Users page).</summary>
-    [HttpGet("me/specialties")]
+    /// <summary>The teams the signed-in user belongs to (admins set them on the Users page).</summary>
+    [HttpGet("me/teams")]
     [RequirePermission(Permission.UseApp)]
-    [Tags("Specialties")]
-    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMySpecialties(CancellationToken ct) =>
-        Ok(await mediator.Send(new GetMySpecialtiesQuery(User.GetUserId()), ct));
+    [Tags("Teams")]
+    [ProducesResponseType(typeof(IReadOnlyList<TeamMembershipResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyTeams(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMyTeamsQuery(User.GetUserId()), ct));
 
     /// <summary>The signed-in user's full name and job title, as they go on letters.</summary>
     [HttpGet("me/details")]

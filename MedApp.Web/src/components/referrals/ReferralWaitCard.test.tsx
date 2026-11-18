@@ -12,7 +12,7 @@ const RESUME = `POST /api/referrals/${REFERRAL_ID}/clock/resume`;
 const running: PathwayReferral = {
   id: REFERRAL_ID,
   receivedOn: '2026-11-02',
-  specialtyName: 'Dermatology',
+  teamName: 'Dermatology',
   version: 4,
   clock: {state: 'Running', targetDays: 28, waitStartOn: '2026-11-02', targetOn: '2026-11-30', daysWaited: 16, pausedDays: 0, isBreached: false},
   pauses: [],

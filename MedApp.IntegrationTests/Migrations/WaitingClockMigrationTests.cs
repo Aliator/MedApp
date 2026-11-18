@@ -1,5 +1,5 @@
 using FluentAssertions;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -51,13 +51,13 @@ public sealed class WaitingClockMigrationTests
                 ({OpenPathway}, N'Synthetic urgent pathway', N'', {Now}, 3, 3, {Patient}, N'Synthetic template', {Now}, {Now});
             INSERT INTO Referrals (Id, PatientId, SpecialtyId, ReceivedOn, ReferrerPractice, RequestedPriority, Reason, Status,
                                    RegisteredAtUtc, RegisteredByUserId, RegisteredByUsername, DecidedAtUtc, PathwayId, Version, LastUpdated) VALUES
-                ({Awaiting}, {Patient}, {Specialty.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 3, N'Synthetic reason', 0,
+                ({Awaiting}, {Patient}, {Team.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 3, N'Synthetic reason', 0,
                  {Now}, {Registrar}, N'b.synthetic', NULL, NULL, 1, {Now}),
-                ({Rejected}, {Patient}, {Specialty.GeneralId}, '2026-06-20', N'Synthetic Lane Surgery', 1, N'Synthetic reason', 2,
+                ({Rejected}, {Patient}, {Team.GeneralId}, '2026-06-20', N'Synthetic Lane Surgery', 1, N'Synthetic reason', 2,
                  {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, NULL, 2, {Now}),
-                ({Discharged}, {Patient}, {Specialty.GeneralId}, '2026-06-01', N'Synthetic Lane Surgery', 2, N'Synthetic reason', 1,
+                ({Discharged}, {Patient}, {Team.GeneralId}, '2026-06-01', N'Synthetic Lane Surgery', 2, N'Synthetic reason', 1,
                  {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, {Pathway}, 2, {Now}),
-                ({TriagedUp}, {Patient}, {Specialty.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 0, N'Synthetic reason', 1,
+                ({TriagedUp}, {Patient}, {Team.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 0, N'Synthetic reason', 1,
                  {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, {OpenPathway}, 2, {Now});
             """);
     }
@@ -76,7 +76,7 @@ public sealed class WaitingClockMigrationTests
 
         (await TextAsync($"""
             SELECT CONCAT(TargetDaysUrgent, ',', TargetDaysHigh, ',', TargetDaysMedium, ',', TargetDaysLow) AS Value
-            FROM Specialties WHERE Id = {Specialty.GeneralId}
+            FROM Specialties WHERE Id = {Team.GeneralId}
             """)).Should().Be("14,28,126,126");
 
         (await ClockAsync(Awaiting)).Should().Be("14,2026-07-01,2026-07-15,0,,");

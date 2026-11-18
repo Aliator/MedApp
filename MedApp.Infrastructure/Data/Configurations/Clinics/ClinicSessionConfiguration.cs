@@ -25,15 +25,15 @@ public sealed class ClinicSessionConfiguration : IEntityTypeConfiguration<Clinic
         builder.Property(x => x.RowVersion)
             .IsRowVersion();
 
-        // A room or specialty a session names is archived, never deleted.
+        // A room or team a session names is archived, never deleted.
         builder.HasOne(x => x.Room)
             .WithMany()
             .HasForeignKey(x => x.RoomId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Specialty)
+        builder.HasOne(x => x.Team)
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<ClinicPattern>()

@@ -14,8 +14,8 @@ public sealed class GetPathwayInsightsValidator : AbstractValidator<GetPathwayIn
             .NotEqual(Guid.Empty)
             .WithMessage("Template ID must not be empty.");
 
-        RuleFor(x => x.SpecialtyId)
+        RuleFor(x => x.TeamId)
             .NotEqual(Guid.Empty)
-            .WithMessage("Specialty ID must not be empty.");
+            .WithMessage("Team ID must not be empty.");
     }
 }

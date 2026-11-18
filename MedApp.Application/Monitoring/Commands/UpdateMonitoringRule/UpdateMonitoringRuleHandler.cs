@@ -3,7 +3,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Monitoring.Responses;
 using MediatR;
 
@@ -14,7 +14,7 @@ public sealed class UpdateMonitoringRuleHandler(
     IIdentityReadService identityReadService,
     IPermissionHolders permissionHolders,
     IPatientPathwayStagesRepository stagesRepository,
-    ISpecialtyRepository specialtyRepository,
+    ITeamRepository teamRepository,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateMonitoringRuleCommand, MonitoringRuleResponse>
 {
@@ -24,12 +24,12 @@ public sealed class UpdateMonitoringRuleHandler(
                    ?? throw new NotFoundException($"Monitoring rule '{request.Id}' was not found.");
 
         // Only what this edit newly names has to exist: a rule may keep naming something since deleted.
-        await MonitoringRuleInput.CheckAsync(request, rule, identityReadService, permissionHolders, stagesRepository, specialtyRepository, cancellationToken);
+        await MonitoringRuleInput.CheckAsync(request, rule, identityReadService, permissionHolders, stagesRepository, teamRepository, cancellationToken);
 
         MonitoringRuleInput.Apply(rule, request, timeProvider.GetUtcNow().UtcDateTime);
         await repository.UpdateAsync(rule, cancellationToken);
 
-        var names = await MonitoringRuleNames.LoadAsync([rule], identityReadService, stagesRepository, specialtyRepository, cancellationToken);
+        var names = await MonitoringRuleNames.LoadAsync([rule], identityReadService, stagesRepository, teamRepository, cancellationToken);
         return MonitoringRuleMapper.ToResponse(rule, names);
     }
 }

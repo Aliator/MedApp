@@ -369,7 +369,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
         'GET /api/clinics/sessions/session-1': () => json(testSessionDetail(session)),
         'GET /api/clinics/sessions': () => json([session]),
         'GET /api/rooms': () => json([]),
-        'GET /api/specialties': () => json([]),
+        'GET /api/teams': () => json([]),
       },
     });
 

@@ -6,7 +6,7 @@ namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 
 /// <summary>
 /// One page of referrals, filtered and sorted (see <see cref="ReferralSearch"/>). <paramref name="Mine"/> limits it to
-/// the specialties <paramref name="ViewerId"/> belongs to (every specialty, if they belong to none).
+/// the teams <paramref name="ViewerId"/> belongs to (every team, if they belong to none).
 /// <paramref name="BreachedOnly"/>, <paramref name="Paused"/> and <paramref name="ClockStopped"/> filter by the
 /// waiting-time clock (the Waiting list is accepted with the clock not stopped; Paused clocks is paused).
 /// </summary>
@@ -16,7 +16,7 @@ public sealed record SearchReferralsQuery(
     string? Sort,
     bool Ascending,
     IReadOnlyList<string>? Statuses,
-    IReadOnlyList<Guid>? SpecialtyIds,
+    IReadOnlyList<Guid>? TeamIds,
     bool Mine,
     Guid? PatientId,
     string? Search,

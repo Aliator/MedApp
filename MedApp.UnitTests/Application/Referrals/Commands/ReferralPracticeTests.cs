@@ -16,14 +16,14 @@ namespace MedApp.UnitTests.Application.Referrals.Commands;
 [TestFixture]
 public sealed class ReferralPracticeTests : ReferralCommandTestBase
 {
-    private RegisterReferralHandler Register => new(Repository.Object, Patients.Object, Specialties.Object, Practices.Object, Clock);
-    private EditReferralHandler Edit => new(Repository.Object, Specialties.Object, Practices.Object, Clock);
+    private RegisterReferralHandler Register => new(Repository.Object, Patients.Object, Teams.Object, Practices.Object, Clock);
+    private EditReferralHandler Edit => new(Repository.Object, Teams.Object, Practices.Object, Clock);
 
     private RegisterReferralCommand Registering(Guid? practiceId, string practice = "", string? ods = null) => new(
-        Patient.Id, Specialty.Id, ReceivedOn, practice, null, ods, "High", Reason, false, Registrar, practiceId);
+        Patient.Id, Team.Id, ReceivedOn, practice, null, ods, "High", Reason, false, Registrar, practiceId);
 
     private EditReferralCommand Editing(Referral referral, Guid? practiceId) => new(
-        referral.Id, Specialty.Id, referral.ReceivedOn, referral.ReferrerPractice, referral.ReferrerClinician,
+        referral.Id, Team.Id, referral.ReceivedOn, referral.ReferrerPractice, referral.ReferrerClinician,
         referral.ReferrerOdsCode, "High", referral.Reason, referral.Version, Registrar, practiceId);
 
     private MedApp.Domain.Practices.Practice Archived()

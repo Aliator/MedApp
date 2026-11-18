@@ -66,12 +66,12 @@ public static class DemoDataSeeder
         });
 
         var staff = await DemoStaff.CreateAsync(services, timeline, ct);
-        var specialties = await DemoSpecialties.CreateAsync(services, staff[0], timeline, ct);
-        var memberships = await DemoSpecialties.AddMembershipsAsync(services, staff, specialties, ct);
-        var specialtyTargets = await DemoSpecialties.LoadAsync(services, ct);
+        var teams = await DemoTeams.CreateAsync(services, staff[0], timeline, ct);
+        var memberships = await DemoTeams.AddMembershipsAsync(services, staff, teams, ct);
+        var teamTargets = await DemoTeams.LoadAsync(services, ct);
         Mark("accounts");
-        var (definitions, templates) = await CreatePathwayKindsAsync(services, specialties.Ids, ct);
-        var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, specialties.Ids[DemoSpecialties.Dermatology], ct);
+        var (definitions, templates) = await CreatePathwayKindsAsync(services, teams.Ids, ct);
+        var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, teams.Ids[DemoTeams.Dermatology], ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
         var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
         var specimenSetup = await DemoSpecimens.CreateSetupAsync(services, timeline, ct);
@@ -96,7 +96,7 @@ public static class DemoDataSeeder
             Templates = templates,
             Definitions = definitions,
             Rules = rules,
-            Specialties = specialtyTargets,
+            Teams = teamTargets,
             Setup = setup,
             SpecimenSetup = specimenSetup,
             MdtMeetings = calendars.Meetings.Where(m => m.IsMdt).OrderBy(m => m.StartUtc).ToList(),
@@ -163,7 +163,7 @@ public static class DemoDataSeeder
                 name = s.Seed.Name,
                 job = s.Seed.JobTitle,
                 roles = s.Username == DemoStaff.ManagerUsername ? new[] { AppRoles.Admin, s.RoleName } : [s.RoleName],
-                specialties = DemoSpecialties.For(s.Kind),
+                teams = DemoTeams.For(s.Kind),
                 password = s.Password,
                 note = s.Username switch
                 {
@@ -184,8 +184,8 @@ public static class DemoDataSeeder
                 importedPatients = imported.Count,
                 stageDefinitions = definitions.Count,
                 templates = templates.Count,
-                specialties = specialties.Ids.Count,
-                specialtyMemberships = memberships,
+                teams = teams.Ids.Count,
+                teamMemberships = memberships,
                 pathways,
                 referrals,
                 calendar = new
@@ -229,7 +229,7 @@ public static class DemoDataSeeder
 
     /// <summary>The stage definitions and pathway templates, written as an admin set them up when the centre started.</summary>
     private static async Task<(Dictionary<string, PatientPathwayStageDefinition> Definitions, Dictionary<PathwayKind, PathwayTemplate> Templates)> CreatePathwayKindsAsync(
-        SeedServices services, IReadOnlyDictionary<string, Guid> specialties, CancellationToken ct)
+        SeedServices services, IReadOnlyDictionary<string, Guid> teams, CancellationToken ct)
     {
         var definitions = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => new PatientPathwayStageDefinition
         {
@@ -252,7 +252,7 @@ public static class DemoDataSeeder
             Id = Guid.NewGuid(),
             Name = p.TemplateName,
             IsArchived = p.IsArchived,
-            SpecialtyId = specialties[DemoSpecialties.For(p.PathwayKind)],
+            TeamId = teams[DemoTeams.For(p.PathwayKind)],
             // Skin lesions may be cancers: their records are kept on the oncology period.
             RetentionClass = p.PathwayKind is PathwayKind.SkinLesion or PathwayKind.SkinLesion2024
                 ? RetentionClass.Oncology

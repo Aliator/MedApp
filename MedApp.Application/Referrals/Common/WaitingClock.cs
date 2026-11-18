@@ -1,12 +1,12 @@
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Application.Referrals.Common;
 
 /// <summary>
 /// A referral's waiting-time clock: whole UK days (<see cref="DateOnly"/>), like target dates. Pure arithmetic on the
-/// dates staff entered and the specialty's own targets, chosen by the priority a clinician set: an administrative
+/// dates staff entered and the team's own targets, chosen by the priority a clinician set: an administrative
 /// measure, like Overdue, never a clinical one (<c>docs/clinical-safety/intended-purpose-and-device-decision.md</c>).
 /// <list type="bullet">
 /// <item><c>PausedDays</c>: the total of finished pauses, each <c>ResumedOn − PausedOn</c> (a pause started and ended the
@@ -45,13 +45,13 @@ public static class WaitingClock
     public const string PausedMeanwhileMessage =
         "Someone else paused this clock while you had it open. Reload it to see their pause.";
 
-    /// <summary>The target for a priority, in days, from the specialty's table.</summary>
-    public static int TargetDaysFor(Specialty specialty, PatientPathwayPriority priority) => priority switch
+    /// <summary>The target for a priority, in days, from the team's table.</summary>
+    public static int TargetDaysFor(Team team, PatientPathwayPriority priority) => priority switch
     {
-        PatientPathwayPriority.Urgent => specialty.TargetDaysUrgent,
-        PatientPathwayPriority.High => specialty.TargetDaysHigh,
-        PatientPathwayPriority.Medium => specialty.TargetDaysMedium,
-        _ => specialty.TargetDaysLow
+        PatientPathwayPriority.Urgent => team.TargetDaysUrgent,
+        PatientPathwayPriority.High => team.TargetDaysHigh,
+        PatientPathwayPriority.Medium => team.TargetDaysMedium,
+        _ => team.TargetDaysLow
     };
 
     /// <summary>Starts a new referral's clock on the day it was received, with its target in days.</summary>

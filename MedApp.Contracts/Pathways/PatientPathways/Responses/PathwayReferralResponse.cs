@@ -13,8 +13,8 @@ public sealed class PathwayReferralResponse
     /// <summary>When the referral arrived (a UK date).</summary>
     public DateOnly ReceivedOn { get; set; }
 
-    /// <summary>The referral's specialty.</summary>
-    public string SpecialtyName { get; set; } = string.Empty;
+    /// <summary>The referral's team.</summary>
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>Pass back as <c>expectedVersion</c> to pause or resume the clock.</summary>
     public int Version { get; set; }

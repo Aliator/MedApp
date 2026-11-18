@@ -122,21 +122,21 @@ public sealed class PathwaySearchTests
     }
 
     [Test]
-    public void Filter_SpecialtyIds_ReturnsPathwaysInAnyOfThem()
+    public void Filter_TeamIds_ReturnsPathwaysInAnyOfThem()
     {
         var skin = Guid.NewGuid();
         var feet = Guid.NewGuid();
         var inSkin = CreatePathway(Status.Assigned);
-        inSkin.SpecialtyId = skin;
+        inSkin.TeamId = skin;
         var inFeet = CreatePathway(Status.InProgress);
-        inFeet.SpecialtyId = feet;
+        inFeet.TeamId = feet;
         var elsewhere = CreatePathway(Status.Assigned);
-        elsewhere.SpecialtyId = Guid.NewGuid();
+        elsewhere.TeamId = Guid.NewGuid();
         var pathways = new[] { inSkin, inFeet, elsewhere }.AsQueryable();
 
-        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [skin] }, Now).Should().Equal(inSkin);
-        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [skin, feet, skin] }, Now).Should().Equal(inSkin, inFeet);
-        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [] }, Now).Should().HaveCount(3);
+        pathways.Filter(CreateSearchQuery() with { TeamIds = [skin] }, Now).Should().Equal(inSkin);
+        pathways.Filter(CreateSearchQuery() with { TeamIds = [skin, feet, skin] }, Now).Should().Equal(inSkin, inFeet);
+        pathways.Filter(CreateSearchQuery() with { TeamIds = [] }, Now).Should().HaveCount(3);
     }
 
     [Test]

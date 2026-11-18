@@ -40,19 +40,19 @@ describe('insights in words', () => {
     // mine=false: never narrowed to the admin's own pathways by where Account Settings has lists start.
     expect(pathwaysHref({})).toBe('/pathways?mine=false');
     expect(pathwaysHref({status: 'InProgress'}, {templateId: TEMPLATE_ID})).toBe(`/pathways?status=InProgress&mine=false&templateId=${TEMPLATE_ID}`);
-    expect(pathwaysHref({overdue: 'true'}, {templateId: null, specialtyId: null})).toBe('/pathways?overdue=true&mine=false');
+    expect(pathwaysHref({overdue: 'true'}, {templateId: null, teamId: null})).toBe('/pathways?overdue=true&mine=false');
     expect(assigneeHref({userId: STAFF_ID, count: 1})).toBe(`/pathways?overdue=true&assignee=${STAFF_ID}&mine=false`);
     expect(assigneeHref({userId: null, count: 1})).toBe('/pathways?overdue=true&assignee=none&mine=false');
     expect(priorityHref({priority: 'Urgent', count: 1}, {templateId: TEMPLATE_ID})).toBe(`/pathways?overdue=true&priority=Urgent&mine=false&templateId=${TEMPLATE_ID}`);
     expect(priorityHref({count: 1})).toBe('/pathways?overdue=true&priority=&mine=false');
   });
 
-  it('carries the specialty to the pathways list too, as its specialty filter', () => {
-    const specialtyId = '0000005a-0000-0000-0000-0000000000aa';
+  it('carries the team to the pathways list too, as its team filter', () => {
+    const teamId = '0000005a-0000-0000-0000-0000000000aa';
 
-    expect(pathwaysHref({}, {specialtyId})).toBe(`/pathways?mine=false&specialty=${specialtyId}`);
-    expect(assigneeHref({userId: null, count: 1}, {templateId: TEMPLATE_ID, specialtyId})).toBe(
-      `/pathways?overdue=true&assignee=none&mine=false&templateId=${TEMPLATE_ID}&specialty=${specialtyId}`,
+    expect(pathwaysHref({}, {teamId})).toBe(`/pathways?mine=false&team=${teamId}`);
+    expect(assigneeHref({userId: null, count: 1}, {templateId: TEMPLATE_ID, teamId})).toBe(
+      `/pathways?overdue=true&assignee=none&mine=false&templateId=${TEMPLATE_ID}&team=${teamId}`,
     );
   });
 

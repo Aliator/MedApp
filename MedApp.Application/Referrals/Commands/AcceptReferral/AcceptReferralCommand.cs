@@ -5,7 +5,7 @@ using MediatR;
 namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 
 /// <summary>
-/// A triager accepts a referral awaiting triage into a new pathway, from a template of the referral's specialty, with
+/// A triager accepts a referral awaiting triage into a new pathway, from a template of the referral's team, with
 /// the priority they chose (nothing is prefilled), and optionally a title, someone to assign and a first note. The
 /// pathway's target date is the referral's waiting-time clock's, for that priority. The pathway is created as any new
 /// pathway is, and saved with the referral's change.

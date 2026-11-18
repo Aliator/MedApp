@@ -85,25 +85,25 @@ public static class ReferralTexts
     };
 
     /// <summary>Where a referral redirected elsewhere went (another provider), and why.</summary>
-    public static (string Elsewhere, string Detail) Elsewhere(string specialty, Random random) => specialty switch
+    public static (string Elsewhere, string Detail) Elsewhere(string team, Random random) => team switch
     {
-        DemoSpecialties.Dermatology => Pick(random,
+        DemoTeams.Dermatology => Pick(random,
             ("The hospital's urgent skin cancer clinic", "Features need the hospital's two-week clinic."),
             ("The hospital's paediatric dermatology clinic", "Children under five are seen at the hospital.")),
-        DemoSpecialties.Gynaecology => ("The hospital's gynaecology clinic", "Needs the hospital's hysteroscopy service."),
-        DemoSpecialties.Urology => ("The hospital's urology team", "Visible blood in the urine: the hospital's haematuria clinic."),
-        DemoSpecialties.Diabetes => ("The hospital's foot protection service", "An active foot ulcer needs the hospital's team."),
+        DemoTeams.Gynaecology => ("The hospital's gynaecology clinic", "Needs the hospital's hysteroscopy service."),
+        DemoTeams.Urology => ("The hospital's urology team", "Visible blood in the urine: the hospital's haematuria clinic."),
+        DemoTeams.Diabetes => ("The hospital's foot protection service", "An active foot ulcer needs the hospital's team."),
         _ => ("Community podiatry (another provider)", "Nail care and corns are the community podiatry team's."),
     };
 
-    /// <summary>Why a referral was moved to another specialty here, by the triager who read it.</summary>
+    /// <summary>Why a referral was moved to another team here, by the triager who read it.</summary>
     public static string RedirectDetail(string from, string to) => (from, to) switch
     {
-        (DemoSpecialties.Urology, DemoSpecialties.Gynaecology) =>
+        (DemoTeams.Urology, DemoTeams.Gynaecology) =>
             "The bleeding described is vaginal, not in the urine: post-menopausal bleeding, for gynaecology.",
-        (DemoSpecialties.Diabetes, DemoSpecialties.Biomechanics) =>
+        (DemoTeams.Diabetes, DemoTeams.Biomechanics) =>
             "Foot pain on walking with healthy skin and good feeling: biomechanical, for the podiatrist.",
-        (DemoSpecialties.Gynaecology, DemoSpecialties.Dermatology) =>
+        (DemoTeams.Gynaecology, DemoTeams.Dermatology) =>
             "A skin lesion on the thigh, not a gynaecological problem: for the skin clinic.",
         _ => $"Better seen in {to}.",
     };

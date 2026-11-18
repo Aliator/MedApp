@@ -39,7 +39,7 @@ public static class DemoLetters
             return services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(request, ct)));
         }
 
-        Guid Template(string specialty, LetterKind kind) => world.Setup.LetterTemplates[(specialty, kind)];
+        Guid Template(string team, LetterKind kind) => world.Setup.LetterTemplates[(team, kind)];
 
         async Task<LetterResponse> Write(StaffMember author, DateTime at, Guid templateId, Guid? pathwayId, Guid? referralId, string? body)
         {
@@ -67,7 +67,7 @@ public static class DemoLetters
         foreach (var plan in world.LetterPlans.OrderBy(p => p.WrittenUtc))
         {
             var author = plan.Author;
-            var letter = await Write(author, plan.WrittenUtc, Template(plan.Specialty, plan.Kind), plan.PathwayId, null, plan.Body);
+            var letter = await Write(author, plan.WrittenUtc, Template(plan.Team, plan.Kind), plan.PathwayId, null, plan.Body);
 
             if (plan.Approver is { } approver && plan.SubmittedUtc is { } submittedAt)
             {
@@ -165,7 +165,7 @@ public static class DemoLetters
         if (Open(DemoStaff.DermatologistUsername, PathwayKind.SkinLesion) is { } skin)
         {
             var by = world.Member(DemoStaff.DermatologistUsername);
-            var draft = await write(by, at, world.Setup.LetterTemplates[(DemoSpecialties.Dermatology, LetterKind.ClinicLetter)], skin.Id, null,
+            var draft = await write(by, at, world.Setup.LetterTemplates[(DemoTeams.Dermatology, LetterKind.ClinicLetter)], skin.Id, null,
                 Clinic("I saw your patient in clinic today about the lesion you referred. [To finish after the histology.]"));
             made["draft"] = skin.Id;
         }
@@ -175,7 +175,7 @@ public static class DemoLetters
         {
             diabetesId = diabetes.Id;
             var by = world.Member(DemoStaff.DiabetesNurseUsername);
-            var letter = await write(by, at.AddMinutes(30), world.Setup.LetterTemplates[(DemoSpecialties.Diabetes, LetterKind.ClinicLetter)], diabetes.Id, null,
+            var letter = await write(by, at.AddMinutes(30), world.Setup.LetterTemplates[(DemoTeams.Diabetes, LetterKind.ClinicLetter)], diabetes.Id, null,
                 Clinic("I reviewed your patient in the diabetes clinic. We agreed new targets and a medicines review with our pharmacist."));
             letter = await send(at.AddMinutes(40), by, new SubmitLetterCommand(letter.Id, world.Lead.Id, letter.Version, by.ActorAt(at.AddMinutes(40))));
             made["awaitingApproval"] = diabetes.Id;
@@ -188,7 +188,7 @@ public static class DemoLetters
                 .OrderByDescending(p => p.CreatedAt).Skip(1).FirstOrDefault() is { } another)
         {
             var by = world.Member(DemoStaff.DiabetesNurseUsername);
-            var letter = await write(by, at.AddMinutes(45), world.Setup.LetterTemplates[(DemoSpecialties.Diabetes, LetterKind.ClinicLetter)], another.Id, null,
+            var letter = await write(by, at.AddMinutes(45), world.Setup.LetterTemplates[(DemoTeams.Diabetes, LetterKind.ClinicLetter)], another.Id, null,
                 Clinic("I reviewed your patient in the diabetes clinic. Their readings are better since the last change."));
             letter = await send(at.AddMinutes(50), by, new SubmitLetterCommand(letter.Id, world.Lead.Id, letter.Version, by.ActorAt(at.AddMinutes(50))));
             letter = await send(at.AddMinutes(120), world.Lead, new ReturnLetterCommand(letter.Id,
@@ -199,19 +199,19 @@ public static class DemoLetters
         if (Open(DemoStaff.SkinGpUsername, PathwayKind.InflammatorySkin) is { } inflammatory)
         {
             var by = world.Member(DemoStaff.SkinGpUsername);
-            var letter = await write(by, at.AddMinutes(60), world.Setup.LetterTemplates[(DemoSpecialties.Dermatology, LetterKind.ClinicLetter)], inflammatory.Id, null,
+            var letter = await write(by, at.AddMinutes(60), world.Setup.LetterTemplates[(DemoTeams.Dermatology, LetterKind.ClinicLetter)], inflammatory.Id, null,
                 Clinic("I saw your patient in the skin clinic. We agreed a new treatment plan, which the patient has in writing."));
             letter = await send(at.AddMinutes(70), by, new ApproveLetterCommand(letter.Id, letter.Version, by.ActorAt(at.AddMinutes(70))));
             made["approvedToSend"] = inflammatory.Id;
         }
 
         var referral = world.Referrals
-            .Where(r => r.Status == ReferralStatus.AwaitingTriage && r.SpecialtyId == world.Specialty(DemoSpecialties.Dermatology).Id && r.RegisteredAtUtc < at)
+            .Where(r => r.Status == ReferralStatus.AwaitingTriage && r.TeamId == world.Team(DemoTeams.Dermatology).Id && r.RegisteredAtUtc < at)
             .OrderBy(r => r.RegisteredAtUtc).FirstOrDefault();
         if (referral is not null)
         {
             var by = world.Member(DemoStaff.DermatologistUsername);
-            var letter = await write(by, at.AddMinutes(90), world.Setup.LetterTemplates[(DemoSpecialties.Dermatology, LetterKind.InformationRequest)], null, referral.Id, null);
+            var letter = await write(by, at.AddMinutes(90), world.Setup.LetterTemplates[(DemoTeams.Dermatology, LetterKind.InformationRequest)], null, referral.Id, null);
             made["informationRequestDraft"] = referral.Id;
         }
 

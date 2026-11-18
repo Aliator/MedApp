@@ -17,6 +17,7 @@ describe('addressNow', () => {
     ['/admin/templates', '/admin/pathway-templates'],
     ['/admin/templates/new', '/admin/pathway-templates/new'],
     [`/admin/templates/${ID}`, `/admin/pathway-templates/${ID}`],
+    ['/admin/specialties', '/admin/teams'],
   ])('gives %s its address now, %s', (old, now) => {
     expect(addressNow(old)).toBe(now);
   });
@@ -37,6 +38,15 @@ describe('searchNow', () => {
       action: '!PathwayViewed,PatientViewed',
       page: 2,
     });
+  });
+
+  it('renames a specialty filter, a sort by the Specialty column and the old memberships action to teams', () => {
+    expect(searchNow({specialty: ID, sort: 'Specialty', action: 'StaffSpecialtiesChanged'})).toEqual({
+      team: ID,
+      sort: 'Team',
+      action: 'TeamMembershipChanged',
+    });
+    expect(searchNow({team: 'now', specialty: 'old'})).toEqual({team: 'now'});
   });
 
   it('keeps everything else as it was, a search for the word included', () => {

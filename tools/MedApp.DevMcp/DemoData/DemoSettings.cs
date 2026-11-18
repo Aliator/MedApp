@@ -27,8 +27,8 @@ public static class DemoSettings
         var bleeding = world.TemplateIds[PathwayKind.PostMenopausalBleeding].ToString();
         // The stage reached, by its stage definition, as the pathways list's URL keeps it (lower case).
         var histology = world.Definitions[DemoPathwayKinds.Histology].Id.ToString();
-        var dermatology = world.Specialty(DemoSpecialties.Dermatology).Id.ToString();
-        var urology = world.Specialty(DemoSpecialties.Urology).Id.ToString();
+        var dermatology = world.Team(DemoTeams.Dermatology).Id.ToString();
+        var urology = world.Team(DemoTeams.Urology).Id.ToString();
         var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
 
         var mine = world.Pathways
@@ -90,7 +90,7 @@ public static class DemoSettings
                     {
                         Favourite("Skin lesions in progress", new() { ["templateId"] = skinLesion, ["status"] = "InProgress" }),
                         Favourite("Urgent bleeding referrals", new() { ["templateId"] = bleeding, ["priority"] = "Urgent" }),
-                        Favourite("Breached urology waits", new() { ["breached"] = true, ["specialty"] = urology }),
+                        Favourite("Breached urology waits", new() { ["breached"] = true, ["team"] = urology }),
                     },
                 },
                 ["referrals"] = new
@@ -111,7 +111,7 @@ public static class DemoSettings
             ["medapp.favourites"] = Json(new Dictionary<string, object>
             {
                 ["procedures"] = new { saved = new[] { Favourite("My overdue", new() { ["mine"] = true, ["overdue"] = true }) } },
-                ["referrals"] = new { saved = new[] { Favourite("Dermatology inbox", new() { ["specialty"] = dermatology }) } },
+                ["referrals"] = new { saved = new[] { Favourite("Dermatology inbox", new() { ["team"] = dermatology }) } },
             }),
         };
 

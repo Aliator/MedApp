@@ -1,9 +1,9 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {mySpecialtiesQuery} from '../../../api/specialties';
+import {myTeamsQuery} from '../../../api/teams';
 import {preload} from '../../../api/preload';
 import {AccountPage} from '../../../pages/account/AccountPage';
 
 export const Route = createFileRoute('/_app/account/')({
-  loader: ({context}) => preload(context.queryClient, mySpecialtiesQuery),
+  loader: ({context}) => preload(context.queryClient, myTeamsQuery),
   component: AccountPage,
 });

@@ -27,8 +27,8 @@ public sealed class PathwayInsightsSqlTests
     [TearDown]
     public void TearDown() => _context.Dispose();
 
-    /// <summary>Both a template and a specialty, so every query is checked with both conditions in it.</summary>
-    private static readonly InsightsScope Scope = new(TemplateId, SpecialtyId);
+    /// <summary>Both a template and a team, so every query is checked with both conditions in it.</summary>
+    private static readonly InsightsScope Scope = new(TemplateId, TeamId);
 
     private IQueryable<PatientPathway> Pathways => _context.PatientPathways.InScope(Scope);
 
@@ -36,10 +36,10 @@ public sealed class PathwayInsightsSqlTests
         _context.PatientPathwayAuditEntries.InScope(_context.PatientPathways, Scope);
 
     [Test]
-    public void InScope_FiltersPathwaysAndAuditEntriesOnTheTemplateAndSpecialty()
+    public void InScope_FiltersPathwaysAndAuditEntriesOnTheTemplateAndTeam()
     {
-        Pathways.ToQueryString().Should().Contain("[TemplateId] = @").And.Contain("[SpecialtyId] = @");
-        Audit.ToQueryString().Should().Contain("EXISTS").And.Contain("[SpecialtyId] = @");
+        Pathways.ToQueryString().Should().Contain("[TemplateId] = @").And.Contain("[TeamId] = @");
+        Audit.ToQueryString().Should().Contain("EXISTS").And.Contain("[TeamId] = @");
     }
 
     [Test]

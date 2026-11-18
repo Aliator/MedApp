@@ -15,9 +15,9 @@ public sealed class ReferralSummaryResponse
 
     public DateOnly PatientDateOfBirth { get; set; }
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
 
     public DateOnly ReceivedOn { get; set; }
 

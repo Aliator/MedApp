@@ -45,8 +45,8 @@ public sealed class MonitoringRule
     /// </summary>
     public int? ThresholdDays { get; set; }
 
-    /// <summary>Only work of this specialty (the referral's, or the pathway's); null for any.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>Only work of this team (the referral's, or the pathway's); null for any.</summary>
+    public Guid? TeamId { get; set; }
 
     /// <summary>Whether it notifies; a switched-off rule is kept but matches nothing.</summary>
     public bool IsEnabled { get; set; }

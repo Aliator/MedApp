@@ -13,7 +13,7 @@ const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
 /** The list's own searches, leaving out what it asks for its filters' choices (accounts, templates). */
 const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
-const SPECIALTIES = 'GET /api/specialties';
+const TEAMS = 'GET /api/teams';
 const DEFINITIONS = 'GET /api/pathways/patient-pathway-stage/definitions';
 const SKIN_ID = '0000005a-0000-0000-0000-0000000000aa';
 const FEET_ID = '0000005a-0000-0000-0000-0000000000bb';
@@ -49,7 +49,7 @@ function renderList(
     [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com', ...options.patientFlags}),
     [STAFF]: () => json([{userId: STAFF_ID, username: 'k.ashford'}]),
     [TEMPLATES]: () => json([{id: TEMPLATE_ID, name: 'Knee review', isArchived: false, stages: [], stageDefinitionIdsInOrder: []}]),
-    [SPECIALTIES]: () =>
+    [TEAMS]: () =>
       json([
         {id: SKIN_ID, name: 'Dermatology', isArchived: false},
         {id: FEET_ID, name: 'Biomechanics', isArchived: false},
@@ -130,17 +130,17 @@ describe('PathwaysListPage', () => {
     expect(await screen.findByRole('tab', {name: 'Breached', selected: true})).toBeInTheDocument();
   });
 
-  it('asks the API for the specialties and stage reached in the URL, and names them in the search', async () => {
-    const {fetch} = renderList({specialty: `${SKIN_ID},${FEET_ID}`, stage: HISTOLOGY_ID});
+  it('asks the API for the teams and stage reached in the URL, and names them in the search', async () => {
+    const {fetch} = renderList({team: `${SKIN_ID},${FEET_ID}`, stage: HISTOLOGY_ID});
 
     expect(await screen.findByText('23 matching pathways')).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([
       `${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true` +
-        `&SpecialtyIds=${SKIN_ID}&SpecialtyIds=${FEET_ID}&StageDefinitionIds=${HISTOLOGY_ID}`,
+        `&TeamIds=${SKIN_ID}&TeamIds=${FEET_ID}&StageDefinitionIds=${HISTOLOGY_ID}`,
     ]);
     await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Stage reached: is\s*Histology \(lab\)/));
     // Several are counted in the token ("2 items"); their names are in its popover.
-    expect(searchBar()).toHaveTextContent(/Specialty: is any of\s*2 items/);
+    expect(searchBar()).toHaveTextContent(/Team: is any of\s*2 items/);
   });
 
   it('names a chosen stage that is not in the list as "Selected stage"', async () => {

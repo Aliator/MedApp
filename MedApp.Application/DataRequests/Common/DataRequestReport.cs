@@ -153,7 +153,7 @@ public static class DataRequestReport
         Heading(md, "Your referrals");
         foreach (var r in export.Referrals)
         {
-            SubHeading(md, $"Referral to {r.SpecialtyName}, received {Words.Date(r.ReceivedOn)}");
+            SubHeading(md, $"Referral to {r.TeamName}, received {Words.Date(r.ReceivedOn)}");
             Fields(md,
                 ("From", string.Join(", ", new[] { r.ReferrerClinician, r.ReferrerPractice }.Where(v => !string.IsNullOrWhiteSpace(v)))),
                 ("Priority asked for", Words.Humanise(r.RequestedPriority)),
@@ -276,7 +276,7 @@ public static class DataRequestReport
         {
             Heading(md, "Discussions at team meetings (MDTs)");
             foreach (var i in export.MdtItems)
-                Bullet(md, $"{i.PathwayTitle}, {i.Specialty}{(i.MeetingStartUtc is null ? "" : $", {Words.Time(i.MeetingStartUtc)}")}: {Words.Humanise(i.Status)}",
+                Bullet(md, $"{i.PathwayTitle}, {i.Team}{(i.MeetingStartUtc is null ? "" : $", {Words.Time(i.MeetingStartUtc)}")}: {Words.Humanise(i.Status)}",
                     string.Join("\n", new[] { $"Question: {i.Question}", i.Outcome is null ? null : $"Outcome: {i.Outcome}" }.Where(v => v is not null)));
             md.AppendLine();
         }

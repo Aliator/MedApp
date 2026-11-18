@@ -37,13 +37,13 @@ describe('monitoring', () => {
       templateId: 't1',
       stageDefinitionId: 'd1',
       thresholdDays: null,
-      specialtyId: null,
+      teamId: null,
       isEnabled: false,
     });
-    expect(inputOf({id: 'r3', event: 'ReferralNotTriaged', thresholdDays: 2, specialtyId: 's1'})).toMatchObject({
+    expect(inputOf({id: 'r3', event: 'ReferralNotTriaged', thresholdDays: 2, teamId: 's1'})).toMatchObject({
       event: 'ReferralNotTriaged',
       thresholdDays: 2,
-      specialtyId: 's1',
+      teamId: 's1',
     });
     // What the API leaves out is "any", and on; an event it doesn't know falls back to the first.
     expect(inputOf({id: 'r2', event: 'Unknown'})).toEqual({
@@ -53,7 +53,7 @@ describe('monitoring', () => {
       templateId: null,
       stageDefinitionId: null,
       thresholdDays: null,
-      specialtyId: null,
+      teamId: null,
       isEnabled: true,
     });
   });

@@ -17,7 +17,7 @@ export const REFERRAL_PATIENT = {
   isAnonymised: false,
 };
 
-export const SPECIALTIES = [
+export const TEAMS = [
   {id: DERMATOLOGY_ID, name: 'Dermatology', isArchived: false, version: 1},
   {id: UROLOGY_ID, name: 'Urology', isArchived: false, version: 1},
 ];
@@ -29,8 +29,8 @@ export function testReferral(fields: Partial<Referral> = {}): Referral {
     patientId: REFERRAL_PATIENT_ID,
     patient: REFERRAL_PATIENT,
     patientFlags: {isRestricted: false, isDisputed: false, isAnonymised: false},
-    specialtyId: DERMATOLOGY_ID,
-    specialtyName: 'Dermatology',
+    teamId: DERMATOLOGY_ID,
+    teamName: 'Dermatology',
     receivedOn: '2026-11-02',
     referrerPractice: 'Synthetic Street Surgery',
     referrerClinician: 'Dr Test',
@@ -53,7 +53,7 @@ export function testReferral(fields: Partial<Referral> = {}): Referral {
     canTriage: false,
     whyCantTriage: null,
     history: [
-      {id: 'e1', action: 'Registered', atUtc: '2026-11-02T10:00:00Z', username: 'k.ashford', specialtyName: 'Dermatology', requestedPriority: 'High', changedFields: []},
+      {id: 'e1', action: 'Registered', atUtc: '2026-11-02T10:00:00Z', username: 'k.ashford', teamName: 'Dermatology', requestedPriority: 'High', changedFields: []},
     ],
     ...fields,
   };
@@ -69,8 +69,8 @@ export function testReferralSummary(fields: Partial<ReferralSummary> = {}): Refe
     patientName: 'Freya Ahmed',
     patientNhsNumber: '9990000018',
     patientDateOfBirth: '1976-12-01',
-    specialtyId: DERMATOLOGY_ID,
-    specialtyName: 'Dermatology',
+    teamId: DERMATOLOGY_ID,
+    teamName: 'Dermatology',
     receivedOn: '2026-11-02',
     daysSinceReceived: 12,
     requestedPriority: 'High',

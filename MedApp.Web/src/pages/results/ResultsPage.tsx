@@ -8,7 +8,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
 import {resultActionLabel, resultSearchQuery, resultViewLabel, type ResultSummary} from '../../api/results';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {useListSettings} from '../../app/listSettings';
 import {useCan} from '../../auth/auth';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
@@ -45,11 +45,11 @@ const VIEW_EMPTY: Record<ResultsView, string> = {
 
 const viewLabel = (view: ResultsView) => (view === 'All' ? 'All results' : resultViewLabel(view));
 
-/** The view's page of results, for its specialty, patient, sort and page size (the route's loader fetches the same). */
+/** The view's page of results, for its team, patient, sort and page size (the route's loader fetches the same). */
 export function resultsListQuery(view: ResultsView, search: ResultsSearch, pageSize: number) {
   return resultSearchQuery({
     View: view,
-    SpecialtyId: search.specialty,
+    TeamId: search.team,
     Search: search.patient,
     Sort: search.sort,
     Ascending: search.sort ? (search.asc ?? true) : undefined,
@@ -59,7 +59,7 @@ export function resultsListQuery(view: ResultsView, search: ResultsSearch, pageS
 }
 
 export interface ResultsPageProps {
-  /** The view, specialty, patient, page and sort, from the URL. */
+  /** The view, team, patient, page and sort, from the URL. */
   search: ResultsSearch;
   /** Updates the URL; the route passes navigate({search}). */
   onSearchChange: (search: ResultsSearch) => void;
@@ -70,11 +70,11 @@ export interface ResultsPageProps {
  * sign-off** (holders of SignOffResults, where they start), **Awaiting sign-off (everyone)** (where everyone else
  * starts), **Needs a clinician** (awaiting, and the responsible clinician can no longer sign off) and **Signed off**;
  * the person can change the tabs, and search by the patient's name (`ListFilterBar`; removing the view shows every
- * result). The Specialty picker beside the title narrows it to one specialty. Each row is the patient (name, NHS
+ * result). The Team picker beside the title narrows it to one team. Each row is the patient (name, NHS
  * number, date of birth), the result (opening its page), its pathway, when it was reported and how many days ago, the
  * responsible clinician, the status and, once signed off, who, when and what they did. **No interpretation:** each
  * view's own order is by dates, a column sorts only when the person asks, and nothing is highlighted by what a report
- * says. The view, specialty, patient, page and sort live in the URL. Every patient shown is recorded as listed.
+ * says. The view, team, patient, page and sort live in the URL. Every patient shown is recorded as listed.
  */
 export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
   const canSignOff = useCan('SignOffResults');
@@ -82,14 +82,14 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
   const views = useMemo(() => resultViewsFor(canSignOff), [canSignOff]);
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(resultsListQuery(view, search, pageSize));
-  const specialties = useQuery(specialtiesQuery(true));
+  const teams = useQuery(teamsQuery(true));
   const isNarrow = useIsNarrow();
   const {sort, asc} = resultsSortOf(search, view);
   const total = data?.totalCount ?? 0;
-  const specialtyName = specialties.data?.find((s) => s.id === search.specialty)?.name;
-  const specialtyOptions = [
-    {value: '', label: 'All specialties'},
-    ...(specialties.data ?? []).filter((s) => !s.isArchived || s.id === search.specialty).map((s) => ({value: s.id ?? '', label: s.name ?? ''})),
+  const teamName = teams.data?.find((s) => s.id === search.team)?.name;
+  const teamOptions = [
+    {value: '', label: 'All teams'},
+    ...(teams.data ?? []).filter((s) => !s.isArchived || s.id === search.team).map((s) => ({value: s.id ?? '', label: s.name ?? ''})),
   ];
   const fields = useMemo<ListFilterField[]>(
     () => [
@@ -104,7 +104,7 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
   const fromBar = (values: ListFilterValues) =>
     onSearchChange({
       view: typeof values.view === 'string' ? (values.view as ResultsView) : 'All',
-      specialty: search.specialty,
+      team: search.team,
       patient: typeof values.patient === 'string' ? values.patient : undefined,
       sort: search.sort,
       asc: search.asc,
@@ -177,16 +177,16 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
   return (
     <Page
       title="Results"
-      subtitle={isPending ? 'Loading results...' : `${viewLabel(view)}: ${total} ${noun}${specialtyName ? ` in ${specialtyName}` : ''}`}
+      subtitle={isPending ? 'Loading results...' : `${viewLabel(view)}: ${total} ${noun}${teamName ? ` in ${teamName}` : ''}`}
       fill
       message={isError && <AlertMessage message="The results could not be loaded. Please try again." />}
       actions={
         <AnchoredSelector
-          label="Specialty"
+          label="Team"
           isLabelHidden
-          options={specialtyOptions}
-          value={search.specialty ?? ''}
-          onChange={(specialty: string) => onSearchChange({...search, page: undefined, specialty: specialty || undefined})}
+          options={teamOptions}
+          value={search.team ?? ''}
+          onChange={(team: string) => onSearchChange({...search, page: undefined, team: team || undefined})}
           width={220}
           containerStyle={NO_STATUS_LINE}
         />

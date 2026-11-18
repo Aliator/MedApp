@@ -9,7 +9,7 @@ namespace MedApp.UnitTests.Tools.DemoData;
 
 /// <summary>
 /// The demo's referrals as planned, before anything is replayed: each pathway's referral registered before its triage
-/// and received on or before then, the few moved from another specialty, the pauses, and the referrals that never became
+/// and received on or before then, the few moved from another team, the pauses, and the referrals that never became
 /// pathways (closed, or awaiting triage now) with their patients registered first.
 /// </summary>
 [TestFixture]
@@ -56,14 +56,14 @@ public sealed class ReferralPlansTests
     }
 
     [Test]
-    public void Plans_MovedFromAnotherSpecialty_AreMovedBetweenTheirRegistrationAndTriage()
+    public void Plans_MovedFromAnotherTeam_AreMovedBetweenTheirRegistrationAndTriage()
     {
         var moved = _plans.Where(p => p.RedirectedFrom is not null).ToList();
 
         moved.Should().HaveCount(4);
         foreach (var plan in moved)
         {
-            plan.RedirectedFrom.Should().NotBe(DemoSpecialties.For(plan.PathwayKind));
+            plan.RedirectedFrom.Should().NotBe(DemoTeams.For(plan.PathwayKind));
             plan.RedirectedUtc.Should().BeAfter(plan.RegisteredUtc).And.BeBefore(plan.CreatedUtc);
         }
     }
@@ -118,14 +118,14 @@ public sealed class ReferralPlansTests
     }
 
     [Test]
-    public void Stories_TheInbox_IsInEverySpecialty_AndTheNewServicesComeAfterItWasAdded()
+    public void Stories_TheInbox_IsInEveryTeam_AndTheNewServicesComeAfterItWasAdded()
     {
         var inbox = _stories.Where(s => s.Outcome == StoryOutcome.AwaitingTriage).ToList();
 
         inbox.Count.Should().BeInRange(18, 25);
-        inbox.Select(s => s.Specialty).Distinct()
-            .Should().BeEquivalentTo(DemoSpecialties.Names.Append(DemoSpecialties.NewService));
-        inbox.Where(s => s.Specialty == DemoSpecialties.NewService)
+        inbox.Select(s => s.Team).Distinct()
+            .Should().BeEquivalentTo(DemoTeams.Names.Append(DemoTeams.NewService));
+        inbox.Where(s => s.Team == DemoTeams.NewService)
             .Should().HaveCount(3).And.OnlyContain(s => s.RegisteredUtc > _timeline.NewServiceAddedUtc && s.Kind == null);
         inbox.Should().ContainSingle(s => s.RedirectedFrom != null)
             .Which.RedirectedUtc.Should().BeAfter(inbox.Single(s => s.RedirectedFrom != null).RegisteredUtc);

@@ -34,7 +34,7 @@ public enum ResultView
 }
 
 /// <summary>
-/// A page of results: one view, optionally narrowed to a specialty, a pathway, a patient, or a patient's name
+/// A page of results: one view, optionally narrowed to a team, a pathway, a patient, or a patient's name
 /// (<see cref="Search"/>). <see cref="Sort"/> names a column (<see cref="ResultSearch.SortColumns"/>); without one, the
 /// view's own order.
 /// </summary>
@@ -42,7 +42,7 @@ public sealed record SearchResultsQuery(
     int Page,
     int PageSize,
     string? View,
-    Guid? SpecialtyId,
+    Guid? TeamId,
     Guid? PathwayId,
     Guid? PatientId,
     Guid ViewerId,
@@ -106,8 +106,8 @@ public static class ResultSearch
             results = results.Where(r => (r.Patient.FirstName + " " + r.Patient.LastName).ToLower().Contains(term));
         }
 
-        if (query.SpecialtyId is { } specialtyId)
-            results = results.Where(r => r.Pathway != null && r.Pathway.SpecialtyId == specialtyId);
+        if (query.TeamId is { } teamId)
+            results = results.Where(r => r.Pathway != null && r.Pathway.TeamId == teamId);
         if (query.PathwayId is { } pathwayId)
             results = results.Where(r => r.PathwayId == pathwayId);
         if (query.PatientId is { } patientId)

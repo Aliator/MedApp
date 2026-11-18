@@ -4,7 +4,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Mdt;
 
 using MedApp.UnitTests.Common.Constants;
@@ -14,7 +14,7 @@ using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Mdt.Common;
 
-/// <summary>The export and anonymisation cover MDT items; MDTs keep their specialty while items are on them.</summary>
+/// <summary>The export and anonymisation cover MDT items; MDTs keep their team while items are on them.</summary>
 [TestFixture]
 public sealed class MdtPrivacyAndMeetingsTests
 {
@@ -34,7 +34,7 @@ public sealed class MdtPrivacyAndMeetingsTests
         var only = exported.Should().ContainSingle().Subject;
         only.Question.Should().Be(Question);
         only.Outcome.Should().Be(Outcome);
-        only.Specialty.Should().Be(Specialty.Name);
+        only.Team.Should().Be(Team.Name);
         only.Present.Should().Equal(OtherUsername);
         only.ListedBy.Should().Be(Nurse.Username);
     }
@@ -58,34 +58,34 @@ public sealed class MdtPrivacyAndMeetingsTests
     }
 
     [Test]
-    public async Task ChooseSpecialty_LeftOut_KeepsTheMeetingAsItIs()
+    public async Task ChooseTeam_LeftOut_KeepsTheMeetingAsItIs()
     {
         var command = new FakeMeetingCommand(null, null);
 
-        (await MdtMeetings.ChooseSpecialtyAsync(command, Specialty.Id, Mock.Of<ISpecialtyRepository>(), CancellationToken.None))
-            .Should().Be(Specialty.Id);
+        (await MdtMeetings.ChooseTeamAsync(command, Team.Id, Mock.Of<ITeamRepository>(), CancellationToken.None))
+            .Should().Be(Team.Id);
     }
 
     [Test]
-    public async Task ChooseSpecialty_NewlyChosenArchived_Refuses()
+    public async Task ChooseTeam_NewlyChosenArchived_Refuses()
     {
-        var archived = new MedApp.Domain.Specialties.Specialty { Id = Guid.NewGuid(), Name = "Old", IsArchived = true };
-        var specialties = new Mock<ISpecialtyRepository>();
-        specialties.Setup(s => s.GetAsync(archived.Id, It.IsAny<CancellationToken>())).ReturnsAsync(archived);
+        var archived = new MedApp.Domain.Teams.Team { Id = Guid.NewGuid(), Name = "Old", IsArchived = true };
+        var teams = new Mock<ITeamRepository>();
+        teams.Setup(s => s.GetAsync(archived.Id, It.IsAny<CancellationToken>())).ReturnsAsync(archived);
 
-        await FluentActions.Awaiting(() => MdtMeetings.ChooseSpecialtyAsync(new FakeMeetingCommand(true, archived.Id), null, specialties.Object, CancellationToken.None))
-            .Should().ThrowAsync<ConflictException>().WithMessage(MdtMeetings.ArchivedSpecialtyMessage);
+        await FluentActions.Awaiting(() => MdtMeetings.ChooseTeamAsync(new FakeMeetingCommand(true, archived.Id), null, teams.Object, CancellationToken.None))
+            .Should().ThrowAsync<ConflictException>().WithMessage(MdtMeetings.ArchivedTeamMessage);
     }
 
     [Test]
-    public async Task ChooseSpecialty_NotAnMdt_IsNone()
+    public async Task ChooseTeam_NotAnMdt_IsNone()
     {
-        (await MdtMeetings.ChooseSpecialtyAsync(new FakeMeetingCommand(false, Specialty.Id), Specialty.Id, Mock.Of<ISpecialtyRepository>(), CancellationToken.None))
+        (await MdtMeetings.ChooseTeamAsync(new FakeMeetingCommand(false, Team.Id), Team.Id, Mock.Of<ITeamRepository>(), CancellationToken.None))
             .Should().BeNull();
     }
 
     [Test]
-    public async Task EnsureCanChange_ItemsOnIt_RefusesAnotherSpecialtyOrAnOrdinaryMeeting()
+    public async Task EnsureCanChange_ItemsOnIt_RefusesAnotherTeamOrAnOrdinaryMeeting()
     {
         var meeting = CreateMdt(Now.AddDays(1));
         var items = new Mock<IMdtItemRepository>();
@@ -93,7 +93,7 @@ public sealed class MdtPrivacyAndMeetingsTests
 
         await FluentActions.Awaiting(() => MdtMeetings.EnsureCanChangeAsync(meeting, null, items.Object, CancellationToken.None))
             .Should().ThrowAsync<ConflictException>().WithMessage(MdtRules.HasItemsMessage);
-        await MdtMeetings.EnsureCanChangeAsync(meeting, meeting.SpecialtyId, items.Object, CancellationToken.None);
+        await MdtMeetings.EnsureCanChangeAsync(meeting, meeting.TeamId, items.Object, CancellationToken.None);
     }
 
     [Test]
@@ -107,7 +107,7 @@ public sealed class MdtPrivacyAndMeetingsTests
             .Should().ThrowAsync<ConflictException>().WithMessage(MdtRules.HasOutcomesMessage);
     }
 
-    private sealed record FakeMeetingCommand(bool? IsMdt, Guid? SpecialtyId) : IMeetingCommand
+    private sealed record FakeMeetingCommand(bool? IsMdt, Guid? TeamId) : IMeetingCommand
     {
         public string Title => "Skin MDT";
         public string? Notes => null;

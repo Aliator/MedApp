@@ -4,7 +4,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Calendar;
@@ -28,7 +28,7 @@ public sealed class UpdateMeetingHandler(
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     IMdtItemRepository mdtItems,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateMeetingCommand, MeetingResponse>
@@ -49,10 +49,10 @@ public sealed class UpdateMeetingHandler(
         CalendarGuards.EnsureNotPast(UkTime.DateOf(existing.StartUtc), today);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(start), today);
 
-        // An MDT keeps its specialty while items are on it.
-        var mdtSpecialtyId = await MdtMeetings.ChooseSpecialtyAsync(
-            request, existing.IsMdt ? existing.SpecialtyId : null, specialties, cancellationToken);
-        await MdtMeetings.EnsureCanChangeAsync(existing, mdtSpecialtyId, mdtItems, cancellationToken);
+        // An MDT keeps its team while items are on it.
+        var mdtTeamId = await MdtMeetings.ChooseTeamAsync(
+            request, existing.IsMdt ? existing.TeamId : null, teams, cancellationToken);
+        await MdtMeetings.EnsureCanChangeAsync(existing, mdtTeamId, mdtItems, cancellationToken);
 
         var previousAttendees = existing.Attendees.Select(a => a.StaffUserId).ToList();
         var staff = await identityReadService.GetStaffAsync(cancellationToken);
@@ -89,8 +89,8 @@ public sealed class UpdateMeetingHandler(
 
             tracked.Title = request.Title.Trim();
             tracked.Notes = request.Notes?.Trim() ?? string.Empty;
-            tracked.IsMdt = mdtSpecialtyId is not null;
-            tracked.SpecialtyId = mdtSpecialtyId;
+            tracked.IsMdt = mdtTeamId is not null;
+            tracked.TeamId = mdtTeamId;
             tracked.StartUtc = start;
             tracked.EndUtc = end;
             tracked.LastUpdated = now;

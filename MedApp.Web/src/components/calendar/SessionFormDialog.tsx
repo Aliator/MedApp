@@ -10,7 +10,7 @@ import {calendarQuery, staffWithPermissionQuery} from '../../api/calendar';
 import {SLOT_LENGTHS, useSaveSession, type ClinicSession} from '../../api/clinics';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {roomsQuery} from '../../api/sites';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {useAnnounce} from '../../app/announcements';
 import {addMinutes, minutesBetween, sameMoment, ukToday} from '../../utils/calendarSlots';
 import {formatTime, WEEK_STARTS_ON} from '../../utils/dates';
@@ -30,7 +30,7 @@ export interface SessionFormDialogProps {
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
-const FIELDS = ['staffUserId', 'roomId', 'specialtyId', 'startUtc', 'endUtc', 'slotMinutes'];
+const FIELDS = ['staffUserId', 'roomId', 'teamId', 'startUtc', 'endUtc', 'slotMinutes'];
 
 /** Every 15 minutes from `from` to `to` (UTC, ISO), both included. */
 function stepsBetween(from: string, to: string): string[] {
@@ -43,8 +43,8 @@ function stepsBetween(from: string, to: string): string[] {
  * Adding or changing a clinic session (centre plan decision 123, ManageClinics): the clinician (anyone who can be booked
  * with: BookAppointments' holders are who appointments go with), the day, the start and end inside their working day
  * that day (from their calendar, so the browser does no time zone arithmetic), the slot length, the room and the
- * specialty. A clash on their calendar or in the room, or a room whose site is closed or shut then, is the API's 409, in
- * its words. A session with appointments booked into it can only change its room and specialty (the API says so).
+ * team. A clash on their calendar or in the room, or a room whose site is closed or shut then, is the API's 409, in
+ * its words. A session with appointments booked into it can only change its room and team (the API says so).
  */
 export function SessionFormDialog(props: SessionFormDialogProps) {
   // A fresh form each time it opens.
@@ -70,13 +70,13 @@ function SessionForm({isOpen, onClose, session, date: initialDate, onSaved}: Ses
   const [end, setEnd] = useState<string | undefined>(session?.endUtc);
   const [slotMinutes, setSlotMinutes] = useState(session?.slotMinutes ?? 20);
   const [roomId, setRoomId] = useState(session?.roomId ?? '');
-  const [specialtyId, setSpecialtyId] = useState(session?.specialtyId ?? '');
+  const [teamId, setTeamId] = useState(session?.teamId ?? '');
   const [validation, setValidation] = useState<ValidationErrors | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   const staff = useQuery({...staffWithPermissionQuery('BookAppointments'), enabled: isOpen});
   const rooms = useQuery({...roomsQuery(), enabled: isOpen});
-  const specialties = useQuery({...specialtiesQuery(false), enabled: isOpen});
+  const teams = useQuery({...teamsQuery(false), enabled: isOpen});
   const calendar = useQuery({
     ...calendarQuery({staffUserId, from: date ?? today, to: date ?? today}),
     enabled: isOpen && staffUserId !== '' && date !== undefined,
@@ -92,7 +92,7 @@ function SessionForm({isOpen, onClose, session, date: initialDate, onSaved}: Ses
   const divides = length > 0 && length % slotMinutes === 0;
 
   const canSave =
-    staffUserId !== '' && roomId !== '' && specialtyId !== '' && start !== undefined && end !== undefined && length > 0 && divides && !save.isPending;
+    staffUserId !== '' && roomId !== '' && teamId !== '' && start !== undefined && end !== undefined && length > 0 && divides && !save.isPending;
 
   const submit = () => {
     if (!canSave) return;
@@ -104,7 +104,7 @@ function SessionForm({isOpen, onClose, session, date: initialDate, onSaved}: Ses
         expectedLastUpdated: session?.lastUpdated,
         staffUserId,
         roomId,
-        specialtyId,
+        teamId,
         startUtc: start,
         endUtc: end,
         slotMinutes,
@@ -233,13 +233,13 @@ function SessionForm({isOpen, onClose, session, date: initialDate, onSaved}: Ses
             options={(rooms.data ?? []).map((r) => ({value: r.id ?? '', label: `${r.name} (${r.siteName})`}))}
           />
           <AnchoredSelector
-            label="Specialty"
-            value={specialtyId}
-            placeholder="Choose a specialty"
-            onChange={setSpecialtyId}
-            isLoading={specialties.isLoading}
-            status={fieldStatus(validation, 'specialtyId')}
-            options={(specialties.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}))}
+            label="Team"
+            value={teamId}
+            placeholder="Choose a team"
+            onChange={setTeamId}
+            isLoading={teams.isLoading}
+            status={fieldStatus(validation, 'teamId')}
+            options={(teams.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}))}
           />
         </VStack>
       )}

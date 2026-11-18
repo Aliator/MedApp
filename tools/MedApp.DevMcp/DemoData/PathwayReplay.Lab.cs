@@ -28,7 +28,7 @@ namespace MedApp.DevMcp.DemoData;
 public sealed record LetterPlan(
     Guid PathwayId,
     Guid PatientId,
-    string Specialty,
+    string Team,
     LetterKind Kind,
     StaffMember Author,
     DateTime WrittenUtc,
@@ -511,15 +511,15 @@ public sealed partial class PathwayReplay
 
         MdtRules.EnsurePathwayCanBeListed(_pathway);
         MdtRules.EnsureCanListFor(meeting, listAt);
-        var specialty = _world.Specialties[meeting.SpecialtyId!.Value];
+        var team = _world.Teams[meeting.TeamId!.Value];
         var item = new MdtItem
         {
             Id = Guid.NewGuid(),
             PatientId = _pathway.PatientId,
             PathwayId = _pathway.Id,
             Pathway = _pathway,
-            SpecialtyId = specialty.Id,
-            Specialty = specialty,
+            TeamId = team.Id,
+            Team = team,
             MeetingId = meeting.Id,
             Meeting = meeting,
             Question = MdtQuestion(),
@@ -529,7 +529,7 @@ public sealed partial class PathwayReplay
             ListedAtUtc = listAt,
             Version = 1,
         };
-        _audit.Add(MdtAudit.Listed(item, _pathway, specialty.Name, meeting, _lead.Actor, listAt));
+        _audit.Add(MdtAudit.Listed(item, _pathway, team.Name, meeting, _lead.Actor, listAt));
         _mdtItems.Add(item);
         Touch(_lead, listAt);
 
@@ -550,7 +550,7 @@ public sealed partial class PathwayReplay
         item.OutcomeAtUtc = outcomeAt;
         item.Attendees = present.Select(id => new MdtItemAttendee { MdtItemId = item.Id, StaffUserId = id, Username = _world.UsernameOf(id) }).ToList();
         item.Version++;
-        _audit.Add(MdtAudit.OutcomeRecorded(item, specialty.Name, chair.Actor, outcomeAt));
+        _audit.Add(MdtAudit.OutcomeRecorded(item, team.Name, chair.Actor, outcomeAt));
         Touch(chair, outcomeAt);
         Tell(MdtNotifications.OutcomeRecorded(item, chair.Actor, outcomeAt), outcomeAt);
         return outcomeAt;
@@ -588,7 +588,7 @@ public sealed partial class PathwayReplay
         var sentAt = Working(approvedAt.AddDays(0.02 + _random.NextDouble() * 0.8));
         var coordinator = _world.Coordinator;
 
-        _letter = new LetterPlan(_pathway.Id, _pathway.PatientId, _world.Specialties[_pathway.SpecialtyId].Name,
+        _letter = new LetterPlan(_pathway.Id, _pathway.PatientId, _world.Teams[_pathway.TeamId].Name,
             LetterKind.DischargeSummary, author, writtenAt, body, approver,
             submittedAt < _now ? submittedAt : null,
             approvedAt < _now ? approvedAt : null,

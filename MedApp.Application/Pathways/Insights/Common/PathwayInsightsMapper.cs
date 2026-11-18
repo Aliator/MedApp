@@ -21,7 +21,7 @@ public static class PathwayInsightsMapper
     {
         Weeks = period.Weeks.Count,
         TemplateId = scope.TemplateId,
-        SpecialtyId = scope.SpecialtyId,
+        TeamId = scope.TeamId,
         From = period.Weeks[0].Monday,
         To = DueDates.ToUkDate(period.NowUtc),
         Open = Compare(data, s => !PathwayWorkflow.IsClosed(s.Status)),

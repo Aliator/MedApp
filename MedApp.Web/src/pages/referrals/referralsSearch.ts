@@ -1,8 +1,9 @@
+import {searchNow} from '../../app/beforePathways';
 import {CLOSED_REFERRAL_STATUSES, type ReferralSearch, type ReferralStatus} from '../../api/referrals';
 import {parseIdChoice} from '../listSearch';
 
 /**
- * The Referrals page's address: its view, page, sort, the patient's name searched for and the specialties. The view is
+ * The Referrals page's address: its view, page, sort, the patient's name searched for and the teams. The view is
  * Awaiting triage (the inbox) unless the URL says `view=information`, `waiting`, `paused`, `closed` or `all`, so the inbox's own link
  * has no search at all.
  */
@@ -14,7 +15,7 @@ export const REFERRAL_SORTS = {
   Target: 'targetOn',
   Review: 'reviewOn',
   Patient: 'patient',
-  Specialty: 'specialty',
+  Team: 'team',
   Priority: 'priority',
   Registered: 'registered',
 } as const;
@@ -35,8 +36,8 @@ export interface ReferralsListSearch {
   view?: Exclude<ReferralView, 'awaiting'>;
   /** The patient's name contains this. */
   patient?: string;
-  /** Specialty IDs: an ID choice (see `parseIdChoice`). */
-  specialty?: string;
+  /** Team IDs: an ID choice (see `parseIdChoice`). */
+  team?: string;
 }
 
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
@@ -47,7 +48,8 @@ function oneOf<T extends string>(value: unknown, options: readonly T[]): T | und
 }
 
 /** The search from the address bar, dropping anything that isn't valid, so a bad link shows the inbox. */
-export function parseReferralsSearch(raw: Record<string, unknown>): ReferralsListSearch {
+export function parseReferralsSearch(saved: Record<string, unknown>): ReferralsListSearch {
+  const raw = searchNow(saved);
   const page = Number(text(raw.page));
   const asc = text(raw.asc)?.toLowerCase();
   const view = oneOf(raw.view, REFERRAL_VIEWS);
@@ -57,7 +59,7 @@ export function parseReferralsSearch(raw: Record<string, unknown>): ReferralsLis
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,
     view: view === 'awaiting' ? undefined : view,
     patient: text(raw.patient),
-    specialty: parseIdChoice(raw.specialty),
+    team: parseIdChoice(raw.team),
   };
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as ReferralsListSearch;
 }

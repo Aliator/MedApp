@@ -3,7 +3,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Mdt;
 using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.UnitTests.Common.Constants;
 
@@ -13,7 +13,7 @@ public static class MdtTestConstants
     public const string Question = "Synthetic question for the team.";
     public const string Outcome = "Synthetic outcome as the team wrote it.";
 
-    public static readonly Specialty Specialty = new() { Id = Guid.Parse("33333333-0000-0000-0000-0000000000d1"), Name = "Dermatology" };
+    public static readonly Team Team = new() { Id = Guid.Parse("33333333-0000-0000-0000-0000000000d1"), Name = "Dermatology" };
 
     /// <summary>A clinician who works on pathways and records MDT outcomes.</summary>
     public static readonly PathwayActor Clinician = new(
@@ -27,7 +27,7 @@ public static class MdtTestConstants
         "test.nurse",
         new HashSet<Permission> { Permission.ViewPatients, Permission.WorkPathways });
 
-    /// <summary>An MDT of <see cref="Specialty"/> starting <paramref name="startUtc"/>, for an hour, with the other member of staff invited.</summary>
+    /// <summary>An MDT of <see cref="Team"/> starting <paramref name="startUtc"/>, for an hour, with the other member of staff invited.</summary>
     public static Meeting CreateMdt(DateTime startUtc)
     {
         var id = Guid.NewGuid();
@@ -38,7 +38,7 @@ public static class MdtTestConstants
             StartUtc = startUtc,
             EndUtc = startUtc.AddHours(1),
             IsMdt = true,
-            SpecialtyId = Specialty.Id,
+            TeamId = Team.Id,
             Attendees =
             [
                 new MeetingAttendee { MeetingId = id, StaffUserId = PathwaysTestConstants.OtherUserId },
@@ -58,8 +58,8 @@ public static class MdtTestConstants
             Patient = pathway.Patient,
             PathwayId = pathway.Id,
             Pathway = pathway,
-            SpecialtyId = Specialty.Id,
-            Specialty = Specialty,
+            TeamId = Team.Id,
+            Team = Team,
             MeetingId = meeting?.Id,
             Meeting = meeting,
             Question = Question,

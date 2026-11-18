@@ -128,9 +128,9 @@ public sealed class CreateMonitoringRuleValidatorTests
     }
 
     [Test]
-    public void Validate_EmptySpecialty_Fails()
+    public void Validate_EmptyTeam_Fails()
     {
-        _validator.Validate(Alert("ReferralNotTriaged") with { SpecialtyId = Guid.Empty })
-            .Errors.Should().ContainSingle(e => e.PropertyName == "SpecialtyId");
+        _validator.Validate(Alert("ReferralNotTriaged") with { TeamId = Guid.Empty })
+            .Errors.Should().ContainSingle(e => e.PropertyName == "TeamId");
     }
 }

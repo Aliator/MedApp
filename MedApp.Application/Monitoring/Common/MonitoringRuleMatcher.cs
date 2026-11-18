@@ -11,7 +11,7 @@ public static class MonitoringRuleMatcher
 {
     /// <summary>
     /// Whether the rule matches this activity on this pathway: it's on, watches for this event, and every condition
-    /// it has holds (the person, a priority at least its minimum, the template, the specialty, the stage's definition). The template is
+    /// it has holds (the person, a priority at least its minimum, the template, the team, the stage's definition). The template is
     /// the pathway's after the change; the priority is the higher of before and after (<see cref="PriorityOf"/>).
     /// </summary>
     public static bool Matches(MonitoringRule rule, MonitoredActivity activity, PatientPathway pathway) =>
@@ -20,7 +20,7 @@ public static class MonitoringRuleMatcher
         && (rule.SubjectUserId is null || rule.SubjectUserId == activity.SubjectUserId)
         && (rule.MinimumPriority is null || PriorityOf(activity, pathway) >= rule.MinimumPriority)
         && (rule.TemplateId is null || rule.TemplateId == pathway.TemplateId)
-        && (rule.SpecialtyId is null || rule.SpecialtyId == pathway.SpecialtyId)
+        && (rule.TeamId is null || rule.TeamId == pathway.TeamId)
         && (rule.StageDefinitionId is null || rule.StageDefinitionId == activity.StageDefinitionId);
 
     /// <summary>

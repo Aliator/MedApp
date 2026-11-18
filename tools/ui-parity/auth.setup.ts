@@ -41,9 +41,9 @@ setup('sign in and find shared records', async ({ page }, info) => {
   // And a meeting of the parity account's own, declined, for the meeting screens (best effort: they skip without it).
   const meeting = await parityMeeting(page, apiUrl, username).catch(() => undefined);
 
-  // And a stage and a specialty to filter by (best effort: those screens show the list unfiltered without them).
+  // And a stage and a team to filter by (best effort: those screens show the list unfiltered without them).
   const stageId = await byName(page, `${apiUrl}/api/pathways/patient-pathway-stage/definitions`, 'Histology (lab)');
-  const specialtyId = await byName(page, `${apiUrl}/api/specialties`, 'Dermatology');
+  const teamId = await byName(page, `${apiUrl}/api/teams`, 'Dermatology');
 
   // And a template that branches, with a pathway made from it (best effort: the branching screens skip without them).
   const branching = await branchingPathway(page, apiUrl).catch(() => undefined);
@@ -55,7 +55,7 @@ setup('sign in and find shared records', async ({ page }, info) => {
     meetingId: meeting?.id,
     meetingDate: meeting?.date,
     stageId,
-    specialtyId,
+    teamId,
     branchingTemplateId: branching?.templateId,
     branchingPathwayId: branching?.pathwayId,
   });

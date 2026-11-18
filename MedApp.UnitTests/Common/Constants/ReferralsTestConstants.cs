@@ -4,7 +4,7 @@ using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.UnitTests.Common.Constants;
 
@@ -46,19 +46,19 @@ public static class ReferralsTestConstants
 
     public static Referral CreateReferral(
         Patient? patient = null,
-        Specialty? specialty = null,
+        Team? team = null,
         ReferralStatus status = ReferralStatus.AwaitingTriage,
         int version = 1)
     {
         patient ??= PatientsTestConstants.CreateValidPatient();
-        specialty ??= SpecialtiesTestConstants.CreateSpecialty();
+        team ??= TeamsTestConstants.CreateTeam();
         var referral = new Referral
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
             Patient = patient,
-            SpecialtyId = specialty.Id,
-            Specialty = specialty,
+            TeamId = team.Id,
+            Team = team,
             ReceivedOn = ReceivedOn,
             ReferrerPractice = Practice,
             ReferrerClinician = Clinician,
@@ -74,7 +74,7 @@ public static class ReferralsTestConstants
         };
 
         // Its waiting-time clock, started as registering starts it: High's target, from the day received.
-        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority));
+        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(team, referral.RequestedPriority));
         return referral;
     }
 }

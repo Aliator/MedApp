@@ -3,7 +3,7 @@ using MedApp.Application.Clinics.Common;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Clinics.Responses;
 using MediatR;
 
@@ -11,7 +11,7 @@ namespace MedApp.Application.Clinics.Commands.UpdateClinicPattern;
 
 public sealed class UpdateClinicPatternHandler(
     IClinicRepository repository,
-    ISpecialtyRepository specialtyRepository,
+    ITeamRepository teamRepository,
     IIdentityReadService identityReadService,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateClinicPatternCommand, ClinicPatternResponse>
@@ -27,11 +27,11 @@ public sealed class UpdateClinicPatternHandler(
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var today = UkTime.DateOf(now);
         await ClinicChoices.CheckRoomAsync(repository, request.RoomId, today, pattern.RoomId, cancellationToken);
-        await ClinicChoices.CheckSpecialtyAsync(specialtyRepository, request.SpecialtyId, pattern.SpecialtyId, cancellationToken);
+        await ClinicChoices.CheckTeamAsync(teamRepository, request.TeamId, pattern.TeamId, cancellationToken);
 
         pattern.StaffUserId = request.StaffUserId;
         pattern.RoomId = request.RoomId;
-        pattern.SpecialtyId = request.SpecialtyId;
+        pattern.TeamId = request.TeamId;
         pattern.DayOfWeek = HoursValidation.Day(request.DayOfWeek);
         pattern.Starts = request.Starts;
         pattern.Ends = request.Ends;

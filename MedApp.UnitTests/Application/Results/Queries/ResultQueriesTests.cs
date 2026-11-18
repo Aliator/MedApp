@@ -15,8 +15,8 @@ namespace MedApp.UnitTests.Application.Results.Queries;
 [TestFixture]
 public sealed class ResultQueriesTests : ResultTestBase
 {
-    private static SearchResultsQuery Query(string? view, Guid? specialtyId = null, Guid? viewer = null) =>
-        new(1, 10, view, specialtyId, null, null, viewer ?? Clinician.UserId);
+    private static SearchResultsQuery Query(string? view, Guid? teamId = null, Guid? viewer = null) =>
+        new(1, 10, view, teamId, null, null, viewer ?? Clinician.UserId);
 
     private static List<Result> Results()
     {
@@ -50,12 +50,12 @@ public sealed class ResultQueriesTests : ResultTestBase
     }
 
     [Test]
-    public void SpecialtyFilter_KeepsOnlyThatSpecialtysPathways()
+    public void TeamFilter_KeepsOnlyThatTeamsPathways()
     {
         var all = Results();
-        all[0].Pathway!.SpecialtyId = Guid.NewGuid();
+        all[0].Pathway!.TeamId = Guid.NewGuid();
 
-        Search(all, Query("AwaitingMine", specialtyId: all[0].Pathway!.SpecialtyId)).Should().Equal(all[0]);
+        Search(all, Query("AwaitingMine", teamId: all[0].Pathway!.TeamId)).Should().Equal(all[0]);
     }
 
     [Test]

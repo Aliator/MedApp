@@ -17,8 +17,8 @@ export interface PatientReferralsProps {
    * triager spots a duplicate before choosing an outcome: hazard H-44).
    */
   exceptReferralId?: string;
-  /** A specialty whose referrals are marked "Same specialty" (the shown referral's: the likeliest duplicates). */
-  sameSpecialtyId?: string;
+  /** A team whose referrals are marked "Same clinic" (the shown referral's: the likeliest duplicates). */
+  sameTeamId?: string;
 }
 
 /**
@@ -26,7 +26,7 @@ export interface PatientReferralsProps {
  * the most recent others, each linking to its page; and Register Referral, with the patient chosen. With
  * `exceptReferralId`, the patient's other referrals (the referral page's, for spotting a duplicate).
  */
-export function PatientReferrals({patientId, canRegister, exceptReferralId, sameSpecialtyId}: PatientReferralsProps) {
+export function PatientReferrals({patientId, canRegister, exceptReferralId, sameTeamId}: PatientReferralsProps) {
   const {data, isPending, isError} = useQuery(patientReferralsQuery(patientId));
   const items = data?.items ?? [];
   const referrals = openFirst(items.filter((r) => r.id !== exceptReferralId));
@@ -45,7 +45,7 @@ export function PatientReferrals({patientId, canRegister, exceptReferralId, same
           {exceptReferralId ? 'No other referrals.' : 'No referrals yet.'}
         </Text>
       ) : (
-        <ReferralList referrals={referrals} label={exceptReferralId ? 'Other referrals' : 'Referrals'} sameSpecialtyId={sameSpecialtyId} />
+        <ReferralList referrals={referrals} label={exceptReferralId ? 'Other referrals' : 'Referrals'} sameTeamId={sameTeamId} />
       )}
       {more > 0 && (
         <Text type="supporting" color="secondary">

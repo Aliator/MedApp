@@ -716,7 +716,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           {pathway.referral?.id && (
             <Text type="body">
               <Link href={`/referrals/${pathway.referral.id}`}>
-                {`From a referral received ${formatDate(pathway.referral.receivedOn ?? '')}, ${pathway.referral.specialtyName}`}
+                {`From a referral received ${formatDate(pathway.referral.receivedOn ?? '')}, ${pathway.referral.teamName}`}
               </Link>
             </Text>
           )}
@@ -1044,7 +1044,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         <Section variant="transparent" padding={6}>
           <LettersAbout
             about={{pathwayId: pathway.id ?? ''}}
-            specialtyId={pathway.specialtyId}
+            teamId={pathway.teamId}
             patient={pathway.patient}
             isLocked={Boolean(pathway.readOnlyReason) || !(pathway.canEditDetails ?? false)}
           />

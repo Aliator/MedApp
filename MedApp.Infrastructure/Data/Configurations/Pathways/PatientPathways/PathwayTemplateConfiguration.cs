@@ -1,5 +1,5 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -33,14 +33,14 @@ public sealed class PathwayTemplateConfiguration : IEntityTypeConfiguration<Path
         builder.HasIndex(x => x.Name)
             .IsUnique();
 
-        // Required. The database's default is General, so an API copy from before specialties can still create a
-        // template during a rollout. A specialty in use is archived, never deleted.
-        builder.Property(x => x.SpecialtyId)
-            .HasDefaultValue(Specialty.GeneralId);
+        // Required. The database's default is General, so an API copy from before teams can still create a
+        // template during a rollout. A team in use is archived, never deleted.
+        builder.Property(x => x.TeamId)
+            .HasDefaultValue(Team.GeneralId);
 
-        builder.HasOne(x => x.Specialty)
+        builder.HasOne(x => x.Team)
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

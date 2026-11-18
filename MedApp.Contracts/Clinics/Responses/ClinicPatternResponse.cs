@@ -17,9 +17,9 @@ public sealed class ClinicPatternResponse
 
     public string SiteName { get; set; } = string.Empty;
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>"Monday" to "Sunday".</summary>
     public string DayOfWeek { get; set; } = string.Empty;

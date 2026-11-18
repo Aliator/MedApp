@@ -1,12 +1,12 @@
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Domain.Mdt;
 
 /// <summary>
-/// A pathway put forward for a specialty's multidisciplinary team meeting (an MDT: a calendar <see cref="Meeting"/>
+/// A pathway put forward for a team's multidisciplinary team meeting (an MDT: a calendar <see cref="Meeting"/>
 /// marked <see cref="Meeting.IsMdt"/>), with the question for the team, and once discussed the outcome as a person wrote
 /// it and who was present. MedApp never suggests an outcome or acts on one: any change to the pathway that follows is a
 /// person's own (<c>docs/centre-phases-3-5-plan.md</c>, decisions 141 to 144).
@@ -30,9 +30,9 @@ public sealed class MdtItem
     public Guid PathwayId { get; init; }
     public PatientPathway Pathway { get; set; } = null!;
 
-    /// <summary>The specialty whose MDT it's for: its meeting's.</summary>
-    public Guid SpecialtyId { get; set; }
-    public Specialty Specialty { get; set; } = null!;
+    /// <summary>The team whose MDT it's for: its meeting's.</summary>
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 
     /// <summary>The meeting it's on; null once that meeting was cancelled (see <see cref="MeetingCancelledStartUtc"/>).</summary>
     public Guid? MeetingId { get; set; }

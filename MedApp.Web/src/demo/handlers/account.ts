@@ -69,11 +69,11 @@ export function registerAccount() {
   });
   on('put', '/api/auth/me/details', () => problem(409, 'The demo accounts’ names are fixed in the light demo.'));
 
-  on('get', '/api/auth/me/specialties', () => {
+  on('get', '/api/auth/me/teams', () => {
     const person = me();
-    const mine = db().memberships[person.id] ?? person.specialtyIds;
+    const mine = db().memberships[person.id] ?? person.teamIds;
     return db()
-      .specialties.filter((s) => mine.includes(s.id ?? ''))
+      .teams.filter((s) => mine.includes(s.id ?? ''))
       .map((s) => ({id: s.id, name: s.name, isArchived: s.isArchived}));
   });
 

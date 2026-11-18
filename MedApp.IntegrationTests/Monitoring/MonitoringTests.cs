@@ -348,7 +348,7 @@ public sealed class MonitoringTests : IntegrationTest
                 TemplateId = monitoringEvent == "ReferralNotTriaged" ? null : _template.Id,
                 StageDefinitionId = monitoringEvent is "VisitNotBooked" or "SpecimenOverdue" ? _bloods.Id : null,
                 ThresholdDays = 0,
-                SpecialtyId = _template.SpecialtyId,
+                TeamId = _template.TeamId,
             });
         }
 

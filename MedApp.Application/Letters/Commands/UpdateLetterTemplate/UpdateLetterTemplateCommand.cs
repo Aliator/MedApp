@@ -11,7 +11,7 @@ public sealed record UpdateLetterTemplateCommand(
     Guid TemplateId,
     string Name,
     string Kind,
-    Guid? SpecialtyId,
+    Guid? TeamId,
     string Letterhead,
     string BodySkeleton,
     string Closing,

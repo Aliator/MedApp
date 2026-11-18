@@ -1,6 +1,8 @@
-/** The MDT page's place in the address: the specialty and the meeting chosen, so a list is a link. */
+import {searchNow} from '../../app/beforePathways';
+
+/** The MDT page's place in the address: the team and the meeting chosen, so a list is a link. */
 export interface MdtSearch {
-  specialty?: string;
+  team?: string;
   meeting?: string;
 }
 
@@ -10,7 +12,8 @@ const id = (value: unknown): string | undefined =>
   typeof value === 'string' && GUID.test(value.trim()) ? value.trim() : undefined;
 
 /** What's in the address bar, dropping anything that isn't an ID, so a bad link shows the default. */
-export function parseMdtSearch(raw: Record<string, unknown>): MdtSearch {
-  const search: MdtSearch = {specialty: id(raw.specialty), meeting: id(raw.meeting)};
+export function parseMdtSearch(saved: Record<string, unknown>): MdtSearch {
+  const raw = searchNow(saved);
+  const search: MdtSearch = {team: id(raw.team), meeting: id(raw.meeting)};
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as MdtSearch;
 }

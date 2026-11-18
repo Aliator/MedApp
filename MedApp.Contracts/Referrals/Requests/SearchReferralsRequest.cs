@@ -9,7 +9,7 @@ public sealed class SearchReferralsRequest
 
     /// <summary>
     /// <c>receivedOn</c> (the default: oldest first, so the longest wait is at the top), <c>patient</c>,
-    /// <c>specialty</c>, <c>priority</c>, <c>registered</c>, <c>daysWaited</c> (the clock), <c>targetOn</c> or
+    /// <c>team</c>, <c>priority</c>, <c>registered</c>, <c>daysWaited</c> (the clock), <c>targetOn</c> or
     /// <c>reviewOn</c> (the open pause's review date; clocks not paused last).
     /// </summary>
     public string? Sort { get; set; }
@@ -19,10 +19,10 @@ public sealed class SearchReferralsRequest
     /// <summary>Any of these statuses: AwaitingTriage, Accepted, Rejected, RedirectedElsewhere, Withdrawn, EnteredInError.</summary>
     public List<string>? Statuses { get; set; }
 
-    /// <summary>Any of these specialties.</summary>
-    public List<Guid>? SpecialtyIds { get; set; }
+    /// <summary>Any of these teams.</summary>
+    public List<Guid>? TeamIds { get; set; }
 
-    /// <summary>Only the specialties the caller belongs to (all, if they belong to none).</summary>
+    /// <summary>Only the teams the caller belongs to (all, if they belong to none).</summary>
     public bool Mine { get; set; }
 
     public Guid? PatientId { get; set; }

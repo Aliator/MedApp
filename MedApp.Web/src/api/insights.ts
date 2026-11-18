@@ -10,11 +10,11 @@ export type StageTime = Schemas['StageTimeResponse'];
 
 /**
  * The admins' overview of pathway work (`GET api/pathways/insights`): the last `weeks` UK weeks, every template
- * or one, every specialty or one. Keyed under ['pathways'], so a change to any pathway refreshes it; while a new
- * period, template or specialty loads, the last one stays on screen.
+ * or one, every team or one. Keyed under ['pathways'], so a change to any pathway refreshes it; while a new
+ * period, template or team loads, the last one stays on screen.
  */
-export function insightsQuery({weeks, templateId, specialtyId}: {weeks: number; templateId?: string; specialtyId?: string}) {
-  const query = {Weeks: weeks, ...(templateId ? {TemplateId: templateId} : {}), ...(specialtyId ? {SpecialtyId: specialtyId} : {})};
+export function insightsQuery({weeks, templateId, teamId}: {weeks: number; templateId?: string; teamId?: string}) {
+  const query = {Weeks: weeks, ...(templateId ? {TemplateId: templateId} : {}), ...(teamId ? {TeamId: teamId} : {})};
   return queryOptions({
     queryKey: ['pathways', 'insights', query],
     queryFn: () => unwrap(api.GET('/api/pathways/insights', {params: {query}})),

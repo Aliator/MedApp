@@ -19,7 +19,7 @@ public sealed class CreateClinicSessionHandlerTests : ClinicHandlerTestBase
     public void SetUp() => _handler = Fixture.Create<CreateClinicSessionHandler>();
 
     private static CreateClinicSessionCommand Command(Guid? roomId = null) =>
-        new(StaffUserId, roomId ?? SitesTestConstants.RoomId, SpecialtyId, At(NextMonday, 9), At(NextMonday, 12), 20, AdminActor);
+        new(StaffUserId, roomId ?? SitesTestConstants.RoomId, TeamId, At(NextMonday, 9), At(NextMonday, 12), 20, AdminActor);
 
     [Test]
     public async Task Handle_FreeTime_AddsThePlannedSessionHoldingTheClinicianAndRoomLocks()
@@ -33,7 +33,7 @@ public sealed class CreateClinicSessionHandlerTests : ClinicHandlerTestBase
         {
             StaffUserId,
             RoomId = SitesTestConstants.RoomId,
-            SpecialtyId,
+            TeamId,
             Date = NextMonday,
             StartUtc = At(NextMonday, 9),
             EndUtc = At(NextMonday, 12),
@@ -95,9 +95,9 @@ public sealed class CreateClinicSessionHandlerTests : ClinicHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_UnknownSpecialty_Is404AndTakesNoLock()
+    public async Task Handle_UnknownTeam_Is404AndTakesNoLock()
     {
-        var act = () => _handler.Handle(Command() with { SpecialtyId = Guid.NewGuid() }, Token);
+        var act = () => _handler.Handle(Command() with { TeamId = Guid.NewGuid() }, Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
         Lock.Locked.Should().BeEmpty();

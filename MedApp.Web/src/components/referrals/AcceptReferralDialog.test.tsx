@@ -8,11 +8,11 @@ import {AcceptReferralDialog, TARGET_FROM_CLOCK, templatesFor} from './AcceptRef
 const ACCEPT = `POST /api/referrals/${REFERRAL_ID}/accept`;
 const stages = [{stageOrder: 1, name: 'Review'}];
 const TEMPLATES: PathwayTemplate[] = [
-  {id: 't-skin', name: 'Skin check', isArchived: false, specialtyId: DERMATOLOGY_ID, stages},
-  {id: 't-urology', name: 'Bladder review', isArchived: false, specialtyId: UROLOGY_ID, stages},
-  {id: 't-old', name: 'Acne (old)', isArchived: true, specialtyId: DERMATOLOGY_ID, stages},
-  {id: 't-empty', name: 'Empty', isArchived: false, specialtyId: DERMATOLOGY_ID, stages: []},
-  {id: 't-biopsy', name: 'biopsy pathway', isArchived: false, specialtyId: DERMATOLOGY_ID, stages},
+  {id: 't-skin', name: 'Skin check', isArchived: false, teamId: DERMATOLOGY_ID, stages},
+  {id: 't-urology', name: 'Bladder review', isArchived: false, teamId: UROLOGY_ID, stages},
+  {id: 't-old', name: 'Acne (old)', isArchived: true, teamId: DERMATOLOGY_ID, stages},
+  {id: 't-empty', name: 'Empty', isArchived: false, teamId: DERMATOLOGY_ID, stages: []},
+  {id: 't-biopsy', name: 'biopsy pathway', isArchived: false, teamId: DERMATOLOGY_ID, stages},
 ];
 const STAFF = [
   {userId: 'u-sam', username: 's.nurse'},
@@ -52,7 +52,7 @@ async function fillRequired(user: ReturnType<typeof render>['user']) {
 }
 
 describe('templatesFor', () => {
-  it("lists only the referral's specialty's templates in use, by name, ignoring case", () => {
+  it("lists only the referral's team's templates in use, by name, ignoring case", () => {
     expect(templatesFor(TEMPLATES, DERMATOLOGY_ID).map((t) => t.name)).toEqual(['biopsy pathway', 'Skin check']);
     expect(templatesFor(TEMPLATES, UROLOGY_ID).map((t) => t.name)).toEqual(['Bladder review']);
     expect(templatesFor(TEMPLATES, null)).toEqual([]);
@@ -60,7 +60,7 @@ describe('templatesFor', () => {
 });
 
 describe('AcceptReferralDialog', () => {
-  it("prefills nothing: the specialty's templates by name, and an empty priority beside the one asked for", async () => {
+  it("prefills nothing: the team's templates by name, and an empty priority beside the one asked for", async () => {
     const {user} = render();
 
     expect(await screen.findByRole('heading', {name: 'Accept Referral'})).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe('AcceptReferralDialog', () => {
     expect(screen.getByRole('heading', {name: 'Check and Confirm'})).toBeInTheDocument();
   });
 
-  it("says when the specialty has no templates, and cancels", async () => {
+  it("says when the team has no templates, and cancels", async () => {
     const {user, onCancel} = render(clinician, {'GET /api/pathways/patient-pathway-stage/templates': () => json([TEMPLATES[1]])});
 
     expect(await screen.findByText(/^Dermatology has no pathway templates yet/)).toBeInTheDocument();

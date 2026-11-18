@@ -1,6 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, STAFF} from '../accounts';
-import {MEETINGS, PATHWAYS, SPECIALTIES} from '../ids';
+import {MEETINGS, PATHWAYS, TEAMS} from '../ids';
 import {CLINICAL_IDS, CONSENT, LETTER_TEMPLATES, LETTERS, MDT_ITEMS} from '../slices/clinical';
 import {db} from '../store';
 import {today} from '../time';
@@ -121,7 +121,7 @@ describe('the light demo’s letters, MDT and consent', () => {
 
   it('records an MDT outcome once the meeting has started, and tells the pathway’s assignees', async () => {
     startLightDemo(ADMIN);
-    const meetings = (await call('GET', `/api/mdt/meetings?specialtyId=${SPECIALTIES.dermatology}`)).body;
+    const meetings = (await call('GET', `/api/mdt/meetings?teamId=${TEAMS.dermatology}`)).body;
     expect(meetings.map((m: {id: string}) => m.id)).toEqual([CLINICAL_IDS.mdtToday, MEETINGS.skinMdt]);
     const list = (await call('GET', `/api/mdt/meetings/${CLINICAL_IDS.mdtToday}/items`)).body;
     const item = list.items.find((i: {id: string}) => i.id === CLINICAL_IDS.mdtItemToDiscuss);

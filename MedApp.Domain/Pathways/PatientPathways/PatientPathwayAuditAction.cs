@@ -118,7 +118,7 @@ public enum PatientPathwayAuditAction
     /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
     StageReinstated = 37,
 
-    /// <summary>A pathway was listed for an MDT (the item's ID, the specialty and the meeting; never the question).</summary>
+    /// <summary>A pathway was listed for an MDT (the item's ID, the team and the meeting; never the question).</summary>
     MdtListed = 38,
 
     /// <summary>An MDT's outcome was recorded (the item's ID, the meeting and who was present; never the outcome).</summary>

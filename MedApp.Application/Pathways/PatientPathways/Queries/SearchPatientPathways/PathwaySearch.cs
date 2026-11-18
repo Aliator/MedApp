@@ -22,7 +22,7 @@ public static class PathwaySearch
     public static readonly IReadOnlyList<string> SortColumns =
         [SortByDueDate, SortByPriority, SortByStatus, SortByTitle, SortByPatient, SortByLastUpdated, SortByDaysWaited];
 
-    /// <summary>The most IDs a list filter (specialties, stages) may name, so a URL can't make a huge query.</summary>
+    /// <summary>The most IDs a list filter (teams, stages) may name, so a URL can't make a huge query.</summary>
     public const int MaxIdsPerFilter = 100;
 
     public static bool IsSortColumn(string sort) =>
@@ -58,10 +58,10 @@ public static class PathwaySearch
         if (query.TemplateId is { } templateId)
             pathways = pathways.Where(p => p.TemplateId == templateId);
 
-        if (query.SpecialtyIds is { Count: > 0 } specialtyIds)
+        if (query.TeamIds is { Count: > 0 } teamIds)
         {
-            var ids = specialtyIds.Distinct().ToList();
-            pathways = pathways.Where(p => ids.Contains(p.SpecialtyId));
+            var ids = teamIds.Distinct().ToList();
+            pathways = pathways.Where(p => ids.Contains(p.TeamId));
         }
 
         if (query.StageDefinitionIds is { Count: > 0 } stageDefinitionIds)

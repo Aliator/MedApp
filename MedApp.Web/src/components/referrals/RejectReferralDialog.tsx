@@ -28,7 +28,7 @@ export interface RejectReferralDialogProps {
 /**
  * Rejecting a referral (decision 20): a reason from the API's fixed choices (nothing chosen to start with) and a
  * detail (500 characters; required for Other). Asking the referrer for more is a rejection with Insufficient
- * information for now. Then Check and Confirm shows the patient, the specialty and the reason before it's sent
+ * information for now. Then Check and Confirm shows the patient, the team and the reason before it's sent
  * (hazard H-41). A 400 goes back to the form with the errors on their fields; a 403 or 409 shows the API's words, and
  * the referral is read again. Mount it afresh for each opening (a `key`), so it starts empty.
  */

@@ -140,14 +140,14 @@ public static class DemoActivity
         }
 
         // The referral inbox (awaiting triage, longest wait first), as each person opens it: the coordinator sees every
-        // specialty's, a triager their own specialties'.
-        var specialtyNames = world.Specialties.ToDictionary(s => s.Key, s => s.Value.Name);
+        // team's, a triager their own teams'.
+        var teamNames = world.Teams.ToDictionary(s => s.Key, s => s.Value.Name);
         IEnumerable<Guid> Inbox(StaffMember member, DateTime at)
         {
-            var mine = DemoSpecialties.For(member.Kind);
+            var mine = DemoTeams.For(member.Kind);
             return world.Referrals
                 .Where(r => r.RegisteredAtUtc <= at && (r.DecidedAtUtc is null || r.DecidedAtUtc > at)
-                            && (member.Kind == StaffKind.BookingCoordinator || mine.Contains(specialtyNames[r.SpecialtyId])))
+                            && (member.Kind == StaffKind.BookingCoordinator || mine.Contains(teamNames[r.TeamId])))
                 .OrderBy(r => r.ReceivedOn).Take(25).Select(r => r.PatientId);
         }
 
@@ -193,7 +193,7 @@ public static class DemoActivity
                         View(signIn.AddMinutes(4), ActivityAction.PatientListed, member, patientId);
 
                 // The coordinator and the triagers look at the referral inbox first thing.
-                if (member.Kind == StaffKind.BookingCoordinator || world.Specialties.Values.Any(s => DemoReferrals.CanTriage(member, s.Name, signIn)))
+                if (member.Kind == StaffKind.BookingCoordinator || world.Teams.Values.Any(s => DemoReferrals.CanTriage(member, s.Name, signIn)))
                     foreach (var patientId in Inbox(member, signIn.AddMinutes(3)))
                         View(signIn.AddMinutes(3), ActivityAction.PatientListed, member, patientId);
 

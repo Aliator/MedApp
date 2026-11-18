@@ -43,7 +43,7 @@ export interface ChoiceFilterField {
   isMultiple?: boolean;
   /**
    * With `isMultiple`, whether "is not any of" is offered too (the default). False for a list whose API takes only the
-   * values wanted (IDs of specialties or stages: see `parseIdChoice`).
+   * values wanted (IDs of teams or stages: see `parseIdChoice`).
    */
   canExclude?: boolean;
 }

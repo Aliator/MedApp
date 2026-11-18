@@ -8,16 +8,16 @@ using MedApp.Domain.Referrals;
 namespace MedApp.Application.Referrals.Repositories;
 
 /// <summary>
-/// Referrals, with their patient and specialty, and their history. Every change saves its history entries in the
+/// Referrals, with their patient and team, and their history. Every change saves its history entries in the
 /// same save, so the history can't miss one. It shares the request's DbContext with the pathway repository, so a
 /// later change that touches both (accepting a referral into a new pathway) can save them together.
 /// </summary>
 public interface IReferralRepository
 {
-    /// <summary>A referral with its patient, specialty and clock pauses, read-only.</summary>
+    /// <summary>A referral with its patient, team and clock pauses, read-only.</summary>
     Task<Referral?> GetByIdAsync(Guid id, CancellationToken ct);
 
-    /// <summary>A referral with its patient, specialty and clock pauses, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
+    /// <summary>A referral with its patient, team and clock pauses, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
     Task<Referral?> GetForUpdateAsync(Guid id, CancellationToken ct);
 
     /// <summary>Adds a new referral and its history entries.</summary>
@@ -36,10 +36,10 @@ public interface IReferralRepository
     /// </summary>
     void AddEvents(IEnumerable<ReferralEvent> events);
 
-    /// <summary>Whether a member of staff belongs to a specialty (triage needs it).</summary>
-    Task<bool> IsSpecialtyMemberAsync(Guid userId, Guid specialtyId, CancellationToken ct);
+    /// <summary>Whether a member of staff belongs to a team (triage needs it).</summary>
+    Task<bool> IsTeamMemberAsync(Guid userId, Guid teamId, CancellationToken ct);
 
-    /// <summary>The referral accepted into a pathway, with its patient, specialty and clock pauses, read-only; null if none was.</summary>
+    /// <summary>The referral accepted into a pathway, with its patient, team and clock pauses, read-only; null if none was.</summary>
     Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);
 
     /// <summary>The details of these clock pauses (free text, for admins' timeline), by pause ID; pauses without one are left out.</summary>
@@ -52,22 +52,22 @@ public interface IReferralRepository
     Task<int> CountLettersAsync(Guid referralId, CancellationToken ct);
 
     /// <summary>
-    /// The patient's open referrals to a specialty, for the duplicate check: awaiting triage, or accepted with their
+    /// The patient's open referrals to a team, for the duplicate check: awaiting triage, or accepted with their
     /// pathway still under way.
     /// </summary>
-    Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid specialtyId, CancellationToken ct);
+    Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid teamId, CancellationToken ct);
 
     /// <summary>
     /// One page of referrals matching the query (see <see cref="ReferralSearch"/>), with their patients and
-    /// specialties; the clock's filters and sort count to <paramref name="today"/> (UK).
+    /// teams; the clock's filters and sort count to <paramref name="today"/> (UK).
     /// </summary>
     Task<PagedResult<ReferralRow>> SearchAsync(
-        SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, DateOnly today, CancellationToken ct);
+        SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today, CancellationToken ct);
 
-    /// <summary>How many referrals await triage, in any of these specialties (every specialty when null).</summary>
-    Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? specialtyIds, CancellationToken ct);
+    /// <summary>How many referrals await triage, in any of these teams (every team when null).</summary>
+    Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? teamIds, CancellationToken ct);
 
-    /// <summary>A patient's referrals awaiting triage, oldest first, with their specialties.</summary>
+    /// <summary>A patient's referrals awaiting triage, oldest first, with their teams.</summary>
     Task<IReadOnlyList<Referral>> GetAwaitingTriageForPatientAsync(Guid patientId, CancellationToken ct);
 
     /// <summary>

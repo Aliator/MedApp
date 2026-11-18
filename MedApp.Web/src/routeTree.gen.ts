@@ -42,9 +42,9 @@ import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/moni
 import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSitesRouteImport } from './routes/_app/admin/sites'
-import { Route as AppAdminSpecialtiesRouteImport } from './routes/_app/admin/specialties'
 import { Route as AppAdminSpecimenSetupRouteImport } from './routes/_app/admin/specimen-setup'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
+import { Route as AppAdminTeamsRouteImport } from './routes/_app/admin/teams'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
 import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calendar/needs-booking'
@@ -253,11 +253,6 @@ const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
   path: '/admin/sites',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSpecialtiesRoute = AppAdminSpecialtiesRouteImport.update({
-  id: '/admin/specialties',
-  path: '/admin/specialties',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAdminSpecimenSetupRoute = AppAdminSpecimenSetupRouteImport.update({
   id: '/admin/specimen-setup',
   path: '/admin/specimen-setup',
@@ -266,6 +261,11 @@ const AppAdminSpecimenSetupRoute = AppAdminSpecimenSetupRouteImport.update({
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
   id: '/admin/stages',
   path: '/admin/stages',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTeamsRoute = AppAdminTeamsRouteImport.update({
+  id: '/admin/teams',
+  path: '/admin/teams',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
@@ -524,9 +524,9 @@ export interface FileRoutesByFullPath {
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/sites': typeof AppAdminSitesRoute
-  '/admin/specialties': typeof AppAdminSpecialtiesRoute
   '/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/admin/stages': typeof AppAdminStagesRoute
+  '/admin/teams': typeof AppAdminTeamsRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
@@ -603,9 +603,9 @@ export interface FileRoutesByTo {
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/sites': typeof AppAdminSitesRoute
-  '/admin/specialties': typeof AppAdminSpecialtiesRoute
   '/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/admin/stages': typeof AppAdminStagesRoute
+  '/admin/teams': typeof AppAdminTeamsRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
@@ -684,9 +684,9 @@ export interface FileRoutesById {
   '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/sites': typeof AppAdminSitesRoute
-  '/_app/admin/specialties': typeof AppAdminSpecialtiesRoute
   '/_app/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
+  '/_app/admin/teams': typeof AppAdminTeamsRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
@@ -765,9 +765,9 @@ export interface FileRouteTypes {
     | '/admin/retention'
     | '/admin/settings'
     | '/admin/sites'
-    | '/admin/specialties'
     | '/admin/specimen-setup'
     | '/admin/stages'
+    | '/admin/teams'
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
@@ -844,9 +844,9 @@ export interface FileRouteTypes {
     | '/admin/retention'
     | '/admin/settings'
     | '/admin/sites'
-    | '/admin/specialties'
     | '/admin/specimen-setup'
     | '/admin/stages'
+    | '/admin/teams'
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
@@ -924,9 +924,9 @@ export interface FileRouteTypes {
     | '/_app/admin/retention'
     | '/_app/admin/settings'
     | '/_app/admin/sites'
-    | '/_app/admin/specialties'
     | '/_app/admin/specimen-setup'
     | '/_app/admin/stages'
+    | '/_app/admin/teams'
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
@@ -1216,13 +1216,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSitesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/admin/specialties': {
-      id: '/_app/admin/specialties'
-      path: '/admin/specialties'
-      fullPath: '/admin/specialties'
-      preLoaderRoute: typeof AppAdminSpecialtiesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/admin/specimen-setup': {
       id: '/_app/admin/specimen-setup'
       path: '/admin/specimen-setup'
@@ -1235,6 +1228,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/stages'
       fullPath: '/admin/stages'
       preLoaderRoute: typeof AppAdminStagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/teams': {
+      id: '/_app/admin/teams'
+      path: '/admin/teams'
+      fullPath: '/admin/teams'
+      preLoaderRoute: typeof AppAdminTeamsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/users': {
@@ -1559,9 +1559,9 @@ interface AppRouteChildren {
   AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSitesRoute: typeof AppAdminSitesRoute
-  AppAdminSpecialtiesRoute: typeof AppAdminSpecialtiesRoute
   AppAdminSpecimenSetupRoute: typeof AppAdminSpecimenSetupRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
+  AppAdminTeamsRoute: typeof AppAdminTeamsRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
@@ -1632,9 +1632,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSitesRoute: AppAdminSitesRoute,
-  AppAdminSpecialtiesRoute: AppAdminSpecialtiesRoute,
   AppAdminSpecimenSetupRoute: AppAdminSpecimenSetupRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
+  AppAdminTeamsRoute: AppAdminTeamsRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,

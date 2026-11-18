@@ -1,4 +1,4 @@
-﻿using MedApp.Domain.Specialties;
+﻿using MedApp.Domain.Teams;
 
 namespace MedApp.Domain.Pathways.PatientPathways;
 
@@ -16,11 +16,11 @@ public sealed class PathwayTemplate
     public bool IsArchived { get; set; }
 
     /// <summary>
-    /// The specialty it belongs to. Moving a template to another affects only pathways created afterwards: each
-    /// pathway keeps its own copy (<see cref="PatientPathway.SpecialtyId"/>).
+    /// The team it belongs to. Moving a template to another affects only pathways created afterwards: each
+    /// pathway keeps its own copy (<see cref="PatientPathway.TeamId"/>).
     /// </summary>
-    public Guid SpecialtyId { get; set; }
-    public Specialty Specialty { get; set; } = null!;
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 
     /// <summary>
     /// How long its patients' records are kept before review (Standard: the adult or child rule). Copied onto each

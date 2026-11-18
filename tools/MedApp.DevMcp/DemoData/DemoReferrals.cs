@@ -4,7 +4,7 @@ using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
@@ -22,34 +22,34 @@ namespace MedApp.DevMcp.DemoData;
 public static class DemoReferrals
 {
     /// <summary>
-    /// Whether someone could triage a specialty's referrals at a moment, as the app checks (decision 18): their roles
-    /// then grant <c>TriageReferrals</c>, they belong to the specialty (their job's specialties, given minutes after their
+    /// Whether someone could triage a team's referrals at a moment, as the app checks (decision 18): their roles
+    /// then grant <c>TriageReferrals</c>, they belong to the team (their job's teams, given minutes after their
     /// account was made), and they work here.
     /// </summary>
-    public static bool CanTriage(StaffMember member, string specialty, DateTime utc) =>
+    public static bool CanTriage(StaffMember member, string team, DateTime utc) =>
         member.Kind != StaffKind.Leaver
-        && DemoSpecialties.For(member.Kind).Contains(specialty)
+        && DemoTeams.For(member.Kind).Contains(team)
         && member.WorksAt(utc)
         && utc >= member.StartedUtc.AddMinutes(10)
         && member.PermissionsAt(utc).Contains(Permission.TriageReferrals);
 
     /// <summary>
-    /// Who triages a specialty's referral at a moment: usually <paramref name="prefer"/> (the pathway's lead) if they can,
-    /// otherwise one of the specialty's clinicians, now and then the clinical lead or the pharmacist (the lead takes most
+    /// Who triages a team's referral at a moment: usually <paramref name="prefer"/> (the pathway's lead) if they can,
+    /// otherwise one of the team's clinicians, now and then the clinical lead or the pharmacist (the lead takes most
     /// diabetes referrals, as its nurse specialists' role doesn't triage). Null if nobody can (the new service).
     /// </summary>
-    public static StaffMember? Triager(DemoWorld world, string specialty, DateTime utc, StaffMember? prefer = null)
+    public static StaffMember? Triager(DemoWorld world, string team, DateTime utc, StaffMember? prefer = null)
     {
-        if (prefer is not null && CanTriage(prefer, specialty, utc) && world.Random.NextDouble() < 0.75)
+        if (prefer is not null && CanTriage(prefer, team, utc) && world.Random.NextDouble() < 0.75)
             return prefer;
 
-        var eligible = world.Staff.Where(s => CanTriage(s, specialty, utc)).ToList();
+        var eligible = world.Staff.Where(s => CanTriage(s, team, utc)).ToList();
         if (eligible.Count == 0)
             return null;
 
         return PathwayPlans.Weighted(world.Random, eligible.Select(s => (s, s.Kind switch
         {
-            StaffKind.ClinicalLead => specialty == DemoSpecialties.Diabetes ? 8 : 1,
+            StaffKind.ClinicalLead => team == DemoTeams.Diabetes ? 8 : 1,
             StaffKind.Pharmacist => 1,
             _ => 6,
         })).ToArray());
@@ -58,11 +58,11 @@ public static class DemoReferrals
     /// <summary>
     /// A referral registered by <paramref name="by"/> at <paramref name="at"/>, as RegisterReferralHandler makes it: the
     /// details typed from the letter, Awaiting triage, and its <c>Registered</c> entry, with its clock started on the day it
-    /// was received with the specialty's target for the priority asked for. Its specialty is attached (in memory) for
+    /// was received with the team's target for the priority asked for. Its team is attached (in memory) for
     /// the rules and messages that name it.
     /// </summary>
     public static (Referral Referral, IReadOnlyList<ReferralEvent> Events) Register(
-        Guid patientId, Specialty specialty, DateOnly receivedOn, Priority requested, string reason, StaffMember by, DateTime at, Random random)
+        Guid patientId, Team team, DateOnly receivedOn, Priority requested, string reason, StaffMember by, DateTime at, Random random)
     {
         if (ReferralRules.WhyReceivedOnNotAllowed(receivedOn, DueDates.ToUkDate(at)) is { } why)
             throw new InvalidOperationException($"Seeding went wrong: {why}");
@@ -73,8 +73,8 @@ public static class DemoReferrals
         {
             Id = Guid.NewGuid(),
             PatientId = patientId,
-            SpecialtyId = specialty.Id,
-            Specialty = specialty,
+            TeamId = team.Id,
+            Team = team,
             ReceivedOn = receivedOn,
             ReferrerPractice = ReferralTexts.Practice(random),
             ReferrerClinician = ReferralTexts.Clinician(random),
@@ -87,7 +87,7 @@ public static class DemoReferrals
             LastUpdated = at,
         };
         var change = new ReferralChange(referral, by.Actor, at);
-        change.Register(specialty);
+        change.Register(team);
         return (referral, change.Events);
     }
 
@@ -97,9 +97,9 @@ public static class DemoReferrals
     /// </summary>
     public static ReferralChange Triage(Referral referral, StaffMember triager, DateTime at)
     {
-        var specialty = referral.Specialty.Name;
-        if (!CanTriage(triager, specialty, at))
-            throw new InvalidOperationException($"Seeding went wrong: {triager.Username} can't triage {specialty} referrals then.");
+        var team = referral.Team.Name;
+        if (!CanTriage(triager, team, at))
+            throw new InvalidOperationException($"Seeding went wrong: {triager.Username} can't triage {team} referrals then.");
         if (!ReferralWorkflow.IsOpen(referral.Status))
             throw new InvalidOperationException($"Seeding went wrong: {ReferralWorkflow.AlreadyTriagedMessage(referral)}");
         return new ReferralChange(referral, triager.Actor, at);
@@ -109,20 +109,20 @@ public static class DemoReferrals
     /// What the person who registered a referral is told of a triage at a moment (the last 30 days' only, as for every
     /// notification in the demo), if they'd get it.
     /// </summary>
-    public static Notification? Told(DemoWorld world, Referral referral, StaffMember triager, DateTime at, string? previousSpecialtyName = null)
+    public static Notification? Told(DemoWorld world, Referral referral, StaffMember triager, DateTime at, string? previousTeamName = null)
     {
         if (at < world.Timeline.NotificationsFromUtc)
             return null;
-        var notification = ReferralNotifications.Triaged(referral, triager.Actor, at, previousSpecialtyName);
+        var notification = ReferralNotifications.Triaged(referral, triager.Actor, at, previousTeamName);
         return notification is not null && world.Delivers(notification, at) ? notification : null;
     }
 
     /// <summary>
-    /// The patient's open referrals to a specialty at a moment, as the registration's duplicate check finds them
+    /// The patient's open referrals to a team at a moment, as the registration's duplicate check finds them
     /// (decision 12): awaiting triage then, or accepted with the pathway still open.
     /// </summary>
-    public static IReadOnlyList<Referral> OpenAt(DemoWorld world, Guid patientId, Guid specialtyId, DateTime at, IReadOnlyDictionary<Guid, DateTime> closedAt) =>
-        world.Referrals.Where(r => r.PatientId == patientId && r.SpecialtyId == specialtyId && r.RegisteredAtUtc <= at
+    public static IReadOnlyList<Referral> OpenAt(DemoWorld world, Guid patientId, Guid teamId, DateTime at, IReadOnlyDictionary<Guid, DateTime> closedAt) =>
+        world.Referrals.Where(r => r.PatientId == patientId && r.TeamId == teamId && r.RegisteredAtUtc <= at
                                    && (r.DecidedAtUtc is null || r.DecidedAtUtc > at
                                        || (r.Status == ReferralStatus.Accepted && r.PathwayId is { } id && (!closedAt.TryGetValue(id, out var closed) || closed > at))))
             .ToList();
@@ -136,13 +136,13 @@ public static class DemoReferrals
 
     /// <summary>
     /// Saves the referrals (each with its clock's pauses) and their history, after the pathways they point at. The
-    /// navigations attached for the rules (specialty, pathway) are let go first, so only the referrals are added.
+    /// navigations attached for the rules (team, pathway) are let go first, so only the referrals are added.
     /// </summary>
     public static async Task SaveAsync(SeedServices services, DemoWorld world, CancellationToken ct)
     {
         foreach (var referral in world.Referrals)
         {
-            referral.Specialty = null!;
+            referral.Team = null!;
             referral.Pathway = null;
         }
 
@@ -170,7 +170,7 @@ public static class DemoReferrals
     {
         var today = world.Timeline.Today;
         var referrals = world.Referrals;
-        var specialtyNames = world.Specialties.ToDictionary(s => s.Key, s => s.Value.Name);
+        var teamNames = world.Teams.ToDictionary(s => s.Key, s => s.Value.Name);
         var awaiting = referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage).ToList();
         var clocks = referrals.Where(r => r.Status == ReferralStatus.Accepted).ToList();
         return new
@@ -179,12 +179,12 @@ public static class DemoReferrals
             byStatus = referrals.GroupBy(r => r.Status).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
             awaitingTriage = new
             {
-                bySpecialty = awaiting.GroupBy(r => specialtyNames[r.SpecialtyId]).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count()),
+                byTeam = awaiting.GroupBy(r => teamNames[r.TeamId]).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count()),
                 breached = awaiting.Count(r => WaitingClock.IsBreached(r, today)),
             },
             rejectedByReason = referrals.Where(r => r.Status == ReferralStatus.Rejected)
                 .GroupBy(r => r.RejectionReason!.Value).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
-            redirectedToAnotherSpecialty = world.ReferralEvents.Count(e => e.Action == ReferralEventAction.SpecialtyChanged),
+            redirectedToAnotherTeam = world.ReferralEvents.Count(e => e.Action == ReferralEventAction.TeamChanged),
             duplicateWarningsConfirmed = played.DuplicatesConfirmed,
             pathwaysWithoutAReferral = world.Pathways.Count(p => p.TemplateId is not null && !referrals.Any(r => r.PathwayId == p.Id)),
             clocks = new

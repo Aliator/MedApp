@@ -130,7 +130,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 p.RetentionKeptReason,
                 changes.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc),
                 context.ReferralEvents.Where(e => e.PatientId == p.Id).Max(e => (DateTime?)e.AtUtc),
-                // Their pathways' specialty classes, which may lengthen the period (most have none).
+                // Their pathways' team classes, which may lengthen the period (most have none).
                 context.PatientPathways
                     .Where(pp => pp.PatientId == p.Id && pp.RetentionClass != RetentionClass.Standard)
                     .Select(pp => pp.RetentionClass)

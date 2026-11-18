@@ -2,13 +2,13 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
-using static MedApp.UnitTests.Common.Constants.SpecialtiesTestConstants;
+using static MedApp.UnitTests.Common.Constants.TeamsTestConstants;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 
 namespace MedApp.UnitTests.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
@@ -17,7 +17,7 @@ namespace MedApp.UnitTests.Application.Pathways.PatientPathwayStages.Templates.C
 public sealed class CreatePathwayTemplateHandlerTests
 {
     private Mock<IPatientPathwayStagesRepository> _repository = null!;
-    private Specialty _specialty = null!;
+    private Team _team = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -32,12 +32,12 @@ public sealed class CreatePathwayTemplateHandlerTests
             .Setup(r => r.GetTemplatePathwayCountsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int>());
         _fixture.Inject(_repository.Object);
-        _specialty = CreateSpecialty(id: SpecialtyId);
-        GivenSpecialties(_specialty);
+        _team = CreateTeam(id: TeamId);
+        GivenTeams(_team);
     }
 
-    private void GivenSpecialties(params Specialty[] specialties) =>
-        _fixture.Inject(RepositoryWith(specialties).Object);
+    private void GivenTeams(params Team[] teams) =>
+        _fixture.Inject(RepositoryWith(teams).Object);
 
 
     private void GivenUsage(Guid id, int templates, int pathways) =>
@@ -65,7 +65,7 @@ public sealed class CreatePathwayTemplateHandlerTests
             .Callback((PathwayTemplate t, CancellationToken _) => added = t);
 
         var response = await Handler.Handle(
-            new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id, pathway.Id, consultation.Id]),
+            new CreatePathwayTemplateCommand(TemplateName, TeamId, [consultation.Id, pathway.Id, consultation.Id]),
             CancellationToken.None);
 
         added!.Maps.Select(m => (m.StageOrder, m.StageDefinitionId))
@@ -73,9 +73,9 @@ public sealed class CreatePathwayTemplateHandlerTests
         response.Stages.Select(s => s.Name).Should().Equal(ConsultationStage, PathwayStage, ConsultationStage);
         response.StageDefinitionIdsInOrder.Should().Equal(consultation.Id, pathway.Id, consultation.Id);
         response.PathwayCount.Should().Be(0);
-        added.SpecialtyId.Should().Be(SpecialtyId);
-        response.SpecialtyId.Should().Be(SpecialtyId);
-        response.SpecialtyName.Should().Be(SpecialtyName);
+        added.TeamId.Should().Be(TeamId);
+        response.TeamId.Should().Be(TeamId);
+        response.TeamName.Should().Be(TeamName);
     }
 
     [Test]
@@ -90,7 +90,7 @@ public sealed class CreatePathwayTemplateHandlerTests
             .Callback((PathwayTemplate t, CancellationToken _) => added = t);
 
         var response = await Handler.Handle(
-            new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id, pathway.Id, consultation.Id], 3),
+            new CreatePathwayTemplateCommand(TemplateName, TeamId, [consultation.Id, pathway.Id, consultation.Id], 3),
             CancellationToken.None);
 
         added!.Maps.Select(m => m.StopsClock).Should().Equal(false, false, true);
@@ -99,28 +99,28 @@ public sealed class CreatePathwayTemplateHandlerTests
     }
 
     [Test]
-    public async Task Handle_UnknownSpecialty_ThrowsNotFoundWithoutSaving()
+    public async Task Handle_UnknownTeam_ThrowsNotFoundWithoutSaving()
     {
         var consultation = CreateDefinition(ConsultationStage);
         GivenDefinitions(consultation);
-        GivenSpecialties();
+        GivenTeams();
 
-        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id]), CancellationToken.None);
+        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, TeamId, [consultation.Id]), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
         _repository.Verify(r => r.AddPathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public async Task Handle_ArchivedSpecialty_ThrowsConflictWithoutSaving()
+    public async Task Handle_ArchivedTeam_ThrowsConflictWithoutSaving()
     {
         var consultation = CreateDefinition(ConsultationStage);
         GivenDefinitions(consultation);
-        GivenSpecialties(CreateSpecialty(isArchived: true, id: SpecialtyId));
+        GivenTeams(CreateTeam(isArchived: true, id: TeamId));
 
-        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id]), CancellationToken.None);
+        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, TeamId, [consultation.Id]), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{SpecialtyName}*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{TeamName}*");
         _repository.Verify(r => r.AddPathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -129,7 +129,7 @@ public sealed class CreatePathwayTemplateHandlerTests
     {
         GivenDefinitions();
 
-        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [Guid.NewGuid()]), CancellationToken.None);
+        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, TeamId, [Guid.NewGuid()]), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -140,7 +140,7 @@ public sealed class CreatePathwayTemplateHandlerTests
         var archived = CreateDefinition(ConsultationStage, isArchived: true);
         GivenDefinitions(archived);
 
-        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [archived.Id]), CancellationToken.None);
+        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, TeamId, [archived.Id]), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{ConsultationStage}*");
     }
@@ -150,7 +150,7 @@ public sealed class CreatePathwayTemplateHandlerTests
     {
         _repository.Setup(r => r.PathwayTemplateNameExistsAsync(TemplateName, null, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [Guid.NewGuid()]), CancellationToken.None);
+        var act = () => Handler.Handle(new CreatePathwayTemplateCommand(TemplateName, TeamId, [Guid.NewGuid()]), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -167,7 +167,7 @@ public sealed class CreatePathwayTemplateHandlerTests
             .Callback((PathwayTemplate t, CancellationToken _) => added = t);
 
         var response = await Handler.Handle(
-            new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id], RetentionClass: value),
+            new CreatePathwayTemplateCommand(TemplateName, TeamId, [consultation.Id], RetentionClass: value),
             CancellationToken.None);
 
         added!.RetentionClass.Should().Be(expected);

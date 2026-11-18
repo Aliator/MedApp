@@ -128,7 +128,7 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     {
         var template = await mediator.Send(new CreatePathwayTemplateCommand(
             request.Name,
-            request.SpecialtyId,
+            request.TeamId,
             request.StageDefinitionIdsInOrder,
             request.ClockStopStageOrder,
             ToOptions(request.StageOptions),
@@ -148,7 +148,7 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
         Ok(await mediator.Send(new UpdatePathwayTemplateCommand(
             id,
             request.Name,
-            request.SpecialtyId,
+            request.TeamId,
             request.StageDefinitionIdsInOrder,
             request.ClockStopStageOrder,
             ToOptions(request.StageOptions),

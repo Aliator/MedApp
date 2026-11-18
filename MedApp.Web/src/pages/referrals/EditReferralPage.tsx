@@ -94,7 +94,7 @@ function EditReferralForm({id, referral}: {id: string; referral: Referral}) {
   return (
     <Page
       {...pageProps}
-      subtitle={`Referral to ${referral.specialtyName}`}
+      subtitle={`Referral to ${referral.teamName}`}
       onBack={backToReferral}
       banner={banner}
       // The form scrolls inside its card, so the banner above it stays in view.
@@ -121,7 +121,7 @@ function EditReferralForm({id, referral}: {id: string; referral: Referral}) {
           onChange={setForm}
           errors={problem.validation}
           isDisabled={edit.isPending}
-          currentSpecialty={{id: referral.specialtyId ?? '', name: referral.specialtyName ?? ''}}
+          currentTeam={{id: referral.teamId ?? '', name: referral.teamName ?? ''}}
         />
       </FormCard>
     </Page>

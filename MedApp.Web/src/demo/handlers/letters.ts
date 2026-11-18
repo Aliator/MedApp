@@ -120,14 +120,14 @@ export const NO_SENDING = "Sending isn't available in the light demo: there's no
 
 const forbidden = (detail: string) => new DemoReply(403, {type: 'about:blank', title: 'Forbidden', status: 403, detail});
 
-const specialtyName = (specialtyId: string | null | undefined) =>
-  specialtyId ? (db().specialties.find((s) => s.id === specialtyId)?.name ?? null) : null;
+const teamName = (teamId: string | null | undefined) =>
+  teamId ? (db().teams.find((s) => s.id === teamId)?.name ?? null) : null;
 
-/** A template as the API answers it: its specialty's name, the fields it uses, and whether it can be deleted. */
+/** A template as the API answers it: its team's name, the fields it uses, and whether it can be deleted. */
 function templateResponse(template: DemoLetterTemplate): Schemas['LetterTemplateResponse'] {
   return {
     ...template,
-    specialtyName: specialtyName(template.specialtyId),
+    teamName: teamName(template.teamId),
     mergeFields: usedFields(template.letterhead, template.bodySkeleton, template.closing),
     canBeDeleted: !db().letters.some((l) => l.templateId === template.id),
   };
@@ -139,10 +139,10 @@ function findTemplate(id: string): DemoLetterTemplate {
   return template;
 }
 
-/** Each specialty's count of letter templates for it. */
+/** Each team's count of letter templates for it. */
 function countTemplates() {
-  for (const specialty of db().specialties)
-    specialty.letterTemplateCount = db().letterTemplates.filter((t) => t.specialtyId === specialty.id).length;
+  for (const team of db().teams)
+    team.letterTemplateCount = db().letterTemplates.filter((t) => t.teamId === team.id).length;
 }
 
 /** A template's text checked as the API does: required parts, lengths, known merge fields. */
@@ -152,8 +152,8 @@ function templateInput(body: Partial<Schemas['CreateLetterTemplateRequest']>) {
   if (!name) errors.name = ['Name is required.'];
   else if (name.length > 200) errors.name = ['Name must not exceed 200 characters.'];
   if (!LETTER_KINDS.includes(body.kind ?? '')) errors.kind = [`Kind must be one of: ${LETTER_KINDS.join(', ')}.`];
-  if (body.specialtyId && !db().specialties.some((s) => s.id === body.specialtyId))
-    errors.specialtyId = ["Specialty id must be a specialty's, or left out for every specialty."];
+  if (body.teamId && !db().teams.some((s) => s.id === body.teamId))
+    errors.teamId = ["Team id must be a team's, or left out for every team."];
   const parts = {letterhead: [body.letterhead, MAX_PLAIN], bodySkeleton: [body.bodySkeleton, MAX_BODY], closing: [body.closing, MAX_PLAIN]} as const;
   for (const [field, [text, max]] of Object.entries(parts)) {
     if ((text ?? '').length > max) errors[field] = [`It must not exceed ${max} characters.`];
@@ -164,22 +164,22 @@ function templateInput(body: Partial<Schemas['CreateLetterTemplateRequest']>) {
   return {
     name,
     kind: body.kind!,
-    specialtyId: body.specialtyId || null,
+    teamId: body.teamId || null,
     letterhead: (body.letterhead ?? '').trimEnd(),
     bodySkeleton: (body.bodySkeleton ?? '').trimEnd(),
     closing: (body.closing ?? '').trimEnd(),
   };
 }
 
-/** A 409 when another template for the same specialty (or for every specialty) has the name. */
-function ensureNameFree(name: string, specialtyId: string | null, exceptId?: string) {
+/** A 409 when another template for the same team (or for every team) has the name. */
+function ensureNameFree(name: string, teamId: string | null, exceptId?: string) {
   const taken = db().letterTemplates.some(
-    (t) => t.id !== exceptId && t.specialtyId === specialtyId && t.name.toLowerCase() === name.toLowerCase(),
+    (t) => t.id !== exceptId && t.teamId === teamId && t.name.toLowerCase() === name.toLowerCase(),
   );
   if (!taken) return;
-  const specialty = specialtyName(specialtyId);
+  const team = teamName(teamId);
   refuse(
-    problem(409, specialty ? `A ${specialty} letter template is already called '${name}'.` : `A letter template for every specialty is already called '${name}'.`),
+    problem(409, team ? `A ${team} letter template is already called '${name}'.` : `A letter template for every team is already called '${name}'.`),
   );
 }
 
@@ -437,8 +437,8 @@ export function registerLetters() {
       .map(templateResponse)
       .sort(
         (a, b) =>
-          Number(a.specialtyId !== null) - Number(b.specialtyId !== null) ||
-          (a.specialtyName ?? '').localeCompare(b.specialtyName ?? '') ||
+          Number(a.teamId !== null) - Number(b.teamId !== null) ||
+          (a.teamName ?? '').localeCompare(b.teamName ?? '') ||
           (a.name ?? '').localeCompare(b.name ?? '') ||
           (a.id ?? '').localeCompare(b.id ?? ''),
       );
@@ -454,7 +454,7 @@ export function registerLetters() {
   on('post', '/api/letter-templates', ({body}) => {
     requirePermission('ManageSetup');
     const input = templateInput(body);
-    ensureNameFree(input.name, input.specialtyId);
+    ensureNameFree(input.name, input.teamId);
     const now = nowUtc();
     const template: DemoLetterTemplate = {id: newId(), ...input, isArchived: false, version: 1, createdAt: now, lastUpdated: now};
     db().letterTemplates.push(template);
@@ -466,7 +466,7 @@ export function registerLetters() {
     const template = findTemplate(params.id);
     const input = templateInput(body);
     ensureTemplateVersion(template, body.expectedVersion);
-    ensureNameFree(input.name, input.specialtyId, template.id);
+    ensureNameFree(input.name, input.teamId, template.id);
     Object.assign(template, input, {version: template.version + 1, lastUpdated: nowUtc()});
     countTemplates();
     return templateResponse(template);
@@ -565,10 +565,10 @@ export function registerLetters() {
     const pathway = body.pathwayId ? findPathway(body.pathwayId) : null;
     const referral = body.referralId ? db().referrals.find((r) => r.id === body.referralId) : null;
     if (body.referralId && !referral) return notFound('The referral');
-    const specialtyId = pathway?.specialtyId ?? referral!.specialtyId;
-    if (template.specialtyId && template.specialtyId !== specialtyId)
+    const teamId = pathway?.teamId ?? referral!.teamId;
+    if (template.teamId && template.teamId !== teamId)
       return invalid({
-        templateId: [`The '${template.name}' template is for another specialty. Choose one of this ${pathway ? 'pathway' : 'referral'}'s specialty's.`],
+        templateId: [`The '${template.name}' template is for another team. Choose one of this ${pathway ? 'pathway' : 'referral'}'s team's.`],
       });
     if (referral && !REFERRAL_KINDS.includes(template.kind))
       return invalid({

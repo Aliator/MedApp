@@ -11,7 +11,7 @@ import {
   REFERRALS,
   ROOMS,
   SITES,
-  SPECIALTIES,
+  TEAMS,
   STAGES,
   TEMPLATES,
   USERS,
@@ -30,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -105,35 +105,35 @@ export const stageDefinitionList = (): DemoStageDefinition[] =>
 /** A template's stage: its definition, and whether it's optional, a branch point or in a branch. */
 type TemplateStageSpec = StageKey | {key: StageKey; optional?: boolean; choosesBranch?: boolean; branch?: string};
 
-const TEMPLATE_SPECS: {id: string; name: string; specialtyId: string; stages: TemplateStageSpec[]}[] = [
+const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: TemplateStageSpec[]}[] = [
   {
     id: TEMPLATES.skinLesion,
     name: 'Skin lesion pathway',
-    specialtyId: SPECIALTIES.dermatology,
+    teamId: TEAMS.dermatology,
     stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'resultsAndTeamReview', 'treatment', 'followUp', 'dischargeLetter'],
   },
   {
     id: TEMPLATES.inflammatorySkin,
     name: 'Inflammatory skin review',
-    specialtyId: SPECIALTIES.dermatology,
+    teamId: TEAMS.dermatology,
     stages: ['firstClinicVisit', 'medicinesReview', 'followUp', 'dischargeLetter'],
   },
   {
     id: TEMPLATES.postMenopausalBleeding,
     name: 'Post-menopausal bleeding pathway',
-    specialtyId: SPECIALTIES.gynaecology,
+    teamId: TEAMS.gynaecology,
     stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'resultsAndTeamReview', 'dischargeLetter'],
   },
   {
     id: TEMPLATES.diabetesReview,
     name: 'Diabetes review',
-    specialtyId: SPECIALTIES.diabetes,
+    teamId: TEAMS.diabetes,
     stages: ['bloodAndUrineTests', 'labTests', 'clinicReview', 'medicinesReview', 'followUp', 'dischargeLetter'],
   },
   {
     id: TEMPLATES.suspectedSkinCancer,
     name: 'Suspected skin cancer (biopsy or treat)',
-    specialtyId: SPECIALTIES.dermatology,
+    teamId: TEAMS.dermatology,
     stages: [
       {key: 'firstClinicVisit', choosesBranch: true},
       {key: 'biopsyOrSample', branch: 'Biopsy first'},
@@ -147,15 +147,15 @@ const TEMPLATE_SPECS: {id: string; name: string; specialtyId: string; stages: Te
 
 const stageSpec = (spec: TemplateStageSpec) => (typeof spec === 'string' ? {key: spec} : spec);
 
-const SPECIALTY_NAMES: [string, string][] = [
-  [SPECIALTIES.dermatology, 'Dermatology'],
-  [SPECIALTIES.gynaecology, 'Gynaecology'],
-  [SPECIALTIES.urology, 'Urology'],
-  [SPECIALTIES.diabetes, 'Diabetes'],
-  [SPECIALTIES.biomechanics, 'Biomechanics'],
+const TEAM_NAMES: [string, string][] = [
+  [TEAMS.dermatology, 'Dermatology'],
+  [TEAMS.gynaecology, 'Gynaecology'],
+  [TEAMS.urology, 'Urology'],
+  [TEAMS.diabetes, 'Diabetes'],
+  [TEAMS.biomechanics, 'Biomechanics'],
 ];
 
-export const specialtyName = (id: string | null | undefined) => SPECIALTY_NAMES.find(([key]) => key === id)?.[1] ?? null;
+export const teamName = (id: string | null | undefined) => TEAM_NAMES.find(([key]) => key === id)?.[1] ?? null;
 
 /**
  * A template's stages, in order, for a new pathway made from it: the template's options (optional, branches) and the
@@ -283,7 +283,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
     patientId: spec.patientId,
     templateId: template.id!,
     templateName: template.name!,
-    specialtyId: template.specialtyId!,
+    teamId: template.teamId!,
     referralId: spec.referralId ?? null,
     title: spec.title,
     dueDate: daysFrom(spec.dueIn),
@@ -319,7 +319,7 @@ export const TARGET_DAYS: Record<DemoReferral['requestedPriority'], number> = {U
 function makeReferral(
   id: string,
   patientId: string,
-  specialtyId: string,
+  teamId: string,
   receivedDaysAgo: number,
   requestedPriority: DemoReferral['requestedPriority'],
   reason: string,
@@ -333,7 +333,7 @@ function makeReferral(
       atUtc: registered,
       username: 'h.marsh',
       toStatus: 'AwaitingTriage',
-      specialtyName: specialtyName(specialtyId),
+      teamName: teamName(teamId),
       requestedPriority,
     },
   ];
@@ -351,7 +351,7 @@ function makeReferral(
   return {
     id,
     patientId,
-    specialtyId,
+    teamId,
     receivedOn: daysFrom(-receivedDaysAgo),
     referrerPractice: 'Example Lane Surgery (synthetic)',
     referrerClinician: 'Dr A. Sample',
@@ -394,8 +394,8 @@ export function seed(): DemoState {
     id: spec.id,
     name: spec.name,
     isArchived: false,
-    specialtyId: spec.specialtyId,
-    specialtyName: specialtyName(spec.specialtyId),
+    teamId: spec.teamId,
+    teamName: teamName(spec.teamId),
     retentionClass: 'Adult',
     pathwayCount: 0,
     clockStopStageOrder: 1,
@@ -476,15 +476,15 @@ export function seed(): DemoState {
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
 
   const referrals = [
-    makeReferral(REFERRALS.dermatologyToTriage, PATIENTS.oliverMaddox, SPECIALTIES.dermatology, 3, 'Urgent',
+    makeReferral(REFERRALS.dermatologyToTriage, PATIENTS.oliverMaddox, TEAMS.dermatology, 3, 'Urgent',
       'Rapidly growing lesion on the scalp, bleeds on contact.'),
-    makeReferral(REFERRALS.aishaDermatology, PATIENTS.aishaKhoury, SPECIALTIES.dermatology, 6, 'Medium',
+    makeReferral(REFERRALS.aishaDermatology, PATIENTS.aishaKhoury, TEAMS.dermatology, 6, 'Medium',
       'Persistent rash on both hands despite emollients.'),
-    makeReferral(REFERRALS.ruthGynaecology, PATIENTS.ruthPenrose, SPECIALTIES.gynaecology, 2, 'Urgent',
+    makeReferral(REFERRALS.ruthGynaecology, PATIENTS.ruthPenrose, TEAMS.gynaecology, 2, 'Urgent',
       'Post-menopausal bleeding, first episode.'),
-    makeReferral(REFERRALS.callumDiabetes, PATIENTS.callumAshby, SPECIALTIES.diabetes, 9, 'Low',
+    makeReferral(REFERRALS.callumDiabetes, PATIENTS.callumAshby, TEAMS.diabetes, 9, 'Low',
       'Type 2 diabetes, review of control and medicines.'),
-    makeReferral(REFERRALS.ellisAccepted, PATIENTS.ellisVarden, SPECIALTIES.dermatology, 16, 'High',
+    makeReferral(REFERRALS.ellisAccepted, PATIENTS.ellisVarden, TEAMS.dermatology, 16, 'High',
       'Mole on the left forearm has changed shape and colour.',
       {pathwayId: PATHWAYS.biopsyToBook, daysAgo: 14, templateName: 'Skin lesion pathway'}),
   ];
@@ -625,17 +625,17 @@ export function seed(): DemoState {
     isAnonymised: false,
   }));
 
-  const specialties: Schemas['SpecialtyResponse'][] = SPECIALTY_NAMES.map(([id, name]) => ({
+  const teams: Schemas['TeamResponse'][] = TEAM_NAMES.map(([id, name]) => ({
     id,
     name,
     isArchived: false,
     version: 1,
-    templateCount: templates.filter((t) => t.specialtyId === id).length,
-    pathwayCount: pathways.filter((p) => p.specialtyId === id).length,
-    memberCount: id === SPECIALTIES.dermatology ? 3 : 1,
-    referralCount: referrals.filter((r) => r.specialtyId === id).length,
+    templateCount: templates.filter((t) => t.teamId === id).length,
+    pathwayCount: pathways.filter((p) => p.teamId === id).length,
+    memberCount: id === TEAMS.dermatology ? 3 : 1,
+    referralCount: referrals.filter((r) => r.teamId === id).length,
     letterTemplateCount: 0,
-    triagerCount: id === SPECIALTIES.dermatology ? 3 : 1,
+    triagerCount: id === TEAMS.dermatology ? 3 : 1,
     canBeDeleted: false,
     targetDaysUrgent: TARGET_DAYS.Urgent,
     targetDaysHigh: TARGET_DAYS.High,
@@ -650,7 +650,7 @@ export function seed(): DemoState {
     seededOn: on,
     user: null,
     patients,
-    specialties,
+    teams,
     stageDefinitions,
     templates,
     pathways,

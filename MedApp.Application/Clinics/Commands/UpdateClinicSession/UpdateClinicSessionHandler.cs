@@ -5,7 +5,7 @@ using MedApp.Application.Clinics.Common;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Clinics.Responses;
 using MedApp.Domain.Appointments;
@@ -16,7 +16,7 @@ namespace MedApp.Application.Clinics.Commands.UpdateClinicSession;
 public sealed class UpdateClinicSessionHandler(
     IClinicRepository repository,
     ICalendarRepository calendarRepository,
-    ISpecialtyRepository specialtyRepository,
+    ITeamRepository teamRepository,
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
     TimeProvider timeProvider)
@@ -38,7 +38,7 @@ public sealed class UpdateClinicSessionHandler(
         var end = UkTime.Utc(request.EndUtc);
         CalendarGuards.EnsureNotPast(existing.Date, today);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(start), today);
-        await ClinicChoices.CheckSpecialtyAsync(specialtyRepository, request.SpecialtyId, existing.SpecialtyId, cancellationToken);
+        await ClinicChoices.CheckTeamAsync(teamRepository, request.TeamId, existing.TeamId, cancellationToken);
 
         var staffUsername = await identityReadService.GetUsernamesByIdAsync([existing.StaffUserId], cancellationToken);
 
@@ -69,7 +69,7 @@ public sealed class UpdateClinicSessionHandler(
                 throw new ConflictException(why);
 
             session.RoomId = request.RoomId;
-            session.SpecialtyId = request.SpecialtyId;
+            session.TeamId = request.TeamId;
             session.StartUtc = start;
             session.EndUtc = end;
             session.Date = UkTime.DateOf(start);

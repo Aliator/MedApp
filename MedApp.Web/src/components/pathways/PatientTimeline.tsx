@@ -97,7 +97,7 @@ function entryIcon(entry: TimelineEntry): IconType {
     case 'ReferralRejected':
       return AppIcon.StatusCancelled;
     case 'ReferralRedirectedElsewhere':
-    case 'ReferralSpecialtyChanged':
+    case 'ReferralTeamChanged':
       return AppIcon.StatusChange;
     case 'ReferralEnteredInError':
       return AppIcon.EnteredInError;
@@ -185,7 +185,7 @@ function LetterEntryLinks({entry}: {entry: TimelineEntry}) {
       ) : (
         entry.referralId && (
           <Text type="supporting" maxLines={1}>
-            <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
+            <Link href={`/referrals/${entry.referralId}`}>{entry.teamName ? `Referral to ${entry.teamName}` : 'The referral'}</Link>
           </Text>
         )
       )}
@@ -302,7 +302,7 @@ function AwaitingReferrals({referrals}: {referrals: readonly TimelineReferral[]}
             key={referral.referralId}
             label={
               <Text type="body" weight="semibold" maxLines={2}>
-                <Link href={`/referrals/${referral.referralId}`}>{`Referral to ${referral.specialtyName}`}</Link>
+                <Link href={`/referrals/${referral.referralId}`}>{`Referral to ${referral.teamName}`}</Link>
               </Text>
             }
             description={
@@ -543,7 +543,7 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
             ) : (isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (
               <>
                 <Text type="supporting" maxLines={1}>
-                  <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
+                  <Link href={`/referrals/${entry.referralId}`}>{entry.teamName ? `Referral to ${entry.teamName}` : 'The referral'}</Link>
                 </Text>
                 {/* Accepted: the pathway it was accepted into. */}
                 {entry.action === 'ReferralAccepted' && entry.pathwayId && !entry.isPathwayDeleted && (

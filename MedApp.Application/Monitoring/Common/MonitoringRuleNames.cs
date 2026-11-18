@@ -1,6 +1,6 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Monitoring;
 
 namespace MedApp.Application.Monitoring.Common;
@@ -13,7 +13,7 @@ public sealed record MonitoringRuleNames(
     IReadOnlyDictionary<Guid, string> Usernames,
     IReadOnlyDictionary<Guid, string> TemplateNames,
     IReadOnlyDictionary<Guid, string> StageNames,
-    IReadOnlyDictionary<Guid, string> SpecialtyNames)
+    IReadOnlyDictionary<Guid, string> TeamNames)
 {
     /// <summary>No names at all.</summary>
     public static MonitoringRuleNames None { get; } = new(
@@ -24,13 +24,13 @@ public sealed record MonitoringRuleNames(
         IReadOnlyCollection<MonitoringRule> rules,
         IIdentityReadService identityReadService,
         IPatientPathwayStagesRepository stagesRepository,
-        ISpecialtyRepository specialtyRepository,
+        ITeamRepository teamRepository,
         CancellationToken cancellationToken)
     {
         var userIds = rules.Select(r => r.SubjectUserId).OfType<Guid>().Distinct().ToList();
         var templateIds = rules.Select(r => r.TemplateId).OfType<Guid>().Distinct().ToList();
         var stageIds = rules.Select(r => r.StageDefinitionId).OfType<Guid>().Distinct().ToList();
-        var specialtyIds = rules.Select(r => r.SpecialtyId).OfType<Guid>().Distinct().ToList();
+        var teamIds = rules.Select(r => r.TeamId).OfType<Guid>().Distinct().ToList();
 
         var usernames = userIds.Count == 0
             ? new Dictionary<Guid, string>()
@@ -42,10 +42,10 @@ public sealed record MonitoringRuleNames(
             ? new Dictionary<Guid, string>()
             : (await stagesRepository.GetStageDefinitionsByIdAsync(stageIds, cancellationToken)).ToDictionary(d => d.Id, d => d.Name);
 
-        var specialties = specialtyIds.Count == 0
+        var teams = teamIds.Count == 0
             ? new Dictionary<Guid, string>()
-            : (await specialtyRepository.GetByIdsAsync(specialtyIds, cancellationToken)).ToDictionary(s => s.Id, s => s.Name);
+            : (await teamRepository.GetByIdsAsync(teamIds, cancellationToken)).ToDictionary(s => s.Id, s => s.Name);
 
-        return new MonitoringRuleNames(usernames, templates, stages, specialties);
+        return new MonitoringRuleNames(usernames, templates, stages, teams);
     }
 }

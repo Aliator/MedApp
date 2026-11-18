@@ -21,13 +21,13 @@ public sealed class Meeting
     public Guid OrganiserUserId { get; init; }
 
     /// <summary>
-    /// Whether it's a specialty's multidisciplinary team meeting (an MDT), which pathways can be listed for
+    /// Whether it's a team's multidisciplinary team meeting (an MDT), which pathways can be listed for
     /// (<c>MdtItem</c>). Its title and notes still never name patients: the list is separate.
     /// </summary>
     public bool IsMdt { get; set; }
 
-    /// <summary>The specialty whose MDT it is; set exactly when <see cref="IsMdt"/>.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>The team whose MDT it is; set exactly when <see cref="IsMdt"/>.</summary>
+    public Guid? TeamId { get; set; }
 
     public DateTime CreatedAtUtc { get; init; }
 

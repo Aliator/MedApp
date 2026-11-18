@@ -4,7 +4,7 @@ namespace MedApp.Contracts.Pathways.Timeline.Responses;
 public sealed class PatientTimelineReferralResponse
 {
     public Guid ReferralId { get; set; }
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
     public DateOnly ReceivedOn { get; set; }
 
     /// <summary>Low, Medium, High or Urgent.</summary>

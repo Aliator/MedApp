@@ -11,7 +11,7 @@ using MedApp.Contracts.Referrals.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Responses;
 using Microsoft.Playwright;
 
 namespace MedApp.E2ETests.Common;
@@ -60,14 +60,14 @@ public sealed class E2EApi(IAPIRequestContext request)
     /// <summary>Deletes a stage definition, or archives it if a template or pathway that stays still uses it.</summary>
     public Task DeleteOrArchiveStageDefinitionAsync(Guid id) => DeleteOrArchiveAsync($"{Stages}/definitions/{id}");
 
-    /// <summary>A template in the first specialty that isn't archived (every database starts with General).</summary>
+    /// <summary>A template in the first team that isn't archived (every database starts with General).</summary>
     public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds)
     {
-        var specialty = (await SendAsync<List<SpecialtyResponse>>("GET", "/api/specialties")).First();
+        var team = (await SendAsync<List<TeamResponse>>("GET", "/api/teams")).First();
         return await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
         {
             name,
-            specialtyId = specialty.Id,
+            teamId = team.Id,
             stageDefinitionIdsInOrder = stageDefinitionIds,
         });
     }
@@ -176,23 +176,23 @@ public sealed class E2EApi(IAPIRequestContext request)
         return await SendAsync<NotepadResponse>("PUT", "/api/me/notepad", new SaveNotepadRequest { Text = text, ExpectedVersion = current.Version });
     }
 
-    /// <summary>The specialties a member of staff belongs to, exactly. Needs an admin.</summary>
-    public async Task SetSpecialtiesAsync(string username, params Guid[] specialtyIds) =>
-        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/specialties", new { specialtyIds });
+    /// <summary>The teams a member of staff belongs to, exactly. Needs an admin.</summary>
+    public async Task SetTeamsAsync(string username, params Guid[] teamIds) =>
+        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/teams", new { teamIds });
 
-    /// <summary>The first specialty that isn't archived, the one <see cref="CreateTemplateAsync"/> puts templates in.</summary>
-    public async Task<SpecialtyResponse> FirstSpecialtyAsync() =>
-        (await SendAsync<List<SpecialtyResponse>>("GET", "/api/specialties")).First();
+    /// <summary>The first team that isn't archived, the one <see cref="CreateTemplateAsync"/> puts templates in.</summary>
+    public async Task<TeamResponse> FirstTeamAsync() =>
+        (await SendAsync<List<TeamResponse>>("GET", "/api/teams")).First();
 
     /// <summary>
     /// Registers a referral for a patient, received two days ago, asking for Urgent. Referrals are never deleted, and
     /// a patient with one can't be: both stay (README).
     /// </summary>
-    public async Task<ReferralResponse> RegisterReferralAsync(Guid patientId, Guid specialtyId, string reason) =>
+    public async Task<ReferralResponse> RegisterReferralAsync(Guid patientId, Guid teamId, string reason) =>
         await SendAsync<ReferralResponse>("POST", "/api/referrals", new
         {
             patientId,
-            specialtyId,
+            teamId,
             receivedOn = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)).ToString("yyyy-MM-dd"),
             referrerPractice = "Synthetic Lane Surgery (E2E)",
             requestedPriority = "Urgent",
@@ -203,7 +203,7 @@ public sealed class E2EApi(IAPIRequestContext request)
     public Task<ReferralResponse?> FindReferralAsync(Guid id) => FindAsync<ReferralResponse>($"/api/referrals/{id}");
 
     /// <summary>
-    /// A letter template for every specialty: a clinic letter whose closing names the approver. Templates a letter was
+    /// A letter template for every team: a clinic letter whose closing names the approver. Templates a letter was
     /// written from can't be deleted, only archived (<see cref="ArchiveLetterTemplateAsync"/>). Needs an admin.
     /// </summary>
     public async Task<LetterTemplateResponse> CreateLetterTemplateAsync(string name) =>

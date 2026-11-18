@@ -1,6 +1,6 @@
 /**
  * Insights' numbers in words: durations, weeks, the charts' summaries, and the links from a count to the pathways
- * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status`, `templateId` and `specialty`).
+ * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status`, `templateId` and `team`).
  */
 
 import type {OverdueByAssignee, OverdueByPriority, PathwayInsights, TemplateStageTimes, WeeklyThroughput} from '../../api/insights';
@@ -44,23 +44,23 @@ export function assigneeNames(rows: readonly OverdueByAssignee[]): string[] {
 }
 
 
-/** What Insights is on: a template and a specialty (their IDs), either or both, or neither for every pathway. */
+/** What Insights is on: a template and a team (their IDs), either or both, or neither for every pathway. */
 export interface InsightsScope {
   templateId?: string | null;
-  specialtyId?: string | null;
+  teamId?: string | null;
 }
 
 /**
- * The pathways list, filtered to what a count counts: on the template (by its ID) and the specialty when Insights is
+ * The pathways list, filtered to what a count counts: on the template (by its ID) and the team when Insights is
  * on them. Always `mine=false`, so the list isn't narrowed to the admin's own pathways by where Account Settings has
  * lists start.
  */
-export function pathwaysHref(filters: Record<string, string>, {templateId, specialtyId}: InsightsScope = {}): string {
+export function pathwaysHref(filters: Record<string, string>, {templateId, teamId}: InsightsScope = {}): string {
   return `/pathways?${new URLSearchParams({
     ...filters,
     mine: 'false',
     ...(templateId ? {templateId} : {}),
-    ...(specialtyId ? {specialty: specialtyId} : {}),
+    ...(teamId ? {team: teamId} : {}),
   }).toString()}`;
 }
 

@@ -21,7 +21,7 @@ describe('ClinicsPage', {timeout: 30_000}, () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T10:00:00Z')});
   });
 
-  it("lists the week's sessions, each with its room, clinician, specialty and slots", async () => {
+  it("lists the week's sessions, each with its room, clinician, team and slots", async () => {
     const {fetch} = renderPage({}, [testSession({booked: 1}), testSession({id: 'session-2', status: 'Cancelled', freeSlotCount: 0, freeSlotStartsUtc: []})]);
 
     expect(await screen.findByRole('heading', {name: 'Clinics', level: 1})).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe('ClinicsPage', {timeout: 30_000}, () => {
       'GET /api/sites': () => json(SITES),
       'GET /api/calendar/staff': () => json([]),
       'GET /api/rooms': () => json([]),
-      'GET /api/specialties': () => json([]),
+      'GET /api/teams': () => json([]),
     });
     function Harness() {
       const [search, setSearch] = useState<ClinicsSearch>({});

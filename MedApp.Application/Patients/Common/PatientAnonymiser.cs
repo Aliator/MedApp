@@ -35,7 +35,7 @@ namespace MedApp.Application.Patients.Common;
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
 /// <item>Referrals' reasons, referring practices and clinicians, decision and redirect details, redirect destinations and clock pauses' details become
-/// <see cref="RemovedText"/>, and their ODS codes and links to the directory's practices are removed; their dates, statuses, priorities and specialties stay.
+/// <see cref="RemovedText"/>, and their ODS codes and links to the directory's practices are removed; their dates, statuses, priorities and teams stay.
 /// Their history holds no free text, but its details are scrubbed as the others' are.</item>
 /// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
 /// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their

@@ -1,11 +1,11 @@
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Domain.Referrals;
 
 /// <summary>
-/// One request for the centre to see one patient in one specialty, from a referrer (usually a GP practice), as staff
+/// One request for the centre to see one patient in one team, from a referrer (usually a GP practice), as staff
 /// registered it from the letter. It waits for triage (<see cref="ReferralStatus.AwaitingTriage"/>), then is accepted
 /// into a pathway, rejected or redirected; or it's withdrawn or marked entered in error before then. Every change is
 /// recorded in its history (<see cref="ReferralEvent"/>), in the same save. The letter is an attachment on it.
@@ -28,9 +28,9 @@ public sealed class Referral
     public Guid PatientId { get; init; }
     public Patient Patient { get; set; } = null!;
 
-    /// <summary>The specialty asked for.</summary>
-    public Guid SpecialtyId { get; set; }
-    public Specialty Specialty { get; set; } = null!;
+    /// <summary>The team asked for.</summary>
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 
     /// <summary>When it arrived, a UK date typed by staff: not in the future, at most a year back.</summary>
     public DateOnly ReceivedOn { get; set; }
@@ -79,7 +79,7 @@ public sealed class Referral
     public string? RedirectedTo { get; set; }
 
     /// <summary>
-    /// Redirected here from another specialty: why, as the triager who moved it wrote it (the latest such move's). Free
+    /// Redirected here from another team: why, as the triager who moved it wrote it (the latest such move's). Free
     /// text. Kept apart from <see cref="DecisionDetail"/>, as the referral still awaits triage after it.
     /// </summary>
     public string? RedirectDetail { get; set; }
@@ -100,7 +100,7 @@ public sealed class Referral
     // only for patient-initiated pauses after acceptance, and stops for good when the pathway's clock-stop stage is
     // finished, the pathway is discharged or cancelled, or the referral is closed without one.
 
-    /// <summary>The target in days, copied from the specialty for the priority when registered, and re-read when the priority or specialty changes.</summary>
+    /// <summary>The target in days, copied from the team for the priority when registered, and re-read when the priority or team changes.</summary>
     public int TargetDays { get; set; }
 
     /// <summary><see cref="ReceivedOn"/> plus every finished pause's days: the day the wait counts from.</summary>

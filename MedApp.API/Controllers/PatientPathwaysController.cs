@@ -106,7 +106,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request.TemplateName,
             request.PatientName,
             request.NobodyAssigned,
-            request.SpecialtyIds,
+            request.TeamIds,
             request.StageDefinitionIds,
             request.BreachedOnly), ct));
 

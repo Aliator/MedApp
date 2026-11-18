@@ -105,8 +105,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/users/search"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}/roles"] = Nothing("staff accounts, not patients"),
-        ["api/auth/users/{username}/specialties"] = Nothing("which specialties a member of staff belongs to: staff, not patients"),
-        ["api/auth/me/specialties"] = Nothing("the user's own specialties"),
+        ["api/auth/users/{username}/teams"] = Nothing("which teams a member of staff belongs to: staff, not patients"),
+        ["api/auth/me/teams"] = Nothing("the user's own teams"),
         ["api/auth/me/details"] = Nothing("the user's own full name and job title: staff, not patients"),
         ["api/auth/roles"] = Nothing("role names"),
         ["api/roles"] = Nothing("roles and how many hold each: configuration"),
@@ -126,8 +126,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/pathways/patient-pathway-stage/definitions/{id:guid}"] = Nothing("stage definitions: configuration"),
         ["api/pathways/patient-pathway-stage/templates"] = Nothing("templates: configuration"),
         ["api/pathways/patient-pathway-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
-        ["api/specialties"] = Nothing("specialties: configuration"),
-        ["api/specialties/{id:guid}"] = Nothing("specialties: configuration"),
+        ["api/teams"] = Nothing("teams: configuration"),
+        ["api/teams/{id:guid}"] = Nothing("teams: configuration"),
         ["api/practices"] = Nothing("the GP practice directory: organisations and counts, never patients"),
         ["api/practices/{id:guid}"] = Nothing("one GP practice: an organisation and counts, never patients"),
         ["api/letter-templates"] = Nothing("letter templates: configuration (an organisation's wording, never a patient's)"),
@@ -202,7 +202,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         // A referral, for its page and the referral list.
         var referral = await (await admin.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
         {
-            PatientId = patientId, SpecialtyId = MedApp.Domain.Specialties.Specialty.GeneralId, ReceivedOn = UkToday,
+            PatientId = patientId, TeamId = MedApp.Domain.Teams.Team.GeneralId, ReceivedOn = UkToday,
             ReferrerPractice = "Synthetic Lane Surgery", RequestedPriority = "Medium", Reason = "Synthetic reason."
         })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 

@@ -81,7 +81,7 @@ public sealed class ReferralsControllerTests
         var mediator = new RecordingMediator(_ => referral);
         var request = new RegisterReferralRequest
         {
-            PatientId = RecordId, SpecialtyId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice,
+            PatientId = RecordId, TeamId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice,
             ReferrerClinician = Clinician, ReferrerOdsCode = OdsCode, RequestedPriority = "Urgent", Reason = Reason,
             ConfirmPossibleDuplicate = true, PracticeId = PracticeId
         };
@@ -91,7 +91,7 @@ public sealed class ReferralsControllerTests
         var command = mediator.Request.Should().BeOfType<RegisterReferralCommand>().Subject;
         command.Should().BeEquivalentTo(new
         {
-            PatientId = RecordId, SpecialtyId = OtherId, ReceivedOn, ReferrerPractice = Practice, ReferrerClinician = Clinician,
+            PatientId = RecordId, TeamId = OtherId, ReceivedOn, ReferrerPractice = Practice, ReferrerClinician = Clinician,
             ReferrerOdsCode = OdsCode, RequestedPriority = "Urgent", Reason, ConfirmPossibleDuplicate = true, PracticeId
         });
         command.Actor.UserId.Should().Be(UserId);
@@ -105,12 +105,12 @@ public sealed class ReferralsControllerTests
     public async Task SearchReferrals_SendsTheFiltersAndTheViewer() =>
         await ExpectOk(new PagedResponse<ReferralSummaryResponse>([], 2, 20, 0, 0),
             r => r is SearchReferralsQuery { Page: 2, PageSize: 20, Sort: "patient", Ascending: false, Mine: true } q
-                 && q.Statuses!.SequenceEqual(["AwaitingTriage"]) && q.SpecialtyIds!.SequenceEqual([OtherId])
+                 && q.Statuses!.SequenceEqual(["AwaitingTriage"]) && q.TeamIds!.SequenceEqual([OtherId])
                  && q.PatientId == RecordId && q.Search == "syn" && q.ViewerId == UserId,
             c => c.SearchReferrals(new SearchReferralsRequest
             {
                 Page = 2, PageSize = 20, Sort = "patient", Ascending = false, Statuses = ["AwaitingTriage"],
-                SpecialtyIds = [OtherId], Mine = true, PatientId = RecordId, Search = "syn"
+                TeamIds = [OtherId], Mine = true, PatientId = RecordId, Search = "syn"
             }, _cts.Token));
 
     [Test]
@@ -129,11 +129,11 @@ public sealed class ReferralsControllerTests
     public async Task EditReferral_SendsTheDetailsAndTheVersionSeen() =>
         await ExpectOk(_fixture.Create<ReferralResponse>(),
             r => r is EditReferralCommand { ExpectedVersion: 4, Reason: Reason, RequestedPriority: "Low" } q
-                 && q.ReferralId == RecordId && q.SpecialtyId == OtherId && q.Actor.UserId == UserId
+                 && q.ReferralId == RecordId && q.TeamId == OtherId && q.Actor.UserId == UserId
                  && q.PracticeId == PracticeId,
             c => c.EditReferral(RecordId, new EditReferralRequest
             {
-                SpecialtyId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice, RequestedPriority = "Low",
+                TeamId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice, RequestedPriority = "Low",
                 Reason = Reason, ExpectedVersion = 4, PracticeId = PracticeId
             }, _cts.Token));
 
@@ -186,10 +186,10 @@ public sealed class ReferralsControllerTests
             c => c.RejectReferral(RecordId, new RejectReferralRequest { Reason = "Duplicate", Detail = Detail, ExpectedVersion = 2 }, _cts.Token));
         await ExpectOk(response,
             r => r is RedirectReferralCommand { Elsewhere: "Synthetic Trust", Detail: Detail, ExpectedVersion: 2 } q
-                 && q.ReferralId == RecordId && q.SpecialtyId == OtherId && q.Actor.UserId == UserId,
+                 && q.ReferralId == RecordId && q.TeamId == OtherId && q.Actor.UserId == UserId,
             c => c.RedirectReferral(RecordId, new RedirectReferralRequest
             {
-                SpecialtyId = OtherId, Elsewhere = "Synthetic Trust", Detail = Detail, ExpectedVersion = 2
+                TeamId = OtherId, Elsewhere = "Synthetic Trust", Detail = Detail, ExpectedVersion = 2
             }, _cts.Token));
     }
 

@@ -57,8 +57,8 @@ const referral = {
   id: referralId,
   patientId,
   patient,
-  specialtyId: '0000000b-0000-4000-8000-000000000004',
-  specialtyName: 'Dermatology',
+  teamId: '0000000b-0000-4000-8000-000000000004',
+  teamName: 'Dermatology',
   receivedOn: '2026-11-02',
   referrerPractice: 'Synthetic Street Surgery',
   requestedPriority: 'Medium',
@@ -153,12 +153,12 @@ function answerApi() {
     if (pathname === `/api/referrals/${referralId}`) return json(referral);
     if (pathname === `/api/specimens/${specimenId}`) return json(specimen);
     if (pathname === `/api/results/${resultId}`) return json(result);
-    if (pathname === '/api/specialties') return json([]);
-    if (pathname === '/api/referrals/awaiting-triage/count') return json({count: 0, inYourSpecialties: false});
+    if (pathname === '/api/teams') return json([]);
+    if (pathname === '/api/referrals/awaiting-triage/count') return json({count: 0, inYourTeams: false});
     if (pathname === '/api/demographics/status') return json({isAvailable: false, source: null});
     if (pathname === '/api/notifications') return json({items: [], unreadCount: 0});
     if (pathname === '/api/auth/me/settings') return json({settings: null});
-    if (/\/(templates|definitions|specialties)$/.test(pathname)) return json([]);
+    if (/\/(templates|definitions|teams)$/.test(pathname)) return json([]);
     return json(pageOf([]));
   });
 }

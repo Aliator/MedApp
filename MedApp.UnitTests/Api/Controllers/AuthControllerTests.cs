@@ -21,12 +21,12 @@ using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
-using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
+using MedApp.Application.Authentication.Users.Commands.SetUserTeams;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
-using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetMyTeams;
 using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
-using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetUserTeams;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Common.Authentication;
@@ -34,7 +34,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -560,61 +560,61 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public async Task GetUserSpecialties_ReturnsThem()
+    public async Task GetUserTeams_ReturnsThem()
     {
-        IReadOnlyList<StaffSpecialtyResponse> specialties = [new StaffSpecialtyResponse { Id = RecordId, Name = "Synthetic dermatology" }];
-        var mediator = new RecordingMediator(_ => specialties);
+        IReadOnlyList<TeamMembershipResponse> teams = [new TeamMembershipResponse { Id = RecordId, Name = "Synthetic dermatology" }];
+        var mediator = new RecordingMediator(_ => teams);
         using var cts = new CancellationTokenSource();
 
-        var result = await Controller(mediator).GetUserSpecialties(OtherUsername, cts.Token);
+        var result = await Controller(mediator).GetUserTeams(OtherUsername, cts.Token);
 
-        mediator.Request.Should().Be(new GetUserSpecialtiesQuery(OtherUsername));
+        mediator.Request.Should().Be(new GetUserTeamsQuery(OtherUsername));
         mediator.Tokens.Single().Should().Be(cts.Token);
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(teams);
     }
 
     [TestCase(true)]
     [TestCase(false)]
-    public async Task SetUserSpecialties_SendsTheSpecialtiesOrNoneAndReturnsThem(bool given)
+    public async Task SetUserTeams_SendsTheTeamsOrNoneAndReturnsThem(bool given)
     {
-        IReadOnlyList<StaffSpecialtyResponse> specialties = [];
-        var mediator = new RecordingMediator(_ => specialties);
+        IReadOnlyList<TeamMembershipResponse> teams = [];
+        var mediator = new RecordingMediator(_ => teams);
         using var cts = new CancellationTokenSource();
 
-        var result = await Controller(mediator).SetUserSpecialties(
-            OtherUsername, new SetUserSpecialtiesRequest(given ? [RecordId, OtherId] : null), cts.Token);
+        var result = await Controller(mediator).SetUserTeams(
+            OtherUsername, new SetUserTeamsRequest(given ? [RecordId, OtherId] : null), cts.Token);
 
-        var sent = mediator.Request.Should().BeOfType<SetUserSpecialtiesCommand>().Subject;
+        var sent = mediator.Request.Should().BeOfType<SetUserTeamsCommand>().Subject;
         sent.Username.Should().Be(OtherUsername);
-        sent.SpecialtyIds.Should().Equal(given ? [RecordId, OtherId] : []);
+        sent.TeamIds.Should().Equal(given ? [RecordId, OtherId] : []);
         mediator.Tokens.Single().Should().Be(cts.Token);
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(teams);
     }
 
     [Test]
-    public async Task GetMySpecialties_ReturnsTheSignedInUsers()
+    public async Task GetMyTeams_ReturnsTheSignedInUsers()
     {
-        IReadOnlyList<StaffSpecialtyResponse> specialties = [];
-        var mediator = new RecordingMediator(_ => specialties);
+        IReadOnlyList<TeamMembershipResponse> teams = [];
+        var mediator = new RecordingMediator(_ => teams);
         using var cts = new CancellationTokenSource();
 
-        var result = await Controller(mediator).GetMySpecialties(cts.Token);
+        var result = await Controller(mediator).GetMyTeams(cts.Token);
 
-        mediator.Request.Should().Be(new GetMySpecialtiesQuery(UserId));
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+        mediator.Request.Should().Be(new GetMyTeamsQuery(UserId));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(teams);
     }
 
     [Test]
-    public async Task SpecialtyMemberships_AdminsSetThemAndAnyoneReadsTheirOwn()
+    public async Task TeamMemberships_AdminsSetThemAndAnyoneReadsTheirOwn()
     {
-        foreach (var action in new[] { nameof(AuthController.GetUserSpecialties), nameof(AuthController.SetUserSpecialties) })
+        foreach (var action in new[] { nameof(AuthController.GetUserTeams), nameof(AuthController.SetUserTeams) })
         {
             (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("User"))).Should().BeFalse(action);
             (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("Admin"))).Should().BeTrue(action);
         }
 
-        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn("User"))).Should().BeTrue();
-        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn())).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMyTeams), SignedIn("User"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMyTeams), SignedIn())).Should().BeFalse();
     }
 
     [Test]

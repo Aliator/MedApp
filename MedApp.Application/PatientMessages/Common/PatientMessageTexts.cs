@@ -7,7 +7,7 @@ namespace MedApp.Application.PatientMessages.Common;
 /// <summary>
 /// The fixed wording of every message to a patient (centre plan decision 131). <b>A message never says why:</b> it holds
 /// the organisation's name, the date and time, the site's name, address and phone, and a fixed phrase. Never the
-/// specialty, clinician, pathway, stage, any note or the NHS number. A text is kept to 160 characters where it can be:
+/// team, clinician, pathway, stage, any note or the NHS number. A text is kept to 160 characters where it can be:
 /// the address goes first, then the postcode, if it's longer.
 /// </summary>
 public static class PatientMessageTexts

@@ -42,7 +42,7 @@ export interface ReferralWaitCardProps {
 }
 
 /**
- * The pathway page's **Referral and wait**: the referral the pathway came from (received, specialty, a link to it),
+ * The pathway page's **Referral and wait**: the referral the pathway came from (received, team, a link to it),
  * its waiting-time clock ("Day 84 of 126", Breached, Paused with the review date, Stopped and why: decisions 27 to 38)
  * and every pause. **Pause Clock** (while `canPauseClock`) asks why (Patient chose to wait, Patient unavailable, Other
  * with a detail), and when to review it (tomorrow to 90 days ahead, which becomes the pathway's target date);
@@ -83,7 +83,7 @@ export function ReferralWaitCard({referral, pathwayId, patient}: ReferralWaitCar
   return (
     <VStack gap={6} hAlign="stretch">
       <HStack gap={3} vAlign="center" wrap="wrap">
-        <Text type="body">{`Received ${formatDate(referral.receivedOn ?? '')}, ${referral.specialtyName ?? ''}`}</Text>
+        <Text type="body">{`Received ${formatDate(referral.receivedOn ?? '')}, ${referral.teamName ?? ''}`}</Text>
         <Link href={`/referrals/${referral.id}`}>Open the referral</Link>
       </HStack>
       {clock ? (
@@ -205,7 +205,7 @@ export function PauseClockDialog({referral, patient, problem, isProcessing, onCo
         {patient && <PatientBanner patient={patient} isCompact />}
         {referral.clock && (
           <Text type="body" color="secondary">
-            {`Referral to ${referral.specialtyName ?? ''}, received ${formatDate(referral.receivedOn ?? '')}: day ${referral.clock.daysWaited ?? 0} of ${referral.clock.targetDays ?? 0}.`}
+            {`Referral to ${referral.teamName ?? ''}, received ${formatDate(referral.receivedOn ?? '')}: day ${referral.clock.daysWaited ?? 0} of ${referral.clock.targetDays ?? 0}.`}
           </Text>
         )}
         <RadioList label="Reason" value={reason} onChange={setReason} isRequired isDisabled={isProcessing} status={fieldStatus(errors, 'reason')}>

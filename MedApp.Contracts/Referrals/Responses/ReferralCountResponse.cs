@@ -6,8 +6,8 @@ public sealed class ReferralCountResponse
     public int Count { get; set; }
 
     /// <summary>
-    /// Whether <see cref="Count"/> is of the caller's specialties only; false when they belong to none, and it's every
-    /// specialty's.
+    /// Whether <see cref="Count"/> is of the caller's teams only; false when they belong to none, and it's every
+    /// team's.
     /// </summary>
-    public bool InYourSpecialties { get; set; }
+    public bool InYourTeams { get; set; }
 }

@@ -153,7 +153,7 @@ describe('calendarItems', () => {
     expect(hasDeclined({attendees}, undefined)).toBe(false);
   });
 
-  it('makes a clinic session an item of its own: its specialty, room and how full it is, never dragged', () => {
+  it('makes a clinic session an item of its own: its team, room and how full it is, never dragged', () => {
     const session = testSession({date: '2026-11-24', booked: 1});
 
     expect(sessionItem(session)).toEqual({

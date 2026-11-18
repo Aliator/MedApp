@@ -29,7 +29,7 @@ public static class MdtRules
     public const string NotPresentMessage = "Choose who was present from the meeting's attendees.";
     public const string HasOutcomesMessage = "Outcomes are recorded on this MDT, so it can't be cancelled.";
     public const string HasItemsMessage =
-        "Patients are listed for this MDT: move or withdraw them before changing its specialty or making it an ordinary meeting.";
+        "Patients are listed for this MDT: move or withdraw them before changing its team or making it an ordinary meeting.";
 
     /// <summary>A 409 unless the version is the item's.</summary>
     public static void EnsureVersion(MdtItem item, int expectedVersion)
@@ -51,7 +51,7 @@ public static class MdtRules
     /// </summary>
     public static void EnsureCanListFor(Meeting meeting, DateTime nowUtc, DateTime? after = null)
     {
-        if (!meeting.IsMdt || meeting.SpecialtyId is null)
+        if (!meeting.IsMdt || meeting.TeamId is null)
             throw new ConflictException(NotMdtMessage);
         if (meeting.EndUtc <= nowUtc)
             throw new ConflictException(MeetingEndedMessage);

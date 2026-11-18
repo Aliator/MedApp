@@ -113,8 +113,8 @@ describe('MdtDialogs, what goes wrong', () => {
   const validation = (field: string, message: string) =>
     new ApiValidationError({title: 'Invalid', fields: {[field]: [message]}, general: []});
 
-  it("names an MDT without a title by its specialty", () => {
-    expect(meetingLabel(mdtMeeting({title: null, specialtyName: null}))).toMatch(/^ MDT: /);
+  it("names an MDT without a title by its team", () => {
+    expect(meetingLabel(mdtMeeting({title: null, teamName: null}))).toMatch(/^ MDT: /);
     expect(meetingLabel(mdtMeeting({title: null}))).toMatch(/^Dermatology MDT: /);
   });
 

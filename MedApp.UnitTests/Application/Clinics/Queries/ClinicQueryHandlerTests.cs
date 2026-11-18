@@ -28,9 +28,9 @@ public sealed class ClinicQueryHandlerTests : ClinicHandlerTestBase
             .ReturnsAsync(new Dictionary<Guid, IReadOnlyList<DateTime>> { [session.Id] = [At(NextMonday, 9)] });
 
         var result = await Fixture.Create<SearchClinicSessionsHandler>().Handle(
-            new SearchClinicSessionsQuery(NextMonday, NextFriday, StaffUserId, null, null, SpecialtyId, true, false, StaffActor), Token);
+            new SearchClinicSessionsQuery(NextMonday, NextFriday, StaffUserId, null, null, TeamId, true, false, StaffActor), Token);
 
-        filter.Should().Be(new ClinicSessionFilter(NextMonday, NextFriday, StaffUserId, null, null, SpecialtyId, true));
+        filter.Should().Be(new ClinicSessionFilter(NextMonday, NextFriday, StaffUserId, null, null, TeamId, true));
         var response = result.Should().ContainSingle().Subject;
         response.BookedCount.Should().Be(1);
         response.FreeSlotCount.Should().Be(8);
@@ -108,6 +108,6 @@ public sealed class ClinicQueryHandlerTests : ClinicHandlerTestBase
         pattern.DayOfWeek.Should().Be("Monday");
         pattern.HasEnded.Should().BeTrue();
         pattern.SiteName.Should().Be(MedApp.UnitTests.Common.Constants.SitesTestConstants.SiteName);
-        pattern.SpecialtyName.Should().Be(SpecialtyName);
+        pattern.TeamName.Should().Be(TeamName);
     }
 }

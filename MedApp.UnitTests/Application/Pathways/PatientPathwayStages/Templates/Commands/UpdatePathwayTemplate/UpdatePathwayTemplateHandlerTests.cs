@@ -4,13 +4,13 @@ using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using MedApp.Application.Patients.Common;
 using Microsoft.Extensions.Options;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
-using static MedApp.UnitTests.Common.Constants.SpecialtiesTestConstants;
+using static MedApp.UnitTests.Common.Constants.TeamsTestConstants;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
 
 namespace MedApp.UnitTests.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
@@ -33,17 +33,17 @@ public sealed class UpdatePathwayTemplateHandlerTests
             .Setup(r => r.GetTemplatePathwayCountsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int>());
         _fixture.Inject(_repository.Object);
-        GivenSpecialties();
+        GivenTeams();
     }
 
-    private void GivenSpecialties(params Specialty[] specialties) =>
-        _fixture.Inject(RepositoryWith(specialties).Object);
+    private void GivenTeams(params Team[] teams) =>
+        _fixture.Inject(RepositoryWith(teams).Object);
 
-    private PathwayTemplate GivenTemplateIn(Specialty specialty)
+    private PathwayTemplate GivenTemplateIn(Team team)
     {
         var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
-        template.SpecialtyId = specialty.Id;
-        template.Specialty = specialty;
+        template.TeamId = team.Id;
+        template.Team = team;
         _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
         return template;
     }
@@ -150,52 +150,52 @@ public sealed class UpdatePathwayTemplateHandlerTests
     }
 
     [Test]
-    public async Task Handle_MovedToAnotherSpecialty_SavesAndReportsTheNewOne()
+    public async Task Handle_MovedToAnotherTeam_SavesAndReportsTheNewOne()
     {
-        var current = CreateSpecialty();
-        var other = CreateSpecialty(OtherSpecialtyName);
-        GivenSpecialties(current, other);
+        var current = CreateTeam();
+        var other = CreateTeam(OtherTeamName);
+        GivenTeams(current, other);
         var template = GivenTemplateIn(current);
 
         var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, other.Id, null), CancellationToken.None);
 
-        response.SpecialtyId.Should().Be(other.Id);
-        response.SpecialtyName.Should().Be(OtherSpecialtyName);
+        response.TeamId.Should().Be(other.Id);
+        response.TeamName.Should().Be(OtherTeamName);
         _repository.Verify(r => r.UpdatePathwayTemplateAsync(
-            It.Is<PathwayTemplate>(t => t.SpecialtyId == other.Id), null, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PathwayTemplate>(t => t.TeamId == other.Id), null, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
-    public async Task Handle_MovedToAnArchivedSpecialty_ThrowsConflictWithoutSaving()
+    public async Task Handle_MovedToAnArchivedTeam_ThrowsConflictWithoutSaving()
     {
-        var current = CreateSpecialty();
-        var archived = CreateSpecialty(OtherSpecialtyName, isArchived: true);
-        GivenSpecialties(current, archived);
+        var current = CreateTeam();
+        var archived = CreateTeam(OtherTeamName, isArchived: true);
+        GivenTeams(current, archived);
         var template = GivenTemplateIn(current);
 
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, archived.Id, null), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{OtherSpecialtyName}*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{OtherTeamName}*");
         _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public async Task Handle_KeepsItsArchivedSpecialty_SavesTheRename()
+    public async Task Handle_KeepsItsArchivedTeam_SavesTheRename()
     {
-        var archived = CreateSpecialty(isArchived: true);
-        GivenSpecialties(archived);
+        var archived = CreateTeam(isArchived: true);
+        GivenTeams(archived);
         var template = GivenTemplateIn(archived);
 
         var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, "Renamed", archived.Id, null), CancellationToken.None);
 
         response.Name.Should().Be("Renamed");
-        response.SpecialtyId.Should().Be(archived.Id);
+        response.TeamId.Should().Be(archived.Id);
     }
 
     [Test]
-    public async Task Handle_UnknownSpecialty_ThrowsNotFound()
+    public async Task Handle_UnknownTeam_ThrowsNotFound()
     {
-        var template = GivenTemplateIn(CreateSpecialty());
+        var template = GivenTemplateIn(CreateTeam());
 
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, Guid.NewGuid(), null), CancellationToken.None);
 

@@ -10,9 +10,9 @@ using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 
 namespace MedApp.IntegrationTests.Referrals;
@@ -39,15 +39,15 @@ public sealed class WaitingClockTests : IntegrationTest
         _admin = await SignInAsAdminAsync();
         _booking = await CreateStaffAsync("Booking");
         _clinician = await CreateStaffAsync("Clinician");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/specialties", new SetUserSpecialtiesRequest([Specialty.GeneralId])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([Team.GeneralId])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    private async Task<ReferralResponse> RegisterAsync(Guid patientId, int receivedDaysAgo = 10, Guid? specialtyId = null) =>
+    private async Task<ReferralResponse> RegisterAsync(Guid patientId, int receivedDaysAgo = 10, Guid? teamId = null) =>
         await (await _booking.Client.PostAsJsonAsync(Referrals, new RegisterReferralRequest
         {
             PatientId = patientId,
-            SpecialtyId = specialtyId ?? Specialty.GeneralId,
+            TeamId = teamId ?? Team.GeneralId,
             ReceivedOn = UkToday.AddDays(-receivedDaysAgo),
             ReferrerPractice = "Synthetic Lane Surgery",
             RequestedPriority = "High",
@@ -211,15 +211,15 @@ public sealed class WaitingClockTests : IntegrationTest
     }
 
     [Test]
-    public async Task SpecialtyTargets_AreCopiedByNewClocks()
+    public async Task TeamTargets_AreCopiedByNewClocks()
     {
-        var created = await (await _admin.PostAsJsonAsync("/api/specialties",
-                new CreateSpecialtyRequest { Name = UniqueName("Specialty"), TargetDaysHigh = 21 }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+        var created = await (await _admin.PostAsJsonAsync("/api/teams",
+                new CreateTeamRequest { Name = UniqueName("Team"), TargetDaysHigh = 21 }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
         created.Should().BeEquivalentTo(new { TargetDaysUrgent = 14, TargetDaysHigh = 21, TargetDaysMedium = 126, TargetDaysLow = 126 });
         var patient = await CreatePatientAsync(_admin);
 
-        var referral = await RegisterAsync(patient.Id, receivedDaysAgo: 1, specialtyId: created.Id);
+        var referral = await RegisterAsync(patient.Id, receivedDaysAgo: 1, teamId: created.Id);
 
         referral.Clock!.TargetDays.Should().Be(21);
         referral.Clock.TargetOn.Should().Be(UkToday.AddDays(20));

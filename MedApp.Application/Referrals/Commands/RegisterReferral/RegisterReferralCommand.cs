@@ -6,11 +6,11 @@ namespace MedApp.Application.Referrals.Commands.RegisterReferral;
 
 /// <summary>
 /// Registers a referral for a patient already in MedApp, awaiting triage, recorded in its history. If the patient has an
-/// open referral to the same specialty, it's a 400 unless <paramref name="ConfirmPossibleDuplicate"/>.
+/// open referral to the same team, it's a 400 unless <paramref name="ConfirmPossibleDuplicate"/>.
 /// </summary>
 public sealed record RegisterReferralCommand(
     Guid PatientId,
-    Guid SpecialtyId,
+    Guid TeamId,
     DateOnly ReceivedOn,
     string ReferrerPractice,
     string? ReferrerClinician,

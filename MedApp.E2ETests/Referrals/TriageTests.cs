@@ -5,7 +5,7 @@ using Microsoft.Playwright;
 namespace MedApp.E2ETests.Referrals;
 
 /// <summary>
-/// Triage: a referral registered by the E2E admin is accepted by a Clinician of its specialty, in a browser of their
+/// Triage: a referral registered by the E2E admin is accepted by a Clinician of its team, in a browser of their
 /// own, choosing the template, priority and target date (nothing is prefilled); the pathway opens, linked back to the
 /// referral, and whoever registered it is told.
 /// </summary>
@@ -15,10 +15,10 @@ public sealed class TriageTests : E2ETest
     private static readonly string ChosenPassword = E2EData.NewPassword();
 
     [Test]
-    public async Task Accept_AsAClinicianOfItsSpecialty_CreatesThePathwayLinkedToTheReferral()
+    public async Task Accept_AsAClinicianOfItsTeam_CreatesThePathwayLinkedToTheReferral()
     {
         var (template, _) = await CreateTemplateAsync(2);
-        var specialty = await Api.FirstSpecialtyAsync();
+        var team = await Api.FirstTeamAsync();
 
         // A patient with a referral can't be deleted: they stay, with the referral (README); their pathway goes.
         var patient = await Api.CreatePatientAsync("Grace", E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
@@ -27,13 +27,13 @@ public sealed class TriageTests : E2ETest
             foreach (var pathway in await Api.PathwaysOfPatientAsync(patient.Id))
                 await Api.CancelAndDeletePathwayAsync(pathway.Id);
         });
-        var referral = await Api.RegisterReferralAsync(patient.Id, specialty.Id, "Synthetic reason for referral from the end-to-end tests.");
+        var referral = await Api.RegisterReferralAsync(patient.Id, team.Id, "Synthetic reason for referral from the end-to-end tests.");
 
-        // A Clinician who belongs to the specialty, with a password of their own.
+        // A Clinician who belongs to the team, with a password of their own.
         var username = E2EData.UniqueName("clinician").Replace(' ', '-').ToLowerInvariant();
         var firstPassword = await Api.CreateUserAsync(username, "Clinician");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
-        await Api.SetSpecialtiesAsync(username, specialty.Id);
+        await Api.SetTeamsAsync(username, team.Id);
         await (await SignInToApiAsync(username, firstPassword)).UpdateOwnPasswordAsync(username, firstPassword, ChosenPassword);
 
         // They sign in, in a browser of their own, and open the referral.
@@ -61,10 +61,10 @@ public sealed class TriageTests : E2ETest
         await page.GetByRole(AriaRole.Option, new() { Name = "High", Exact = true }).ClickAsync();
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
-        // The check shows the patient, the specialty and the template before anything is saved.
+        // The check shows the patient, the team and the template before anything is saved.
         var check = page.GetByRole(AriaRole.Dialog, new() { Name = "Check and Confirm" });
         await Expect(check).ToContainTextAsync(patient.LastName, new() { IgnoreCase = true });
-        await Expect(check).ToContainTextAsync(specialty.Name);
+        await Expect(check).ToContainTextAsync(team.Name);
         await Expect(check).ToContainTextAsync(template.Name);
         await check.GetByRole(AriaRole.Button, new() { Name = "Accept Referral" }).ClickAsync();
 
@@ -82,7 +82,7 @@ public sealed class TriageTests : E2ETest
             Assert.That(saved.PathwayId, Is.EqualTo(pathwayId));
             Assert.That(saved.DecidedByUsername, Is.EqualTo(username));
             Assert.That(pathway!.Priority, Is.EqualTo("High"));
-            Assert.That(saved.Clock!.TargetDays, Is.EqualTo(specialty.TargetDaysHigh));
+            Assert.That(saved.Clock!.TargetDays, Is.EqualTo(team.TargetDaysHigh));
             Assert.That(pathway.DueDate, Is.EqualTo(saved.Clock.TargetOn));
             Assert.That(pathway.Referral!.Id, Is.EqualTo(referral.Id));
         });

@@ -20,9 +20,9 @@ public sealed class ReferralResponse
     /// <summary>The patient's restricted, disputed and anonymised flags, for the banners.</summary>
     public PatientFlagsResponse? PatientFlags { get; set; }
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
 
     public DateOnly ReceivedOn { get; set; }
 
@@ -65,7 +65,7 @@ public sealed class ReferralResponse
     public string? RedirectedTo { get; set; }
 
     /// <summary>
-    /// Redirected here from another specialty: why (the latest such redirection's detail). The referral stays awaiting
+    /// Redirected here from another team: why (the latest such redirection's detail). The referral stays awaiting
     /// triage, so this is kept apart from <see cref="DecisionDetail"/>.
     /// </summary>
     public string? RedirectDetail { get; set; }

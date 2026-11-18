@@ -44,14 +44,14 @@ public sealed class MdtQueriesTests
         var first = CreateItem(meeting);
         var second = CreateItem(meeting);
         _repository.Setup(r => r.GetMeetingRowAsync(meeting.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MdtMeetingRow(meeting, Specialty.Name, 2, 2));
+            .ReturnsAsync(new MdtMeetingRow(meeting, Team.Name, 2, 2));
         _repository.Setup(r => r.GetForMeetingAsync(meeting.Id, It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
 
         var response = await new GetMdtMeetingListHandler(_repository.Object, _identity.Object, _activity, _clock)
             .Handle(new GetMdtMeetingListQuery(meeting.Id, Clinician), _token);
 
         response.Items.Select(i => i.Id).Should().Equal(first.Id, second.Id);
-        response.Meeting.SpecialtyName.Should().Be(Specialty.Name);
+        response.Meeting.TeamName.Should().Be(Team.Name);
         response.Meeting.Attendees.Select(a => a.Username).Should().Equal(OtherUsername, Staff.Username);
         var view = _activity.Views.Should().ContainSingle().Subject;
         view.Action.Should().Be(ActivityAction.PatientListed);
@@ -72,10 +72,10 @@ public sealed class MdtQueriesTests
     {
         var item = CreateItem(null);
         item.MeetingCancelledStartUtc = Now.AddDays(-1);
-        _repository.Setup(r => r.GetAwaitingMeetingAsync(Specialty.Id, It.IsAny<CancellationToken>())).ReturnsAsync([item]);
+        _repository.Setup(r => r.GetAwaitingMeetingAsync(Team.Id, It.IsAny<CancellationToken>())).ReturnsAsync([item]);
 
         var response = await new GetMdtItemsAwaitingMeetingHandler(_repository.Object, _activity, _clock)
-            .Handle(new GetMdtItemsAwaitingMeetingQuery(Specialty.Id, Clinician), _token);
+            .Handle(new GetMdtItemsAwaitingMeetingQuery(Team.Id, Clinician), _token);
 
         response.Should().ContainSingle().Which.MeetingCancelledStartUtc.Should().Be(Now.AddDays(-1));
         _activity.Views.Should().ContainSingle().Which.Action.Should().Be(ActivityAction.PatientListed);
@@ -104,7 +104,7 @@ public sealed class MdtQueriesTests
         var meeting = CreateMdt(Now.AddDays(1));
         _repository
             .Setup(r => r.GetMeetingsAsync(null, Now.AddDays(-GetMdtMeetingsHandler.DaysBack), Now.AddDays(GetMdtMeetingsHandler.DaysAhead), _token))
-            .ReturnsAsync([new MdtMeetingRow(meeting, Specialty.Name, 1, 3)]);
+            .ReturnsAsync([new MdtMeetingRow(meeting, Team.Name, 1, 3)]);
 
         var response = await new GetMdtMeetingsHandler(_repository.Object, _identity.Object, _clock)
             .Handle(new GetMdtMeetingsQuery(null), _token);

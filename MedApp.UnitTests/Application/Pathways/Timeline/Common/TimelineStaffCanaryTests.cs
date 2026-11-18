@@ -226,8 +226,8 @@ public sealed class TimelineStaffCanaryTests
         // As the MDT handlers: an item listed, deferred, withdrawn and its outcome recorded, with the canary as the
         // question, the outcome and the meeting's title, none of which the details ever copy.
         var mdtPathway = CreatePathway(Status.InProgress, title: Canary);
-        var meeting = new Meeting { Id = Guid.NewGuid(), Title = Canary, Notes = Canary, StartUtc = Now, EndUtc = Now.AddHours(1), IsMdt = true, SpecialtyId = Guid.NewGuid() };
-        var later = new Meeting { Id = Guid.NewGuid(), Title = Canary, StartUtc = Now.AddDays(7), EndUtc = Now.AddDays(7).AddHours(1), IsMdt = true, SpecialtyId = meeting.SpecialtyId };
+        var meeting = new Meeting { Id = Guid.NewGuid(), Title = Canary, Notes = Canary, StartUtc = Now, EndUtc = Now.AddHours(1), IsMdt = true, TeamId = Guid.NewGuid() };
+        var later = new Meeting { Id = Guid.NewGuid(), Title = Canary, StartUtc = Now.AddDays(7), EndUtc = Now.AddDays(7).AddHours(1), IsMdt = true, TeamId = meeting.TeamId };
         var item = new MdtItem
         {
             Id = Guid.NewGuid(), PatientId = mdtPathway.PatientId, PathwayId = mdtPathway.Id, Pathway = mdtPathway,
@@ -607,7 +607,7 @@ public sealed class TimelineStaffCanaryTests
         var rows = ReferralRowsHoldingTheCanary();
         var accepted = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.Accepted), isAdmin: false);
         var rejected = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.Rejected), isAdmin: false);
-        var moved = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.SpecialtyChanged), isAdmin: false);
+        var moved = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.TeamChanged), isAdmin: false);
         var elsewhere = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.RedirectedElsewhere), isAdmin: true);
 
         accepted.Action.Should().Be("ReferralAccepted");
@@ -617,8 +617,8 @@ public sealed class TimelineStaffCanaryTests
         accepted.ToStatus.Should().Be("Accepted");
         rejected.RejectionReason.Should().Be("Other");
         rejected.Reason.Should().BeNull();
-        moved.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
-        moved.SpecialtyName.Should().Be(SpecialtiesTestConstants.OtherSpecialtyName);
+        moved.PreviousTeamName.Should().Be(TeamsTestConstants.TeamName);
+        moved.TeamName.Should().Be(TeamsTestConstants.OtherTeamName);
         elsewhere.RedirectedTo.Should().Be(Canary);
         elsewhere.Reason.Should().Be(Canary);
     }
@@ -641,21 +641,21 @@ public sealed class TimelineStaffCanaryTests
         referral.ReferrerPractice = Canary;
         referral.ReferrerClinician = Canary;
         var change = new ReferralChange(referral, Staff, Now);
-        change.Register(referral.Specialty);
+        change.Register(referral.Team);
         change.EditDetails(
-            new ReferralDetails(referral.SpecialtyId, referral.ReceivedOn, $"{Canary} (edited)", null, null,
+            new ReferralDetails(referral.TeamId, referral.ReceivedOn, $"{Canary} (edited)", null, null,
                 PatientPathwayPriority.Urgent, $"{Canary} (edited)"),
-            referral.Specialty, referral.Specialty);
+            referral.Team, referral.Team);
         change.Withdraw(Canary);
 
         var other = ReferralsTestConstants.CreateReferral();
         var error = new ReferralChange(other, Staff, Now);
         error.MarkEnteredInError(Canary);
 
-        // Triage: moved to another specialty here, then accepted; another rejected; another redirected elsewhere.
+        // Triage: moved to another team here, then accepted; another rejected; another redirected elsewhere.
         var triaged = ReferralsTestConstants.CreateReferral();
         var accept = new ReferralChange(triaged, ReferralsTestConstants.Triager, Now);
-        accept.RedirectToSpecialty(SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName), Canary);
+        accept.RedirectToTeam(TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName), Canary);
         var accepted = new ReferralChange(triaged, ReferralsTestConstants.Triager, Now.AddMinutes(1));
         accepted.Accept(Guid.NewGuid(), TriageTemplate, PatientPathwayPriority.Urgent);
 
@@ -678,7 +678,7 @@ public sealed class TimelineStaffCanaryTests
         // The waiting-time clock: the target re-read, paused (with the canary as the pause's detail) and resumed,
         // paused again, then stopped by the pathway's discharge (which ends the pause).
         var clock = new ReferralChange(triaged, Staff, Now.AddMinutes(2));
-        clock.ReTarget(triaged.Specialty, PatientPathwayPriority.Low);
+        clock.ReTarget(triaged.Team, PatientPathwayPriority.Low);
         var pause = clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
         clock.ResumeClock(pause);
         clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
@@ -782,7 +782,7 @@ public sealed class TimelineStaffCanaryTests
 
         var outcome = TimelineMapper.ToResponse(new PatientTimelineRow(entries[3], CurrentTitle), isAdmin: false);
         outcome.Kind.Should().Be(nameof(PatientTimelineKind.Mdt));
-        outcome.SpecialtyName.Should().Be("Dermatology");
+        outcome.TeamName.Should().Be("Dermatology");
         outcome.MeetingStartUtc.Should().Be(Now);
         outcome.PresentUsernames.Should().Equal(OtherUsername);
 

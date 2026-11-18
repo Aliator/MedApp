@@ -49,7 +49,7 @@ public static class MeetingMapper
             MyReply = MeetingReplies.ReplyOf(meeting, viewer.UserId)?.ToString(),
             CanReply = MeetingReplies.CanReply(meeting, viewer.UserId, nowUtc),
             IsMdt = meeting.IsMdt,
-            SpecialtyId = meeting.SpecialtyId,
+            TeamId = meeting.TeamId,
             CreatedAtUtc = meeting.CreatedAtUtc,
             LastUpdated = meeting.LastUpdated
         };

@@ -9,7 +9,7 @@ import {staffWithPermissionQuery} from '../../api/calendar';
 import {SLOT_LENGTHS, useSavePattern, type ClinicPattern} from '../../api/clinics';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {roomsQuery} from '../../api/sites';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {useAnnounce} from '../../app/announcements';
 import {ukToday} from '../../utils/calendarSlots';
 import {WEEK_STARTS_ON} from '../../utils/dates';
@@ -26,13 +26,13 @@ export interface PatternFormDialogProps {
   pattern?: ClinicPattern;
 }
 
-const FIELDS = ['staffUserId', 'roomId', 'specialtyId', 'dayOfWeek', 'starts', 'ends', 'slotMinutes', 'everyWeeks', 'fromDate', 'untilDate'];
+const FIELDS = ['staffUserId', 'roomId', 'teamId', 'dayOfWeek', 'starts', 'ends', 'slotMinutes', 'everyWeeks', 'fromDate', 'untilDate'];
 
 const clock = (time: string | null | undefined, fallback: string) => (time ? time.slice(0, 5) : fallback);
 const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /**
- * Adding or changing a clinic pattern (centre plan decision 125, ManageClinics): the clinician, room and specialty, a day
+ * Adding or changing a clinic pattern (centre plan decision 125, ManageClinics): the clinician, room and team, a day
  * of the week, UK clock times in 15-minute steps between 06:00 and 23:00, the slot length, every 1 to 4 weeks, from a
  * date and optionally until one. It makes no sessions itself: Create sessions does, when asked. Changing it leaves the
  * sessions it has already made as they are.
@@ -53,7 +53,7 @@ function PatternForm({isOpen, onClose, pattern}: PatternFormDialogProps) {
   const [today] = useState(() => ukToday());
   const [staffUserId, setStaffUserId] = useState(pattern?.staffUserId ?? '');
   const [roomId, setRoomId] = useState(pattern?.roomId ?? '');
-  const [specialtyId, setSpecialtyId] = useState(pattern?.specialtyId ?? '');
+  const [teamId, setTeamId] = useState(pattern?.teamId ?? '');
   const [dayOfWeek, setDayOfWeek] = useState(pattern?.dayOfWeek ?? 'Monday');
   const [starts, setStarts] = useState(clock(pattern?.starts, '09:00'));
   const [ends, setEnds] = useState(clock(pattern?.ends, '12:00'));
@@ -66,12 +66,12 @@ function PatternForm({isOpen, onClose, pattern}: PatternFormDialogProps) {
 
   const staff = useQuery({...staffWithPermissionQuery('BookAppointments'), enabled: isOpen});
   const rooms = useQuery({...roomsQuery(), enabled: isOpen});
-  const specialties = useQuery({...specialtiesQuery(false), enabled: isOpen});
+  const teams = useQuery({...teamsQuery(false), enabled: isOpen});
 
   const length = minutesOf(ends) - minutesOf(starts);
   const timesProblem = length <= 0 ? 'It must end after it starts.' : length % slotMinutes !== 0 ? `It must divide into whole ${slotMinutes}-minute slots.` : null;
   const untilProblem = untilDate && fromDate && untilDate < fromDate ? 'The until date must be on or after the from date.' : null;
-  const canSave = staffUserId !== '' && roomId !== '' && specialtyId !== '' && fromDate !== undefined && !timesProblem && !untilProblem && !save.isPending;
+  const canSave = staffUserId !== '' && roomId !== '' && teamId !== '' && fromDate !== undefined && !timesProblem && !untilProblem && !save.isPending;
 
   const submit = () => {
     if (!canSave) return;
@@ -83,7 +83,7 @@ function PatternForm({isOpen, onClose, pattern}: PatternFormDialogProps) {
         expectedLastUpdated: pattern?.lastUpdated,
         staffUserId,
         roomId,
-        specialtyId,
+        teamId,
         dayOfWeek,
         starts,
         ends,
@@ -203,13 +203,13 @@ function PatternForm({isOpen, onClose, pattern}: PatternFormDialogProps) {
             options={(rooms.data ?? []).map((r) => ({value: r.id ?? '', label: `${r.name} (${r.siteName})`}))}
           />
           <AnchoredSelector
-            label="Specialty"
-            value={specialtyId}
-            placeholder="Choose a specialty"
-            onChange={setSpecialtyId}
-            isLoading={specialties.isLoading}
-            status={fieldStatus(validation, 'specialtyId')}
-            options={(specialties.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}))}
+            label="Team"
+            value={teamId}
+            placeholder="Choose a team"
+            onChange={setTeamId}
+            isLoading={teams.isLoading}
+            status={fieldStatus(validation, 'teamId')}
+            options={(teams.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}))}
           />
         </VStack>
       )}

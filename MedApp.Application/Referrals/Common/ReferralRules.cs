@@ -26,8 +26,8 @@ public static class ReferralRules
         : receivedOn < today.AddDays(-MaxDaysBack) ? ReceivedTooLongAgoMessage
         : null;
 
-    public static void SpecialtyId<T>(this IRuleBuilder<T, Guid> rule) =>
-        rule.NotEmpty().WithMessage("Choose the specialty asked for.");
+    public static void TeamId<T>(this IRuleBuilder<T, Guid> rule) =>
+        rule.NotEmpty().WithMessage("Choose the team asked for.");
 
     public static void ReceivedOn<T>(this IRuleBuilder<T, DateOnly> rule, TimeProvider timeProvider) =>
         rule.Custom((receivedOn, context) =>

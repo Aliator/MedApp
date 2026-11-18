@@ -25,5 +25,5 @@ public sealed record ClinicSessionFilter(
     Guid? StaffUserId = null,
     Guid? SiteId = null,
     Guid? RoomId = null,
-    Guid? SpecialtyId = null,
+    Guid? TeamId = null,
     bool IncludeCancelled = false);

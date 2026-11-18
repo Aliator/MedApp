@@ -11,8 +11,8 @@ using MedApp.Application.Patients.Commands.SetPatientFlag;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Referrals.Common;
-using MedApp.Application.Specialties.Commands.SetSpecialtyArchived;
-using MedApp.Application.Specialties.Common;
+using MedApp.Application.Teams.Commands.SetTeamArchived;
+using MedApp.Application.Teams.Common;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Referrals;
 using MedApp.UnitTests.Common.Constants;
@@ -38,7 +38,7 @@ public sealed class ReferralPrivacyTests
         referral.RedirectedTo = Canary;
         referral.RedirectDetail = Canary;
         var change = new ReferralChange(referral, Registrar, NowUtc);
-        change.Register(referral.Specialty);
+        change.Register(referral.Team);
         // A finished pause and an open one, each with the canary as its detail.
         var clock = new ReferralChange(referral, Registrar, NowUtc);
         clock.ResumeClock(clock.PauseClock(ClockPauseReason.Other, Canary, Today.AddDays(10)));
@@ -63,7 +63,7 @@ public sealed class ReferralPrivacyTests
         exported.Reason.Should().Be(Canary);
         exported.ReferrerPractice.Should().Be(Canary);
         exported.ReferrerOdsCode.Should().Be(OdsCode);
-        exported.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        exported.TeamName.Should().Be(TeamsTestConstants.TeamName);
         exported.Status.Should().Be("Withdrawn");
         exported.RegisteredBy.Should().Be(Registrar.Username);
         exported.DecisionDetail.Should().Be(Canary);
@@ -104,7 +104,7 @@ public sealed class ReferralPrivacyTests
         referral.Pauses.Select(p => p.Reason).Should().Equal(ClockPauseReason.Other, ClockPauseReason.PatientChoseToWait);
         referral.ReceivedOn.Should().Be(ReceivedOn);
         referral.Status.Should().Be(ReferralStatus.Withdrawn);
-        registered.Details.Should().Contain(SpecialtiesTestConstants.SpecialtyName);
+        registered.Details.Should().Contain(TeamsTestConstants.TeamName);
         // The letter is renamed and deleted like any other file, recorded as attached to the referral.
         record.Attachments.Single().FileName.Should().StartWith(PatientAnonymiser.FileName);
         record.Attachments.Single().IsDeleted.Should().BeTrue();
@@ -187,28 +187,28 @@ public sealed class ReferralPrivacyTests
     }
 
     [Test]
-    public async Task ArchiveSpecialty_WithReferralsAwaitingTriage_IsAConflict()
+    public async Task ArchiveTeam_WithReferralsAwaitingTriage_IsAConflict()
     {
-        var specialty = SpecialtiesTestConstants.CreateSpecialty();
-        var repository = SpecialtiesTestConstants.RepositoryWith(specialty);
+        var team = TeamsTestConstants.CreateTeam();
+        var repository = TeamsTestConstants.RepositoryWith(team);
         repository.Setup(r => r.GetUsageAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<Guid, SpecialtyUsage> { [specialty.Id] = new(0, 0, 0, 4, 2) });
-        var handler = new SetSpecialtyArchivedHandler(repository.Object, new FixedTimeProvider(NowUtc));
+            .ReturnsAsync(new Dictionary<Guid, TeamUsage> { [team.Id] = new(0, 0, 0, 4, 2) });
+        var handler = new SetTeamArchivedHandler(repository.Object, new FixedTimeProvider(NowUtc));
 
-        var act = () => handler.Handle(new SetSpecialtyArchivedCommand(specialty.Id, true, specialty.Version), CancellationToken.None);
+        var act = () => handler.Handle(new SetTeamArchivedCommand(team.Id, true, team.Version), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ConflictException>()).Which.Message.Should().Contain("2 referrals awaiting triage");
-        specialty.IsArchived.Should().BeFalse();
+        team.IsArchived.Should().BeFalse();
     }
 
     [Test]
-    public void SpecialtyUsage_ReferralsCountAsInUse_AndAreNamed()
+    public void TeamUsage_ReferralsCountAsInUse_AndAreNamed()
     {
-        var usage = new SpecialtyUsage(0, 0, 0, 1);
+        var usage = new TeamUsage(0, 0, 0, 1);
 
         usage.IsInUse.Should().BeTrue();
-        SpecialtyRules.InUseMessage(SpecialtiesTestConstants.CreateSpecialty(), usage).Should().Contain("1 referral");
-        SpecialtyRules.InUseMessage(SpecialtiesTestConstants.CreateSpecialty(), new SpecialtyUsage(2, 1, 0, 3))
+        TeamRules.InUseMessage(TeamsTestConstants.CreateTeam(), usage).Should().Contain("1 referral");
+        TeamRules.InUseMessage(TeamsTestConstants.CreateTeam(), new TeamUsage(2, 1, 0, 3))
             .Should().Contain("2 pathway templates, 1 pathway and 3 referrals");
     }
 }

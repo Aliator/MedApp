@@ -13,7 +13,7 @@ import {createPathway, pathwayResponse} from './pathways';
 
 /**
  * Referrals, triage and the waiting-time clock, a simplified copy of the API's `ReferralWorkflow` and `WaitingClock`.
- * The clock runs from the day received (plus any pauses) against the specialty's target for the priority (the
+ * The clock runs from the day received (plus any pauses) against the team's target for the priority (the
  * triager's, once accepted), and stops for good when the template's clock-stop stage is finished, the pathway is
  * discharged or cancelled, or the referral is closed without a pathway. Pauses are patient-initiated, only once
  * accepted, and move the pathway's target date. Nothing is scored, suggested or ordered by clinical content; the
@@ -44,7 +44,7 @@ const longDate = (date: string) => LONG_DATE.format(new Date(`${date}T00:00:00Z`
 
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86400_000);
 
-const specialty = (id: string) => db().specialties.find((s) => s.id === id);
+const team = (id: string) => db().teams.find((s) => s.id === id);
 const extraOf = (referral: DemoReferral): DemoReferralExtra =>
   db().referralExtras[referral.id] ?? {practiceId: null, referrerOdsCode: null, redirectDetail: null};
 const pausesOf = (referralId: string) =>
@@ -69,7 +69,7 @@ function stopOf(referral: DemoReferral): {on: string; reason: string} | null {
   return stops.sort((a, b) => a.on.localeCompare(b.on))[0] ?? null;
 }
 
-/** The referral's waiting-time clock (`WaitingClock`): whole UK days, against the specialty's target for the priority. */
+/** The referral's waiting-time clock (`WaitingClock`): whole UK days, against the team's target for the priority. */
 export function referralSummaryClock(referral: DemoReferral): Schemas['WaitingClockResponse'] {
   const pathway = pathwayOf(referral);
   const priority = referral.status === 'Accepted' && pathway ? pathway.priority : referral.requestedPriority;
@@ -133,7 +133,7 @@ export function pathwayReferralResponse(referral: DemoReferral): Schemas['Pathwa
   return {
     id: referral.id,
     receivedOn: referral.receivedOn,
-    specialtyName: specialty(referral.specialtyId)?.name ?? null,
+    teamName: team(referral.teamId)?.name ?? null,
     version: referral.version,
     clock: referralSummaryClock(referral),
     pauses: pauseResponses(referral.id),
@@ -158,8 +158,8 @@ function whyCantTriage(referral: DemoReferral): string | null {
   }
   if (!can('TriageReferrals'))
     return 'Only clinicians who can triage referrals (their roles give them the Triage referrals permission) can accept, reject or redirect a referral.';
-  const name = specialty(referral.specialtyId)?.name ?? 'its specialty';
-  if (!me().specialtyIds.includes(referral.specialtyId))
+  const name = team(referral.teamId)?.name ?? 'its team';
+  if (!me().teamIds.includes(referral.teamId))
     return `Only members of ${name} can triage this referral. If you should, ask an admin to add you to ${name}.`;
   return whyRecordCantChange(referral.patientId);
 }
@@ -186,8 +186,8 @@ function referralResponse(referral: DemoReferral): Schemas['ReferralResponse'] {
     patientId: referral.patientId,
     patient: patientBanner(referral.patientId),
     patientFlags: patientFlags(referral.patientId),
-    specialtyId: referral.specialtyId,
-    specialtyName: specialty(referral.specialtyId)?.name ?? null,
+    teamId: referral.teamId,
+    teamName: team(referral.teamId)?.name ?? null,
     receivedOn: referral.receivedOn,
     practiceId: extra.practiceId,
     referrerPractice: referral.referrerPractice,
@@ -231,8 +231,8 @@ function referralSummary(referral: DemoReferral): Schemas['ReferralSummaryRespon
     patientName: patientName(referral.patientId),
     patientNhsNumber: patient?.nhsNumber ?? null,
     patientDateOfBirth: patient?.dateOfBirth,
-    specialtyId: referral.specialtyId,
-    specialtyName: specialty(referral.specialtyId)?.name ?? null,
+    teamId: referral.teamId,
+    teamName: team(referral.teamId)?.name ?? null,
     receivedOn: referral.receivedOn,
     daysSinceReceived: daysBetween(referral.receivedOn, today()),
     requestedPriority: referral.requestedPriority,
@@ -290,7 +290,7 @@ function decide(referral: DemoReferral, status: Status, event: Schemas['Referral
 }
 
 type DetailsBody = {
-  specialtyId?: string;
+  teamId?: string;
   receivedOn?: string;
   practiceId?: string | null;
   referrerPractice?: string | null;
@@ -303,8 +303,8 @@ type DetailsBody = {
 /** What's typed from the letter, checked as `ReferralRules` does: a 400 naming each field that's wrong. */
 function checkDetails(body: DetailsBody) {
   const errors: Record<string, string[]> = {};
-  const to = body.specialtyId ? specialty(body.specialtyId) : undefined;
-  if (!to || to.isArchived) errors.specialtyId = ['Choose a specialty that isn’t archived.'];
+  const to = body.teamId ? team(body.teamId) : undefined;
+  if (!to || to.isArchived) errors.teamId = ['Choose a team that isn’t archived.'];
   const receivedOn = body.receivedOn?.slice(0, 10) ?? '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(receivedOn)) errors.receivedOn = ['Give the date the referral was received.'];
   else if (receivedOn > today()) errors.receivedOn = ["The date received can't be in the future."];
@@ -321,7 +321,7 @@ function checkDetails(body: DetailsBody) {
   else if (reason.length > 2000) errors.reason = ['The reason must be at most 2,000 characters.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
   return {
-    specialtyId: to!.id!,
+    teamId: to!.id!,
     receivedOn,
     practiceId: body.practiceId || null,
     referrerPractice: practice,
@@ -350,7 +350,7 @@ export function registerReferrals() {
   on('get', '/api/referrals/search', ({query}) => {
     const viewer = me();
     const statuses = list(query, 'Statuses');
-    const specialtyIds = list(query, 'SpecialtyIds');
+    const teamIds = list(query, 'TeamIds');
     const mine = flag(query, 'Mine') === true;
     const paused = flag(query, 'Paused');
     const stopped = flag(query, 'ClockStopped');
@@ -359,8 +359,8 @@ export function registerReferrals() {
       const clock = referralSummaryClock(r);
       return (
         (statuses.length === 0 || statuses.includes(r.status)) &&
-        (specialtyIds.length === 0 || specialtyIds.includes(r.specialtyId)) &&
-        (!mine || viewer.specialtyIds.length === 0 || viewer.specialtyIds.includes(r.specialtyId)) &&
+        (teamIds.length === 0 || teamIds.includes(r.teamId)) &&
+        (!mine || viewer.teamIds.length === 0 || viewer.teamIds.includes(r.teamId)) &&
         (!query.get('PatientId') || r.patientId === query.get('PatientId')) &&
         (flag(query, 'BreachedOnly') !== true || clock.isBreached === true) &&
         (paused === undefined || paused === (clock.state === 'Paused')) &&
@@ -381,7 +381,7 @@ export function registerReferrals() {
           reviewOn: (r) => r.clock?.pauseReviewOn ?? '9999-12-31',
           registered: (r) => r.registeredAtUtc ?? '',
           patient: (r) => (r.patientName ?? '').toLowerCase(),
-          specialty: (r) => r.specialtyName ?? '',
+          team: (r) => r.teamName ?? '',
           priority: (r) => order[(r.requestedPriority ?? 'Low') as keyof typeof order],
           status: (r) => r.status ?? '',
         },
@@ -394,10 +394,10 @@ export function registerReferrals() {
   on('get', '/api/referrals/awaiting-triage/count', () => {
     const viewer = me();
     const awaiting = db().referrals.filter((r) => r.status === 'AwaitingTriage');
-    const inMine = viewer.specialtyIds.length > 0;
+    const inMine = viewer.teamIds.length > 0;
     return {
-      count: (inMine ? awaiting.filter((r) => viewer.specialtyIds.includes(r.specialtyId)) : awaiting).length,
-      inYourSpecialties: inMine,
+      count: (inMine ? awaiting.filter((r) => viewer.teamIds.includes(r.teamId)) : awaiting).length,
+      inYourTeams: inMine,
     };
   });
 
@@ -422,17 +422,17 @@ export function registerReferrals() {
         409,
         "This patient's record is restricted, so a referral can't be registered for them until an admin lifts the restriction. Give the referral letter to an admin now, so it isn't lost.",
       );
-    // Duplicates are shown, never merged: the patient's open referrals to the same specialty, by date and status only.
+    // Duplicates are shown, never merged: the patient's open referrals to the same team, by date and status only.
     const open = db()
       .referrals.filter(
         (r) =>
           r.patientId === patient.id &&
-          r.specialtyId === details.specialtyId &&
+          r.teamId === details.teamId &&
           (isOpenReferral(r) || (r.status === 'Accepted' && referralSummaryClock(r).state !== 'Stopped')),
       )
       .sort((a, b) => a.receivedOn.localeCompare(b.receivedOn));
     if (open.length > 0 && body.confirmPossibleDuplicate !== true) {
-      const name = specialty(details.specialtyId)?.name ?? 'specialty';
+      const name = team(details.teamId)?.name ?? 'team';
       const count = open.length === 1 ? `an open ${name} referral` : `${open.length} open ${name} referrals`;
       const each = open.map((r) => `received ${longDate(r.receivedOn)} (${DESCRIBE[r.status]})`).join('; ');
       return invalid({
@@ -443,7 +443,7 @@ export function registerReferrals() {
     const referral: DemoReferral = {
       id: newId(),
       patientId: patient.id!,
-      specialtyId: details.specialtyId,
+      teamId: details.teamId,
       receivedOn: details.receivedOn,
       referrerPractice: details.referrerPractice,
       referrerClinician: details.referrerClinician,
@@ -467,14 +467,14 @@ export function registerReferrals() {
           atUtc: now,
           username: viewer.username,
           toStatus: 'AwaitingTriage',
-          specialtyName: specialty(details.specialtyId)?.name ?? null,
+          teamName: team(details.teamId)?.name ?? null,
           requestedPriority: details.requestedPriority,
         },
       ],
     };
     db().referrals.push(referral);
     db().referralExtras[referral.id] = {practiceId: details.practiceId, referrerOdsCode: details.referrerOdsCode, redirectDetail: null};
-    const to = specialty(details.specialtyId);
+    const to = team(details.teamId);
     if (to) to.referralCount = (to.referralCount ?? 0) + 1;
     return referralResponse(referral);
   });
@@ -488,8 +488,8 @@ export function registerReferrals() {
     const details = checkDetails(body);
     const extra = extraOf(referral);
     const changed: string[] = [];
-    const previousSpecialty = specialty(referral.specialtyId)?.name ?? null;
-    if (details.specialtyId !== referral.specialtyId) changed.push('specialty');
+    const previousTeam = team(referral.teamId)?.name ?? null;
+    if (details.teamId !== referral.teamId) changed.push('specialty');
     if (details.receivedOn !== referral.receivedOn) changed.push('receivedOn');
     if (details.referrerPractice !== referral.referrerPractice) changed.push('referrerPractice');
     if (details.practiceId !== extra.practiceId) changed.push('directoryPractice');
@@ -499,7 +499,7 @@ export function registerReferrals() {
     if (details.reason !== referral.reason) changed.push('reason');
     if (changed.length === 0) return referralResponse(referral);
     Object.assign(referral, {
-      specialtyId: details.specialtyId,
+      teamId: details.teamId,
       receivedOn: details.receivedOn,
       referrerPractice: details.referrerPractice,
       referrerClinician: details.referrerClinician,
@@ -510,7 +510,7 @@ export function registerReferrals() {
     record(referral, {
       action: 'DetailsEdited',
       changedFields: changed,
-      ...(changed.includes('specialty') ? {specialtyName: specialty(details.specialtyId)?.name ?? null, previousSpecialtyName: previousSpecialty} : {}),
+      ...(changed.includes('specialty') ? {teamName: team(details.teamId)?.name ?? null, previousTeamName: previousTeam} : {}),
     });
     return referralResponse(referral);
   });
@@ -540,11 +540,11 @@ export function registerReferrals() {
     const referral = forTriage(params.id, body.expectedVersion);
     if (!body.templateId || !body.priority) return problem(400, 'Choose a template and a priority.');
     const template = db().templates.find((t) => t.id === body.templateId);
-    const name = specialty(referral.specialtyId)?.name ?? 'this specialty';
-    if (!template || template.specialtyId !== referral.specialtyId)
+    const name = team(referral.teamId)?.name ?? 'this team';
+    if (!template || template.teamId !== referral.teamId)
       return invalid({
         templateId: [
-          `The '${template?.name ?? 'chosen'}' template isn't one of ${name}'s. To use another specialty's template, redirect the referral to that specialty first.`,
+          `The '${template?.name ?? 'chosen'}' template isn't one of ${name}'s. To use another team's template, redirect the referral to that team first.`,
         ],
       });
     const priority = PRIORITIES.includes(body.priority as Priority) ? (body.priority as Priority) : referral.requestedPriority;
@@ -574,15 +574,15 @@ export function registerReferrals() {
 
   on('post', '/api/referrals/{id}/redirect', ({params, body}) => {
     const referral = forTriage(params.id, body.expectedVersion);
-    if (body.specialtyId) {
-      const to = specialty(body.specialtyId);
-      if (!to) return notFound('The specialty');
-      if (to.id === referral.specialtyId) return invalid({specialtyId: ['The referral is already in that specialty. Choose another one.']});
+    if (body.teamId) {
+      const to = team(body.teamId);
+      if (!to) return notFound('The team');
+      if (to.id === referral.teamId) return invalid({teamId: ['The referral is already in that team. Choose another one.']});
       if (to.isArchived) return problem(409, `${to.name} is archived, so referrals can't be redirected to it.`);
-      const previous = specialty(referral.specialtyId)?.name ?? null;
-      referral.specialtyId = body.specialtyId;
+      const previous = team(referral.teamId)?.name ?? null;
+      referral.teamId = body.teamId;
       db().referralExtras[referral.id] = {...extraOf(referral), redirectDetail: body.detail?.trim() || null};
-      record(referral, {action: 'SpecialtyChanged', specialtyName: to.name, previousSpecialtyName: previous});
+      record(referral, {action: 'TeamChanged', teamName: to.name, previousTeamName: previous});
       return referralResponse(referral);
     }
     referral.redirectedTo = body.elsewhere ?? 'Elsewhere';

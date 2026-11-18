@@ -57,7 +57,7 @@ public sealed class UpdatePathwayTemplateValidatorTests
     }
 
     [Test]
-    public void Validate_EmptySpecialty_IsInvalid() =>
+    public void Validate_EmptyTeam_IsInvalid() =>
         _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, Guid.Empty, null)).IsValid.Should().BeFalse();
 
     [Test]

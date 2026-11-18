@@ -1,5 +1,5 @@
 using FluentAssertions;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -56,10 +56,10 @@ public sealed class SpecialtiesMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
-        (await TextAsync($"SELECT Name AS Value FROM Specialties WHERE Id = {Specialty.GeneralId} AND IsArchived = 0"))
-            .Should().Be(Specialty.GeneralName);
-        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PathwayTemplates WHERE Id = {Template}")).Should().Be(Specialty.GeneralId);
-        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {Pathway}")).Should().Be(Specialty.GeneralId);
+        (await TextAsync($"SELECT Name AS Value FROM Specialties WHERE Id = {Team.GeneralId} AND IsArchived = 0"))
+            .Should().Be(Team.GeneralName);
+        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PathwayTemplates WHERE Id = {Template}")).Should().Be(Team.GeneralId);
+        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {Pathway}")).Should().Be(Team.GeneralId);
     }
 
     [Test]
@@ -76,8 +76,8 @@ public sealed class SpecialtiesMigrationTests
                 ({oldPathway}, N'Pathway from an old copy', N'', {Now}, 1, 1, {Patient}, {oldTemplate}, N'Template from an old copy', {Now}, {Now});
             """);
 
-        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PathwayTemplates WHERE Id = {oldTemplate}")).Should().Be(Specialty.GeneralId);
-        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {oldPathway}")).Should().Be(Specialty.GeneralId);
+        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PathwayTemplates WHERE Id = {oldTemplate}")).Should().Be(Team.GeneralId);
+        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {oldPathway}")).Should().Be(Team.GeneralId);
     }
 
     [Test]
@@ -85,7 +85,7 @@ public sealed class SpecialtiesMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
-        var act = () => _context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM Specialties WHERE Id = {Specialty.GeneralId}");
+        var act = () => _context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM Specialties WHERE Id = {Team.GeneralId}");
 
         await act.Should().ThrowAsync<SqlException>();
     }
@@ -103,7 +103,7 @@ public sealed class SpecialtiesMigrationTests
         (await CountAsync($"SELECT COUNT(*) AS Value FROM PatientPathways WHERE Id = {Pathway} AND TemplateId = {Template}")).Should().Be(1);
 
         await migrator.MigrateAsync(Migration);
-        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {Pathway}")).Should().Be(Specialty.GeneralId);
+        (await GuidAsync($"SELECT SpecialtyId AS Value FROM PatientPathways WHERE Id = {Pathway}")).Should().Be(Team.GeneralId);
     }
 
     private Task<string> TextAsync(FormattableString sql) => _context.Database.SqlQuery<string>(sql).SingleAsync();

@@ -15,7 +15,7 @@ public sealed class MonitoringRuleMapperTests
         new Dictionary<Guid, string> { [Staff.UserId] = Staff.Username },
         new Dictionary<Guid, string> { [TemplateId] = TemplateName },
         new Dictionary<Guid, string> { [ConsultationDefinitionId] = ConsultationStage },
-        new Dictionary<Guid, string> { [RuleSpecialtyId] = RuleSpecialtyName });
+        new Dictionary<Guid, string> { [RuleTeamId] = RuleTeamName });
 
     [Test]
     public void ToResponse_EveryCondition_GivesEventsAndPrioritiesByNameAndWhatItNames()
@@ -38,13 +38,13 @@ public sealed class MonitoringRuleMapperTests
     }
 
     [Test]
-    public void ToResponse_ServiceAlert_GivesItsDaysAndSpecialty()
+    public void ToResponse_ServiceAlert_GivesItsDaysAndTeam()
     {
-        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, specialtyId: RuleSpecialtyId, id: RuleId);
+        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, teamId: RuleTeamId, id: RuleId);
 
         MonitoringRuleMapper.ToResponse(rule, Names).Should().BeEquivalentTo(new
         {
-            Event = "ReferralNotTriaged", ThresholdDays = (int?)2, SpecialtyId = (Guid?)RuleSpecialtyId, SpecialtyName = (string?)RuleSpecialtyName,
+            Event = "ReferralNotTriaged", ThresholdDays = (int?)2, TeamId = (Guid?)RuleTeamId, TeamName = (string?)RuleTeamName,
         });
     }
 

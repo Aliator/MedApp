@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {addDays} from '../../utils/calendarSlots';
 import {usernameOf} from '../accounts';
 import {invalid, notFound, on, problem, refuse} from '../api/http';
-import {specialtyName, TARGET_DAYS} from '../seed';
+import {teamName, TARGET_DAYS} from '../seed';
 import {db} from '../store';
 import {nowUtc, today} from '../time';
 import {auditEntries, logActivity} from './adminLogs';
@@ -189,7 +189,7 @@ function exportOf(patient: Patient): Schemas['PatientExportResponse'] {
       const targetDays = TARGET_DAYS[r.requestedPriority];
       return {
         id: r.id,
-        specialtyName: specialtyName(r.specialtyId) ?? state.specialties.find((s) => s.id === r.specialtyId)?.name ?? null,
+        teamName: teamName(r.teamId) ?? state.teams.find((s) => s.id === r.teamId)?.name ?? null,
         receivedOn: r.receivedOn,
         referrerPractice: r.referrerPractice,
         referrerClinician: r.referrerClinician,

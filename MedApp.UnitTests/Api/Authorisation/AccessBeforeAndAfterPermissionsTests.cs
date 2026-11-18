@@ -84,11 +84,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.GetAllUsers 00001
         AuthController.GetMyDetails 00011
         AuthController.GetMySettings 00011
-        AuthController.GetMySpecialties 00011
+        AuthController.GetMyTeams 00011
         AuthController.GetSession 01111
         AuthController.GetUserByUsername 00001
         AuthController.GetUserRoles 00001
-        AuthController.GetUserSpecialties 00001
+        AuthController.GetUserTeams 00001
         AuthController.Login 11111
         AuthController.Logout 11111
         AuthController.ResetUserPassword 00001
@@ -97,7 +97,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.SetMyDetails 00011
         AuthController.SetUserDetails 00001
         AuthController.SetUserRoles 00001
-        AuthController.SetUserSpecialties 00001
+        AuthController.SetUserTeams 00001
         AuthController.SignOutEverywhere 00001
         AuthController.UpdateUserPassword 00011
         AuthController.WhoAmI 11111
@@ -357,13 +357,13 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SpecimensController.Report 00000
         SpecimensController.SearchSpecimenWorklist 00011
         SpecimensController.SearchSpecimens 00011
-        SpecialtiesController.ArchiveSpecialty 00001
-        SpecialtiesController.CreateSpecialty 00001
-        SpecialtiesController.DeleteSpecialty 00001
-        SpecialtiesController.GetSpecialties 00011
-        SpecialtiesController.GetSpecialty 00011
-        SpecialtiesController.RestoreSpecialty 00001
-        SpecialtiesController.UpdateSpecialty 00001
+        TeamsController.ArchiveTeam 00001
+        TeamsController.CreateTeam 00001
+        TeamsController.DeleteTeam 00001
+        TeamsController.GetTeams 00011
+        TeamsController.GetTeam 00011
+        TeamsController.RestoreTeam 00001
+        TeamsController.UpdateTeam 00001
         """;
 
     private static readonly (string Name, ClaimsPrincipal? User)[] Callers =

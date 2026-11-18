@@ -20,11 +20,11 @@ public enum StoryOutcome
 /// <summary>
 /// One referral that didn't become one of the story's pathways: rejected, redirected to another provider, withdrawn,
 /// entered in error, or still awaiting triage now (the inbox). Its patient is chosen when it's planned, but for a
-/// duplicate, chosen when it's played (someone with an open referral to that specialty then).
+/// duplicate, chosen when it's played (someone with an open referral to that team then).
 /// </summary>
 public sealed class ReferralStory
 {
-    public required string Specialty { get; init; }
+    public required string Team { get; init; }
 
     /// <summary>The kind of pathway it asks for (what the reason names, and who could be referred); none for the new service.</summary>
     public PathwayKind? Kind { get; init; }
@@ -38,11 +38,11 @@ public sealed class ReferralStory
     /// <summary>When it was decided (triaged, withdrawn or marked entered in error).</summary>
     public DateTime DecidedUtc { get; init; }
 
-    /// <summary>The specialty it was first registered under, moved to <see cref="Specialty"/> by a triager there.</summary>
+    /// <summary>The team it was first registered under, moved to <see cref="Team"/> by a triager there.</summary>
     public string? RedirectedFrom { get; init; }
     public DateTime RedirectedUtc { get; init; }
 
-    /// <summary>On a patient with an open referral to the specialty: registered after the duplicate warning was confirmed.</summary>
+    /// <summary>On a patient with an open referral to the team: registered after the duplicate warning was confirmed.</summary>
     public bool Duplicate { get; init; }
 
     /// <summary>The referral, once played.</summary>
@@ -53,8 +53,8 @@ public sealed class ReferralStory
 /// Plans and plays the referrals that didn't become pathways: about one in ten rejected (each reason), a few
 /// redirected to another provider and a few withdrawn, all across the 18 months at the pathways' own volumes; one
 /// entered in error (registered on the wrong patient, then on the right one); a duplicate registered after its warning
-/// and rejected as a duplicate; and about twenty awaiting triage now, in every specialty, a few past their target, one
-/// moved here from another specialty, one a confirmed duplicate, and three for the new service nobody can triage.
+/// and rejected as a duplicate; and about twenty awaiting triage now, in every team, a few past their target, one
+/// moved here from another team, one a confirmed duplicate, and three for the new service nobody can triage.
 /// </summary>
 public static class ReferralStories
 {
@@ -104,7 +104,7 @@ public static class ReferralStories
             var patient = random.NextDouble() < 0.45 ? patients.Existing(plan.PathwayKind, registered) : null;
             stories.Add(new ReferralStory
             {
-                Specialty = DemoSpecialties.For(plan.PathwayKind),
+                Team = DemoTeams.For(plan.PathwayKind),
                 Kind = plan.PathwayKind,
                 Patient = patient ?? patients.New(plan.PathwayKind, registered, PatientRole.ReferredOnly, justBefore: true),
                 RegisteredUtc = registered,
@@ -129,7 +129,7 @@ public static class ReferralStories
             if (wrong is not null)
                 stories.Add(new ReferralStory
                 {
-                    Specialty = DemoSpecialties.For(corrected.PathwayKind),
+                    Team = DemoTeams.For(corrected.PathwayKind),
                     Kind = corrected.PathwayKind,
                     Patient = wrong,
                     RegisteredUtc = at,
@@ -145,7 +145,7 @@ public static class ReferralStories
         var duplicateAt = DemoTimeline.InWorkingHours(now.AddDays(-random.Next(20, 40)), random);
         stories.Add(new ReferralStory
         {
-            Specialty = DemoSpecialties.Dermatology,
+            Team = DemoTeams.Dermatology,
             Kind = PathwayKind.SkinLesion,
             RegisteredUtc = duplicateAt,
             ReceivedOn = Received(duplicateAt),
@@ -167,16 +167,16 @@ public static class ReferralStories
     }
 
     /// <summary>
-    /// About twenty referrals awaiting triage now: in every specialty, at each priority, from a day to a month old, so a
+    /// About twenty referrals awaiting triage now: in every team, at each priority, from a day to a month old, so a
     /// few are past their target (an urgent skin referral at 19 days, a high bleeding one at 30, an urgent urology one
     /// at 31, its target 28); one moved to dermatology from gynaecology three days ago; one a duplicate (registered yesterday on someone
     /// with an open dermatology pathway); and three for the new service, which nobody can triage.
     /// </summary>
     private static IEnumerable<ReferralStory> Inbox(DemoPatients patients, DemoTimeline timeline, Random random)
     {
-        const string derm = DemoSpecialties.Dermatology, gyn = DemoSpecialties.Gynaecology, uro = DemoSpecialties.Urology,
-            diabetes = DemoSpecialties.Diabetes, biomechanics = DemoSpecialties.Biomechanics, respiratory = DemoSpecialties.NewService;
-        (string Specialty, PathwayKind? Kind, Priority Priority, double DaysAgo, bool Existing)[] inbox =
+        const string derm = DemoTeams.Dermatology, gyn = DemoTeams.Gynaecology, uro = DemoTeams.Urology,
+            diabetes = DemoTeams.Diabetes, biomechanics = DemoTeams.Biomechanics, respiratory = DemoTeams.NewService;
+        (string Team, PathwayKind? Kind, Priority Priority, double DaysAgo, bool Existing)[] inbox =
         [
             (derm, PathwayKind.SkinLesion, Priority.Urgent, 19, false),
             (derm, PathwayKind.SkinLesion, Priority.Urgent, 1.5, false),
@@ -198,7 +198,7 @@ public static class ReferralStories
             (respiratory, null, Priority.Urgent, 2, false),
         ];
 
-        foreach (var (specialty, kind, priority, daysAgo, existing) in inbox)
+        foreach (var (team, kind, priority, daysAgo, existing) in inbox)
         {
             var registered = Past(timeline.NowUtc.AddDays(-daysAgo), timeline, random);
             // The new service's referrals came after it was added.
@@ -207,7 +207,7 @@ public static class ReferralStories
             var asKind = kind ?? PathwayKind.Diabetes;
             yield return new ReferralStory
             {
-                Specialty = specialty,
+                Team = team,
                 Kind = kind,
                 Patient = (existing ? patients.Existing(asKind, registered) : null)
                           ?? patients.New(asKind, registered, PatientRole.Waiting, justBefore: true),
@@ -222,7 +222,7 @@ public static class ReferralStories
         var movedFrom = Past(timeline.NowUtc.AddDays(-7), timeline, random);
         yield return new ReferralStory
         {
-            Specialty = derm,
+            Team = derm,
             Kind = PathwayKind.SkinLesion,
             Patient = patients.New(PathwayKind.PostMenopausalBleeding, movedFrom, PatientRole.Waiting, justBefore: true),
             RegisteredUtc = movedFrom,
@@ -237,7 +237,7 @@ public static class ReferralStories
         var duplicate = Past(timeline.NowUtc.AddDays(-1), timeline, random);
         yield return new ReferralStory
         {
-            Specialty = derm,
+            Team = derm,
             Kind = PathwayKind.SkinLesion,
             RegisteredUtc = duplicate,
             ReceivedOn = UkTime.DateOf(duplicate),
@@ -270,8 +270,8 @@ public static class ReferralStories
 
     /// <summary>
     /// Plays them in the order they were registered, after the pathways (whose referrals the duplicate checks see):
-    /// each registered by the booking coordinator; moved here by a triager of the specialty it came under; then
-    /// rejected or redirected elsewhere by a triager of its specialty, or withdrawn or marked entered in error by the
+    /// each registered by the booking coordinator; moved here by a triager of the team it came under; then
+    /// rejected or redirected elsewhere by a triager of its team, or withdrawn or marked entered in error by the
     /// coordinator. The coordinator is told of each triage (the last 30 days').
     /// </summary>
     public static Played Play(DemoWorld world, IReadOnlyList<ReferralStory> stories, IReadOnlyList<PatientSeed> patients)
@@ -284,16 +284,16 @@ public static class ReferralStories
         foreach (var story in stories.OrderBy(s => s.RegisteredUtc))
         {
             var at = story.RegisteredUtc;
-            var specialty = world.Specialty(story.RedirectedFrom ?? story.Specialty);
+            var team = world.Team(story.RedirectedFrom ?? story.Team);
             story.Patient ??= DuplicatePatient(world, story, patients, closedAt);
             if (story.Patient is not { } patient)
                 continue;
 
             var kind = story.Kind is { } k ? ProcedureKinds.For(k)[random.Next(ProcedureKinds.For(k).Count)] : null;
             var (referral, events) = DemoReferrals.Register(
-                patient.Id, specialty, story.ReceivedOn, story.RequestedPriority, ReferralTexts.Reason(kind, random), coordinator, at, random);
+                patient.Id, team, story.ReceivedOn, story.RequestedPriority, ReferralTexts.Reason(kind, random), coordinator, at, random);
             // The register page's warning (decision 12): the coordinator confirmed it was a different referral.
-            if (DemoReferrals.OpenAt(world, patient.Id, specialty.Id, at, closedAt).Count > 0)
+            if (DemoReferrals.OpenAt(world, patient.Id, team.Id, at, closedAt).Count > 0)
                 confirmed++;
             world.Referrals.Add(referral);
             world.ReferralEvents.AddRange(events);
@@ -304,10 +304,10 @@ public static class ReferralStories
             {
                 var mover = DemoReferrals.Triager(world, from, story.RedirectedUtc)
                             ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {from} referrals.");
-                var target = world.Specialty(story.Specialty);
+                var target = world.Team(story.Team);
                 var move = DemoReferrals.Triage(referral, mover, story.RedirectedUtc);
-                move.RedirectToSpecialty(target, ReferralTexts.RedirectDetail(from, story.Specialty));
-                referral.Specialty = target;
+                move.RedirectToTeam(target, ReferralTexts.RedirectDetail(from, story.Team));
+                referral.Team = target;
                 Record(move, mover, story.RedirectedUtc, from);
             }
 
@@ -315,14 +315,14 @@ public static class ReferralStories
             {
                 case StoryOutcome.Rejected or StoryOutcome.RedirectedElsewhere:
                 {
-                    var triager = DemoReferrals.Triager(world, story.Specialty, story.DecidedUtc)
-                                  ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {story.Specialty} referrals.");
+                    var triager = DemoReferrals.Triager(world, story.Team, story.DecidedUtc)
+                                  ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {story.Team} referrals.");
                     var change = DemoReferrals.Triage(referral, triager, story.DecidedUtc);
                     if (story.Outcome == StoryOutcome.Rejected)
                         change.Reject(story.RejectionReason, ReferralTexts.RejectionDetail(story.RejectionReason, random));
                     else
                     {
-                        var (elsewhere, detail) = ReferralTexts.Elsewhere(story.Specialty, random);
+                        var (elsewhere, detail) = ReferralTexts.Elsewhere(story.Team, random);
                         change.RedirectElsewhere(elsewhere, detail);
                     }
 
@@ -348,12 +348,12 @@ public static class ReferralStories
 
         return new Played(confirmed);
 
-        void Record(ReferralChange change, StaffMember triager, DateTime when, string? previousSpecialty = null)
+        void Record(ReferralChange change, StaffMember triager, DateTime when, string? previousTeam = null)
         {
             var referral = change.Referral;
             world.ReferralEvents.AddRange(change.Events);
             world.Touches.Add(new Touch(triager.Id, when, referral.PatientId, null, referral.Id));
-            if (DemoReferrals.Told(world, referral, triager, when, previousSpecialty) is { } told)
+            if (DemoReferrals.Told(world, referral, triager, when, previousTeam) is { } told)
                 world.Notifications.Add(told);
         }
     }
@@ -365,10 +365,10 @@ public static class ReferralStories
     private static PatientSeed? DuplicatePatient(
         DemoWorld world, ReferralStory story, IReadOnlyList<PatientSeed> patients, IReadOnlyDictionary<Guid, DateTime> closedAt)
     {
-        var specialty = world.Specialty(story.Specialty);
+        var team = world.Team(story.Team);
         var byId = patients.ToDictionary(p => p.Id);
         var candidates = world.Referrals
-            .Where(r => r.Status == ReferralStatus.Accepted && r.SpecialtyId == specialty.Id && r.DecidedAtUtc < story.RegisteredUtc.AddDays(-7)
+            .Where(r => r.Status == ReferralStatus.Accepted && r.TeamId == team.Id && r.DecidedAtUtc < story.RegisteredUtc.AddDays(-7)
                         && r.PathwayId is { } id && !closedAt.ContainsKey(id)
                         && world.Pathways.Any(p => p.Id == id && PathwayWorkflow.IsOpen(p.Status))
                         && byId.TryGetValue(r.PatientId, out var p) && p.IsOnSystemAt(story.RegisteredUtc) && !p.Restricted)

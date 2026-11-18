@@ -19,10 +19,10 @@ public sealed class UpdatePathwayTemplateValidator : AbstractValidator<UpdatePat
             .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
 
-        RuleFor(x => x.SpecialtyId)
+        RuleFor(x => x.TeamId)
             .Must(id => id != Guid.Empty)
-            .When(x => x.SpecialtyId is not null)
-            .WithMessage("Specialty must not be empty.");
+            .When(x => x.TeamId is not null)
+            .WithMessage("Team must not be empty.");
 
         RuleFor(x => x.RetentionClass)
             .Must(PathwayEnums.IsRetentionClass)

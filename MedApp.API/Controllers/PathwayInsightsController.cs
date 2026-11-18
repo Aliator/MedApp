@@ -24,5 +24,5 @@ public sealed class PathwayInsightsController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewInsights)]
     public async Task<IActionResult> GetPathwayInsights([FromQuery] GetPathwayInsightsRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPathwayInsightsQuery(request.Weeks, request.TemplateId, request.SpecialtyId), ct));
+        Ok(await mediator.Send(new GetPathwayInsightsQuery(request.Weeks, request.TemplateId, request.TeamId), ct));
 }

@@ -27,7 +27,7 @@ public sealed class MdtMapperTests
         clinician.CanDefer.Should().BeTrue();
         nurse.CanRecordOutcome.Should().BeFalse();
         nurse.CanWithdraw.Should().BeTrue();
-        clinician.SpecialtyName.Should().Be(Specialty.Name);
+        clinician.TeamName.Should().Be(Team.Name);
         clinician.Patient!.Id.Should().Be(item.PatientId);
     }
 

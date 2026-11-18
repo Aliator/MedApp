@@ -9,8 +9,8 @@ import {can, me, pathwayPatient, requirePermission} from './common';
 import {findPathway} from './pathways';
 
 /**
- * The MDT list (`api/mdt`), simplified from the API's `MdtRules`: pathways listed for a specialty's MDT (a calendar
- * meeting with `isMdt` and `specialtyId`), deferred to a later one, withdrawn, and once the meeting has started, the
+ * The MDT list (`api/mdt`), simplified from the API's `MdtRules`: pathways listed for a team's MDT (a calendar
+ * meeting with `isMdt` and `teamId`), deferred to a later one, withdrawn, and once the meeting has started, the
  * team's outcome recorded as written, with who was present from its attendees (final). Every change carries
  * `expectedVersion`. **MedApp never suggests an outcome or changes the pathway because of one;** the pathway's
  * assignees are told (a fixed title). A deleted MDT leaves its items to list again ("Meeting cancelled").
@@ -24,13 +24,13 @@ const MAX_OUTCOME = 2000;
 
 const isOpen = (item: DemoMdtItem) => item.status === 'Listed' || item.status === 'Deferred';
 
-/** An MDT: a meeting marked as a specialty's. */
-const isMdt = (meeting: Meeting | undefined): meeting is Meeting => Boolean(meeting?.isMdt && meeting.specialtyId);
+/** An MDT: a meeting marked as a team's. */
+const isMdt = (meeting: Meeting | undefined): meeting is Meeting => Boolean(meeting?.isMdt && meeting.teamId);
 
 /** The MDT an item is on now: none when it was cancelled (deleted from the calendar) or never had one. */
 const meetingOf = (item: DemoMdtItem) => (item.meetingId ? db().meetings.find((m) => m.id === item.meetingId && isMdt(m)) : undefined);
 
-const specialtyName = (specialtyId: string | null | undefined) => db().specialties.find((s) => s.id === specialtyId)?.name ?? '';
+const teamName = (teamId: string | null | undefined) => db().teams.find((s) => s.id === teamId)?.name ?? '';
 
 /** An item as the API answers it, for the signed-in person (`MdtMapper.ToResponse`). */
 function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
@@ -43,8 +43,8 @@ function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
     patient: pathwayPatient(item.patientId),
     pathwayId: item.pathwayId,
     pathwayTitle: pathway?.title ?? '',
-    specialtyId: item.specialtyId,
-    specialtyName: specialtyName(item.specialtyId),
+    teamId: item.teamId,
+    teamName: teamName(item.teamId),
     meetingId: meeting?.id ?? null,
     meetingTitle: meeting?.title ?? null,
     meetingStartUtc: meeting?.startUtc ?? null,
@@ -74,8 +74,8 @@ function meetingResponse(meeting: Meeting): Schemas['MdtMeetingResponse'] {
     title: meeting.title,
     startUtc: meeting.startUtc,
     endUtc: meeting.endUtc,
-    specialtyId: meeting.specialtyId ?? undefined,
-    specialtyName: specialtyName(meeting.specialtyId),
+    teamId: meeting.teamId ?? undefined,
+    teamName: teamName(meeting.teamId),
     openItemCount: items.filter(isOpen).length,
     itemCount: items.length,
     attendees: (meeting.attendees ?? [])
@@ -121,12 +121,12 @@ const byListed = (a: DemoMdtItem, b: DemoMdtItem) => a.listedAtUtc.localeCompare
 export function registerMdt() {
   on('get', '/api/mdt/meetings', ({query}) => {
     me();
-    const specialtyId = query.get('specialtyId');
+    const teamId = query.get('teamId');
     const from = ukTime(daysFrom(-60), 0);
     const to = ukTime(daysFrom(180), 0);
     return db()
       .meetings.filter(isMdt)
-      .filter((m) => (!specialtyId || m.specialtyId === specialtyId) && (m.startUtc ?? '') >= from && (m.startUtc ?? '') < to)
+      .filter((m) => (!teamId || m.teamId === teamId) && (m.startUtc ?? '') >= from && (m.startUtc ?? '') < to)
       .sort((a, b) => (a.startUtc ?? '').localeCompare(b.startUtc ?? '') || (a.id ?? '').localeCompare(b.id ?? ''))
       .map(meetingResponse);
   });
@@ -144,9 +144,9 @@ export function registerMdt() {
   });
   on('get', '/api/mdt/awaiting-meeting', ({query}) => {
     requirePermission('ViewPatients');
-    const specialtyId = query.get('specialtyId');
+    const teamId = query.get('teamId');
     return db()
-      .mdtItems.filter((i) => isOpen(i) && !meetingOf(i) && (!specialtyId || i.specialtyId === specialtyId))
+      .mdtItems.filter((i) => isOpen(i) && !meetingOf(i) && (!teamId || i.teamId === teamId))
       .sort(byListed)
       .map(itemResponse);
   });
@@ -179,7 +179,7 @@ export function registerMdt() {
       id: newId(),
       patientId: pathway.patientId,
       pathwayId: pathway.id,
-      specialtyId: meeting.specialtyId!,
+      teamId: meeting.teamId!,
       meetingId: meeting.id!,
       meetingStartUtc: meeting.startUtc ?? null,
       question,
@@ -221,7 +221,7 @@ export function registerMdt() {
       status: current ? 'Deferred' : item.status,
       meetingId: meeting.id,
       meetingStartUtc: meeting.startUtc ?? null,
-      specialtyId: meeting.specialtyId,
+      teamId: meeting.teamId,
       version: item.version + 1,
     });
     return itemResponse(item);
@@ -248,7 +248,7 @@ export function registerMdt() {
     Object.assign(item, {status: 'Discussed', outcome, outcomeByUserId: viewer.id, outcomeAtUtc: now, presentUserIds: present, version: item.version + 1});
     // The pathway's assignees are told, so someone acts on it: never the outcome, the question or the patient.
     const pathway = db().pathways.find((p) => p.id === item.pathwayId);
-    const specialty = specialtyName(item.specialtyId) || 'team';
+    const team = teamName(item.teamId) || 'team';
     for (const userId of new Set((pathway?.assignments ?? []).map((a) => a.userId)))
       if (userId !== viewer.id)
         db().notifications.push({
@@ -256,7 +256,7 @@ export function registerMdt() {
           userId,
           kind: 'MdtOutcomeRecorded',
           title: 'MDT outcome recorded',
-          message: `${viewer.username} recorded the ${specialty} MDT's outcome on a pathway you're assigned to.`,
+          message: `${viewer.username} recorded the ${team} MDT's outcome on a pathway you're assigned to.`,
           pathwayId: item.pathwayId,
           createdAtUtc: now,
           isRead: false,

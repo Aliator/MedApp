@@ -3,7 +3,7 @@ namespace MedApp.Contracts.Letters.Requests;
 /// <summary>A letter template to add.</summary>
 public sealed class CreateLetterTemplateRequest
 {
-    /// <summary>Required, at most 200 characters; unique within its specialty (or among those for every specialty).</summary>
+    /// <summary>Required, at most 200 characters; unique within its team (or among those for every team).</summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -12,8 +12,8 @@ public sealed class CreateLetterTemplateRequest
     /// </summary>
     public string Kind { get; set; } = string.Empty;
 
-    /// <summary>The specialty it's for, or null for every specialty. An archived one can't be chosen.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>The team it's for, or null for every team. An archived one can't be chosen.</summary>
+    public Guid? TeamId { get; set; }
 
     /// <summary>Plain lines at the top of the first page (at most 1,000 characters), with merge fields if wanted.</summary>
     public string Letterhead { get; set; } = string.Empty;
@@ -28,14 +28,14 @@ public sealed class CreateLetterTemplateRequest
 /// <summary>A letter template's new details, from the version the caller saw.</summary>
 public sealed class UpdateLetterTemplateRequest
 {
-    /// <summary>Required, at most 200 characters; unique within its specialty (or among those for every specialty).</summary>
+    /// <summary>Required, at most 200 characters; unique within its team (or among those for every team).</summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>What letters from it are for, by name (as <see cref="CreateLetterTemplateRequest.Kind"/>).</summary>
     public string Kind { get; set; } = string.Empty;
 
-    /// <summary>The specialty it's for, or null for every specialty. An archived one can only stay.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>The team it's for, or null for every team. An archived one can only stay.</summary>
+    public Guid? TeamId { get; set; }
 
     public string Letterhead { get; set; } = string.Empty;
     public string BodySkeleton { get; set; } = string.Empty;

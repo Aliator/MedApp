@@ -15,9 +15,9 @@ public sealed class CreatePathwayTemplateValidator : AbstractValidator<CreatePat
             .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
 
-        RuleFor(x => x.SpecialtyId)
+        RuleFor(x => x.TeamId)
             .NotEmpty()
-            .WithMessage("Specialty is required.");
+            .WithMessage("Team is required.");
 
         RuleFor(x => x.RetentionClass)
             .Must(PathwayEnums.IsRetentionClass)

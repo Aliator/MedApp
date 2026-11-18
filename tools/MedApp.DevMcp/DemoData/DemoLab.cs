@@ -99,7 +99,7 @@ public static class DemoLab
         foreach (var item in world.MdtItems)
         {
             item.Pathway = null!;
-            item.Specialty = null!;
+            item.Team = null!;
             item.Meeting = null;
             item.Patient = null!;
         }

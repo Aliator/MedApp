@@ -128,13 +128,13 @@ describe('describeActivity', () => {
     expect(describe_('RoleChanged', {})).toBe('');
   });
 
-  it("gives a member of staff's specialties before and after, by name, as an account change", () => {
-    expect(activityActionLabel('StaffSpecialtiesChanged')).toBe('Specialties changed');
-    expect(describe_('StaffSpecialtiesChanged', {from: [], to: ['Dermatology', 'Urology'], fromIds: [], toIds: ['s1', 's2']})).toBe(
+  it("gives a member of staff's teams before and after, by name, as an account change", () => {
+    expect(activityActionLabel('TeamMembershipChanged')).toBe('Teams changed');
+    expect(describe_('TeamMembershipChanged', {from: [], to: ['Dermatology', 'Urology'], fromIds: [], toIds: ['s1', 's2']})).toBe(
       'none → Dermatology, Urology',
     );
-    expect(describe_('StaffSpecialtiesChanged', {from: ['Urology'], to: []})).toBe('Urology → none');
-    expect(ACCOUNT_ACTIONS).toContain('StaffSpecialtiesChanged');
+    expect(describe_('TeamMembershipChanged', {from: ['Urology'], to: []})).toBe('Urology → none');
+    expect(ACCOUNT_ACTIONS).toContain('TeamMembershipChanged');
   });
 
   it("gives which of a member of staff's details for letters changed, never their values, as an account change", () => {

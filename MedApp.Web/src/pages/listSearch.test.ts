@@ -178,7 +178,7 @@ describe('parseTasksSearch', () => {
   it('knows when the list is filtered beyond its progress', () => {
     expect(hasTaskFilters({page: 2, sort: 'Due', progress: 'started'})).toBe(false);
     expect(hasTaskFilters({overdue: true})).toBe(true);
-    expect(hasTaskFilters({specialty: 'x'})).toBe(true);
+    expect(hasTaskFilters({team: 'x'})).toBe(true);
     expect(hasTaskFilters({stage: 'x'})).toBe(true);
   });
 
@@ -188,9 +188,9 @@ describe('parseTasksSearch', () => {
     expect(hasTaskFilters({breached: true})).toBe(true);
   });
 
-  it('reads specialties and the stage reached as IDs', () => {
+  it('reads teams and the stage reached as IDs', () => {
     const id = '0000000D-0000-0000-0000-000000000001';
-    expect(parseTasksSearch({specialty: id, stage: `${id},lab`})).toEqual({specialty: id.toLowerCase(), stage: id.toLowerCase()});
+    expect(parseTasksSearch({team: id, stage: `${id},lab`})).toEqual({team: id.toLowerCase(), stage: id.toLowerCase()});
   });
 });
 
@@ -249,7 +249,7 @@ describe('parsePathwaysSearch', () => {
   it('knows when the list is filtered', () => {
     expect(hasPathwayFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasPathwayFilters({closed: true})).toBe(true);
-    expect(hasPathwayFilters({specialty: 'x'})).toBe(true);
+    expect(hasPathwayFilters({team: 'x'})).toBe(true);
     expect(hasPathwayFilters({stage: 'x'})).toBe(true);
   });
 
@@ -259,12 +259,12 @@ describe('parsePathwaysSearch', () => {
     expect(hasPathwayFilters({breached: true})).toBe(true);
   });
 
-  it('reads specialties and the stage reached as IDs ("Waiting for histology")', () => {
+  it('reads teams and the stage reached as IDs ("Waiting for histology")', () => {
     const histology = '0000000D-0000-0000-0000-000000000001';
     const skin = '0000005a-0000-0000-0000-0000000000aa';
-    expect(parsePathwaysSearch({stage: histology, specialty: `${skin},Dermatology`})).toEqual({
+    expect(parsePathwaysSearch({stage: histology, team: `${skin},Dermatology`})).toEqual({
       stage: histology.toLowerCase(),
-      specialty: skin,
+      team: skin,
     });
     expect(parsePathwaysSearch({stage: `!${histology}`})).toEqual({});
   });
@@ -342,13 +342,13 @@ describe('parseInsightsSearch', () => {
     expect(parseInsightsSearch({weeks: '12'})).toEqual({});
   });
 
-  it('reads a specialty by its ID', () => {
-    const specialty = '0000005A-0000-0000-0000-0000000000AA';
-    expect(parseInsightsSearch({specialty})).toEqual({specialty: specialty.toLowerCase()});
+  it('reads a team by its ID', () => {
+    const team = '0000005A-0000-0000-0000-0000000000AA';
+    expect(parseInsightsSearch({team})).toEqual({team: team.toLowerCase()});
   });
 
-  it('drops a period it does not offer, and a template or specialty that is not an ID', () => {
-    expect(parseInsightsSearch({weeks: '5', template: 'knee', specialty: 'Dermatology'})).toEqual({});
+  it('drops a period it does not offer, and a template or team that is not an ID', () => {
+    expect(parseInsightsSearch({weeks: '5', template: 'knee', team: 'Dermatology'})).toEqual({});
     expect(parseInsightsSearch({})).toEqual({});
   });
 });

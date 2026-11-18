@@ -13,8 +13,8 @@ using MedApp.Contracts.Clinics.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Sites.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Infrastructure.Data;
@@ -38,7 +38,7 @@ public sealed class ClinicSessionTests : IntegrationTest
     private StaffAccount _clinician = null!;
     private SiteResponse _site = null!;
     private RoomResponse _room = null!;
-    private SpecialtyResponse _specialty = null!;
+    private TeamResponse _team = null!;
     private DateOnly _day;
 
     [SetUp]
@@ -48,8 +48,8 @@ public sealed class ClinicSessionTests : IntegrationTest
         _clinician = await CreateStaffAsync(UserRole);
         _site = await CreateSiteAsync(_admin);
         _room = await CreateRoomAsync(_admin, _site.Id);
-        _specialty = await (await _admin.PostAsJsonAsync("/api/specialties", new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+        _team = await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
         _day = NextWorkingDay();
     }
 
@@ -59,7 +59,7 @@ public sealed class ClinicSessionTests : IntegrationTest
         {
             StaffUserId = staffUserId,
             RoomId = roomId,
-            SpecialtyId = _specialty.Id,
+            TeamId = _team.Id,
             StartUtc = UkAt(day ?? _day, startHour),
             EndUtc = UkAt(day ?? _day, endHour),
             SlotMinutes = slotMinutes
@@ -351,7 +351,7 @@ public sealed class ClinicSessionTests : IntegrationTest
         UpdateClinicSessionRequest Change(Guid roomId, int endHour) => new()
         {
             RoomId = roomId,
-            SpecialtyId = _specialty.Id,
+            TeamId = _team.Id,
             StartUtc = session.StartUtc,
             EndUtc = UkAt(_day, endHour),
             SlotMinutes = 20,
@@ -380,7 +380,7 @@ public sealed class ClinicSessionTests : IntegrationTest
         {
             StaffUserId = _clinician.UserId,
             RoomId = _room.Id,
-            SpecialtyId = _specialty.Id,
+            TeamId = _team.Id,
             DayOfWeek = _day.DayOfWeek.ToString(),
             Starts = new TimeOnly(9, 0),
             Ends = new TimeOnly(12, 0),

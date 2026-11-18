@@ -8,7 +8,7 @@ using MedApp.Contracts.Authentication.Responses;
 using MedApp.Domain.Activity;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
-using static MedApp.UnitTests.Common.Constants.SpecialtiesTestConstants;
+using static MedApp.UnitTests.Common.Constants.TeamsTestConstants;
 
 namespace MedApp.UnitTests.Application.Auth.Users.Commands.SetStaffDetails;
 

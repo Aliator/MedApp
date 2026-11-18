@@ -11,7 +11,7 @@ describe('LettersAbout', () => {
   it("lists a pathway's letters, each linking to its page, with Write Letter for a writer", async () => {
     const letter = testLetterSummary({approverUsername: 'd.clinician', status: 'AwaitingApproval'});
     const fetch = mockApi({'GET /api/letters/search': () => json(letterPage([letter], 25))});
-    renderWithApp(<LettersAbout about={{pathwayId: LETTER_PATHWAY_ID}} specialtyId="s" patient={LETTER_PATIENT} />, {user: writer});
+    renderWithApp(<LettersAbout about={{pathwayId: LETTER_PATHWAY_ID}} teamId="s" patient={LETTER_PATIENT} />, {user: writer});
 
     const link = await screen.findByRole('link', {name: 'Clinic letter: Clinic follow-up'});
     expect(link).toHaveAttribute('href', `/letters/${letter.id}`);
@@ -25,19 +25,19 @@ describe('LettersAbout', () => {
 
   it('says when there are none, and offers nothing to someone who can\'t write letters or while locked', async () => {
     mockApi({'GET /api/letters/search': () => json(letterPage([]))});
-    const {unmount} = renderWithApp(<LettersAbout about={{referralId: 'r1'}} specialtyId="s" />, {user: staffUser});
+    const {unmount} = renderWithApp(<LettersAbout about={{referralId: 'r1'}} teamId="s" />, {user: staffUser});
     expect(await screen.findByText('No letters yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Write Letter'})).not.toBeInTheDocument();
     unmount();
 
-    renderWithApp(<LettersAbout about={{referralId: 'r1'}} specialtyId="s" isLocked />, {user: writer});
+    renderWithApp(<LettersAbout about={{referralId: 'r1'}} teamId="s" isLocked />, {user: writer});
     expect(await screen.findByText('No letters yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Write Letter'})).not.toBeInTheDocument();
   });
 
   it("says when the letters can't be loaded", async () => {
     mockApi({'GET /api/letters/search': () => json({title: 'Boom'}, 500)});
-    renderWithApp(<LettersAbout about={{referralId: 'r1'}} specialtyId="s" />, {user: staffUser});
+    renderWithApp(<LettersAbout about={{referralId: 'r1'}} teamId="s" />, {user: staffUser});
     expect(await screen.findByText('The letters could not be loaded. Please try again.')).toBeInTheDocument();
     expect(screen.queryByText('Loading letters...')).not.toBeInTheDocument();
   });
@@ -45,10 +45,10 @@ describe('LettersAbout', () => {
   it('writes a letter: the dialog, then the new draft opens', async () => {
     mockApi({
       'GET /api/letters/search': () => json(letterPage([])),
-      'GET /api/letter-templates': () => json([{id: 't1', name: 'Skin follow-up', kind: 'ClinicLetter', specialtyId: null, isArchived: false}]),
+      'GET /api/letter-templates': () => json([{id: 't1', name: 'Skin follow-up', kind: 'ClinicLetter', teamId: null, isArchived: false}]),
       'POST /api/letters': () => json(testLetter(), 201),
     });
-    const {user, router} = renderWithApp(<LettersAbout about={{pathwayId: LETTER_PATHWAY_ID}} specialtyId="s" patient={LETTER_PATIENT} />, {
+    const {user, router} = renderWithApp(<LettersAbout about={{pathwayId: LETTER_PATHWAY_ID}} teamId="s" patient={LETTER_PATIENT} />, {
       user: writer,
     });
 

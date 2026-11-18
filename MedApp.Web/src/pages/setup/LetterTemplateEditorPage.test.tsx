@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {adminUser, expectAnnounced, findAlert, json, mockApi, renderWithApp, withAnnouncements} from '../../test/render';
-import {LetterTemplateEditorPage, letterSpecialtyChoices, previewProblem} from './LetterTemplateEditorPage';
+import {LetterTemplateEditorPage, letterTeamChoices, previewProblem} from './LetterTemplateEditorPage';
 import {ApiError, ApiValidationError} from '../../api/errors';
 
 const BASE = '/api/letter-templates';
@@ -10,8 +10,8 @@ const template = {
   id: 'l1',
   name: 'Skin clinic letter',
   kind: 'ClinicLetter',
-  specialtyId: 'sp1',
-  specialtyName: 'Dermatology',
+  teamId: 'sp1',
+  teamName: 'Dermatology',
   letterhead: 'Example Skin Clinic',
   bodySkeleton: '## Diagnosis\n\n## Plan',
   closing: 'Yours sincerely,',
@@ -20,8 +20,8 @@ const template = {
   version: 3,
 };
 
-/** The active specialties (the editor asks for those only). */
-const specialties = [
+/** The active teams (the editor asks for those only). */
+const teams = [
   {id: 'sp2', name: 'Urology', isArchived: false},
   {id: 'sp1', name: 'Dermatology', isArchived: false},
 ];
@@ -35,7 +35,7 @@ function renderEditor(id?: string, extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
     [`GET ${BASE}/l1`]: () => json(template),
     [`GET ${BASE}/merge-fields`]: () => json(mergeFields),
-    'GET /api/specialties': () => json(specialties),
+    'GET /api/teams': () => json(teams),
     ...extra,
   });
   const path = id ? `/admin/letter-templates/${id}` : '/admin/letter-templates/new';
@@ -72,20 +72,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('letterSpecialtyChoices', () => {
-  it('offers every specialty first, then the active ones by name, and keeps an archived one the template has', () => {
-    expect(letterSpecialtyChoices([...specialties, {id: 'sp9', name: 'Old', isArchived: true}], null).map((c) => c.label)).toEqual([
-      'All specialties',
+describe('letterTeamChoices', () => {
+  it('offers every team first, then the active ones by name, and keeps an archived one the template has', () => {
+    expect(letterTeamChoices([...teams, {id: 'sp9', name: 'Old', isArchived: true}], null).map((c) => c.label)).toEqual([
+      'All teams',
       'Dermatology',
       'Urology',
     ]);
-    expect(letterSpecialtyChoices(specialties, {specialtyId: 'sp3', specialtyName: 'Old clinic'}).map((c) => c.label)).toEqual([
-      'All specialties',
+    expect(letterTeamChoices(teams, {teamId: 'sp3', teamName: 'Old clinic'}).map((c) => c.label)).toEqual([
+      'All teams',
       'Old clinic (archived)',
       'Dermatology',
       'Urology',
     ]);
-    expect(letterSpecialtyChoices([{}], {specialtyId: 'sp3'}).map((c) => c.label)).toEqual(['All specialties', 'Unknown specialty (archived)', '']);
+    expect(letterTeamChoices([{}], {teamId: 'sp3'}).map((c) => c.label)).toEqual(['All teams', 'Unknown team (archived)', '']);
   });
 });
 
@@ -107,8 +107,8 @@ describe('LetterTemplateEditorPage', () => {
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), ' Discharge letter ');
     await choose(user, /Kind/, 'Discharge summary');
-    await user.click(screen.getByRole('combobox', {name: /Specialty/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All specialties', 'Dermatology', 'Urology']);
+    await user.click(screen.getByRole('combobox', {name: /Team/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Dermatology', 'Urology']);
     await user.click(screen.getByRole('option', {name: 'Urology'}));
     await fill(user, /Letterhead/, 'Example Clinic');
     await fill(user, /Body skeleton/, 'Dear {{patient.name}},\n\n## Summary');
@@ -119,7 +119,7 @@ describe('LetterTemplateEditorPage', () => {
     expect(await sent(fetch, 'POST')[0].json()).toEqual({
       name: 'Discharge letter',
       kind: 'DischargeSummary',
-      specialtyId: 'sp2',
+      teamId: 'sp2',
       letterhead: 'Example Clinic',
       bodySkeleton: 'Dear {{patient.name}},\n\n## Summary',
       closing: '{{author.name}}',
@@ -127,16 +127,16 @@ describe('LetterTemplateEditorPage', () => {
     await expectAnnounced('Letter template created');
   });
 
-  it('starts a new one as a clinic letter for every specialty', async () => {
+  it('starts a new one as a clinic letter for every team', async () => {
     const {user, fetch} = renderEditor(undefined, {[`POST ${BASE}`]: () => json({...template, id: 'l9'}, 201)});
 
     expect(await screen.findByRole('combobox', {name: /Kind/})).toHaveTextContent('Clinic letter');
-    expect(screen.getByRole('combobox', {name: /Specialty/})).toHaveTextContent('All specialties');
+    expect(screen.getByRole('combobox', {name: /Team/})).toHaveTextContent('All teams');
     await user.type(screen.getByRole('textbox', {name: /Name/}), 'General');
     await user.click(screen.getByRole('button', {name: 'Create Letter Template'}));
 
     await waitFor(() => expect(sent(fetch, 'POST')).toHaveLength(1));
-    expect(await sent(fetch, 'POST')[0].json()).toMatchObject({kind: 'ClinicLetter', specialtyId: null});
+    expect(await sent(fetch, 'POST')[0].json()).toMatchObject({kind: 'ClinicLetter', teamId: null});
   });
 
   it('saves a change from the version shown, staying on the page', async () => {
@@ -145,16 +145,16 @@ describe('LetterTemplateEditorPage', () => {
 
     expect(await screen.findByRole('textbox', {name: /Name/})).toHaveValue('Skin clinic letter');
     expect(screen.getByRole('textbox', {name: /Body skeleton/})).toHaveValue('## Diagnosis\n\n## Plan');
-    expect(screen.getByRole('combobox', {name: /Specialty/})).toHaveTextContent('Dermatology');
+    expect(screen.getByRole('combobox', {name: /Team/})).toHaveTextContent('Dermatology');
     await fill(user, /Name/, 'Skin letter');
-    await choose(user, /Specialty/, 'All specialties');
+    await choose(user, /Team/, 'All teams');
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     await expectAnnounced('Letter template saved');
     expect(await sent(fetch, 'PUT')[0].json()).toEqual({
       name: 'Skin letter',
       kind: 'ClinicLetter',
-      specialtyId: null,
+      teamId: null,
       letterhead: 'Example Skin Clinic',
       bodySkeleton: '## Diagnosis\n\n## Plan',
       closing: 'Yours sincerely,',
@@ -216,18 +216,18 @@ describe('LetterTemplateEditorPage', () => {
     expect(bodies.map((b: {expectedVersion: number}) => b.expectedVersion)).toEqual([3, 4]);
   });
 
-  it('keeps an archived specialty the template has, marked, and says when the template is archived', async () => {
+  it('keeps an archived team the template has, marked, and says when the template is archived', async () => {
     const {user, fetch} = renderEditor('l1', {
-      [`GET ${BASE}/l1`]: () => json({...template, specialtyId: 'sp3', specialtyName: 'Old clinic', isArchived: true}),
+      [`GET ${BASE}/l1`]: () => json({...template, teamId: 'sp3', teamName: 'Old clinic', isArchived: true}),
       [`PUT ${BASE}/l1`]: () => json(template),
     });
 
-    expect(await screen.findByRole('combobox', {name: /Specialty/})).toHaveTextContent('Old clinic (archived)');
+    expect(await screen.findByRole('combobox', {name: /Team/})).toHaveTextContent('Old clinic (archived)');
     expect(await findAlert(/This letter template is archived/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     await waitFor(() => expect(sent(fetch, 'PUT')).toHaveLength(1));
-    expect(await sent(fetch, 'PUT')[0].json()).toMatchObject({specialtyId: 'sp3'});
+    expect(await sent(fetch, 'PUT')[0].json()).toMatchObject({teamId: 'sp3'});
   });
 
   it('lists the merge fields, as they are written, with what they copy', async () => {
@@ -323,7 +323,7 @@ describe('LetterTemplateEditorPage', () => {
   });
 
   it('puts the merge fields in the form in a half view', async () => {
-    mockApi({[`GET ${BASE}/merge-fields`]: () => json(mergeFields), 'GET /api/specialties': () => json(specialties)});
+    mockApi({[`GET ${BASE}/merge-fields`]: () => json(mergeFields), 'GET /api/teams': () => json(teams)});
     renderWithApp(
       <HalfViewContext.Provider value={{isHalf: true}}>
         <LetterTemplateEditorPage />

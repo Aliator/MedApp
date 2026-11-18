@@ -2,8 +2,8 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Pathways.Common;
-using MedApp.Application.Specialties.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Letters.Responses;
 using MedApp.Domain.Letters;
 using MediatR;
@@ -12,12 +12,12 @@ namespace MedApp.Application.Letters.Commands.UpdateLetterTemplate;
 
 /// <summary>
 /// Edits a letter template (archived or not), from the caller's version (409 if it changed since). A newly chosen
-/// specialty must exist and not be archived (an archived one may stay); the name must be free in its specialty (409).
+/// team must exist and not be archived (an archived one may stay); the name must be free in its team (409).
 /// Nothing is saved if nothing changed.
 /// </summary>
 public sealed class UpdateLetterTemplateHandler(
     ILetterTemplateRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     TimeProvider timeProvider) : IRequestHandler<UpdateLetterTemplateCommand, LetterTemplateResponse>
 {
     public async Task<LetterTemplateResponse> Handle(UpdateLetterTemplateCommand request, CancellationToken cancellationToken)
@@ -25,12 +25,12 @@ public sealed class UpdateLetterTemplateHandler(
         var template = await repository.GetOrThrowAsync(request.TemplateId, cancellationToken);
         LetterTemplateRules.EnsureVersion(template, request.ExpectedVersion);
 
-        string? specialtyName = null;
-        if (request.SpecialtyId is { } specialtyId)
+        string? teamName = null;
+        if (request.TeamId is { } teamId)
         {
-            var alreadyGiven = template.SpecialtyId is { } current ? new HashSet<Guid> { current } : [];
-            var chosen = await SpecialtyRules.CheckChosenAsync(specialties, [specialtyId], alreadyGiven, cancellationToken);
-            specialtyName = chosen[specialtyId].Name;
+            var alreadyGiven = template.TeamId is { } current ? new HashSet<Guid> { current } : [];
+            var chosen = await TeamRules.CheckChosenAsync(teams, [teamId], alreadyGiven, cancellationToken);
+            teamName = chosen[teamId].Name;
         }
 
         var name = request.Name.Trim();
@@ -39,21 +39,21 @@ public sealed class UpdateLetterTemplateHandler(
         var body = LetterTemplateRules.Tidy(request.BodySkeleton);
         var closing = LetterTemplateRules.Tidy(request.Closing);
 
-        if (template.Name == name && template.Kind == kind && template.SpecialtyId == request.SpecialtyId
+        if (template.Name == name && template.Kind == kind && template.TeamId == request.TeamId
             && template.Letterhead == letterhead && template.BodySkeleton == body && template.Closing == closing)
             return LetterTemplateMapper.ToResponse(
-                template, specialtyName, !await repository.IsInUseAsync(template.Id, cancellationToken));
+                template, teamName, !await repository.IsInUseAsync(template.Id, cancellationToken));
 
-        var nameOrSpecialtyChanged = !string.Equals(template.Name, name, StringComparison.OrdinalIgnoreCase)
-                                     || template.SpecialtyId != request.SpecialtyId;
-        if (nameOrSpecialtyChanged
-            && await repository.NameExistsAsync(name, request.SpecialtyId, template.Id, cancellationToken))
-            throw new ConflictException(LetterTemplateRules.NameTakenMessage(name, specialtyName));
+        var nameOrTeamChanged = !string.Equals(template.Name, name, StringComparison.OrdinalIgnoreCase)
+                                     || template.TeamId != request.TeamId;
+        if (nameOrTeamChanged
+            && await repository.NameExistsAsync(name, request.TeamId, template.Id, cancellationToken))
+            throw new ConflictException(LetterTemplateRules.NameTakenMessage(name, teamName));
 
         var originalVersion = template.Version;
         template.Name = name;
         template.Kind = kind;
-        template.SpecialtyId = request.SpecialtyId;
+        template.TeamId = request.TeamId;
         template.Letterhead = letterhead;
         template.BodySkeleton = body;
         template.Closing = closing;
@@ -62,6 +62,6 @@ public sealed class UpdateLetterTemplateHandler(
         await repository.UpdateAsync(template, originalVersion, cancellationToken);
 
         return LetterTemplateMapper.ToResponse(
-            template, specialtyName, !await repository.IsInUseAsync(template.Id, cancellationToken));
+            template, teamName, !await repository.IsInUseAsync(template.Id, cancellationToken));
     }
 }

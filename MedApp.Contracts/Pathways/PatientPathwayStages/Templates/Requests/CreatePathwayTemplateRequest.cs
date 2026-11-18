@@ -4,8 +4,8 @@ public sealed class CreatePathwayTemplateRequest
 {
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>The specialty it belongs to (required; not an archived one).</summary>
-    public Guid SpecialtyId { get; set; }
+    /// <summary>The team it belongs to (required; not an archived one).</summary>
+    public Guid TeamId { get; set; }
 
     /// <summary>
     /// How long its patients' records are kept before review: Standard (the default: the adult or child period),

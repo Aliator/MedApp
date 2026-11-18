@@ -129,7 +129,7 @@ public enum NotificationKind
 
     /// <summary>
     /// Monitoring, a service alert: referrals awaiting triage too long (one per rule and run, with the count; its
-    /// <see cref="Notification.SubjectId"/> is the rule's specialty, or none). 32 to 37 are the service alerts, one per
+    /// <see cref="Notification.SubjectId"/> is the rule's team, or none). 32 to 37 are the service alerts, one per
     /// time-based <c>MonitoringEvent</c> (8 to 13); fixed titles, counts and admin-written names only.
     /// </summary>
     MonitoredReferralNotTriaged = 32,
