@@ -10,6 +10,10 @@ public sealed class UpdateSpecialtyValidator : AbstractValidator<UpdateSpecialty
         RuleFor(x => x.SpecialtyId).NotEmpty().WithMessage("Specialty id is required.");
 
         RuleFor(x => x.Name).SpecialtyName();
+        RuleFor(x => x.TargetDaysUrgent).TargetDays();
+        RuleFor(x => x.TargetDaysHigh).TargetDays();
+        RuleFor(x => x.TargetDaysMedium).TargetDays();
+        RuleFor(x => x.TargetDaysLow).TargetDays();
 
         RuleFor(x => x.ExpectedVersion)
             .GreaterThan(0)

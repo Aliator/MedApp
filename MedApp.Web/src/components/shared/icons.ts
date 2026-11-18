@@ -46,6 +46,7 @@ import {
   RiFileHistoryLine,
   RiDeleteBinLine,
   RiDoorClosedLine,
+  RiDraftLine,
   RiDoorOpenLine,
   RiEqualizerLine,
   RiEraserLine,
@@ -80,6 +81,7 @@ import {
   RiNotification3Line,
   RiPaintBrushLine,
   RiPaletteLine,
+  RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
   RiPriceTag3Line,
@@ -103,6 +105,8 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiStopCircleLine,
+  RiTimeLine,
   RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
@@ -253,6 +257,8 @@ export const AppIcon = {
   ActivityTypes: remix(RiPriceTag3Line),
   /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
   Specialties: remix(RiHospitalLine),
+  /** Letter templates (admin): the letterhead, body and closing letters start from. */
+  LetterTemplates: remix(RiDraftLine),
   /** Roles and Permissions (admin): what each role lets the people who hold it do. */
   Roles: remix(RiShieldUserLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */
@@ -297,6 +303,11 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
+  Wait: remix(RiTimeLine),
+  PauseClock: remix(RiPauseCircleLine),
+  ResumeClock: remix(RiPlayCircleLine),
+  ClockStopped: remix(RiStopCircleLine),
   /** A text or email to a patient about an appointment (a reminder, a move, a cancellation, a missed appointment). */
   PatientMessage: remix(RiMessage2Line),
   /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */

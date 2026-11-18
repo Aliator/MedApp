@@ -275,7 +275,26 @@ public static class PatientExportMapper
                     DecisionDetail = r.DecisionDetail,
                     RedirectedTo = r.RedirectedTo,
                     RedirectDetail = r.RedirectDetail,
-                    PathwayId = r.PathwayId
+                    PathwayId = r.PathwayId,
+                    TargetDays = r.TargetDays,
+                    WaitStartOn = r.WaitStartOn,
+                    TargetOn = r.TargetOn,
+                    PausedDays = r.PausedDays,
+                    StoppedOn = r.StoppedOn,
+                    StopReason = r.StopReason?.ToString(),
+                    Pauses = r.Pauses
+                        .OrderBy(p => p.PausedAtUtc).ThenBy(p => p.Id)
+                        .Select(p => new ExportedClockPauseResponse
+                        {
+                            PausedOn = p.PausedOn,
+                            PausedBy = p.PausedByUsername,
+                            Reason = p.Reason.ToString(),
+                            Detail = p.Detail,
+                            ReviewOn = p.ReviewOn,
+                            ResumedOn = p.ResumedOn,
+                            ResumedBy = p.ResumedByUsername
+                        })
+                        .ToList()
                 })
                 .ToList(),
             ReferralHistory = record.ReferralHistory

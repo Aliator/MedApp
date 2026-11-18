@@ -8,5 +8,9 @@ public sealed class CreateSpecialtyValidator : AbstractValidator<CreateSpecialty
     public CreateSpecialtyValidator()
     {
         RuleFor(x => x.Name).SpecialtyName();
+        RuleFor(x => x.TargetDaysUrgent).TargetDays();
+        RuleFor(x => x.TargetDaysHigh).TargetDays();
+        RuleFor(x => x.TargetDaysMedium).TargetDays();
+        RuleFor(x => x.TargetDaysLow).TargetDays();
     }
 }

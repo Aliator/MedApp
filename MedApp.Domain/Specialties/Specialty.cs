@@ -19,6 +19,16 @@ public sealed class Specialty
 
     public const int MaxNameLength = 100;
 
+    /// <summary>The waiting-time targets a new specialty starts with, in days, by priority (the owner's defaults).</summary>
+    public const int DefaultTargetDaysUrgent = 14;
+    public const int DefaultTargetDaysHigh = 28;
+    public const int DefaultTargetDaysMedium = 126;
+    public const int DefaultTargetDaysLow = 126;
+
+    /// <summary>The range a target may take, in days.</summary>
+    public const int MinTargetDays = 1;
+    public const int MaxTargetDays = 365;
+
     public Guid Id { get; init; }
 
     /// <summary>Unique, ignoring case.</summary>
@@ -33,6 +43,16 @@ public sealed class Specialty
     /// can't both win.
     /// </summary>
     public int Version { get; set; }
+
+    /// <summary>
+    /// The centre's own waiting-time targets for this specialty, in days, one per priority: a referral's clock copies
+    /// its priority's when it's registered, and re-reads it when its priority or specialty changes. Changing them
+    /// affects only clocks that copy them afterwards.
+    /// </summary>
+    public int TargetDaysLow { get; set; } = DefaultTargetDaysLow;
+    public int TargetDaysMedium { get; set; } = DefaultTargetDaysMedium;
+    public int TargetDaysHigh { get; set; } = DefaultTargetDaysHigh;
+    public int TargetDaysUrgent { get; set; } = DefaultTargetDaysUrgent;
 
     public DateTime CreatedAt { get; init; }
     public DateTime LastUpdated { get; set; }

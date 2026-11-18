@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Patients;
+using MedApp.Domain.Referrals;
 
 namespace MedApp.Domain.Pathways.PatientPathways;
 
@@ -50,4 +51,10 @@ public sealed class PatientPathway
 
     /// <summary>Its notes (see <see cref="PatientPathwayNote"/>).</summary>
     public List<PatientPathwayNote> Notes { get; set; } = [];
+
+    /// <summary>
+    /// The referral it was accepted from, if any: its waiting-time clock sets the pathway's target date while it runs
+    /// or is paused, and stops with the pathway (<c>PathwayChange</c>). Null for a pathway started without a referral.
+    /// </summary>
+    public Referral? Referral { get; set; }
 }

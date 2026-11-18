@@ -121,7 +121,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         Notifications.Object, _monitor.Object, Clock);
 
     private AcceptReferralCommand Command(Referral referral, PathwayActor? actor = null, Guid? assignee = null, string? notes = null) =>
-        new(referral.Id, _template.Id, "Urgent", Today.AddDays(14), null, assignee, notes, referral.Version, actor ?? Triager);
+        new(referral.Id, _template.Id, "Urgent", null, assignee, notes, referral.Version, actor ?? Triager);
 
     [Test]
     public async Task Handle_Valid_CreatesThePathwayAndAcceptsTheReferralInOneSave()
@@ -150,9 +150,16 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         referral.DecidedByUsername.Should().Be(Triager.Username);
         referral.DecidedAtUtc.Should().Be(NowUtc);
         referral.Version.Should().Be(4);
-        var accepted = Saved.Single();
-        accepted.Action.Should().Be(ReferralEventAction.Accepted);
+        Saved.Select(e => e.Action).Should().Equal(ReferralEventAction.Accepted, ReferralEventAction.TargetChanged);
+        var accepted = Saved.First();
         accepted.PathwayId.Should().Be(pathway.Id);
+
+        // The clock keeps running from the day received, with Urgent's target (asked for: High); the pathway's target
+        // date is the clock's, not one the triager chose.
+        referral.TargetDays.Should().Be(Specialty.TargetDaysUrgent);
+        referral.TargetOn.Should().Be(ReceivedOn.AddDays(Specialty.TargetDaysUrgent));
+        DueDates.ToUkDate(pathway.DueDateUtc).Should().Be(referral.TargetOn);
+        response.Referral!.Clock!.State.Should().Be(WaitingClock.Running);
         Repository.Verify(r => r.SaveAsync(It.IsAny<IEnumerable<ReferralEvent>>(), It.IsAny<CancellationToken>()), Times.Never);
         Tokens.Should().Equal(Cts.Token);
 
@@ -375,7 +382,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
     public async Task Handle_UnknownReferral_IsNotFound()
     {
         var act = () => Handler.Handle(new AcceptReferralCommand(
-            Guid.NewGuid(), _template.Id, "Low", Today, null, null, null, 1, Triager), Cts.Token);
+            Guid.NewGuid(), _template.Id, "Low", null, null, null, 1, Triager), Cts.Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -398,9 +405,11 @@ public sealed class RejectReferralHandlerTests : TriageCommandTestBase
         referral.RejectionReason.Should().Be(ReferralRejectionReason.InsufficientInformation);
         referral.DecisionDetail.Should().Be(Detail);
         referral.DecidedByUsername.Should().Be(Triager.Username);
-        var entry = Saved.Single();
-        entry.Action.Should().Be(ReferralEventAction.Rejected);
+        Saved.Select(e => e.Action).Should().Equal(ReferralEventAction.Rejected, ReferralEventAction.ClockStopped);
+        var entry = Saved.First();
         entry.Details.Should().Contain("InsufficientInformation").And.NotContain(Detail);
+        referral.StopReason.Should().Be(ClockStopReason.Rejected);
+        referral.StoppedOn.Should().Be(Today);
         Tokens.Should().Equal(Cts.Token);
         Sent.Single().Message.Should().Be($"{Triager.Username} rejected a {Specialty.Name} referral.");
         response.Status.Should().Be("Rejected");
@@ -490,9 +499,9 @@ public sealed class RedirectReferralHandlerTests : TriageCommandTestBase
         referral.Status.Should().Be(ReferralStatus.RedirectedElsewhere);
         referral.RedirectedTo.Should().Be("Synthetic Community Trust");
         referral.DecisionDetail.Should().Be(Detail);
-        var entry = Saved.Single();
-        entry.Action.Should().Be(ReferralEventAction.RedirectedElsewhere);
-        entry.Details.Should().NotContain("Synthetic Community Trust").And.NotContain(Detail);
+        Saved.Select(e => e.Action).Should().Equal(ReferralEventAction.RedirectedElsewhere, ReferralEventAction.ClockStopped);
+        Saved.Should().AllSatisfy(e => e.Details.Should().NotContain("Synthetic Community Trust").And.NotContain(Detail));
+        referral.StopReason.Should().Be(ClockStopReason.RedirectedElsewhere);
         Sent.Single().Message.Should().Be($"{Triager.Username} redirected a {Specialty.Name} referral elsewhere.");
     }
 
@@ -547,29 +556,29 @@ public sealed class TriageValidatorTests
 
     [Test]
     public void Accept_Valid_Passes() =>
-        new AcceptReferralValidator(_clock)
-            .Validate(new AcceptReferralCommand(Guid.NewGuid(), Guid.NewGuid(), "High", Today, " ", null, null, 1, Triager))
+        new AcceptReferralValidator()
+            .Validate(new AcceptReferralCommand(Guid.NewGuid(), Guid.NewGuid(), "High", " ", null, null, 1, Triager))
             .IsValid.Should().BeTrue();
 
     [Test]
     public void Accept_NothingChosen_NamesEachChoice()
     {
-        var result = new AcceptReferralValidator(_clock)
-            .Validate(new AcceptReferralCommand(Guid.NewGuid(), Guid.Empty, "", default, null, Guid.Empty, null, 0, Triager));
+        var result = new AcceptReferralValidator()
+            .Validate(new AcceptReferralCommand(Guid.NewGuid(), Guid.Empty, "", null, Guid.Empty, null, 0, Triager));
 
         result.Errors.Select(e => e.PropertyName).Should().BeEquivalentTo(
-            [nameof(AcceptReferralCommand.TemplateId), nameof(AcceptReferralCommand.Priority), nameof(AcceptReferralCommand.DueDate),
+            [nameof(AcceptReferralCommand.TemplateId), nameof(AcceptReferralCommand.Priority),
              nameof(AcceptReferralCommand.AssigneeUserId), nameof(AcceptReferralCommand.ExpectedVersion)]);
     }
 
     [Test]
-    public void Accept_PastTargetDateLongTitleAndNotes_AreRefused()
+    public void Accept_LongTitleAndNotes_AreRefused()
     {
-        var result = new AcceptReferralValidator(_clock).Validate(new AcceptReferralCommand(
-            Guid.NewGuid(), Guid.NewGuid(), "Low", Today.AddDays(-1), new string('t', 201), null,
+        var result = new AcceptReferralValidator().Validate(new AcceptReferralCommand(
+            Guid.NewGuid(), Guid.NewGuid(), "Low", new string('t', 201), null,
             new string('n', PatientPathwayNote.MaxTextLength + 1), 1, Triager));
 
-        result.Errors.Select(e => e.PropertyName).Should().BeEquivalentTo(["DueDate", "Title", "Notes"]);
+        result.Errors.Select(e => e.PropertyName).Should().BeEquivalentTo(["Title", "Notes"]);
     }
 
     [TestCase("Duplicate", null, true)]

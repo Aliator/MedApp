@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261118161852_AddedPatientMessages")]
-    partial class AddedPatientMessages
+    [Migration("20261118154532_AddedLetterTemplates")]
+    partial class AddedLetterTemplates
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -98,19 +98,6 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("DnaFollowUp")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("DnaFollowUpAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("DnaFollowUpByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("DnaFollowUpDetail")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("EndUtc")
                         .HasColumnType("datetime2");
@@ -1119,6 +1106,61 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("ScheduledJobs", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Letters.LetterTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BodySkeleton")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Closing")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Letterhead")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SpecialtyId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_LetterTemplates_SpecialtyId_Name");
+
+                    b.ToTable("LetterTemplates", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1762,79 +1804,6 @@ namespace MedApp.Infrastructure.Migrations
                             Name = "Definition missing",
                             VisitRequirement = 0
                         });
-                });
-
-            modelBuilder.Entity("MedApp.Domain.PatientMessages.PatientMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("AppointmentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("AppointmentStartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasDefaultValue("");
-
-                    b.Property<int>("Channel")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Destination")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(320)
-                        .HasColumnType("nvarchar(320)")
-                        .HasDefaultValue("");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ProviderReference")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid?>("RequestedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("SendAttempts")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("SentAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("StatusAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("StatusReason")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("Status", "CreatedAtUtc");
-
-                    b.HasIndex(new[] { "AppointmentId", "Kind", "Channel", "AppointmentStartUtc" }, "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc")
-                        .IsUnique();
-
-                    b.ToTable("PatientMessages", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Patients.Patient", b =>
@@ -2795,6 +2764,14 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Room");
 
                     b.Navigation("Specialty");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Letters.LetterTemplate", b =>
+                {
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", null)
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Notepads.Notepad", b =>

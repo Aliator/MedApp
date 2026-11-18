@@ -427,6 +427,35 @@ describe('PatientTimeline', () => {
       expect(within(list).getByText('Urgent')).toBeInTheDocument();
     });
 
+    it('shows the waiting-time clock entries in words, each linking to its referral, with a Waiting time filter', async () => {
+      const clock = (fields: Partial<TimelineEntry>) =>
+        entry({kind: 'WaitingTime', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology', ...fields});
+      mockApi({
+        [`GET ${OVERVIEW}`]: () => json(overview),
+        [`GET ${TIMELINE}`]: () =>
+          json({
+            items: [
+              clock({action: 'ReferralClockPaused', pauseReason: 'PatientUnavailable', reviewOn: '2026-07-01'}),
+              clock({action: 'ReferralClockResumed', isAutomatic: true}),
+              clock({action: 'ReferralClockStopped', stopReason: 'PathwayCancelled', daysWaited: 12, targetDays: 28}),
+              clock({action: 'ReferralTargetChanged', previousTargetDays: 126, targetDays: 28}),
+              entry({action: 'DetailsUpdated', kind: 'DueDates', fromClock: true, changes: [{field: 'dueDate', from: '2026-06-20', to: '2026-07-01'}]}),
+            ],
+            nextCursor: null,
+          }),
+      });
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const paused = within((await screen.findByText('Waiting-time clock paused')).closest('li')!);
+      expect(paused.getByText('Patient unavailable, review 1 Jul 2026')).toBeInTheDocument();
+      expect(paused.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      expect(screen.getByText('Resumed automatically, as the clock stopped')).toBeInTheDocument();
+      expect(screen.getByText('Pathway cancelled, day 12 of 28')).toBeInTheDocument();
+      expect(screen.getByText('126 → 28 days')).toBeInTheDocument();
+      expect(screen.getByText('Target date set by the waiting-time clock')).toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Waiting time'})).toBeInTheDocument();
+    });
+
     it('shows referral entries and their letters, linking to the referral rather than a pathway', async () => {
       mockApi({
         [`GET ${OVERVIEW}`]: () => json(overview),

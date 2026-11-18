@@ -28,13 +28,19 @@ export interface StageDefinitionInput {
 }
 
 /**
- * A template's fields: its name, its stages in order (a definition may appear more than once), and the specialty it
- * belongs to, which a new template needs and a save sends only when it changes (left out, it stays as it is).
+ * A template's fields: its name, its stages in order (a definition may appear more than once), the stage that stops the
+ * waiting-time clock, and the specialty it belongs to, which a new template needs and a save sends only when it
+ * changes (left out, it stays as it is).
  */
 export interface TemplateInput {
   name: string;
   stageDefinitionIdsInOrder: string[];
   specialtyId?: string;
+  /**
+   * The 1-based position, in `stageDefinitionIdsInOrder`, of the stage whose finishing stops a referral's waiting-time
+   * clock, or null for none. The API reads it only with the stage list, so it's always sent beside it.
+   */
+  clockStopStageOrder: number | null;
 }
 
 const DEFINITIONS = '/api/pathways/patient-pathway-stage/definitions';

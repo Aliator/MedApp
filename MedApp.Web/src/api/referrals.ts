@@ -1,4 +1,5 @@
 import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryClient} from '@tanstack/react-query';
+import {formatShortDate} from '../utils/dates';
 import {statusLabel} from '../utils/statusWords';
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
@@ -17,6 +18,12 @@ export type ReferralSummary = Schemas['ReferralSummaryResponse'];
 export type ReferralEvent = Schemas['ReferralEventResponse'];
 export type ReferralPage = Schemas['ReferralSummaryResponsePagedResponse'];
 export type ReferralSearch = NonNullable<paths['/api/referrals/search']['get']['parameters']['query']>;
+/** A referral's waiting-time clock (decisions 27 to 38): whole UK days, against the specialty's target for the priority. */
+export type WaitingClock = Schemas['WaitingClockResponse'];
+/** One pause of a waiting-time clock: why, its review date, and who paused and resumed it. */
+export type ClockPause = Schemas['ClockPauseResponse'];
+/** The referral a pathway was accepted from, with its clock and pauses (the pathway page's Referral and wait card). */
+export type PathwayReferral = Schemas['PathwayReferralResponse'];
 
 /** The statuses, by the names the API uses. Only Awaiting triage is open. */
 export const REFERRAL_STATUSES = ['AwaitingTriage', 'Accepted', 'Rejected', 'RedirectedElsewhere', 'Withdrawn', 'EnteredInError'] as const;
@@ -232,10 +239,11 @@ export function useReferralActions(id: string) {
 /** What a triager chose when accepting a referral: nothing here is filled in for them (hazard H-41). */
 export interface AcceptReferralInput {
   templateId: string;
-  /** Low, Medium, High or Urgent, as the triager chose it (never the referrer's, unless they chose the same). */
+  /**
+   * Low, Medium, High or Urgent, as the triager chose it (never the referrer's, unless they chose the same). The
+   * pathway's target date comes from the waiting-time clock, for this priority's target in the specialty.
+   */
   priority: string;
-  /** The target date, `YYYY-MM-DD`. */
-  dueDate: string;
   /** Blank takes the template's name. */
   title: string;
   /** Someone to assign (holders of AssignPathways only), or blank for nobody. */
@@ -282,7 +290,6 @@ export function useAcceptReferral(id: string) {
           body: {
             templateId: input.templateId,
             priority: input.priority,
-            dueDate: input.dueDate,
             title: blankAsNull(input.title),
             assigneeUserId: input.assigneeUserId || null,
             notes: blankAsNull(input.notes),
@@ -391,10 +398,123 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
       return {title: `Withdrawn by ${by}`, detail: ''};
     case 'EnteredInError':
       return {title: `Marked entered in error by ${by}`, detail: ''};
+    case 'ClockPaused':
+      return {
+        title: `Clock paused by ${by}`,
+        detail: [pauseReasonWords(event.pauseReason) || null, event.reviewOn ? `review ${formatShortDate(event.reviewOn)}` : null]
+          .filter(Boolean)
+          .join(', '),
+      };
+    case 'ClockResumed':
+      return {title: `Clock resumed by ${by}`, detail: ''};
+    case 'ClockStopped':
+      return {
+        title: 'Clock stopped',
+        detail: [
+          stopReasonWords(event.stopReason) || null,
+          event.daysWaited != null ? `day ${event.daysWaited}${event.targetDays != null ? ` of ${event.targetDays}` : ''}` : null,
+          event.breached ? 'breached' : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      };
+    case 'TargetChanged':
+      return {
+        title: 'Target changed',
+        detail:
+          event.targetDays != null
+            ? `${event.previousTargetDays != null ? `${event.previousTargetDays} → ` : ''}${event.targetDays} days${event.priority ? ` (${event.priority} priority)` : ''}`
+            : '',
+      };
     default:
       return {
         title: `${statusLabel(event.action ?? 'Changed')} by ${by}`,
         detail: event.toStatus ? `Now ${referralStatusLabel(event.toStatus).toLowerCase()}` : '',
       };
   }
+}
+
+/**
+ * Why a waiting-time clock is paused: the API's fixed choices (stored by number there; sent and read by name). Only
+ * delays the patient chose or caused pause it (decision 33): the centre's own waits always count.
+ */
+export const CLOCK_PAUSE_REASONS = [
+  {value: 'PatientChoseToWait', label: 'Patient chose to wait'},
+  {value: 'PatientUnavailable', label: 'Patient unavailable'},
+  {value: 'Other', label: 'Other'},
+] as const;
+
+/** A pause reason in words ("PatientChoseToWait" → "Patient chose to wait"); anything unknown as it came. */
+export const pauseReasonWords = (reason: string | null | undefined) => CLOCK_PAUSE_REASONS.find((r) => r.value === reason)?.label ?? reason ?? '';
+
+/** Whether a pause needs a detail: only Other does. */
+export const pauseNeedsDetail = (reason: string | null | undefined) => reason === 'Other';
+
+/** The longest a pause's detail can be. */
+export const MAX_PAUSE_DETAIL = 500;
+/** How far ahead a pause's review date can be, in days (from tomorrow). */
+export const MAX_PAUSE_REVIEW_DAYS = 90;
+
+const STOP_REASON_WORDS: Record<string, string> = {
+  StopStageFinished: 'Clock-stop stage finished',
+  PathwayDischarged: 'Discharged',
+  PathwayCancelled: 'Pathway cancelled',
+  Rejected: 'Rejected',
+  RedirectedElsewhere: 'Redirected elsewhere',
+  Withdrawn: 'Withdrawn',
+  EnteredInError: 'Entered in error',
+};
+
+/** Why a clock stopped, in words ("StopStageFinished" → "Clock-stop stage finished"); anything unknown as it came. */
+export const stopReasonWords = (reason: string | null | undefined) => (reason ? (STOP_REASON_WORDS[reason] ?? statusLabel(reason)) : '');
+
+/** How long a referral has waited against its target: "Day 84 of 126". */
+export const waitWords = (clock: WaitingClock) => `Day ${clock.daysWaited ?? 0} of ${clock.targetDays ?? 0}`;
+
+/**
+ * After pausing or resuming a clock: the pathway's referral is replaced with the one returned, then the pathway (its
+ * target date moved), the referrals, the pathway lists and the timelines are read again.
+ */
+async function refreshClock(queryClient: QueryClient, pathwayId: string, referral?: PathwayReferral) {
+  if (referral) queryClient.setQueryData(pathwayQuery(pathwayId).queryKey, (cached) => (cached ? {...cached, referral} : cached));
+  await Promise.all([
+    queryClient.invalidateQueries({queryKey: pathwayQuery(pathwayId).queryKey}),
+    queryClient.invalidateQueries({queryKey: ['pathways', 'search']}),
+    queryClient.invalidateQueries({queryKey: referralKeys.all}),
+    queryClient.invalidateQueries({queryKey: pathwayKeys.timelines}),
+  ]);
+}
+
+/** Pausing a clock: one of the reasons, a detail (required for Other) and a review date, `YYYY-MM-DD`. */
+export interface PauseClockInput {
+  reason: string;
+  detail: string;
+  reviewOn: string;
+  expectedVersion: number;
+}
+
+/**
+ * Pausing and resuming the waiting-time clock of the referral a pathway was accepted from (`POST
+ * api/referrals/{id}/clock/pause` and `…/resume`, WorkPathways), each from the referral's version the page showed.
+ * Each returns the pathway's Referral and wait card, which replaces the cached one; the pathway is then read again,
+ * as its target date moved. A 409 (changed meanwhile, already paused or resumed) reads the pathway again too.
+ */
+export function useClockActions(referralId: string, pathwayId: string) {
+  const queryClient = useQueryClient();
+  const onSuccess = (referral: PathwayReferral) => refreshClock(queryClient, pathwayId, referral);
+  const onError = (error: unknown) => (error instanceof ApiError && error.status === 409 ? refreshClock(queryClient, pathwayId) : undefined);
+  const path = {params: {path: {id: referralId}}};
+  return {
+    pause: useMutation({
+      mutationFn: ({reason, detail, reviewOn, expectedVersion}: PauseClockInput) =>
+        unwrap(api.POST('/api/referrals/{id}/clock/pause', {...path, body: {reason, detail: blankAsNull(detail), reviewOn, expectedVersion}})),
+      onSuccess,
+      onError,
+    }),
+    resume: useMutation({
+      mutationFn: (body: {expectedVersion: number}) => unwrap(api.POST('/api/referrals/{id}/clock/resume', {...path, body})),
+      onSuccess,
+      onError,
+    }),
+  };
 }

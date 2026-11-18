@@ -277,13 +277,8 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ReferralRowsHoldingTheCanary_CoverEveryActionWrittenSoFar()
     {
-        // The waiting-time clock adds the rest; add them here when they're written.
-        ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Should().BeEquivalentTo(
-        [
-            ReferralEventAction.Registered, ReferralEventAction.DetailsEdited, ReferralEventAction.Withdrawn,
-            ReferralEventAction.EnteredInError, ReferralEventAction.SpecialtyChanged, ReferralEventAction.Accepted,
-            ReferralEventAction.Rejected, ReferralEventAction.RedirectedElsewhere
-        ]);
+        ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Distinct()
+            .Should().BeEquivalentTo(Enum.GetValues<ReferralEventAction>());
     }
 
     [Test]
@@ -352,9 +347,18 @@ public sealed class TimelineStaffCanaryTests
         var sent = new ReferralChange(sentReferral, ReferralsTestConstants.Triager, Now);
         sent.RedirectElsewhere(Canary, Canary);
 
+        // The waiting-time clock: the target re-read, paused (with the canary as the pause's detail) and resumed,
+        // paused again, then stopped by the pathway's discharge (which ends the pause).
+        var clock = new ReferralChange(triaged, Staff, Now.AddMinutes(2));
+        clock.ReTarget(triaged.Specialty, PatientPathwayPriority.Low);
+        var pause = clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
+        clock.ResumeClock(pause);
+        clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
+        clock.StopClock(ClockStopReason.PathwayDischarged);
+
         return change.Events.Concat(error.Events).Concat(accept.Events).Concat(accepted.Events)
-            .Concat(rejected.Events).Concat(sent.Events)
-            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary))
+            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events)
+            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary) { PauseDetail = Canary })
             .ToList();
     }
 

@@ -78,7 +78,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"A template called '{takenName}' already exists.");
         template.Name.Should().Be(TemplateName);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -95,7 +95,23 @@ public sealed class UpdatePathwayTemplateHandlerTests
 
         response.StageDefinitionIdsInOrder.Should().Equal(newStages);
         response.Stages.Select(s => s.IsArchived).Should().Equal(true, false, true);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_ClockStopStage_GoesWithTheStageList()
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        var pathway = CreateDefinition(PathwayStage);
+        var template = CreateTemplate(TemplateName, false, consultation);
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        GivenDefinitions(consultation, pathway);
+        IReadOnlyList<Guid> newStages = [consultation.Id, pathway.Id];
+
+        var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, newStages, 2), CancellationToken.None);
+
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, 2, It.IsAny<CancellationToken>()), Times.Once);
+        response.ClockStopStageOrder.Should().Be(2);
     }
 
     [Test]
@@ -110,7 +126,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, [pathway.Id, archived.Id]), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -127,7 +143,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         response.Name.Should().Be("Renamed");
         response.Stages.Should().ContainSingle(s => s.Name == ConsultationStage);
         response.PathwayCount.Should().Be(4);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -143,7 +159,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         response.SpecialtyId.Should().Be(other.Id);
         response.SpecialtyName.Should().Be(OtherSpecialtyName);
         _repository.Verify(r => r.UpdatePathwayTemplateAsync(
-            It.Is<PathwayTemplate>(t => t.SpecialtyId == other.Id), null, It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PathwayTemplate>(t => t.SpecialtyId == other.Id), null, It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -157,7 +173,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, archived.Id, null), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{OtherSpecialtyName}*");
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

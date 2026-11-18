@@ -2,7 +2,10 @@ import {QueryClient} from '@tanstack/react-query';
 import {calls, json, mockApi} from '../test/render';
 import {
   awaitingTriageCountQuery,
+  CLOCK_PAUSE_REASONS,
   openFirst,
+  pauseNeedsDetail,
+  pauseReasonWords,
   patientOpenReferralsQuery,
   patientReferralsQuery,
   referralEventWords,
@@ -13,7 +16,9 @@ import {
   referralStatusLabel,
   rejectionNeedsDetail,
   rejectionReasonWords,
+  stopReasonWords,
   toReferralRequest,
+  waitWords,
   type ReferralEvent,
   type ReferralSummary,
 } from './referrals';
@@ -92,11 +97,55 @@ describe('referral words', () => {
     });
     expect(referralEventWords(event({action: 'SpecialtyChanged'}))).toEqual({title: 'Redirected by k.ashford', detail: ''});
     expect(referralEventWords(event({action: 'RedirectedElsewhere'}))).toEqual({title: 'Redirected elsewhere by k.ashford', detail: ''});
-    expect(referralEventWords(event({action: 'TargetChanged', toStatus: 'AwaitingTriage'}))).toEqual({
-      title: 'Target changed by k.ashford',
+    expect(referralEventWords(event({action: 'SomethingNew', toStatus: 'AwaitingTriage'}))).toEqual({
+      title: 'Something new by k.ashford',
       detail: 'Now awaiting triage',
     });
     expect(referralEventWords(event({action: null}))).toEqual({title: 'Changed by k.ashford', detail: ''});
+  });
+});
+
+describe('waiting-time clock words', () => {
+  const event = (fields: Partial<ReferralEvent>): ReferralEvent => ({id: 'e', atUtc: '2026-11-02T10:00:00Z', username: 'k.ashford', ...fields});
+
+  it('words the clock events in its history', () => {
+    expect(referralEventWords(event({action: 'ClockPaused', pauseReason: 'PatientChoseToWait', reviewOn: '2027-02-03'}))).toEqual({
+      title: 'Clock paused by k.ashford',
+      detail: 'Patient chose to wait, review 3 Feb 2027',
+    });
+    expect(referralEventWords(event({action: 'ClockPaused'}))).toEqual({title: 'Clock paused by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: 'ClockResumed'}))).toEqual({title: 'Clock resumed by k.ashford', detail: ''});
+    expect(
+      referralEventWords(event({action: 'ClockStopped', stopReason: 'StopStageFinished', daysWaited: 130, targetDays: 126, breached: true})),
+    ).toEqual({title: 'Clock stopped', detail: 'Clock-stop stage finished, day 130 of 126, breached'});
+    expect(referralEventWords(event({action: 'ClockStopped', stopReason: 'PathwayDischarged', daysWaited: 12}))).toEqual({
+      title: 'Clock stopped',
+      detail: 'Discharged, day 12',
+    });
+    expect(referralEventWords(event({action: 'ClockStopped'}))).toEqual({title: 'Clock stopped', detail: ''});
+    expect(referralEventWords(event({action: 'TargetChanged', previousTargetDays: 126, targetDays: 28, priority: 'High'}))).toEqual({
+      title: 'Target changed',
+      detail: '126 → 28 days (High priority)',
+    });
+    expect(referralEventWords(event({action: 'TargetChanged', targetDays: 28}))).toEqual({title: 'Target changed', detail: '28 days'});
+    expect(referralEventWords(event({action: 'TargetChanged'}))).toEqual({title: 'Target changed', detail: ''});
+  });
+
+  it('words pause and stop reasons, the wait, and needs a detail only for Other', () => {
+    expect(CLOCK_PAUSE_REASONS.map((r) => r.label)).toEqual(['Patient chose to wait', 'Patient unavailable', 'Other']);
+    expect(pauseReasonWords('PatientUnavailable')).toBe('Patient unavailable');
+    expect(pauseReasonWords('SomethingNew')).toBe('SomethingNew');
+    expect(pauseReasonWords(null)).toBe('');
+    expect(pauseNeedsDetail('Other')).toBe(true);
+    expect(pauseNeedsDetail('PatientChoseToWait')).toBe(false);
+    expect(stopReasonWords('StopStageFinished')).toBe('Clock-stop stage finished');
+    expect(stopReasonWords('PathwayCancelled')).toBe('Pathway cancelled');
+    expect(stopReasonWords('RedirectedElsewhere')).toBe('Redirected elsewhere');
+    expect(stopReasonWords('EnteredInError')).toBe('Entered in error');
+    expect(stopReasonWords('SomethingNew')).toBe('Something new');
+    expect(stopReasonWords(undefined)).toBe('');
+    expect(waitWords({daysWaited: 84, targetDays: 126})).toBe('Day 84 of 126');
+    expect(waitWords({})).toBe('Day 0 of 0');
   });
 });
 

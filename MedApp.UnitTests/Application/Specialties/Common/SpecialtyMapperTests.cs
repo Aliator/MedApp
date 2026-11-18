@@ -30,6 +30,18 @@ public sealed class SpecialtyMapperTests
     }
 
     [Test]
+    public void ToResponse_OnlyALetterTemplateHasIt_CountsIt_AndCantBeDeleted()
+    {
+        var usage = new SpecialtyUsage(0, 0, 0, LetterTemplateCount: 2);
+
+        var response = SpecialtyMapper.ToResponse(CreateSpecialty(), usage);
+
+        response.LetterTemplateCount.Should().Be(2);
+        response.CanBeDeleted.Should().BeFalse();
+        SpecialtyRules.InUseMessage(CreateSpecialty(), usage).Should().Contain("2 letter templates");
+    }
+
+    [Test]
     public void ToResponse_NothingHasIt_CanBeDeleted() =>
         SpecialtyMapper.ToResponse(CreateSpecialty(), SpecialtyUsage.None).CanBeDeleted.Should().BeTrue();
 

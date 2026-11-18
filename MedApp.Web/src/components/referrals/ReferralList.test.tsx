@@ -24,4 +24,18 @@ describe('ReferralList', () => {
     expect(within(list).getAllByText('Same specialty')).toHaveLength(1);
     expect(within(screen.getByText('Same specialty').closest('li')!).getByText('Referral to Urology')).toBeInTheDocument();
   });
+
+  it('gives the wait where a referral has a clock, with its flags', async () => {
+    const accepted = testReferralSummary({
+      id: 'c',
+      status: 'Accepted',
+      clock: {state: 'Paused', daysWaited: 130, targetDays: 126, isBreached: true},
+    });
+    renderWithApp(<ReferralList referrals={[accepted]} label="Referrals" />, {user: staffUser});
+
+    const list = await screen.findByRole('list', {name: 'Referrals'});
+    expect(within(list).getByText('Received 2 Nov 2026 (day 130 of 126) from Synthetic Street Surgery')).toBeInTheDocument();
+    expect(within(list).getByText('Breached')).toBeInTheDocument();
+    expect(within(list).getByText('Paused')).toBeInTheDocument();
+  });
 });

@@ -9,7 +9,8 @@ public sealed class SearchReferralsRequest
 
     /// <summary>
     /// <c>receivedOn</c> (the default: oldest first, so the longest wait is at the top), <c>patient</c>,
-    /// <c>specialty</c>, <c>priority</c> or <c>registered</c>.
+    /// <c>specialty</c>, <c>priority</c>, <c>registered</c>, <c>daysWaited</c> (the clock), <c>targetOn</c> or
+    /// <c>reviewOn</c> (the open pause's review date; clocks not paused last).
     /// </summary>
     public string? Sort { get; set; }
 
@@ -28,4 +29,13 @@ public sealed class SearchReferralsRequest
 
     /// <summary>The patient's full name contains this, ignoring case.</summary>
     public string? Search { get; set; }
+
+    /// <summary>Only referrals whose waiting-time clock is past its target.</summary>
+    public bool BreachedOnly { get; set; }
+
+    /// <summary>True: only paused clocks; false: only clocks not paused.</summary>
+    public bool? Paused { get; set; }
+
+    /// <summary>True: only stopped clocks; false: only clocks still running or paused.</summary>
+    public bool? ClockStopped { get; set; }
 }

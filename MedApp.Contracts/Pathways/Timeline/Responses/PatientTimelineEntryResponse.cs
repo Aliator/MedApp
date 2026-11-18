@@ -132,4 +132,26 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>ReferralRedirectedElsewhere: where to. Admins only (it's free text).</summary>
     public string? RedirectedTo { get; set; }
+
+    /// <summary>ReferralClockPaused and ReferralClockResumed: why it was paused, a fixed choice by name.</summary>
+    public string? PauseReason { get; set; }
+
+    /// <summary>ReferralClockPaused: the review date.</summary>
+    public DateOnly? ReviewOn { get; set; }
+
+    /// <summary>ReferralTargetChanged: the target before, in days.</summary>
+    public int? PreviousTargetDays { get; set; }
+
+    /// <summary>ReferralTargetChanged and ReferralClockStopped: the target, in days.</summary>
+    public int? TargetDays { get; set; }
+
+    /// <summary>ReferralClockStopped: why, a fixed choice by name; the days waited; and whether it was past its target.</summary>
+    public string? StopReason { get; set; }
+
+    public int? DaysWaited { get; set; }
+
+    public bool? Breached { get; set; }
+
+    /// <summary>A target date change: made by the referral's waiting-time clock, not by hand.</summary>
+    public bool FromClock { get; set; }
 }

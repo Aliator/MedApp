@@ -156,7 +156,7 @@ export const idChoiceValues = (value: string | undefined): string[] | undefined 
 // My Worklist ------------------------------------------------------------------------------------------------
 
 /** URL sort names for My Worklist, and the API's names for them. Target date, soonest first, by default. */
-export const TASK_SORTS = {Pathway: 'title', Due: 'dueDate', Priority: 'priority'} as const;
+export const TASK_SORTS = {Pathway: 'title', Due: 'dueDate', Priority: 'priority', Wait: 'daysWaited'} as const;
 export type TaskSortColumn = keyof typeof TASK_SORTS;
 
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
@@ -183,6 +183,8 @@ export interface TasksSearch {
   /** The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). */
   stage?: string;
   overdue?: boolean;
+  /** Only pathways whose referral's waiting-time clock has gone past its target. */
+  breached?: boolean;
   dueFrom?: string;
   dueTo?: string;
 }
@@ -202,6 +204,7 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
     specialty: parseIdChoice(raw.specialty),
     stage: parseIdChoice(raw.stage),
     overdue: bool(raw.overdue) ? true : undefined,
+    breached: bool(raw.breached) ? true : undefined,
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),
   });
@@ -209,12 +212,24 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
 
 /** Filters beyond the progress (which always applies, Not started by default). */
 export const hasTaskFilters = (s: TasksSearch) =>
-  Boolean(s.title || s.template || s.patient || s.status || s.priority || s.specialty || s.stage || s.overdue || s.dueFrom || s.dueTo);
+  Boolean(
+    s.title || s.template || s.patient || s.status || s.priority || s.specialty || s.stage || s.overdue || s.breached || s.dueFrom || s.dueTo,
+  );
 
 // Pathways --------------------------------------------------------------------------------------------
 
-/** URL sort names for the pathway lists, and the API's names for them. Target date, soonest first, by default. */
-export const PATHWAY_SORTS = {Pathway: 'title', Status: 'status', Due: 'dueDate', Priority: 'priority', Updated: 'lastUpdated'} as const;
+/**
+ * URL sort names for the pathway lists, and the API's names for them. Target date, soonest first, by default. Wait is
+ * the days waited on the referral's clock (pathways without one last, either way).
+ */
+export const PATHWAY_SORTS = {
+  Pathway: 'title',
+  Status: 'status',
+  Due: 'dueDate',
+  Priority: 'priority',
+  Updated: 'lastUpdated',
+  Wait: 'daysWaited',
+} as const;
 export type PathwaySortColumn = keyof typeof PATHWAY_SORTS;
 
 /** The all-pathways list and a patient's pathways: page, sort and filters. */
@@ -238,6 +253,8 @@ export interface PathwaysListSearch {
    */
   stage?: string;
   overdue?: boolean;
+  /** Only pathways whose referral's waiting-time clock has gone past its target. */
+  breached?: boolean;
   /** Only pathways assigned to the signed-in user. `false` (in the URL) overrides starting on them (Account Settings). */
   mine?: boolean;
   /** Include Completed, Cancelled and Archived (hidden by default). */
@@ -290,6 +307,7 @@ export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysLis
     specialty: parseIdChoice(raw.specialty),
     stage: parseIdChoice(raw.stage),
     overdue: flag(raw.overdue),
+    breached: flag(raw.breached),
     mine: bool(raw.mine),
     closed: flag(raw.closed),
     assignee: assignee(raw.assignee),
@@ -309,6 +327,7 @@ export const hasPathwayFilters = (s: PathwaysListSearch) =>
       s.specialty ||
       s.stage ||
       s.overdue ||
+      s.breached ||
       s.mine ||
       s.closed ||
       s.assignee ||
