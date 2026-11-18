@@ -323,6 +323,11 @@ export const screens: Screen[] = [
     },
   },
   { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
+  {
+    name: 'requires-appointment-dna',
+    title: 'Requires Appointment, Did not attend: missed appointments with no later one, oldest first, with their follow-up',
+    path: '/calendar/requires-appointment?view=didNotAttend',
+  },
   { name: 'my-tasks', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
@@ -592,6 +597,26 @@ export const screens: Screen[] = [
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Appointments' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'pathway-branches',
+    title: "Pathway page of a template that branches: its stages' Optional, Branch point and Branch tokens, and skipped ones struck through with the reason",
+    path: (d) => `/pathways/${d.branchingPathwayId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingPathwayId, 'No pathway from a template that branches (the demo data has them from PR 28).');
+      await page.getByRole('heading', { name: 'Stages' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'template-branches',
+    title: 'Template editor: Optional and Branch point on each stage, a Branch name after a branch point, branches indented',
+    path: (d) => `/admin/pathway-templates/${d.branchingTemplateId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingTemplateId, 'No template that branches (the demo data has them from PR 28).');
+      await page.getByRole('list', { name: 'Stages in order' }).waitFor();
       await settle(page);
     },
   },

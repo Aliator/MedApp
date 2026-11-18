@@ -249,6 +249,40 @@ describe('PatientExportPage', () => {
     expect(calls(fetch)).toEqual([`GET ${EXPORT}`]);
   });
 
+  it('shows skipped stages struck through, when, by whom and why, with the branch each is in', async () => {
+    const pathway = data.pathways![0];
+    renderExport({
+      ...data,
+      pathways: [
+        {
+          ...pathway,
+          stages: [
+            ...pathway.stages!,
+            {order: 3, name: 'Follow-up', notes: '', branch: 'Benign', skippedAtUtc: '2026-09-04T09:00:00Z', skippedBy: 'l.northcott', skipReason: 'BranchNotChosen'},
+            {
+              order: 4,
+              name: 'Physio',
+              notes: '',
+              startedAtUtc: '2026-09-04T10:00:00Z',
+              startedBy: 'k.ashford',
+              skippedAtUtc: '2026-09-05T09:00:00Z',
+              skippedBy: 'k.ashford',
+              skipReason: 'Other',
+              skipDetail: 'Synthetic: seen elsewhere',
+            },
+          ],
+        },
+      ],
+    });
+
+    // Struck through: the skipped stage's name is styled differently from a finished one's.
+    const followUp = await screen.findByText('3. Follow-up (Benign branch)');
+    expect(followUp.className).not.toBe(screen.getByText('1. Consent').className);
+    expect(screen.getByText(/^Skipped .* by l\.northcott\. Reason: Another branch was chosen$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Started .* by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Skipped .* by k\.ashford\. Reason: Other: Synthetic: seen elsewhere$/)).toBeInTheDocument();
+  });
+
   it('says when there is nothing in a part', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 
@@ -456,6 +490,51 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/· Synthetic: on the wrong patient$/)).toBeInTheDocument();
   });
 
+  it("shows the reminder choice, a missed appointment's follow-up, and every message to the patient with what became of it", async () => {
+    renderExport({
+      ...data,
+      patient: {...data.patient, reminderChannel: 'TextAndEmail'},
+      appointments: [
+        {id: 'a4', pathwayId, stageName: 'Scan', status: 'DidNotAttend', startUtc: '2026-11-12T10:00:00Z', endUtc: '2026-11-12T10:30:00Z', staffUsername: 'k.ashford',
+          createdAtUtc: '2026-11-01T09:00:00Z', createdBy: 'j.smith', bookedAtUtc: '2026-11-01T09:00:00Z', bookedBy: 'j.smith',
+          dnaFollowUp: 'NoFurtherAppointment', dnaFollowUpDetail: 'Synthetic: Dr Test decided', dnaFollowUpAtUtc: '2026-11-13T09:00:00Z', dnaFollowUpBy: 'l.northcott'},
+      ],
+      appointmentHistory: [
+        {atUtc: '2026-11-13T09:00:00Z', action: 'DnaFollowUpRecorded', username: 'l.northcott', appointmentId: 'a4', pathwayTitle: 'Synthetic knee review',
+          details: '{"decision":"NoFurtherAppointment","detail":"Synthetic: Dr Test decided"}'},
+      ],
+      messages: [
+        {appointmentId: 'a4', kind: 'AppointmentReminder', channel: 'Text', destination: '+447700900123', body: 'Synthetic reminder text',
+          appointmentStartUtc: '2026-11-12T10:00:00Z', status: 'Delivered', createdAtUtc: '2026-11-10T09:00:00Z', sentAtUtc: '2026-11-10T09:00:00Z',
+          statusAtUtc: '2026-11-10T09:05:00Z'},
+        {appointmentId: 'a4', kind: 'MissedAppointment', channel: 'Email', destination: '', body: '', appointmentStartUtc: '2026-11-12T10:00:00Z',
+          status: 'NotSent', statusReason: 'NoConsent', requestedBy: null, createdAtUtc: '2026-11-13T10:00:00Z'},
+        {appointmentId: 'a4', kind: 'AppointmentCancelled', channel: 'Text', destination: '+447700900123', body: 'Synthetic cancelled text',
+          appointmentStartUtc: '2026-11-12T10:00:00Z', status: 'Failed', statusReason: 'permanent-failure', requestedBy: 'k.ashford',
+          createdAtUtc: '2026-11-11T09:00:00Z', sentAtUtc: '2026-11-11T09:00:00Z', statusAtUtc: '2026-11-11T09:00:00Z'},
+      ],
+    });
+
+    expect(await screen.findByText('Text and email')).toBeInTheDocument();
+    expect(screen.getByText(/^Follow-up: No further appointment, recorded .* by l\.northcott: Synthetic: Dr Test decided$/)).toBeInTheDocument();
+    expect(screen.getByText(/: Did not attend follow-up recorded by l\.northcott$/)).toBeInTheDocument();
+    expect(screen.getByText(/· No further appointment: Synthetic: Dr Test decided$/)).toBeInTheDocument();
+    expect(screen.getByText('Messages (3)')).toBeInTheDocument();
+    expect(screen.getByText(/: Reminder by Text to 07700 900123$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Delivered, sent .*, status from .* · About the appointment at Thu 12 Nov 2026, 10:00 · Sent by MedApp$/)).toBeInTheDocument();
+    expect(screen.getByText('Synthetic reminder text')).toBeInTheDocument();
+    expect(screen.getByText(/: Missed appointment by Email$/)).toBeInTheDocument();
+    expect(screen.getByText(/^No message: no consent or contact \(the patient chose no messages this way\) · /)).toBeInTheDocument();
+    expect(screen.getByText(/^Failed: permanent-failure, sent .* · Asked for by k\.ashford$/)).toBeInTheDocument();
+  });
+
+  it('says when no messages were sent', async () => {
+    renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
+
+    expect(await screen.findByText('No texts or emails to the patient.')).toBeInTheDocument();
+    expect(screen.getByText('No reminders')).toBeInTheDocument();
+  });
+
   it('downloads the export as a JSON file named by the patient ID and the day, never their name', async () => {
     const createObjectURL = vi.fn((blob: Blob) => {
       void blob;
@@ -586,6 +665,10 @@ describe('appointment history in words', () => {
     expect(say('RecordedAfterEvent', {outcome: 'Attended'})).toBe('Attended');
     expect(say('RecordedAfterEvent', {})).toBe('');
     expect(say('EnteredInError', {reason: ' Synthetic: never happened '})).toBe('Synthetic: never happened');
+    expect(say('DnaFollowUpRecorded', {decision: 'Rebook'})).toBe('Rebook');
+    expect(say('DnaFollowUpRecorded', {decision: 'ClinicianToReview', detail: 'Synthetic: Dr Test'})).toBe('Clinician to review: Synthetic: Dr Test');
+    expect(say('DnaFollowUpRecorded', {})).toBe('');
+    expect(appointmentChangeLabel('DnaFollowUpRecorded')).toBe('Did not attend follow-up recorded');
     expect(describeAppointmentChange({action: 'Cancelled', details: 'not json'})).toBe('');
     expect(describeAppointmentChange({action: 'Cancelled', details: '"text"'})).toBe('');
   });

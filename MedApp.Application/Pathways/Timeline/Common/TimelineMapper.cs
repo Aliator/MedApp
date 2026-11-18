@@ -99,6 +99,30 @@ public static class TimelineMapper
                 response.Changes = [Change("stageNotes", details, isAdmin)];
                 break;
 
+            // The reason is a fixed choice, for everyone; its detail is free text, for admins only.
+            case StageSkipped:
+                response.SkipReason = Text(details, "skipReason");
+                response.Reason = isAdmin ? Text(details, "detail") : null;
+                break;
+
+            // The branch and the stages skipped are names the template's author wrote: everyone sees them.
+            case BranchChosen:
+                response.Branch = Text(details, "branch");
+                response.SkippedStageNames = details.TryGetValue("skippedStages", out var skippedStages)
+                                             && skippedStages.ValueKind == JsonValueKind.Array
+                    ? skippedStages.EnumerateArray()
+                        .Where(s => s.ValueKind == JsonValueKind.String)
+                        .Select(s => s.GetString()!)
+                        .ToList()
+                    : [];
+                break;
+
+            // Why it was reinstated is free text, for admins only; how it had been skipped is a fixed choice.
+            case StageReinstated:
+                response.SkipReason = Text(details, "skipReason");
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
             // The entry holds only the note's ID and version; its text, from the note versions, is for admins only.
             case NoteAdded or NoteEdited:
                 response.Changes =
@@ -210,6 +234,12 @@ public static class TimelineMapper
 
             case AppointmentEventAction.NotesUpdated:
                 response.Changes = [Change("appointmentNotes", details, isAdmin)];
+                break;
+
+            case AppointmentEventAction.DnaFollowUpRecorded:
+                // The decision is a fixed choice; its detail is free text, for admins only.
+                response.DnaFollowUp = Text(details, "decision");
+                response.Reason = isAdmin ? Text(details, "detail") : null;
                 break;
         }
 

@@ -9,6 +9,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useRef, useState} from 'react';
 import {appointmentQuery, canMarkEnteredInError, useAppointmentActions, type Appointment} from '../../api/appointments';
 import {ApiValidationError, fieldStatus, problemMessage} from '../../api/errors';
+import {tellsPatientByDefault} from '../../api/patientMessages';
 import {whyCantChange} from '../../api/patients';
 import {useAnnounce} from '../../app/announcements';
 import {can, useCurrentUser} from '../../auth/auth';
@@ -19,10 +20,13 @@ import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {AppointmentMessages} from './AppointmentMessages';
 import {AppointmentPatientBanner, useAppointmentPatient} from './AppointmentPatient';
 import {BookAppointmentDialog} from './BookAppointmentDialog';
 import {appointmentPurpose} from './calendarItems';
 import {AppointmentStatusToken, VisitRequirementToken} from './CalendarTokens';
+import {DnaFollowUpDialog, dnaFollowUpWords} from './DnaFollowUpDialog';
+import {TellPatientField, usePatientMessagingOn} from './TellPatientField';
 
 export interface AppointmentDialogProps {
   /** The appointment to show; it's fetched afresh, and shown from this until then. Null when closed. */
@@ -39,7 +43,7 @@ export function appointmentWhen(appointment: Appointment): string {
   return appointment.staffUsername ? `${when} with ${appointment.staffUsername}` : when;
 }
 
-type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError';
+type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError' | 'dnaFollowUp';
 
 /**
  * An appointment's details, and everything that can be done to it (docs/calendar-plan.md, decisions 15 and 16): who
@@ -50,6 +54,10 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError';
  * One recorded after the event can be withdrawn as **Entered in Error** (a visit that didn't happen, or on the wrong
  * patient), with a reason, by whoever recorded it or an admin (`canMarkEnteredInError`): it leaves the calendar, stays
  * in the history, and the server's words about the stage's visit (`stageMessage`) show here and are announced.
+ * After a Did not attend, **Record Follow-up** (`canRecordDnaFollowUp`) opens `DnaFollowUpDialog` (Rebook, Clinician to
+ * review or No further appointment: centre plan decision 132), and the follow-up recorded shows with the details.
+ * **Messages to the patient** (`AppointmentMessages`) lists the reminders and other texts and emails about it, and
+ * cancelling a booking offers to tell the patient (`TellPatientField`, while patient messages are on: decision 130).
  * The patient's banner heads it (name, date of birth and NHS number), with their record's flags: a restricted
  * patient's appointment can only be cancelled, and an anonymised one's not changed at all (the API's flags say so),
  * and neither is offered Book another.
@@ -69,6 +77,8 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [stageMessage, setStageMessage] = useState<string | null>(null);
+  // Whether cancelling tells the patient; null until changed, when it follows their reminder choice.
+  const [tellPatient, setTellPatient] = useState<boolean | null>(null);
   const [notesError, setNotesError] = useState<ReturnType<typeof fieldStatus>>(undefined);
   const [openedFor, setOpenedFor] = useState(initial?.id);
 
@@ -80,12 +90,18 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
     setReason('');
     setProblem(null);
     setStageMessage(null);
+    setTellPatient(null);
     setNotesError(undefined);
   }
 
   const content = useRef<HTMLDivElement>(null);
   const shownNotes = notes ?? appointment?.notes ?? '';
   const notesChanged = notes !== null && notes !== (appointment?.notes ?? '');
+
+  const isMessagingOn = usePatientMessagingOn(isOpen);
+  // Only a booking has a time to tell the patient about.
+  const offersTell = isMessagingOn && appointment?.status === 'Booked';
+  const tells = tellPatient ?? tellsPatientByDefault(appointment?.patientReminderChannel);
 
   const fail = (error: unknown) => setProblem(problemMessage(error, 'The appointment could not be changed. Please try again.'));
 
@@ -122,12 +138,13 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
 
   const cancel = () => {
     actions.cancel.mutate(
-      {id, reason: reason.trim()},
+      {id, reason: reason.trim(), tellPatient: offersTell ? tells : undefined},
       {
         onSuccess: () => {
           announce('Appointment cancelled');
           setMode('view');
           setReason('');
+          setTellPatient(null);
         },
         onError: (error) => {
           setMode('view');
@@ -193,6 +210,9 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   if (appointment.outcomeAtUtc) {
     history.push({label: 'Outcome recorded', value: `By ${appointment.outcomeByUsername ?? 'someone'}, ${formatDateTime(appointment.outcomeAtUtc)}`});
   }
+  const followUp = dnaFollowUpWords(appointment);
+  if (followUp) history.push({label: 'Follow-up', value: followUp});
+  if (followUp && appointment.dnaFollowUpDetail) history.push({label: 'Follow-up detail', value: appointment.dnaFollowUpDetail});
 
   return (
     <>
@@ -239,6 +259,15 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
                   onClick={() => record('Attended')}
                 />
               </>
+            )}
+            {canBook && appointment.canRecordDnaFollowUp && (
+              <Button
+                label="Record Follow-up"
+                variant="secondary"
+                icon={<Icon icon={AppIcon.DnaFollowUp} />}
+                isDisabled={isBusy}
+                onClick={() => setMode('dnaFollowUp')}
+              />
             )}
             {canBookAnother && <Button label="Book Another" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setMode('bookAnother')} />}
             {canBook && appointment.canReschedule && <Button label="Reschedule" variant="secondary" isDisabled={isBusy} onClick={() => setMode('book')} />}
@@ -313,6 +342,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               </MetadataList>
             )
           )}
+          <AppointmentMessages appointmentId={id} isEnabled={isOpen && mode === 'view' && !!appointment.startUtc} />
         </VStack>
       </DialogFrame>
       <ConfirmDialog
@@ -327,7 +357,10 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         isProcessing={actions.cancel.isPending}
         onConfirm={cancel}
         onCancel={() => setMode('view')}>
-        <TextArea label="Reason" value={reason} onChange={setReason} rows={3} maxLength={500} isRequired />
+        <VStack gap={3} hAlign="stretch">
+          <TextArea label="Reason" value={reason} onChange={setReason} rows={3} maxLength={500} isRequired />
+          {offersTell && <TellPatientField value={tells} onChange={setTellPatient} isDisabled={actions.cancel.isPending} />}
+        </VStack>
       </ConfirmDialog>
       <ConfirmDialog
         isOpen={isOpen && mode === 'enteredInError'}
@@ -343,6 +376,12 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         onCancel={() => setMode('view')}>
         <TextArea label="Reason" value={reason} onChange={setReason} rows={3} maxLength={500} isRequired />
       </ConfirmDialog>
+      <DnaFollowUpDialog
+        isOpen={isOpen && mode === 'dnaFollowUp'}
+        appointment={appointment}
+        patientState={patientState}
+        onClose={() => setMode('view')}
+      />
       <BookAppointmentDialog
         isOpen={isOpen && mode === 'book'}
         appointment={appointment}

@@ -30,4 +30,7 @@ public sealed class UpdatePatientRequest
     /// (<c>00000000-0000-0000-0000-000000000000</c>) removes it. A newly chosen practice mustn't be archived.
     /// </summary>
     public Guid? PracticeId { get; set; }
+
+    /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail. Left out (null), unchanged.</summary>
+    public string? ReminderChannel { get; set; }
 }

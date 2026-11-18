@@ -24,7 +24,7 @@ public static class PathwayMapper
     /// </summary>
     public static IEnumerable<Guid> UserIds(PatientPathway pathway) =>
         pathway.Assignments.SelectMany(a => new[] { a.UserId, a.AssignedByUserId })
-            .Concat(pathway.Stages.SelectMany(s => new[] { s.StartedByUserId, s.CompletedByUserId }).OfType<Guid>())
+            .Concat(pathway.Stages.SelectMany(s => new[] { s.StartedByUserId, s.CompletedByUserId, s.SkippedByUserId }).OfType<Guid>())
             .Concat(pathway.Notes.SelectMany(n => new[] { n.AuthorUserId, n.DeletedByUserId }).OfType<Guid>())
             .Distinct();
 
@@ -98,6 +98,7 @@ public static class PathwayMapper
             LastUpdated = pathway.LastUpdated,
             CurrentStageId = current?.Id,
             CompletedStageCount = pathway.Stages.Count(s => s.IsCompleted),
+            SkippedStageCount = pathway.Stages.Count(s => s.IsSkipped),
             StageCount = pathway.Stages.Count,
             AllowedStatusChanges = canWork
                 ? PathwayWorkflow.AllowedStatusChanges(pathway)
@@ -127,6 +128,18 @@ public static class PathwayMapper
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
+                    IsOptional = s.IsOptional,
+                    ChoosesBranch = s.ChoosesBranch,
+                    Branch = s.Branch,
+                    Branches = PathwayWorkflow.Branches(pathway, s)
+                        .Select(b => new PatientPathwayBranchResponse
+                        {
+                            Name = b.Name,
+                            StageNames = b.Stages.Select(x => x.Name).ToList(),
+                            StageNamesToDo = b.Stages.Where(PathwayWorkflow.IsToDo).Select(x => x.Name).ToList()
+                        })
+                        .ToList(),
+                    NeedsBranchChoice = s.ChoosesBranch && !s.IsCompleted && PathwayWorkflow.Branches(pathway, s).Count > 0,
                     Notes = s.Notes,
                     State = PathwayWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,
@@ -134,6 +147,15 @@ public static class PathwayMapper
                     CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
                     CanUnlock = Allows(viewerPermissions, Permission.OverrideStages)
                         && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
+                    CanSkip = canWork && canChange
+                        && PathwayWorkflow.CanSkipStage(pathway, s, Allows(viewerPermissions, Permission.OverrideStages)),
+                    CanReinstate = Allows(viewerPermissions, Permission.OverrideStages)
+                        && canChange && PathwayWorkflow.CanReinstateStage(pathway, s),
+                    SkippedAtUtc = s.SkippedAtUtc,
+                    SkippedByUserId = s.SkippedByUserId,
+                    SkippedByUsername = Username(usernames, s.SkippedByUserId),
+                    SkipReason = s.SkipReason?.ToString(),
+                    SkipDetail = s.SkipDetail,
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),
@@ -203,6 +225,7 @@ public static class PathwayMapper
         Status = pathway.Status.ToString(),
         IsOverdue = PathwayWorkflow.IsOverdue(pathway, nowUtc),
         CompletedStageCount = pathway.Stages.Count(s => s.IsCompleted),
+        SkippedStageCount = pathway.Stages.Count(s => s.IsSkipped),
         StageCount = pathway.Stages.Count,
         CurrentStageName = PathwayWorkflow.CurrentStage(pathway)?.Name,
         Assignees = pathway.Assignments

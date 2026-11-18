@@ -40,9 +40,12 @@ public sealed class PatientPathwayResponse
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
 
-    /// <summary>The stage being worked on: the first one not finished. Null when every stage is finished.</summary>
+    /// <summary>The stage being worked on: the first one neither finished nor skipped. Null when every stage is either.</summary>
     public Guid? CurrentStageId { get; set; }
     public int CompletedStageCount { get; set; }
+
+    /// <summary>How many stages were skipped (an optional stage, or another branch chosen).</summary>
+    public int SkippedStageCount { get; set; }
     public int StageCount { get; set; }
 
     /// <summary>The manual status changes allowed from here (see ChangePatientPathwayStatusRequest).</summary>

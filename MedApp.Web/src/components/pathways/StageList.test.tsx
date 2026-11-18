@@ -201,3 +201,39 @@ describe('StageList, held by the page', () => {
     expect(screen.getByText('Finished by unknown, 3 Nov 2026, 14:30')).toBeVisible();
   });
 });
+
+describe('StageList: skipped stages and branches', () => {
+  it('strikes a skipped stage through, saying why, who skipped it and when, with its detail', async () => {
+    const {user} = renderWithApp(
+      <StageList
+        stages={[
+          stage({
+            id: 's2',
+            stageOrder: 2,
+            name: 'Physio',
+            state: 'Skipped',
+            isOptional: true,
+            skippedAtUtc: '2026-11-03T14:30:00Z',
+            skippedByUsername: 'b.user',
+            skipReason: 'Other',
+            skipDetail: 'Seen at another hospital',
+          }),
+          stage({id: 's1', stageOrder: 1, name: 'Biopsy', choosesBranch: true}),
+          stage({id: 's3', stageOrder: 3, name: 'Follow-up', branch: 'Benign', state: 'Skipped', skippedAtUtc: '2026-11-03T14:30:00Z', skipReason: 'BranchNotChosen'}),
+        ]}
+      />,
+    );
+
+    const physio = await screen.findByText('2. Physio');
+    expect(physio.className).not.toBe(screen.getByText('1. Biopsy').className);
+    expect(screen.getByText('Skipped: Other')).toBeInTheDocument();
+    expect(screen.getByText('Optional')).toBeInTheDocument();
+    expect(screen.getByText('Branch point')).toBeInTheDocument();
+    expect(screen.getByText('Branch: Benign')).toBeInTheDocument();
+    expect(screen.getByText('Skipped: Another branch was chosen')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', header('2. Physio')));
+    expect(screen.getByText('Skipped by b.user, 3 Nov 2026, 14:30: Other')).toBeVisible();
+    expect(screen.getByText('Detail: Seen at another hospital')).toBeVisible();
+  });
+});

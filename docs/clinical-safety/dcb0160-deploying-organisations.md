@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.8, draft |
+| **Version** | 0.9, draft |
 | **Date** | 18 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -56,7 +56,8 @@ The manufacturer's safety case holds only if you:
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes, including which stages involve a visit and whether it's suggested or required;
 - **set up calendars:** activity types, day and week templates and each person's default week, and record staff absence in MedApp;
 - **book and follow up visits:** someone reviews the Requires Appointment list and Did not attend appointments on a set schedule;
-- **tell patients about their appointments,** and about every cancellation and change, by your own process. MedApp doesn't contact patients;
+- **tell patients about their appointments,** and about every cancellation and change, by your own process. MedApp texts and emails patients only if you turn it on, and only those who chose it: treat those messages as a courtesy on top of your process, never instead of it;
+- **follow up missed appointments:** someone owns the Did not attend view on Requires Appointment and works it on a set schedule;
 - **train staff,** including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist opens on work not yet started;
 - **handle referrals safely,** once you use them: give the permission to register referrals (`RegisterReferrals`), and to triage them (`TriageReferrals`, with membership of the specialty), only to the right people, with at least one triager for every specialty; check the referral inbox every working day; keep a paper or downtime process for referrals; and, once the waiting-time clock exists, set its targets and review your waiting list;
 - **have at least two admins** who are available while staff work;
@@ -104,10 +105,13 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-42 A paused waiting-time clock is forgotten | Once the clock is built: a weekly look at the Paused clocks view, and pauses only for patient-initiated delays |
 | H-43 A breach of a waiting-time target goes unnoticed, or the target is wrong | Once the clock is built: set each specialty's targets under your clinical governance, review them, and review your waiting list on a set schedule |
 | H-44 A duplicate referral leads to two pathways for one need | Read MedApp's warning of an open referral to the same specialty before confirming; mark a duplicate registered by mistake as entered in error |
+| H-53 A reminder reaches the wrong person or says too much | If you turn texts and emails on: confirm the patient's mobile, email and reminder choice with them whenever they're given or change, and record an opt-out at once; choose a sender name (`PatientMessages:SenderName`) and site names that don't reveal the kind of care where that matters; check a message's stored copy on the appointment when a patient asks what they were sent |
+| H-54 A patient relies on a reminder that isn't sent | **Reminders are a courtesy:** your appointment letters or calls stay the way patients are told. Tell patients that, and look at an appointment's messages ("No reminder", failed) when it matters that they come |
+| H-55 A missed appointment isn't followed up | **A named owner for the Did not attend view** (Requires Appointment), with cover, who works it on a set schedule, including the Rebook and Clinician to review items still listed; your policy for patients who don't attend, including who may decide "No further appointment". MedApp never discharges anyone because of a missed appointment: discharge is a clinician's action |
 
 ### Planned: what you'll provide for the centre's Phases 3 to 5
 
-Specimens, results, letters, clinics, reminders, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO.
+Specimens, results, letters, clinics, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO. **Reminders and the Did not attend view are built** (PR 26): their controls (H-53 to H-55) are in the table above.
 
 | Hazard | What you'll provide |
 |---|---|
@@ -118,10 +122,7 @@ Specimens, results, letters, clinics, reminders, the MDT list, consent and the N
 | H-49 A letter isn't sent, or goes late | A daily check of letters to send and awaiting approval, and **a downtime process for letters** (below) |
 | H-50 A letter shows another patient's details, or an unapproved version is sent | Check the identifiers on every page before posting or handing a letter over |
 | H-51 A branch is chosen, or a stage skipped, in error | Clinical sign-off of each template's branches and optional stages |
-| H-52 A patient is booked when nobody, or no room, is available | Keep sites' and staff's hours and closed days up to date; work the call list when a clinic is cancelled |
-| H-53 A reminder reaches the wrong person or says too much | Confirm the patient's mobile, email and reminder choice with them, and record an opt-out |
-| H-54 A patient relies on a reminder that isn't sent | **Reminders are a courtesy:** your appointment letters or calls stay the way patients are told |
-| H-55 A missed appointment isn't followed up | A named owner for the Did not attend view, and your policy for patients who don't attend |
+| H-52 A patient is booked when nobody, or no room, is available | Keep sites' and staff's hours and closed days up to date; work the call list when a clinic is cancelled (MedApp can also text or email the patients who chose it, if you've turned messages on and tick "Tell the patient") |
 | H-56 A scheduled job stops and nobody notices | Alerting on MedApp's health check, and a weekly look at Scheduled Jobs (for a hosted service, the manufacturer's) |
 | H-57 A record is anonymised too early because its retention class is wrong | Your DPO checks the retention class of each template and the years against the Records Management Code of Practice |
 | H-58 An MDT outcome is recorded on the wrong patient, or not acted on | The MDT's own process for confirming outcomes and owning actions |
@@ -148,7 +149,12 @@ Specimens, results, letters, clinics, reminders, the MDT list, consent and the N
   - The working day is fixed at 08:00 to 18:00 UK time, Monday to Friday, and MedApp doesn't know bank holidays. Block off closed days and shorter hours by hand.
   - Set up the activity types (names should give no private reason: "Annual leave", not why) and the day and week templates, and give each member of staff a default week.
   - A change to a template applies from today, and can land on appointments already booked; MedApp shows both but moves nothing, so check each calendar it affects.
-  - MedApp doesn't contact patients. Decide how patients are told of bookings, changes and cancellations, and who does it.
+  - Decide how patients are told of bookings, changes and cancellations, and who does it. MedApp texts and emails patients only if you turn it on (below).
+- **Texts and emails to patients** (off by default):
+  - Decide whether to use them at all. They need **your own GOV.UK Notify service** (or another provider), its two templates and its API key in your deployment's secret store, and the `Live` mode (`PatientMessages:Mode`); your DPO checks the provider first ([`docs/governance/sub-processors.md`](../governance/sub-processors.md)).
+  - Set your sender name (`PatientMessages:SenderName`), a contact phone for appointments without a site's phone (`PatientMessages:ContactPhone`), how many days before an appointment reminders go (`Reminders:DaysBefore`, 2 by default), and whether patients who miss an appointment are messaged the next working day (`Reminders:MissedMessage`, off by default).
+  - Give each room a site with an address and phone, so messages say where to go; an appointment without a room names no site.
+  - Never use the `Offline` mode with real patients: it's for development and demonstrations.
 
 ## Training
 
@@ -161,7 +167,7 @@ Before anyone uses MedApp with patients, they need to know:
 - that notifications are a convenience, and My Worklist is the list to work from, with its filter set to all open work: it opens on "Not started", which hides work already under way, including overdue and blocked work;
 - how to attach a file to the right patient, pathway or stage, and what to do if it goes to the wrong one (H-23);
 - that files are only downloaded, never shown in the page, what "Not scanned" means, and to delete downloaded copies when finished;
-- how to book an appointment, check the patient, and find free time; that Requires Appointment (from the Calendar page) lists the visits still to book; that a stage whose visit is required can't be finished until the appointment is marked Attended; and that MedApp doesn't tell patients anything, so a cancellation or change must be passed on;
+- how to book an appointment, check the patient, and find free time; that Requires Appointment (from the Calendar page) lists the visits still to book; that a stage whose visit is required can't be finished until the appointment is marked Attended; and that a cancellation or change must be passed on to the patient: MedApp texts or emails them only if you've turned it on, the patient chose it, and the member of staff ticks "Tell the patient"; how to read an appointment's messages ("No reminder", sent, delivered, failed); how to record a patient's reminder choice; and how to work the Did not attend view and record a follow-up, knowing MedApp never discharges anyone because of a missed appointment;
 - what to do when MedApp is unavailable;
 - how to report a problem or a safety incident.
 
@@ -195,7 +201,7 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | D-09 | Accounts shared, or leavers not removed | Busy wards; no leaver process | One account per person; a leaver checklist that reassigns the leaver's open pathways, then removes the account |
 | D-10 | Unsuitable devices or browsers | Phones, shared or old devices | Supported devices and browsers listed; desktop use |
 | D-11 | Attached documents taken or kept outside managed systems | Photos taken on personal phones; downloaded files left on shared computers | Only organisation devices for clinical photos; downloads cleared on shared computers |
-| D-12 | Patients aren't told of bookings, changes or cancellations | No owner for patient contact; MedApp sends nothing | A named owner and process; a check that every change has been passed on |
+| D-12 | Patients aren't told of bookings, changes or cancellations | No owner for patient contact; texts and emails off, or relied on for patients who didn't choose them | A named owner and process; a check that every change has been passed on; messages treated as a courtesy |
 | D-13 | Staff absence isn't in MedApp, so appointments are booked when nobody is there | Leave and sickness recorded only elsewhere | Record absence in MedApp before booking; a daily check of the next day's calendars |
 | D-14 | Visit requirements don't match local practice | Set without clinical review; left at none | Clinical sign-off of each stage's visit requirement |
 | D-15 | A referral letter is never registered, or the inbox isn't read | Letters arriving by post, email and fax to different people; no owner for the inbox | One route for referral letters; a named owner and cover for the daily inbox check; a paper log during downtime |
@@ -224,3 +230,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | 0.5 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-12 to D-14 (drafted as D-11 to D-13, renumbered after file attachments took D-11) | AI coding agent, for review |
 | 0.7 | 18 November 2026 | Referrals (branch `feature/referrals`, Phase 2's PR 5): your duties for referrals among the assumptions (the register and triage permissions to the right people, a triager for every specialty, a daily inbox check, a downtime process for referrals, and later the clock's targets), the controls that transfer to you for H-40 to H-44, configuring referral permissions and the inbox's owner, downtime for referrals, and starter hazard D-15; and a warning not to use referrals with patients until triage is built | AI coding agent, for review |
 | 0.8 | 18 November 2026 | Triage (branch `feature/triage`, Phase 2's PR 6): the triage permission is no longer "later"; act on the Specialties page's warning; identify the patient again when triaging; decide how the referrer is told of each outcome; the warning not to use referrals with patients now waits on the CSO's verification of the triage controls | AI coding agent, for review |
+| 0.9 | 18 November 2026 | Patient reminders and the Did not attend view (branch `feature/patient-reminders`, Phase 4's PR 26): the assumptions now say MedApp texts and emails patients only if you turn it on, as a courtesy, and add following up missed appointments; the controls for H-53 to H-55 move from planned to the table of controls you provide, with what was built (a sender name that doesn't reveal the service, the stored copy, the Rebook and Clinician to review items, who may decide no further appointment); configuring texts and emails (your own Notify service, the settings, rooms with sites, never `Offline` with real patients); training; H-52's call list and D-12 updated | AI coding agent, for review |

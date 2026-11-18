@@ -10,12 +10,14 @@ import {Token} from '@astryxdesign/core/Token';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useEffect, type ReactNode} from 'react';
 import {activityActionLabel, describeActivity} from '../../api/activity';
-import {appointmentStatusLabel} from '../../api/appointments';
+import {appointmentStatusLabel, dnaFollowUpLabel} from '../../api/appointments';
 import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
+import {messageKindLabel, messageOutcome, reminderChannelLabel, type ExportedPatientMessage} from '../../api/patientMessages';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
+import {describeSkipReason} from '../../api/stageSkips';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -46,6 +48,17 @@ export const ANOTHER_PATIENTS_DETAILS = "Another patient's details: check before
 export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason' | 'deletionDetail'>): string {
   const reason = describeNoteDeletionReason(note.deletionReason, note.deletionDetail);
   return `Deleted by ${note.deletedBy ?? 'an admin'}, ${formatDateTime(note.deletedAtUtc ?? '')}.${reason ? ` Reason: ${reason}` : ''}`;
+}
+
+type ExportedStage = NonNullable<NonNullable<PatientExport['pathways']>[number]['stages']>[number];
+
+/**
+ * A skipped stage's line: "Skipped 3 Sep 2026, 09:00 by l.northcott. Reason: Patient declined", with the detail
+ * after the reason ("Other: seen at another hospital"), and "Another branch was chosen" for a branch not taken.
+ */
+export function skippedStageText(stage: Pick<ExportedStage, 'skippedAtUtc' | 'skippedBy' | 'skipReason' | 'skipDetail'>): string {
+  const reason = describeSkipReason(stage.skipReason, stage.skipDetail);
+  return `Skipped ${formatDateTime(stage.skippedAtUtc ?? '')} by ${stage.skippedBy ?? 'unknown'}.${reason ? ` Reason: ${reason}` : ''}`;
 }
 
 /** Where a request to delete a note stands: waiting, or what an admin decided, by whom and when. */
@@ -109,6 +122,29 @@ export function appointmentHistoryWords(a: ExportedAppointment): string {
     .join(', ');
 }
 
+/** A missed appointment's follow-up, in words: "Follow-up: Rebook, recorded 24 Nov 2026, 10:00 by k.ashford". */
+export function dnaFollowUpExportWords(a: Pick<ExportedAppointment, 'dnaFollowUp' | 'dnaFollowUpAtUtc' | 'dnaFollowUpBy'>): string | null {
+  if (!a.dnaFollowUp) return null;
+  return `Follow-up: ${dnaFollowUpLabel(a.dnaFollowUp)}, recorded ${when(a.dnaFollowUpAtUtc)}${a.dnaFollowUpBy ? ` by ${a.dnaFollowUpBy}` : ''}`;
+}
+
+/** A message to the patient in a line: "Reminder by Text to 07700 900123". */
+export function exportedMessageTitle(m: Pick<ExportedPatientMessage, 'kind' | 'channel' | 'destination'>): string {
+  const to = m.destination ? ` to ${m.channel === 'Text' ? formatMobile(m.destination) : m.destination}` : '';
+  return `${messageKindLabel(m.kind)} by ${m.channel ?? ''}${to}`;
+}
+
+/** What became of a message: "Delivered, sent 21 Nov 2026, 09:00, status from 21 Nov 2026, 09:01". */
+export function exportedMessageOutcome(m: ExportedPatientMessage): string {
+  return [
+    messageOutcome(m),
+    m.sentAtUtc ? `sent ${when(m.sentAtUtc)}` : null,
+    m.statusAtUtc && !sameMoment(m.statusAtUtc, m.sentAtUtc) ? `status from ${when(m.statusAtUtc)}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 const APPOINTMENT_ACTIONS: Record<string, string> = {
   Requested: 'Appointment requested',
   Booked: 'Appointment booked',
@@ -119,6 +155,7 @@ const APPOINTMENT_ACTIONS: Record<string, string> = {
   NotesUpdated: 'Appointment notes changed',
   RecordedAfterEvent: 'Recorded after the event',
   EnteredInError: 'Marked entered in error',
+  DnaFollowUpRecorded: 'Did not attend follow-up recorded',
 };
 
 /** An appointment history action in words: "DidNotAttend" → "Marked Did not attend". */
@@ -161,6 +198,8 @@ export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange,
         .join(', ');
     case 'EnteredInError':
       return text(d.reason);
+    case 'DnaFollowUpRecorded':
+      return [text(d.decision) ? dnaFollowUpLabel(text(d.decision)) : null, text(d.detail) || null].filter(Boolean).join(': ');
     case 'NotesUpdated': {
       const change = `${quoted(d.from)} → ${quoted(d.to)}`;
       return change.charAt(0).toUpperCase() + change.slice(1);
@@ -399,6 +438,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const deletionRequests = data.noteDeletionRequests ?? [];
   const appointments = data.appointments ?? [];
   const appointmentHistory = data.appointmentHistory ?? [];
+  // Every text and email to the patient, and those that couldn't go, with why.
+  const messages = data.messages ?? [];
   const access = data.accessLog ?? [];
   const notifications = data.notifications ?? [];
   const files = data.attachments ?? [];
@@ -426,6 +467,7 @@ function ExportContent({data}: {data: PatientExport}) {
           <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
           <MetadataListItem label="Mobile">{patient?.mobilePhone ? formatMobile(patient.mobilePhone) : '—'}</MetadataListItem>
+          <MetadataListItem label="Reminders">{reminderChannelLabel(patient?.reminderChannel)}</MetadataListItem>
           <MetadataListItem label="Address">{oneLineAddress(patient?.addressLines, patient?.postcode) || '—'}</MetadataListItem>
           <MetadataListItem label="GP Practice">
             {patient?.practiceName ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}` : '—'}
@@ -487,20 +529,29 @@ function ExportContent({data}: {data: PatientExport}) {
                         key={stage.order}
                         align="first-line"
                         label={
-                          <Text type="body" weight="semibold">
-                            {`${stage.order}. ${stage.name}`}
+                          // A skipped stage is struck through, as the pathway page shows it.
+                          <Text type="body" weight="semibold" hasStrikethrough={Boolean(stage.skippedAtUtc)}>
+                            {`${stage.order}. ${stage.name}${stage.branch ? ` (${stage.branch} branch)` : ''}`}
                           </Text>
                         }
                         description={
                           <VStack gap={1}>
                             <Text type="supporting" color="secondary">
-                              {[
-                                stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedBy}` : 'Not started',
-                                stage.finishedAtUtc ? `finished ${when(stage.finishedAtUtc)} by ${stage.finishedBy}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(', ')}
+                              {stage.skippedAtUtc && !stage.startedAtUtc
+                                ? skippedStageText(stage)
+                                : [
+                                    stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedBy}` : 'Not started',
+                                    stage.finishedAtUtc ? `finished ${when(stage.finishedAtUtc)} by ${stage.finishedBy}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(', ')}
                             </Text>
+                            {/* Started, then skipped: both are said. */}
+                            {stage.skippedAtUtc && stage.startedAtUtc && (
+                              <Text type="supporting" color="secondary">
+                                {skippedStageText(stage)}
+                              </Text>
+                            )}
                             {stage.notes ? <RichText>{stage.notes}</RichText> : null}
                           </VStack>
                         }
@@ -690,6 +741,11 @@ function ExportContent({data}: {data: PatientExport}) {
                           {`${a.status === 'EnteredInError' ? 'Why entered in error' : 'Why cancelled'}: ${a.cancelReason}`}
                         </Text>
                       )}
+                      {a.dnaFollowUp && (
+                        <Text type="supporting" color="secondary">
+                          {[dnaFollowUpExportWords(a), a.dnaFollowUpDetail].filter(Boolean).join(': ')}
+                        </Text>
+                      )}
                       {a.notes && <Text type="body">{`Notes: ${a.notes}`}</Text>}
                     </VStack>
                   }
@@ -720,6 +776,34 @@ function ExportContent({data}: {data: PatientExport}) {
                         .filter(Boolean)
                         .join(' · ')}
                     </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Messages (${messages.length})`}>
+        {messages.length === 0
+          ? nothing('No texts or emails to the patient.')
+          : (
+            <List hasDividers edge="bleed">
+              {messages.map((m, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={<Text type="body">{`${when(m.createdAtUtc)}: ${exportedMessageTitle(m)}`}</Text>}
+                  description={
+                    <VStack gap={1}>
+                      <Text type="supporting" color="secondary">
+                        {[
+                          exportedMessageOutcome(m),
+                          `About the appointment at ${formatAppointmentTime(m.appointmentStartUtc ?? '')}`,
+                          m.requestedBy ? `Asked for by ${m.requestedBy}` : 'Sent by MedApp',
+                        ].join(' · ')}
+                      </Text>
+                      {m.body && <Text type="body">{m.body}</Text>}
+                    </VStack>
                   }
                 />
               ))}

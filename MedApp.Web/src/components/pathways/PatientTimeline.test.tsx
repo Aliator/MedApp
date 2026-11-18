@@ -147,6 +147,7 @@ describe('PatientTimeline', () => {
             entry({kind: 'Appointments', action: 'AppointmentNotesUpdated'}),
             entry({kind: 'Appointments', action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}),
             entry({kind: 'Appointments', action: 'AppointmentEnteredInError'}),
+            entry({kind: 'Appointments', action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook'}),
             entry({action: 'StageFinished', finishedWithoutVisit: true, visitRequirement: 'Suggested'}),
           ],
           nextCursor: null,
@@ -159,6 +160,7 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Finished Consultation without a visit')).toBeInTheDocument();
     expect(screen.getByText('Appointment recorded after the event for Consultation: did not attend')).toBeInTheDocument();
     expect(screen.getByText('Appointment marked entered in error for Consultation')).toBeInTheDocument();
+    expect(screen.getByText('Did not attend follow-up recorded for Consultation: Rebook')).toBeInTheDocument();
     // Not for a pathway: no link, just when and who.
     const missed = within(screen.getByText('Marked Did not attend').closest('li')!);
     expect(missed.queryByRole('link')).not.toBeInTheDocument();
@@ -319,6 +321,9 @@ describe('PatientTimeline', () => {
         json({
           items: [
             entry({action: 'StageUnlocked'}),
+            entry({action: 'StageSkipped', skipReason: 'PatientDeclined'}),
+            entry({action: 'BranchChosen', branch: 'Treatment', skippedStageNames: ['Follow-up']}),
+            entry({action: 'StageReinstated', skipReason: 'NotNeeded'}),
             entry({action: 'Unassigned', kind: 'Assignments', assigneeUsername: 'other.staff'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'InProgress', toStatus: 'Blocked'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'Blocked', toStatus: 'InProgress'}),
@@ -336,6 +341,12 @@ describe('PatientTimeline', () => {
 
     for (const text of [
       'Unlocked Consultation',
+      'Skipped Consultation',
+      'Patient declined',
+      'Chose the Treatment branch at Consultation',
+      'Skipped: Follow-up',
+      'Reinstated Consultation',
+      'Had been skipped: Not needed',
       'Unassigned other.staff',
       'Put on hold',
       'Taken off hold',

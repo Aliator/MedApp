@@ -77,6 +77,8 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'AppointmentNotesUpdated':
       return AppIcon.Notes;
+    case 'AppointmentDnaFollowUpRecorded':
+      return AppIcon.DnaFollowUp;
     case 'ReferralDetailsEdited':
       return AppIcon.Edit;
     case 'ReferralWithdrawn':
@@ -100,6 +102,12 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.Calendar;
     case 'StageUnlocked':
       return AppIcon.Unlock;
+    case 'StageSkipped':
+      return AppIcon.Skip;
+    case 'BranchChosen':
+      return AppIcon.Branch;
+    case 'StageReinstated':
+      return AppIcon.Restore;
     case 'Unassigned':
       return AppIcon.Revoke;
     case 'AttachmentDeleted':

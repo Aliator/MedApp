@@ -178,7 +178,8 @@ public static class PathwayInsightsQueries
 
     /// <summary>
     /// The average time spent at each stage of each template, over the stages first finished between two moments.
-    /// A stage is reached when the one before it is first finished (the first stage, when the pathway is created);
+    /// A stage is reached when the one before it is first finished, or skipped (the first stage, when the pathway is
+    /// created); skipped stages themselves are left out, as nobody worked on them (they're never finished);
     /// it waits until someone starts it, then is worked on until it's first finished. "First" because an admin can
     /// unlock a finished stage and it's finished again, which moves its finish time on but not when the pathway moved
     /// on: the audit log keeps every finish, so the first is used, falling back to the stage's own time.
@@ -208,7 +209,7 @@ public static class PathwayInsightsQueries
                 s.Name,
                 ReachedUtc = stages
                     .Where(b => b.PatientPathwayId == s.PatientPathwayId && b.StageOrder == s.StageOrder - 1)
-                    .Select(b => finishes.Where(e => e.PatientPathwayId == b.PatientPathwayId && e.StageId == b.Id).OrderBy(e => e.AtUtc).Select(e => (DateTime?)e.AtUtc).FirstOrDefault() ?? b.CompletedAtUtc)
+                    .Select(b => finishes.Where(e => e.PatientPathwayId == b.PatientPathwayId && e.StageId == b.Id).OrderBy(e => e.AtUtc).Select(e => (DateTime?)e.AtUtc).FirstOrDefault() ?? b.SkippedAtUtc ?? b.CompletedAtUtc)
                     .FirstOrDefault() ?? p.CreatedAt,
                 StartedUtc = s.StartedAtUtc!.Value,
                 FinishedUtc = finishes.Where(e => e.PatientPathwayId == s.PatientPathwayId && e.StageId == s.Id).OrderBy(e => e.AtUtc).Select(e => (DateTime?)e.AtUtc).FirstOrDefault() ?? s.CompletedAtUtc!.Value,

@@ -57,7 +57,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AppointmentsController.CancelAppointment 00011
         AppointmentsController.CreateAppointment 00011
         AppointmentsController.GetAppointmentById 00011
+        AppointmentsController.GetAppointmentMessages 00011
+        AppointmentsController.GetPatientMessagingStatus 00011
         AppointmentsController.MarkEnteredInError 00011
+        AppointmentsController.RecordDnaFollowUp 00011
         AppointmentsController.RecordOutcome 00011
         AppointmentsController.RecordPastAppointment 00011
         AppointmentsController.SearchAppointments 00011
@@ -202,8 +205,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientPathwaysController.FinishPathwayStage 00011
         PatientPathwaysController.GetPatientPathwayById 00011
         PatientPathwaysController.GetPatientPathwayLabels 00011
+        PatientPathwaysController.ReinstatePathwayStage 00001
         PatientPathwaysController.RequestNoteDeletion 00011
         PatientPathwaysController.SearchPatientPathways 00011
+        PatientPathwaysController.SkipPathwayStage 00011
         PatientPathwaysController.StartPathwayStage 00011
         PatientPathwaysController.UnassignPatientPathway 00001
         PatientPathwaysController.UnlockPathwayStage 00001

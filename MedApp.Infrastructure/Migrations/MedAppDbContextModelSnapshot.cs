@@ -96,6 +96,19 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("DnaFollowUp")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DnaFollowUpAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DnaFollowUpByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DnaFollowUpDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateTime?>("EndUtc")
                         .HasColumnType("datetime2");
 
@@ -1402,6 +1415,20 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<int>("StageOrder")
                         .HasColumnType("int");
 
+                    b.Property<string>("Branch")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("ChoosesBranch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsOptional")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid>("StageDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1662,6 +1689,15 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Branch")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("ChoosesBranch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1693,6 +1729,11 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsOptional")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
@@ -1711,6 +1752,19 @@ namespace MedApp.Infrastructure.Migrations
                         .HasDefaultValue("");
 
                     b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SkipDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("SkipReason")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SkippedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("SkippedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("SnomedCode")
@@ -1811,6 +1865,88 @@ namespace MedApp.Infrastructure.Migrations
                             Name = "Definition missing",
                             VisitRequirement = 0
                         });
+                });
+
+            modelBuilder.Entity("MedApp.Domain.PatientMessages.PatientMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AppointmentRoomId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AppointmentStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasDefaultValue("");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)")
+                        .HasDefaultValue("");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SendAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StatusAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex(new[] { "AppointmentId", "Kind", "Channel", "AppointmentStartUtc", "AppointmentRoomId" }, "IX_PatientMessages_AppointmentId_Kind_Channel_AppointmentStartUtc_AppointmentRoomId")
+                        .IsUnique();
+
+                    b.ToTable("PatientMessages", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Patients.Patient", b =>

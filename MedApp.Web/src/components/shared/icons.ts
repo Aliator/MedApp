@@ -6,6 +6,8 @@ import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
+  RiChatFollowUpLine,
+  RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
   RiFirstAidKitLine,
@@ -82,6 +84,8 @@ import {
   RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
+  RiSkipForwardLine,
+  RiGitBranchLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -301,9 +305,16 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Pathways that branch: skipping an optional stage, and a branch point (where the clinician chooses a branch)
+  Skip: remix(RiSkipForwardLine),
+  Branch: remix(RiGitBranchLine),
   // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
   Wait: remix(RiTimeLine),
   PauseClock: remix(RiPauseCircleLine),
   ResumeClock: remix(RiPlayCircleLine),
   ClockStopped: remix(RiStopCircleLine),
+  /** A text or email to a patient about an appointment (a reminder, a move, a cancellation, a missed appointment). */
+  PatientMessage: remix(RiMessage2Line),
+  /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */
+  DnaFollowUp: remix(RiChatFollowUpLine),
 } as const satisfies Record<string, IconType>;

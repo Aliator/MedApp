@@ -45,6 +45,9 @@ setup('sign in and find shared records', async ({ page }, info) => {
   const stageId = await byName(page, `${apiUrl}/api/pathways/patient-pathway-stage/definitions`, 'Histology (lab)');
   const specialtyId = await byName(page, `${apiUrl}/api/specialties`, 'Dermatology');
 
+  // And a template that branches, with a pathway made from it (best effort: the branching screens skip without them).
+  const branching = await branchingPathway(page, apiUrl).catch(() => undefined);
+
   writeData(app, {
     patientId: patients[0].id,
     pathwayId,
@@ -53,6 +56,8 @@ setup('sign in and find shared records', async ({ page }, info) => {
     meetingDate: meeting?.date,
     stageId,
     specialtyId,
+    branchingTemplateId: branching?.templateId,
+    branchingPathwayId: branching?.pathwayId,
   });
 });
 
@@ -117,4 +122,18 @@ async function parityMeeting(page: Page, apiUrl: string, username: string): Prom
     });
   }
   return meeting;
+}
+
+/** The first template with a branch point, and its first pathway by title (open or not); undefined without one. */
+async function branchingPathway(page: Page, apiUrl: string): Promise<{ templateId: string; pathwayId?: string } | undefined> {
+  const response = await page.request.get(`${apiUrl}/api/pathways/patient-pathway-stage/templates`);
+  if (!response.ok()) return undefined;
+  const templates = (await response.json()) as { id: string; stages?: { choosesBranch?: boolean }[] }[];
+  const template = templates.find((t) => (t.stages ?? []).some((s) => s.choosesBranch));
+  if (!template) return undefined;
+  const pathways = await page.request.get(
+    `${apiUrl}/api/pathways/patient-pathways/search?TemplateId=${template.id}&IncludeClosed=true&Sort=title&PageSize=1`,
+  );
+  const pathwayId = pathways.ok() ? ((await pathways.json()) as { items: { id: string }[] }).items[0]?.id : undefined;
+  return { templateId: template.id, pathwayId };
 }
