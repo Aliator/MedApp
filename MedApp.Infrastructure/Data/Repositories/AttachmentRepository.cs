@@ -3,6 +3,7 @@ using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -44,6 +45,12 @@ public sealed class AttachmentRepository(MedAppDbContext context) : IAttachmentR
 
         return (rows, totalCount);
     }
+
+    public async Task<Referral?> GetReferralAsync(Guid referralId, CancellationToken ct) =>
+        await context.Referrals
+            .AsNoTracking()
+            .Include(r => r.Patient)
+            .FirstOrDefaultAsync(r => r.Id == referralId, ct);
 
     public async Task<Guid?> GetStagePathwayIdAsync(Guid stageId, CancellationToken ct) =>
         await context.PatientPathwayStages

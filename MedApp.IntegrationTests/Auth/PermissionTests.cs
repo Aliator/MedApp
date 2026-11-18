@@ -37,8 +37,8 @@ public sealed class PermissionTests : IntegrationTest
     private const string MadeRole = "Visitor";
 
     /// <summary>
-    /// For each permission with an endpoint: one it guards, a role that has the permission and one that hasn't. The
-    /// referral permissions have no endpoints yet (Phase 2's referrals PRs add them).
+    /// For each permission with an endpoint: one it guards, a role that has the permission and one that hasn't.
+    /// TriageReferrals has no endpoint yet (Phase 2's triage PR adds it).
     /// </summary>
     private static IEnumerable<TestCaseData> Guarded()
     {
@@ -47,6 +47,7 @@ public sealed class PermissionTests : IntegrationTest
         yield return Case(Permission.ViewPatients, "GET", "/api/patients/search", "Lab", MadeRole);
         yield return Case(Permission.EditPatients, "POST", "/api/patients", "Nurse", "Lab");
         yield return Case(Permission.DeletePatients, "DELETE", $"/api/patients/{AnyId}", "Booking", "Nurse");
+        yield return Case(Permission.RegisterReferrals, "POST", "/api/referrals", "Booking", "Lab");
         yield return Case(Permission.CreatePathways, "POST", "/api/pathways/patient-pathways", "Nurse", "Booking");
         yield return Case(Permission.WorkPathways, "POST", $"{pathway}/stages/{AnyId}/start", "Lab", "Booking");
         yield return Case(Permission.AssignPathways, "POST", $"{pathway}/assignments/{AnyId}", "Manager", "Clinician");

@@ -37,7 +37,7 @@ public sealed class PatientNhsNumberMappingTests
         patient.NhsNumber = NhsNumber;
 
         PatientAnonymiser.Apply(
-            new PatientRecord { Patient = patient, Pathways = [], PathwayHistory = [], Activity = [], Appointments = [], AppointmentHistory = [], Notifications = [], NoteVersions = [], NoteDeletionRequests = [], Attachments = [] },
+            new PatientRecord { Patient = patient, Pathways = [], PathwayHistory = [], Activity = [], Appointments = [], AppointmentHistory = [], Notifications = [], NoteVersions = [], NoteDeletionRequests = [], Attachments = [], Referrals = [], ReferralHistory = [] },
             ActivityTestConstants.Now);
 
         patient.NhsNumber.Should().BeNull();

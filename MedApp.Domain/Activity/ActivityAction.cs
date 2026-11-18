@@ -119,7 +119,8 @@ public enum ActivityAction
     /// <summary>An admin changed which specialties someone belongs to: the specialties' IDs and names before and after.</summary>
     StaffSpecialtiesChanged = 42,
 
-    // 43 is ReferralViewed (docs/centre-phase2-plan.md).
+    /// <summary>Someone opened a referral's page: the referral's ID in its details.</summary>
+    ReferralViewed = 43,
 
     /// <summary>
     /// An admin changed a role: renamed it, changed its description (never the text), added or removed permissions (by

@@ -5,6 +5,8 @@ import {
   groupByDay,
   hasTimelineFilters,
   isPatientEntry,
+  isReferralEntry,
+  isReferralFileEntry,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
@@ -75,6 +77,7 @@ describe('timeline filters', () => {
       'Created',
       'Stages',
       'Appointments',
+      'Referrals',
       'Notes',
       'Assignments',
       'On hold',
@@ -314,5 +317,80 @@ describe('isPatientEntry', () => {
     expect(isPatientEntry(entry({attachedTo: null, pathwayId: NO_PATHWAY_ID}))).toBe(true);
     expect(isPatientEntry(entry({attachedTo: 'Pathway'}))).toBe(false);
     expect(isPatientEntry(entry({}))).toBe(false);
+    // A referral's letter has no pathway either, but isn't the patient's own file.
+    expect(isPatientEntry(entry({attachedTo: 'Referral', pathwayId: NO_PATHWAY_ID}))).toBe(false);
+  });
+});
+
+const referralId = '00000031-0000-0000-0000-00000000000a';
+
+/** A referral history entry, as the API sends it: no pathway, its referral and specialty. */
+const referralEntry = (fields: Partial<TimelineEntry>) =>
+  entry({kind: 'Referrals', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology', ...fields});
+
+describe('referral entries', () => {
+  it('knows a referral entry, and a file attached to a referral', () => {
+    expect(isReferralEntry(referralEntry({action: 'ReferralRegistered'}))).toBe(true);
+    expect(isReferralEntry(entry({kind: 'Other', action: 'ReferralWithdrawn'}))).toBe(true);
+    expect(isReferralEntry(entry({}))).toBe(false);
+    expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Referral', referralId}))).toBe(true);
+    expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Patient'}))).toBe(false);
+  });
+
+  it('words a registration: the specialty and priority to staff, the practice and reason only to admins', () => {
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralRegistered', priority: 'High'}))).toEqual({
+      title: 'Referral to Dermatology registered',
+      detail: 'high priority asked for',
+    });
+    expect(
+      describeTimelineEntry(
+        referralEntry({action: 'ReferralRegistered', priority: 'Urgent', referrerPractice: 'Synthetic Surgery', reason: 'A synthetic reason'}),
+      ),
+    ).toEqual({title: 'Referral to Dermatology registered', detail: 'From Synthetic Surgery, urgent priority asked for. Reason: A synthetic reason'});
+  });
+
+  it('words an edit: each field, with the values the API sent', () => {
+    expect(
+      describeTimelineEntry(
+        referralEntry({
+          action: 'ReferralDetailsEdited',
+          specialtyName: 'Urology',
+          changes: [
+            {field: 'reason'},
+            {field: 'receivedOn', from: '2026-11-02', to: '2026-11-03'},
+            {field: 'requestedPriority', from: 'Low', to: 'High'},
+            {field: 'specialty', from: 'Dermatology', to: 'Urology'},
+            {field: 'referrerOdsCode', from: null, to: null},
+          ],
+        }),
+      ),
+    ).toEqual({
+      title: 'Referral to Urology: details edited',
+      detail: 'Reason changed; Received date 2 Nov 2026 → 3 Nov 2026; Requested priority low → high; Specialty Dermatology → Urology; ODS code changed',
+    });
+  });
+
+  it('words a withdrawal and an entry in error, with the detail only for admins', () => {
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralWithdrawn', toStatus: 'Withdrawn'}))).toEqual({
+      title: 'Referral to Dermatology withdrawn',
+      detail: '',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralEnteredInError', reason: 'Registered twice'}))).toEqual({
+      title: 'Referral to Dermatology marked entered in error',
+      detail: 'Registered twice',
+    });
+  });
+
+  it('words a referral change it does not know yet by the status after it', () => {
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralAccepted', toStatus: 'Accepted', specialtyName: null}))).toEqual({
+      title: 'Referral changed',
+      detail: 'Now accepted',
+    });
+  });
+
+  it('says a file was attached to the referral', () => {
+    expect(
+      describeTimelineEntry(entry({kind: 'Files', action: 'AttachmentAdded', attachedTo: 'Referral', referralId, pathwayId: NO_PATHWAY_ID, fileName: null})),
+    ).toEqual({title: 'Attached a file', detail: 'To the referral'});
   });
 });

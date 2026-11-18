@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.7, draft |
+| **Version** | 0.8, draft |
 | **Date** | 16 November 2026 |
 | **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56), with file attachments (branch `feature/file-attachments`) added in version 0.4. |
 | **Manufacturer** | [Manufacturer name] |
@@ -27,6 +27,7 @@
   - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue pathway (H-04), a forgotten blocked pathway (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching pathways under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-23) and malware in a file (H-25).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
+  - **Referrals** (branch `feature/referrals`, Phase 2 of the community specialist centre) bring five draft hazards, H-40 to H-44, written from the design before the build, with ratings left for the CSO. On their draft estimates, four start at 3 (a referral lost or delayed before triage, H-40; triaged into the wrong pathway, priority or patient, H-41; a paused clock forgotten, H-42; a breach unnoticed, H-43) and all come down to 2 at first live use. Registering referrals, the inbox and closing them are built, but **triage isn't** (Phase 2's PR 6) and nor is the waiting-time clock (PR 7), so **referrals mustn't be used with patients until triage and its controls are built and verified.** They aren't counted in the figures above. (H-37 to H-39, from the notepad, note deletion and walk-ins, aren't in this report yet: it's brought up to date with the hazard log before the first release.)
   - **Staff calendars and appointments** add seven draft hazards, H-30 to H-36, whose ratings are left for the CSO. On their draft estimates, four start at 3 (a needed visit that doesn't happen, H-30; a stage finished without its visit, H-32; the wrong patient booked, H-34; a cancellation not passed on to the patient, H-36), and all come down to 2 at first live use with their "before first live use" controls. They aren't counted in the figures above.
 - **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
 - **[CSO's conclusion: to be written by the CSO.]**
@@ -36,8 +37,8 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; pathways from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; target dates and overdue; assignments and My Worklist; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, pathways and stages (download only, not yet scanned for malware); the pathway audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Requires Appointment list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
-| **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] Staff calendars and appointments are the first such change: their hazards are H-30 to H-36, and the device decision was checked for them (`intended-purpose-and-device-decision.md`, version 0.6). |
+| **What's in it** | Patients; pathways from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; target dates and overdue; assignments and My Worklist; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, pathways and stages (download only, not yet scanned for malware); the pathway audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Requires Appointment list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications. With referrals (`feature/referrals`): registering a referral from its letter (finding or adding the patient, the duplicate check), the referral inbox (awaiting triage, oldest received first, with its count in the side navigation), editing a referral awaiting triage, withdrawing it or marking it entered in error, the letter attached to it, and its history on the patient timeline. Not yet: triage and the waiting-time clock |
+| **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] Staff calendars and appointments are the first such change: their hazards are H-30 to H-36, and the device decision was checked for them (`intended-purpose-and-device-decision.md`, version 0.6). Referrals are another: their hazards are H-40 to H-44 (H-01 gains a cause), and the device decision was checked for Phase 2 (`intended-purpose-and-device-decision.md`, version 0.9). |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |
 
@@ -132,7 +133,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are left for the CSO; the figures shown for them are the log's draft estimates, in brackets. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
+From `hazard-log.md`, version 0.9, with H-40 to H-44 from version 0.19. H-30 to H-36 and H-40 to H-44 are drafts whose ratings are left for the CSO; the figures shown for them are the log's draft estimates, in brackets. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
@@ -172,8 +173,13 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 | H-34 | The wrong patient or pathway is booked | (3) | (2) | (2) | Date of birth in the patient picker and confirmations; the patient's name, date of birth and NHS number in the booking and appointment dialogs (built, to verify) |
 | H-35 | An appointment is left without its member of staff | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified; removing every role refused with upcoming bookings (built, to verify); local absence process |
 | H-36 | A cancelled or moved appointment isn't passed on to the patient | (3) | (2) | (2) | "Has the patient been told?" recorded on cancel and move; local process for telling patients |
+| H-40 | A referral is lost or delayed before triage | (3) | (2) | (2) | Built, to verify: the inbox, oldest first, with its count in the side navigation; no closing without a named person and a detail; the restricted message (give the letter to an admin); archiving a specialty refused with referrals waiting. To build: triage, with the registrant told of the outcome; the Specialties page's warning when nobody can triage; the clock's days waited and breach badge. Local: a daily inbox check, a downtime procedure for referrals, a triager for every specialty |
+| H-41 | A referral is triaged into the wrong pathway, priority or patient | (3) | (2) | (2) | Built, to verify: the patient banner on the referral pages and closing confirmations, the letter beside the referral. To build: the banner, specialty and template in every triage confirmation; templates limited to the specialty; no prefilled priority |
+| H-42 | A paused waiting-time clock is forgotten | (3) | (2) | (2) | To build (PR 7): a required review date at most 90 days ahead; the target date becomes the review date; the Paused clocks view |
+| H-43 | A breach of a waiting-time target goes unnoticed, or the target is wrong | (3) | (2) | (2) | To build (PR 7): Breached on every list, sort by wait; targets visible. Local: set and review targets; review the waiting list on a schedule |
+| H-44 | A duplicate referral leads to two pathways for one need | (2) | (2) | (2) | Built, to verify: the duplicate check and its confirmation; entered in error. To build: the Duplicate rejection reason at triage |
 
-[CSO: confirm or change each rating, and record the reasons for any change. Assign ratings to H-30 to H-36.]
+[CSO: confirm or change each rating, and record the reasons for any change. Assign ratings to H-30 to H-36 and H-40 to H-44.]
 
 ## 7. Outstanding hazards and defects
 
@@ -202,6 +208,10 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | H-32 | [CSO to assign; draft 3] | [draft 2] | | | |
 | H-34 | [CSO to assign; draft 3] | [draft 2] | | | |
 | H-36 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-40 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-41 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-42 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-43 | [CSO to assign; draft 3] | [draft 2] | | | |
 
 ### Known defects with a clinical impact
 
@@ -217,6 +227,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | A deleted file can't be restored, or downloaded, from MedApp | H-26 | Known. Restore planned with the purge job (`docs/todo.md`). |
 | Failing (as opposed to absent) file storage gave a general server error after minutes of retries | H-28 | Fixed after the review of #85: a 503, "File storage isn't available", with 2 retries, a 30-second timeout and a 10-second clean-up. |
 | Nothing warns before closing a tab with files still being sent | H-24 | Known. Proposed. |
+| Referrals can be registered but not triaged: triage isn't built yet, and the referral page says so | H-40 | Known. Triage is Phase 2's PR 6; referrals mustn't be used with patients before it. |
 | Patient changes and deletions are recorded without their old values | H-03 | Known (risk S2). Who, when and which fields since step 7; old values planned (step 7). |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]
@@ -228,6 +239,7 @@ This report holds only if each deploying organisation:
 - **governs its templates:** clinical sign-off of each template and stage definition before use, including which stages involve a visit and whether it's suggested or required, and review when a template changes;
 - **sets up its calendars:** activity types, day and week templates and each person's default week, and records staff absence in MedApp so appointments aren't booked over it;
 - **books and follows up visits:** reviews the Requires Appointment list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
+- **handles referrals safely** (once it uses them): gives the permission to register referrals, and later to triage them, only to the right people, with a triager for every specialty; checks the referral inbox every working day; keeps a paper or downtime process for referrals received when MedApp is unavailable, or refused for a restricted patient (the letter goes to an admin); and, once the waiting-time clock exists, sets its targets and reviews its waiting list;
 - **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp doesn't contact patients;
 - **reviews stages finished without a visit,** and limits the admin bypass to cases with a recorded reason;
 - **trains its staff** in MedApp, including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist must be set to all open work to show everything assigned to them;
@@ -265,3 +277,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.5 | 16 November 2026 | Merged with admins' monitoring (PR #84): H-29 in the hazard table and the count. After the review of #85: H-28's defect (a 500 after minutes of retries) fixed | AI coding agent, for review |
 | 0.6 | 16 November 2026 | The privacy features (PR #68): H-22 and H-19's anonymisation control in the hazard summary. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
 | 0.7 | 16 November 2026 | Staff calendars and appointments: what's in the release, a claim for booking times, clashes and the visit rule, the draft hazards H-30 to H-36 (ratings left for the CSO), and the assumptions about calendar setup, visits and telling patients. On merging file attachments: H-23 to H-29 with the calendar hazards in the count and the tables. On merging email and two-factor sign-in (#86): the hazard log's version 0.9 cited, with no change to the hazards or counts | AI coding agent, for review |
+| 0.8 | 18 November 2026 | Referrals (branch `feature/referrals`, Phase 2's PR 5): what's in the release, the draft hazards H-40 to H-44 in the summary, the hazard table and the outstanding hazards (ratings left for the CSO), triage not yet built as a known defect, and the deploying organisation's duties for referrals. H-37 to H-39 are still to be added | AI coding agent, for review |

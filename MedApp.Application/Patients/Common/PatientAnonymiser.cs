@@ -24,6 +24,9 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Notifications about the pathways take the new titles, except those whose title is fixed (the appointment
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
+/// <item>Referrals' reasons, referring practices and clinicians, decision details and redirect destinations become
+/// <see cref="RemovedText"/>, and their ODS codes are removed; their dates, statuses, priorities and specialties stay.
+/// Their history holds no free text, but its details are scrubbed as the others' are.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -123,6 +126,22 @@ public static class PatientAnonymiser
             entry.Details = ScrubDetails(entry.Details, entry.Action == AppointmentEventAction.NotesUpdated);
         }
 
+        foreach (var referral in record.Referrals)
+        {
+            referral.Reason = Removed(referral.Reason);
+            referral.ReferrerPractice = Removed(referral.ReferrerPractice);
+            if (referral.ReferrerClinician is not null)
+                referral.ReferrerClinician = Removed(referral.ReferrerClinician);
+            referral.ReferrerOdsCode = null;
+            if (referral.DecisionDetail is not null)
+                referral.DecisionDetail = Removed(referral.DecisionDetail);
+            if (referral.RedirectedTo is not null)
+                referral.RedirectedTo = Removed(referral.RedirectedTo);
+        }
+
+        foreach (var entry in record.ReferralHistory)
+            entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
+
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;
 
@@ -141,7 +160,10 @@ public static class PatientAnonymiser
             // Audited like any other deletion, each a tick after the last so they keep their order.
             var pathway = record.Pathways.FirstOrDefault(p => p.Id == attachment.PathwayId);
             var stage = pathway?.Stages.FirstOrDefault(s => s.Id == attachment.StageId);
-            var target = new AttachmentTarget(attachment.PatientId, pathway, stage);
+            var target = new AttachmentTarget(attachment.PatientId, pathway, stage)
+            {
+                Referral = record.Referrals.FirstOrDefault(r => r.Id == attachment.ReferralId)
+            };
             deletions.Add(AttachmentAudit.Entry(
                 attachment, target, actor, PatientPathwayAuditAction.AttachmentDeleted, nowUtc.AddTicks(deletions.Count)));
         }

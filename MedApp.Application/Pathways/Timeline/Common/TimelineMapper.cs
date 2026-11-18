@@ -23,6 +23,17 @@ public static class TimelineMapper
     /// <summary>What an appointment entry's action starts with, before its history action (e.g. AppointmentBooked).</summary>
     public const string AppointmentAction = "Appointment";
 
+    /// <summary>What a referral entry's action starts with, before its history action (e.g. ReferralRegistered).</summary>
+    public const string ReferralAction = "Referral";
+
+    /// <summary>The fields of a referral's edit whose values everyone sees (structured: never free text).</summary>
+    private static readonly HashSet<string> ReferralValueFields =
+    [
+        Referrals.Common.ReferralChange.SpecialtyField,
+        Referrals.Common.ReferralChange.ReceivedOnField,
+        Referrals.Common.ReferralChange.RequestedPriorityField
+    ];
+
     /// <summary>The field a pathway note's entry names in its change.</summary>
     public const string NoteField = "note";
 
@@ -127,6 +138,7 @@ public static class TimelineMapper
             case AttachmentAdded or AttachmentDeleted or AttachmentDownloaded:
                 response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
                 response.AttachedTo = Text(details, "attachedTo");
+                response.ReferralId = Guid.TryParse(Text(details, "referralId"), out var referralId) ? referralId : null;
                 // A file's name is free text: only admins see it, as with notes and reasons.
                 response.FileName = isAdmin ? Text(details, "fileName") : null;
                 break;
@@ -199,6 +211,69 @@ public static class TimelineMapper
 
         return response;
     }
+
+    /// <summary>
+    /// One referral history entry: its action is "Referral" and what happened (e.g. ReferralRegistered), with its
+    /// specialty, the priority asked for, the status after it, and for an edit each field changed, with values for the
+    /// structured ones only (the specialty, date received and priority). The free text the referral holds (its reason,
+    /// referring practice, and the detail given when it was closed) is left out unless <paramref name="isAdmin"/>, and
+    /// even then the history keeps no old text, so an edit's free-text fields come by name only.
+    /// </summary>
+    public static PatientTimelineEntryResponse ToResponse(ReferralTimelineRow row, bool isAdmin)
+    {
+        var entry = row.Event;
+        var details = Referrals.Common.ReferralEventDetails.Parse(entry.Details);
+        var response = new PatientTimelineEntryResponse
+        {
+            Id = entry.Id,
+            Kind = nameof(PatientTimelineKind.Referrals),
+            Action = ReferralAction + entry.Action,
+            AtUtc = entry.AtUtc,
+            Username = entry.Username,
+            ReferralId = entry.ReferralId,
+            SpecialtyName = details.SpecialtyName,
+            ReferrerPractice = isAdmin ? row.ReferrerPractice : null,
+        };
+
+        switch (entry.Action)
+        {
+            case Domain.Referrals.ReferralEventAction.Registered:
+                response.Priority = details.RequestedPriority;
+                response.ToStatus = details.ToStatus;
+                response.Reason = isAdmin ? row.Reason : null;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.DetailsEdited:
+                response.Changes = details.ChangedFields
+                    .Select(field =>
+                    {
+                        var values = ReferralValueFields.Contains(field) ? details.Changes.GetValueOrDefault(field) : default;
+                        return new PatientTimelineChangeResponse { Field = field, From = values.From, To = values.To };
+                    })
+                    .ToList();
+                break;
+
+            case Domain.Referrals.ReferralEventAction.Withdrawn or Domain.Referrals.ReferralEventAction.EnteredInError:
+                response.ToStatus = details.ToStatus;
+                response.Reason = isAdmin ? row.DecisionDetail : null;
+                break;
+
+            default:
+                response.ToStatus = details.ToStatus;
+                break;
+        }
+
+        return response;
+    }
+
+    /// <summary>A referral awaiting triage, beside the open pathways above the timeline (no free text).</summary>
+    public static PatientTimelineReferralResponse ToReferralResponse(Domain.Referrals.Referral referral) => new()
+    {
+        ReferralId = referral.Id,
+        SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+        ReceivedOn = referral.ReceivedOn,
+        RequestedPriority = referral.RequestedPriority.ToString(),
+    };
 
     /// <summary>A note deletion's reason and detail in words ("Wrong patient: ..."), from its entry's details.</summary>
     private static string? DeletionReason(IReadOnlyDictionary<string, JsonElement> details) =>

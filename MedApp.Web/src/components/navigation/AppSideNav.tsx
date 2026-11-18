@@ -1,3 +1,4 @@
+import {Badge} from '@astryxdesign/core/Badge';
 import {Icon} from '@astryxdesign/core/Icon';
 import {DropdownMenu, type DropdownMenuItemData} from '@astryxdesign/core/DropdownMenu';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -6,6 +7,7 @@ import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps}
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Theme} from '@astryxdesign/core/theme';
+import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
 import {useQuery} from '@tanstack/react-query';
 import {useRouter, useRouterState} from '@tanstack/react-router';
 import {
@@ -23,6 +25,7 @@ import {
 import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
+import {awaitingTriageCountQuery} from '../../api/referrals';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -595,6 +598,20 @@ function PinnableSection({
 }
 
 /**
+ * The Referrals item's count of referrals awaiting triage, as a badge (nothing when there are none). Seen as the
+ * number; heard as "3 awaiting triage", after the item's name.
+ */
+export function AwaitingTriageCount({count}: {count: number}) {
+  if (count <= 0) return null;
+  return (
+    <>
+      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
+      <VisuallyHidden>{`, ${count} awaiting triage`}</VisuallyHidden>
+    </>
+  );
+}
+
+/**
  * Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer.
  * Under Patients and under Pathways, as indented sub-items: the ones you've pinned (up to MAX_PINS of each,
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
@@ -633,6 +650,9 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   };
 
   const patientPins = usePins('patients', user.username);
+  // How many referrals await triage in your specialties (everyone's, if you have none): a count, naming no patients.
+  const awaitingTriage =
+    useQuery({...awaitingTriageCountQuery, enabled: can(user, 'ViewPatients')}).data?.count ?? 0;
   const pathwayPins = usePins('pathways', user.username);
 
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
@@ -660,6 +680,25 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           isSelected={isAt('/tasks')}
           ref={halfViewRow(isHalfAt('/tasks'))}
           actions={<RowMenu label="My Worklist" href="/tasks" />}
+        />
+      ),
+    },
+    {
+      key: 'referrals',
+      label: 'Referrals',
+      icon: AppIcon.Referrals,
+      href: '/referrals',
+      isSelected: isAt('/referrals'),
+      isHalfView: isHalfAt('/referrals'),
+      row: (
+        <SideNavItem
+          label="Referrals"
+          icon={AppIcon.Referrals}
+          href="/referrals"
+          isSelected={isAt('/referrals')}
+          ref={halfViewRow(isHalfAt('/referrals'))}
+          endContent={<AwaitingTriageCount count={awaitingTriage} />}
+          actions={<RowMenu label="Referrals" href="/referrals" />}
         />
       ),
     },

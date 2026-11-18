@@ -85,6 +85,20 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(a => a.UploadedAtUtc).ThenBy(a => a.Id)
             .ToListAsync(ct);
 
+        // Referrals, with what the referrer sent and what was decided, and their history.
+        var referrals = await Tracking(context.Referrals, forUpdate)
+            .Include(r => r.Specialty)
+            .Where(r => r.PatientId == patientId)
+            .OrderBy(r => r.ReceivedOn).ThenBy(r => r.RegisteredAtUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        foreach (var referral in referrals)
+            referral.Patient = patient;
+
+        var referralHistory = await Tracking(context.ReferralEvents, forUpdate)
+            .Where(e => e.PatientId == patientId)
+            .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
+            .ToListAsync(ct);
+
         return new PatientRecord
         {
             Patient = patient,
@@ -96,7 +110,9 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Appointments = appointments,
             AppointmentHistory = appointmentHistory,
             Notifications = notifications,
-            Attachments = attachments
+            Attachments = attachments,
+            Referrals = referrals,
+            ReferralHistory = referralHistory
         };
     }
 

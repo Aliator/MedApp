@@ -19,7 +19,7 @@ public sealed class GetAttachmentsHandlerTests : AttachmentHandlerTestBase
     public async Task Handle_KnownPatient_ReturnsTheRepositorysRowsForTheViewer()
     {
         var patient = GivenPatient();
-        var query = new GetAttachmentsQuery(patient.Id, null, null, false, Staff.UserId, false, true);
+        var query = new GetAttachmentsQuery(patient.Id, null, null, null, false, Staff.UserId, false, true);
         var own = CreateAttachment(uploadedBy: Staff.UserId);
         var others = CreateAttachment(uploadedBy: OtherUserId);
         using var cts = new CancellationTokenSource();
@@ -37,7 +37,7 @@ public sealed class GetAttachmentsHandlerTests : AttachmentHandlerTestBase
     {
         var pathway = CreatePathway();
         var stage = GivenStage(pathway, 1);
-        var query = new GetAttachmentsQuery(null, null, stage.Id, false, Staff.UserId, false, true);
+        var query = new GetAttachmentsQuery(null, null, stage.Id, null, false, Staff.UserId, false, true);
         Attachments.Setup(a => a.ListAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(([], 0));
 
         var response = await Handler.Handle(query, CancellationToken.None);
@@ -48,7 +48,7 @@ public sealed class GetAttachmentsHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_UnknownPathway_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new GetAttachmentsQuery(null, Guid.NewGuid(), null, false, Staff.UserId, false, true), CancellationToken.None);
+        var act = () => Handler.Handle(new GetAttachmentsQuery(null, Guid.NewGuid(), null, null, false, Staff.UserId, false, true), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
         Attachments.Verify(a => a.ListAsync(It.IsAny<GetAttachmentsQuery>(), It.IsAny<CancellationToken>()), Times.Never);

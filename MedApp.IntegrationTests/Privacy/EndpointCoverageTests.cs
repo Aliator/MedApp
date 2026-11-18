@@ -2,6 +2,8 @@ using System.Net;
 using FluentAssertions;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Referrals.Requests;
+using MedApp.Contracts.Referrals.Responses;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Pathways.NoteDeletionRequests.Requests;
 using MedApp.Contracts.Pathways.PatientPathways.Requests;
@@ -53,6 +55,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/calendar/team"] = Records("PatientListed"), // each patient with an appointment on any calendar shown
         ["api/attachments"] = Records("AttachmentsViewed"),
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the pathway audit log
+        ["api/referrals/{id:guid}"] = Records("ReferralViewed"), // the referral's ID in the details
+        ["api/referrals/search"] = Records("PatientListed"),
+        ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
@@ -160,6 +165,13 @@ public sealed class EndpointCoverageTests : IntegrationTest
         var requested = await (await admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes/{note.Id}/deletion-requests",
             new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
 
+        // A referral, for its page and the referral list.
+        var referral = await (await admin.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
+        {
+            PatientId = patientId, SpecialtyId = MedApp.Domain.Specialties.Specialty.GeneralId, ReceivedOn = UkToday,
+            ReferrerPractice = "Synthetic Lane Surgery", RequestedPriority = "Medium", Reason = "Synthetic reason."
+        })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
+
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
             ($"/api/patients/{patientId}", "PatientViewed", patientId),
@@ -180,6 +192,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/calendar/team?date={day:yyyy-MM-dd}&staffUserIds={adminId}", "PatientListed", patientId),
             ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
+            ($"/api/referrals/{referral.Id}", "ReferralViewed", patientId),
+            ("/api/referrals/search", "PatientListed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

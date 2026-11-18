@@ -21,6 +21,7 @@ export type SaveSubject =
   | 'site'
   | 'room'
   | 'specialty'
+  | 'referral'
   | 'role';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */

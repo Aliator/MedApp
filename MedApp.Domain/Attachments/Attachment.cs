@@ -1,7 +1,8 @@
 namespace MedApp.Domain.Attachments;
 
 /// <summary>
-/// A file (a scan, photo, result or letter) attached to a patient, one of their pathways, or a stage of one. Only
+/// A file (a scan, photo, result or letter) attached to a patient, one of their pathways, a stage of
+/// one, or one of their referrals (its letter). Only
 /// its metadata is here; the bytes are in blob storage, under keys made from <see cref="Id"/>. Like the audit log, it
 /// has no foreign keys: the file has a retention of its own, so its row outlives a deleted patient until the bytes are
 /// purged. Deleting is soft (<see cref="DeletedAtUtc"/>): the row stays, hidden from staff, for admins and the purge.
@@ -18,6 +19,9 @@ public sealed class Attachment
 
     /// <summary>The stage it's attached to; null unless it's a stage's file.</summary>
     public Guid? StageId { get; init; }
+
+    /// <summary>The referral it's attached to (its letter); null unless it's a referral's file.</summary>
+    public Guid? ReferralId { get; init; }
 
     /// <summary>
     /// The name it was uploaded with, cleaned (no folders or control characters). Free text, so anonymising the

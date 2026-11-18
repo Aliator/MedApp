@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: adds appointments and staff calendars; 0.3 (draft), 17 November 2026: meetings and personal calendar templates (review of #99) |
+| **Version** | 0.2 (draft), 16 November 2026: adds appointments and staff calendars; 0.3 (draft), 17 November 2026: meetings and personal calendar templates (review of #99); 0.4 (draft), 18 November 2026: referrals, and the referrers named in them |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | On approval, then every 12 months, and whenever the processing changes |
@@ -23,8 +23,9 @@ This document settles who is responsible for the personal data in MedApp, and on
 
 | Personal data | Controller | Processor | Why |
 |---|---|---|---|
-| **Patients** recorded in MedApp: names, date of birth, email, NHS number, pathways, stage notes, attached files, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
+| **Patients** recorded in MedApp: names, date of birth, email, NHS number, pathways, stage notes, attached files, appointments (with their notes and cancellation reasons), referrals (with the reason for referral and the letter) and their history, and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
 | **The customer's staff** who use MedApp: usernames, password hashes, roles, sessions (IP address and browser), settings, notifications, calendars (blocked time, such as annual leave, their own day and week templates and default week, and meetings admins arrange), and their actions in the audit trail and appointment history | The customer | The supplier | The customer decides who gets an account and with which role, sets up the activity types (each member of staff, or an admin, their own templates), arranges meetings, and uses the audit trail to supervise its own staff. |
+| **Referrers** named on a referral: the referring clinician and their practice, as written on the letter | The customer | The supplier | The customer receives the referral and decides what to record from it; the supplier holds it as part of the patient's record. |
 | **Service logs and backups** of the hosted service that contain the above | The customer | The supplier | They exist only to run, secure and recover the customer's service. |
 | **The supplier's own business data:** customer contacts, contracts, billing, sales and marketing, support correspondence (the contact details, not the patient data), complaints, the supplier's own staff and contractors, and visitors to its website | The supplier | Not applicable | The supplier decides why and how these are processed, for its own business. |
 

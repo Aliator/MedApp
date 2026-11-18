@@ -202,6 +202,13 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+        ReferralsController.CountAwaitingTriage 00011
+        ReferralsController.EditReferral 00011
+        ReferralsController.GetReferral 00011
+        ReferralsController.MarkEnteredInError 00011
+        ReferralsController.RegisterReferral 00011
+        ReferralsController.SearchReferrals 00011
+        ReferralsController.WithdrawReferral 00011
         RolesController.ArchiveRole 00001
         RolesController.CreateRole 00001
         RolesController.DeleteRole 00001

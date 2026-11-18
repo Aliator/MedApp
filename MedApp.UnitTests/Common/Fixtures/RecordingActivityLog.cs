@@ -20,6 +20,9 @@ public sealed class RecordingActivityLog : IActivityLog
     /// <summary>Calls to <see cref="RecordViewsAsync"/>.</summary>
     public List<(ActivityAction Action, List<Guid> PatientIds, Guid? PathwayId)> Views { get; } = [];
 
+    /// <summary>Calls to <see cref="RecordViewAsync"/>, with their details as the log would store them.</summary>
+    public List<(ActivityAction Action, Guid PatientId, string Details)> SingleViews { get; } = [];
+
     /// <summary>The tokens every call was given.</summary>
     public List<CancellationToken> Tokens { get; } = [];
 
@@ -57,6 +60,13 @@ public sealed class RecordingActivityLog : IActivityLog
     public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null)
     {
         Views.Add((action, patientIds.ToList(), pathwayId));
+        Tokens.Add(ct);
+        return Task.CompletedTask;
+    }
+
+    public Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct)
+    {
+        SingleViews.Add((action, patientId, ActivityLog.SerializeDetails(details)));
         Tokens.Add(ct);
         return Task.CompletedTask;
     }

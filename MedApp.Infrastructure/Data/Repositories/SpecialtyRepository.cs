@@ -2,6 +2,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Specialties.Common;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Referrals;
 using MedApp.Domain.Specialties;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -64,14 +65,27 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
-        return templates.Keys.Concat(pathways.Keys).Concat(members.Keys)
+        var referrals = await context.Referrals
+            .Where(r => list.Contains(r.SpecialtyId))
+            .GroupBy(r => r.SpecialtyId)
+            .Select(g => new
+            {
+                g.Key,
+                Count = g.Count(),
+                Awaiting = g.Count(r => r.Status == ReferralStatus.AwaitingTriage)
+            })
+            .ToDictionaryAsync(x => x.Key, ct);
+
+        return templates.Keys.Concat(pathways.Keys).Concat(members.Keys).Concat(referrals.Keys)
             .Distinct()
             .ToDictionary(
                 id => id,
                 id => new SpecialtyUsage(
                     templates.GetValueOrDefault(id),
                     pathways.GetValueOrDefault(id),
-                    members.GetValueOrDefault(id)));
+                    members.GetValueOrDefault(id),
+                    referrals.GetValueOrDefault(id)?.Count ?? 0,
+                    referrals.GetValueOrDefault(id)?.Awaiting ?? 0));
     }
 
     public async Task AddAsync(Specialty specialty, CancellationToken ct)

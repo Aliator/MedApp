@@ -74,6 +74,19 @@ public sealed class ActivityLog(
             await repository.AddAsync(entries, ct);
     }
 
+    public async Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct)
+    {
+        var actor = context.Actor;
+        var entry = Entry(action, patientId, details, actor: actor);
+        var window = TimeSpan.FromMinutes(Math.Max(0, options.Value.ViewWindowMinutes));
+
+        if (window > TimeSpan.Zero
+            && await repository.HasRecentEntryAsync(actor.UserId, action, patientId, entry.Details, entry.AtUtc - window, ct))
+            return;
+
+        await repository.AddAsync([entry], ct);
+    }
+
     private static string? Truncate(string? text, int length) =>
         text is null || text.Length <= length ? text : text[..length];
 }
