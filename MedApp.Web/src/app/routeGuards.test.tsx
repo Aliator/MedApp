@@ -60,6 +60,18 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: heading, level: 1})).toBeInTheDocument();
   });
 
+  it('lets those who answer or review data requests in, and sends anyone else away without asking for them', async () => {
+    const fetch = mockApi({'GET /api/data-requests/search': () => json(pageOf([]))});
+    const {router, unmount} = renderApp({path: '/data-requests', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+    expect(router.state.location.search).toEqual({permission: 'ManagePrivacy'});
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('data-requests'))).toBe(false);
+    unmount();
+
+    renderApp({path: '/data-requests', user: adminUser});
+    expect(await screen.findByRole('heading', {name: 'Data Requests', level: 1})).toBeInTheDocument();
+  });
+
   it('sends someone without ManageSetup away from Closed Days, without asking for them', async () => {
     const fetch = mockApi({'GET /api/calendar/closed-days': () => json([])});
     const {router} = renderApp({path: '/admin/closed-days?year=2027', user: staffUser});

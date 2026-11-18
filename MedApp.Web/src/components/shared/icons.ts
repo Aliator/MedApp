@@ -140,6 +140,7 @@ import {
   RiTestTubeLine,
   RiQuillPenLine,
   RiTruckLine,
+  RiFileUserLine,
 } from '@remixicon/react';
 
 /**
@@ -356,4 +357,8 @@ export const AppIcon = {
   Reassign: remix(RiUserSharedLine),
   /** Consent to a stage: recorded, its form and the consent forms list (setup). */
   Consent: remix(RiQuillPenLine),
+  // Patients' data requests (subject access): the list, a request's page and its notification
+  DataRequests: remix(RiFileUserLine),
+  /** Recording that a data request's requester's identity was checked. */
+  IdentityCheck: remix(RiIdCardLine),
 } as const satisfies Record<string, IconType>;

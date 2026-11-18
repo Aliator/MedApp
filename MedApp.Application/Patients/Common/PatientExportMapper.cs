@@ -205,6 +205,7 @@ public static class PatientExportMapper
             MdtItems = record.MdtItems
                 .Select(i => new ExportedMdtItemResponse
                 {
+                    Id = i.Id,
                     PathwayId = i.PathwayId,
                     PathwayTitle = i.Pathway?.Title ?? string.Empty,
                     Specialty = i.Specialty?.Name ?? string.Empty,
@@ -453,6 +454,38 @@ public static class PatientExportMapper
                     StatusDetail = c.StatusDetail,
                     StatusChangedAtUtc = c.StatusChangedAtUtc,
                     StatusChangedBy = c.StatusChangedByUserId is null ? null : Username(c.StatusChangedByUserId),
+                })
+                .ToList(),
+            // Data requests: the patient's own requests, the review included (staff by the username they had then).
+            DataRequests = record.DataRequests
+                .Select(d => new ExportedDataRequestResponse
+                {
+                    Id = d.Id,
+                    ReceivedOn = d.ReceivedOn,
+                    RequestedByPatient = d.RequestedByPatient,
+                    RequesterName = d.RequesterName,
+                    RequesterRelationship = d.RequesterRelationship,
+                    IdentityCheckedOn = d.IdentityCheckedOn,
+                    IdentityCheckedBy = d.IdentityCheckedByUsername,
+                    IdentityCheckMethod = d.IdentityCheckMethod?.ToString(),
+                    IdentityCheckDetail = d.IdentityCheckDetail,
+                    DueOn = d.DueOn,
+                    ExtensionMonths = d.ExtensionMonths,
+                    ExtensionReason = d.ExtensionReason,
+                    Status = d.Status.ToString(),
+                    RefusalReason = d.RefusalReason,
+                    SentOn = d.SentOn,
+                    SendMethod = d.SendMethod?.ToString(),
+                    ClosedAtUtc = d.ClosedAtUtc,
+                    ClosedBy = d.ClosedByUsername,
+                    ReviewedAtUtc = d.ReviewedAtUtc,
+                    ReviewedBy = d.ReviewedByUsername,
+                    Withheld = d.WithheldItems
+                        .OrderBy(w => w.Kind).ThenBy(w => w.ItemId)
+                        .Select(w => new ExportedWithheldItemResponse { Kind = w.Kind.ToString(), ItemId = w.ItemId, Reason = w.Reason })
+                        .ToList(),
+                    CreatedAtUtc = d.CreatedAtUtc,
+                    CreatedBy = d.CreatedByUsername
                 })
                 .ToList()
         };

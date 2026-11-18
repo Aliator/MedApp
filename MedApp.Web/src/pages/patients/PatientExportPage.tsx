@@ -21,6 +21,7 @@ import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReas
 import {describeSkipReason} from '../../api/stageSkips';
 import {resultActionLabel, resultSourceLabel, resultStatusLabel} from '../../api/results';
 import {consentFormLabel, consentStatusLabel, signedByLabel} from '../../api/consent';
+import {dataRequestStatusWords, identityCheckMethodWords, reviewItemKindWords, sendMethodWords} from '../../api/dataRequests';
 import {rejectionReasonLabel, specimenStatusLabel} from '../../api/specimens';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
@@ -458,6 +459,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const mdtItems = data.mdtItems ?? [];
   // What the patient consented to, and any withdrawal or correction; scans under Files.
   const consents = data.consentRecords ?? [];
+  // The patient's own data requests: who asked, the identity check, the due date, the review and how each ended.
+  const dataRequests = data.dataRequests ?? [];
   // Each referral by its specialty and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
@@ -980,6 +983,63 @@ function ExportContent({data}: {data: PatientExport}) {
                 />
               ))}
             </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Data Requests (${dataRequests.length})`}>
+        {dataRequests.length === 0
+          ? nothing('No data requests.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {dataRequests.map((request) => (
+                <VStack key={request.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{`Received ${request.receivedOn ? formatDate(request.receivedOn) : '—'}`}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Asked by">
+                      {request.requestedByPatient
+                        ? 'The patient'
+                        : `${request.requesterName ?? 'Someone on their behalf'}${request.requesterRelationship ? ` (${request.requesterRelationship})` : ''}`}
+                    </MetadataListItem>
+                    <MetadataListItem label="Logged">{`${when(request.createdAtUtc)} by ${request.createdBy ?? 'unknown'}`}</MetadataListItem>
+                    <MetadataListItem label="Identity check">
+                      {request.identityCheckedOn
+                        ? `${formatDate(request.identityCheckedOn)}, ${identityCheckMethodWords(request.identityCheckMethod).toLowerCase()}, by ${request.identityCheckedBy ?? 'unknown'}${request.identityCheckDetail ? `: ${request.identityCheckDetail}` : ''}`
+                        : 'Not checked'}
+                    </MetadataListItem>
+                    <MetadataListItem label="Due">
+                      {`${request.dueOn ? formatDate(request.dueOn) : '—'}${request.extensionMonths ? `, extended by ${request.extensionMonths} ${request.extensionMonths === 1 ? 'month' : 'months'}${request.extensionReason ? `: ${request.extensionReason}` : ''}` : ''}`}
+                    </MetadataListItem>
+                    <MetadataListItem label="Status">{dataRequestStatusWords(request.status)}</MetadataListItem>
+                    {request.sentOn && (
+                      <MetadataListItem label="Sent">{`${formatDate(request.sentOn)}${request.sendMethod ? `, ${sendMethodWords(request.sendMethod).toLowerCase()}` : ''}`}</MetadataListItem>
+                    )}
+                    {request.refusalReason && <MetadataListItem label="Why it was refused">{request.refusalReason}</MetadataListItem>}
+                    {request.closedAtUtc && (
+                      <MetadataListItem label="Closed">{`${when(request.closedAtUtc)} by ${request.closedBy ?? 'unknown'}`}</MetadataListItem>
+                    )}
+                    <MetadataListItem label="Reviewed">
+                      {request.reviewedAtUtc ? `${when(request.reviewedAtUtc)} by ${request.reviewedBy ?? 'unknown'}` : 'Not reviewed'}
+                    </MetadataListItem>
+                  </MetadataList>
+                  {(request.withheld ?? []).length > 0 && (
+                    <List hasDividers edge="bleed" aria-label="Withheld">
+                      {(request.withheld ?? []).map((item) => (
+                        <ListItem
+                          key={`${item.kind}:${item.itemId}`}
+                          align="first-line"
+                          label={<Text type="body">{`${reviewItemKindWords(item.kind)} withheld (${item.itemId})`}</Text>}
+                          description={
+                            <Text type="supporting" color="secondary">
+                              {item.reason}
+                            </Text>
+                          }
+                        />
+                      ))}
+                    </List>
+                  )}
+                </VStack>
+              ))}
+            </VStack>
           )}
       </ExportSection>
 

@@ -434,6 +434,36 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/letters/${letterId}`));
   });
 
+  it("opens a data request's due-soon notification on the request, with its own icon", async () => {
+    const requestId = '000000d1-0000-0000-0000-000000000001';
+    const dueSoon = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000071',
+      kind: 'DataRequestDueSoon',
+      title: 'Data request due soon',
+      message: 'A data request is due on 2 December 2026.',
+      pathwayId: null,
+      subjectId: requestId,
+    };
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [dueSoon, read], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Data request due soon/});
+    expect(link).toHaveAttribute('href', `/data-requests/${requestId}`);
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${dueSoon.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/data-requests/${requestId}`));
+  });
+
   it('marks read only the unread notifications about the pathway opened', async () => {
     const otherPathway = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other pathway', pathwayId: '0000000c-0000-0000-0000-000000000006'};
     const fetch = mockApi({

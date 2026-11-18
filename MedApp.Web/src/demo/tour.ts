@@ -185,7 +185,10 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
     full: 'Every rule is checked on the server: calendar clashes, permissions, locks so two people can’t book the same slot, and concurrency. Here they’re simplified.',
   },
   {title: 'Server rendering', full: 'Pages are rendered on the server, so they arrive with their data and show at once.'},
-  {title: 'The activity log and exports', full: 'Every read and change of a patient’s record is logged, and admins can export everything held about a patient.'},
+  {
+    title: 'The activity log, exports and the data-request pack',
+    full: 'Every read and change of a patient’s record is logged, admins can export everything held about a patient, and a data request is answered with a pack made on the server: a PDF report, the record as JSON and the files.',
+  },
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
   {title: 'Background jobs', full: 'Appointment reminders to patients, purges of old operational data, and other jobs on a schedule.'},
   {title: 'Letters, the lab and setup', full: 'Letters from templates, specimens and the lab’s worklist, and the setup pages (templates, sites, roles).'},

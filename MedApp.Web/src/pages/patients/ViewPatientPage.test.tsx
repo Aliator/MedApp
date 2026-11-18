@@ -101,6 +101,38 @@ describe('ViewPatientPage, privacy', () => {
     expect(isDisabled(await privacyItem(user, 'Anonymise Record'))).toBe(false);
   });
 
+  it("logs a data request from the Privacy menu, for someone else on the patient's behalf, then opens it", async () => {
+    const requestId = '000000d1-0000-0000-0000-000000000001';
+    const {user, fetch, router} = renderPage(oriel, adminUser, {
+      'POST /api/data-requests': () => json({id: requestId, patientId: id, patientName: 'Oriel Penhallow', status: 'Open', version: 1}, 201),
+    });
+
+    await user.click(await privacyItem(user, 'Log Data Request'));
+    const dialog = await waitFor(() => openDialog()!);
+    expect(within(dialog).getByText('Penhallow', {exact: false})).toBeInTheDocument();
+    expect(isDisabled(within(dialog).getByRole('button', {name: 'Log Data Request'}))).toBe(true);
+    await user.click(within(dialog).getByRole('radio', {name: 'Someone on their behalf'}));
+    await user.type(within(dialog).getByRole('textbox', {name: /Their name/}), 'Synthetic Requester');
+    await user.type(within(dialog).getByRole('textbox', {name: /Relationship or authority/}), 'Parent');
+    await user.click(within(dialog).getByRole('button', {name: 'Log Data Request'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/data-requests/${requestId}`));
+    const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await post.json()).toMatchObject({
+      patientId: id,
+      requestedByPatient: false,
+      requesterName: 'Synthetic Requester',
+      requesterRelationship: 'Parent',
+    });
+  });
+
+  it('offers no Log Data Request to someone who can only export', async () => {
+    const {user} = renderPage(oriel, {...staffUser, permissions: [...staffUser.permissions, 'ExportPatientRecords']});
+
+    expect(await privacyItem(user, 'Export Record')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Log Data Request/, hidden: true})).not.toBeInTheDocument();
+  });
+
   it('restricts the record with a reason, then shows its banner and hides Edit', async () => {
     const restricted = {...oriel, isRestricted: true, restrictionReason: 'Synthetic accuracy check', restrictedAtUtc: '2026-11-16T09:00:00Z'};
     const {user, fetch} = renderPage(oriel, adminUser, {[`PUT /api/patients/${id}/restriction`]: changesTo(restricted)});

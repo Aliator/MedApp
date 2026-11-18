@@ -862,6 +862,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           },
         ]
       : []),
+    // Patients' data requests (subject access), for those who answer them (ManagePrivacy) or review them (SignOffResults).
+    ...(can(user, 'ViewPatients') && (can(user, 'ManagePrivacy') || can(user, 'SignOffResults'))
+      ? [
+          {
+            key: 'data-requests',
+            label: 'Data Requests',
+            icon: AppIcon.DataRequests,
+            href: '/data-requests',
+            isSelected: isAt('/data-requests'),
+            isHalfView: isHalfAt('/data-requests'),
+            row: (
+              <SideNavItem
+                label="Data Requests"
+                icon={AppIcon.DataRequests}
+                href="/data-requests"
+                isSelected={isAt('/data-requests')}
+                ref={halfViewRow(isHalfAt('/data-requests'))}
+                actions={<RowMenu label="Data Requests" href="/data-requests" />}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'patients',
       label: 'Patients',

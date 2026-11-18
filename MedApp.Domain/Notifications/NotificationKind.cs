@@ -149,5 +149,12 @@ public enum NotificationKind
     /// Someone recorded an MDT's outcome on a pathway you're assigned to (with its <see cref="Notification.PathwayId"/>).
     /// A fixed title ("MDT outcome recorded"); never the outcome, the question or the patient.
     /// </summary>
-    MdtOutcomeRecorded = 41
+    MdtOutcomeRecorded = 41,
+
+    /// <summary>
+    /// A data request is due within 7 days and still open (the daily data-request reminder, to holders of
+    /// ManagePrivacy), with the request in <see cref="Notification.SubjectId"/>. A fixed title ("Data request due
+    /// soon"); the message holds the due date only, never the patient or the requester.
+    /// </summary>
+    DataRequestDueSoon = 42
 }
