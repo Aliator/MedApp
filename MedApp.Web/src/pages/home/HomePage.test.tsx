@@ -12,7 +12,7 @@ describe('HomePage', () => {
 
     expect(await screen.findByRole('heading', {name: `Welcome, ${staffUser.username}`, level: 1})).toBeInTheDocument();
     expect(await screen.findByRole('heading', {name: /^Today, /})).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Open Calendar'})).toHaveAttribute('href', '/calendar');
+    expect(screen.getByRole('link', {name: 'Open Calendar'})).toHaveAttribute('href', `/calendar?date=${today}`);
   });
 
   it('shows what needs your attention above the day, linking to its page', async () => {

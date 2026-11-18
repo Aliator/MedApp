@@ -205,7 +205,9 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
-  it('with a half view open, clicking a nav item opens its page on its own', async () => {
+  it('with a half view open, clicking a nav item opens its page on its own, once chosen', async () => {
+    // Off by default; this is the setting turned on (Account Settings).
+    localStorage.setItem('medapp.navClosesHalfView', 'true');
     emptyApi();
     sessionStorage.setItem('medapp.halfView', '/admin/audit');
     const {user, router} = renderApp({path: '/patients', user: adminUser});
