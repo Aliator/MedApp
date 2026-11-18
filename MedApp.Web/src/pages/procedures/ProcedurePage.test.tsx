@@ -646,7 +646,7 @@ describe('ProcedurePage: visits and appointments', () => {
 
     const list = within(await screen.findByRole('list', {name: 'Appointments'}));
     expect(list.getByRole('link', {name: 'Mon 23 Nov 2026, 10:00 to 10:30 with test-user'})).toHaveAttribute('href', '/calendar?appointment=booked');
-    expect(list.getByText('Needs booking')).toBeInTheDocument();
+    expect(list.getByText('Requires appointment')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${APPOINTMENTS}?ProcedureId=${id}&PageSize=100`);
   });
 
@@ -672,7 +672,7 @@ describe('ProcedurePage: visits and appointments', () => {
     const {user} = renderVisit(visiting(), [requested]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    expect(visit.getByText('Needs booking')).toBeInTheDocument();
+    expect(visit.getByText('Requires appointment')).toBeInTheDocument();
     expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
 
@@ -688,7 +688,7 @@ describe('ProcedurePage: visits and appointments', () => {
     const dialog = within(openDialog()!);
     expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
     expect(dialog.getByText(/Procedure requires a visit, and none is marked Attended/)).toBeInTheDocument();
-    expect(dialog.getByText('Its visit comes off Needs booking.')).toBeInTheDocument();
+    expect(dialog.getByText('Its visit comes off Requires Appointment.')).toBeInTheDocument();
     expect(dialog.getByRole('button', {name: 'Finish Without Visit'})).toHaveAttribute('aria-disabled', 'true');
     await user.type(dialog.getByRole('textbox', {name: /Reason/}), ' Seen at another clinic ');
     await user.click(dialog.getByRole('button', {name: 'Finish Without Visit'}));

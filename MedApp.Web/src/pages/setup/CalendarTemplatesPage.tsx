@@ -311,7 +311,6 @@ function SetupTable<T extends Record<string, unknown>>({
           placeholder={`Search ${noun} by name, or filter by status...`}
           textKey="name"
           favourites={SETUP_FAVOURITES}
-          namesQuickFilters={false}
         />
       }
       pagination={{

@@ -9,7 +9,7 @@ import {richText, selectRichText, setRichText, typeRichText} from '../../test/ri
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {NotepadProvider, useNotepad, type OpenProcedure} from './NotepadContext';
 import {CANT_REMOVE_SELECTION} from './AddToProcedureDialog';
-import {AUTOSAVE_MS, NOT_REMOVED, NotepadPane, notepadHint} from './NotepadPane';
+import {AUTOSAVE_MS, NOT_REMOVED, NotepadPane} from './NotepadPane';
 
 const NOTEPAD = '/api/me/notepad';
 
@@ -66,19 +66,23 @@ describe('NotepadPane', () => {
     localStorage.clear();
   });
 
-  it('shows the notepad, what it is for, and when it was saved', async () => {
+  it('shows the notepad and when it was saved', async () => {
     mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
     renderPane();
 
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
     expect(richText(box)).toBe('Synthetic jotting: ring the ward at 2pm.');
-    expect(screen.getByText(notepadHint(30))).toBeInTheDocument();
-    // It says the notepad is only cleared after 30 days with no changes at all: not that each jotting goes after 30 days.
-    expect(notepadHint(30)).toBe(
-      "For jottings. Anything about a patient belongs in their record: add it with Add Note to Procedure, then take it out of here. Text stays while you keep using the notepad: it's only cleared after 30 days with no changes at all.",
-    );
     // 10:32 UTC is 10:32 in the UK in November.
     expect(screen.getByText('Saved 10:32')).toBeInTheDocument();
+  });
+
+  it('has no prompt or explanation in it (removed by the product owner, 17 November 2026)', async () => {
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad({text: '', version: 0, lastUpdatedUtc: null}))});
+    renderPane();
+
+    await screen.findByRole('textbox', {name: 'Notepad'});
+    expect(screen.queryByText(/For jottings/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Jot something down/)).not.toBeInTheDocument();
   });
 
   it('saves by itself after a pause in typing, from the version it read', async () => {

@@ -179,7 +179,7 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'needs-booking', title: 'Needs Booking: appointments asked for but not yet booked, soonest due first', path: '/calendar/needs-booking' },
+  { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
@@ -300,6 +300,17 @@ export const screens: Screen[] = [
       }
       await notepad.getByRole('button', { name: 'Add Note to Procedure' }).click();
       await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'notepad-half',
+    title: "The notepad in a half view (the side nav's Notepad row's menu), beside a procedure: the notepad filling the right half",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/notepad'));
+      await page.reload();
+      await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
       await settle(page);
     },
   },

@@ -6,7 +6,7 @@ import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useContext, type ReactNode} from 'react';
 import {usePageTitle} from '../../app/announcements';
 import {useNarrowBesideNotepad} from '../notepad/NotepadContext';
-import {InHalfPaneContext, useHalfView} from './halfView';
+import {InHalfPaneContext, OverWholeWindowContext, useHalfView} from './halfView';
 import {PageHeader, type PageHeaderProps} from './PageHeader';
 
 export interface PageProps extends PageHeaderProps {
@@ -53,10 +53,19 @@ export const NARROW_WINDOW_QUERY = '(max-width: 1399px)';
  * the docked notepad when that leaves too little room. Pages with two columns ask this rather than the window.
  */
 export function useIsNarrow(): boolean {
-  const isNarrowWindow = useMediaQuery(NARROW_WINDOW_QUERY, false);
+  const isNarrowWindow = useIsNarrowWindow();
   const isNarrowBesideNotepad = useNarrowBesideNotepad();
-  return useHalfView().isHalf || isNarrowWindow || isNarrowBesideNotepad;
+  const isHalf = useHalfView().isHalf;
+  // In a dialog, over the whole window, only the window counts.
+  if (useContext(OverWholeWindowContext)) return isNarrowWindow;
+  return isHalf || isNarrowWindow || isNarrowBesideNotepad;
 }
+
+/**
+ * Whether the window itself is narrow, whatever's beside the page: for a dialog choosing its own size, as it sits over
+ * the whole window (a dialog opened from a half view is as big as one opened from a page on its own).
+ */
+export const useIsNarrowWindow = () => useMediaQuery(NARROW_WINDOW_QUERY, false);
 
 export function Page({
   isLoading = false,

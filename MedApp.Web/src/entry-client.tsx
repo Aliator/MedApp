@@ -1,5 +1,7 @@
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
+// Scrollbars in the theme's colours (after Astryx's, outside its layers).
+import './app/scrollbars.css';
 // The formatted-text editor (RichTextField).
 import '@astryxdesign/richtext/richtext.css';
 // The easy-to-read font (Account Settings, Accessibility): declared here, downloaded only once it's used.

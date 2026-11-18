@@ -5,7 +5,6 @@ import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Switch} from '@astryxdesign/core/Switch';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
-import {Token} from '@astryxdesign/core/Token';
 import {useEffect, useState} from 'react';
 import {useSavedFavourites, type FavouriteValues} from '../../app/favourites';
 import {NO_STATUS_LINE} from '../forms/fieldSpace';
@@ -31,12 +30,6 @@ export interface ListFavouritesProps {
   onApply: (values: FavouriteValues) => void;
   /** Whether the list opened with no filters in its URL: the moment it takes its starting search, if it has one. */
   isUnfiltered: boolean;
-  /**
-   * Whether the name of a quick look-up the list is showing sits beside the star (by default it does). A list whose
-   * quick look-ups each match a token the bar already shows (My Tasks' Not started) can leave them out; the star
-   * still says them. A saved search's name, which someone chose, always shows.
-   */
-  namesQuickFilters?: boolean;
 }
 
 /** A search, as a key that's the same for the same filters (whatever order, and leaving out unset ones). */
@@ -51,8 +44,9 @@ const nameOf = (name: string) => name.trim() || 'Untitled favourite';
 
 /**
  * The star beside a list's search: its quick look-ups, the searches you've saved (kept with your account), saving
- * the search you have, and managing them (rename, delete, and the one the list starts on). The name of the
- * favourite the list is showing, if any, sits beside the star (a quick look-up's only with `namesQuickFilters`).
+ * the search you have, and managing them (rename, delete, and the one the list starts on). Nothing sits beside the
+ * star: which favourite the list is showing, if any, is in the star's name ("Favourites (showing My open work)") and
+ * its tooltip, and the bar's own tokens show the filters.
  */
 export function ListFavourites({
   list,
@@ -61,7 +55,6 @@ export function ListFavourites({
   normalize,
   onApply,
   isUnfiltered,
-  namesQuickFilters = true,
 }: ListFavouritesProps) {
   const favourites = useSavedFavourites(list);
   const [dialog, setDialog] = useState<'save' | 'manage' | null>(null);
@@ -79,9 +72,8 @@ export function ListFavourites({
   const isEmpty = currentKey === '[]';
   const quickShowing = quick.find((q) => keyOf(normalize(q.values)) === currentKey)?.label;
   const savedShowing = favourites.saved.find((f) => keyOf(normalize(f.values)) === currentKey)?.name;
-  // A saved search someone named wins, so the label and the star's name agree.
+  // A saved search someone named wins over a quick filter with the same filters.
   const showing = savedShowing ?? quickShowing;
-  const label = namesQuickFilters ? showing : savedShowing;
   const isSaved = favourites.saved.some((f) => keyOf(normalize(f.values)) === currentKey);
 
   const items: DropdownMenuOption[] = [];
@@ -130,7 +122,6 @@ export function ListFavourites({
 
   return (
     <HStack gap={2} vAlign="center">
-      {label && <Token label={label} color="blue" />}
       <DropdownMenu
         items={items}
         alignment="end"

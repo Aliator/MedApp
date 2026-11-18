@@ -16,7 +16,7 @@ public sealed class AppointmentResponse
 
     public string? ProcedureTitle { get; set; }
 
-    /// <summary>The procedure's due date (UK), for ordering what needs booking.</summary>
+    /// <summary>The procedure's due date (UK), for ordering what requires an appointment.</summary>
     public DateOnly? ProcedureDueDate { get; set; }
 
     public Guid? StageId { get; set; }

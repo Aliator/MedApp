@@ -3,7 +3,7 @@ namespace MedApp.Domain.Appointments;
 /// <summary>Where an appointment is. Stored as its number, so never renumber these.</summary>
 public enum AppointmentStatus
 {
-    /// <summary>Needs booking: no member of staff or time yet.</summary>
+    /// <summary>Requires appointment: no member of staff or time yet.</summary>
     Requested = 0,
 
     /// <summary>With a member of staff, at a start and end time.</summary>
