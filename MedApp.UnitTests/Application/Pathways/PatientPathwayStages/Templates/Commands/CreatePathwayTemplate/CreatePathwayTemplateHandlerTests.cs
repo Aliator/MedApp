@@ -154,4 +154,23 @@ public sealed class CreatePathwayTemplateHandlerTests
 
         await act.Should().ThrowAsync<ConflictException>();
     }
+
+    [TestCase(null, RetentionClass.Standard)]
+    [TestCase("oncology", RetentionClass.Oncology)]
+    public async Task Handle_RetentionClass_IsKeptAndReturned(string? value, RetentionClass expected)
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        GivenDefinitions(consultation);
+        PathwayTemplate? added = null;
+        _repository
+            .Setup(r => r.AddPathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<CancellationToken>()))
+            .Callback((PathwayTemplate t, CancellationToken _) => added = t);
+
+        var response = await Handler.Handle(
+            new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id], RetentionClass: value),
+            CancellationToken.None);
+
+        added!.RetentionClass.Should().Be(expected);
+        response.RetentionClass.Should().Be(expected.ToString());
+    }
 }

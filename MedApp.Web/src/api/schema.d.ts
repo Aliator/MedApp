@@ -16094,6 +16094,7 @@ export interface components {
             name?: string | null;
             /** Format: uuid */
             specialtyId?: string;
+            retentionClass?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;
@@ -17180,6 +17181,7 @@ export interface components {
             /** Format: uuid */
             specialtyId?: string;
             specialtyName?: string | null;
+            retentionClass?: string | null;
             /** Format: int32 */
             pathwayCount?: number;
             stages?: components["schemas"]["PathwayTemplateStageResponse"][] | null;
@@ -18359,6 +18361,7 @@ export interface components {
             name?: string | null;
             /** Format: uuid */
             specialtyId?: string | null;
+            retentionClass?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;

@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, json, mockApi, openAlertDetails, openDialog, pageOf, renderWithApp} from '../../test/render';
+import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp} from '../../test/render';
 import type {RetentionListSearch} from '../listSearch';
 import {RetentionReviewPage} from './RetentionReviewPage';
 
@@ -61,15 +61,12 @@ describe('RetentionReviewPage', () => {
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1`]);
   });
 
-  it('warns that only the adult and children periods are applied, so specialty records must be kept', async () => {
-    const {user} = renderList();
+  it('shows a specialty class that set the period, and no longer warns that classes are missing', async () => {
+    renderList({}, pageOf([{...items[0], retentionClass: 'MentalHealth'}], 1));
 
-    // A short label, read in full as an alert, with the whole warning over the page.
-    expect(await findAlert(/MedApp applies only the adult \(8 years\) and children periods/)).toBeInTheDocument();
-    const details = await openAlertDetails(user, 'Specialty retention periods not applied');
-    expect(within(details).getByText(/MedApp applies only the adult \(8 years\) and children periods/)).toHaveTextContent(
-      /set Retention:AdultYears to the longest class/,
-    );
+    const row = (await screen.findByRole('link', {name: 'Tamsin Rowcroft'})).closest('tr')!;
+    expect(within(row).getByText('Mental health')).toBeInTheDocument();
+    expect(screen.queryByText(/Specialty retention periods not applied/)).toBeNull();
   });
 
   it('lists records being kept too, from its switch, and asks for them', async () => {

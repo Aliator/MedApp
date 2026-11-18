@@ -8,6 +8,15 @@ namespace MedApp.UnitTests.Application.Pathways.PatientPathwayStages.Templates;
 [TestFixture]
 public sealed class PathwayTemplateMapperTests
 {
+    [TestCase(RetentionClass.Standard, "Standard")]
+    [TestCase(RetentionClass.MentalHealth, "MentalHealth")]
+    public void ToResponse_RetentionClass_ByName(RetentionClass retentionClass, string expected)
+    {
+        var template = new PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName, RetentionClass = retentionClass };
+
+        PathwayTemplateMapper.ToResponse(template, pathwayCount: 0).RetentionClass.Should().Be(expected);
+    }
+
     [Test]
     public void ToResponse_NoDefinitionsGiven_NamesStagesFromEachMapsDefinition()
     {

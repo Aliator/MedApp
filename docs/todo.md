@@ -78,7 +78,6 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Outcome questionnaires:** scores before and after treatment, recorded and shown, never scored into advice.
 - **Private patients:** fees, invoices and insurer details.
 - **The full data-request pack:** see Privacy, "A GDPR report for a patient's data request".
-- **Longer retention classes:** a centre doing cancer work needs more than the adult and child periods (Privacy, "Retention classes per template").
 - **Several sites or organisations in one deployment:** multi-tenancy (roadmap step 8), before a second centre shares the system.
 - **Links to NHS systems:** the e-Referral Service, the real demographics lookup (Patient identity, "The real PDS lookup"), letters sent to GP systems, and the lab's own system. Each needs NHS onboarding, which takes months.
 - **Video and phone consultations:** an appointment type and a link; the call happens in another tool.
@@ -190,7 +189,8 @@ The first part is built: the activity log and access report, the subject access 
   - **The request:** logging it (received, identity checked, target date), the one-month deadline with a reminder, and recording when and how the response was sent.
   - **Before it goes:** the clinician review step above, and other people's details removed (a note flagged `IsAboutAnotherPatient`, staff beyond their names).
 - **Count appointments in the retention review:** the conclusion of treatment should be the latest of the last closed pathway, the last appointment attended, not attended or cancelled, and the last change to the record, and wait while any appointment is Requested or Booked (`docs/governance/retention-schedule.md`, section 2). Today appointments don't move it.
-- **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
+- **Retention classes:** built per template (PR 27). Still to do: **the DPO confirms the class years** (`Retention:Classes`: oncology 30, maternity 25, mental health 20, counted from the conclusion of treatment; the Code counts maternity from the last birth and oncology from diagnosis) before a customer relies on them; a deleted pathway's class stops counting (record it in the audit, or on the patient); per-customer settings (step 8).
+- **Retention, still to do:** the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
 - **Saved searches that name a patient,** removed on anonymisation or destruction: their terms can be a name or an NHS number (the patient list's NHS number filter), kept in the account's settings and the browser. Anonymisation removes the number from the record but not from saved searches (DPIA risk 21).
 - **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
 - **Contact preferences** and a National Data Opt-out flag.
