@@ -1,3 +1,4 @@
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 ﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -115,6 +116,7 @@ public sealed class PatientPathwayStagesControllerTests
     public async Task CreateTemplate_ReturnsItWithItsAddress()
     {
         var request = _fixture.Create<CreatePathwayTemplateRequest>();
+        request.StageOptions = null;
         var template = _fixture.Create<PathwayTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
@@ -130,9 +132,23 @@ public sealed class PatientPathwayStagesControllerTests
     public async Task UpdateTemplate_SendsTheChanges()
     {
         var request = _fixture.Create<UpdatePathwayTemplateRequest>();
+        request.StageOptions = null;
         await ExpectOk(_fixture.Create<PathwayTemplateResponse>(),
             new UpdatePathwayTemplateCommand(RecordId, request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder),
             c => c.UpdatePathwayTemplate(RecordId, request, _cts.Token));
+    }
+
+    [Test]
+    public async Task CreateTemplate_WithStageOptions_SendsEachAsTheCommandsOptions()
+    {
+        var request = _fixture.Create<CreatePathwayTemplateRequest>();
+        request.StageOptions = [new() { ChoosesBranch = true }, new() { IsOptional = true, Branch = "Benign" }];
+        var mediator = new RecordingMediator(_ => _fixture.Create<PathwayTemplateResponse>());
+
+        await Controller(mediator).CreatePathwayTemplate(request, _cts.Token);
+
+        mediator.Request.Should().BeOfType<CreatePathwayTemplateCommand>().Which.StageOptions.Should().Equal(
+            new TemplateStageOptions(false, true, null), new TemplateStageOptions(true, false, "Benign"));
     }
 
     [Test]

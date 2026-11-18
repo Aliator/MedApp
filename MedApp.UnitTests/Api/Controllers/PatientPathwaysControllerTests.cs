@@ -12,6 +12,8 @@ using MedApp.Application.Pathways.PatientPathways.Commands.DeletePatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.DeletePathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.EditPathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.FinishPathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.ReinstatePathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.SkipPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.StartPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnassignPatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnlockPathwayStage;
@@ -267,4 +269,22 @@ public sealed class PatientPathwaysControllerTests
     [Test]
     public async Task UnlockPathwayStage_UnlocksAsTheUser() =>
         ExpectSentAndOk(new UnlockPathwayStageCommand(RecordId, OtherId, Actor), await Controller.UnlockPathwayStage(RecordId, OtherId, _cts.Token));
+
+    [Test]
+    public async Task FinishPathwayStage_WithABranch_SendsIt() =>
+        ExpectSentAndOk(
+            new FinishPathwayStageCommand(RecordId, OtherId, Actor, Branch: "Treatment"),
+            await Controller.FinishPathwayStage(RecordId, OtherId, new FinishPathwayStageRequest { Branch = "Treatment" }, _cts.Token));
+
+    [Test]
+    public async Task SkipPathwayStage_SkipsAsTheUserWithTheReason() =>
+        ExpectSentAndOk(
+            new SkipPathwayStageCommand(RecordId, OtherId, "Other", "Synthetic detail.", Actor),
+            await Controller.SkipPathwayStage(RecordId, OtherId, new SkipPathwayStageRequest { Reason = "Other", Detail = "Synthetic detail." }, _cts.Token));
+
+    [Test]
+    public async Task ReinstatePathwayStage_ReinstatesAsTheUserWithTheReason() =>
+        ExpectSentAndOk(
+            new ReinstatePathwayStageCommand(RecordId, OtherId, "Synthetic reason.", Actor),
+            await Controller.ReinstatePathwayStage(RecordId, OtherId, new ReinstatePathwayStageRequest { Reason = "Synthetic reason." }, _cts.Token));
 }
