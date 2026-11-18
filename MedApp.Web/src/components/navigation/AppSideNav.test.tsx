@@ -450,6 +450,44 @@ describe('AppSideNav folded, and its menus', () => {
     expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
   });
 
+  it('measures the strip again once the menu has slid into place, ignoring an animation that never ends', async () => {
+    // The menu starts at 300 while it animates, and settles at 310.
+    let menuLeft = 300;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(menuLeft, 100, 200, 120);
+      return new DOMRect();
+    });
+    let settle = () => {};
+    const sliding = {finished: new Promise<void>((resolve) => (settle = resolve)), effect: {getComputedTiming: () => ({endTime: 200})}};
+    const endless = {finished: new Promise<void>(() => {}), effect: {getComputedTiming: () => ({endTime: Infinity})}};
+    // jsdom has no Web Animations: the menu's surface reports one that ends and one that never does.
+    const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
+    prototype.getAnimations = () => [sliding, endless];
+    try {
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const {user} = renderWithApp(
+        <HalfViewsContext.Provider value={halfViews}>
+          <AppSideNav />
+        </HalfViewsContext.Provider>,
+        {user: staffUser},
+      );
+      await rowMenuItem(user, 'My Tasks', 'Open in half view');
+      const strip = () => document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
+      // First measured mid-animation: 228 to 324 (24px into the menu at 300).
+      await waitFor(() => expect(strip()?.style.width).toBe('96px'));
+
+      // Settled 10px further on: measured again, though the endless animation never finishes.
+      menuLeft = 310;
+      await act(async () => settle());
+      await waitFor(() => expect(strip()?.style.width).toBe('106px'));
+    } finally {
+      delete prototype.getAnimations;
+    }
+  });
+
   it('covers the gap between the menu button and its open menu, so the pointer crossing it keeps the menu open', async () => {
     // jsdom has no layout: the menu button ends at 228 (its row at 100, 40 tall), and the menu starts at 300.
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {

@@ -249,7 +249,11 @@ function RowMenu({
           };
           frame = requestAnimationFrame(() => {
             measure();
-            const settling = typeof surface.getAnimations === 'function' ? surface.getAnimations({subtree: true}) : [];
+            // Only animations that end by themselves: an endless one would hold the second measurement back for good.
+            const settling = (typeof surface.getAnimations === 'function' ? surface.getAnimations({subtree: true}) : []).filter((animation) => {
+              const end = animation.effect?.getComputedTiming().endTime;
+              return typeof end === 'number' && Number.isFinite(end);
+            });
             if (settling.length > 0) void Promise.allSettled(settling.map((animation) => animation.finished)).then(measure);
           });
           return;
