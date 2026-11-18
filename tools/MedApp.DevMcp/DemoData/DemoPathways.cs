@@ -10,8 +10,8 @@ using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// Replays every planned procedure in the order they were referred (<see cref="PathwayReplay"/>), adds the
-/// appointments that aren't for a procedure, the imported records from before the app, and saves it all in a few
+/// Replays every planned pathway in the order they were referred (<see cref="PathwayReplay"/>), adds the
+/// appointments that aren't for a pathway, the imported records from before the app, and saves it all in a few
 /// batches.
 /// </summary>
 public static class DemoPathways
@@ -42,7 +42,7 @@ public static class DemoPathways
                 // The leaver's work all closed before they left: never open work with a deleted account (H-21).
                 var leaverProblem = replay.Lead.Id == leaver.Id
                                     && (!PathwayWorkflow.IsClosed(replay.Pathway.Status) || replay.Involves(leaver, leftUtc));
-                // The archived pathway's procedures finished well before the last four weeks, but for the stragglers.
+                // The archived template's pathways finished well before the last four weeks, but for the stragglers.
                 var oldPathwayProblem = plan.PathwayKind == PathwayKind.SkinLesion2024 && !plan.Straggler
                                         && (!PathwayWorkflow.IsClosed(replay.Pathway.Status) || replay.LastActivityUtc > oldPathwayDoneBy);
 
@@ -287,7 +287,7 @@ public static class DemoPathways
                 }).ToList();
 
                 // Its note came across with it, from before MedApp recorded who wrote what: no author ("Unknown"), as the
-                // migration from the single notes field leaves a procedure with no Created entry.
+                // migration from the single notes field leaves a pathway with no Created entry.
                 const string importedNote = "Imported from the previous system.";
                 var note = new PatientPathwayNote
                 {

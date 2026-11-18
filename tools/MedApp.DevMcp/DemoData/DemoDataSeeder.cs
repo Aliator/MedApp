@@ -199,7 +199,7 @@ public static class DemoDataSeeder
             Maps = p.Stages.Select((s, i) => new PathwayTemplateMap
             {
                 StageDefinitionId = definitions[s.Definition].Id,
-                // Loaded, as the create handler reads the template: procedures are made from it (PathwayCreation).
+                // Loaded, as the create handler reads the template: pathways are made from it (PathwayCreation).
                 StageDefinition = definitions[s.Definition],
                 StageOrder = i + 1,
             }).ToList(),

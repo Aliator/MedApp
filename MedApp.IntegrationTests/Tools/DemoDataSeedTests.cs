@@ -281,7 +281,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// Meeting notifications are the app's: fixed titles, linked to a calendar day (not a procedure or appointment),
+    /// Meeting notifications are the app's: fixed titles, linked to a calendar day (not a pathway or appointment),
     /// and nothing about a patient in them, nor in the meetings themselves.
     /// </summary>
     [Test]
@@ -505,7 +505,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// Procedures hold several notes, as the app writes them: each by a member of staff (or, for the imported ones, by
+    /// Pathways hold several notes, as the app writes them: each by a member of staff (or, for the imported ones, by
     /// nobody, as the migration left notes with no known author), with a version for each add and edit, each edit a
     /// NoteEdited audit entry by the note's own author, and the audit never holding the text.
     /// </summary>
@@ -520,7 +520,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             .ToListAsync());
 
         notes.Should().HaveCountGreaterThan(100);
-        notes.GroupBy(n => n.PatientPathwayId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many procedures have several notes");
+        notes.GroupBy(n => n.PatientPathwayId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many pathways have several notes");
         notes.Count(n => n.Version > 1).Should().BeGreaterThan(5, "a few notes were edited");
         // Each note by someone has its NoteAdded entry by them (some have left since: their notes show "Deleted user").
         var added = noteAudit.Where(e => e.Action == PatientPathwayAuditAction.NoteAdded)

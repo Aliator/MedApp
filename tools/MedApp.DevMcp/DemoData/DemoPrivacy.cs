@@ -14,9 +14,9 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// The records' privacy history and the admins' clear-ups, all through the app's own commands, at their moments:
-/// two restricted records (one with a procedure under way, which staff can still pause), two disputed, one imported
+/// two restricted records (one with a pathway under way, which staff can still pause), two disputed, one imported
 /// record anonymised after its retention review, two kept past their period with a reason, two subject access
-/// exports, two cancelled procedures deleted, and the leaver's account deleted on their last day.
+/// exports, two cancelled pathways deleted, and the leaver's account deleted on their last day.
 /// </summary>
 public static class DemoPrivacy
 {
@@ -27,7 +27,7 @@ public static class DemoPrivacy
         var lead = world.Lead;
         IMediator Mediator(IServiceProvider sp) => sp.GetRequiredService<IMediator>();
 
-        // Cancelled procedures deleted by an admin; their audit stays, shown to admins on the timeline.
+        // Cancelled pathways deleted by an admin; their audit stays, shown to admins on the timeline.
         foreach (var (pathway, at) in world.Deletions)
         {
             services.At(at, lead.ActivityActor);
@@ -44,7 +44,7 @@ public static class DemoPrivacy
         var active = patients.All.Where(p => p.Role == PatientRole.Active && p.Id != Guid.Empty).ToList();
         var flagged = new List<PatientSeed>();
 
-        // Restricted, with a procedure under way (quiet for a week, nothing booked ahead): staff can still block or cancel it.
+        // Restricted, with a pathway under way (quiet for a week, nothing booked ahead): staff can still block or cancel it.
         var withOpenWork = active.Where(p =>
                 world.Pathways.Any(x => x.PatientId == p.Id && x.Status is Domain.Pathways.PatientPathways.PatientPathwayStatus.InProgress)
                 && LastActivity(p.Id) < now.AddDays(-7) && !HasUpcoming(p.Id))

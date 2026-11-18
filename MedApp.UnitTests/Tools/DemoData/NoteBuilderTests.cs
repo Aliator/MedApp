@@ -151,7 +151,7 @@ public sealed class NoteBuilderTests
     /// pathway record: clinical text names the biopsy, the sample or the treatment instead.
     /// </summary>
     [Test]
-    public void Notes_NeverNameThePatient_NorSayPathway()
+    public void Notes_NeverNameThePatient_NorUseTheAppsOldWord()
     {
         var notes = StageNames()
             .SelectMany(stage => Kinds().SelectMany(kind => Enumerable.Range(0, 5)

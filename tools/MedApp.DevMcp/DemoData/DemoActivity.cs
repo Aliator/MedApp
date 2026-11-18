@@ -18,7 +18,7 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// The activity log over the last 60 days, in its own format, written with the app's writer (<see cref="IActivityLog"/>,
-/// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and procedures
+/// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and pathways
 /// by the people working on them (once per view window, <see cref="ActivityOptions.ViewWindowMinutes"/>, as the app
 /// records them), the patients each list showed, and searches by their filter names
 /// (<see cref="PatientSearch.FiltersUsed"/>) and counts, never the terms. A patient is seen only while they're on the
@@ -165,7 +165,7 @@ public static class DemoActivity
                         Add(signIn.AddSeconds(-25 * (steps.Count - 1 - step)), steps[step].Action, member, details: steps[step].Details);
                 }
 
-                // The day's diary (the calendar lists its appointments' patients), and the procedure list.
+                // The day's diary (the calendar lists its appointments' patients), and the pathway list.
                 var diary = appointmentsByDay[(member.Id, date)].ToList();
                 foreach (var appointment in diary)
                     View(signIn.AddMinutes(2), ActivityAction.PatientListed, member, appointment.PatientId);
@@ -187,7 +187,7 @@ public static class DemoActivity
                         View(at, ActivityAction.PatientListed, member, patient.Id);
                 }
 
-                // Every change they made, they made from the record: the patient's page, then the procedure's.
+                // Every change they made, they made from the record: the patient's page, then the pathway's.
                 foreach (var touch in touches)
                 {
                     View(touch.AtUtc.AddMinutes(-random.Next(2, 6)), ActivityAction.PatientViewed, member, touch.PatientId);

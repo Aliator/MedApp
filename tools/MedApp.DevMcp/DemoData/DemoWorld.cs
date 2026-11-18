@@ -6,14 +6,14 @@ using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>Someone read a patient's record (and a procedure's) around a moment: the activity log's views come from these.</summary>
+/// <summary>Someone read a patient's record (and a pathway's) around a moment: the activity log's views come from these.</summary>
 public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? PathwayId);
 
 /// <summary>A monitoring rule as the seed matches it: when it was made, and when (if ever) it was switched off.</summary>
 public sealed record RuleState(MonitoringRule Rule, DateTime CreatedUtc, DateTime? DisabledUtc);
 
 /// <summary>
-/// What every procedure's replay shares: the centre (staff, calendars, templates, rules), the random choices, and
+/// What every pathway's replay shares: the centre (staff, calendars, templates, rules), the random choices, and
 /// everything the replays produce, to be saved together.
 /// </summary>
 public sealed class DemoWorld
@@ -22,7 +22,7 @@ public sealed class DemoWorld
     public required Random Random { get; init; }
     public required DemoCalendars Calendars { get; init; }
     public required IReadOnlyList<StaffMember> Staff { get; init; }
-    /// <summary>The templates, with their maps' stage definitions, as procedures are made from them.</summary>
+    /// <summary>The templates, with their maps' stage definitions, as pathways are made from them.</summary>
     public required IReadOnlyDictionary<PathwayKind, PathwayTemplate> Templates { get; init; }
 
     public IReadOnlyDictionary<PathwayKind, Guid> TemplateIds => Templates.ToDictionary(t => t.Key, t => t.Value.Id);
@@ -34,7 +34,7 @@ public sealed class DemoWorld
     public List<PatientPathway> Pathways { get; } = [];
     public List<PatientPathwayAuditEntry> Audit { get; } = [];
 
-    /// <summary>Every version of every procedure note (the notes themselves are on their procedures).</summary>
+    /// <summary>Every version of every pathway note (the notes themselves are on their pathways).</summary>
     public List<PatientPathwayNoteVersion> NoteVersions { get; } = [];
     public List<Appointment> Appointments { get; } = [];
     public List<AppointmentEvent> AppointmentEvents { get; } = [];
@@ -44,7 +44,7 @@ public sealed class DemoWorld
     /// <summary>Where on the body each record with a site is about (its notes name it), by the record's ID.</summary>
     public Dictionary<Guid, string> Sites { get; } = [];
 
-    /// <summary>Procedures to delete (by an admin, later), with when.</summary>
+    /// <summary>Pathways to delete (by an admin, later), with when.</summary>
     public List<(PatientPathway Pathway, DateTime AtUtc)> Deletions { get; } = [];
 
     /// <summary>Stages finished by an admin without their visit (the audited bypass).</summary>

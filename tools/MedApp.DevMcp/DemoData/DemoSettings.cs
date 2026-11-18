@@ -8,8 +8,8 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// App settings saved with accounts, in the web app's own keys and shapes (<c>src/app/settingsStore.ts</c>: each a
-/// string under a <c>medapp.</c> key): the lead's rows per page, saved searches on the procedures and patients lists
-/// (one the procedures list starts on), and pins; saved searches for two members of staff. Saved through the
+/// string under a <c>medapp.</c> key): the lead's rows per page, saved searches on the pathways and patients lists
+/// (one the pathways list starts on; stored under the lists' old keys, procedures), and pins; saved searches for two members of staff. Saved through the
 /// app's command.
 /// </summary>
 public static class DemoSettings

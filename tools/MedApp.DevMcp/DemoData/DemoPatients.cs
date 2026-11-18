@@ -8,13 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>Why a patient is in the demo, beyond their procedures.</summary>
+/// <summary>Why a patient is in the demo, beyond their pathways.</summary>
 public enum PatientRole
 {
-    /// <summary>Referred, with procedures.</summary>
+    /// <summary>Referred, with pathways.</summary>
     Active,
 
-    /// <summary>Registered, waiting for a referral: no procedures yet.</summary>
+    /// <summary>Registered, waiting for a referral: no pathways yet.</summary>
     Waiting,
 
     /// <summary>Imported from the older system, with closed records long past: due for the retention review.</summary>
@@ -178,7 +178,7 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
                                               && (female is null || p.Female == female)
                                               && p.AgeAt(plan.CreatedUtc) >= minimumAge
                                               && (mayBeChild || !p.IsChildAt(plan.CreatedUtc))).ToList();
-                // Someone with one procedure is likelier to come back than someone with three.
+                // Someone with one pathway is likelier to come back than someone with three.
                 if (eligible.Count > 0)
                     patient = PathwayPlans.Weighted(random, eligible.Select(p => (p, p.Pathways switch { 1 => 6, 2 => 3, _ => 1 })).ToArray());
             }

@@ -43,7 +43,7 @@ public sealed class PathwayPlan
     public Fate Fate { get; set; }
     public int FateStage { get; set; } = -1;
 
-    /// <summary>An old-pathway procedure still finishing long after the pathway was archived.</summary>
+    /// <summary>A pathway from the old template still finishing long after the template was archived.</summary>
     public bool Straggler { get; set; }
 
     /// <summary>A stage whose visit was asked for and never booked: it sits in Requires Appointment.</summary>
@@ -63,7 +63,7 @@ public sealed class PathwayPlan
     public bool RaisePriority { get; set; }
     public bool EditNotes { get; set; }
 
-    /// <summary>The procedure replayed from this plan (set once its replay is kept).</summary>
+    /// <summary>The pathway replayed from this plan (set once its replay is kept).</summary>
     public Guid PathwayId { get; set; }
 
     public NoteContext NoteContext(int occurrence = 1, int occurrences = 1) => new(Kind, Side, Urgent, occurrence, occurrences, Outcome);

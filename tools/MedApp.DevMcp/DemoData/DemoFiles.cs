@@ -220,7 +220,7 @@ public static class DemoFiles
         return new { uploaded = uploaded.Count, deleted, downloaded = downloads };
     }
 
-    /// <summary>Who worked on a stage of a procedure (who started it), else its first assignee, else the coordinator.</summary>
+    /// <summary>Who worked on a stage of a pathway (who started it), else its first assignee, else the coordinator.</summary>
     private static StaffMember Worker(DemoWorld world, PatientPathway pathway, string stageName)
     {
         var started = pathway.Stages.FirstOrDefault(s => s.Name == stageName && s.StartedByUserId is not null)?.StartedByUserId

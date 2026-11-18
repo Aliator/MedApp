@@ -9,7 +9,7 @@ using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// Replays one procedure's history, change by change, through the app's own rules, as its handlers apply them:
+/// Replays one pathway's history, change by change, through the app's own rules, as its handlers apply them:
 /// <see cref="PathwayChange"/> for the statuses, stages, assignments and the audit; <see cref="StageVisits"/> for the
 /// visits a stage asks for when it becomes current; <see cref="AppointmentChange"/> for booking, moving, cancelling
 /// and recording appointments; <see cref="PathwayCreation"/>, <see cref="StageFinishing"/> and
@@ -42,7 +42,7 @@ public sealed class PathwayReplay
     private readonly StaffMember _samplesTaker;
     private readonly StaffMember _followUpNurse;
 
-    /// <summary>Nothing in this procedure happens before this (after a correction, the next stage waits for it).</summary>
+    /// <summary>Nothing in this pathway happens before this (after a correction, the next stage waits for it).</summary>
     private DateTime _floor;
 
     public PathwayReplay(DemoWorld world, PathwayPlan plan, StaffMember lead, double waitScale)
@@ -82,7 +82,7 @@ public sealed class PathwayReplay
     public DateTime? DeleteAtUtc { get; private set; }
     public int Bypasses { get; private set; }
 
-    /// <summary>Whether a staff member did anything in this procedure, or had an appointment, at or after a moment.</summary>
+    /// <summary>Whether a staff member did anything in this pathway, or had an appointment, at or after a moment.</summary>
     public bool Involves(StaffMember member, DateTime fromUtc) =>
         _audit.Any(a => a.UserId == member.Id && a.AtUtc >= fromUtc)
         || _events.Any(e => e.UserId == member.Id && e.AtUtc >= fromUtc)
@@ -223,7 +223,7 @@ public sealed class PathwayReplay
         var worker = bypass ? _world.Lead : WorkerFor(spec);
         Change(worker, startAt, change => change.StartStage(stage));
 
-        // The procedure's first note brought up to date by whoever wrote it (only a note's author can edit it), or, when
+        // The pathway's first note brought up to date by whoever wrote it (only a note's author can edit it), or, when
         // there's none, a note from the person starting this stage.
         if (_plan.EditNotes && index == 1)
             UpdateFirstNote(worker, startAt.AddMinutes(_random.Next(2, 30)));
@@ -302,7 +302,7 @@ public sealed class PathwayReplay
     /// A stage's visit: its Requested appointment is booked (by the booking coordinator, or the clinician) with the
     /// person working on the stage, in a free time on their calendar; sometimes moved, cancelled and rebooked, or
     /// missed and rebooked; then attended. Returns when the attendance was recorded, or null if the story stops first
-    /// (not booked yet, booked ahead, or the procedure was cancelled).
+    /// (not booked yet, booked ahead, or the pathway was cancelled).
     /// </summary>
     private DateTime? Visit(int index, PatientPathwayStage stage, StageSpec spec, StaffMember worker, DateTime startedAt)
     {
@@ -336,7 +336,7 @@ public sealed class PathwayReplay
         {
             var start = appointment.StartUtc!.Value;
 
-            // The procedure is cancelled after the visit was booked: the booking is cancelled by hand.
+            // The pathway is cancelled after the visit was booked: the booking is cancelled by hand.
             if (index == _plan.FateStage && _plan.Fate == Fate.CancelledAfterBooking)
             {
                 var at = Working(bookedAt.AddMinutes((start - bookedAt).TotalMinutes * (0.3 + _random.NextDouble() * 0.4)));
@@ -430,7 +430,7 @@ public sealed class PathwayReplay
         });
     }
 
-    /// <summary>Cancels the procedure, as ChangePatientPathwayStatusHandler does, then the booked visits by hand.</summary>
+    /// <summary>Cancels the pathway, as ChangePatientPathwayStatusHandler does, then the booked visits by hand.</summary>
     private void Cancel(DateTime at)
     {
         Change(_lead, at, change =>
@@ -495,7 +495,7 @@ public sealed class PathwayReplay
     }
 
     /// <summary>
-    /// The procedure's first note updated by its author (as EditPathwayNoteHandler does: only the author can), now and
+    /// The pathway's first note updated by its author (as EditPathwayNoteHandler does: only the author can), now and
     /// then corrected again the same day, so it has several versions; with no first note, one added by
     /// <paramref name="worker"/>.
     /// </summary>
@@ -519,7 +519,7 @@ public sealed class PathwayReplay
     }
 
     /// <summary>
-    /// Now and then, after finishing a stage, its worker adds a note to the procedure about what comes next (as
+    /// Now and then, after finishing a stage, its worker adds a note to the pathway about what comes next (as
     /// AddPathwayNoteHandler does), and sometimes fixes it a little later: their own, so they can.
     /// </summary>
     private void MaybePathwayNote(StageSpec spec, PatientPathwayStage stage, StaffMember worker, DateTime finishedAt)
