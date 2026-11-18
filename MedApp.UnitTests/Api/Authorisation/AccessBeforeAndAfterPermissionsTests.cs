@@ -190,6 +190,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LetterTemplatesController.PreviewLetterTemplate 00001
         LetterTemplatesController.RestoreLetterTemplate 00001
         LetterTemplatesController.UpdateLetterTemplate 00001
+        MdtController.Defer 00011
+        MdtController.GetAwaitingMeeting 00011
+        MdtController.GetMeetingList 00011
+        MdtController.GetMeetings 00011
+        MdtController.GetPathwayItems 00011
+        MdtController.ListForMdt 00011
+        MdtController.RecordOutcome 00000
+        MdtController.Withdraw 00011
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -468,12 +476,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
         // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
-        var adminBefore = Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        // The clinical permissions that came later (specimens, letters, MDT outcomes, consent) were never Admin's.
+        var cameLater = Permissions.NotForAdmin.Except([Permission.TriageReferrals, Permission.FinishWithoutVisit]).ToHashSet();
+        var adminBefore = Enum.GetValues<Permission>()
+            .Where(p => p != Permission.TriageReferrals && !cameLater.Contains(p))
+            .ToHashSet();
         var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
 
-        // It lost FinishWithoutVisit then; the clinical permissions that came later were never Admin's (decision 74).
-        adminBefore.Except(adminNow).Should().BeEquivalentTo(Permissions.NotForAdmin.Where(p => p != Permission.TriageReferrals));
-        adminBefore.Except(adminNow).Should().Contain(Permission.FinishWithoutVisit);
+        adminBefore.Except(adminNow).Should().Equal(Permission.FinishWithoutVisit);
         adminNow.Except(adminBefore).Should().BeEmpty();
         TestPermissions.ForRoles(AppRoles.AllStaffBeforeRoles).Should()
             .NotContain(Permission.UnlockStages).And.NotContain(Permission.FinishWithoutVisit);

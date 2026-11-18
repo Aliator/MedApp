@@ -9,6 +9,7 @@ using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Application.PatientMessages.Common;
 using MedApp.Domain.PatientMessages;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Common;
@@ -225,6 +226,22 @@ public static class PatientAnonymiser
             specimen.CourierReference = null;
         }
 
+        // MDT items: the question and the outcome are free text. Open ones are withdrawn, as the record can't change
+        // any more (by whoever anonymises, without an audit entry of their own: the anonymisation is the record of it).
+        foreach (var item in record.MdtItems)
+        {
+            item.Question = Removed(item.Question);
+            if (item.Outcome is not null)
+                item.Outcome = Removed(item.Outcome);
+            if (item.IsOpen)
+            {
+                item.Status = MdtItemStatus.Withdrawn;
+                item.WithdrawnAtUtc = nowUtc;
+                item.WithdrawnByUserId = by?.UserId;
+                item.WithdrawnByUsername = by?.Username;
+                item.Version++;
+            }
+        }
         // Consent records keep their forms, dates, who signed (by kind) and statuses; a withdrawal's or correction's
         // detail goes. Their scans are files, deleted below with the rest.
         foreach (var consent in record.ConsentRecords.Where(c => c.StatusDetail is not null))

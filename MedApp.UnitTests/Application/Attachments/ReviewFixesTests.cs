@@ -220,6 +220,7 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 

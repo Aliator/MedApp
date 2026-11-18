@@ -17,6 +17,15 @@ public sealed class MeetingRequest
     public List<Guid> AttendeeUserIds { get; set; } = [];
 
     /// <summary>
+    /// Whether it's a specialty's MDT (multidisciplinary team meeting); left out, a change keeps it as it is. Its title
+    /// and notes still never name patients.
+    /// </summary>
+    public bool? IsMdt { get; set; }
+
+    /// <summary>The MDT's specialty: required when <see cref="IsMdt"/>, ignored otherwise.</summary>
+    public Guid? SpecialtyId { get; set; }
+
+    /// <summary>
     /// When changing a meeting (required then; ignored when adding one): its <c>LastUpdated</c> as the caller last read
     /// it. If anyone has changed the meeting since, the change is refused (409), rather than undoing theirs.
     /// </summary>

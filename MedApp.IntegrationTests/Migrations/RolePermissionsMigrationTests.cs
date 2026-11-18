@@ -28,10 +28,13 @@ public sealed class RolePermissionsMigrationTests
     private static readonly Permission[] LetterPermissions = [Permission.WriteLetters, Permission.ApproveLetters, Permission.SendLetters];
 
     private const string SpecimensMigration = "20261118175544_AddedSpecimens";
-    private const string ConsentMigration = "20261118180929_AddedConsentRecords";
+    private const string ConsentMigration = "20261118182514_AddedConsentRecords";
 
-    /// <summary>The permission AddedConsentRecords adds, which the starting Clinician, Senior clinician and Nurse have now.</summary>
-    private static readonly Permission[] ConsentPermissions = [Permission.RecordConsent];
+    /// <summary>
+    /// The permissions AddedMdtItems and AddedConsentRecords add (after AddedSpecimens), which the starting clinical roles
+    /// have now.
+    /// </summary>
+    private static readonly Permission[] ConsentPermissions = [Permission.RecordMdtOutcomes, Permission.RecordConsent];
 
     /// <summary>The permissions later migrations add (AddedSpecimens), which the starting roles have now.</summary>
     private static readonly Permission[] SpecimenPermissions = [Permission.RecordSpecimens, Permission.ProcessSpecimens];

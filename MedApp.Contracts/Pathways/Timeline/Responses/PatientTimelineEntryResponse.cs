@@ -200,6 +200,17 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>A specimen entry: its lab, an admin-written name.</summary>
     public string? LaboratoryName { get; set; }
 
+    /// <summary>An MDT entry's item.</summary>
+    public Guid? MdtItemId { get; set; }
+
+    /// <summary>An MDT entry's meeting time (the one moved to, for a deferral); null once that meeting was cancelled.</summary>
+    public DateTime? MeetingStartUtc { get; set; }
+
+    /// <summary>A deferral's earlier meeting time.</summary>
+    public DateTime? PreviousMeetingStartUtc { get; set; }
+
+    /// <summary>An MDT outcome's attendees, by username.</summary>
+    public List<string> PresentUsernames { get; set; } = [];
     /// <summary>A consent entry: the consent record.</summary>
     public Guid? ConsentRecordId { get; set; }
 

@@ -21,6 +21,12 @@ public sealed class MeetingResponse
 
     public Guid OrganiserUserId { get; set; }
 
+    /// <summary>Whether it's a specialty's MDT (multidisciplinary team meeting), which pathways can be listed for.</summary>
+    public bool IsMdt { get; set; }
+
+    /// <summary>The MDT's specialty; null for an ordinary meeting.</summary>
+    public Guid? SpecialtyId { get; set; }
+
     /// <summary>Null once the organiser's account is deleted.</summary>
     public string? OrganiserUsername { get; set; }
 

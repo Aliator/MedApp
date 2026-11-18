@@ -61,6 +61,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/letters/{id:guid}"] = Records("LetterViewed"), // the letter's ID in the details
         ["api/letters/{id:guid}/preview"] = Records("LetterViewed"), // with preview: true
         ["api/letters/search"] = Records("PatientListed"),
+        ["api/mdt/meetings/{meetingId:guid}/items"] = Records("PatientListed"), // each patient on the MDT's list
+        ["api/mdt/awaiting-meeting"] = Records("PatientListed"), // each patient whose MDT was cancelled
+        ["api/mdt/pathways/{pathwayId:guid}/items"] = Records("PathwayViewed"),
         ["api/clinics/sessions/{id:guid}"] = Records("PatientListed"), // each patient booked into one of its slots
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/letters/count"] = Nothing("counts for the side nav: names no patients"),
@@ -107,6 +110,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/calendar/staff/{userId:guid}/hours"] = Nothing("a member of staff's working hours: staff data, no patient"),
         ["api/calendar/availability"] = Nothing("staff's free and busy times; an appointment is only \"another appointment\", never a patient"),
         ["api/calendar/meetings/{id:guid}"] = Nothing("a staff meeting: staff, not patients"),
+        ["api/mdt/meetings"] = Nothing("MDTs and their counts: staff meetings, names no patients"),
         ["api/appointments/patient-messages/status"] = Nothing("whether patients are texted and emailed here: configuration"),
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 

@@ -53,6 +53,7 @@ public static class PrivacyTestConstants
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
+        MdtItems = [],
         ConsentRecords = []
     };
 
@@ -73,6 +74,7 @@ public static class PrivacyTestConstants
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
+        MdtItems = [],
         ConsentRecords = []
     };
 
@@ -139,6 +141,7 @@ public static class PrivacyTestConstants
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
     }

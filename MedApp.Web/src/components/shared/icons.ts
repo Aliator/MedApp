@@ -5,6 +5,7 @@
 import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
+  RiDiscussLine,
   RiArrowGoBackLine,
   RiChatFollowUpLine,
   RiMessage2Line,
@@ -339,6 +340,9 @@ export const AppIcon = {
   SpecimenReceived: remix(RiMicroscopeLine),
   /** Finding a specimen by its number, typed or scanned from its label. */
   Scan: remix(RiQrScanLine),
+  /** The MDT list: pathways put forward for a specialty's multidisciplinary team meeting, and the team's outcomes. */
+  Mdt: remix(RiDiscussLine),
+  /** Printing a page (the MDT list). */
   Print: remix(RiPrinterLine),
   /** Consent to a stage: recorded, its form and the consent forms list (setup). */
   Consent: remix(RiQuillPenLine),

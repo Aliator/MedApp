@@ -40,6 +40,7 @@ import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../compon
 import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {NoteDeletionRequestDialog} from '../../components/pathways/NoteDeletionRequestDialog';
 import {PathwayNotes} from '../../components/pathways/PathwayNotes';
+import {PathwayMdt} from '../../components/mdt/PathwayMdt';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/pathways/StageVisit';
@@ -209,6 +210,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     details: true,
     referralWait: true,
     notes: true,
+    mdt: true,
     currentStage: true,
     files: !isNarrow,
     specimens: !isNarrow,
@@ -928,6 +930,21 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
+  /** The pathway's MDT items, and List for MDT (decisions 141 to 143). */
+  function mdtSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'mdt',
+      title: 'MDT',
+      isOpen: open.mdt,
+      onToggle: () => toggle('mdt'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayMdt pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
   function currentStageSection(pathway: Pathway): FoldingSection {
     return {
       key: 'currentStage',
@@ -1033,6 +1050,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               detailsSection(pathway),
               ...referralWaitSection(pathway),
               notesSection(pathway),
+              mdtSection(pathway),
               currentStageSection(pathway),
               specimensSection(pathway),
               consentSection(pathway),
@@ -1063,6 +1081,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           detailsSection(pathway),
           ...referralWaitSection(pathway),
           notesSection(pathway),
+          mdtSection(pathway),
           currentStageSection(pathway),
           specimensSection(pathway),
           consentSection(pathway),

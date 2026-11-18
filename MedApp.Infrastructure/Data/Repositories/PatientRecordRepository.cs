@@ -129,6 +129,16 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var specimen in specimens)
             specimen.Patient = patient;
 
+        // MDT items, with the question and outcome, who was present, and their specialty and meeting for the export.
+        var mdtItems = await Tracking(context.MdtItems, forUpdate)
+            .Include(i => i.Attendees)
+            .Include(i => i.Specialty)
+            .Include(i => i.Meeting)
+            .Include(i => i.Pathway)
+            .Where(i => i.PatientId == patientId)
+            .OrderBy(i => i.ListedAtUtc).ThenBy(i => i.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
         // Consent records; their history is in the audit entries above, their scans among the files.
         var consentRecords = await Tracking(context.ConsentRecords, forUpdate)
             .Where(c => c.PatientId == patientId)
@@ -158,6 +168,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             ReferralHistory = referralHistory,
             Letters = letters,
             Specimens = specimens,
+            MdtItems = mdtItems,
             ConsentRecords = consentRecords
         };
     }

@@ -104,6 +104,7 @@ public sealed class TimelineAfterAnonymisationTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 

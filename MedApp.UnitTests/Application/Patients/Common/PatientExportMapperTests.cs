@@ -135,6 +135,7 @@ public sealed class PatientExportMapperTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 
@@ -188,6 +189,7 @@ public sealed class PatientExportMapperTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 
@@ -319,6 +321,7 @@ public sealed class PatientExportMapperTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 
@@ -389,6 +392,7 @@ public sealed class PatientExportMapperTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 

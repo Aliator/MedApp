@@ -64,6 +64,9 @@ public enum PatientTimelineKind
     /// <summary>A specimen was taken, sent, received, reported, rejected, lost, entered in error or edited.</summary>
     Specimens,
 
+    /// <summary>The pathway was listed for an MDT, deferred, withdrawn, or the team's outcome recorded (never its text).</summary>
+    Mdt,
+
     /// <summary>Consent to a stage was recorded, withdrawn or marked entered in error.</summary>
     Consent
 }

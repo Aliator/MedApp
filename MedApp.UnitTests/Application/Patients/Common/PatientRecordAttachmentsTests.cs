@@ -66,6 +66,7 @@ public sealed class PatientRecordAttachmentsTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         }, live, deleted, pathway);
     }
@@ -165,6 +166,7 @@ public sealed class PatientRecordAttachmentsTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
+            MdtItems = [],
             ConsentRecords = []
         };
 
