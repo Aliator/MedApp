@@ -1,4 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
 import {STAFF_ME} from '../../test/calendar';
 import {ROOM, SPECIALTY, testPattern} from '../../test/clinics';
 import {expectAnnounced, isDisabled, json, managerUser, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
@@ -78,5 +79,36 @@ describe('PatternFormDialog', {timeout: 30_000}, () => {
 
     expect(await dialog().findByText('Someone changed this clinic pattern.')).toBeInTheDocument();
     expect(await bodyOf(fetch, 'PUT')).toMatchObject({dayOfWeek: 'Tuesday', starts: '09:00', ends: '12:00', expectedLastUpdated: pattern.lastUpdated});
+  });
+
+  it("shows the API's 400, with a new slot length, and starts afresh when reopened", async () => {
+    mockApi({
+      'GET /api/calendar/staff': () => json([]),
+      'GET /api/rooms': () => json([ROOM]),
+      'GET /api/specialties': () => json([SPECIALTY]),
+      'PUT /api/clinics/patterns/pattern-1': () =>
+        json({title: 'One or more validation errors occurred.', status: 400, errors: {EveryWeeks: ['Every must be 1 to 4 weeks.']}}, 400),
+    });
+    function Harness() {
+      const [isOpen, setIsOpen] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen(true)}>
+            Reopen
+          </button>
+          <PatternFormDialog isOpen={isOpen} onClose={() => setIsOpen(false)} pattern={testPattern()} />
+        </>
+      );
+    }
+    const {user} = renderWithApp(<Harness />, {user: managerUser});
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Specialty/})).toHaveTextContent(SPECIALTY.name));
+    await choose(user, /Slot length/, '30 minutes');
+    await user.click(dialog().getByRole('button', {name: 'Save'}));
+    expect(await dialog().findAllByText('Every must be 1 to 4 weeks.')).not.toHaveLength(0);
+
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    await user.click(screen.getByRole('button', {name: 'Reopen'}));
+    await waitFor(() => expect(dialog().queryByText('Every must be 1 to 4 weeks.')).not.toBeInTheDocument());
   });
 });

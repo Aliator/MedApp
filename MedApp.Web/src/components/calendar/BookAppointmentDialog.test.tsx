@@ -80,7 +80,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     expect(calls(fetch)).toContain('GET /api/clinics/sessions?From=2026-11-23&To=2026-12-20&WithFreeSlots=true');
   });
 
-  it('opens on a clinic slot chosen elsewhere (a session’s dialog), and books a Requested appointment into it', async () => {
+  it('opens on a clinic slot chosen elsewhere (a sessionâ€™s dialog), and books a Requested appointment into it', async () => {
     atMondayMorning();
     const session = testSession({date: '2026-11-24', booked: 7});
     const requested = testRequested();
@@ -105,7 +105,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     );
   });
 
-  it('a clinic slot taken meanwhile is the API’s 409, and the choice is cleared', async () => {
+  it('a clinic slot taken meanwhile is the APIâ€™s 409, and the choice is cleared', async () => {
     atMondayMorning();
     const session = testSession({date: '2026-11-24', booked: 7});
     const {user} = renderDialog(

@@ -164,7 +164,7 @@ describe('calendarItems', () => {
       endUtc: session.endUtc,
       colour: SESSION_COLOUR,
       label: 'Synthetic dermatology',
-      sublabel: 'Room 2 · 8 of 9 free',
+      sublabel: 'Room 2 Â· 8 of 9 free',
       description: 'Synthetic dermatology clinic session, Room 2, 09:00 to 12:00, 8 of 9 free',
     });
     const calendar = testCalendar({from: MONDAY, today: MONDAY, sessions: [session, {...session, id: 'no-time', startUtc: undefined}]});

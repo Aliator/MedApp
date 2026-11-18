@@ -96,4 +96,27 @@ describe('SessionFormDialog', {timeout: 30_000}, () => {
     await choose(user, /Clinician/, STAFF_ME.username);
     await waitFor(() => expect(isDisabled(dialog().getByRole('combobox', {name: /Start/}))).toBe(true));
   });
+
+  it("shows the API's 400, and changing the start drops an end before it", async () => {
+    const {user} = renderDialog(
+      {},
+      {
+        'POST /api/clinics/sessions': () =>
+          json({title: 'One or more validation errors occurred.', status: 400, errors: {SlotMinutes: ['The session must divide into whole slots.']}}, 400),
+      },
+    );
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Clinician/})).not.toHaveAttribute('aria-disabled', 'true'));
+    await choose(user, /Clinician/, STAFF_ME.username);
+    await waitFor(() => expect(isDisabled(dialog().getByRole('combobox', {name: /Start/}))).toBe(false));
+    await choose(user, /Start/, '09:00');
+    await choose(user, /End/, '10:00');
+    await choose(user, /Start/, '11:00');
+    expect(dialog().getByRole('combobox', {name: /End/})).not.toHaveTextContent('10:00');
+    await choose(user, /End/, '12:00');
+    await choose(user, /Slot length/, '30 minutes');
+    await choose(user, /Room/, 'Room 2 (Main site)');
+    await choose(user, /Specialty/, SPECIALTY.name);
+    await user.click(dialog().getByRole('button', {name: 'Save'}));
+    expect(await dialog().findAllByText('The session must divide into whole slots.')).not.toHaveLength(0);
+  });
 });

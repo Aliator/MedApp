@@ -384,6 +384,13 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(await screen.findByRole('button', {name: /^Synthetic dermatology clinic session/}));
     await user.click(await dialog().findByRole('button', {name: 'Edit'}));
     expect(await screen.findByRole('heading', {name: 'Edit Clinic Session'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(await screen.findByRole('button', {name: /^Synthetic dermatology clinic session/}));
+    await dialog().findByRole('button', {name: 'Edit'});
+    await user.click(dialog().getAllByRole('button', {name: 'Close'}).at(-1)!);
+    await waitFor(() => expect(openDialog()).toBeNull());
   });
 
   it('moves an appointment by dragging it, after confirming the new time', async () => {

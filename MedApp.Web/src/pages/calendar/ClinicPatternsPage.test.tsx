@@ -1,4 +1,4 @@
-import {screen, within} from '@testing-library/react';
+import {screen, waitFor, within} from '@testing-library/react';
 import {testPattern, testSession} from '../../test/clinics';
 import {expectAnnounced, json, managerUser, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
 import {ClinicPatternsPage, madeWords, patternRepeat, patternWhen} from './ClinicPatternsPage';
@@ -64,5 +64,30 @@ describe('ClinicPatternsPage', {timeout: 30_000}, () => {
     expect(madeWords({created: [], skipped: []})).toBe('Made no sessions.');
     expect(madeWords({created: [testSession()], skipped: []})).toBe('Made 1 session.');
     expect(madeWords({created: [], skipped: [{}, {}]})).toBe('Made no sessions; skipped 2 dates.');
+  });
+
+  it('opens New Pattern, Edit and Create Sessions, each closing again, and shows a refusal', async () => {
+    const {user} = renderPage([testPattern()], {
+      'GET /api/calendar/staff': () => json([]),
+      'GET /api/rooms': () => json([]),
+      'GET /api/specialties': () => json([]),
+      [`POST ${PATTERNS}/pattern-1/create-sessions`]: () => json({title: 'Clinic pattern not found.'}, 404),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'New Pattern'}));
+    expect(await screen.findByRole('heading', {name: 'New Clinic Pattern'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: /^Edit: Tuesdays/}));
+    expect(await screen.findByRole('heading', {name: 'Edit Clinic Pattern'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: /^Create sessions: Tuesdays/}));
+    await user.click(await dialog().findByRole('button', {name: 'Create Sessions'}));
+    expect(await dialog().findByText('Clinic pattern not found.')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
   });
 });

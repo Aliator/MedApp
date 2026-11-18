@@ -94,4 +94,26 @@ describe('ClinicSessionDialog', () => {
     expect(cancelledWords({session: SESSION, patientsToTell: []})).toBe('Clinic session cancelled. Nobody was booked into it.');
     expect(cancelledWords({session: SESSION, patientsToTell: [{}, {}]})).toBe('Clinic session cancelled, with its 2 appointments. Please tell these patients.');
   });
+
+  it('closes, goes back from cancelling, and words outcomes already recorded', async () => {
+    const detail = testSessionDetail(SESSION);
+    detail.slots![0] = {...detail.slots![0], appointmentStatus: 'DidNotAttend'};
+    const {user, onClose} = renderDialog(
+      {},
+      {'POST /api/clinics/sessions/session-1/cancel': () => json({session: {...SESSION, status: 'Cancelled'}, patientsToTell: []})},
+      detail,
+    );
+
+    expect(await dialog().findByText('Test Patient0 (did not attend)')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel Session'}));
+    await user.click(dialog().getByRole('button', {name: 'Back'}));
+    expect(dialog().getByRole('list', {name: 'Slots'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel Session'}));
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Room closed');
+    await user.click(dialog().getAllByRole('button', {name: 'Cancel Session'}).at(-1)!);
+    expect(await dialog().findByText('Clinic session cancelled. Nobody was booked into it.')).toBeInTheDocument();
+    expect(dialog().queryByRole('list', {name: 'Patients to tell'})).not.toBeInTheDocument();
+    await user.click(dialog().getAllByRole('button', {name: 'Close'}).at(-1)!);
+    expect(onClose).toHaveBeenCalled();
+  });
 });
