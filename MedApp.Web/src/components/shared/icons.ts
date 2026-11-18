@@ -44,6 +44,7 @@ import {
   RiFileHistoryLine,
   RiDeleteBinLine,
   RiDoorClosedLine,
+  RiDraftLine,
   RiDoorOpenLine,
   RiEqualizerLine,
   RiEraserLine,
@@ -112,6 +113,8 @@ import {
   RiUserHeartLine,
   RiPushpinLine,
   RiStethoscopeLine,
+  RiRepeatLine,
+  RiCalendarEventLine,
   RiUnpinLine,
   RiUpload2Line,
   RiUserLine,
@@ -251,6 +254,8 @@ export const AppIcon = {
   ActivityTypes: remix(RiPriceTag3Line),
   /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
   Specialties: remix(RiHospitalLine),
+  /** Letter templates (admin): the letterhead, body and closing letters start from. */
+  LetterTemplates: remix(RiDraftLine),
   /** Roles and Permissions (admin): what each role lets the people who hold it do. */
   Roles: remix(RiShieldUserLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */
@@ -259,6 +264,10 @@ export const AppIcon = {
   Sites: remix(RiBuilding2Line),
   /** A site's rooms. */
   Rooms: remix(RiDoorOpenLine),
+  /** Clinic sessions: a clinician's time in a room for a specialty, cut into slots. */
+  Clinics: remix(RiCalendarEventLine),
+  /** Clinic patterns: clinics that repeat, which make sessions when asked. */
+  ClinicPatterns: remix(RiRepeatLine),
   /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
   RecordPast: remix(RiFileHistoryLine),
   /** An appointment recorded after the event, withdrawn as entered in error (it didn't happen, or is on the wrong patient). */

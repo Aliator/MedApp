@@ -35,10 +35,14 @@ export const specialtiesPageQuery = specialtiesQuery(true);
 
 const count = (n: number | undefined, one: string, many: string) => `${n ?? 0} ${n === 1 ? one : many}`;
 
-/** What uses a specialty, in words: "2 templates, 14 pathways, 5 referrals, 3 members of staff", or "Not used yet". */
+/**
+ * What uses a specialty, in words: "2 templates, 2 letter templates, 14 pathways, 5 referrals, 3 members of staff", or
+ * "Not used yet".
+ */
 export function specialtyUse(specialty: Specialty): string {
   const parts = [
     specialty.templateCount ? count(specialty.templateCount, 'template', 'templates') : '',
+    specialty.letterTemplateCount ? count(specialty.letterTemplateCount, 'letter template', 'letter templates') : '',
     specialty.pathwayCount ? count(specialty.pathwayCount, 'pathway', 'pathways') : '',
     specialty.referralCount ? count(specialty.referralCount, 'referral', 'referrals') : '',
     specialty.memberCount ? count(specialty.memberCount, 'member of staff', 'members of staff') : '',

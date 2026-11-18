@@ -19,9 +19,10 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Pathways, templates, stages, notes | `pathways.md` | Change a pathway only through `PathwayChange`, loaded with `GetForUpdateOrThrowAsync`, so it's audited. Audit details hold a note's ID and version, never its text. Only a note's author edits it; only admins delete one (soft). |
 | Specialties, template and pathway specialties, staff memberships | `specialties.md` | Specialties are labels: they decide nothing clinical and limit nobody's reading. One in use is archived, never deleted; every change carries `expectedVersion`. |
 | Referrals, their history and letters | `referrals.md` | Change a referral only through `ReferralChange`, which saves its `ReferralEvent`s in the same save; the history holds no free text. Every read is logged (`ReferralViewed`, `PatientListed`). A restricted or anonymised record refuses changes, but withdrawing and entered in error stay allowed while restricted. Triage needs `TriageReferrals` and membership of the referral's specialty; never prefill or suggest an outcome, template or priority. |
+| Letter templates, merge fields, the PDF engine | `letters.md` | Merge fields copy identity and administrative data only, never a clinical value. PDFsharp and MigraDoc stay on 6.2.x (MIT; 6.5 is AGPL). |
 | Patient timeline | `timeline.md` | Staff never get free text from the audit log or appointment history (`TimelineMapper`'s `PublicValueFields`; `TimelineStaffCanaryTests`). |
 | Notifications | `notifications.md` | A title is a fixed phrase; a message holds only usernames, enums, admin-written names and dates, never free text or the patient. |
-| Calendar, appointments, meetings, visits, sites and rooms, working hours | `calendar.md` | Use `WorkingHours`, `WorkingTime`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays` with the person, so their hours and closed days count; never assume 08:00 to 18:00 on weekdays. |
+| Calendar, appointments, meetings, visits, sites and rooms, working hours, clinic sessions | `calendar.md` | Use `WorkingHours`, `WorkingTime`, `UkTime`, `CalendarClashes`, `ClinicRules`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` (the person's, and a room's) before checking clashes. Validators use `WorkingDays` with the person, so their hours and closed days count; never assume 08:00 to 18:00 on weekdays. |
 | Notepad | `notepad.md` | Kept on the server only, never in browser storage. |
 | Monitoring | `monitoring.md` | Every pathway command calls `IPathwayMonitor.NotifyAsync(change)` after saving. Clinical follow-up never relies on it. |
 | Attachments | `attachments.md` | Types come from the contents (`FileTypeSniffer`), never the name; SVG and HTML are refused. Files leave only through the API, as downloads. |
@@ -37,7 +38,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Deploying (kind, Argo CD, Azure, Publish) | `deploy.md` | The chart is locked down: a new container, port or connection needs a matching change. Never run Azure's `deploy.sh` or `bootstrap.sh` unasked. Never commit to an `env/*` branch by hand except in an emergency. |
 | Integration and E2E tests | `testing.md` | An account an admin made must change its generated password before any other `/api` call (`CreateStaffAsync` does). E2E tests make their own data through the API and register every clean-up. |
 
-**Stored enum numbers are never renumbered:** `PatientPathwayStatus`, `PatientPathwayAuditAction` (with the attachment actions), `StageSkipReason`, `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction`, `MeetingReply`, `TwoFactorMethod`, `ScheduledJobOutcome`, `ReferralStatus`, `ReferralRejectionReason` and `ReferralEventAction`. Add new values with new numbers.
+**Stored enum numbers are never renumbered:** `PatientPathwayStatus`, `PatientPathwayAuditAction` (with the attachment actions), `StageSkipReason`, `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction`, `MeetingReply`, `TwoFactorMethod`, `ScheduledJobOutcome`, `ReferralStatus`, `ReferralRejectionReason`, `ReferralEventAction` and `LetterKind`. Add new values with new numbers.
 
 **Privacy rules for every area** (`privacy.md`):
 - **Every read and change of patient data is logged** in the activity log (`IActivityLog`: `RecordViewsAsync` for reads; a change passes its entry to the repository's save). It fails closed. Classify a new GET endpoint in `EndpointCoverageTests`.
@@ -106,7 +107,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `ClinicSession`, `ClinicPattern`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -154,7 +155,7 @@ To add a feature end to end:
 
 ### Lists
 
-- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/pathways/patient-pathways/search`, `GET api/pathways/audit/search`, `GET api/activity/search`, `GET api/patients/retention-review`, `GET api/appointments/search` and `GET api/referrals/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, maximum 100.
+- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/pathways/patient-pathways/search`, `GET api/pathways/audit/search`, `GET api/activity/search`, `GET api/patients/retention-review`, `GET api/appointments/search` and `GET api/referrals/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, maximum 100. Clinic sessions (`GET api/clinics/sessions`) are a plain list, of at most 62 days.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
   - Exception: the retention review is narrowed in SQL, then sorted and paged in memory by the schedule's age-dependent rules (`SearchRetentionReviewHandler`).
 - **A feed pages by cursor:** a patient's timeline (`GET api/patients/{id}/timeline`) uses keyset paging, so new entries don't shift pages: `AtUtc` then `Id`, descending, with `NextCursor` encoding the last entry's pair (`PatientTimelineSearch`, `TimelineCursor`).
@@ -165,9 +166,9 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where:** the area's `Common/` folder, named `<Thing>Mapper`, with `ToResponse(entity)` plus overloads for what the entity lacks (e.g. `ToResponse(definition, usage)`, or `ToResponseAsync(...)` to look up usernames).
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`, `RoleMapper` (roles and the permission catalogue), `PracticeMapper` (with `ToSummary`), `StaffDetailsMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`, `RoleMapper` (roles and the permission catalogue), `PracticeMapper` (with `ToSummary`), `StaffDetailsMapper`, `LetterTemplateMapper` (with merge fields)
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
-  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours)
+  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours), `ClinicMapper` (clinic sessions and patterns)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into a `PagedResponse`.

@@ -41,6 +41,10 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
+                // Clinic sessions (after the appointments booked into them), then the patterns that made them; both
+                // name rooms and specialties, which go below.
+                await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
+                await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);
@@ -78,6 +82,8 @@ public static class DemoWipe
                 await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
+                // Letter templates point at specialties, so they go first.
+                await db.LetterTemplates.ExecuteDeleteAsync(cancellationToken);
                 // Every specialty but General (which the migrations seeded), back as it was; memberships go first.
                 await db.StaffSpecialties.ExecuteDeleteAsync(cancellationToken);
                 await db.Specialties.Where(s => s.Id != Specialty.GeneralId).ExecuteDeleteAsync(cancellationToken);

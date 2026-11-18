@@ -3,7 +3,9 @@ using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
 using MedApp.Domain.Jobs;
+using MedApp.Domain.Letters;
 using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
@@ -45,6 +47,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<StaffSpecialty> StaffSpecialties => Set<StaffSpecialty>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<Practice> Practices => Set<Practice>();
+    public DbSet<LetterTemplate> LetterTemplates => Set<LetterTemplate>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
@@ -57,6 +60,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<SiteHours> SiteHours => Set<SiteHours>();
+    public DbSet<ClinicSession> ClinicSessions => Set<ClinicSession>();
+    public DbSet<ClinicPattern> ClinicPatterns => Set<ClinicPattern>();
     public DbSet<StaffHours> StaffHours => Set<StaffHours>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();

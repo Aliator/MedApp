@@ -36,6 +36,12 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
+  - **Letter templates and the PDF engine are built** (PR 15, `feature/letter-templates`: `docs/agents/letters.md`). Left from it:
+    - **PDF/A:** letters are made in PDFsharp's PDF/A-1a mode and pass veraPDF 1.30 while every character is Windows-1252, but one with other characters (Ł, ł, ş, ğ, common in Polish and Turkish names) fails clause 6.3.5, as PDFsharp 6.2 writes no CIDSet for the extra font it then embeds. Before claiming PDF/A: add the CIDSet (a fix upstream, a post-processing step, or a font without the second encoding), and check again with veraPDF (`verapdf/cli`, `--flavour 1a`). GP systems accept plain PDF meanwhile (plan, decision 98).
+    - **Tags are coarse:** each page's text is one paragraph element, so headings and lists aren't tagged as such (PDFsharp can't tag what MigraDoc lays out). A screen reader reads the text in order; finer tags need per-element rendering or another library.
+    - **PDFsharp and MigraDoc stay on 6.2.x:** 6.5.0 and later are AGPL-3.0 (Dependabot ignores them). If 6.2 stops getting fixes, decide between buying empira's commercial licence, staying on 6.2 with the NuGet audit as the alarm, or another MIT library.
+    - **Deleting an unused template** comes with letters (PR 16), which know whether one was used; until then templates are only archived.
+    - **The letter font covers Latin scripts only:** PR 16 must refuse (with `FindUnsupportedCharacters`) a patient's name, address or body text it can't show, naming the characters, rather than print `?`.
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
@@ -274,6 +280,14 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **The aim:** run areas such as pathways, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
+
+## Clinic sessions (centre plan PR 23)
+
+- **Tell a cancelled session's patients by text or email** (decision 126): the call list is for phoning them until reminders (PR 26) give messages.
+- **An account's upcoming sessions** with no bookings stay when the account is deleted or loses its staff roles (sessions with bookings stop that, through their appointments): cancel them with it, or refuse it as for appointments.
+- **Closing a day** counts and tells of appointments, blocks and meetings, but not clinic sessions on it; a session on a day closed later stays, unflagged.
+- **Demo data:** patterns, sessions for the 18 months and the next 6 weeks, appointments in their slots and one cancelled session (PR 28).
+- **A session's own page or Calendar view of sessions by room** (the plan's "Clinics view, sessions by day and room"): today Clinics is a week's list, by day, time and room.
 
 ## Working hours (centre plan PR 22)
 

@@ -23,6 +23,9 @@
     <ItemGroup>
       <!-- The common passwords CommonPasswordValidator refuses (source and licence in its NOTICE.txt). -->
       <EmbeddedResource Include="Common\Identity\Passwords\common-passwords.txt" LogicalName="MedApp.Infrastructure.CommonPasswords.txt" />
+      <!-- The font letters are rendered in, Atkinson Hyperlegible (SIL Open Font License; source and licence in its
+           NOTICE.txt and OFL.txt): the image has no system fonts. -->
+      <EmbeddedResource Include="Letters\Fonts\*.ttf" LogicalName="MedApp.Infrastructure.LetterFonts.%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>
@@ -40,6 +43,11 @@
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
       <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
+      <!-- Letters' PDFs (MIT licence up to 6.2.x; 6.5.0 and later are AGPL-3.0, so Dependabot ignores them). Fully
+           managed: no native library, so the image needs nothing new. -->
+      <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
+      <!-- Letters' Markdown bodies (BSD-2-Clause licence). -->
+      <PackageReference Include="Markdig" Version="1.6.0" />
       <!-- Thumbnails of uploaded images (MIT licence). The Linux build has no dependencies on the image's libraries. -->
       <PackageReference Include="SkiaSharp" Version="3.119.4" />
       <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />

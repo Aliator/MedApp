@@ -132,6 +132,15 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarSetupController.UpdateActivityType 00001
         CalendarSetupController.UpdateDayTemplate 00011
         CalendarSetupController.UpdateWeekTemplate 00011
+        ClinicsController.CancelSession 00001
+        ClinicsController.CreatePattern 00001
+        ClinicsController.CreateSession 00001
+        ClinicsController.CreateSessions 00001
+        ClinicsController.GetPatterns 00001
+        ClinicsController.GetSession 00011
+        ClinicsController.SearchSessions 00011
+        ClinicsController.UpdatePattern 00001
+        ClinicsController.UpdateSession 00001
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
@@ -139,6 +148,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.SearchPatients 00011
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LetterTemplatesController.ArchiveLetterTemplate 00001
+        LetterTemplatesController.CreateLetterTemplate 00001
+        LetterTemplatesController.GetLetterTemplate 00011
+        LetterTemplatesController.GetLetterTemplates 00011
+        LetterTemplatesController.GetMergeFields 00011
+        LetterTemplatesController.PreviewLetterTemplate 00001
+        LetterTemplatesController.RestoreLetterTemplate 00001
+        LetterTemplatesController.UpdateLetterTemplate 00001
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011

@@ -37,6 +37,16 @@ public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppoint
                     context.AddFailure(why);
             });
 
+        RuleFor(x => x.ClinicSessionId)
+            .Null()
+            .When(x => !x.IsBooking)
+            .WithMessage("Only a booking goes into a clinic session.");
+
+        RuleFor(x => x.RoomId)
+            .Null()
+            .When(x => !x.IsBooking)
+            .WithMessage("Only a booking has a room.");
+
         RuleFor(x => x.Notes)
             .MaximumLength(AppointmentLimits.MaxNotesLength)
             .WithMessage($"Notes must not exceed {AppointmentLimits.MaxNotesLength} characters.");

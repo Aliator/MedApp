@@ -1,4 +1,4 @@
-import {parseCalendarSearch, parseRequiresAppointmentSearch} from './calendarSearch';
+import {parseCalendarSearch, parseClinicsSearch, parseRequiresAppointmentSearch} from './calendarSearch';
 
 const ID = '00000000-0000-0000-0000-0000000000a1';
 
@@ -56,5 +56,13 @@ describe('parseRequiresAppointmentSearch', () => {
   it('drops anything invalid', () => {
     expect(parseRequiresAppointmentSearch({page: '1', sort: 'colour', asc: 'maybe', patient: ''})).toEqual({});
     expect(parseRequiresAppointmentSearch({page: 'two'})).toEqual({});
+  });
+});
+
+describe('parseClinicsSearch', () => {
+  it('keeps a valid date, site and session, and drops anything else', () => {
+    const site = '00000000-0000-0000-0000-0000000000c1';
+    expect(parseClinicsSearch({date: '2026-11-24', site, session: site})).toEqual({date: '2026-11-24', site, session: site});
+    expect(parseClinicsSearch({date: '2026-02-30', site: 'nope', session: 3})).toEqual({});
   });
 });

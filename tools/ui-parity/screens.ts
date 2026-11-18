@@ -169,6 +169,69 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-book-clinic-slots',
+    title: 'Book Appointment from New, on Clinic slots: the sessions with free slots in the next four weeks (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('button', { name: 'Clinic slots' }).click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-week',
+    title: "Clinics: this week's clinic sessions by day, time and room, with how full each is",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinics', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-session-dialog',
+    title: "A clinic session's dialog: its details and each slot, free or with its patient (the first session this week, if any)",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      const open = page.getByRole('button', { name: /^Open the / }).first();
+      if (await open.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+        await open.click();
+        await waitVisible(page, DIALOG);
+      }
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-new-session-dialog',
+    title: 'New Clinic Session: clinician, day, start and end in their working day, slot length, room and specialty (not saved)',
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Session' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-patterns',
+    title: 'Clinic Patterns: clinics that repeat, each with Edit and Create Sessions',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinic Patterns', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-pattern-dialog',
+    title: 'New Clinic Pattern: clinician, day and times, slots, how often, from and until, room and specialty (not saved)',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Pattern' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-record-past-dialog',
     title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
     path: '/calendar',
@@ -717,6 +780,27 @@ export const screens: Screen[] = [
     path: '/admin/pathway-templates/new',
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'letter-templates-list',
+    title: "Letter templates (admin), archived ones shown too: every specialty's first, then by specialty",
+    path: '/admin/letter-templates?status=any',
+  },
+  {
+    name: 'letter-template-new',
+    title: 'New letter template: details, text and preview, beside the merge fields',
+    path: '/admin/letter-templates/new',
+  },
+  {
+    name: 'letter-template-edit',
+    title: 'Edit a letter template (needs at least one)',
+    path: '/admin/letter-templates?status=any',
+    prepare: async (page) => {
+      // Edit is a link to the template's page.
+      await page.getByRole('table').getByRole('link', { name: /edit letter template/i }).first().click();
+      await page.getByRole('heading', { name: 'Edit Letter Template' }).waitFor();
       await settle(page);
     },
   },
