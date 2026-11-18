@@ -281,6 +281,9 @@ What the security baseline left, so the app would work exactly as before (`docs/
 - **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too; accepting a referral checks it on the referral loaded for update, like creating a pathway).
 - **Working hours, from the review of #156:** check attendees' hours only when a meeting moves or for newly added attendees (a title-only edit is refused after someone's hours shrink); remove a person's `StaffHours` when their account is deleted or loses its staff roles, so a site isn't kept "in use" by a leaver.
 - **Triage, from the review of #158:** keep each move's redirect detail with its own history entry, so admins don't see the latest reason against earlier moves; report a pathway-save conflict that isn't the referral's row version with its real cause rather than "changed meanwhile".
+- **Trimmed from Phase 5 (the owner, 18 November 2026), designed but not built:**
+  - **Commissioner reports** (plan PR 32): counts of activity, waits, missed appointments and turnaround by specialty and month for whoever pays for the service, with small numbers suppressed for sharing and a CSV download guarded against formula injection. Builds on Insights.
+  - **Video and phone appointments** (plan PR 36): an appointment mode and a link, with no room; the link is patient data (export, anonymisation, never in staff notifications or logs) and hazard H-61 (a link reaching the wrong patient) applies.
 
 ## Long term
 
