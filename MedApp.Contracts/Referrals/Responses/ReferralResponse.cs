@@ -61,6 +61,12 @@ public sealed class ReferralResponse
     /// <summary>Redirected elsewhere: where to.</summary>
     public string? RedirectedTo { get; set; }
 
+    /// <summary>
+    /// Redirected here from another specialty: why (the latest such redirection's detail). The referral stays awaiting
+    /// triage, so this is kept apart from <see cref="DecisionDetail"/>.
+    /// </summary>
+    public string? RedirectDetail { get; set; }
+
     /// <summary>Accepted: the pathway it was accepted into.</summary>
     public Guid? PathwayId { get; set; }
 

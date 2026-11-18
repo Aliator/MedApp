@@ -11,7 +11,10 @@ using MediatR;
 
 namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 
-/// <summary>A page of referrals. Each patient on the page is recorded as listed (once per person every few minutes).</summary>
+/// <summary>
+/// A page of referrals. Each patient on the page is recorded as listed (once per person every few minutes), and a
+/// search by the patient's name as <c>PatientsSearched</c>, with the filters' names, never the term.
+/// </summary>
 public sealed class SearchReferralsHandler(
     IReferralRepository repository,
     ISpecialtyRepository specialties,
@@ -23,6 +26,15 @@ public sealed class SearchReferralsHandler(
     {
         var specialtyIds = await SpecialtiesToShowAsync(request, cancellationToken);
         var result = await repository.SearchAsync(request, specialtyIds, cancellationToken);
+
+        // A search for a patient (by name) is recorded as which filters were used and how many matched, as patient
+        // search is: never the term, which could itself be a patient's details.
+        if (ReferralSearch.SearchesForPatient(request))
+            await activityLog.RecordAsync(
+                activityLog.Entry(
+                    ActivityAction.PatientsSearched,
+                    details: new { filters = ReferralSearch.FiltersUsed(request), resultCount = result.TotalCount, via = "referrals" }),
+                cancellationToken);
 
         await activityLog.RecordViewsAsync(
             ActivityAction.PatientListed, result.Items.Select(row => row.Referral.PatientId), cancellationToken);

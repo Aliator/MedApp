@@ -10,24 +10,36 @@ import {
   openDialog,
   renderWithApp,
   staffUser,
+  userWithRoles,
   withAnnouncements,
 } from '../../test/render';
-import {REFERRAL_ID, REFERRAL_PATIENT_ID, testReferral} from '../../test/referrals';
-import {ReferralPage, rejectionReasonWords, triageWords} from './ReferralPage';
+import {DERMATOLOGY_ID, REFERRAL_ID, REFERRAL_PATIENT_ID, SPECIALTIES, testReferral, testReferralSummary} from '../../test/referrals';
+import {ReferralPage, triageWords} from './ReferralPage';
 
 const REFERRAL = `GET /api/referrals/${REFERRAL_ID}`;
 const CHANGED = 'Someone changed this referral meanwhile. Reload it to see what they changed.';
 
-function renderPage(referral: Referral | (() => Response) = testReferral(), handlers: Record<string, (request: Request) => Response | Promise<Response>> = {}, isNarrow = false) {
+function renderPage(
+  referral: Referral | (() => Response) = testReferral(),
+  handlers: Record<string, (request: Request) => Response | Promise<Response>> = {},
+  isNarrow = false,
+  user = staffUser,
+) {
   const fetch = mockApi({
     [REFERRAL]: typeof referral === 'function' ? referral : () => json(referral),
     'GET /api/attachments': () => json({items: [], totalCount: 0, maxFileBytes: 20971520, allowedExtensions: ['.pdf']}),
+    'GET /api/referrals/search': () =>
+      json({
+        items: [
+          testReferralSummary({id: REFERRAL_ID}),
+          testReferralSummary({id: 'other-referral', status: 'Withdrawn', specialtyName: 'Urology', receivedOn: '2026-10-01'}),
+        ],
+        totalCount: 2,
+      }),
     ...handlers,
   });
   const page = <ReferralPage id={REFERRAL_ID} />;
-  const result = renderWithApp(isNarrow ? <HalfViewContext.Provider value={{isHalf: true}}>{page}</HalfViewContext.Provider> : page, {
-    user: staffUser,
-  });
+  const result = renderWithApp(isNarrow ? <HalfViewContext.Provider value={{isHalf: true}}>{page}</HalfViewContext.Provider> : page, {user});
   return {...result, fetch};
 }
 
@@ -47,10 +59,15 @@ describe('ReferralPage', () => {
     expect(screen.getByText('2 Nov 2026, 10:00 by k.ashford')).toBeInTheDocument();
     expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: /Add files/})).toBeInTheDocument();
-    expect(screen.getByText(/Triage isn't available in MedApp yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Only a member of its specialty who can triage referrals/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Accept'})).not.toBeInTheDocument();
     const history = within(screen.getByRole('list', {name: 'History'}));
     expect(history.getByText('Registered by k.ashford')).toBeInTheDocument();
     expect(history.getByText('To Dermatology, High priority asked for')).toBeInTheDocument();
+    // The patient's other referrals, not this one, so a duplicate is seen before triage (hazard H-44).
+    expect(screen.getByRole('heading', {name: "This patient's other referrals"})).toBeInTheDocument();
+    const others = within(await screen.findByRole('list', {name: 'Other referrals'}));
+    expect(others.getAllByRole('link', {name: /^Referral to/}).map((link) => link.textContent)).toEqual(['Referral to Urology']);
     expect(screen.getByRole('link', {name: 'Edit Details'})).toHaveAttribute('href', `/referrals/${REFERRAL_ID}/edit`);
     expect(screen.getByRole('link', {name: 'View Patient'})).toHaveAttribute('href', `/patients/${REFERRAL_PATIENT_ID}`);
     expect(screen.getByRole('button', {name: 'More'})).toBeInTheDocument();
@@ -108,6 +125,7 @@ describe('ReferralPage', () => {
       testReferral({
         status: 'Rejected',
         isOpen: false,
+        canTriage: true,
         canEdit: false,
         canClose: false,
         canAttachFiles: false,
@@ -125,11 +143,12 @@ describe('ReferralPage', () => {
     );
 
     expect(await screen.findByText('Rejected 4 Nov 2026, 09:00 by d.clinician')).toBeInTheDocument();
-    expect(screen.getByText("Why: Doesn't meet the criteria")).toBeInTheDocument();
+    expect(screen.getByText('Why: Does not meet the criteria')).toBeInTheDocument();
     expect(screen.getByText('Redirected to Another provider')).toBeInTheDocument();
     expect(screen.getByText('Not for this clinic.')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Open its pathway'})).toHaveAttribute('href', '/pathways/pathway-1');
-    expect(screen.getByText("This referral is rejected, so it isn't triaged.")).toBeInTheDocument();
+    expect(screen.getByText("This referral has been triaged: rejected. A referral isn't triaged again.")).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Reject'})).not.toBeInTheDocument();
     expect(screen.getByText('Nothing recorded yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'More'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name: /Add files/})).not.toBeInTheDocument();
@@ -158,6 +177,44 @@ describe('ReferralPage', () => {
     expect(await findAlert('The referral could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
+  it("dismisses a 409's message, and cancels withdrawing", async () => {
+    const {user} = renderPage(testReferral(), {
+      [`POST /api/referrals/${REFERRAL_ID}/withdraw`]: () => json({title: CHANGED, status: 409}, 409),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'More'}));
+    await user.click(await screen.findByRole('menuitem', {name: /Withdraw/}));
+    let dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'More'}));
+    await user.click(await screen.findByRole('menuitem', {name: /Withdraw/}));
+    dialog = within(await waitFor(() => openDialog()!));
+    await user.type(dialog.getByRole('textbox', {name: /Who withdrew it/}), 'The practice phoned');
+    await user.click(dialog.getByRole('button', {name: 'Withdraw Referral'}));
+    expect(await findAlert(CHANGED)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: /Dismiss/}));
+    await waitFor(() => expect(screen.queryByText(CHANGED)).not.toBeInTheDocument());
+  });
+
+  it('folds each of its sections in a narrow window', async () => {
+    const {user} = renderPage(testReferral(), {}, true);
+
+    await screen.findByRole('heading', {name: 'Details'});
+    expect(screen.getByText('A synthetic reason for referral.')).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Details'}));
+    await waitFor(() => expect(screen.queryByText('A synthetic reason for referral.')).not.toBeInTheDocument());
+    expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Letter'}));
+    await waitFor(() => expect(screen.queryByText('No letter attached yet.')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('heading', {name: 'Triage'}));
+    await waitFor(() => expect(screen.queryByText(/Only a member of its specialty/)).not.toBeInTheDocument());
+    expect(await screen.findByRole('list', {name: 'Other referrals'})).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: "This patient's other referrals"}));
+    await waitFor(() => expect(screen.queryByRole('list', {name: 'Other referrals'})).not.toBeInTheDocument());
+  });
+
   it('folds into one card in a narrow window or half view', async () => {
     const {user} = renderPage(testReferral(), {}, true);
     const history = await screen.findByRole('heading', {name: 'History'});
@@ -169,12 +226,181 @@ describe('ReferralPage', () => {
 });
 
 describe('referral words', () => {
-  it('words rejection reasons and triage', () => {
-    expect(rejectionReasonWords('Duplicate')).toBe('A duplicate');
-    expect(rejectionReasonWords('Unknown')).toBe('Unknown');
-    expect(rejectionReasonWords(null)).toBe('');
-    expect(triageWords({isOpen: true, status: 'AwaitingTriage', whyCantTriage: 'You are not a Dermatology clinician.'})).toBe(
+  it('words triage: why not, what a triager can do, and a referral already closed', () => {
+    expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: false, whyCantTriage: 'You are not a Dermatology clinician.'})).toBe(
       'You are not a Dermatology clinician.',
     );
+    expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true})).toMatch(/^Read the referral and its letter, then decide/);
+    expect(triageWords({isOpen: false, status: 'Accepted'})).toBe("This referral has been triaged: accepted. A referral isn't triaged again.");
+    expect(triageWords({isOpen: false, status: 'Withdrawn'})).toBe("This referral is withdrawn, so it isn't triaged.");
+  });
+});
+
+describe('ReferralPage triage', () => {
+  const clinician = userWithRoles('d.clinician', 'Clinician');
+  const triager = testReferral({canTriage: true});
+  const pathwayId = '00000042-0000-0000-0000-0000000000aa';
+  const templates = [{id: 't-derm', name: 'Skin check', isArchived: false, specialtyId: DERMATOLOGY_ID, stages: [{stageOrder: 1, name: 'Review'}]}];
+
+  it("shows why someone can't triage it, in the API's words, with no actions", async () => {
+    renderPage(testReferral({canTriage: false, whyCantTriage: 'Only a member of Dermatology can triage this referral.'}), {}, false, clinician);
+
+    expect(await screen.findByText('Only a member of Dermatology can triage this referral.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Accept'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Reject'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Redirect'})).not.toBeInTheDocument();
+  });
+
+  it('accepts it, then opens the new pathway', async () => {
+    withAnnouncements();
+    const {user, router, fetch} = renderPage(
+      triager,
+      {
+        'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
+        [`POST /api/referrals/${REFERRAL_ID}/accept`]: () => json({id: pathwayId, patientId: REFERRAL_PATIENT_ID, title: 'Skin check'}, 201),
+        [`GET /api/pathways/patient-pathways/${pathwayId}`]: () => json({id: pathwayId, patientId: REFERRAL_PATIENT_ID, title: 'Skin check'}),
+      },
+      false,
+      clinician,
+    );
+
+    expect(await screen.findByText(/^Read the referral and its letter/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Accept'}));
+    const dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('combobox', {name: /Template/}));
+    await user.click(await screen.findByRole('option', {name: 'Skin check'}));
+    await user.click(dialog.getByRole('combobox', {name: /Priority/}));
+    await user.click(await screen.findByRole('option', {name: 'Urgent'}));
+    await user.type(dialog.getByRole('combobox', {name: /Target Date/}), '01/12/2099');
+    await user.click(dialog.getByRole('button', {name: 'Continue'}));
+    await user.click(await dialog.findByRole('button', {name: 'Accept Referral'}));
+
+    await expectAnnounced('Referral accepted: pathway created');
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${pathwayId}`));
+    const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await post.json()).toMatchObject({templateId: 't-derm', priority: 'Urgent', dueDate: '2099-12-01', expectedVersion: 2});
+  });
+
+  it('rejects it with a reason, and shows the outcome', async () => {
+    withAnnouncements();
+    const rejected = testReferral({
+      status: 'Rejected',
+      isOpen: false,
+      canEdit: false,
+      canClose: false,
+      canTriage: true,
+      decidedAtUtc: '2026-11-04T09:00:00Z',
+      decidedByUsername: 'd.clinician',
+      rejectionReason: 'NotOfferedHere',
+      decisionDetail: 'Not seen at this centre.',
+    });
+    const {user, fetch} = renderPage(triager, {[`POST /api/referrals/${REFERRAL_ID}/reject`]: () => json(rejected)}, false, clinician);
+
+    await user.click(await screen.findByRole('button', {name: 'Reject'}));
+    const dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('combobox', {name: /Reason/}));
+    await user.click(await screen.findByRole('option', {name: 'Not offered here'}));
+    await user.type(dialog.getByRole('textbox', {name: /Detail/}), 'Not seen at this centre.');
+    await user.click(dialog.getByRole('button', {name: 'Continue'}));
+    await user.click(await dialog.findByRole('button', {name: 'Reject Referral'}));
+
+    await expectAnnounced('Referral rejected');
+    const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await post.json()).toEqual({reason: 'NotOfferedHere', detail: 'Not seen at this centre.', expectedVersion: 2});
+    expect(await screen.findByText('Why: Not offered here')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Reject'})).not.toBeInTheDocument();
+  });
+
+  it("keeps a 409 in the dialog, in the API's words, and reads the referral again", async () => {
+    const TRIAGED = 'k.ashford has already accepted this referral.';
+    const {user, fetch} = renderPage(
+      triager,
+      {[`POST /api/referrals/${REFERRAL_ID}/reject`]: () => json({title: TRIAGED, status: 409}, 409)},
+      false,
+      clinician,
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Reject'}));
+    const dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('combobox', {name: /Reason/}));
+    await user.click(await screen.findByRole('option', {name: 'Duplicate'}));
+    await user.click(dialog.getByRole('button', {name: 'Continue'}));
+    const reads = () => fetch.mock.calls.filter(([r]) => (r as Request).method === 'GET' && (r as Request).url.endsWith(REFERRAL_ID)).length;
+    const before = reads();
+    await user.click(await dialog.findByRole('button', {name: 'Reject Referral'}));
+
+    expect(await dialog.findByText(TRIAGED)).toBeInTheDocument();
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
+  });
+
+  it('cancels each triage decision without sending anything', async () => {
+    const {user, fetch} = renderPage(
+      triager,
+      {'GET /api/pathways/patient-pathway-stage/templates': () => json(templates), 'GET /api/specialties': () => json(SPECIALTIES)},
+      false,
+      clinician,
+    );
+
+    for (const action of ['Accept', 'Reject', 'Redirect']) {
+      await user.click(await screen.findByRole('button', {name: action}));
+      const dialog = within(await waitFor(() => openDialog()!));
+      await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+      await waitFor(() => expect(openDialog()).toBeNull());
+    }
+    expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(false);
+  });
+
+  it('redirects it to another specialty, announcing where', async () => {
+    withAnnouncements();
+    const moved = testReferral({specialtyId: SPECIALTIES[1].id, specialtyName: 'Urology', canTriage: false, redirectDetail: 'Synthetic: a urology problem.'});
+    const {user} = renderPage(
+      triager,
+      {'GET /api/specialties': () => json(SPECIALTIES), [`POST /api/referrals/${REFERRAL_ID}/redirect`]: () => json(moved)},
+      false,
+      clinician,
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Redirect'}));
+    const dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('radio', {name: /Another specialty here/}));
+    await user.click(dialog.getByRole('combobox', {name: /Specialty/}));
+    await user.click(await screen.findByRole('option', {name: 'Urology'}));
+    await user.type(dialog.getByRole('textbox', {name: /Why/}), 'Synthetic: a urology problem.');
+    await user.click(dialog.getByRole('button', {name: 'Continue'}));
+    await user.click(await dialog.findByRole('button', {name: 'Redirect Referral'}));
+
+    await expectAnnounced('Referral redirected to Urology');
+    expect(await screen.findByRole('heading', {name: 'Referral to Urology', level: 1})).toBeInTheDocument();
+    expect(screen.getByText('Redirected from another specialty')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: a urology problem.')).toBeInTheDocument();
+  });
+
+  it('shows what it was accepted into: the template and priority from its history, and the pathway', async () => {
+    renderPage(
+      testReferral({
+        status: 'Accepted',
+        isOpen: false,
+        canEdit: false,
+        canClose: false,
+        decidedAtUtc: '2026-11-04T09:00:00Z',
+        decidedByUsername: 'd.clinician',
+        pathwayId,
+        history: [
+          {id: 'e1', action: 'SpecialtyChanged', atUtc: '2026-11-03T10:00:00Z', username: 'u.clinician', previousSpecialtyName: 'Urology', specialtyName: 'Dermatology'},
+          {id: 'e2', action: 'Accepted', atUtc: '2026-11-04T09:00:00Z', username: 'd.clinician', templateName: 'Skin check', priority: 'High', pathwayId},
+        ],
+        redirectDetail: 'Synthetic: a skin problem.',
+      }),
+    );
+
+    expect(await screen.findByText('Accepted 4 Nov 2026, 09:00 by d.clinician')).toBeInTheDocument();
+    expect(screen.getByText('Template: Skin check, Priority: High')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Open its pathway'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+    expect(screen.getByText('Redirected from Urology')).toBeInTheDocument();
+    const history = within(screen.getByRole('list', {name: 'History'}));
+    expect(history.getByText('Redirected by u.clinician')).toBeInTheDocument();
+    expect(history.getByText('Specialty Urology → Dermatology')).toBeInTheDocument();
+    expect(history.getByText('Accepted by d.clinician')).toBeInTheDocument();
+    expect(history.getByText('Skin check, High priority')).toBeInTheDocument();
   });
 });

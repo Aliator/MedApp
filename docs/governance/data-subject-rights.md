@@ -66,7 +66,7 @@ For patients, the customer's admins now answer access, rectification, restrictio
    - the attached files themselves from blob storage, if the customer asks for them (their details are in the export), including deleted files not yet purged
    - their appointments, and every appointment history entry (`AppointmentEvent`) with their `PatientId`
    - their referrals, and every referral history entry (`ReferralEvent`) with their `PatientId`
-   - notifications about their pathways and appointments
+   - notifications about their pathways, appointments and referrals ("Referral triaged", by `ReferralId`)
    - staff usernames for the IDs in all of these
 
    For a **staff user**, the same for their account, roles, sessions, settings, notification choices (`NotificationPreferences`), notifications (meeting invitations, moves, cancellations and declines among them), calendar blocks, default week templates and day overrides, their own day and week templates (`DayTemplates.OwnerUserId`, `WeekTemplates.OwnerUserId`, with their dated rows), the meetings they go to (`MeetingAttendees.StaffUserId`) or arranged (`Meetings.OrganiserUserId`), with each meeting's title, notes, time, the other attendees' usernames and everyone's replies (`MeetingAttendees.Reply`, `RepliedAtUtc`), appointments booked with them, and audit and appointment history entries by `UserId`, and the `Attachment` rows they uploaded or deleted (without the files, which are about patients); and for monitoring:

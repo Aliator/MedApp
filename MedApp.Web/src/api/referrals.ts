@@ -2,7 +2,7 @@ import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryC
 import {statusLabel} from '../utils/statusWords';
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
-import {pathwayKeys} from './pathways';
+import {pathwayKeys, pathwayQuery, type Pathway} from './pathways';
 import type {paths} from './schema';
 
 /**
@@ -35,6 +35,31 @@ export const MAX_REASON = 2000;
 export const MAX_REFERRER = 200;
 /** The longest an ODS code can be. */
 export const MAX_ODS_CODE = 10;
+
+/**
+ * Why a referral is rejected: the API's fixed choices (stored by number there; sent and read by name), in the order
+ * the API declares them. Asking the referrer for more information is a rejection with Insufficient information for now.
+ */
+export const REFERRAL_REJECTION_REASONS = [
+  {value: 'NotOfferedHere', label: 'Not offered here'},
+  {value: 'DoesNotMeetCriteria', label: 'Does not meet the criteria'},
+  {value: 'InsufficientInformation', label: 'Insufficient information'},
+  {value: 'Duplicate', label: 'Duplicate'},
+  {value: 'Other', label: 'Other'},
+] as const;
+export type ReferralRejectionReason = (typeof REFERRAL_REJECTION_REASONS)[number]['value'];
+
+/** A rejection reason in words ("DoesNotMeetCriteria" → "Does not meet the criteria"); anything unknown as it came. */
+export const rejectionReasonWords = (reason: string | null | undefined) =>
+  REFERRAL_REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason ?? '';
+
+/** Whether a rejection needs a detail: only Other does. */
+export const rejectionNeedsDetail = (reason: string | null | undefined) => reason === 'Other';
+
+/** The longest a triage decision's detail can be (rejecting or redirecting), as the API allows. */
+export const MAX_TRIAGE_DETAIL = 500;
+/** The longest "where else" a referral redirected elsewhere can name. */
+export const MAX_REDIRECTED_TO = 200;
 
 /** A status in words: "AwaitingTriage" → "Awaiting triage", "RedirectedElsewhere" → "Redirected elsewhere". */
 export const referralStatusLabel = (status: string | null | undefined) => statusLabel(status ?? '');
@@ -197,6 +222,109 @@ export function useReferralActions(id: string) {
   };
 }
 
+/** What a triager chose when accepting a referral: nothing here is filled in for them (hazard H-41). */
+export interface AcceptReferralInput {
+  templateId: string;
+  /** Low, Medium, High or Urgent, as the triager chose it (never the referrer's, unless they chose the same). */
+  priority: string;
+  /** The target date, `YYYY-MM-DD`. */
+  dueDate: string;
+  /** Blank takes the template's name. */
+  title: string;
+  /** Someone to assign (holders of AssignPathways only), or blank for nobody. */
+  assigneeUserId: string;
+  /** The pathway's first note (Markdown), or blank for none. */
+  notes: string;
+  expectedVersion: number;
+}
+
+/** Rejecting a referral: a fixed reason, and a detail (required for Other). */
+export interface RejectReferralInput {
+  reason: string;
+  detail: string;
+  expectedVersion: number;
+}
+
+/** Redirecting a referral: to another specialty here, or elsewhere (another provider), with why. */
+export type RedirectReferralInput = ({specialtyId: string; elsewhere?: undefined} | {elsewhere: string; specialtyId?: undefined}) & {
+  detail: string;
+  expectedVersion: number;
+};
+
+const blankAsNull = (value: string | null | undefined) => (value?.trim() ? value.trim() : null);
+
+/** A 409 (triaged by someone else, changed meanwhile, the record restricted) reads the referral again. */
+function useRereadOnConflict(id: string) {
+  const queryClient = useQueryClient();
+  return (error: unknown) =>
+    error instanceof ApiError && error.status === 409 ? queryClient.invalidateQueries({queryKey: referralKeys.one(id)}) : undefined;
+}
+
+/**
+ * Accepts a referral into a new pathway (`POST api/referrals/{id}/accept`, TriageReferrals and the referral's
+ * specialty), from the version the page showed, returning the new pathway. The referral, every referral list and
+ * count, the timelines and the pathway lists then refresh; the new pathway is cached, so its page opens at once.
+ */
+export function useAcceptReferral(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AcceptReferralInput) =>
+      unwrap(
+        api.POST('/api/referrals/{id}/accept', {
+          params: {path: {id}},
+          body: {
+            templateId: input.templateId,
+            priority: input.priority,
+            dueDate: input.dueDate,
+            title: blankAsNull(input.title),
+            assigneeUserId: input.assigneeUserId || null,
+            notes: blankAsNull(input.notes),
+            expectedVersion: input.expectedVersion,
+          },
+        }),
+      ),
+    onSuccess: async (pathway: Pathway) => {
+      if (pathway.id) queryClient.setQueryData(pathwayQuery(pathway.id).queryKey, pathway);
+      await Promise.all([
+        refreshReferrals(queryClient),
+        queryClient.invalidateQueries({queryKey: ['pathways', 'search']}),
+        queryClient.invalidateQueries({queryKey: pathwayKeys.countForPatient(pathway.patientId ?? '')}),
+      ]);
+    },
+    onError: useRereadOnConflict(id),
+  });
+}
+
+/** Rejects a referral with a reason (`POST api/referrals/{id}/reject`), from the version the page showed. */
+export function useRejectReferral(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({reason, detail, expectedVersion}: RejectReferralInput) =>
+      unwrap(api.POST('/api/referrals/{id}/reject', {params: {path: {id}}, body: {reason, detail: blankAsNull(detail), expectedVersion}})),
+    onSuccess: (referral) => refreshReferrals(queryClient, referral),
+    onError: useRereadOnConflict(id),
+  });
+}
+
+/**
+ * Redirects a referral (`POST api/referrals/{id}/redirect`), from the version the page showed: to another specialty
+ * here (it stays awaiting triage, in that specialty's inbox) or elsewhere (it's closed as redirected elsewhere).
+ */
+export function useRedirectReferral(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({specialtyId, elsewhere, detail, expectedVersion}: RedirectReferralInput) =>
+      unwrap(
+        api.POST('/api/referrals/{id}/redirect', {
+          params: {path: {id}},
+          body: {specialtyId: specialtyId || null, elsewhere: blankAsNull(elsewhere), detail: detail.trim(), expectedVersion},
+        }),
+      ),
+    onSuccess: (referral) => refreshReferrals(queryClient, referral),
+    onError: useRereadOnConflict(id),
+  });
+}
+
 /** The names of the fields a details edit changed, in words. */
 const FIELD_WORDS: Record<string, string> = {
   specialty: 'specialty',
@@ -213,8 +341,10 @@ export const referralFieldWords = (field: string) => FIELD_WORDS[field] ?? field
 
 /**
  * One entry of a referral's history, in words: "Registered by k.ashford", "Details edited by k.ashford: reason,
- * received date", "Withdrawn by k.ashford", "Marked entered in error by k.ashford". With its specialty where it names
- * one (registered to it, or moved to it).
+ * received date", "Withdrawn by k.ashford", "Marked entered in error by k.ashford"; triage's "Accepted by d.clinician"
+ * (the template and the priority chosen), "Rejected by d.clinician" (the reason in words), "Redirected by d.clinician"
+ * (to another specialty here) and "Redirected elsewhere by d.clinician". With its specialty where it names one
+ * (registered to it, or moved to it). Never free text: the history holds none.
  */
 export function referralEventWords(event: ReferralEvent): {title: string; detail: string} {
   const by = event.username || 'someone';
@@ -235,6 +365,20 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
         event.specialtyName && event.previousSpecialtyName ? `Specialty ${event.previousSpecialtyName} → ${event.specialtyName}` : null;
       return {title: `Details edited by ${by}${fields.length ? `: ${fields.join(', ')}` : ''}`, detail: moved ?? ''};
     }
+    case 'SpecialtyChanged':
+      return {
+        title: `Redirected by ${by}`,
+        detail: event.specialtyName ? `Specialty ${event.previousSpecialtyName ?? 'unknown'} → ${event.specialtyName}` : '',
+      };
+    case 'Accepted':
+      return {
+        title: `Accepted by ${by}`,
+        detail: [event.templateName, event.priority ? `${event.priority} priority` : null].filter(Boolean).join(', '),
+      };
+    case 'Rejected':
+      return {title: `Rejected by ${by}`, detail: rejectionReasonWords(event.rejectionReason)};
+    case 'RedirectedElsewhere':
+      return {title: `Redirected elsewhere by ${by}`, detail: ''};
     case 'Withdrawn':
       return {title: `Withdrawn by ${by}`, detail: ''};
     case 'EnteredInError':

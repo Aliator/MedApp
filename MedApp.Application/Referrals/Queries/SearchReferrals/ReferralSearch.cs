@@ -26,6 +26,32 @@ public static class ReferralSearch
     public static bool IsStatus(string? value) => PathwayEnums.TryParse<ReferralStatus>(value, out _);
 
     /// <summary>
+    /// Whether the search looks for a patient by name (the term typed), which the activity log records as a search
+    /// (<c>PatientsSearched</c>); the other filters are views of the inbox.
+    /// </summary>
+    public static bool SearchesForPatient(SearchReferralsQuery query) => !string.IsNullOrWhiteSpace(query.Search);
+
+    /// <summary>
+    /// The names of the filters a search used, for the activity log: never their values (the name typed could itself
+    /// be a patient's details).
+    /// </summary>
+    public static IReadOnlyList<string> FiltersUsed(SearchReferralsQuery query)
+    {
+        var used = new List<string>();
+        if (!string.IsNullOrWhiteSpace(query.Search))
+            used.Add("patientName");
+        if (query.PatientId is not null)
+            used.Add("patientId");
+        if (query.Statuses is { Count: > 0 })
+            used.Add("statuses");
+        if (query.SpecialtyIds is { Count: > 0 })
+            used.Add("specialtyIds");
+        if (query.Mine)
+            used.Add("mine");
+        return used;
+    }
+
+    /// <summary>
     /// Referrals matching every filter given. <paramref name="specialtyIds"/> is the specialties to keep (from the query,
     /// or the viewer's own for "mine"), or null for every one.
     /// </summary>
