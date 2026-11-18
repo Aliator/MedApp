@@ -17,6 +17,7 @@ public static class SpecialtyMapper
         PathwayCount = usage.PathwayCount,
         MemberCount = usage.MemberCount,
         ReferralCount = usage.ReferralCount,
+        LetterTemplateCount = usage.LetterTemplateCount,
         CanBeDeleted = !usage.IsInUse,
         CreatedAt = specialty.CreatedAt,
         LastUpdated = specialty.LastUpdated

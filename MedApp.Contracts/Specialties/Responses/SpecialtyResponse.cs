@@ -24,6 +24,9 @@ public sealed class SpecialtyResponse
     /// <summary>How many referrals ask for it, in any status.</summary>
     public int ReferralCount { get; set; }
 
+    /// <summary>How many letter templates are for it.</summary>
+    public int LetterTemplateCount { get; set; }
+
     /// <summary>Whether it can be deleted: only while no template, pathway or member of staff has it.</summary>
     public bool CanBeDeleted { get; set; }
 

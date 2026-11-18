@@ -76,7 +76,13 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             })
             .ToDictionaryAsync(x => x.Key, ct);
 
-        return templates.Keys.Concat(pathways.Keys).Concat(members.Keys).Concat(referrals.Keys)
+        var letterTemplates = await context.LetterTemplates
+            .Where(t => t.SpecialtyId != null && list.Contains(t.SpecialtyId.Value))
+            .GroupBy(t => t.SpecialtyId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+        return templates.Keys.Concat(pathways.Keys).Concat(members.Keys).Concat(referrals.Keys).Concat(letterTemplates.Keys)
             .Distinct()
             .ToDictionary(
                 id => id,
@@ -85,7 +91,8 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
                     pathways.GetValueOrDefault(id),
                     members.GetValueOrDefault(id),
                     referrals.GetValueOrDefault(id)?.Count ?? 0,
-                    referrals.GetValueOrDefault(id)?.Awaiting ?? 0));
+                    referrals.GetValueOrDefault(id)?.Awaiting ?? 0,
+                    letterTemplates.GetValueOrDefault(id)));
     }
 
     public async Task AddAsync(Specialty specialty, CancellationToken ct)

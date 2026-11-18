@@ -704,6 +704,27 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'letter-templates-list',
+    title: "Letter templates (admin), archived ones shown too: every specialty's first, then by specialty",
+    path: '/admin/letter-templates?status=any',
+  },
+  {
+    name: 'letter-template-new',
+    title: 'New letter template: details, text and preview, beside the merge fields',
+    path: '/admin/letter-templates/new',
+  },
+  {
+    name: 'letter-template-edit',
+    title: 'Edit a letter template (needs at least one)',
+    path: '/admin/letter-templates?status=any',
+    prepare: async (page) => {
+      // Edit is a link to the template's page.
+      await page.getByRole('table').getByRole('link', { name: /edit letter template/i }).first().click();
+      await page.getByRole('heading', { name: 'Edit Letter Template' }).waitFor();
+      await settle(page);
+    },
+  },
   { name: 'activity-types', title: 'Activity types (admin): what staff block time for, each in its colour', path: '/admin/activity-types' },
   {
     name: 'activity-type-dialog',
