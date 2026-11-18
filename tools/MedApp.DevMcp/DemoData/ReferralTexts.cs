@@ -15,7 +15,7 @@ public static class ReferralTexts
     [
         "Brackenmoor Road Surgery",
         "Kestrel Lane Medical Practice",
-        "Fallowfield Green Health Centre",
+        "Thornwick Vale Health Centre",
         "Wrenhurst Family Practice",
         "Pellowick Lane Surgery",
         "Thornyvale Medical Centre",
