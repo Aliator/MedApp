@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, json, mockApi, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, ProcedurePage, ProcedureView, finishedMessage} from './ProcedurePage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
@@ -60,9 +60,11 @@ describe('ProcedurePage', () => {
   it("says why nothing can be changed while the patient's record is restricted", async () => {
     const reason = "This patient's record is restricted, so it can't be changed until an admin lifts the restriction.";
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, readOnlyReason: reason})});
-    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
+    // A short label, read in full as an alert, with the whole reason over the page.
     expect(await findAlert(reason)).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, 'Read-only procedure')).getByText(reason)).toBeInTheDocument();
   });
 
   it("shows the patient's banners, and still offers blocking and cancelling while the record is restricted", async () => {
@@ -83,10 +85,10 @@ describe('ProcedurePage', () => {
           },
         }),
     });
-    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
     expect(await findAlert(/Restricted record: .* can be blocked or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
-    expect(screen.getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
     // The patient's banner says it all: the bare reason isn't repeated.
     expect(screen.queryByText('Restricted.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Block'})).toBeInTheDocument();

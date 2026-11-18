@@ -13,6 +13,7 @@ import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {PatientBanner} from '../../components/patients/PatientBanner';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
@@ -148,8 +149,11 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
           <ValidationAlert errors={problem.validation} fields={NEW_PROCEDURE_FIELDS} />
         ) : problem.message ? (
           <AlertMessage message={problem.message} />
+        ) : templates.error ? (
+          <AlertMessage message="The templates could not be loaded. Please try again." />
         ) : (
-          templates.error && <AlertMessage message="The templates could not be loaded. Please try again." />
+          // The patient's restricted, disputed or anonymised banners, as on every page about the patient (hazard H-22).
+          patient.data && <PatientFlagBanners patient={patient.data} />
         )
       }
       dialogs={
