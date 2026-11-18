@@ -119,7 +119,7 @@ public sealed class OperationalPurgeJobTests
             ActivityAction.PatientViewed, ActivityAction.PatientListed, ActivityAction.PatientsSearched,
             ActivityAction.PathwayViewed, ActivityAction.AttachmentDownloaded, ActivityAction.DemographicsLookedUp,
             ActivityAction.AccountCreated, ActivityAction.AccountDeleted, ActivityAction.RolesChanged,
-            ActivityAction.RoleCreated, ActivityAction.RoleDeleted,
+            ActivityAction.RoleCreated, ActivityAction.RoleDeleted, ActivityAction.RoleChanged,
             ActivityAction.PasswordReset, ActivityAction.PasswordChanged,
         ]);
     }

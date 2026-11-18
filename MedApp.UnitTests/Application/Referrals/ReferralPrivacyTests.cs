@@ -36,6 +36,7 @@ public sealed class ReferralPrivacyTests
         referral.ReferrerClinician = Canary;
         referral.DecisionDetail = Canary;
         referral.RedirectedTo = Canary;
+        referral.RedirectDetail = Canary;
         var change = new ReferralChange(referral, Registrar, NowUtc);
         change.Register(referral.Specialty);
         var letter = new Attachment
@@ -61,6 +62,7 @@ public sealed class ReferralPrivacyTests
         exported.Status.Should().Be("Withdrawn");
         exported.RegisteredBy.Should().Be(Registrar.Username);
         exported.DecisionDetail.Should().Be(Canary);
+        exported.RedirectDetail.Should().Be(Canary);
         var history = export.ReferralHistory.Single();
         history.Action.Should().Be("Registered");
         history.Username.Should().Be(Registrar.Username);
@@ -81,6 +83,7 @@ public sealed class ReferralPrivacyTests
         referral.ReferrerClinician.Should().Be(PatientAnonymiser.RemovedText);
         referral.DecisionDetail.Should().Be(PatientAnonymiser.RemovedText);
         referral.RedirectedTo.Should().Be(PatientAnonymiser.RemovedText);
+        referral.RedirectDetail.Should().Be(PatientAnonymiser.RemovedText);
         referral.ReferrerOdsCode.Should().BeNull();
         referral.ReceivedOn.Should().Be(ReceivedOn);
         referral.Status.Should().Be(ReferralStatus.Withdrawn);

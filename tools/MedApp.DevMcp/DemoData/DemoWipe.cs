@@ -90,6 +90,8 @@ public static class DemoWipe
                     .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);
+                // The GP practice directory, after the patients and referrals that point at it.
+                await db.Practices.ExecuteDeleteAsync(cancellationToken);
                 await db.UserSessions.ExecuteDeleteAsync(cancellationToken);
                 // Rules, choices and notifications name the accounts, templates and stages being wiped.
                 await db.MonitoringRules.ExecuteDeleteAsync(cancellationToken);

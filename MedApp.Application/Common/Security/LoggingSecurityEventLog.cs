@@ -26,6 +26,12 @@ public sealed class LoggingSecurityEventLog(ILogger<LoggingSecurityEventLog> log
     /// <summary>The details as <c>key=value</c> pairs, or "none".</summary>
     public static string Describe(IReadOnlyDictionary<string, object?>? details) =>
         details is { Count: > 0 }
-            ? string.Join(", ", details.Select(pair => $"{pair.Key}={pair.Value}"))
+            ? string.Join(", ", details.Select(pair => $"{pair.Key}={Value(pair.Value)}"))
             : "none";
+
+    /// <summary>A value as text; a list (a role change's permissions added) as its items, not its type's name.</summary>
+    private static string? Value(object? value) =>
+        value is System.Collections.IEnumerable list and not string
+            ? "[" + string.Join(", ", list.Cast<object?>()) + "]"
+            : value?.ToString();
 }

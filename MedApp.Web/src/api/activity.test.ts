@@ -86,6 +86,26 @@ describe('describeActivity', () => {
     expect(describe_('RoleCreated', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {})).toBe('');
+    expect(describe_('RoleCreated', {role: 'Auditor', permissions: ['ViewPatients', 'ViewInsights']})).toBe(
+      'Auditor: ViewPatients, ViewInsights',
+    );
+  });
+
+  it('gives what a change to a role did, by permission name, never its description', () => {
+    expect(activityActionLabel('RoleChanged')).toBe('Role changed');
+    expect(ACCOUNT_ACTIONS).toContain('RoleChanged');
+    expect(
+      describe_('RoleChanged', {
+        role: 'Nurse',
+        renamedFrom: 'Nurses',
+        descriptionChanged: true,
+        added: ['AssignPathways'],
+        removed: ['DeletePatients', 'EditPatients'],
+      }),
+    ).toBe('Nurse: renamed from Nurses; description changed; added AssignPathways; removed DeletePatients, EditPatients');
+    expect(describe_('RoleChanged', {role: 'Lab', archived: true})).toBe('Lab: archived');
+    expect(describe_('RoleChanged', {role: 'Lab', archived: false})).toBe('Lab: restored');
+    expect(describe_('RoleChanged', {})).toBe('');
   });
 
   it("gives a member of staff's specialties before and after, by name, as an account change", () => {
@@ -95,6 +115,17 @@ describe('describeActivity', () => {
     );
     expect(describe_('StaffSpecialtiesChanged', {from: ['Urology'], to: []})).toBe('Urology → none');
     expect(ACCOUNT_ACTIONS).toContain('StaffSpecialtiesChanged');
+  });
+
+  it("gives which of a member of staff's details for letters changed, never their values, as an account change", () => {
+    expect(activityActionLabel('StaffDetailsChanged')).toBe('Staff details changed');
+    expect(describe_('StaffDetailsChanged', {fields: ['fullName', 'jobTitle']})).toBe('Changed full name, job title');
+    expect(describe_('StaffDetailsChanged', {})).toBe('');
+    expect(ACCOUNT_ACTIONS).toContain('StaffDetailsChanged');
+  });
+
+  it("names a patient's contact details and GP practice among the fields edited", () => {
+    expect(describe_('PatientUpdated', {fields: ['addressLines', 'postcode', 'mobilePhone', 'practice']})).toBe('Changed address, postcode, mobile, GP practice');
   });
 
   it('gives a retention decision: until when, and why', () => {

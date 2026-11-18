@@ -46,6 +46,7 @@ public sealed class OperationalPurgeJob(
     [
         ActivityAction.AccountCreated, ActivityAction.AccountDeleted, ActivityAction.PasswordReset,
         ActivityAction.PasswordChanged, ActivityAction.RolesChanged, ActivityAction.RoleCreated, ActivityAction.RoleDeleted,
+        ActivityAction.RoleChanged,
     ];
 
     public string Name => JobName;

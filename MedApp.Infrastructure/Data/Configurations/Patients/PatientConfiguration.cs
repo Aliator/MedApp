@@ -1,4 +1,6 @@
-﻿using MedApp.Domain.Patients;
+using MedApp.Domain.Contacts;
+using MedApp.Domain.Patients;
+using MedApp.Domain.Practices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -31,6 +33,24 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.HasIndex(x => x.NhsNumber)
             .IsUnique()
             .HasFilter("[NhsNumber] IS NOT NULL");
+
+        // Contact details, all optional: the address's lines as one value, the postcode normalised, a mobile as +447….
+        builder.Property(x => x.AddressLines)
+            .HasMaxLength(PostalAddress.MaxStoredLength);
+
+        builder.Property(x => x.Postcode)
+            .HasMaxLength(UkPostcodes.MaxLength)
+            .IsUnicode(false);
+
+        builder.Property(x => x.MobilePhone)
+            .HasMaxLength(UkPhoneNumbers.MaxMobileLength)
+            .IsUnicode(false);
+
+        // The GP practice they're registered with: one any patient has is archived, never deleted (the key refuses too).
+        builder.HasOne<Practice>()
+            .WithMany()
+            .HasForeignKey(x => x.PracticeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.DateOfBirth)
             .IsRequired()

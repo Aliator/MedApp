@@ -15,11 +15,10 @@ import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
-import {referralFieldWords, referralStatusLabel} from '../../api/referrals';
+import {referralFieldWords, referralStatusLabel, rejectionReasonWords} from '../../api/referrals';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
-import {rejectionReasonWords} from '../referrals/ReferralPage';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
@@ -27,6 +26,7 @@ import {PanelHeader} from '../../components/views/PanelCard';
 import {sameMoment} from '../../utils/calendarSlots';
 import {formatAppointmentTime, formatDate, formatDateTime} from '../../utils/dates';
 import {formatFileSize} from '../../utils/fileSize';
+import {formatMobile, oneLineAddress} from '../../utils/contactDetails';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
@@ -350,6 +350,11 @@ function ExportContent({data}: {data: PatientExport}) {
           <MetadataListItem label="Date of Birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
           <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
+          <MetadataListItem label="Mobile">{patient?.mobilePhone ? formatMobile(patient.mobilePhone) : '—'}</MetadataListItem>
+          <MetadataListItem label="Address">{oneLineAddress(patient?.addressLines, patient?.postcode) || '—'}</MetadataListItem>
+          <MetadataListItem label="GP Practice">
+            {patient?.practiceName ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}` : '—'}
+          </MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
           <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>
           <MetadataListItem label="Last Changed">{when(patient?.lastUpdated)}</MetadataListItem>
@@ -455,6 +460,9 @@ function ExportContent({data}: {data: PatientExport}) {
                     {referral.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonWords(referral.rejectionReason)}</MetadataListItem>}
                     {referral.redirectedTo && <MetadataListItem label="Redirected To">{referral.redirectedTo}</MetadataListItem>}
                     {referral.decisionDetail && <MetadataListItem label="Detail">{referral.decisionDetail}</MetadataListItem>}
+                    {referral.redirectDetail && (
+                      <MetadataListItem label="Redirected From Another Specialty">{referral.redirectDetail}</MetadataListItem>
+                    )}
                     {referral.pathwayId && (
                       <MetadataListItem label="Accepted Into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
                     )}

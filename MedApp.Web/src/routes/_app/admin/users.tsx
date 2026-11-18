@@ -3,7 +3,7 @@ import {requirePermission} from '../../../auth/auth';
 import {parseUsersSearch} from '../../../pages/listSearch';
 import {UsersPage} from '../../../pages/users/UsersPage';
 import {preload} from '../../../api/preload';
-import {rolesQuery} from '../../../api/users';
+import {roleNames, rolesQuery} from '../../../api/roles';
 import {featuresQuery} from '../../../api/account';
 import {listSettingsFor} from '../../../app/listSettings';
 import {usersListQuery} from '../../../pages/users/UsersPage';
@@ -22,7 +22,7 @@ export const Route = createFileRoute('/_app/admin/users')({
         ? await queryClient.fetchQuery(rolesQuery).catch(() => undefined)
         : queryClient.getQueryData(rolesQuery.queryKey);
     const pageSize = listSettingsFor(queryClient).pageSize;
-    await preload(queryClient, rolesQuery, featuresQuery, ...(roles ? [usersListQuery(deps, pageSize, roles)] : []));
+    await preload(queryClient, rolesQuery, featuresQuery, ...(roles ? [usersListQuery(deps, pageSize, roleNames(roles))] : []));
   },
   component: UsersRoute,
 });

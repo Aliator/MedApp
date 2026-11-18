@@ -35,6 +35,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {ageOn, formatDate, parseUtc} from '../../utils/dates';
+import {formatMobile} from '../../utils/contactDetails';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
@@ -260,7 +261,22 @@ function PatientAppointments({patientId}: {patientId: string}) {
   );
 }
 
-/** Who the patient is, how to contact them, their appointments, and their record's ID. */
+/** An address a line at a time, its postcode last; "Not given" when there's none. */
+function AddressLines({lines, postcode}: {lines?: readonly string[] | null; postcode?: string | null}) {
+  const parts = [...(lines ?? []), postcode ?? ''].filter((part) => part.trim());
+  if (parts.length === 0) return 'Not given';
+  return (
+    <VStack gap={0}>
+      {parts.map((part, index) => (
+        <Text key={index} type="body">
+          {part}
+        </Text>
+      ))}
+    </VStack>
+  );
+}
+
+/** Who the patient is, how to contact them, their GP practice, their appointments, and their record's ID. */
 function PatientDetails({patient}: {patient: Patient}) {
   const age = patient.dateOfBirth ? ageOn(patient.dateOfBirth) : null;
   return (
@@ -276,6 +292,26 @@ function PatientDetails({patient}: {patient: Patient}) {
         <MetadataListItem label="Email Address">
           <Link href={`mailto:${patient.email}`}>{patient.email}</Link>
         </MetadataListItem>
+        <MetadataListItem label="Mobile">{patient.mobilePhone ? formatMobile(patient.mobilePhone) : 'Not given'}</MetadataListItem>
+        <MetadataListItem label="Address">
+          <AddressLines lines={patient.addressLines} postcode={patient.postcode} />
+        </MetadataListItem>
+      </ViewSection>
+      <ViewSection title="GP Practice" useGrid={false}>
+        {patient.practice ? (
+          <>
+            <MetadataListItem label="Practice">
+              {patient.practice.isArchived ? `${patient.practice.name ?? ''} (archived)` : patient.practice.name}
+            </MetadataListItem>
+            <MetadataListItem label="ODS Code">{patient.practice.odsCode || 'Not given'}</MetadataListItem>
+            <MetadataListItem label="Address">
+              <AddressLines lines={patient.practice.addressLines} postcode={patient.practice.postcode} />
+            </MetadataListItem>
+            {patient.practice.phone && <MetadataListItem label="Phone">{patient.practice.phone}</MetadataListItem>}
+          </>
+        ) : (
+          <MetadataListItem label="Practice">Not given</MetadataListItem>
+        )}
       </ViewSection>
       <CardSection title="Appointments">
         <PatientAppointments patientId={patient.id ?? ''} />

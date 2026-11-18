@@ -9,12 +9,11 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {pixel} from '@astryxdesign/core/Table';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {featuresQuery} from '../../api/account';
 import {ApiValidationError, allMessages, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {userSearchQuery, type UserPage} from '../../api/search';
 import {
-  rolesQuery,
   useCreateUser,
   useDeleteUser,
   useRemoveUserEmail,
@@ -24,8 +23,9 @@ import {
   useSignOutEverywhere,
   type CreatedUser,
 } from '../../api/users';
+import {roleChoices, roleNames, rolesQuery} from '../../api/roles';
 import {ADMIN_ROLE, sortRoles} from '../../auth/roles';
-import {useCurrentUser} from '../../auth/auth';
+import {useCan, useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
 import {Page} from '../../components/pages/Page';
@@ -37,6 +37,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
+import {StaffDetailsDialog} from './StaffDetailsDialog';
 import {UserSpecialtiesDialog} from './UserSpecialtiesDialog';
 import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
@@ -55,7 +56,14 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'roles' | 'specialties' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete'; username: string; roles: string[]; email: string | null}
+  | {
+      kind: 'roles' | 'specialties' | 'details' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete';
+      username: string;
+      roles: string[];
+      email: string | null;
+      fullName: string | null;
+      jobTitle: string | null;
+    }
   | null;
 
 /** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
@@ -96,6 +104,11 @@ function EmailCell({email, pendingEmail}: {email?: string | null; pendingEmail?:
   );
 }
 
+/** A user's full name and job title on one line ("Dr Sam Test, Consultant dermatologist"); undefined for neither. */
+export function staffDetailsLine(user: {fullName?: string | null; jobTitle?: string | null}): string | undefined {
+  return [user.fullName, user.jobTitle].map((part) => part?.trim()).filter(Boolean).join(', ') || undefined;
+}
+
 export interface UsersPageProps {
   search: UsersListSearch;
   onSearchChange: (search: UsersListSearch) => void;
@@ -104,8 +117,9 @@ export interface UsersPageProps {
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
  * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
- * asked for only when the server can send email), edit their roles (every role listed, theirs ticked), reset passwords,
- * set the specialties each works in (`UserSpecialtiesDialog`), reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
+ * asked for only when the server can send email), edit their roles (every role that isn't archived, with its description, theirs ticked), reset passwords,
+ * set the specialties each works in (`UserSpecialtiesDialog`) and the full name and job title that go on their letters
+ * (`StaffDetailsDialog`; shown under each username), reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
  * have ends), remove a user's email address (so reset links can't go to an address that isn't theirs any more) and
  * delete users (confirmed with the admin's own password). Each user's email address shows, one waiting to be confirmed
  * marked so, and whether they use two-factor authentication. Admins can't change their own account here, as in Blazor:
@@ -126,11 +140,13 @@ export function usersListQuery(search: UsersListSearch, pageSize: number, allRol
 
 export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const me = useCurrentUser();
+  const canManageUsers = useCan('ManageUsers');
   const page = search.page ?? 1;
   const ascending = search.asc ?? true;
   const isFiltered = hasUserFilters(search);
   const {pageSize} = useListSettings();
-  const {data: allRoles = []} = useQuery(rolesQuery);
+  const {data: roles} = useQuery(rolesQuery);
+  const allRoles = useMemo(() => roleNames(roles ?? []), [roles]);
   // Without a way to send email, an address couldn't be confirmed, so none is asked for.
   const canSendEmail = useQuery(featuresQuery).data?.canSendEmail === true;
 
@@ -192,7 +208,13 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const clearSearch = () => onSearchChange({asc: search.asc});
 
   const columns: DataTableColumn<UserRow>[] = [
-    {key: 'User', header: 'User', sortable: true, renderCell: (u) => <AvatarCell primaryText={u.username ?? ''} />},
+    {
+      key: 'User',
+      header: 'User',
+      sortable: true,
+      // Their full name and job title, as they go on letters, under the username.
+      renderCell: (u) => <AvatarCell primaryText={u.username ?? ''} secondaryText={staffDetailsLine(u)} />,
+    },
     {
       key: 'roles',
       header: 'Roles',
@@ -223,19 +245,21 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       key: 'actions',
       header: 'Actions',
       align: 'end',
-      // Eight buttons: a column sized to fit them all, so none is covered by the cell beside it.
-      width: pixel(300),
+      // Up to nine buttons: a column sized to fit them all, so none is covered by the cell beside it.
+      width: pixel(330),
       renderCell: (u) => {
         const username = u.username ?? '';
         const roles = [...(u.roles ?? [])];
         const isMe = username.toLowerCase() === me.username.toLowerCase();
-        const target = {username, roles, email: u.email ?? u.pendingEmail ?? null};
+        const target = {username, roles, email: u.email ?? u.pendingEmail ?? null, fullName: u.fullName ?? null, jobTitle: u.jobTitle ?? null};
         return (
           <TableActions
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
               // Unlike roles, admins may set their own: specialties don't change what anyone can do.
               {label: 'Edit specialties', icon: AppIcon.Specialties, onClick: () => open({kind: 'specialties', ...target})},
+              // Their own too: a name and job title don't change what anyone can do.
+              ...(canManageUsers ? [{label: 'Edit details', icon: AppIcon.StaffDetails, onClick: () => open({kind: 'details', ...target})}] : []),
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
               {
                 label: 'Reset two-factor',
@@ -354,7 +378,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             message={`Tick the roles ${target?.username} should have.`}
             icon={AppIcon.Assign}
             listLabel="Roles"
-            items={allRoles.map((r) => ({value: r, label: r}))}
+            // Roles that aren't archived, with what each is for; one archived that they hold stays, to keep or take away.
+            items={roleChoices(roles ?? [], target?.roles ?? [])}
             selected={selectedRoles}
             onSelectedChange={setSelectedRoles}
             emptyTitle="There are no roles."
@@ -367,6 +392,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             }
             onCancel={close}
           />
+
+          <StaffDetailsDialog target={dialog?.kind === 'details' ? dialog : null} onClose={close} onSaved={setNotice} />
 
           <UserSpecialtiesDialog
             isOpen={dialog?.kind === 'specialties'}

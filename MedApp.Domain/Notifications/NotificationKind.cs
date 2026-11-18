@@ -86,13 +86,19 @@ public enum NotificationKind
     StageVisitWithdrawn = 22,
 
     /// <summary>
+    /// A referral the user registered was triaged (accepted, rejected or redirected) by someone else: sent to whoever
+    /// registered it, so the booking team can tell the referrer. A fixed title ("Referral triaged").
+    /// </summary>
+    ReferralTriaged = 23,
+
+    /// <summary>
     /// Someone else cancelled a clinic session of yours (sent to its clinician, with its day in
     /// <see cref="Notification.CalendarDate"/>): its booked appointments were cancelled with it.
     /// </summary>
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 23 to 38 are
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 38 are
     /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40

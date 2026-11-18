@@ -23,6 +23,14 @@ public interface ISecurityNotices
     /// (an admin's two-factor turned on, off or reset), so a change nobody expected is seen by someone who can undo it.
     /// </summary>
     Task SendToOtherAdminsAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, CancellationToken ct);
+
+    /// <summary>
+    /// Emails every other admin with a confirmed address that the admin <paramref name="actorUsername"/> made, changed
+    /// or deleted a role (<see cref="SecurityNotice.AdminChangedRole"/>), with what they did as a sentence
+    /// (<paramref name="what"/>: role and permission names only), so a change nobody expected is seen by someone who can
+    /// undo it.
+    /// </summary>
+    Task SendRoleChangeToOtherAdminsAsync(Guid actorUserId, string actorUsername, string what, CancellationToken ct);
 }
 
 public sealed class SecurityNotices(
@@ -56,7 +64,13 @@ public sealed class SecurityNotices(
             ct);
     }
 
-    public async Task SendToOtherAdminsAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, CancellationToken ct)
+    public Task SendToOtherAdminsAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, CancellationToken ct) =>
+        SendToOthersAsync(notice, aboutUserId, aboutUsername, null, ct);
+
+    public Task SendRoleChangeToOtherAdminsAsync(Guid actorUserId, string actorUsername, string what, CancellationToken ct) =>
+        SendToOthersAsync(SecurityNotice.AdminChangedRole, actorUserId, actorUsername, what, ct);
+
+    private async Task SendToOthersAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, string? detail, CancellationToken ct)
     {
         foreach (var admin in await twoFactor.GetAdminContactsAsync(ct))
         {
@@ -64,7 +78,7 @@ public sealed class SecurityNotices(
                 continue;
 
             await sender.SendAsync(
-                EmailTemplates.Notice(admin.Email, admin.Username, notice, links.SignIn(), aboutUsername: aboutUsername),
+                EmailTemplates.Notice(admin.Email, admin.Username, notice, links.SignIn(), aboutUsername: aboutUsername, detail: detail),
                 ct);
         }
     }

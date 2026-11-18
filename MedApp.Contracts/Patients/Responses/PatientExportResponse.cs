@@ -73,6 +73,20 @@ public sealed class ExportedPatientResponse
     /// <summary>The NHS number, as its ten digits, or null when it isn't known.</summary>
     public string? NhsNumber { get; set; }
 
+    /// <summary>The postal address's lines (none when it isn't known).</summary>
+    public List<string> AddressLines { get; set; } = [];
+
+    public string? Postcode { get; set; }
+
+    /// <summary>A UK mobile in international form (<c>+447…</c>), or null.</summary>
+    public string? MobilePhone { get; set; }
+
+    /// <summary>The GP practice they're registered with, by name, or null.</summary>
+    public string? PracticeName { get; set; }
+
+    /// <summary>That practice's ODS code, or null.</summary>
+    public string? PracticeOdsCode { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
     public DateTime? RestrictedAtUtc { get; set; }
@@ -354,6 +368,9 @@ public sealed class ExportedReferralResponse
     public string? RejectionReason { get; set; }
     public string? DecisionDetail { get; set; }
     public string? RedirectedTo { get; set; }
+
+    /// <summary>Why it was redirected here from another specialty (the latest such redirection).</summary>
+    public string? RedirectDetail { get; set; }
 
     /// <summary>The pathway it was accepted into, if any.</summary>
     public Guid? PathwayId { get; set; }

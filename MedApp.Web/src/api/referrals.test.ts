@@ -11,6 +11,8 @@ import {
   referralQuery,
   referralSearchQuery,
   referralStatusLabel,
+  rejectionNeedsDetail,
+  rejectionReasonWords,
   toReferralRequest,
   type ReferralEvent,
   type ReferralSummary,
@@ -52,6 +54,7 @@ describe('referral words', () => {
     expect(referralStatusLabel(null)).toBe('');
     expect(referralFieldWords('receivedOn')).toBe('received date');
     expect(referralFieldWords('somethingNew')).toBe('somethingNew');
+    expect(referralFieldWords('directoryPractice')).toBe('practice from the directory');
   });
 
   const event = (fields: Partial<ReferralEvent>): ReferralEvent => ({id: 'e', atUtc: '2026-11-02T10:00:00Z', username: 'k.ashford', changedFields: [], ...fields});
@@ -70,8 +73,42 @@ describe('referral words', () => {
     expect(referralEventWords(event({action: 'DetailsEdited', changedFields: null}))).toEqual({title: 'Details edited by k.ashford', detail: ''});
     expect(referralEventWords(event({action: 'Withdrawn'}))).toEqual({title: 'Withdrawn by k.ashford', detail: ''});
     expect(referralEventWords(event({action: 'EnteredInError', username: ''}))).toEqual({title: 'Marked entered in error by someone', detail: ''});
-    expect(referralEventWords(event({action: 'Accepted', toStatus: 'Accepted'}))).toEqual({title: 'Accepted by k.ashford', detail: 'Now accepted'});
+    expect(referralEventWords(event({action: 'Accepted', toStatus: 'Accepted', templateName: 'Skin check', priority: 'High'}))).toEqual({
+      title: 'Accepted by k.ashford',
+      detail: 'Skin check, High priority',
+    });
+    expect(referralEventWords(event({action: 'Accepted'}))).toEqual({title: 'Accepted by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: 'Rejected', rejectionReason: 'InsufficientInformation'}))).toEqual({
+      title: 'Rejected by k.ashford',
+      detail: 'Insufficient information',
+    });
+    expect(referralEventWords(event({action: 'SpecialtyChanged', previousSpecialtyName: 'Urology', specialtyName: 'Dermatology'}))).toEqual({
+      title: 'Redirected by k.ashford',
+      detail: 'Specialty Urology → Dermatology',
+    });
+    expect(referralEventWords(event({action: 'SpecialtyChanged', specialtyName: 'Dermatology'}))).toEqual({
+      title: 'Redirected by k.ashford',
+      detail: 'Specialty unknown → Dermatology',
+    });
+    expect(referralEventWords(event({action: 'SpecialtyChanged'}))).toEqual({title: 'Redirected by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: 'RedirectedElsewhere'}))).toEqual({title: 'Redirected elsewhere by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: 'TargetChanged', toStatus: 'AwaitingTriage'}))).toEqual({
+      title: 'Target changed by k.ashford',
+      detail: 'Now awaiting triage',
+    });
     expect(referralEventWords(event({action: null}))).toEqual({title: 'Changed by k.ashford', detail: ''});
+  });
+});
+
+describe('rejection reasons', () => {
+  it('words each reason, and needs a detail only for Other', () => {
+    expect(rejectionReasonWords('NotOfferedHere')).toBe('Not offered here');
+    expect(rejectionReasonWords('DoesNotMeetCriteria')).toBe('Does not meet the criteria');
+    expect(rejectionReasonWords('Duplicate')).toBe('Duplicate');
+    expect(rejectionReasonWords('Unknown')).toBe('Unknown');
+    expect(rejectionReasonWords(null)).toBe('');
+    expect(rejectionNeedsDetail('Other')).toBe(true);
+    expect(rejectionNeedsDetail('Duplicate')).toBe(false);
   });
 });
 
@@ -81,6 +118,7 @@ describe('referral details', () => {
       toReferralRequest({
         specialtyId: 's',
         receivedOn: '2026-11-02',
+        practiceId: 'p1',
         referrerPractice: ' Synthetic Surgery ',
         referrerClinician: '  ',
         referrerOdsCode: 'a12bc',
@@ -90,19 +128,21 @@ describe('referral details', () => {
     ).toEqual({
       specialtyId: 's',
       receivedOn: '2026-11-02',
+      practiceId: 'p1',
       referrerPractice: 'Synthetic Surgery',
       referrerClinician: null,
       referrerOdsCode: 'A12BC',
       requestedPriority: 'High',
       reason: 'Reason',
     });
-    expect(toReferralRequest({...referralInput({}), specialtyId: ''})).toMatchObject({specialtyId: undefined, receivedOn: undefined});
+    expect(toReferralRequest({...referralInput({}), specialtyId: ''})).toMatchObject({specialtyId: undefined, receivedOn: undefined, practiceId: null});
   });
 
   it('starts an edit from the referral, with Medium when it has no priority', () => {
-    expect(referralInput({specialtyId: 's', receivedOn: '2026-11-02', referrerPractice: 'P', referrerClinician: 'C', referrerOdsCode: 'A1B', requestedPriority: 'Low', reason: 'R'})).toEqual({
+    expect(referralInput({specialtyId: 's', receivedOn: '2026-11-02', practiceId: 'p1', referrerPractice: 'P', referrerClinician: 'C', referrerOdsCode: 'A1B', requestedPriority: 'Low', reason: 'R'})).toEqual({
       specialtyId: 's',
       receivedOn: '2026-11-02',
+      practiceId: 'p1',
       referrerPractice: 'P',
       referrerClinician: 'C',
       referrerOdsCode: 'A1B',

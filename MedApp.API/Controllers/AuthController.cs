@@ -1,10 +1,6 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.CreateRole;
-using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
-using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
@@ -18,10 +14,12 @@ using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
 using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
@@ -298,6 +296,10 @@ public sealed class AuthController(
         return BadRequest(result.Errors);
     }
 
+    /// <summary>
+    /// Every role's name, archived ones too. Deprecated: the Users page reads <c>GET api/roles</c> (with descriptions,
+    /// and whether each is archived). Kept for one release, so a page loaded before it during a rollout still works.
+    /// </summary>
     [HttpGet("roles")]
     [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
@@ -318,34 +320,6 @@ public sealed class AuthController(
             new GetUserRolesQuery(username));
 
         return Ok(roles);
-    }
-    
-    [HttpPost("roles")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageRoles)]
-    public async Task<IActionResult> CreateRole(CreateRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new CreateRoleCommand(request.Name));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
-
-    [HttpPost("roles/assign")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageUsers)]
-    public async Task<IActionResult> AssignRole(AssignRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new AssignRoleCommand(request.Username, request.Role));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
     }
     
     /// <summary>
@@ -400,38 +374,6 @@ public sealed class AuthController(
     public async Task<IActionResult> SetUserSpecialties(string username, SetUserSpecialtiesRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetUserSpecialtiesCommand(username, request.SpecialtyIds ?? []), ct));
 
-    [HttpPost("roles/revoke")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageUsers)]
-    public async Task<IActionResult> RevokeRole(RevokeRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new RevokeRoleCommand(request.Username, request.Role, User.Identity?.Name ?? string.Empty));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
-
-    
-    [HttpDelete("roles/{roleName}")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageRoles)]
-    public async Task<IActionResult> DeleteRole(string roleName)
-    {
-        var result = await mediator.Send(new DeleteRoleCommand(roleName));
-
-        // The built-in Admin role can't be deleted.
-        if (result.Errors.Any(e => e.Code == IdentityErrors.BuiltInRoleCode))
-            return Conflict(result.Errors);
-
-        if (!result.Succeeded)
-            return NotFound();
-
-        return NoContent();
-    }
-    
     /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
     [HttpGet("me/settings")]
     [Tags("Settings")]
@@ -459,6 +401,40 @@ public sealed class AuthController(
     [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMySpecialties(CancellationToken ct) =>
         Ok(await mediator.Send(new GetMySpecialtiesQuery(User.GetUserId()), ct));
+
+    /// <summary>The signed-in user's full name and job title, as they go on letters.</summary>
+    [HttpGet("me/details")]
+    [Tags("Settings")]
+    [RequirePermission(Permission.UseApp)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyDetails(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetStaffDetailsQuery(User.Identity?.Name ?? string.Empty), ct));
+
+    /// <summary>
+    /// Sets the signed-in user's full name and job title (each at most 100 characters; empty removes one), recorded in
+    /// the activity log by field name. Returns them as they are now.
+    /// </summary>
+    [HttpPut("me/details")]
+    [Tags("Settings")]
+    [RequirePermission(Permission.UseApp)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetMyDetails(StaffDetailsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(
+            new SetStaffDetailsCommand(User.Identity?.Name ?? string.Empty, request.FullName, request.JobTitle), ct));
+
+    /// <summary>
+    /// Sets someone's full name and job title (each at most 100 characters; empty removes one), recorded in the activity
+    /// log by field name, with the account as its target. An unknown account is a 404.
+    /// </summary>
+    [HttpPut("users/{username}/details")]
+    [Tags("Authentication")]
+    [RequirePermission(Permission.ManageUsers)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetUserDetails(string username, StaffDetailsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetStaffDetailsCommand(username, request.FullName, request.JobTitle), ct));
 
     [HttpGet("whoami")]
     [Tags("Login")]

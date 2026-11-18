@@ -9,6 +9,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.PatientPathways.Commands.AssignPatientPathway;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Roles.Requests;
 using Microsoft.AspNetCore.Mvc;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
@@ -32,12 +33,11 @@ public sealed class PermissionTests : IntegrationTest
 {
     private static readonly Guid AnyId = Guid.Parse("0f0e0d0c-0b0a-0908-0706-050403020100");
 
-    /// <summary>A role an admin made with the old role endpoints: no permissions, but UseApp, as every role.</summary>
+    /// <summary>A role an admin made with no permissions: only UseApp, as every role.</summary>
     private const string MadeRole = "Visitor";
 
     /// <summary>
     /// For each permission with an endpoint: one it guards, a role that has the permission and one that hasn't.
-    /// TriageReferrals has no endpoint yet (Phase 2's triage PR adds it).
     /// </summary>
     private static IEnumerable<TestCaseData> Guarded()
     {
@@ -47,6 +47,7 @@ public sealed class PermissionTests : IntegrationTest
         yield return Case(Permission.EditPatients, "POST", "/api/patients", "Nurse", "Lab");
         yield return Case(Permission.DeletePatients, "DELETE", $"/api/patients/{AnyId}", "Booking", "Nurse");
         yield return Case(Permission.RegisterReferrals, "POST", "/api/referrals", "Booking", "Lab");
+        yield return Case(Permission.TriageReferrals, "POST", $"/api/referrals/{AnyId}/reject", "Clinician", "Nurse");
         yield return Case(Permission.CreatePathways, "POST", "/api/pathways/patient-pathways", "Nurse", "Booking");
         yield return Case(Permission.WorkPathways, "POST", $"{pathway}/stages/{AnyId}/start", "Lab", "Booking");
         yield return Case(Permission.AssignPathways, "POST", $"{pathway}/assignments/{AnyId}", "Manager", "Clinician");
@@ -59,7 +60,7 @@ public sealed class PermissionTests : IntegrationTest
         yield return Case(Permission.ManageMonitoring, "GET", "/api/monitoring/rules", "Manager", "Clinician");
         yield return Case(Permission.ManageSetup, "POST", $"{stages}/definitions", AdminRole, "Manager");
         yield return Case(Permission.ManageUsers, "GET", "/api/auth/users/search", AdminRole, "Manager");
-        yield return Case(Permission.ManageRoles, "POST", "/api/auth/roles", AdminRole, "Manager");
+        yield return Case(Permission.ManageRoles, "GET", $"/api/roles/{AnyId}", AdminRole, "Manager");
         yield return Case(Permission.ManageSecuritySettings, "GET", "/api/auth/security-settings", AdminRole, "Manager");
         yield return Case(Permission.ViewAudit, "GET", "/api/activity/search", AdminRole, "Manager");
         yield return Case(Permission.ExportPatientRecords, "GET", $"/api/patients/{AnyId}/export", AdminRole, "Clinician");
@@ -244,8 +245,8 @@ public sealed class PermissionTests : IntegrationTest
     }
 
     private static async Task MakeRoleAsync(string name) =>
-        await (await (await SignInAsAdminAsync()).PostAsJsonAsync("/api/auth/roles", new CreateRoleRequest(name)))
-            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await (await SignInAsAdminAsync()).PostAsJsonAsync("/api/roles", new CreateRoleRequest { Name = name, Permissions = [] }))
+            .ShouldHaveStatusAsync(HttpStatusCode.Created);
 
     private static DateOnly NextWeekday()
     {

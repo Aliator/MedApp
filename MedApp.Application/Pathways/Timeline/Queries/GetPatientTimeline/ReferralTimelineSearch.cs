@@ -49,7 +49,9 @@ public static class ReferralTimelineSearch
                 e,
                 referrals.Where(r => r.Id == e.ReferralId).Select(r => r.Reason).FirstOrDefault(),
                 referrals.Where(r => r.Id == e.ReferralId).Select(r => r.ReferrerPractice).FirstOrDefault(),
-                referrals.Where(r => r.Id == e.ReferralId).Select(r => r.DecisionDetail).FirstOrDefault()))
-            : page.Select(e => new ReferralTimelineRow(e, null, null, null));
+                referrals.Where(r => r.Id == e.ReferralId).Select(r => r.DecisionDetail).FirstOrDefault(),
+                referrals.Where(r => r.Id == e.ReferralId).Select(r => r.RedirectedTo).FirstOrDefault(),
+                referrals.Where(r => r.Id == e.ReferralId).Select(r => r.RedirectDetail).FirstOrDefault()))
+            : page.Select(e => new ReferralTimelineRow(e, null, null, null, null, null));
     }
 }

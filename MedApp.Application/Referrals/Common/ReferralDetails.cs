@@ -5,7 +5,8 @@ namespace MedApp.Application.Referrals.Common;
 
 /// <summary>
 /// What staff type from a referral letter, tidied: text trimmed, empty optional text as none, the ODS code in upper case
-/// without spaces, and the priority read by name. Registering and editing take the same details.
+/// without spaces, and the priority read by name. Registering and editing take the same details. The practice from the
+/// directory (<paramref name="PracticeId"/>) is optional, beside the practice as typed.
 /// </summary>
 public sealed record ReferralDetails(
     Guid SpecialtyId,
@@ -14,7 +15,8 @@ public sealed record ReferralDetails(
     string? ReferrerClinician,
     string? ReferrerOdsCode,
     PatientPathwayPriority RequestedPriority,
-    string Reason)
+    string Reason,
+    Guid? PracticeId = null)
 {
     /// <summary>The details as typed, tidied. The validator has checked the priority is a priority's name.</summary>
     public static ReferralDetails From(
@@ -24,12 +26,14 @@ public sealed record ReferralDetails(
         string? referrerClinician,
         string? referrerOdsCode,
         string requestedPriority,
-        string reason) => new(
+        string reason,
+        Guid? practiceId = null) => new(
         specialtyId,
         receivedOn,
         referrerPractice.Trim(),
         string.IsNullOrWhiteSpace(referrerClinician) ? null : referrerClinician.Trim(),
         OdsCodes.Normalise(referrerOdsCode),
         PathwayEnums.Parse<PatientPathwayPriority>(requestedPriority),
-        reason.Trim());
+        reason.Trim(),
+        practiceId);
 }

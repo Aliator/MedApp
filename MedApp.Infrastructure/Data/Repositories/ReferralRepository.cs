@@ -35,6 +35,17 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
         await SaveAsync(ct);
     }
 
+    public void AddEvents(IEnumerable<ReferralEvent> events) => context.ReferralEvents.AddRange(events);
+
+    public async Task<bool> IsSpecialtyMemberAsync(Guid userId, Guid specialtyId, CancellationToken ct) =>
+        await context.StaffSpecialties.AnyAsync(m => m.UserId == userId && m.SpecialtyId == specialtyId, ct);
+
+    public async Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct) =>
+        await context.Referrals
+            .AsNoTracking()
+            .Include(r => r.Specialty)
+            .FirstOrDefaultAsync(r => r.PathwayId == pathwayId, ct);
+
     private Task SaveAsync(CancellationToken ct) =>
         context.SaveChangesOrConflictAsync(ReferralWorkflow.ChangedMeanwhileMessage, ct);
 
