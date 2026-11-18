@@ -182,3 +182,7 @@ What that branch left, so the app would work exactly as before (`docs/security/a
   - **What MedApp provides:** the build and the hosting, using the existing image, Helm chart and Azure setup for each company. Decide between a deployment for each company and many companies in one (multi-tenancy, roadmap step 8).
   - **Today's medical app** becomes one ready-made pack among others.
   - **What it needs first:** multi-tenancy, so each company's data stays separate inside one deployment.
+- **Split the API into microservices instead of one monolith.**
+  - **The aim:** run areas such as procedures, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
+  - **What it has to solve first:** several areas save together in one transaction today: a procedure change with its audit entries and appointments (`SaveAsync(ProcedureChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
+  - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
