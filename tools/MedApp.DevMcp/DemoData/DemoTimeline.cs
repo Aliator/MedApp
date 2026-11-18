@@ -16,8 +16,11 @@ public sealed class DemoTimeline
         Today = UkTime.DateOf(NowUtc);
         ThisMonday = InsightsPeriod.MondayOf(Today);
 
-        // Today's diary is today's; on a weekend (when nobody's booked) it's the next working day.
-        DiaryDay = WorkingHours.IsWorkingDay(Today) ? Today : Today.AddDays(Today.DayOfWeek == DayOfWeek.Saturday ? 2 : 1);
+        // Today's diary is today's; on a weekend or a bank holiday (when nobody's booked) it's the next working day.
+        var diaryDay = Today;
+        while (!DemoClosedDays.IsWorkingDay(diaryDay))
+            diaryDay = diaryDay.AddDays(1);
+        DiaryDay = diaryDay;
 
         AppStartUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.HistoryWeeks), 9, 0);
         DayCaseLaunchedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.DayCaseLaunchedWeeksAgo), 8, 30);
@@ -86,7 +89,11 @@ public sealed class DemoTimeline
     /// <summary>A UK clock time on a UK date, in UTC.</summary>
     public static DateTime At(DateOnly date, int hour, int minute) => UkTime.ToUtc(date, new TimeOnly(hour, minute));
 
-    /// <summary>The working day on or after a moment's date (UK), at a clock time.</summary>
+    /// <summary>
+    /// The weekday on or after a moment's date (UK), at a clock time: when someone did something. Bank holidays count,
+    /// as nothing stops someone signing in then, and moving "three days ago" past one could put it after now; only what
+    /// goes on a calendar keeps off them (<see cref="DemoClosedDays"/>).
+    /// </summary>
     public static DateTime WorkingMoment(DateTime utc, int hour, int minute)
     {
         var date = UkTime.DateOf(utc);
@@ -97,7 +104,7 @@ public sealed class DemoTimeline
 
     /// <summary>
     /// The moment, or the next one in working hours (08:00 to 18:00 UK time, Monday to Friday) if it's outside them:
-    /// staff do things in the working day.
+    /// staff do things in the working day. Bank holidays count, as for <see cref="WorkingMoment"/>.
     /// </summary>
     public static DateTime InWorkingHours(DateTime utc, Random random)
     {

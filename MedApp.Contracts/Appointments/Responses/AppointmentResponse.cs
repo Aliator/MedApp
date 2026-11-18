@@ -26,7 +26,7 @@ public sealed class AppointmentResponse
     /// <summary>The stage's: None, Suggested or Required.</summary>
     public string? VisitRequirement { get; set; }
 
-    /// <summary>Requested, Booked, Attended, DidNotAttend or Cancelled.</summary>
+    /// <summary>Requested, Booked, Attended, DidNotAttend, Cancelled or EnteredInError.</summary>
     public string Status { get; set; } = string.Empty;
 
     public Guid? StaffUserId { get; set; }
@@ -51,6 +51,12 @@ public sealed class AppointmentResponse
     /// <summary>Who asked for it (for an automatic one, whoever made the change that caused it).</summary>
     public string CreatedByUsername { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Recorded after the event (a walk-in, or one booked outside MedApp) rather than booked ahead: then
+    /// <see cref="BookedAtUtc"/> and <see cref="BookedByUsername"/> say when and by whom it was recorded.
+    /// </summary>
+    public bool IsRecordedAfterEvent { get; set; }
+
     public DateTime? BookedAtUtc { get; set; }
 
     public string? BookedByUsername { get; set; }
@@ -73,6 +79,18 @@ public sealed class AppointmentResponse
     /// <summary>It's Requested or Booked.</summary>
     public bool CanCancel { get; set; }
 
-    /// <summary>It isn't Cancelled.</summary>
+    /// <summary>It isn't Cancelled or Entered in error.</summary>
     public bool CanEditNotes { get; set; }
+
+    /// <summary>
+    /// It was recorded after the event and still has its outcome: an admin can mark it entered in error (the server
+    /// checks who). Whoever recorded it can too while <see cref="CanRecorderMarkEnteredInError"/>.
+    /// </summary>
+    public bool CanMarkEnteredInError { get; set; }
+
+    /// <summary>
+    /// As <see cref="CanMarkEnteredInError"/>, and it started within the last 30 days, so whoever recorded it can mark
+    /// it entered in error too, not only an admin.
+    /// </summary>
+    public bool CanRecorderMarkEnteredInError { get; set; }
 }

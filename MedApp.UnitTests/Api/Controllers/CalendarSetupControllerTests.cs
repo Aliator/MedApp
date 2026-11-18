@@ -7,6 +7,11 @@ using MedApp.Application.Calendar.ActivityTypes.Commands.SetActivityTypeArchived
 using MedApp.Application.Calendar.ActivityTypes.Commands.UpdateActivityType;
 using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypeById;
 using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypes;
+using MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
+using MedApp.Application.Calendar.ClosedDays.Commands.CreateClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Commands.DeleteClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDayBookings;
+using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDays;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.DayTemplates.Commands.CreateDayTemplate;
 using MedApp.Application.Calendar.DayTemplates.Commands.DeleteDayTemplate;
@@ -39,6 +44,10 @@ public sealed class CalendarSetupControllerTests
         nameof(CalendarSetupController.ArchiveActivityType),
         nameof(CalendarSetupController.RestoreActivityType),
         nameof(CalendarSetupController.DeleteActivityType),
+        nameof(CalendarSetupController.GetClosedDayBookings),
+        nameof(CalendarSetupController.CreateClosedDay),
+        nameof(CalendarSetupController.AddBankHolidays),
+        nameof(CalendarSetupController.DeleteClosedDay),
     ];
 
     private IFixture _fixture = null!;
@@ -291,6 +300,54 @@ public sealed class CalendarSetupControllerTests
     public async Task DeleteWeekTemplate_ReturnsNoContent(string role) =>
         await ExpectNoContent(new DeleteWeekTemplateCommand(RecordId, Actor(role)), c => c.DeleteWeekTemplate(RecordId, _cts.Token), role);
 
+    // Closed days
+
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task GetClosedDays_SendsTheRange(string role)
+    {
+        var from = new DateOnly(2027, 1, 1);
+        var to = new DateOnly(2027, 12, 31);
+        await ExpectOk(_fixture.CreateMany<ClosedDayResponse>().ToList(),
+            new GetClosedDaysQuery(from, to),
+            c => c.GetClosedDays(new GetClosedDaysRequest { From = from, To = to }, _cts.Token),
+            role);
+    }
+
+    [Test]
+    public async Task CreateClosedDay_SendsTheDateNameAndAdminAndReturnsItWithItsAddress()
+    {
+        var date = new DateOnly(2027, 6, 4);
+        var request = new CreateClosedDayRequest { Date = date, Name = "Staff training day" };
+        var day = _fixture.Create<ClosedDayResponse>();
+        day.Date = date;
+        var mediator = new RecordingMediator(_ => day);
+
+        var result = await Controller(mediator).CreateClosedDay(request, _cts.Token);
+
+        mediator.Request.Should().Be(new CreateClosedDayCommand(date, "Staff training day", Actor("Admin")));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be("/api/calendar/closed-days?from=2027-06-04&to=2027-06-04");
+        created.Value.Should().Be(day);
+    }
+
+    [Test]
+    public async Task GetClosedDayBookings_SendsTheDate() =>
+        await ExpectOk(_fixture.Create<DayBookingsResponse>(),
+            new GetClosedDayBookingsQuery(new DateOnly(2027, 6, 4)),
+            c => c.GetClosedDayBookings(new DateOnly(2027, 6, 4), _cts.Token));
+
+    [Test]
+    public async Task AddBankHolidays_SendsTheYearAndAdmin() =>
+        await ExpectOk(_fixture.Create<AddBankHolidaysResponse>(),
+            new AddBankHolidaysCommand(2027, Actor("Admin")),
+            c => c.AddBankHolidays(new AddBankHolidaysRequest { Year = 2027 }, _cts.Token));
+
+    [Test]
+    public async Task DeleteClosedDay_ReturnsNoContent() =>
+        await ExpectNoContent(new DeleteClosedDayCommand(RecordId), c => c.DeleteClosedDay(RecordId, _cts.Token));
+
     // Who may call what
 
     [Test]
@@ -307,9 +364,9 @@ public sealed class CalendarSetupControllerTests
     [Test]
     public async Task EverythingElse_AnyStaff()
     {
-        // Reading anything, and changing day and week templates: the handlers check whose templates they are.
+        // Reading anything (closed days too), and changing day and week templates: the handlers check whose templates they are.
         var anyStaff = ControllerAuthorisation.Actions<CalendarSetupController>().Except(AdminOnly).ToList();
-        anyStaff.Should().HaveCount(16);
+        anyStaff.Should().HaveCount(17);
 
         foreach (var action in anyStaff)
         {

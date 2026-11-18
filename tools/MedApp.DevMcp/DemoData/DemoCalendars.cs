@@ -120,6 +120,7 @@ public sealed class DemoCalendars
             db.CalendarBlockExceptions.AddRange(calendars._exceptions);
             db.CalendarDayOverrides.AddRange(calendars._overrides);
             db.Meetings.AddRange(calendars._meetings);
+            db.ClosedDays.AddRange(DemoClosedDays.Rows(timeline, staff.First(m => m.IsAdminAt(timeline.AppStartUtc)).Id));
             await db.SaveChangesAsync(ct);
         });
 
@@ -149,6 +150,7 @@ public sealed class DemoCalendars
             Meetings = _meetings
                 .Where(m => m.StartUtc < toUtc && m.EndUtc > fromUtc && m.Attendees.Any(a => a.StaffUserId == staffUserId))
                 .ToList(),
+            ClosedDays = DemoClosedDays.Set,
         };
     }
 
@@ -355,7 +357,7 @@ public sealed class DemoCalendars
     {
         for (var date = first; date < first.AddDays(days); date = date.AddDays(1))
         {
-            if (!WorkingHours.IsWorkingDay(date))
+            if (!DemoClosedDays.IsWorkingDay(date))
                 continue;
             SetDayTemplate(member, date, null);
             Block(member, date, 8, 0, 18, 0, type, note, by, createdUtc);
@@ -410,14 +412,14 @@ public sealed class DemoCalendars
     private static DateOnly NextWorkingDay(DateOnly date)
     {
         do date = date.AddDays(1);
-        while (!WorkingHours.IsWorkingDay(date));
+        while (!DemoClosedDays.IsWorkingDay(date));
         return date;
     }
 
     private static DateOnly PreviousWorkingDay(DateOnly date)
     {
         do date = date.AddDays(-1);
-        while (!WorkingHours.IsWorkingDay(date));
+        while (!DemoClosedDays.IsWorkingDay(date));
         return date;
     }
 }

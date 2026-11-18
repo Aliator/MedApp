@@ -49,7 +49,7 @@ public sealed class ScheduleAllocator
     /// <summary>Whether a time is inside the working day and clear of everything on that person's calendar.</summary>
     public bool IsFree(Guid staffUserId, DateTime startUtc, DateTime endUtc)
     {
-        if (WorkingHours.WhyOutside(startUtc, endUtc) is not null)
+        if (DemoClosedDays.WhyOutside(startUtc, endUtc) is not null)
             return false;
 
         var date = UkTime.DateOf(startUtc);
@@ -86,7 +86,7 @@ public sealed class ScheduleAllocator
         {
             for (var date = from; date <= from.AddDays(days); date = date.AddDays(1))
             {
-                if (!WorkingHours.IsWorkingDay(date))
+                if (!DemoClosedDays.IsWorkingDay(date))
                     continue;
                 if (accept is not null && !accept(DayTemplateOn(staffUserId, date)))
                     continue;
@@ -111,7 +111,7 @@ public sealed class ScheduleAllocator
     public IReadOnlyList<DateTime> FreeStarts(Guid staffUserId, DateOnly date, int minutes, DateTime notBeforeUtc)
     {
         var starts = new List<DateTime>();
-        if (!WorkingHours.IsWorkingDay(date))
+        if (!DemoClosedDays.IsWorkingDay(date))
             return starts;
 
         var dayMinutes = (int)(WorkingHours.End - WorkingHours.Start).TotalMinutes;

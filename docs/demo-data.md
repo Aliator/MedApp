@@ -102,6 +102,7 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
   - `j.whitlock` finishes early on Fridays, and `admin` has a management afternoon on Wednesdays
 - **Day templates** have lunch and blocks for the role: clinic day, theatre day, endoscopy list, admin day, half day (morning), day off and office day. They leave the regular meeting times free.
 - **Activity types** the clinic added: ward round, teaching, supervision and off duty.
+- **Closed days** (Administration, Closed Days): England and Wales bank holidays for every year the story covers and the next, added by the lead. Nothing is booked, blocked or arranged on them, and they show greyed on the calendar ("Closed: Christmas Day"); a weekly meeting that would fall on one is skipped that week.
 - **Exceptions:**
   - **Leave and training days** have no day template (as "This day's template: none" saves), then one block for the day: the app refuses a whole-day block over a template's lunch
   - `k.ellison` has a week's annual leave next month, and next Tuesday uses her theatre day template (covering recovery)

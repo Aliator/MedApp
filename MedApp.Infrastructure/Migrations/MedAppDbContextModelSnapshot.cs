@@ -99,6 +99,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<bool>("IsAutomatic")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsRecordedAfterEvent")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
@@ -613,6 +616,34 @@ namespace MedApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("CalendarDayOverrides", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Calendar.ClosedDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Date" }, "IX_ClosedDays_Date")
+                        .IsUnique();
+
+                    b.ToTable("ClosedDays", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplate", b =>

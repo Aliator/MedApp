@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
@@ -240,6 +241,28 @@ public sealed class IdentityReadServiceTests
         _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>())).ReturnsAsync([]);
 
         (await _service.GetStaffAsync(CancellationToken.None)).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetAdminIdsAsync_TheAdminRolesUsers()
+    {
+        var admin = StaffUser("admin");
+        var other = StaffUser("other.admin");
+        _userManager.Setup(u => u.GetUsersInRoleAsync(AppRoles.Admin)).ReturnsAsync([admin, other]);
+
+        (await _service.GetAdminIdsAsync(CancellationToken.None)).Should().Equal(admin.Id, other.Id);
+    }
+
+    [Test]
+    public async Task GetAdminIdsAsync_Cancelled_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var act = () => _service.GetAdminIdsAsync(cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        _userManager.Verify(u => u.GetUsersInRoleAsync(It.IsAny<string>()), Times.Never);
     }
 
     [Test]

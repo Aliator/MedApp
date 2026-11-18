@@ -11,7 +11,7 @@ namespace MedApp.UnitTests.Application.Appointments.Commands.CreateAppointment;
 [TestFixture]
 public sealed class CreateAppointmentValidatorTests
 {
-    private readonly CreateAppointmentValidator _validator = new(new FixedTimeProvider(Now));
+    private readonly CreateAppointmentValidator _validator = new(new FixedTimeProvider(Now), InMemoryClosedDays.WorkingDays(CreateClosedDay()));
 
     private static CreateAppointmentCommand Request() =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, null, null, Notes, Colleague);
@@ -20,24 +20,24 @@ public sealed class CreateAppointmentValidatorTests
         Request() with { StaffUserId = StaffUserId, StartUtc = At(NextMonday, 10), EndUtc = At(NextMonday, 11) };
 
     private IEnumerable<string> Errors(CreateAppointmentCommand command) =>
-        _validator.Validate(command).Errors.Select(e => e.ErrorMessage);
+        _validator.ValidateNow(command).Errors.Select(e => e.ErrorMessage);
 
     [Test]
     public void Validate_Request_Passes()
     {
-        _validator.Validate(Request()).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Request()).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_Booking_Passes()
     {
-        _validator.Validate(Booking()).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Booking()).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_NoProcedureOrStageOrNotes_Passes()
     {
-        _validator.Validate(Request() with { ProcedureId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Request() with { ProcedureId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -97,7 +97,7 @@ public sealed class CreateAppointmentValidatorTests
     [Test]
     public void Validate_NotesAtTheLimit_Passes()
     {
-        _validator.Validate(Request() with { Notes = new string('a', AppointmentLimits.MaxNotesLength) }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Request() with { Notes = new string('a', AppointmentLimits.MaxNotesLength) }).IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -105,5 +105,13 @@ public sealed class CreateAppointmentValidatorTests
     {
         Errors(Request() with { Notes = new string('a', AppointmentLimits.MaxNotesLength + 1) })
             .Should().Equal("Notes must not exceed 2000 characters.");
+    }
+
+    [Test]
+    public void Validate_OnAClosedDay_SaysTheClinicIsClosed()
+    {
+        _validator.ValidateNow(Booking() with { StartUtc = At(ClosedWednesday, 10), EndUtc = At(ClosedWednesday, 10, 30) })
+            .Errors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
     }
 }

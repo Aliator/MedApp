@@ -262,7 +262,7 @@ public sealed class DemoMeetings
 
     private bool IsFreeForAll(MeetingStory story, IEnumerable<StaffMember> people, DateTime start, DateTime end)
     {
-        if (WorkingHours.WhyOutside(start, end) is not null)
+        if (DemoClosedDays.WhyOutside(start, end) is not null)
             return false;
         var date = UkTime.DateOf(start);
         return people.All(p => CalendarClashes.FindFirst(_calendars.DataFor(p.Id, date, date), start, end, ignoreMeetingId: story.Meeting.Id) is null);
@@ -289,7 +289,7 @@ public sealed class DemoMeetings
     {
         var days = new List<DateOnly>();
         for (var date = first; days.Count < count; date = date.AddDays(1))
-            if (WorkingHours.IsWorkingDay(date))
+            if (DemoClosedDays.IsWorkingDay(date))
                 days.Add(date);
         return days;
     }
@@ -318,6 +318,11 @@ public sealed class DemoMeetings
     {
         var (start, end) = (time.StartUtc, time.EndUtc);
         var date = UkTime.DateOf(start);
+
+        // Nothing is arranged on a bank holiday: a weekly meeting that falls on one is skipped that week.
+        if (!DemoClosedDays.IsWorkingDay(date))
+            return null;
+
         var invited = new List<StaffMember>();
         var later = new List<(DateTime At, StaffMember Member, bool Joins)>();
 

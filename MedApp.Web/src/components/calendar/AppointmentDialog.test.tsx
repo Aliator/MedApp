@@ -3,12 +3,12 @@ import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import type {Appointment} from '../../api/appointments';
 import {STAFF_ME, TEST_PATIENT, testAppointment, testCalendar, testRequested} from '../../test/calendar';
-import {expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
 
 const MONDAY = '2026-11-23';
 
-function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}, stepMinutes?: number) {
+function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}, stepMinutes?: number, user = staffUser) {
   const onClose = vi.fn();
   const fetch = mockApi({
     [`GET /api/appointments/${appointment.id}`]: () => json(appointment),
@@ -21,7 +21,7 @@ function renderDialog(appointment: Appointment, handlers: Parameters<typeof mock
     <SaveShortcutProvider>
       <AppointmentDialog appointment={appointment} onClose={onClose} stepMinutes={stepMinutes} />
     </SaveShortcutProvider>,
-    {user: staffUser},
+    {user},
   );
   return {...result, fetch, onClose};
 }
@@ -64,6 +64,31 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('link', {name: 'Knee review: Assessment'}));
     await waitFor(() => expect(router.state.location.pathname).toBe('/procedures/procedure-1'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('says an appointment was recorded after the event, by whom and when, rather than booked', async () => {
+    const walkIn = testAppointment({
+      id: 'walk-in',
+      status: 'Attended',
+      isRecordedAfterEvent: true,
+      createdAtUtc: '2026-11-20T11:00:00Z',
+      createdByUsername: 'test-user',
+      bookedAtUtc: '2026-11-20T11:00:00Z',
+      bookedByUsername: 'test-user',
+    });
+    const {unmount} = renderDialog(walkIn);
+
+    expect(await dialog().findByText('Recorded after the event')).toBeInTheDocument();
+    expect(dialog().getAllByText('By test-user, 20 Nov 2026, 11:00').length).toBeGreaterThan(0);
+    // A walk-in was never asked for.
+    expect(dialog().queryByText('Requested')).not.toBeInTheDocument();
+    unmount();
+
+    // A visit waiting in Requires Appointment, recorded later: it was asked for first.
+    renderDialog({...walkIn, isAutomatic: true, createdAtUtc: '2026-11-10T10:00:00Z'});
+    expect(await dialog().findByText('Recorded after the event')).toBeInTheDocument();
+    expect(dialog().getByText('Requested')).toBeInTheDocument();
+    expect(dialog().getByText('Automatically, 10 Nov 2026, 10:00')).toBeInTheDocument();
   });
 
   it('saves its notes', async () => {
@@ -154,6 +179,105 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Cancel Appointment'}));
 
     expect(await dialog().findByText('It has already happened.')).toBeInTheDocument();
+  });
+
+  describe('entered in error', () => {
+    /** A walk-in test-user recorded, which the API says can be withdrawn. */
+    const walkIn = testAppointment({
+      id: 'walk-in',
+      status: 'Attended',
+      isRecordedAfterEvent: true,
+      createdAtUtc: '2026-11-20T11:00:00Z',
+      bookedAtUtc: '2026-11-20T11:00:00Z',
+      bookedByUsername: 'test-user',
+      canCancel: false,
+      canReschedule: false,
+      canRecordOutcome: true,
+      canMarkEnteredInError: true,
+      canRecorderMarkEnteredInError: true,
+    });
+
+    it("withdraws a walk-in its recorder entered in error, with a reason, saying what happens to the stage's visit", async () => {
+      withAnnouncements();
+      let shown: Appointment = walkIn;
+      const withdrawn = {...walkIn, status: 'EnteredInError', cancelReason: 'Recorded on the wrong patient.', canRecordOutcome: false, canMarkEnteredInError: false};
+      const stageMessage = 'Its visit is back in Requires Appointment.';
+      const {user, fetch} = renderDialog(walkIn, {
+        'GET /api/appointments/walk-in': () => json(shown),
+        'POST /api/appointments/walk-in/entered-in-error': () => {
+          shown = withdrawn;
+          return json({appointment: withdrawn, visitRequestedAgain: true, stageMessage});
+        },
+      });
+
+      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      expect(await screen.findByRole('heading', {name: 'Mark Entered in Error'})).toBeInTheDocument();
+      expect(dialog().getByText(/withdraws the record of a visit that didn't happen, or that's on the wrong patient/)).toBeInTheDocument();
+      expect(dialog().getByText(/stays in the appointment's history, and it can't be undone/)).toBeInTheDocument();
+      expect(isDisabled(dialog().getByRole('button', {name: 'Mark Entered in Error'}))).toBe(true);
+      await user.type(dialog().getByRole('textbox', {name: /Reason/}), ' Recorded on the wrong patient. ');
+      await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
+
+      await expectAnnounced(`Marked entered in error. ${stageMessage}`);
+      expect(await bodyOf(fetch, 'POST', '/api/appointments/walk-in/entered-in-error')).toEqual({reason: 'Recorded on the wrong patient.'});
+      expect(await dialog().findByText(stageMessage)).toBeInTheDocument();
+      // It shows as entered in error, with why, and nothing more can be done to it.
+      expect(dialog().getAllByText('Entered in error').some((e) => e.closest('.astryx-token'))).toBe(true);
+      expect(dialog().getByText('Why entered in error')).toBeInTheDocument();
+      expect(dialog().getByText('Recorded on the wrong patient.')).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
+    });
+
+    it('announces it with no stage message, goes back when called off, and shows a refusal', async () => {
+      withAnnouncements();
+      let status = 200;
+      const {user} = renderDialog(walkIn, {
+        'POST /api/appointments/walk-in/entered-in-error': () =>
+          status === 200 ? json({appointment: walkIn, visitRequestedAgain: false, stageMessage: null}) : json({title: 'It was recorded over 30 days ago.'}, 409),
+      });
+
+      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      await user.click(await dialog().findByRole('button', {name: 'Keep It'}));
+      expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+      await user.click(dialog().getByRole('button', {name: 'Entered in Error'}));
+      await user.type(await dialog().findByRole('textbox', {name: /Reason/}), 'Never happened.');
+      await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
+      await expectAnnounced('Marked entered in error');
+
+      status = 409;
+      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      await user.type(await dialog().findByRole('textbox', {name: /Reason/}), 'Never happened.');
+      await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
+      expect(await dialog().findByText('It was recorded over 30 days ago.')).toBeInTheDocument();
+    });
+
+    it('is offered only to whoever recorded it, or an admin, and only when the API allows it', async () => {
+      const someoneElses = {...walkIn, bookedByUsername: 'j.smith'};
+      const staff = renderDialog(someoneElses);
+      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      staff.unmount();
+
+      const admin = renderDialog(someoneElses, {}, undefined, adminUser);
+      expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
+      admin.unmount();
+
+      const none = renderDialog({...walkIn, canMarkEnteredInError: false});
+      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      none.unmount();
+
+      // Over 30 days on, only an admin can, not whoever recorded it.
+      const old = {...walkIn, canRecorderMarkEnteredInError: false};
+      const recorder = renderDialog(old);
+      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      recorder.unmount();
+
+      renderDialog(old, {}, undefined, adminUser);
+      expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
+    });
   });
 
   it('reschedules in the booking dialog, and comes back', async () => {

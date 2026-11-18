@@ -21,6 +21,20 @@ public static class CalendarTestConstants
     public static readonly DateOnly NextSaturday = new(2026, 11, 28);
     public static readonly DateOnly NextSunday = new(2026, 11, 29);
 
+    /// <summary>A weekday the clinic is closed in the tests that give closed days (Wednesday 25 November 2026).</summary>
+    public static readonly DateOnly ClosedWednesday = new(2026, 11, 25);
+    public const string ClosedDayName = "Staff training day";
+
+    /// <summary>A closed day on <see cref="ClosedWednesday"/>.</summary>
+    public static ClosedDay CreateClosedDay(DateOnly? date = null, string name = ClosedDayName) => new()
+    {
+        Id = Guid.NewGuid(),
+        Date = date ?? ClosedWednesday,
+        Name = name,
+        CreatedAtUtc = Now,
+        CreatedByUserId = AdminUserId
+    };
+
     /// <summary>The Friday before the clocks went back (BST) and the Monday after (GMT).</summary>
     public static readonly DateOnly FridayBeforeClockChange = new(2026, 10, 23);
     public static readonly DateOnly MondayAfterClockChange = new(2026, 10, 26);

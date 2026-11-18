@@ -9,6 +9,8 @@ export interface AlertMessageProps {
   status?: 'error' | 'warning' | 'success' | 'info';
   /** Individual messages listed under the headline. */
   details?: string[];
+  /** Offers a Dismiss button, for a message that stays until it's read (a page body's outcome). */
+  onDismiss?: () => void;
 }
 
 /**
@@ -16,7 +18,7 @@ export interface AlertMessageProps {
  * (`Page`'s `message`). Errors and warnings are announced to screen readers
  * as alerts; success and info messages are not.
  */
-export function AlertMessage({message, status = 'error', details = []}: AlertMessageProps) {
+export function AlertMessage({message, status = 'error', details = [], onDismiss}: AlertMessageProps) {
   const isUrgent = status === 'error' || status === 'warning';
 
   return (
@@ -25,6 +27,8 @@ export function AlertMessage({message, status = 'error', details = []}: AlertMes
       title={message}
       container="card"
       role={isUrgent ? 'alert' : undefined}
+      isDismissable={onDismiss !== undefined}
+      onDismiss={onDismiss}
       // As `description`, not children: Banner folds children behind an "Expand" toggle, and errors must stay visible.
       description={
         details.length > 0 ? (

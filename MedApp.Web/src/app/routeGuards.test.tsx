@@ -45,6 +45,21 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: heading, level: 1})).toBeInTheDocument();
   });
 
+  it('sends a non-admin away from Closed Days, without asking for them', async () => {
+    const fetch = mockApi({'GET /api/calendar/closed-days': () => json([])});
+    const {router} = renderApp({path: '/admin/closed-days?year=2027', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('closed-days'))).toBe(false);
+  });
+
+  it('lets an admin into Closed Days, on the year the address names', async () => {
+    mockApi({'GET /api/calendar/closed-days': () => json([])});
+    renderApp({path: '/admin/closed-days?year=2027', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Closed Days', level: 1})).toBeInTheDocument();
+    expect(await screen.findByText('No closed days in 2027')).toBeInTheDocument();
+  });
+
   it('lets an admin into the admin pages', async () => {
     mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/roles'

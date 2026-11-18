@@ -29,6 +29,8 @@ describe('stageVisit', () => {
     const later = missed('later', '2026-11-19');
     expect(stageVisit('stage-1', [missed('earlier', '2026-11-16'), later, cancelled])).toEqual({status: 'DidNotAttend', appointment: later});
     expect(stageVisit('stage-1', [cancelled, otherStage])).toEqual({status: 'None'});
+    // A walk-in withdrawn as entered in error didn't happen.
+    expect(stageVisit('stage-1', [testAppointment({id: 'withdrawn', status: 'EnteredInError'})])).toEqual({status: 'None'});
   });
 
   it('copes with appointments without a time', () => {
@@ -148,6 +150,29 @@ describe('StageVisit', () => {
     renderVisit([attended]);
     expect(await screen.findByText('Attended')).toBeInTheDocument();
     expect(screen.queryAllByRole('button', {name: /Book|Reschedule/})).toHaveLength(1);
+  });
+
+  it('records a past visit while nothing is booked, but not once it is booked or attended, nor without a handler', async () => {
+    const onRecordPast = vi.fn();
+    const first = renderVisit([requested], {onRecordPast});
+    await first.user.click(await screen.findByRole('button', {name: 'Record Past Visit'}));
+    expect(onRecordPast).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const missedOne = renderVisit([missed('m', '2026-11-19')], {onRecordPast});
+    expect(await screen.findByRole('button', {name: 'Record Past Visit'})).toBeInTheDocument();
+    missedOne.unmount();
+
+    for (const appointments of [[booked], [attended]]) {
+      const shown = renderVisit(appointments, {onRecordPast});
+      expect(await screen.findByRole('group', {name: 'Visit'})).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
+      shown.unmount();
+    }
+
+    renderVisit([]);
+    expect(await screen.findByRole('button', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
   });
 
   it('waits while something is being saved', async () => {

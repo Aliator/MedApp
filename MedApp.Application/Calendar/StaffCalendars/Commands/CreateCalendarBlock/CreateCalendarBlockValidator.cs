@@ -5,15 +5,13 @@ namespace MedApp.Application.Calendar.StaffCalendars.Commands.CreateCalendarBloc
 
 public sealed class CreateCalendarBlockValidator : AbstractValidator<CreateCalendarBlockCommand>
 {
-    public CreateCalendarBlockValidator()
+    public CreateCalendarBlockValidator(WorkingDays workingDays)
     {
         RuleFor(x => x.StaffUserId).NotEmpty().WithMessage("Member of staff is required.");
 
         RuleFor(x => x.ActivityTypeId).NotEmpty().WithMessage("Activity type is required.");
 
-        RuleFor(x => x.StartUtc)
-            .Must((x, start) => WorkingHours.WhyOutside(start, x.EndUtc) is null)
-            .WithMessage(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc)!);
+        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
 
         RuleFor(x => x.Note)
             .MaximumLength(CalendarLimits.MaxNoteLength)

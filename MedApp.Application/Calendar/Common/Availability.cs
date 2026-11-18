@@ -20,7 +20,8 @@ public static class Availability
     /// <summary>
     /// For each working day from <paramref name="from"/> to <paramref name="to"/>, the times everyone is free: inside
     /// the working day, after <paramref name="nowUtc"/>, rounded inwards to 5-minute boundaries. A day with no free time
-    /// is still listed, with none. Each person's data must cover the range.
+    /// is still listed, with none; weekends and closed days aren't. Each person's data must cover the range (and its
+    /// closed days, which every person's data shares).
     /// </summary>
     /// <param name="exceptMeetingId">A meeting being moved, which doesn't count as busy.</param>
     public static IReadOnlyList<FreeDay> FreeTime(
@@ -36,10 +37,12 @@ public static class Availability
             .OrderBy(r => r.StartUtc)
             .ToList();
 
+        var closedDays = new ClosedDaySet(people.SelectMany(p => p.ClosedDays.Dates.Select(d => (d, p.ClosedDays.NameOn(d)!))));
+
         var days = new List<FreeDay>();
         for (var date = from; date <= to; date = date.AddDays(1))
         {
-            if (!WorkingHours.IsWorkingDay(date))
+            if (!WorkingHours.IsWorkingDay(date, closedDays))
                 continue;
 
             var dayStart = WorkingHours.DayStartUtc(date);

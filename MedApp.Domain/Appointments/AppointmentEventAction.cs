@@ -9,5 +9,14 @@ public enum AppointmentEventAction
     Attended = 3,
     DidNotAttend = 4,
     Cancelled = 5,
-    NotesUpdated = 6
+    NotesUpdated = 6,
+
+    /// <summary>
+    /// An appointment that had already happened (a walk-in, or one booked outside MedApp) was recorded after the event,
+    /// with its outcome: Attended or Did not attend.
+    /// </summary>
+    RecordedAfterEvent = 7,
+
+    /// <summary>An appointment recorded after the event was withdrawn as entered in error, with a reason.</summary>
+    EnteredInError = 8
 }

@@ -71,6 +71,7 @@ public static class AppointmentMapper
             IsAutomatic = appointment.IsAutomatic,
             CreatedAtUtc = appointment.CreatedAtUtc,
             CreatedByUsername = Username(usernames, appointment.CreatedByUserId),
+            IsRecordedAfterEvent = appointment.IsRecordedAfterEvent,
             BookedAtUtc = appointment.BookedAtUtc,
             BookedByUsername = Username(usernames, appointment.BookedByUserId),
             OutcomeAtUtc = appointment.OutcomeAtUtc,
@@ -80,7 +81,9 @@ public static class AppointmentMapper
             CanReschedule = canChange && AppointmentWorkflow.CanReschedule(appointment),
             CanRecordOutcome = canChange && AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
             CanCancel = canPause && AppointmentWorkflow.CanCancel(appointment),
-            CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment)
+            CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment),
+            CanMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: true),
+            CanRecorderMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: false)
         };
     }
 

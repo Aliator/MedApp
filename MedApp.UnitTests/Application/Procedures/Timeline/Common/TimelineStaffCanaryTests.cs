@@ -211,10 +211,10 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ToResponse_AdminAppointmentEntries_CarryTheFreeText()
     {
-        // The entries whose details hold free text: the cancellation's reason and the notes saved (old and new).
+        // The entries whose details hold free text: the cancellation's reason, the notes saved (old and new), and why a walk-in was withdrawn.
         var withText = AppointmentEventsHoldingTheCanary().Where(e => e.Details.Contains(Canary)).ToList();
 
-        withText.Select(e => e.Action).Should().BeEquivalentTo([AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled]);
+        withText.Select(e => e.Action).Should().BeEquivalentTo([AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled, AppointmentEventAction.EnteredInError]);
         foreach (var entry in withText)
             Serialised(entry, isAdmin: true).Should().Contain(Canary, entry.Action.ToString());
     }
@@ -253,6 +253,13 @@ public sealed class TimelineStaffCanaryTests
         var cancel = new AppointmentChange(other, Staff, Now.AddMinutes(2), procedureTitle: Canary);
         cancel.Cancel(Canary);
 
-        return [.. procedureChange.AppointmentEvents, .. change.Events, .. cancel.Events];
+        // A walk-in recorded after the event, as the stage's visit in Requires Appointment, with notes.
+        var walkIn = procedureChange.RequestVisit(procedure.StageAt(3));
+        walkIn.Notes = Canary;
+        var recorded = new AppointmentChange(walkIn, Staff, Now.AddMinutes(3), procedureTitle: Canary, stageName: ConsultationStage);
+        recorded.RecordAfterEvent(OtherUserId, OtherUsername, Now.AddDays(-1), Now.AddDays(-1).AddMinutes(30), AppointmentStatus.Attended, wasRequested: true);
+        recorded.MarkEnteredInError(Canary);
+
+        return [.. procedureChange.AppointmentEvents, .. change.Events, .. cancel.Events, .. recorded.Events];
     }
 }

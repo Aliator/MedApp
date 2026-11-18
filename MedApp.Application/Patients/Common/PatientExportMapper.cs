@@ -155,6 +155,7 @@ public static class PatientExportMapper
                     Notes = a.Notes,
                     CancelReason = a.CancelReason,
                     IsAutomatic = a.IsAutomatic,
+                    IsRecordedAfterEvent = a.IsRecordedAfterEvent,
                     CreatedAtUtc = a.CreatedAtUtc,
                     CreatedBy = Username(a.CreatedByUserId),
                     BookedAtUtc = a.BookedAtUtc,
