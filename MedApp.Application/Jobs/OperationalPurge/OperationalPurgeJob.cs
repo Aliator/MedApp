@@ -27,7 +27,9 @@ public sealed class OperationalPurgeJob(
     /// <summary>
     /// The activity log's sign-in and security events: signing in (each step, and refusals), signing out (and signing
     /// someone out everywhere), and every security event (<see cref="ISecurityEventLog"/>: two-factor, password reset
-    /// links, email addresses). Account and role changes, and every entry about a patient, aren't among them.
+    /// links, email addresses), but those that are account and role changes (an admin given by the recovery command is
+    /// recorded as <see cref="ActivityAction.RolesChanged"/>). Account and role changes, and every entry about a patient,
+    /// aren't among them: no period is set for them.
     /// </summary>
     public static readonly IReadOnlyList<ActivityAction> SignInAndSecurityActions =
     [
@@ -36,7 +38,14 @@ public sealed class OperationalPurgeJob(
         ActivityAction.TwoFactorChallenged,
         ActivityAction.SignedOut,
         ActivityAction.SignedOutEverywhere,
-        .. Enum.GetValues<SecurityEventKind>().Select(ActivitySecurityEventLog.ActionFor).Distinct(),
+        .. Enum.GetValues<SecurityEventKind>().Select(ActivitySecurityEventLog.ActionFor).Except(AccountAndRoleChanges).Distinct(),
+    ];
+
+    /// <summary>The activity log's account and role changes, kept whatever logged them.</summary>
+    private static ActivityAction[] AccountAndRoleChanges =>
+    [
+        ActivityAction.AccountCreated, ActivityAction.AccountDeleted, ActivityAction.PasswordReset,
+        ActivityAction.PasswordChanged, ActivityAction.RolesChanged, ActivityAction.RoleCreated, ActivityAction.RoleDeleted,
     ];
 
     public string Name => JobName;

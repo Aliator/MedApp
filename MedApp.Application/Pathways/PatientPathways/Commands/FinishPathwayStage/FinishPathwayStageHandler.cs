@@ -41,7 +41,7 @@ public sealed class FinishPathwayStageHandler(
         // A Required visit: only an admin can finish without it, on purpose and with a reason.
         if (PathwayWorkflow.WhyStageNeedsVisit(stage, stageAppointments) is { } needsVisit)
         {
-            if (!request.IsAdmin || !request.WithoutVisit)
+            if (!request.CanOverrideStages || !request.WithoutVisit)
                 throw new ConflictException(needsVisit);
 
             if (string.IsNullOrWhiteSpace(request.Reason))
@@ -56,6 +56,6 @@ public sealed class FinishPathwayStageHandler(
             await pathwayMonitor.NotifyAsync(change, cancellationToken);
         }
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerIsAdmin: request.Actor.IsAdmin);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
     }
 }

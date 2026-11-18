@@ -44,7 +44,8 @@ public sealed class SignInTests : IntegrationTest
 
         me.IsAuthenticated.Should().BeTrue();
         me.Name.Should().Be(AdminUsername);
-        me.Roles.Should().BeEquivalentTo([AdminRole, UserRole]);
+        me.Roles.Should().BeEquivalentTo([AdminRole]);
+        me.Permissions.Should().BeEquivalentTo(MedApp.Application.Common.Identity.Permissions.Admin.Select(p => p.ToString()));
     }
 
     [Test]

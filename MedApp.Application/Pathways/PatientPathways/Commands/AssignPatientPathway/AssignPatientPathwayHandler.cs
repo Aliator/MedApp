@@ -44,6 +44,6 @@ public sealed class AssignPatientPathwayHandler(
         // Then the admins watching, after the person it's about.
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerIsAdmin: request.Actor.IsAdmin);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
     }
 }

@@ -11,7 +11,7 @@ namespace MedApp.UnitTests.Infrastructure.Common.Identity;
 public sealed class IdentityReadServiceTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
-    private Mock<RoleManager<IdentityRole<Guid>>> _roleManager = null!;
+    private Mock<RoleManager<ApplicationRole>> _roleManager = null!;
     private IdentityReadService _service = null!;
 
     [SetUp]
@@ -21,8 +21,8 @@ public sealed class IdentityReadServiceTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             userStore.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        var roleStore = new Mock<IRoleStore<IdentityRole<Guid>>>();
-        _roleManager = new Mock<RoleManager<IdentityRole<Guid>>>(
+        var roleStore = new Mock<IRoleStore<ApplicationRole>>();
+        _roleManager = new Mock<RoleManager<ApplicationRole>>(
             roleStore.Object, null!, null!, null!, null!);
 
         _service = new IdentityReadService(_userManager.Object, _roleManager.Object);
@@ -46,7 +46,7 @@ public sealed class IdentityReadServiceTests
     public async Task GetRoleNamesAsync_ReturnsAllRoleNames()
     {
         var roles = AuthTestConstants.Roles
-            .Select(r => new IdentityRole<Guid>(r))
+            .Select(r => new ApplicationRole(r))
             .AsQueryable();
 
         _roleManager.SetupGet(r => r.Roles).Returns(roles);
@@ -208,18 +208,22 @@ public sealed class IdentityReadServiceTests
     private static ApplicationUser StaffUser(string username, Guid? id = null) =>
         new() { Id = id ?? Guid.NewGuid(), UserName = username };
 
+    private void GivenRoles(params string[] names) =>
+        _roleManager.SetupGet(r => r.Roles).Returns(names.Select(name => new ApplicationRole(name)).AsQueryable());
+
     [Test]
-    public async Task GetStaffAsync_UsersInEitherRole_ListsEachOnceSortedByUsernameIgnoringCase()
+    public async Task GetStaffAsync_UsersInAnyRole_ListsEachOnceSortedByUsernameIgnoringCase()
     {
         var both = StaffUser("Bravo");
         var adminOnly = StaffUser("charlie");
-        var userOnly = StaffUser("alpha");
-        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[0])).ReturnsAsync([both, adminOnly]);
-        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[1])).ReturnsAsync([userOnly, both]);
+        var nurseOnly = StaffUser("alpha");
+        GivenRoles("Admin", "Nurse");
+        _userManager.Setup(u => u.GetUsersInRoleAsync("Admin")).ReturnsAsync([both, adminOnly]);
+        _userManager.Setup(u => u.GetUsersInRoleAsync("Nurse")).ReturnsAsync([nurseOnly, both]);
 
         var staff = await _service.GetStaffAsync(CancellationToken.None);
 
-        staff.Should().Equal((userOnly.Id, "alpha"), (both.Id, "Bravo"), (adminOnly.Id, "charlie"));
+        staff.Should().Equal((nurseOnly.Id, "alpha"), (both.Id, "Bravo"), (adminOnly.Id, "charlie"));
     }
 
     [Test]
@@ -227,8 +231,9 @@ public sealed class IdentityReadServiceTests
     {
         var first = StaffUser("same", Guid.Parse("00000001-0000-0000-0000-000000000000"));
         var second = StaffUser("SAME", Guid.Parse("00000002-0000-0000-0000-000000000000"));
+        GivenRoles("Admin", "Clinician");
         _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>())).ReturnsAsync([]);
-        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[1])).ReturnsAsync([second, first]);
+        _userManager.Setup(u => u.GetUsersInRoleAsync("Clinician")).ReturnsAsync([second, first]);
 
         var staff = await _service.GetStaffAsync(CancellationToken.None);
 
@@ -236,33 +241,12 @@ public sealed class IdentityReadServiceTests
     }
 
     [Test]
-    public async Task GetStaffAsync_NoOneInEitherRole_IsEmpty()
+    public async Task GetStaffAsync_NoOneInAnyRole_IsEmpty()
     {
+        GivenRoles("Admin");
         _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>())).ReturnsAsync([]);
 
         (await _service.GetStaffAsync(CancellationToken.None)).Should().BeEmpty();
-    }
-
-    [Test]
-    public async Task GetAdminIdsAsync_TheAdminRolesUsers()
-    {
-        var admin = StaffUser("admin");
-        var other = StaffUser("other.admin");
-        _userManager.Setup(u => u.GetUsersInRoleAsync(AppRoles.Admin)).ReturnsAsync([admin, other]);
-
-        (await _service.GetAdminIdsAsync(CancellationToken.None)).Should().Equal(admin.Id, other.Id);
-    }
-
-    [Test]
-    public async Task GetAdminIdsAsync_Cancelled_Throws()
-    {
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
-        var act = () => _service.GetAdminIdsAsync(cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
-        _userManager.Verify(u => u.GetUsersInRoleAsync(It.IsAny<string>()), Times.Never);
     }
 
     [Test]

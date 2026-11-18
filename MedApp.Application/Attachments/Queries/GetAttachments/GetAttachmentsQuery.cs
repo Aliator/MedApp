@@ -14,5 +14,5 @@ public sealed record GetAttachmentsQuery(
     Guid? StageId,
     bool IncludeDeleted,
     Guid ViewerId,
-    bool IsAdmin)
+    bool CanCorrectRecords)
     : IRequest<AttachmentListResponse>;

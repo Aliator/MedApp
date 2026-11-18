@@ -11,7 +11,7 @@ Jobs the API runs on a schedule, inside its own process (`MedApp.Application/Job
 - **Each run gets a scope of its own,** marked as a job's (`ScheduledJobScope.IsJob`), where the activity log's actor is the system (`SystemActivityContext`, "medapp-jobs") instead of a request's user (`ServiceExtensions.ActivityContextFor` in the API).
 - **Idempotent:** a job marks each item done in the same save as the work (or deletes it in the same statement), so a run cut short and run again repeats nothing. Stopping the API gives the lease up without recording a run.
 - **What's recorded** (`ScheduledJobs`, one row per job, no personal data): next run, lease holder and end, last start and finish, outcome (`ScheduledJobOutcome`: `Succeeded = 0`, `Failed = 1`, `Skipped = 2`, stored by number, never renumbered), count, failures in a row, and the exception's **type name only**: never its message, which can quote data (the log has the type and stack trace, without the message).
-- **After three failures in a row** the admins are told once (`ScheduledJobFailing = 40`, a fixed title "Scheduled job failing", with the job's title and the count; `ScheduledJobNotifications`), until it succeeds again. Holders of `ManageSetup` once Phase 2's permissions exist.
+- **After three failures in a row** the holders of `ManageSetup` are told once (`ScheduledJobFailing = 40`, a fixed title "Scheduled job failing", with the job's title and the count; `ScheduledJobNotifications`), until it succeeds again (`IPermissionHolders`).
 - **`/health`** is Degraded (still a 200, so the readiness probe keeps the pod in service) while a job is switched on, not running, and more than two intervals past its next run, or the jobs can't be read (`ScheduledJobsHealthCheck`). Never Unhealthy.
 
 ## Settings
@@ -22,7 +22,7 @@ Jobs the API runs on a schedule, inside its own process (`MedApp.Application/Job
 
 ## Running one by hand
 
-- **Administration, Scheduled Jobs** (`/admin/jobs`, admins): each job's schedule, status, last run and next, with **Run now** (`GET api/jobs`, `POST api/jobs/{name}/run`). Run now runs it in the request, taking the lease as a scheduled run does: 409 if another copy is running it, 404 for an unknown name; a failed run is a 200 showing the failure. Classified in `EndpointCoverageTests` (it reads no patient data).
+- **Administration, Scheduled Jobs** (`/admin/jobs`; the endpoints need `ManageSetup`, which the centre plan names for setup lists and scheduled jobs; the web route, like the other setup pages, is for admins): each job's schedule, status, last run and next, with **Run now** (`GET api/jobs`, `POST api/jobs/{name}/run`). Run now runs it in the request, taking the lease as a scheduled run does: 409 if another copy is running it, 404 for an unknown name; a failed run is a 200 showing the failure. Classified in `EndpointCoverageTests` (it reads no patient data).
 - **`dotnet MedApp.API.dll run-job <name>`** runs one and exits (0 on success), e.g. through `kubectl exec`.
 - **`medapp-dev`'s `run_job`** runs one against the local database, with the same runner and lease.
 

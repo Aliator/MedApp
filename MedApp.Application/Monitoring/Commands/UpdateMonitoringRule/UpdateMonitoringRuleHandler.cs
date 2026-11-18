@@ -11,6 +11,7 @@ namespace MedApp.Application.Monitoring.Commands.UpdateMonitoringRule;
 public sealed class UpdateMonitoringRuleHandler(
     IMonitoringRuleRepository repository,
     IIdentityReadService identityReadService,
+    IPermissionHolders permissionHolders,
     IPatientPathwayStagesRepository stagesRepository,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateMonitoringRuleCommand, MonitoringRuleResponse>
@@ -21,7 +22,7 @@ public sealed class UpdateMonitoringRuleHandler(
                    ?? throw new NotFoundException($"Monitoring rule '{request.Id}' was not found.");
 
         // Only what this edit newly names has to exist: a rule may keep naming something since deleted.
-        await MonitoringRuleInput.CheckAsync(request, rule, identityReadService, stagesRepository, cancellationToken);
+        await MonitoringRuleInput.CheckAsync(request, rule, identityReadService, permissionHolders, stagesRepository, cancellationToken);
 
         MonitoringRuleInput.Apply(rule, request, timeProvider.GetUtcNow().UtcDateTime);
         await repository.UpdateAsync(rule, cancellationToken);

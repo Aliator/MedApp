@@ -12,6 +12,7 @@ namespace MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 public sealed class CreateMonitoringRuleHandler(
     IMonitoringRuleRepository repository,
     IIdentityReadService identityReadService,
+    IPermissionHolders permissionHolders,
     IPatientPathwayStagesRepository stagesRepository,
     TimeProvider timeProvider)
     : IRequestHandler<CreateMonitoringRuleCommand, MonitoringRuleResponse>
@@ -22,7 +23,7 @@ public sealed class CreateMonitoringRuleHandler(
             throw new ConflictException(
                 $"You have {MonitoringRuleInput.MaxRulesPerAdmin} rules, the most allowed. Delete one you no longer need first.");
 
-        await MonitoringRuleInput.CheckAsync(request, existing: null, identityReadService, stagesRepository, cancellationToken);
+        await MonitoringRuleInput.CheckAsync(request, existing: null, identityReadService, permissionHolders, stagesRepository, cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var rule = new MonitoringRule

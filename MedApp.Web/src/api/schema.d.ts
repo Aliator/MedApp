@@ -2251,6 +2251,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IdentityError"][];
+                        "application/json": components["schemas"]["IdentityError"][];
+                        "text/json": components["schemas"]["IdentityError"][];
+                    };
+                };
             };
         };
         options?: never;
@@ -9559,6 +9570,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IdentityError"][];
+                        "application/json": components["schemas"]["IdentityError"][];
+                        "text/json": components["schemas"]["IdentityError"][];
+                    };
+                };
             };
         };
         post?: never;
@@ -11498,6 +11520,7 @@ export interface components {
             roles?: string[] | null;
             mustChangePassword?: boolean;
             mustSetUpTwoFactor?: boolean;
+            permissions?: string[] | null;
         };
     };
     responses: never;

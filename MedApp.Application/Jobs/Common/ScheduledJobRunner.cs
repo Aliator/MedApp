@@ -29,7 +29,7 @@ public interface IScheduledJobRunner
 /// the API, runs each job at a time. The lease lasts <see cref="LeaseDuration"/> and is renewed while the job runs; a
 /// runner that dies leaves it to end, after which another takes the job. Each run is in a scope of its own, marked as a
 /// job's (<see cref="ScheduledJobScope"/>), and records its outcome, count and the exception's type (never its message).
-/// After <see cref="FailuresBeforeTelling"/> failures in a row, the admins are told once.
+/// After <see cref="FailuresBeforeTelling"/> failures in a row, the holders of <see cref="Permission.ManageSetup"/> are told once.
 /// </summary>
 public sealed class ScheduledJobRunner(
     IServiceScopeFactory scopes,
@@ -43,7 +43,7 @@ public sealed class ScheduledJobRunner(
     /// <summary>How often a running job's lease is renewed: well inside <see cref="LeaseDuration"/>.</summary>
     public static readonly TimeSpan RenewEvery = TimeSpan.FromMinutes(3);
 
-    /// <summary>Failures in a row after which the admins are told (once, until it succeeds).</summary>
+    /// <summary>Failures in a row after which the holders of ManageSetup are told (once, until it succeeds).</summary>
     public const int FailuresBeforeTelling = 3;
 
     /// <summary>This runner's name in a lease: the machine (the pod), the process and a random part, so each is unique.</summary>
@@ -154,7 +154,7 @@ public sealed class ScheduledJobRunner(
             name, row?.ConsecutiveFailures, errorType, next, failure.StackTrace);
 
         if (row is { ConsecutiveFailures: FailuresBeforeTelling })
-            await TellAdminsAsync(name, row.ConsecutiveFailures);
+            await TellSetupHoldersAsync(name, row.ConsecutiveFailures);
 
         return row;
     }
@@ -237,22 +237,22 @@ public sealed class ScheduledJobRunner(
         }
     }
 
-    /// <summary>Tells every admin (for now: holders of ManageSetup once permissions exist) that the job keeps failing.</summary>
-    private async Task TellAdminsAsync(string name, int failures)
+    /// <summary>Tells everyone who holds <see cref="Permission.ManageSetup"/> (who sees Scheduled Jobs) that the job keeps failing.</summary>
+    private async Task TellSetupHoldersAsync(string name, int failures)
     {
         try
         {
             await using var scope = scopes.CreateAsyncScope();
             var job = scope.ServiceProvider.GetServices<IScheduledJob>().Single(job => job.Name == name);
-            var admins = await scope.ServiceProvider.GetRequiredService<IIdentityReadService>()
-                .GetAdminIdsAsync(CancellationToken.None);
+            var holders = await scope.ServiceProvider.GetRequiredService<IPermissionHolders>()
+                .GetUserIdsAsync(Permission.ManageSetup, CancellationToken.None);
             var sender = scope.ServiceProvider.GetRequiredService<INotificationSender>();
-            foreach (var notification in ScheduledJobNotifications.Failing(admins, job.Title, failures, Now()))
+            foreach (var notification in ScheduledJobNotifications.Failing(holders, job.Title, failures, Now()))
                 await sender.SendAsync(notification, CancellationToken.None);
         }
         catch (Exception exception)
         {
-            logger.LogError("Couldn't tell the admins that scheduled job {Job} keeps failing: {ErrorType}.", name, ErrorType(exception));
+            logger.LogError("Couldn't tell the ManageSetup holders that scheduled job {Job} keeps failing: {ErrorType}.", name, ErrorType(exception));
         }
     }
 

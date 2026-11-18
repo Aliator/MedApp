@@ -273,7 +273,7 @@ export function ScheduledJobsPage() {
           <VStack gap={3} hAlign="stretch">
             <Text type="body" color="secondary">
               These jobs run inside the API on a schedule. Only one copy of the API runs each job at a time, and a job
-              that fails three times in a row notifies every admin.
+              that fails three times in a row notifies everyone who manages setup.
             </Text>
             {outcome && <AlertMessage status={outcome.status} message={outcome.message} onDismiss={() => setOutcome(null)} />}
           </VStack>

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MedApp.API.Controllers;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Jobs.Commands.RunScheduledJob;
 using MedApp.Application.Jobs.Queries.GetScheduledJobs;
 using MedApp.Contracts.Jobs.Responses;
@@ -42,9 +43,9 @@ public sealed class JobsControllerTests
 
     [TestCase(nameof(JobsController.GetJobs))]
     [TestCase(nameof(JobsController.RunJob))]
-    public async Task Actions_AreForAdminsOnly(string action)
+    public async Task Actions_NeedManageSetup(string action)
     {
         (await ControllerAuthorisation.MayCallAsync<JobsController>(action, SignedIn("Admin"))).Should().BeTrue();
-        (await ControllerAuthorisation.MayCallAsync<JobsController>(action, SignedIn("User"))).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<JobsController>(action, SignedIn(AppRoles.AllStaffBeforeRoles))).Should().BeFalse();
     }
 }

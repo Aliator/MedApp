@@ -1,4 +1,5 @@
 ﻿using MedApp.API.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -9,7 +10,7 @@ namespace MedApp.API.Notifications;
 /// with a <c>NotificationResponse</c>). It's addressed by user (the session's user ID), so every page someone has
 /// open gets theirs. Pages only listen; there's nothing to call.
 /// </summary>
-[Authorize(Policy = AuthPolicies.Staff)]
+[RequirePermission(Permission.UseApp)]
 public sealed class NotificationsHub : Hub
 {
     /// <summary>Where the hub is mapped.</summary>

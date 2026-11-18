@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -23,7 +24,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class AppointmentsControllerTests
 {
-    private static readonly PathwayActor Actor = new(UserId, Username);
+    // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
     private IFixture _fixture = null!;
     private AppointmentResponse _appointment = null!;
     private RecordingMediator _mediator = null!;
@@ -102,7 +104,7 @@ public sealed class AppointmentsControllerTests
         var result = await new AppointmentsController(mediator).WithRequest(SignedIn(role))
             .MarkEnteredInError(RecordId, new MarkEnteredInErrorRequest { Reason = "Wrong patient." }, _cts.Token);
 
-        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor with { IsAdmin = isAdmin }, isAdmin));
+        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor with { Permissions = TestPermissions.For(isAdmin) }, isAdmin));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }

@@ -10,13 +10,14 @@ namespace MedApp.Infrastructure.Common.Identity;
 /// <summary>
 /// Makes the first admin on a new database, deliberately: a deploy runs the API's <c>create-first-admin</c> command
 /// (the Helm chart's migrations Job does, after migrating), with the username and password from a secret, in the
-/// <c>FirstAdmin</c> settings. It adds the Admin and User roles if they're missing, then the admin, with both roles
-/// (User too, so they can change their own password), but only while there are no accounts at all. So it's safe to
-/// run on every deploy: once anyone exists, it changes nothing.
+/// <c>FirstAdmin</c> settings. It adds the built-in Admin role if it's missing (the migration <c>AddedRolePermissions</c>
+/// makes it), then the admin, with Admin alone (whose permissions include <see cref="Permission.UseApp"/>, so they can
+/// change their own password), but only while there are no accounts at all. So it's safe to run on every deploy: once
+/// anyone exists, it changes nothing.
 /// </summary>
 public sealed class FirstAdminSetup(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager,
+    RoleManager<ApplicationRole> roleManager,
     IIdentityTransactions transactions,
     TimeProvider timeProvider,
     ILogger<FirstAdminSetup> logger)
@@ -24,7 +25,6 @@ public sealed class FirstAdminSetup(
     public const string Command = "create-first-admin";
     public const string Section = "FirstAdmin";
     public const string AdminRole = AppRoles.Admin;
-    public static readonly IReadOnlyList<string> Roles = AppRoles.Staff;
 
     /// <summary>
     /// The command: reads the <c>FirstAdmin</c> settings and runs the setup. Returns the process's exit code:
@@ -51,12 +51,9 @@ public sealed class FirstAdminSetup(
         var accountsExist = false;
         var result = await transactions.RunAsync(async () =>
         {
-            foreach (var role in Roles)
+            if (!await roleManager.RoleExistsAsync(AdminRole))
             {
-                if (await roleManager.RoleExistsAsync(role))
-                    continue;
-
-                var created = await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+                var created = await roleManager.CreateAsync(NewAdminRole(timeProvider.GetUtcNow().UtcDateTime));
                 if (!created.Succeeded)
                     return created;
             }
@@ -77,7 +74,7 @@ public sealed class FirstAdminSetup(
                 CreatedAt = timeProvider.GetUtcNow().UtcDateTime
             };
             var made = await userManager.CreateAsync(admin, password);
-            return made.Succeeded ? await userManager.AddToRolesAsync(admin, Roles) : made;
+            return made.Succeeded ? await userManager.AddToRoleAsync(admin, AdminRole) : made;
         }, ct);
 
         if (!result.Succeeded)
@@ -97,6 +94,16 @@ public sealed class FirstAdminSetup(
         logger.LogInformation("Made the first admin, {Username}.", username);
         return new FirstAdminResult(FirstAdminOutcome.Created, []);
     }
+
+    /// <summary>The built-in Admin role, as the migration makes it on a new database.</summary>
+    public static ApplicationRole NewAdminRole(DateTime nowUtc) => new(AdminRole)
+    {
+        Id = StandardRoles.Admin.Id,
+        Description = StandardRoles.Admin.Description,
+        IsBuiltIn = true,
+        CreatedAt = nowUtc,
+        LastUpdated = nowUtc,
+    };
 }
 
 public enum FirstAdminOutcome

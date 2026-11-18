@@ -91,6 +91,13 @@ public sealed class StaffMember(StaffSeed seed, Guid id)
 
     public bool IsAdminAt(DateTime utc) => AdminFromUtc is { } from && utc >= from;
 
+    /// <summary>The starting role their job gives them from their first day (<see cref="DemoStaff.RoleOf"/>).</summary>
+    public StandardRole Role => DemoStaff.RoleOf(Kind);
+
+    /// <summary>What their roles allowed at a moment: their job's starting role, and Admin once they were one.</summary>
+    public IReadOnlySet<Permission> PermissionsAt(DateTime utc) =>
+        IsAdminAt(utc) ? Permissions.GrantedBy([Role.Permissions, Permissions.Admin]) : Role.Permissions;
+
     public bool WorksAt(DateTime utc) => utc >= StartedUtc && (LeftUtc is null || utc < LeftUtc);
 
     /// <summary>The network address their requests come from: one of the documentation ranges, never a real one.</summary>
@@ -146,6 +153,20 @@ public static class DemoStaff
         new(LeaverUsername, "Gray Harrow", "GP with a special interest in skin (left)", StaffKind.Leaver),
     ];
 
+    /// <summary>
+    /// The starting role each job gets (never "All staff (before roles)"): the doctors, the podiatrist and the pharmacist
+    /// Clinician; the nurses and the healthcare assistant Nurse; the booking coordinator Booking; the biomedical
+    /// scientist Lab; the service manager Manager. The clinical lead (admin) has Clinician beside Admin.
+    /// </summary>
+    public static StandardRole RoleOf(StaffKind kind) => kind switch
+    {
+        StaffKind.ServiceManager => StandardRoles.Manager,
+        StaffKind.SkinCancerNurse or StaffKind.DiabetesNurse or StaffKind.HealthcareAssistant or StaffKind.NewStarter => StandardRoles.Nurse,
+        StaffKind.BookingCoordinator => StandardRoles.Booking,
+        StaffKind.BiomedicalScientist => StandardRoles.Lab,
+        _ => StandardRoles.Clinician,
+    };
+
     /// <summary>The kept admin account, as the centre's lead: a consultant physician who's also an admin.</summary>
     public static readonly StaffSeed Lead = new(TestAdminTools.Username, "Clinical lead", "Clinical lead, consultant physician (diabetes)", StaffKind.ClinicalLead);
 
@@ -199,10 +220,10 @@ public static class DemoStaff
                 };
             });
 
-            // Roles: everyone is staff (User). The service manager is made an admin later (a role change).
+            // Roles: the starting role for their job. The service manager is made an admin later (a role change).
             services.At(createdAt.AddMinutes(1), lead.ActivityActor);
             await services.Run(sp => Guards.Validated(() =>
-                sp.GetRequiredService<IMediator>().Send(new AssignRoleCommand(seed.Username, "User"), ct)));
+                sp.GetRequiredService<IMediator>().Send(new AssignRoleCommand(seed.Username, RoleOf(seed.Kind).Name), ct)));
 
             // Most confirm their address from the link the next working morning; the new starter hasn't yet.
             if (seed.Email == EmailState.Confirmed)
@@ -239,7 +260,7 @@ public static class DemoStaff
         // Promoted to service manager: made an admin (one role change in the activity log).
         services.At(timeline.ManagerMadeAdminUtc, lead.ActivityActor);
         await services.Run(sp => Guards.Validated(() =>
-            sp.GetRequiredService<IMediator>().Send(new AssignRoleCommand(ManagerUsername, "Admin"), ct)));
+            sp.GetRequiredService<IMediator>().Send(new AssignRoleCommand(ManagerUsername, AppRoles.Admin), ct)));
         manager.AdminFromUtc = timeline.ManagerMadeAdminUtc;
 
         // Two-factor, as Account Settings does it: a new key, then a code from the app to turn it on.

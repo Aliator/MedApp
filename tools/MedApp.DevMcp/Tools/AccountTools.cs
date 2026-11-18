@@ -46,19 +46,34 @@ public sealed class AccountTools
     }
 
     [McpServerTool(Name = "list_roles", ReadOnly = true, Idempotent = true)]
-    [Description("Lists the roles that exist (e.g. Admin, User).")]
-    public static async Task<IReadOnlyList<string?>> ListRoles(RoleManager<IdentityRole<Guid>> roles, CancellationToken ct) =>
-        await roles.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
+    [Description("Lists the roles that exist (Admin, the starting roles Clinician, Nurse, Booking, Lab and Manager, \"All staff (before roles)\" and any others), each with its description, whether it's built in or archived, and the permissions it grants (Admin's are fixed in code; every role grants UseApp).")]
+    public static async Task<IReadOnlyList<object>> ListRoles(MedAppDbContext context, CancellationToken ct)
+    {
+        var roles = await context.Roles.AsNoTracking().Include(r => r.Permissions).OrderBy(r => r.Name).ToListAsync(ct);
+        return roles
+            .Select(role => (object)new
+            {
+                name = role.Name,
+                description = role.Description,
+                builtIn = role.IsBuiltIn,
+                archived = role.IsArchived,
+                permissions = Permissions.GrantedBy(role.IsBuiltIn, role.Permissions.Select(p => p.Permission))
+                    .Order()
+                    .Select(p => p.ToString())
+                    .ToArray(),
+            })
+            .ToList();
+    }
 
     [McpServerTool(Name = "create_user")]
     [Description("Creates a local dev account and gives it the listed roles. If no password is given, the app generates one (as it does for accounts created in the UI), and it's returned. Either way the account can sign in with it straight away: unlike an account an admin creates in the app, it isn't made to change its password first. All or nothing: if any step fails, no account is left behind. Use synthetic usernames only (e.g. dev-admin, dev-clinician).")]
     public static async Task<object> CreateUser(
         IMediator mediator,
         UserManager<ApplicationUser> users,
-        RoleManager<IdentityRole<Guid>> roleManager,
+        RoleManager<ApplicationRole> roleManager,
         IIdentityTransactions transactions,
         [Description("Username for the new account.")] string username,
-        [Description("Roles to give it, e.g. [\"Admin\"] or [\"User\"]. Must already exist.")] string[]? roles = null,
+        [Description("Roles to give it, by name, e.g. [\"Admin\"] or [\"Clinician\"]. Must already exist (list_roles).")] string[]? roles = null,
         [Description("Password to set. Omit to generate one (returned in the result).")] string? password = null,
         CancellationToken ct = default)
     {
@@ -162,10 +177,10 @@ public sealed class AccountTools
     public static async Task<object> SetRoles(
         IMediator mediator,
         UserManager<ApplicationUser> users,
-        RoleManager<IdentityRole<Guid>> roleManager,
+        RoleManager<ApplicationRole> roleManager,
         DevMcpOptions options,
         [Description("Account to change.")] string username,
-        [Description("The complete list of roles the account should have, e.g. [\"Admin\", \"User\"].")] string[] roles,
+        [Description("The complete list of roles the account should have, by name, e.g. [\"Admin\", \"Clinician\"].")] string[] roles,
         CancellationToken ct = default)
     {
         var user = await users.FindByNameAsync(username) ?? throw new McpException($"No account named '{username}'.");

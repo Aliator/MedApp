@@ -19,7 +19,7 @@ using Microsoft.EntityFrameworkCore;
 namespace MedApp.Infrastructure.Data;
 
 public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
-    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IDataProtectionKeyContext
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>(options), IDataProtectionKeyContext
 {
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -57,6 +57,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<SignInChallenge> SignInChallenges => Set<SignInChallenge>();
     public DbSet<EmailCode> EmailCodes => Set<EmailCode>();
     public DbSet<SecuritySettings> SecuritySettings => Set<SecuritySettings>();
+
+    /// <summary>Each role's permissions, by name (the built-in Admin role's are fixed in code, so it has none here).</summary>
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     /// <summary>
     /// ASP.NET Core's data protection keys, shared by every copy of the API, so a token one copy seals (a password reset

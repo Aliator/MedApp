@@ -57,7 +57,8 @@ public sealed class SessionServiceTests : IntegrationTest
         result.Should().NotBeNull();
         result!.UserId.Should().Be(_adminId);
         result.Username.Should().Be(AdminUsername);
-        result.Roles.Should().BeEquivalentTo([AdminRole, UserRole]);
+        result.Roles.Should().BeEquivalentTo([AdminRole]);
+        result.Permissions.Should().BeEquivalentTo(MedApp.Application.Common.Identity.Permissions.Admin);
     }
 
     [Test]

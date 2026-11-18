@@ -46,8 +46,8 @@ public sealed class ScheduledJobRunnerTests
         _scopeOfLastRun = null;
         _job.During = _ => Task.CompletedTask;
 
-        var identity = new Mock<IIdentityReadService>();
-        identity.Setup(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, OtherAdminId]);
+        var holders = new Mock<IPermissionHolders>();
+        holders.Setup(h => h.GetUserIdsAsync(Permission.ManageSetup, It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, OtherAdminId]);
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -59,7 +59,7 @@ public sealed class ScheduledJobRunnerTests
             _scopeOfLastRun = provider.GetRequiredService<ScheduledJobScope>();
             return _job;
         });
-        services.AddSingleton(identity.Object);
+        services.AddSingleton(holders.Object);
         services.AddSingleton(_notifications.Object);
         services.AddSingleton(Options.Create(_options));
         services.AddSingleton<TimeProvider>(new FastTimeProvider(Now));
@@ -167,7 +167,7 @@ public sealed class ScheduledJobRunnerTests
     }
 
     [Test]
-    public async Task RunNowAsync_ThirdFailureInARow_TellsEveryAdminOnce()
+    public async Task RunNowAsync_ThirdFailureInARow_TellsEveryManageSetupHolderOnce()
     {
         _job.Throws = new InvalidOperationException("Synthetic failure.");
         var sent = new List<Notification>();

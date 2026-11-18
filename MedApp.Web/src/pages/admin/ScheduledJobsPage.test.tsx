@@ -76,7 +76,7 @@ describe('ScheduledJobsPage', () => {
     expect(screen.getByRole('heading', {name: 'Scheduled Jobs', level: 1})).toBeInTheDocument();
     expect(screen.getByText('2 jobs')).toBeInTheDocument();
     expect(screen.getByText(/Only one copy of the API runs each job at a time/)).toBeInTheDocument();
-    expect(screen.getByText(/fails three times in a row notifies every admin/)).toBeInTheDocument();
+    expect(screen.getByText(/fails three times in a row notifies everyone who manages setup/)).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${JOBS}`]);
   });
 

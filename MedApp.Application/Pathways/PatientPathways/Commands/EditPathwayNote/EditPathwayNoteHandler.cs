@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
@@ -45,6 +46,6 @@ public sealed class EditPathwayNoteHandler(
         }
 
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return PathwayNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true, viewerIsAdmin: request.Actor.IsAdmin);
+        return PathwayNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
     }
 }

@@ -1,3 +1,5 @@
+using MedApp.API.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
@@ -98,11 +100,11 @@ public sealed class MonitoringControllerTests
     }
 
     [Test]
-    public void Controller_IsForAdminsOnly()
+    public void Controller_NeedsManageMonitoring()
     {
         // The API has no fallback policy: without this attribute, any staff member could watch the others.
-        typeof(MonitoringController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()
-            .Should().ContainSingle().Which.Roles.Should().Be("Admin");
+        typeof(MonitoringController).GetCustomAttributes(typeof(RequirePermissionAttribute), true).Cast<RequirePermissionAttribute>()
+            .Should().ContainSingle().Which.Permission.Should().Be(Permission.ManageMonitoring);
         typeof(MonitoringController).GetMethods()
             .Should().NotContain(m => m.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Length > 0);
     }

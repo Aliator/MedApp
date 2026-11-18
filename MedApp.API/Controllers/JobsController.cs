@@ -1,20 +1,21 @@
+using MedApp.API.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Jobs.Commands.RunScheduledJob;
 using MedApp.Application.Jobs.Queries.GetScheduledJobs;
 using MedApp.Contracts.Jobs.Responses;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// The scheduled jobs (admins; <c>ManageSetup</c> once permissions exist): how each last ran, and Run now. Jobs run
+/// The scheduled jobs (holders of <c>ManageSetup</c>, as the centre plan names for setup lists): how each last ran, and Run now. Jobs run
 /// inside the API, one copy at a time each (a lease in SQL Server). Nothing here reads patient data.
 /// </summary>
 [ApiController]
 [Route("api/jobs")]
 [Tags("Jobs")]
-[Authorize(Roles = "Admin")]
+[RequirePermission(Permission.ManageSetup)]
 public sealed class JobsController(IMediator mediator) : ControllerBase
 {
     /// <summary>Every scheduled job, by title, with its last run and its next.</summary>
