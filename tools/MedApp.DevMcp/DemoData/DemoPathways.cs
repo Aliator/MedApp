@@ -353,6 +353,11 @@ public static class DemoPathways
     /// <summary>Saves the replayed history in batches, parents before children, without tracking each change.</summary>
     public static async Task SaveAsync(SeedServices services, DemoWorld world, CancellationToken ct)
     {
+        // The referrals the replays attached (for the clock) are saved after the pathways they point at
+        // (DemoReferrals.SaveAsync), not with them.
+        foreach (var pathway in world.Pathways)
+            pathway.Referral = null;
+
         await Batch(world.Pathways, (db, items) => db.PatientPathways.AddRange(items), 400);
         await Batch(world.Appointments, (db, items) => db.Appointments.AddRange(items), 2000);
         await Batch(world.AppointmentEvents, (db, items) => db.AppointmentEvents.AddRange(items), 4000);

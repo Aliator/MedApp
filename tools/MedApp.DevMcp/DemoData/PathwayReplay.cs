@@ -1,8 +1,10 @@
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
@@ -17,6 +19,14 @@ namespace MedApp.DevMcp.DemoData;
 /// <see cref="AppointmentNotifications"/>, <see cref="AssignmentNotifications"/> and the monitor's own matching for what
 /// staff are told. Each visit is booked into a free time on the calendar of the person working on
 /// the stage. Nothing is saved here: the results are kept until the replay is accepted.
+/// <para>
+/// A pathway from a referral starts with it: registered by the booking coordinator (<see cref="DemoReferrals"/>), now
+/// and then moved here from another specialty, then accepted by a clinician of its specialty, who creates the pathway
+/// as AcceptReferralHandler does, with its target date from the referral's waiting-time clock. From then on the
+/// pathway's changes carry the clock (<see cref="PathwayChange"/> stops it when the clock-stop stage is finished, or the
+/// pathway is discharged or cancelled, and moves the target date with a pause or a new priority); its lead pauses it
+/// when the patient asks to wait, and sets the target date by hand once it has stopped.
+/// </para>
 /// </summary>
 public sealed class PathwayReplay
 {
@@ -36,6 +46,10 @@ public sealed class PathwayReplay
     private readonly List<AppointmentEvent> _events = [];
     private readonly List<Notification> _notifications = [];
     private readonly List<Touch> _touches = [];
+    private readonly List<ReferralEvent> _referralEvents = [];
+
+    /// <summary>The referral it was accepted from, with its clock; null for a pathway created directly.</summary>
+    private Referral? _referral;
 
     private StaffMember _lead;
     private readonly StaffMember? _secondAssignee;
@@ -70,9 +84,13 @@ public sealed class PathwayReplay
 
         var template = world.Templates[plan.PathwayKind];
         _templateName = template.Name;
-        _dueDate = DueDates.ToUkDate(plan.CreatedUtc).AddDays(7 * (plan.Urgent ? plan.Spec.UrgentDueWeeks : plan.Spec.DueWeeks));
-        // A copy of the template's stages, made as CreatePatientPathwayHandler makes it.
-        _pathway = PathwayCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.Priority, plan.CreatedUtc);
+        // From a referral, the clock's target: the wait counts from the day it was received (no pauses before triage),
+        // to the specialty's target for the priority the triager chose. Otherwise a target date set by hand.
+        _dueDate = plan.FromReferral
+            ? plan.ReceivedOn.AddDays(WaitingClock.TargetDaysFor(world.Specialties[template.SpecialtyId], plan.ChosenPriority))
+            : plan.PlannedDueDate;
+        // A copy of the template's stages, made as CreatePatientPathwayHandler (or AcceptReferralHandler) makes it.
+        _pathway = PathwayCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.ChosenPriority, plan.CreatedUtc);
         _stages = _pathway.Stages.OrderBy(s => s.StageOrder).ToList();
     }
 
@@ -105,6 +123,9 @@ public sealed class PathwayReplay
         _world.AppointmentEvents.AddRange(_events);
         _world.Notifications.AddRange(_notifications);
         _world.Touches.AddRange(_touches);
+        if (_referral is not null)
+            _world.Referrals.Add(_referral);
+        _world.ReferralEvents.AddRange(_referralEvents);
         _world.Bypasses += Bypasses;
         if (DeleteAtUtc is { } at)
             _world.Deletions.Add((_pathway, at));
@@ -114,12 +135,19 @@ public sealed class PathwayReplay
     {
         var created = _plan.CreatedUtc;
         _floor = created;
-        var creator = Creator();
-
-        // Its Created audit entry, its first note (often none), and the first stage's visit if it involves one, as
-        // CreatePatientPathwayHandler records them.
         var firstNote = NoteBuilder.PathwayNote(_plan.NoteContext(), _random);
-        Change(creator, created, change => PathwayCreation.Record(change, _templateName, _dueDate, firstNote));
+
+        if (_plan.FromReferral)
+        {
+            Accept(created, firstNote);
+        }
+        else
+        {
+            // Created directly by its clinician (a recall, or a course asked for in clinic): its Created audit entry, its
+            // first note (often none), and the first stage's visit if it involves one, as CreatePatientPathwayHandler
+            // records them.
+            Change(_lead, created, change => PathwayCreation.Record(change, _templateName, _dueDate, firstNote));
+        }
 
         // An admin assigns it, usually within a day or so; the newest are sometimes still waiting.
         var assignAt = Working(created.AddDays(0.02 + _random.NextDouble() * 1.5));
@@ -158,10 +186,105 @@ public sealed class PathwayReplay
         Stopped,
     }
 
+    /// <summary>
+    /// Its referral's story up to triage, then the acceptance that creates it: registered by the booking coordinator;
+    /// now and then moved here first by a triager of the specialty it came under; accepted by a clinician of this
+    /// specialty (the lead, usually), who creates the pathway (its Created entry names the referral) with the priority
+    /// they chose and the clock's target date, as AcceptReferralHandler does, in one change. The coordinator is told.
+    /// </summary>
+    private void Accept(DateTime created, string? firstNote)
+    {
+        var world = _world;
+        var specialty = world.Specialties[world.Templates[_plan.PathwayKind].SpecialtyId];
+        var registeredUnder = _plan.RedirectedFrom is { } from ? world.Specialty(from) : specialty;
+        var coordinator = world.Coordinator;
+
+        var (referral, registered) = DemoReferrals.Register(_pathway.PatientId, registeredUnder, _plan.ReceivedOn, _plan.RequestedPriority,
+            ReferralTexts.Reason(_plan.Kind, _random), coordinator, _plan.RegisteredUtc, _random);
+        _referral = referral;
+        _referralEvents.AddRange(registered);
+        _touches.Add(new Touch(coordinator.Id, _plan.RegisteredUtc, _pathway.PatientId, null, referral.Id));
+
+        if (_plan.RedirectedFrom is { } previous)
+        {
+            var mover = DemoReferrals.Triager(world, previous, _plan.RedirectedUtc)
+                        ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {previous} referrals.");
+            var move = DemoReferrals.Triage(referral, mover, _plan.RedirectedUtc);
+            move.RedirectToSpecialty(specialty, ReferralTexts.RedirectDetail(previous, specialty.Name));
+            referral.Specialty = specialty;
+            Triaged(move, mover, _plan.RedirectedUtc, previous);
+        }
+
+        var triager = DemoReferrals.Triager(world, specialty.Name, created, _lead)
+                      ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {specialty.Name} referrals.");
+        var accept = DemoReferrals.Triage(referral, triager, created);
+        Change(triager, created, change => PathwayCreation.Record(change, _templateName, _dueDate, firstNote, referral.Id));
+        accept.Accept(_pathway.Id, _templateName, _plan.ChosenPriority);
+        accept.ReTarget(specialty, _plan.ChosenPriority);
+        if (WaitingClock.PathwayTargetOn(referral) != _dueDate)
+            throw new InvalidOperationException("Seeding went wrong: the pathway's target date isn't its clock's.");
+        Triaged(accept, triager, created);
+
+        // From now on its changes carry the clock, as the pathway repository loads the referral with it.
+        _pathway.Referral = referral;
+    }
+
+    /// <summary>A triage decision's history entries, the triager's look at the referral, and the coordinator's notification.</summary>
+    private void Triaged(ReferralChange change, StaffMember triager, DateTime at, string? previousSpecialty = null)
+    {
+        _referralEvents.AddRange(change.Events);
+        _touches.Add(new Touch(triager.Id, at, _pathway.PatientId, null, change.Referral.Id));
+        if (DemoReferrals.Told(_world, change.Referral, triager, at, previousSpecialty) is { } told)
+            _notifications.Add(told);
+    }
+
+    /// <summary>
+    /// The patient asks to wait when a stage is reached: the lead pauses the clock (as PauseClockHandler does, through the
+    /// pathway's change, so its target date becomes the review date). Then either it's resumed weeks later (the target
+    /// moves on by the days paused) and the story goes on, or it's still paused now: with its review date ahead, or,
+    /// for one, long past. Returns whether the story stops here.
+    /// </summary>
+    private bool PauseClock(ref DateTime reached)
+    {
+        if (_referral is not { } referral || WaitingClock.WhyCantPause(referral) is not null || !PathwayWorkflow.IsOpen(_pathway.Status))
+            return false;
+
+        var pauseAt = Working(Later(reached).AddDays(0.3 + _random.NextDouble() * 2));
+        if (pauseAt >= _now)
+            return false;
+
+        var pausedOn = DueDates.ToUkDate(pauseAt);
+        var today = _world.Timeline.Today;
+        var reviewOn = _plan.Pause switch
+        {
+            PauseFate.ReviewOverdue => pausedOn.AddDays(_random.Next(21, 36)),
+            PauseFate.StillPaused => pausedOn.AddDays(_random.Next(21, 61)) is var review && review > today ? review : today.AddDays(_random.Next(3, 22)),
+            _ => pausedOn.AddDays(_random.Next(14, 61)),
+        };
+        reviewOn = reviewOn > WaitingClock.LatestReviewOn(pausedOn) ? WaitingClock.LatestReviewOn(pausedOn) : reviewOn;
+
+        var reason = _plan.PauseReason;
+        Change(_lead, pauseAt, change => change.PauseClock(reason, ReferralTexts.PauseDetail(reason, _random), reviewOn));
+        if (_plan.Pause != PauseFate.Resumed)
+            return true;
+
+        var resumeAt = Working(pauseAt.AddDays(_random.Next(5, reviewOn.DayNumber - pausedOn.DayNumber + 1)));
+        if (resumeAt >= _now)
+            return true;
+        Change(_lead, resumeAt, change => change.ResumeClock());
+        reached = resumeAt;
+        _floor = Max(_floor, resumeAt);
+        return false;
+    }
+
     private StageOutcome RunStage(int index, ref DateTime reached)
     {
         var spec = _plan.Spec.Stages[index];
         var stage = _stages[index];
+
+        // The patient asked to wait: the clock is paused (and maybe resumed) before the stage is started.
+        if (index == _plan.PauseStage && _plan.Pause != PauseFate.None && PauseClock(ref reached))
+            return StageOutcome.Stopped;
 
         // Blocking or cancelling: decided when the stage is reached, before work starts.
         if (index == _plan.FateStage && _plan.Fate is Fate.Blocked or Fate.Unblocked or Fate.Cancelled or Fate.Deleted)
@@ -275,10 +398,11 @@ public sealed class PathwayReplay
         reached = finishedAt;
         MaybePathwayNote(spec, stage, worker, finishedAt);
 
-        // A referral upgraded at triage, by the clinician who read it: urgent, and due sooner.
-        if (_plan.RaisePriority && spec.Definition == DemoPathwayKinds.Triage)
-            EditDetails(worker, finishedAt.AddMinutes(_random.Next(1, 5)), priority: Priority.Urgent,
-                due: DueDates.ToUkDate(_pathway.CreatedAt).AddDays(7 * _plan.Spec.UrgentDueWeeks));
+        // The clock stopped with this stage (decision 36): the target date is the lead's to set again, by hand, for the
+        // rest of the pathway (the plan's, from when it was accepted), unless the clock's is later.
+        if (stage.StopsClock && _referral is { } referral && WaitingClock.IsStopped(referral) && !PathwayWorkflow.AllStagesFinished(_pathway)
+            && _plan.PlannedDueDate > DueDates.ToUkDate(_pathway.DueDateUtc))
+            EditDetails(_lead, Working(finishedAt.AddMinutes(_random.Next(3, 90))), due: _plan.PlannedDueDate);
 
         // An admin reopens a finished stage, it's corrected, and finished again.
         if (index == _plan.UnlockStage)
@@ -457,6 +581,9 @@ public sealed class PathwayReplay
         _noteVersions.AddRange(change.NoteVersions);
         _appointments.AddRange(change.NewAppointments);
         _events.AddRange(change.AppointmentEvents);
+        // The clock's own history (stopped, paused, resumed, target re-read), saved with the change (its pauses go
+        // with the referral).
+        _referralEvents.AddRange(change.ReferralEvents);
         Touch(who, at);
 
         if (at >= _world.Timeline.NotificationsFromUtc)
@@ -483,15 +610,26 @@ public sealed class PathwayReplay
         _notifications.AddRange(_world.Monitor(_pathway, change.AuditEntries, admin.Id, at));
     }
 
-    /// <summary>A details edit, as UpdatePatientPathwayHandler makes and records it (<see cref="PathwayDetails"/>).</summary>
+    /// <summary>
+    /// A details edit, as UpdatePatientPathwayHandler makes and records it (<see cref="PathwayDetails"/>): never the
+    /// target date while the referral's clock sets it (the handler refuses it), and a new priority re-reads the clock's
+    /// target.
+    /// </summary>
     private void EditDetails(StaffMember who, DateTime at, DateOnly? due = null, Priority? priority = null)
     {
         if (at >= _now || !PathwayWorkflow.CanEditDetails(_pathway))
             return;
+        if (due is not null && WaitingClock.SetsPathwayTarget(_pathway.Referral))
+            return;
 
         var changes = PathwayDetails.Apply(_pathway, null, due, priority);
         if (changes.Count > 0)
-            Change(who, at, change => PathwayDetails.Record(change, changes));
+            Change(who, at, change =>
+            {
+                PathwayDetails.Record(change, changes);
+                if (changes.ContainsKey(PathwayDetails.PriorityField))
+                    change.PriorityChanged();
+            });
     }
 
     /// <summary>
@@ -633,17 +771,6 @@ public sealed class PathwayReplay
         appointment.StaffUserId is { } id ? _world.UsernameOf(id) : null;
 
     // People and times -------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Who records the referral: the booking coordinator, as the referral letters arrive; for a diabetes review (a
-    /// recall the service sends itself) or a biomechanics course (often asked for by a colleague in clinic), the
-    /// clinician half the time.
-    /// </summary>
-    private StaffMember Creator() => _plan.PathwayKind switch
-    {
-        PathwayKind.Diabetes or PathwayKind.Biomechanics => _random.NextDouble() < 0.5 ? _lead : _world.Coordinator,
-        _ => _world.Coordinator,
-    };
 
     private StaffMember WorkerFor(StageSpec spec) => spec.Role switch
     {
