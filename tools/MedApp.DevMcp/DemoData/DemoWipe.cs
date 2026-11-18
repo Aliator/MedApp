@@ -14,7 +14,7 @@ public static class DemoWipe
     public static readonly Guid MissingDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     /// <summary>
-    /// Deletes every patient, procedure (with its notes and their versions), appointment, meeting, calendar setup (but the seeded activity types), attached file's
+    /// Deletes every patient, procedure (with its notes and their versions), appointment, meeting, calendar setup (but the seeded activity types), closed day, attached file's
     /// record (not its bytes), audit and activity entry, session, notification, rule and choice, the admins' sign-in
     /// rules (back to the defaults: none), and every account but the kept ones (with their settings and sign-in
     /// challenges). Returns the usernames removed.
@@ -41,6 +41,7 @@ public static class DemoWipe
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlocks.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarDayOverrides.ExecuteDeleteAsync(cancellationToken);
+                await db.ClosedDays.ExecuteDeleteAsync(cancellationToken);
                 await db.StaffWeekTemplates.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplateDays.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplates.ExecuteDeleteAsync(cancellationToken);

@@ -90,6 +90,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/procedures/patient-procedure-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
         ["api/calendar/activity-types"] = Nothing("calendar activity types: configuration"),
         ["api/calendar/activity-types/{id:guid}"] = Nothing("calendar activity types: configuration"),
+        ["api/calendar/closed-days"] = Nothing("closed days (bank holidays and the like): configuration"),
         ["api/calendar/staff/{userId:guid}/day-templates"] = Nothing("a member of staff's day templates: configuration"),
         ["api/calendar/day-templates/{id:guid}"] = Nothing("calendar day templates: configuration"),
         ["api/calendar/staff/{userId:guid}/week-templates"] = Nothing("a member of staff's week templates: configuration"),
