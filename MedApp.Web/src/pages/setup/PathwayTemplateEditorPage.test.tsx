@@ -160,12 +160,12 @@ describe('PathwayTemplateEditorPage', () => {
     expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], specialtyId: 'sp2', clockStopStageOrder: null});
   });
 
-  it('sends a changed retention class, saying it applies to the pathways already made from the template', async () => {
+  it('sends a changed retention class, saying a longer one applies to existing pathways and a shorter one never shortens them', async () => {
     const {user, fetch} = renderEditor('t1', {[`PATCH ${BASE}/templates/t1`]: () => json(template)});
 
     const field = await screen.findByRole('combobox', {name: /Retention class/});
     expect(field).toHaveTextContent('Standard (adult or child period)');
-    expect(screen.getByText(/A change applies to its existing pathways too/)).toBeInTheDocument();
+    expect(screen.getByText(/A longer class applies to its existing pathways too; a shorter one doesn't shorten their records/)).toBeInTheDocument();
     await user.click(field);
     await user.click(screen.getByRole('option', {name: 'Oncology'}));
     await user.click(screen.getByRole('button', {name: 'Save'}));

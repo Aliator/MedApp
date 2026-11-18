@@ -24,7 +24,8 @@ public sealed class PathwayTemplate
 
     /// <summary>
     /// How long its patients' records are kept before review (Standard: the adult or child rule). Copied onto each
-    /// pathway made from it; changing it changes its existing pathways too (<see cref="PatientPathway.RetentionClass"/>).
+    /// pathway made from it; a longer class raises its existing pathways' too, a shorter one never lowers them
+    /// (<see cref="PatientPathway.RetentionClass"/>).
     /// </summary>
     public RetentionClass RetentionClass { get; set; }
 

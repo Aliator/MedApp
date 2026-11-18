@@ -282,7 +282,7 @@ function TemplateEditor({
       label="Retention class"
       description={
         usedBy > 0
-          ? "How long its patients' records are kept before review. A change applies to its existing pathways too."
+          ? "How long its patients' records are kept before review. A longer class applies to its existing pathways too; a shorter one doesn't shorten their records."
           : "How long its patients' records are kept before review."
       }
       options={RETENTION_CLASS_CHOICES}

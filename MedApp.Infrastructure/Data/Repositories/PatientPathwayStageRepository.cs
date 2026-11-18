@@ -140,9 +140,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         existing.IsArchived = template.IsArchived;
         existing.SpecialtyId = template.SpecialtyId;
 
-        // The class is about the kind of care, so it covers the pathways already made from the template too (a class set
-        // after the fact mustn't leave its old records on the shorter period).
-        var classChanged = existing.RetentionClass != template.RetentionClass;
+        // Only the template's own: its existing pathways are raised, never lowered, by RaisePathwayRetentionClassesAsync.
         existing.RetentionClass = template.RetentionClass;
 
         if (stageDefinitionIdsInOrder is not null)
@@ -169,15 +167,22 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
             Maps.RemoveRange(existing.Maps.Where(m => m.StageOrder > stageDefinitionIdsInOrder.Count).ToList());
         }
 
-        if (classChanged)
-        {
-            // Loaded and changed here, so the one SaveChangesAsync below saves them with the template, or nothing.
-            var pathways = await context.PatientPathways.Where(p => p.TemplateId == existing.Id).ToListAsync(ct);
-            foreach (var pathway in pathways)
-                pathway.RetentionClass = existing.RetentionClass;
-        }
-
         await context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> RaisePathwayRetentionClassesAsync(
+        Guid templateId,
+        RetentionClass to,
+        IReadOnlyCollection<RetentionClass> from,
+        CancellationToken ct)
+    {
+        if (from.Count == 0)
+            return 0;
+
+        var shorter = from.ToList();
+        return await context.PatientPathways
+            .Where(p => p.TemplateId == templateId && shorter.Contains(p.RetentionClass))
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.RetentionClass, to), ct);
     }
 
     public async Task DeletePathwayTemplateAsync(Guid id, CancellationToken ct)

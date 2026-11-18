@@ -9,8 +9,8 @@ public sealed class UpdatePathwayTemplateRequest
     public Guid? SpecialtyId { get; set; }
 
     /// <summary>
-    /// Its retention class: Standard, Oncology, Maternity or MentalHealth. Unlike the other fields, a change applies to
-    /// the pathways already made from it too.
+    /// Its retention class: Standard, Oncology, Maternity or MentalHealth. Unlike the other fields, a longer class also
+    /// raises the pathways already made from it; a shorter one never lowers them.
     /// </summary>
     public string? RetentionClass { get; set; }
 

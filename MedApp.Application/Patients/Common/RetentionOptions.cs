@@ -50,6 +50,16 @@ public sealed class RetentionClassYears
 
     public int MentalHealth { get; set; } = 20;
 
+    /// <summary>
+    /// The classes whose period is shorter than <paramref name="retentionClass"/>'s (Standard, which has no years of its
+    /// own, counting as shortest): the existing pathways a template's change to it may raise. Empty for Standard, so a
+    /// class is never lowered on existing pathways.
+    /// </summary>
+    public IReadOnlyList<RetentionClass> ShorterThan(RetentionClass retentionClass) =>
+        For(retentionClass) is not { } years
+            ? []
+            : Enum.GetValues<RetentionClass>().Where(c => (For(c) ?? 0) < years).ToList();
+
     /// <summary>A class's years; null for Standard, which has none of its own.</summary>
     public int? For(RetentionClass retentionClass) => retentionClass switch
     {

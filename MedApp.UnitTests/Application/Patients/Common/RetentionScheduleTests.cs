@@ -235,4 +235,23 @@ public sealed class RetentionScheduleTests
         new RetentionOptions { Classes = { Oncology = oncology, Maternity = maternity, MentalHealth = mentalHealth } }
             .IsValid.Should().Be(valid);
     }
+
+    [Test]
+    public void ShorterThan_Standard_IsNothing()
+    {
+        Defaults.Classes.ShorterThan(RetentionClass.Standard).Should().BeEmpty();
+    }
+
+    [Test]
+    public void ShorterThan_MentalHealth_IsOnlyStandard()
+    {
+        Defaults.Classes.ShorterThan(RetentionClass.MentalHealth).Should().Equal(RetentionClass.Standard);
+    }
+
+    [Test]
+    public void ShorterThan_Oncology_IsEveryOtherClass()
+    {
+        Defaults.Classes.ShorterThan(RetentionClass.Oncology).Should()
+            .Equal(RetentionClass.Standard, RetentionClass.Maternity, RetentionClass.MentalHealth);
+    }
 }

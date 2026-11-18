@@ -10,7 +10,7 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 /// of the stage that stops the waiting-time clock, or null for none.
 /// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
 /// <paramref name="RetentionClass"/> (a <c>RetentionClass</c> by name) changes the template's class and, unlike its
-/// other fields, every existing pathway made from it, since the class is about the kind of care, not when it began.
+/// other fields, raises the class of the pathways already made from it when the new one is longer (never lowers it).
 /// </summary>
 public sealed record UpdatePathwayTemplateCommand(
     Guid TemplateId,

@@ -37,8 +37,8 @@ export interface TemplateInput {
   stageDefinitionIdsInOrder: string[];
   specialtyId?: string;
   /**
-   * How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth. A change
-   * applies to the pathways already made from it too.
+   * How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth. A longer
+   * class raises the pathways already made from it; a shorter one never lowers them.
    */
   retentionClass?: string;
   /**
