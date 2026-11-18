@@ -333,7 +333,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     <MetadataListItem label="Template">{pathway.templateName || '—'}</MetadataListItem>
                     <MetadataListItem label="Status">{statusLabel(pathway.status ?? '')}</MetadataListItem>
                     <MetadataListItem label="Priority">{pathway.priority}</MetadataListItem>
-                    <MetadataListItem label="Due">{pathway.dueDate ? formatDate(pathway.dueDate) : '—'}</MetadataListItem>
+                    <MetadataListItem label="Target date">{pathway.dueDate ? formatDate(pathway.dueDate) : '—'}</MetadataListItem>
                     <MetadataListItem label="Created">{when(pathway.createdAt)}</MetadataListItem>
                     <MetadataListItem label="Last Changed">{when(pathway.lastUpdated)}</MetadataListItem>
                     <MetadataListItem label="Assigned To">{(pathway.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>

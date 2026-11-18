@@ -19,7 +19,7 @@ export function PathwaySummary({title, patientName, templateName, dueDate, prior
       {title && <MetadataListItem label="Title">{title}</MetadataListItem>}
       {patientName && <MetadataListItem label="Patient">{patientName}</MetadataListItem>}
       {templateName && <MetadataListItem label="Template">{templateName}</MetadataListItem>}
-      {dueDate && <MetadataListItem label="Due">{formatDate(dueDate)}</MetadataListItem>}
+      {dueDate && <MetadataListItem label="Target date">{formatDate(dueDate)}</MetadataListItem>}
       {priority && <MetadataListItem label="Priority">{priority}</MetadataListItem>}
     </MetadataList>
   );
