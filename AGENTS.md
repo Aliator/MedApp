@@ -17,6 +17,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Area | Read `docs/agents/…` before changing | Never miss |
 |---|---|---|
 | Pathways, templates, stages, notes | `pathways.md` | Change a pathway only through `PathwayChange`, loaded with `GetForUpdateOrThrowAsync`, so it's audited. Audit details hold a note's ID and version, never its text. Only a note's author edits it; only admins delete one (soft). |
+| Specialties, template and pathway specialties, staff memberships | `specialties.md` | Specialties are labels: they decide nothing clinical and limit nobody's reading. One in use is archived, never deleted; every change carries `expectedVersion`. |
 | Patient timeline | `timeline.md` | Staff never get free text from the audit log or appointment history (`TimelineMapper`'s `PublicValueFields`; `TimelineStaffCanaryTests`). |
 | Notifications | `notifications.md` | A title is a fixed phrase; a message holds only usernames, enums, admin-written names and dates, never free text or the patient. |
 | Calendar, appointments, meetings, visits | `calendar.md` | Use `WorkingHours`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays`, so closed days count. |
@@ -104,7 +105,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Appointment`, `UserSession`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Appointment`, `UserSession`, `Specialty`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -163,7 +164,7 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where:** the area's `Common/` folder, named `<Thing>Mapper`, with `ToResponse(entity)` plus overloads for what the entity lacks (e.g. `ToResponse(definition, usage)`, or `ToResponseAsync(...)` to look up usernames).
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
   - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`

@@ -317,6 +317,8 @@ public static class DemoPathways
                     PatientId = patient.Id,
                     TemplateId = null,
                     TemplateName = lesion ? "Imported record: skin lesion clinic" : "Imported record: skin review clinic",
+                    // Skin clinics: the specialty the skin pathways are in.
+                    SpecialtyId = world.Templates[PathwayKind.SkinLesion].SpecialtyId,
                     Title = kind.Title,
                     Notes = [note],
                     DueDateUtc = DueDates.EndOfDayUtc(DueDates.ToUkDate(created).AddDays(42)),

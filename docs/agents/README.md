@@ -9,6 +9,7 @@ The detail behind the root `AGENTS.md`, one file per area, read on demand. `AGEN
 | File | Covers |
 |---|---|
 | [pathways.md](pathways.md) | Pathways, templates and stages, pathway notes and note deletion |
+| [specialties.md](specialties.md) | Specialties, each template's and pathway's specialty, and staff memberships |
 | [timeline.md](timeline.md) | The patient timeline, and what staff and admins each see |
 | [notifications.md](notifications.md) | In-app notifications, their kinds and live delivery |
 | [calendar.md](calendar.md) | Calendars, templates, meetings, appointments and stage visits |

@@ -80,6 +80,9 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
     public async Task AddPathwayTemplateAsync(PathwayTemplate template, CancellationToken ct)
     {
         Templates.Add(template);
+        // The specialty it's in already exists: attached (if given) for the response's name, never inserted.
+        if (template.Specialty is not null)
+            context.Entry(template.Specialty).State = EntityState.Unchanged;
         await context.SaveChangesAsync(ct);
     }
 
@@ -132,6 +135,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
 
         existing.Name = template.Name;
         existing.IsArchived = template.IsArchived;
+        existing.SpecialtyId = template.SpecialtyId;
 
         if (stageDefinitionIdsInOrder is not null)
         {
@@ -170,6 +174,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
 
     private static IQueryable<PathwayTemplate> WithStages(IQueryable<PathwayTemplate> templates) =>
         templates
+            .Include(x => x.Specialty)
             .Include(x => x.Maps.OrderBy(m => m.StageOrder))
             .ThenInclude(x => x.StageDefinition);
 }

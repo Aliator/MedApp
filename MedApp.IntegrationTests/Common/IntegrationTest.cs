@@ -18,6 +18,7 @@ using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Application.Pathways.Common;
+using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -172,6 +173,7 @@ public abstract class IntegrationTest
             new CreatePathwayTemplateRequest
             {
                 Name = UniqueName("Template"),
+                SpecialtyId = Specialty.GeneralId,
                 StageDefinitionIdsInOrder = stageDefinitionIds,
             });
         return await response.ReadAsAsync<PathwayTemplateResponse>(HttpStatusCode.Created);
