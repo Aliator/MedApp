@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.10, draft |
+| **Version** | 0.11, draft |
 | **Date** | 18 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -136,6 +136,27 @@ Results, letters, clinics, the MDT list, consent and the NHS adapters are design
 | H-62 Data from an NHS system is matched to the wrong patient | Positive patient identification when matching an incoming referral |
 | H-64 A file is held as "being scanned" when it's needed | Master copies of documents in your own systems |
 
+### Planned: what you'll provide for the multi-clinic centre
+
+The multi-clinic centre (`docs/multi-clinic-plan.md`) is designed but **not built**: your clinics and your lab become **teams**, each seeing only its own patients' clinical details, and pathways pass work to the lab and back. When each part is built, its controls transfer to you as below; until then, none applies. H-65 to H-76 are drafts for the CSO.
+
+**Before go-live of the boundary** (MC4):
+- **Review each team's members:** who is in which clinic, and who is in the lab. Again whenever someone joins, moves or leaves.
+- **Review each template's team and its stage owners** with a clinician. Again on every change.
+- **Admins are read-only and in no team:** someone who is both an admin and a clinician needs two accounts.
+
+| Hazard | What you'll provide |
+|---|---|
+| H-65 A pathway, referral or appointment is in the wrong team | The reviews of members and templates above |
+| H-66 A clinician acts without knowing of care in another clinic | A sharing policy between your clinics (when to consult another clinic), and clinicians asking patients about other care |
+| H-67 A handover isn't picked up | **A daily check of handovers not picked up** (each team's New for us, and each clinic's Back from the lab), with a named owner and cover |
+| H-68 A stage is owned by the wrong team | The clinical review of each template's stage owners above |
+| H-70 A branch is added wrongly, or not added | Clinical sign-off of each template's addable branches |
+| H-71 A hospital clock is wrong or missed | **A daily check of the lab's clocks** (at risk and Overdue), with a named owner and cover; each request's deadline checked against the hospital's copy when it's entered |
+| H-72 A hospital sample is put on the wrong patient | Positive patient identification when matching a hospital request (both numbers, the name and date of birth) |
+| H-75 A consult reply is missed | A local rule for chasing an unanswered consult |
+| H-76 A clinical photo is on the wrong patient, or taken without consent | Your clinical photography policy (consent, which devices, never personal phones) |
+
 ## Configuring MedApp safely
 
 - **Templates and stage definitions** are your clinical content:
@@ -239,3 +260,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | 0.8 | 18 November 2026 | Triage (branch `feature/triage`, Phase 2's PR 6): the triage permission is no longer "later"; act on the Specialties page's warning; identify the patient again when triaging; decide how the referrer is told of each outcome; the warning not to use referrals with patients now waits on the CSO's verification of the triage controls | AI coding agent, for review |
 | 0.9 | 18 November 2026 | Patient reminders and the Did not attend view (branch `feature/patient-reminders`, Phase 4's PR 26): the assumptions now say MedApp texts and emails patients only if you turn it on, as a courtesy, and add following up missed appointments; the controls for H-53 to H-55 move from planned to the table of controls you provide, with what was built (a sender name that doesn't reveal the service, the stored copy, the Rebook and Clinician to review items, who may decide no further appointment); configuring texts and emails (your own Notify service, the settings, rooms with sites, never `Offline` with real patients); training; H-52's call list and D-12 updated | AI coding agent, for review |
 | 0.10 | 18 November 2026 | Specimens (branch `feature/specimens`, Phase 3's PR 13): your duties for specimens among the assumptions, the controls for H-45 (the daily lab worklist check, now available) and H-47 (checking the label against the patient, attaching a report from the specimen found by its number) moved from planned to the table of what you provide now, with what to do until a wrong report can be corrected (PR 14); configuring specimen permissions, types and labs; training; downtime for lab work; starter hazard D-16 | AI coding agent, for review |
+| 0.11 | 18 November 2026 | The multi-clinic centre, from its design (`docs/multi-clinic-plan.md`, MC1), before it's built: the go-live reviews (each team's members, each template's team and stage owners), two accounts for an admin who is also a clinician, and the controls planned to transfer to you for H-65 to H-76, among them a daily check of the lab's clocks and of handovers not picked up | AI coding agent, for review |
