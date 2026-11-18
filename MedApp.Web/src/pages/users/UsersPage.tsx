@@ -567,6 +567,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               placeholder="Search users by name, or filter by role..."
               textKey="username"
               favourites={[
+                {label: 'All', values: {}},
                 {label: 'Admins', values: {role: 'Admin'}},
                 {label: 'All staff (before roles)', values: {role: 'All staff (before roles)'}},
               ]}

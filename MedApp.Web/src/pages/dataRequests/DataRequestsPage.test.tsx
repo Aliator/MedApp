@@ -1,5 +1,5 @@
 import {screen, within} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, pageOf, renderWithApp} from '../../test/render';
+import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT_ID, testDataRequestSummary} from '../../test/dataRequests';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {DataRequestsPage} from './DataRequestsPage';
@@ -69,6 +69,33 @@ describe('DataRequestsPage', () => {
     await screen.findByRole('link', {name: 'Freya Ahmed'});
     await user.click(screen.getByRole('button', {name: /Previous page|Go to page 1|^1$/}));
     expect(onSearchChange).toHaveBeenCalledWith({view: 'Refused', page: undefined});
+  });
+
+  it('asks for the patient searched for and the column sorted by', async () => {
+    const {fetch} = render({view: 'Sent', patient: 'Freya', sort: 'due', asc: false}, [testDataRequestSummary({status: 'Sent'})]);
+
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    expect(calls(fetch)).toEqual(['GET /api/data-requests/search?Status=Sent&Search=Freya&Sort=due&Ascending=false&Page=1&PageSize=10']);
+    expect(searchBar()).toHaveTextContent(/Patient: contains\s*Freya/);
+  });
+
+  it('shows every request from its All tab, and sorts by a column, back to the first page', async () => {
+    const {user, onSearchChange} = render({view: 'Open', page: 2});
+
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    await pickFavourite(user, 'All');
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'All', patient: undefined, sort: undefined, asc: undefined});
+
+    await user.click(screen.getByRole('button', {name: /^Patient/}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'Open', page: undefined, sort: 'patient', asc: true});
+  });
+
+  it('offers to clear a search that matches nothing', async () => {
+    const {user, onSearchChange} = render({patient: 'Nobody'}, []);
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, patient: undefined});
   });
 
   it("says when the list can't be loaded", async () => {

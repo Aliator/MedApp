@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {calls, json, mockApi, renderApp, renderWithApp, staffUser, userWithRoles} from '../../test/render';
+import {calls, json, mockApi, renderApp, renderWithApp, searchBar, staffUser, userWithRoles} from '../../test/render';
 import {letterPage, testLetterSummary} from '../../test/letters';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {LettersPage} from './LettersPage';
@@ -64,6 +64,35 @@ describe('LettersPage', () => {
     mockApi({'GET /api/letters/search': () => json({title: 'Boom'}, 500)});
     renderWithApp(<LettersPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
     expect(await screen.findByText('The letters could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('asks for the patient searched for, every letter once the view is removed, and the column sorted by', async () => {
+    const {fetch} = render({view: 'All', patient: 'Freya', sort: 'latest', asc: false});
+
+    await screen.findAllByRole('link', {name: 'Freya Ahmed'});
+    expect(calls(fetch)).toEqual(['GET /api/letters/search?View=All&Search=Freya&Sort=latest&Ascending=false&Page=1&PageSize=10']);
+    expect(searchBar()).toHaveTextContent(/Patient: contains\s*Freya/);
+    expect(screen.getByText('All letters: 1 letter')).toBeInTheDocument();
+  });
+
+  it('sorts by a column, back to the first page', async () => {
+    const {user, onSearchChange} = render({view: 'ReturnedToMe', page: 2});
+
+    await screen.findAllByRole('link', {name: 'Freya Ahmed'});
+    await user.click(screen.getByRole('button', {name: /^Letter/}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'ReturnedToMe', page: undefined, sort: 'letter', asc: true});
+  });
+
+  it('offers to clear a search that matches nothing, and says when there are no letters at all', async () => {
+    const {user, onSearchChange, unmount} = render({patient: 'Nobody'}, []);
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, patient: undefined});
+    unmount();
+
+    render({view: 'All'}, []);
+    expect(await screen.findByText('No letters yet')).toBeInTheDocument();
   });
 
   it('drops the author and approver in a narrow window or half view', async () => {

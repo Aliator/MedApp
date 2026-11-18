@@ -30,7 +30,7 @@ public sealed class DataRequestRepository(MedAppDbContext context) : IDataReques
     {
         var query = DataRequestSearch.Apply(context.DataRequests.AsNoTracking(), filter);
         var total = await query.CountAsync(ct);
-        var items = await DataRequestSearch.Order(query)
+        var items = await DataRequestSearch.Order(query, filter)
             .Include(d => d.Patient)
             .Skip(Paging.Skip(page, pageSize))
             .Take(pageSize)

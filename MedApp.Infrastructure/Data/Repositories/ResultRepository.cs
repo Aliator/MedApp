@@ -61,7 +61,7 @@ public sealed class ResultRepository(MedAppDbContext context) : IResultRepositor
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
-            .Sort(query.ParsedView)
+            .Sort(query.ParsedView, query.Sort, query.Ascending)
             .Skip(Paging.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .Include(r => r.Patient)

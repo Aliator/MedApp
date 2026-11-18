@@ -118,4 +118,15 @@ public sealed class SearchLettersRequest
     public Guid? PathwayId { get; set; }
 
     public Guid? ReferralId { get; set; }
+
+    /// <summary>The patient's full name contains this, ignoring case. At most 200 characters.</summary>
+    public string? Search { get; set; }
+
+    /// <summary>
+    /// <c>patient</c>, <c>letter</c> (kind, then template), <c>status</c> or <c>latest</c> (the latest step). Without
+    /// one, the view's own order.
+    /// </summary>
+    public string? Sort { get; set; }
+
+    public bool Ascending { get; set; } = true;
 }

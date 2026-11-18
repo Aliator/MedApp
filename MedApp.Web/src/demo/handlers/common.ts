@@ -82,6 +82,32 @@ export function sorted<T extends {id?: string}>(
   });
 }
 
+/**
+ * Sorts by one of a list's columns (`keys[sort]`) in the direction asked, then by ID so paging is stable; null for a
+ * column the list doesn't sort by, so it keeps its own order.
+ */
+export function sortedBy<T extends {id?: string | null}>(
+  items: T[],
+  sort: string | null | undefined,
+  ascending: boolean,
+  keys: Record<string, (item: T) => string | number>,
+): T[] | null {
+  const key = sort ? keys[sort.toLowerCase()] : undefined;
+  if (!key) return null;
+  return [...items].sort((a, b) => {
+    const x = key(a);
+    const y = key(b);
+    const order = x < y ? -1 : x > y ? 1 : (a.id ?? '').localeCompare(b.id ?? '');
+    return ascending ? order : -order;
+  });
+}
+
+/** A patient's name as lists sort it: last name, then first, ignoring case. */
+export function patientSortName(patientId: string | null | undefined): string {
+  const patient = db().patients.find((p) => p.id === patientId);
+  return `${patient?.lastName ?? ''} ${patient?.firstName ?? ''}`.toLowerCase();
+}
+
 /** A patient's name, "First Last". */
 export function patientName(patientId: string | null | undefined): string {
   const patient = db().patients.find((p) => p.id === patientId);

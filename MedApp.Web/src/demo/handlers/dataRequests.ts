@@ -4,7 +4,7 @@ import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
 import {db} from '../store';
 import {nowUtc, today} from '../time';
-import {can, flag, me, paged, patientName, requirePermission} from './common';
+import {can, contains, flag, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 
 /**
  * Patients' data requests (subject access). Simplified: no notifications, activity log or concurrency beyond the
@@ -107,15 +107,23 @@ export function registerDataRequests() {
     const status = query.get('Status');
     const patientId = query.get('PatientId');
     const awaitingReview = flag(query, 'AwaitingReview') === true;
+    const search = query.get('Search')?.trim() ?? '';
+    if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
     const matching = requests()
-      .filter((r) => (!status || r.status === status) && (!patientId || r.patientId === patientId))
+      .filter((r) => (!status || r.status === status) && (!patientId || r.patientId === patientId) && contains(patientName(r.patientId), search))
       .filter((r) => !awaitingReview || (isOpen(r) && !r.reviewedAtUtc));
     // Open ones first by due date, then the rest, newest received first.
     const ordered = [
       ...matching.filter(isOpen).sort((a, b) => dueOn(a).localeCompare(dueOn(b)) || a.id.localeCompare(b.id)),
       ...matching.filter((r) => !isOpen(r)).sort((a, b) => (b.receivedOn ?? '').localeCompare(a.receivedOn ?? '') || a.id.localeCompare(b.id)),
     ];
-    return paged(ordered.map(summary), query);
+    const sorted = sortedBy(ordered, query.get('Sort'), query.get('Ascending') !== 'false', {
+      patient: (r) => patientSortName(r.patientId),
+      received: (r) => r.receivedOn ?? '',
+      due: dueOn,
+      status: (r) => ['Open', 'Sent', 'Refused', 'Withdrawn'].indexOf(r.status ?? ''),
+    });
+    return paged((sorted ?? ordered).map(summary), query);
   });
 
   on('post', '/api/data-requests', ({body}) => {

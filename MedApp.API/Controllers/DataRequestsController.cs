@@ -34,7 +34,7 @@ public sealed class DataRequestsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> SearchDataRequests([FromQuery] SearchDataRequestsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchDataRequestsQuery(
             request.Page, request.PageSize, request.Status, request.PatientId, request.AwaitingReview,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(), request.Search, request.Sort, request.Ascending), ct));
 
     /// <summary>Logs a data request as received; its due date is one calendar month on.</summary>
     [HttpPost]

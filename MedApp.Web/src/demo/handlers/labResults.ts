@@ -4,7 +4,7 @@ import {invalid, notFound, on, problem, refuse} from '../api/http';
 import type {DemoResult, ResultStatus} from '../slices/lab';
 import {db} from '../store';
 import {nowUtc} from '../time';
-import {can, me, paged, patientName, requirePermission} from './common';
+import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, wholeDaysBetween} from './labCommon';
 
 /**
@@ -138,6 +138,9 @@ function forProgress(id: string, expectedVersion: number | undefined): DemoResul
   return result;
 }
 
+/** The statuses in the API's stored order, which its status sort follows. */
+const RESULT_STATUS_ORDER: ResultStatus[] = ['AwaitingSignOff', 'Seen', 'SignedOff', 'EnteredInError'];
+
 /** Each view's results and order: dates only, never anything in the report. */
 const VIEWS: Record<string, {match: (r: DemoResult, viewerId: string) => boolean; key: (r: DemoResult) => string; newestFirst?: boolean}> = {
   AwaitingMine: {match: (r, viewerId) => isAwaitingResult(r) && r.responsibleUserId === viewerId, key: (r) => r.reportedAtUtc},
@@ -155,19 +158,30 @@ export function registerResults() {
     const specialtyId = query.get('SpecialtyId');
     const pathwayId = query.get('PathwayId');
     const patientId = query.get('PatientId');
+    // The patient's name only, as the API: a title can hold a specimen number, which stays out of URLs.
+    const search = query.get('Search')?.trim() ?? '';
+    if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
     const items = db()
       .results.filter(
         (r) =>
           view.match(r, viewer.id) &&
           (!specialtyId || pathwayOf(r)?.specialtyId === specialtyId) &&
           (!pathwayId || r.pathwayId === pathwayId) &&
-          (!patientId || r.patientId === patientId),
+          (!patientId || r.patientId === patientId) &&
+          contains(patientName(r.patientId), search),
       )
       .sort((a, b) => {
         const order = view.key(a).localeCompare(view.key(b)) || a.id.localeCompare(b.id);
         return view.newestFirst ? -order : order;
       });
-    return paged(items.map(resultSummary), query);
+    const sorted = sortedBy(items, query.get('Sort'), query.get('Ascending') !== 'false', {
+      patient: (r) => patientSortName(r.patientId),
+      title: (r) => r.title.toLowerCase(),
+      pathway: (r) => pathwayOf(r)?.title.toLowerCase() ?? '',
+      reported: (r) => r.reportedAtUtc,
+      status: (r) => `${RESULT_STATUS_ORDER.indexOf(r.status)} ${r.signedOffAtUtc ?? ''}`,
+    });
+    return paged((sorted ?? items).map(resultSummary), query);
   });
 
   on('get', '/api/results/count', () => {

@@ -63,7 +63,7 @@ public sealed class LettersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> SearchLetters([FromQuery] SearchLettersRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchLettersQuery(
             request.Page, request.PageSize, request.View, request.PatientId, request.PathwayId, request.ReferralId,
-            User.GetUserId()), ct));
+            User.GetUserId(), request.Search, request.Sort, request.Ascending), ct));
 
     /// <summary>The side nav's count: your letters to approve, and every approved letter still to send. Names nobody, so records nothing.</summary>
     [HttpGet("count")]

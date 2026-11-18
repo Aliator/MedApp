@@ -6,7 +6,7 @@ import {specimenNumber, type DemoLaboratory, type DemoSpecimen, type DemoSpecime
 import type {DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc, today} from '../time';
-import {can, me, paged, patientName, requirePermission} from './common';
+import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {
   addDaysUtc,
   ensureVersion,
@@ -266,6 +266,53 @@ const VIEW_ORDER: Record<string, {match: (s: DemoSpecimen) => boolean; key: (s: 
   All: {match: () => true, key: (s) => s.takenAtUtc, newestFirst: true},
 };
 
+/** What a specimen search asks for: a view, a lab, a pathway, a patient, text and a column to sort by. */
+interface SpecimenListSearch {
+  view?: string | null;
+  laboratoryId?: string | null;
+  pathwayId?: string | null;
+  patientId?: string | null;
+  search?: string | null;
+  sort?: string | null;
+  ascending?: boolean;
+}
+
+/** The specimens a search finds, in the view's order or the column asked for (as `SpecimenSearch` in the API). */
+function specimenList({view: viewName, laboratoryId, pathwayId, patientId, search, sort, ascending = true}: SpecimenListSearch) {
+  const view = VIEW_ORDER[viewName ?? ''] ?? VIEW_ORDER.All;
+  const term = search?.trim() ?? '';
+  const compact = term.replace(/\s/g, '');
+  const items = db()
+    .specimens.filter(
+      (s) =>
+        view.match(s) &&
+        (!laboratoryId || s.laboratoryId === laboratoryId) &&
+        (!pathwayId || s.pathwayId === pathwayId) &&
+        (!patientId || s.patientId === patientId) &&
+        (!term ||
+          contains(s.number, compact) ||
+          contains(patientName(s.patientId), term) ||
+          contains(db().patients.find((p) => p.id === s.patientId)?.nhsNumber, compact) ||
+          contains(typeOf(s)?.name, term)),
+    )
+    .sort((a, b) => {
+      const order = view.key(a).localeCompare(view.key(b)) || a.id.localeCompare(b.id);
+      return view.newestFirst ? -order : order;
+    });
+  return (
+    sortedBy(items, sort, ascending, {
+      number: (s) => s.number,
+      patient: (s) => patientSortName(s.patientId),
+      lab: (s) => labOf(s)?.name ?? '',
+      status: (s) => STATUS_ORDER.indexOf(s.status),
+      time: view.key,
+    }) ?? items
+  );
+}
+
+/** The statuses in the API's stored order, which its status sort follows. */
+const STATUS_ORDER: SpecimenStatus[] = ['Taken', 'Sent', 'Received', 'Reported', 'RejectedByLab', 'Lost', 'EnteredInError'];
+
 /** A setup list's name: required, at most 100 characters, and not another's (a 409). */
 function setupName(name: string | null | undefined, others: {id: string; name: string}[], id: string | undefined, taken: (name: string) => string) {
   const trimmed = name?.trim() ?? '';
@@ -389,23 +436,22 @@ export function registerLab() {
 
   on('get', '/api/specimens/search', ({query}) => {
     requirePermission('ViewPatients');
-    const view = VIEW_ORDER[query.get('View') ?? ''] ?? VIEW_ORDER.All;
-    const lab = query.get('LaboratoryId');
-    const pathwayId = query.get('PathwayId');
-    const patientId = query.get('PatientId');
-    const items = db()
-      .specimens.filter(
-        (s) =>
-          view.match(s) &&
-          (!lab || s.laboratoryId === lab) &&
-          (!pathwayId || s.pathwayId === pathwayId) &&
-          (!patientId || s.patientId === patientId),
-      )
-      .sort((a, b) => {
-        const order = view.key(a).localeCompare(view.key(b)) || a.id.localeCompare(b.id);
-        return view.newestFirst ? -order : order;
-      });
+    const items = specimenList({
+      view: query.get('View'),
+      laboratoryId: query.get('LaboratoryId'),
+      pathwayId: query.get('PathwayId'),
+      patientId: query.get('PatientId'),
+    });
     return paged(items.map(specimenSummary), query);
+  });
+
+  // The Lab page's worklist: searched (the number, the patient, the type) and sorted, the search in the body.
+  on('post', '/api/specimens/search', ({body}) => {
+    requirePermission('ViewPatients');
+    if ((body.search ?? '').length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
+    const items = specimenList(body);
+    const pages = new URLSearchParams({Page: String(body.page ?? 1), PageSize: String(body.pageSize ?? 10)});
+    return paged(items.map(specimenSummary), pages);
   });
 
   on('get', '/api/specimens/{id}', ({params}) => {

@@ -71,6 +71,20 @@ public sealed class SpecimensController(IMediator mediator) : ControllerBase
             request.Page, request.PageSize, request.View, request.LaboratoryId, request.PathwayId, request.PatientId), ct));
 
     /// <summary>
+    /// The Lab page's worklist: a view, searched (the specimen's number, the patient's name or NHS number, the type) and
+    /// sorted by a column. The search is in the body, never the URL, as it may be a specimen number. Each patient shown
+    /// is recorded as listed.
+    /// </summary>
+    [HttpPost("specimens/search")]
+    [RequirePermission(Permission.ViewPatients)]
+    [ProducesResponseType(typeof(PagedResponse<SpecimenSummaryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchSpecimenWorklist([FromBody] SpecimenWorklistRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SearchSpecimensQuery(
+            request.Page, request.PageSize, request.View, request.LaboratoryId, null, null,
+            request.Search, request.Sort, request.Ascending), ct));
+
+    /// <summary>
     /// The specimen with this number, typed or scanned from its label. The number is in the body, never the URL, so it
     /// stays out of request logs. Recorded as viewing it (<c>SpecimenViewed</c>); a 404 when no specimen has it.
     /// </summary>
