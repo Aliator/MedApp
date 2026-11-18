@@ -4409,6 +4409,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar/meetings/{id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MeetingReplyRequest"];
+                    "text/json": components["schemas"]["MeetingReplyRequest"];
+                    "application/*+json": components["schemas"]["MeetingReplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MeetingResponse"];
+                        "application/json": components["schemas"]["MeetingResponse"];
+                        "text/json": components["schemas"]["MeetingResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calendar/meetings": {
         parameters: {
             query?: never;
@@ -10383,6 +10472,16 @@ export interface components {
             /** Format: uuid */
             userId?: string;
             username?: string | null;
+            reply?: string | null;
+            /** Format: date-time */
+            repliedAtUtc?: string | null;
+        };
+        MeetingReplyRequest: {
+            reply?: string | null;
+            /** Format: date-time */
+            expectedStartUtc?: string | null;
+            /** Format: date-time */
+            expectedEndUtc?: string | null;
         };
         MeetingRequest: {
             title?: string | null;
@@ -10411,6 +10510,8 @@ export interface components {
             organiserUsername?: string | null;
             attendees?: components["schemas"]["MeetingAttendeeResponse"][] | null;
             canEdit?: boolean;
+            myReply?: string | null;
+            canReply?: boolean;
             overlapsAppointment?: boolean;
             /** Format: date-time */
             createdAtUtc?: string;
@@ -10503,6 +10604,8 @@ export interface components {
             calendarDate?: string | null;
             /** Format: uuid */
             noteDeletionRequestId?: string | null;
+            /** Format: uuid */
+            meetingId?: string | null;
         };
         NotificationsResponse: {
             items?: components["schemas"]["NotificationResponse"][] | null;

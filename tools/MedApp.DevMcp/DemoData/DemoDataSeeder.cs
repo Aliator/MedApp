@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using MedApp.DevMcp.Tools;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
@@ -160,6 +161,8 @@ public static class DemoDataSeeder
                     meetingsChanged = calendars.MeetingPlan.Stories.Count(s => s.Changes > 0),
                     meetingsCancelled = calendars.MeetingPlan.Stories.Count(s => s.IsCancelled),
                     meetingNotifications = calendars.MeetingPlan.RecentNotifications.Count(),
+                    meetingsAccepted = calendars.Meetings.Sum(m => m.Attendees.Count(a => a.Reply == MeetingReply.Accepted)),
+                    meetingsDeclined = calendars.Meetings.Sum(m => m.Attendees.Count(a => a.Reply == MeetingReply.Declined)),
                 },
                 monitoringRules = rules.Count,
                 activityEntries = activity,

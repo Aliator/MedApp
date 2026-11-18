@@ -53,6 +53,6 @@ public sealed class CreateMeetingHandler(
             await notificationSender.SendAsync(notification, cancellationToken);
 
         var usernames = await identityReadService.GetUsernamesByIdAsync(MeetingMapper.UserIds(meeting), cancellationToken);
-        return MeetingMapper.ToResponse(meeting, usernames, request.Actor.IsAdmin, today);
+        return MeetingMapper.ToResponse(meeting, usernames, request.Actor, now);
     }
 }

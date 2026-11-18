@@ -17,6 +17,12 @@ export interface ParityData {
   procedureId?: string;
   /** A procedure of a restricted patient, for a page with a long page message (the restricted banner). */
   restrictedProcedureId?: string;
+  /**
+   * The parity account's own synthetic meeting, which it has declined, and its UK date: for the meeting dialog's replies
+   * (with Accept and Decline) and a declined meeting faded on the calendar. Made once by the setup (React only).
+   */
+  meetingId?: string;
+  meetingDate?: string;
 }
 
 const root = __dirname;

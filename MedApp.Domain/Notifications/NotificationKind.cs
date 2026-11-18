@@ -28,6 +28,9 @@ public enum NotificationKind
     /// <summary>An admin cancelled a meeting the user was going to, or took them off it.</summary>
     MeetingCancelled = 6,
 
+    /// <summary>Someone declined a meeting the user arranged.</summary>
+    MeetingDeclined = 7,
+
     /// <summary>
     /// An admin closed a day (a bank holiday, a training day) on which the user has appointments, blocked time or
     /// meetings. They stay; the user moves or cancels them.
@@ -35,8 +38,7 @@ public enum NotificationKind
     DayClosed = 8,
 
     /// <summary>
-    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp). 7 is
-    /// kept for the meeting replies being built alongside it.
+    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp).
     /// </summary>
     AppointmentRecorded = 9,
 

@@ -9,6 +9,9 @@ namespace MedApp.Application.Calendar.Common;
 /// <summary>Members of staff's calendars as the API returns them.</summary>
 public static class CalendarMapper
 {
+    /// <summary>A viewer who is neither an admin nor going to any meeting.</summary>
+    private static readonly CalendarActor Nobody = new(Guid.Empty, string.Empty, IsAdmin: false);
+
     /// <summary>
     /// A calendar: its days and template blocks worked out from <paramref name="data"/> (<see cref="CalendarProjection"/>),
     /// its stored blocks, its appointments and its meetings, by start time. Blocks can be changed when <paramref name="canEdit"/> and
@@ -18,7 +21,7 @@ public static class CalendarMapper
     /// </summary>
     /// <param name="defaultWeek">The person's default week template row valid today, with its week template.</param>
     /// <param name="usernames">The usernames the appointments and meetings name (<see cref="UserIds"/>).</param>
-    /// <param name="isAdmin">Whether the signed-in user is an admin, who can change meetings.</param>
+    /// <param name="viewer">The signed-in user: admins can change meetings, and attendees reply to theirs. None: neither.</param>
     public static CalendarResponse ToResponse(
         CalendarData data,
         string staffUsername,
@@ -27,7 +30,7 @@ public static class CalendarMapper
         DateOnly today,
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
-        bool isAdmin = false)
+        CalendarActor? viewer = null)
     {
         var appointments = data.Appointments
             .Where(a => AppointmentWorkflow.IsOnCalendar(a.Status) && a.StartUtc is not null && a.EndUtc is not null)
@@ -59,7 +62,7 @@ public static class CalendarMapper
                 .ThenBy(m => m.Id)
                 .Select(m =>
                 {
-                    var meeting = MeetingMapper.ToResponse(m, usernames, isAdmin, today);
+                    var meeting = MeetingMapper.ToResponse(m, usernames, viewer ?? Nobody, nowUtc);
                     meeting.OverlapsAppointment = OverlapsAny(appointments, m.StartUtc, m.EndUtc);
                     return meeting;
                 })

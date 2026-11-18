@@ -7,8 +7,9 @@ public sealed record CalendarClash(DateTime StartUtc, DateTime EndUtc, string Wh
 
 /// <summary>
 /// No overlaps: a new or moved appointment, block or meeting may not overlap any appointment (Booked, Attended or Did
-/// not attend), block (stored, or from a template) or meeting on that person's calendar. This finds what a time would
-/// overlap, and lists what a calendar is busy with (for <see cref="Availability"/>).
+/// not attend), block (stored, or from a template) or meeting on that person's calendar (except a meeting they
+/// declined, <see cref="MeetingReplies"/>). This finds what a time would overlap, and lists what a calendar is busy
+/// with (for <see cref="Availability"/>).
 /// </summary>
 public static class CalendarClashes
 {
@@ -63,8 +64,8 @@ public static class CalendarClashes
 
     /// <summary>
     /// Everything that makes the person busy over the data's range, by start then end: appointments (Booked, Attended
-    /// and Did not attend), stored blocks, template blocks and meetings. A meeting being moved is left out
-    /// (<paramref name="ignoreMeetingId"/>).
+    /// and Did not attend), stored blocks, template blocks and meetings, but not a meeting the person declined. A
+    /// meeting being moved is left out (<paramref name="ignoreMeetingId"/>).
     /// </summary>
     public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
         BusyTimes(data, null, null, ignoreMeetingId, (null, default));
@@ -123,8 +124,9 @@ public static class CalendarClashes
             .Where(p => !(p.Source.Id == ignoreTemplateBlock.Id && p.Date == ignoreTemplateBlock.Date))
             .Select(p => new CalendarClash(p.StartUtc, p.EndUtc, p.Source.ActivityType?.Name ?? "a block"));
 
+        // A meeting the person declined isn't busy time for them, though it still is for everyone else going.
         var meetings = data.Meetings
-            .Where(m => m.Id != ignoreMeetingId)
+            .Where(m => m.Id != ignoreMeetingId && !MeetingReplies.HasDeclined(m, data.StaffUserId))
             .Select(m => new CalendarClash(m.StartUtc, m.EndUtc, Describe(m)));
 
         return appointments.Concat(blocks).Concat(templateBlocks).Concat(meetings)

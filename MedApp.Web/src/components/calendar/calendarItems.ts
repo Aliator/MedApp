@@ -1,6 +1,6 @@
 import type {TokenColor} from '@astryxdesign/core/Token';
 import {appointmentStatusLabel, type Appointment} from '../../api/appointments';
-import type {Calendar, CalendarBlock, Meeting} from '../../api/calendar';
+import {hasDeclined, type Calendar, type CalendarBlock, type Meeting} from '../../api/calendar';
 import {formatTimeRange} from '../../utils/calendarSlots';
 import {ukDay} from '../../utils/dates';
 import {APPOINTMENT_STATUS_COLOURS, activityColour} from './CalendarTokens';
@@ -40,6 +40,11 @@ export interface CalendarGridItem {
   isFlagged?: boolean;
   /** Shown, but not opened (e.g. blocks on Home's day calendar). */
   isReadOnly?: boolean;
+  /**
+   * Shown faded, as no longer busy time: a meeting the calendar's owner declined. It's drawn untinted, behind what's
+   * busy, with a dashed edge; its words keep their full contrast.
+   */
+  isFaded?: boolean;
 }
 
 /** What an appointment is for, in words: "Knee review: Assessment", "Knee review", or "Appointment". */
@@ -63,18 +68,22 @@ export const meetingKey = (id: string | undefined) => `meeting-${id}`;
  */
 export const MEETING_COLOUR: TokenColor = 'teal';
 
-/** How many are going to a meeting: "1 attending", "4 attending". */
-export const attendingCount = (meeting: Pick<Meeting, 'attendees'>) => `${(meeting.attendees ?? []).length} attending`;
+/** How many are going to a meeting, leaving out those who declined: "1 attending", "4 attending". */
+export const attendingCount = (meeting: Pick<Meeting, 'attendees'>) =>
+  `${(meeting.attendees ?? []).filter((a) => a.reply !== 'Declined').length} attending`;
 
 /**
- * A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). One an
- * appointment overlaps (recorded after the event, which may) is flagged, as an overlapping block is.
+ * A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). On
+ * the calendar of someone who declined it (`calendarOwnerId`) it's faded and says "Declined", as it's no longer busy
+ * time for them; on everyone else's it shows as usual. One an appointment overlaps (recorded after the event, which
+ * may) is flagged, as an overlapping block is.
  */
-export function meetingItem(meeting: Meeting): CalendarGridItem {
+export function meetingItem(meeting: Meeting, calendarOwnerId?: string | null): CalendarGridItem {
   const start = meeting.startUtc ?? '';
   const end = meeting.endUtc ?? '';
   const title = meeting.title ?? '';
-  const attending = attendingCount(meeting);
+  const isDeclined = hasDeclined(meeting, calendarOwnerId);
+  const said = isDeclined ? 'Declined' : attendingCount(meeting);
   return {
     key: meetingKey(meeting.id),
     kind: 'meeting',
@@ -83,11 +92,12 @@ export function meetingItem(meeting: Meeting): CalendarGridItem {
     endUtc: end,
     colour: MEETING_COLOUR,
     label: title,
-    sublabel: attending,
-    description: [`${title}, meeting, ${formatTimeRange(start, end)}, ${attending}`, meeting.overlapsAppointment ? 'overlaps an appointment' : null]
+    sublabel: said,
+    description: [`${title}, meeting, ${formatTimeRange(start, end)}, ${said}`, meeting.overlapsAppointment ? 'overlaps an appointment' : null]
       .filter(Boolean)
       .join(', '),
     isMovable: meeting.canEdit === true,
+    isFaded: isDeclined,
     isFlagged: meeting.overlapsAppointment === true,
   };
 }
@@ -148,17 +158,18 @@ export function blockItem(block: CalendarBlock, {isMovable = false}: {isMovable?
 /**
  * Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them.
  * Appointments and meetings are movable by their own flags; blocks only with `movableBlocks` (the Calendar page's Edit
- * blocks mode), and never on a day the calendar says is past.
+ * blocks mode), and never on a day the calendar says is past. A meeting the calendar's owner (`staffUserId`) declined
+ * is faded (`meetingItem`).
  */
 export function calendarItems(
-  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days'> | undefined,
+  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId'> | undefined,
   {movableBlocks = false}: {movableBlocks?: boolean} = {},
 ): CalendarGridItem[] {
   if (!calendar) return [];
   const pastDays = new Set((calendar.days ?? []).filter((d) => d.isPast).map((d) => d.date));
   return [
     ...(calendar.blocks ?? []).map((b) => blockItem(b, {isMovable: movableBlocks && !pastDays.has(b.date)})),
-    ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map(meetingItem),
+    ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map((m) => meetingItem(m, calendar.staffUserId)),
     ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map(appointmentItem),
   ];
 }
