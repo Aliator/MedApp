@@ -49,6 +49,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<LetterTemplate> LetterTemplates => Set<LetterTemplate>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
+    public DbSet<ReferralClockPause> ReferralClockPauses => Set<ReferralClockPause>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

@@ -19,7 +19,10 @@ namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 /// Accepts a referral into a new pathway. The pathway is made and recorded by the same code as any new pathway
 /// (<see cref="PathwayCreation"/>: its Created audit entry, with the referral's ID, its first note and its first
 /// stage's visit), and saved in one <c>SaveChangesAsync</c> with the referral's change and its <c>Accepted</c> history
-/// entry. Then the person assigned (if any) and whoever registered the referral are told, and the monitor runs.
+/// entry. Its target date is the waiting-time clock's (<see cref="WaitingClock"/>): the clock keeps running from the
+/// day the referral was received, with its target re-read for the priority chosen (a <c>TargetChanged</c> entry, if it
+/// differs from the priority asked for's). Then the person assigned (if any) and whoever registered the referral are
+/// told, and the monitor runs.
 /// <para>
 /// 403 without <c>TriageReferrals</c> or membership of the referral's specialty, or to assign someone without
 /// <c>AssignPathways</c>; 409 once it's been triaged (naming who and how), on a restricted or anonymised record, if it
@@ -66,15 +69,20 @@ public sealed class AcceptReferralHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var priority = PathwayEnums.Parse<PatientPathwayPriority>(request.Priority);
-        var pathway = PathwayCreation.FromTemplate(template, referral.PatientId, request.Title, request.DueDate, priority, now);
+        // The clock's target for the priority chosen, from the referral's specialty's table: the pathway's target date.
+        var referralChange = new ReferralChange(referral, actor, now);
+        // Awaiting triage, its clock runs (no pauses yet), so the wait counts from the day it was received.
+        var dueDate = referral.WaitStartOn.AddDays(WaitingClock.TargetDaysFor(referral.Specialty, priority));
+
+        var pathway = PathwayCreation.FromTemplate(template, referral.PatientId, request.Title, dueDate, priority, now);
 
         var change = new PathwayChange(pathway, actor, now);
-        PathwayCreation.Record(change, template.Name, request.DueDate, request.Notes, referral.Id);
+        PathwayCreation.Record(change, template.Name, dueDate, request.Notes, referral.Id);
         if (assignee is { } chosen)
             change.Assign(chosen.UserId, chosen.Username);
 
-        var referralChange = new ReferralChange(referral, actor, now);
         referralChange.Accept(pathway.Id, template.Name, priority);
+        referralChange.ReTarget(referral.Specialty, priority);
 
         // One save: the referral, its history entry, the new pathway and everything its creation recorded.
         referrals.AddEvents(referralChange.Events);
@@ -100,7 +108,7 @@ public sealed class AcceptReferralHandler(
             usernames[named.UserId] = named.Username;
         var response = PathwayMapper.ToResponse(
             pathway, usernames, now, patient: referral.Patient, viewerId: actor.UserId, viewerPermissions: actor.Permissions);
-        response.Referral = ReferralMapper.ToPathwayReferral(referral);
+        response.Referral = ReferralMapper.ToPathwayReferral(referral, actor, referralChange.Today);
         return response;
     }
 

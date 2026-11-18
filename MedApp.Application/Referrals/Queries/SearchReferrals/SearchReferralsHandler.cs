@@ -25,7 +25,8 @@ public sealed class SearchReferralsHandler(
     public async Task<PagedResponse<ReferralSummaryResponse>> Handle(SearchReferralsQuery request, CancellationToken cancellationToken)
     {
         var specialtyIds = await SpecialtiesToShowAsync(request, cancellationToken);
-        var result = await repository.SearchAsync(request, specialtyIds, cancellationToken);
+        var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
+        var result = await repository.SearchAsync(request, specialtyIds, today, cancellationToken);
 
         // A search for a patient (by name) is recorded as which filters were used and how many matched, as patient
         // search is: never the term, which could itself be a patient's details.
@@ -39,7 +40,6 @@ public sealed class SearchReferralsHandler(
         await activityLog.RecordViewsAsync(
             ActivityAction.PatientListed, result.Items.Select(row => row.Referral.PatientId), cancellationToken);
 
-        var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
         return PagedMapper.ToResponse(result, request.Page, request.PageSize, row => ReferralMapper.ToSummary(row, today));
     }
 

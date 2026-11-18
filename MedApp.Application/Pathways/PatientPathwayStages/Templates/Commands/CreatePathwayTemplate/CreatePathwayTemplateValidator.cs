@@ -29,5 +29,12 @@ public sealed class CreatePathwayTemplateValidator : AbstractValidator<CreatePat
         RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()
             .WithMessage("Stage definition id is required.");
+
+        RuleFor(x => x.ClockStopStageOrder)
+            .Must((command, order) => order is null || (order >= 1 && order <= (command.StageDefinitionIdsInOrder?.Count ?? 0)))
+            .WithMessage(ClockStopStageMessage);
     }
+
+    /// <summary>The clock-stop stage must be one of the template's stages, by its position.</summary>
+    public const string ClockStopStageMessage = "The stage that stops the waiting-time clock must be one of the template's stages.";
 }

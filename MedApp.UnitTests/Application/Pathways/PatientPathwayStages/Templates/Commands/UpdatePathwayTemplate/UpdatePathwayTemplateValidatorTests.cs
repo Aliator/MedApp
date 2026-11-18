@@ -58,4 +58,18 @@ public sealed class UpdatePathwayTemplateValidatorTests
     [Test]
     public void Validate_EmptySpecialty_IsInvalid() =>
         _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, Guid.Empty, null)).IsValid.Should().BeFalse();
+
+    [Test]
+    public void Validate_ClockStopStage_NeedsTheStageListAndIsOneOfItsStages()
+    {
+        var validator = new UpdatePathwayTemplateValidator();
+        var id = Guid.NewGuid();
+
+        validator.Validate(new UpdatePathwayTemplateCommand(id, null, null, [Guid.NewGuid(), Guid.NewGuid()], 2)).IsValid.Should().BeTrue();
+        validator.Validate(new UpdatePathwayTemplateCommand(id, null, null, [Guid.NewGuid()], null)).IsValid.Should().BeTrue();
+        validator.Validate(new UpdatePathwayTemplateCommand(id, "Renamed", null, null, 1)).Errors.Single().ErrorMessage
+            .Should().Be("Send the stage list with the stage that stops the waiting-time clock.");
+        validator.Validate(new UpdatePathwayTemplateCommand(id, null, null, [Guid.NewGuid()], 2)).Errors.Single().ErrorMessage
+            .Should().Be(MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate.CreatePathwayTemplateValidator.ClockStopStageMessage);
+    }
 }

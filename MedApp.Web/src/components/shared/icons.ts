@@ -79,6 +79,7 @@ import {
   RiNotification3Line,
   RiPaintBrushLine,
   RiPaletteLine,
+  RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
   RiPriceTag3Line,
@@ -102,6 +103,8 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiStopCircleLine,
+  RiTimeLine,
   RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
@@ -298,4 +301,9 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
+  Wait: remix(RiTimeLine),
+  PauseClock: remix(RiPauseCircleLine),
+  ResumeClock: remix(RiPlayCircleLine),
+  ClockStopped: remix(RiStopCircleLine),
 } as const satisfies Record<string, IconType>;

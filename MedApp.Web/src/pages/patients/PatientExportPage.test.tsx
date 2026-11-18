@@ -1,4 +1,4 @@
-import {screen, waitFor} from '@testing-library/react';
+import {screen, waitFor, within} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {
@@ -289,6 +289,16 @@ describe('PatientExportPage', () => {
           redirectedTo: 'Another provider',
           redirectDetail: 'Synthetic: sent on from Urology.',
           pathwayId,
+          targetDays: 28,
+          waitStartOn: '2026-11-09',
+          targetOn: '2026-12-07',
+          pausedDays: 7,
+          stoppedOn: '2026-11-20',
+          stopReason: 'Rejected',
+          pauses: [
+            {pausedOn: '2026-11-02', pausedBy: 'k.ashford', reason: 'Other', detail: 'Synthetic: away for a week.', reviewOn: '2026-11-12', resumedOn: '2026-11-09', resumedBy: 'd.clinician'},
+            {pausedOn: '2026-11-10', pausedBy: 'k.ashford', reason: 'PatientChoseToWait', reviewOn: '2026-11-30', resumedOn: null},
+          ],
         },
         {id: 'b', specialtyName: 'Urology', receivedOn: null, referrerPractice: '', requestedPriority: 'Low', reason: null, status: 'AwaitingTriage', registeredBy: 'k.ashford'},
       ],
@@ -317,6 +327,22 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Referral: SpecialtyChanged by k\.ashford/)).toBeInTheDocument();
     expect(screen.getByText(/Attached to the referral to Dermatology received 2 November 2026\./)).toBeInTheDocument();
     expect(screen.getByText(/Attached to a referral\./)).toBeInTheDocument();
+
+    // The waiting-time clock and its pauses.
+    expect(screen.getByText('28 days')).toBeInTheDocument();
+    expect(screen.getByText('9 November 2026')).toBeInTheDocument();
+    expect(screen.getByText('7 December 2026')).toBeInTheDocument();
+    expect(screen.getByText('7 days')).toBeInTheDocument();
+    expect(screen.getByText('20 November 2026: Rejected')).toBeInTheDocument();
+    const pauses = screen.getByRole('list', {name: 'Pauses of the referral to Dermatology received 2 November 2026'});
+    expect(within(pauses).getByText('Paused 2 November 2026 by k.ashford: Other')).toBeInTheDocument();
+    expect(within(pauses).getByText('Synthetic: away for a week.')).toBeInTheDocument();
+    expect(within(pauses).getByText('Review 12 November 2026; resumed 9 November 2026 by d.clinician')).toBeInTheDocument();
+    expect(within(pauses).getByText('Paused 10 November 2026 by k.ashford: Patient chose to wait')).toBeInTheDocument();
+    expect(within(pauses).getByText('Review 30 November 2026; not resumed')).toBeInTheDocument();
+    // The referral with no clock details yet says so.
+    expect(screen.getByText('Never paused.')).toBeInTheDocument();
+    expect(screen.getByText('Not stopped')).toBeInTheDocument();
   });
 
   it('marks a deleted note, saying when, by whom and why, and lists the requests to delete notes', async () => {
@@ -584,6 +610,17 @@ describe('appointment history in words', () => {
       'Specialty: Urology, was Dermatology, Changed: reason, received date, Now withdrawn',
     );
     expect(describeReferralChange('not json')).toBe('');
+    expect(referralChangeLabel('ClockPaused')).toBe('Waiting-time clock paused');
+    expect(describeReferralChange('{"pauseReason":"PatientUnavailable","reviewOn":"2026-12-01"}')).toBe('Reason: Patient unavailable, review 1 December 2026');
+    expect(describeReferralChange('{"pauseReason":"Other","pausedDays":1,"automatic":true}')).toBe(
+      'Reason: Other, paused 1 day, resumed automatically, as the clock stopped',
+    );
+    expect(describeReferralChange('{"stopReason":"StopStageFinished","daysWaited":130,"targetDays":126,"breached":true}')).toBe(
+      'Why: Clock-stop stage finished, waited 130 days of 126, breached',
+    );
+    expect(describeReferralChange('{"daysWaited":1}')).toBe('waited 1 day');
+    expect(describeReferralChange('{"fromDays":126,"toDays":28}')).toBe('Target 126 days → 28 days');
+    expect(describeReferralChange('{"toDays":14}')).toBe('Target 14 days');
   });
 
   it('describes an appointment by its status and time', () => {

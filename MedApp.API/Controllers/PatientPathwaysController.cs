@@ -105,7 +105,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request.PatientName,
             request.NobodyAssigned,
             request.SpecialtyIds,
-            request.StageDefinitionIds), ct));
+            request.StageDefinitionIds,
+            request.BreachedOnly), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]

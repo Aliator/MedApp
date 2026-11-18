@@ -17,6 +17,9 @@ public sealed class PathwayTemplateResponse
 
     /// <summary>The stage definition IDs in order (the same as <see cref="Stages"/>), for editing.</summary>
     public List<Guid> StageDefinitionIdsInOrder { get; set; } = [];
+
+    /// <summary>The position (from 1) of the stage that stops the waiting-time clock, or null for none.</summary>
+    public int? ClockStopStageOrder { get; set; }
 }
 
 public sealed class PathwayTemplateStageResponse
@@ -34,4 +37,7 @@ public sealed class PathwayTemplateStageResponse
 
     /// <summary>The stage definition's: None, Suggested or Required.</summary>
     public string VisitRequirement { get; set; } = string.Empty;
+
+    /// <summary>Finishing this stage stops a referral's waiting-time clock.</summary>
+    public bool StopsClock { get; set; }
 }

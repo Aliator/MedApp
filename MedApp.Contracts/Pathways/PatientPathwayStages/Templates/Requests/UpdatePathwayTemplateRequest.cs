@@ -10,4 +10,10 @@ public sealed class UpdatePathwayTemplateRequest
 
     /// <summary>The template's stages in order; the same definition may appear more than once.</summary>
     public List<Guid>? StageDefinitionIdsInOrder { get; set; }
+
+    /// <summary>
+    /// Sent with the stage list: the position (from 1) of the stage whose finishing stops a referral's waiting-time
+    /// clock, or null for none. Only new pathways take it.
+    /// </summary>
+    public int? ClockStopStageOrder { get; set; }
 }

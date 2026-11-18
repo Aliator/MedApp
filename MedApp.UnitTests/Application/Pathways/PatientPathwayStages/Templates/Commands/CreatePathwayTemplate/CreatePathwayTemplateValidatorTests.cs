@@ -16,6 +16,21 @@ public sealed class CreatePathwayTemplateValidatorTests
             .IsValid.Should().BeTrue();
     }
 
+    [TestCase(null, true)]
+    [TestCase(1, true)]
+    [TestCase(3, true)]
+    [TestCase(0, false)]
+    [TestCase(4, false)]
+    public void Validate_ClockStopStage_IsOneOfItsStages(int? order, bool valid)
+    {
+        var result = _validator.Validate(new CreatePathwayTemplateCommand(
+            TemplateName, SpecialtyId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId], order));
+
+        result.IsValid.Should().Be(valid);
+        if (!valid)
+            result.Errors.Single().ErrorMessage.Should().Be(CreatePathwayTemplateValidator.ClockStopStageMessage);
+    }
+
     [Test]
     public void Validate_NoStages_Fails()
     {

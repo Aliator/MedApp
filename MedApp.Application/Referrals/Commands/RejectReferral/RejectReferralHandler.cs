@@ -43,6 +43,6 @@ public sealed class RejectReferralHandler(
         if (ReferralNotifications.Triaged(referral, request.Actor, now) is { } notification)
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        return await ReferralResponses.ForAsync(referral, repository, request.Actor, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Actor, timeProvider, cancellationToken);
     }
 }

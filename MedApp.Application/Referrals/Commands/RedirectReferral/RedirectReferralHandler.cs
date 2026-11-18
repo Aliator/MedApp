@@ -70,6 +70,6 @@ public sealed class RedirectReferralHandler(
         if (notification is not null)
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        return await ReferralResponses.ForAsync(referral, repository, request.Actor, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Actor, timeProvider, cancellationToken);
     }
 }

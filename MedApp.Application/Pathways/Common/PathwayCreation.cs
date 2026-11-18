@@ -51,6 +51,7 @@ public static class PathwayCreation
                     SnomedCode = map.StageDefinition.SnomedCode,
                     SnomedTerm = map.StageDefinition.SnomedTerm,
                     VisitRequirement = map.StageDefinition.VisitRequirement,
+                    StopsClock = map.StopsClock,
                     CreatedAt = nowUtc,
                     LastUpdated = nowUtc
                 })

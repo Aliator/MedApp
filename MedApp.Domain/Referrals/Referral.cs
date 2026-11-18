@@ -95,4 +95,34 @@ public sealed class Referral
     public byte[] RowVersion { get; set; } = [];
 
     public DateTime LastUpdated { get; set; }
+
+    // The waiting-time clock (WaitingClock has the arithmetic). It starts on ReceivedOn, counts whole UK days, stops
+    // only for patient-initiated pauses after acceptance, and stops for good when the pathway's clock-stop stage is
+    // finished, the pathway is discharged or cancelled, or the referral is closed without one.
+
+    /// <summary>The target in days, copied from the specialty for the priority when registered, and re-read when the priority or specialty changes.</summary>
+    public int TargetDays { get; set; }
+
+    /// <summary><see cref="ReceivedOn"/> plus every finished pause's days: the day the wait counts from.</summary>
+    public DateOnly WaitStartOn { get; set; }
+
+    /// <summary><see cref="WaitStartOn"/> plus <see cref="TargetDays"/>: breached once the wait goes past it.</summary>
+    public DateOnly TargetOn { get; set; }
+
+    /// <summary>The total of finished pauses' days.</summary>
+    public int PausedDays { get; set; }
+
+    /// <summary>The open pause's start, or null when it isn't paused.</summary>
+    public DateOnly? PausedSinceOn { get; set; }
+
+    /// <summary>The open pause's review date (copied for sorting), or null when it isn't paused.</summary>
+    public DateOnly? PauseReviewOn { get; set; }
+
+    /// <summary>When the clock stopped, for good; null while it runs or is paused.</summary>
+    public DateOnly? StoppedOn { get; set; }
+
+    public ClockStopReason? StopReason { get; set; }
+
+    /// <summary>Its clock's pauses, oldest first.</summary>
+    public List<ReferralClockPause> Pauses { get; set; } = [];
 }

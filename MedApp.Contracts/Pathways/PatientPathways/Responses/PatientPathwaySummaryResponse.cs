@@ -1,3 +1,5 @@
+using MedApp.Contracts.Referrals.Responses;
+
 namespace MedApp.Contracts.Pathways.PatientPathways.Responses;
 
 /// <summary>A pathway as a table row: lists, a patient's pathways, and task lists.</summary>
@@ -21,4 +23,7 @@ public sealed class PatientPathwaySummaryResponse
 
     public List<string> Assignees { get; set; } = [];
     public DateTime LastUpdated { get; set; }
+
+    /// <summary>Its referral's waiting-time clock, for the Wait column; null for a pathway started without a referral.</summary>
+    public WaitingClockResponse? Clock { get; set; }
 }

@@ -3,10 +3,11 @@ import {Link} from '@astryxdesign/core/Link';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
-import type {ReferralSummary} from '../../api/referrals';
+import {waitWords, type ReferralSummary} from '../../api/referrals';
 import {formatShortDate} from '../../utils/dates';
 import {PriorityToken} from '../pathways/PathwayCells';
 import {daysAgoWords, ReferralStatusToken} from './ReferralCells';
+import {ClockTokens} from './WaitingClock';
 
 export interface ReferralListProps {
   referrals: readonly ReferralSummary[];
@@ -41,10 +42,17 @@ export function ReferralList({referrals, label, sameSpecialtyId}: ReferralListPr
                   <ReferralStatusToken status={referral.status} />
                   <PriorityToken priority={referral.requestedPriority ?? ''} />
                   {isSame && <Token size="sm" label="Same specialty" color="orange" />}
+                  {referral.clock && <ClockTokens clock={referral.clock} />}
                 </HStack>
                 <Text type="supporting" color="secondary">
                   {[
-                    `Received ${formatShortDate(referral.receivedOn ?? '')}${isOpen ? ` (${daysAgoWords(referral.daysSinceReceived ?? 0).toLowerCase()})` : ''}`,
+                    `Received ${formatShortDate(referral.receivedOn ?? '')}${
+                      referral.clock
+                        ? ` (${waitWords(referral.clock).toLowerCase()})`
+                        : isOpen
+                          ? ` (${daysAgoWords(referral.daysSinceReceived ?? 0).toLowerCase()})`
+                          : ''
+                    }`,
                     referral.referrerPractice ? `from ${referral.referrerPractice}` : null,
                   ]
                     .filter(Boolean)

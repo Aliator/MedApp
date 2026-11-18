@@ -9,6 +9,8 @@ using MedApp.Application.Referrals.Commands.RedirectReferral;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
 using MedApp.Application.Referrals.Commands.RejectReferral;
 using MedApp.Application.Referrals.Commands.WithdrawReferral;
+using MedApp.Application.Referrals.Commands.PauseClock;
+using MedApp.Application.Referrals.Commands.ResumeClock;
 using MedApp.Application.Referrals.Queries.CountReferralsAwaitingTriage;
 using MedApp.Application.Referrals.Queries.GetReferralById;
 using MedApp.Application.Referrals.Queries.SearchReferrals;
@@ -153,7 +155,7 @@ public sealed class ReferralsControllerTests
         var mediator = new RecordingMediator(_ => pathway);
         var request = new AcceptReferralRequest
         {
-            TemplateId = OtherId, Priority = "Urgent", DueDate = ReceivedOn, Title = "Synthetic title", AssigneeUserId = UserId,
+            TemplateId = OtherId, Priority = "Urgent", Title = "Synthetic title", AssigneeUserId = UserId,
             Notes = "Synthetic note", ExpectedVersion = 3
         };
 
@@ -162,7 +164,7 @@ public sealed class ReferralsControllerTests
         var command = mediator.Request.Should().BeOfType<AcceptReferralCommand>().Subject;
         command.Should().BeEquivalentTo(new
         {
-            ReferralId = RecordId, TemplateId = OtherId, Priority = "Urgent", DueDate = ReceivedOn, Title = "Synthetic title",
+            ReferralId = RecordId, TemplateId = OtherId, Priority = "Urgent", Title = "Synthetic title",
             AssigneeUserId = (Guid?)UserId, Notes = "Synthetic note", ExpectedVersion = 3
         });
         command.Actor.UserId.Should().Be(UserId);
@@ -187,6 +189,46 @@ public sealed class ReferralsControllerTests
             {
                 SpecialtyId = OtherId, Elsewhere = "Synthetic Trust", Detail = Detail, ExpectedVersion = 2
             }, _cts.Token));
+    }
+
+    private static readonly string[] Clock =
+    [
+        nameof(ReferralsController.PauseClock),
+        nameof(ReferralsController.ResumeClock),
+    ];
+
+    [Test]
+    public async Task Clock_NeedsWorkPathways()
+    {
+        foreach (var action in Clock)
+        {
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedInWith(Permission.WorkPathways))).Should().BeTrue(action);
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedInWith(Permission.RegisterReferrals))).Should().BeFalse(action);
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedIn())).Should().BeFalse(action);
+        }
+    }
+
+    [Test]
+    public async Task PauseAndResume_SendTheChoiceAndTheVersionSeen()
+    {
+        var card = _fixture.Create<PathwayReferralResponse>();
+        var mediator = new RecordingMediator(_ => card);
+        var reviewOn = new DateOnly(2027, 1, 5);
+
+        var paused = await Controller(mediator).PauseClock(
+            RecordId, new PauseClockRequest { Reason = "Other", Detail = "Synthetic", ReviewOn = reviewOn, ExpectedVersion = 4 }, _cts.Token);
+
+        mediator.Request.Should().BeOfType<PauseClockCommand>().Subject.Should().BeEquivalentTo(new
+        {
+            ReferralId = RecordId, Reason = "Other", Detail = "Synthetic", ReviewOn = reviewOn, ExpectedVersion = 4
+        });
+        paused.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(card);
+
+        var resumer = new RecordingMediator(_ => card);
+        var resumed = await Controller(resumer).ResumeClock(RecordId, new ResumeClockRequest { ExpectedVersion = 5 }, _cts.Token);
+
+        resumer.Request.Should().BeOfType<ResumeClockCommand>().Subject.Should().BeEquivalentTo(new { ReferralId = RecordId, ExpectedVersion = 5 });
+        resumed.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(card);
     }
 
     [Test]
@@ -214,7 +256,7 @@ public sealed class ReferralsControllerTests
     [Test]
     public async Task Reading_NeedsViewPatients()
     {
-        var reads = ControllerAuthorisation.Actions<ReferralsController>().Except(Changes).Except(Triage).ToList();
+        var reads = ControllerAuthorisation.Actions<ReferralsController>().Except(Changes).Except(Triage).Except(Clock).ToList();
         reads.Should().BeEquivalentTo([
             nameof(ReferralsController.SearchReferrals),
             nameof(ReferralsController.CountAwaitingTriage),
