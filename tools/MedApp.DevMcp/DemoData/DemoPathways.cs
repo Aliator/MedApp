@@ -3,23 +3,26 @@ using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePrio
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>Who works a stage: the procedure's lead clinician, or someone in a supporting role.</summary>
+/// <summary>Who works a stage: the pathway's lead clinician, or someone in a supporting role.</summary>
 public enum StageRole
 {
-    /// <summary>The booking coordinator: referrals and scheduling.</summary>
+    /// <summary>The booking coordinator: referrals as they arrive.</summary>
     Coordinator,
 
-    /// <summary>The procedure's lead clinician (its assignee): the surgeon, endoscopist, nurse or physiotherapist.</summary>
+    /// <summary>The pathway's lead clinician (its assignee): the consultant, GP, nurse specialist or podiatrist.</summary>
     Lead,
 
-    /// <summary>The pre-assessment nurse.</summary>
-    PreAssessment,
+    /// <summary>The lab: the biomedical scientist, for histology and for blood and urine tests.</summary>
+    Lab,
 
-    /// <summary>Recovery on the day: a nurse or the healthcare assistant.</summary>
-    Ward,
+    /// <summary>Whoever takes the bloods and collects the sample: the healthcare assistant, or a nurse specialist.</summary>
+    Samples,
 
-    /// <summary>Wound checks and follow-up calls: a nurse.</summary>
-    FollowUp,
+    /// <summary>Follow-up by a clinical nurse specialist.</summary>
+    Nurse,
+
+    /// <summary>The pharmacist: medicines reviews.</summary>
+    Pharmacist,
 }
 
 /// <summary>The kind of day a visit is best booked on, by the day template on that person's calendar.</summary>
@@ -27,8 +30,7 @@ public enum DayKind
 {
     Any,
     Clinic,
-    Theatre,
-    Endoscopy,
+    MinorSurgery,
 }
 
 /// <summary>A range of days, from which the seed picks at random.</summary>
@@ -53,7 +55,7 @@ public sealed record StageSpec(
     DayKind Prefer = DayKind.Any,
     double VisitChance = 1);
 
-/// <summary>A pathway: its template, its stages in order, due dates, priorities and the kinds of procedure it does.</summary>
+/// <summary>A pathway: its template, its stages in order, due dates, priorities and the kinds of referral it takes.</summary>
 public sealed record PathwaySpec(
     Pathway Pathway,
     string TemplateName,
@@ -73,129 +75,164 @@ public sealed record DefinitionSpec(
     string? SnomedTerm = null,
     bool IsArchived = false);
 
-/// <summary>The clinic's stage definitions and pathways (templates).</summary>
+/// <summary>The centre's stage definitions and pathways (pathway templates).</summary>
 public static class DemoPathways
 {
+    public const string ReferralReceived = "Referral received";
+    public const string Triage = "Triage";
+    public const string FirstClinicVisit = "First clinic visit";
+    public const string BiopsyOrSample = "Biopsy or sample";
+    public const string Histology = "Histology (lab)";
+    public const string ResultsAndTeamReview = "Results and team review";
+    public const string Treatment = "Treatment";
+    public const string FollowUp = "Follow-up";
+    public const string DischargeLetter = "Discharge letter to GP";
+    public const string BloodAndUrineTests = "Blood and urine tests";
+    public const string LabTests = "Lab tests (lab)";
+    public const string ClinicReview = "Clinic review";
+    public const string MedicinesReview = "Medicines review";
+    public const string BiomechanicsSession = "Biomechanics session";
+
     /// <summary>
-    /// The stage definitions. SNOMED CT codes only where the concept is certain (each passes the format and Verhoeff
-    /// check, <c>SnomedCt</c>); the rest are left blank, so both states show.
+    /// The stage definitions. Visits are Required where the patient must be seen (clinic visits, biopsies, samples,
+    /// treatment, sessions), Suggested where a phone call often does (results, medicines, follow-up), and none for the
+    /// lab's work and for letters. SNOMED CT codes only where the concept is certain (each passes the format and
+    /// Verhoeff check, <c>SnomedCt</c>); the rest are left blank, so both states show.
     /// </summary>
     public static readonly DefinitionSpec[] Definitions =
     [
-        new("Referral received", "The referral has been received, logged and checked.",
-            "Check the referral is complete and the patient's details match the GP record. Note the reason and any urgency.",
+        new(ReferralReceived, "The referral has been received, logged and checked.",
+            "Check the referral is complete and the patient's details match the GP record. Note the reason and any urgency the referrer gave.",
             VisitRequirement.None, "3457005", "Patient referral"),
-        new("Triage", "A clinician has decided the route and the priority.",
-            "Review the referral and any results. Decide clinic first or straight to test, and the priority.",
+        new(Triage, "A clinician has read the referral and decided the route and the priority.",
+            "Read the referral and anything sent with it (photographs, results). Decide which clinic, and the priority.",
             VisitRequirement.None, "225390008", "Triage"),
-        new("Consultation", "The patient has been seen by the clinician.",
-            "Take the history, examine, discuss the options and record what was agreed.",
+        new(FirstClinicVisit, "The patient has been seen in clinic for the first time.",
+            "Take the history, examine, explain what happens next and record what was agreed.",
             VisitRequirement.Required, "11429006", "Consultation"),
-        new("Pre-assessment", "Fitness for the procedure has been assessed.",
-            "Observations, bloods and ECG as needed. Review medicines and allergies, and give the preparation instructions.",
-            VisitRequirement.Required),
-        new("Consent", "Informed consent has been obtained and recorded.",
-            "Discuss benefits, risks and alternatives, including doing nothing. Record consent; give the patient a copy. Often done at a visit.",
-            VisitRequirement.Suggested),
-        new("Scheduling", "A date, time and place have been arranged.",
-            "Agree the date with the patient, send the admission letter and the preparation instructions.",
+        new(BiopsyOrSample, "A biopsy or sample has been taken and sent to the lab.",
+            "Confirm the patient, the site and consent. Label the specimen at the bedside and complete the lab request.",
+            VisitRequirement.Required, "86273004", "Biopsy"),
+        new(Histology, "The lab has processed and reported the specimen.",
+            "Book the specimen in, check its label against the request, process and report. Authorise the report.",
             VisitRequirement.None),
-        new("Procedure", "The procedure has been carried out.",
-            "Complete the safety checklist. Record what was done, what was found and any specimens sent.",
-            VisitRequirement.Required),
-        new("Recovery", "Recovery on the day is complete and the patient has gone home.",
-            "Observations until stable, pain controlled, eating and drinking. Confirm an escort and give the discharge advice.",
-            VisitRequirement.None),
-        new("Wound check", "The wound has been checked.",
-            "Check the wound, remove sutures or clips if due, and look for signs of infection.",
-            VisitRequirement.Required),
-        new("Post-procedure review", "The surgeon has reviewed the recovery.",
-            "Review progress, any results and the wound. Decide discharge or further follow-up.",
-            VisitRequirement.Required),
-        new("Results review", "Results or histology have been reviewed and explained.",
-            "Review the reports, act on anything abnormal and explain the results to the patient. Can be by phone.",
+        new(ResultsAndTeamReview, "The results have been reviewed with the team and given to the patient.",
+            "Review the report, take it to the team meeting if needed, agree the plan and tell the patient. Can be by phone.",
             VisitRequirement.Suggested),
-        new("Follow-up", "Follow-up is done, or the patient is discharged.",
-            "Check recovery, then discharge to the GP or arrange more follow-up.",
+        new(Treatment, "The agreed treatment has been given.",
+            "Confirm the patient, the site and consent. Record what was done, any specimen sent and the aftercare advice.",
+            VisitRequirement.Required),
+        new(FollowUp, "Follow-up is done.",
+            "Check how the patient is, answer questions, and decide whether anything more is needed. Can be by phone.",
             VisitRequirement.Suggested, "390906007", "Follow-up encounter"),
-        new("Physiotherapy session", "A physiotherapy session has taken place.",
-            "Assess, treat and progress the home exercise programme. Record measurements against the goals.",
-            VisitRequirement.Required, "91251008", "Physical therapy procedure"),
-        new("Discharge", "The patient has been discharged from the service.",
-            "Confirm the goals are met, give self-management advice and send the discharge letter to the GP.",
+        new(DischargeLetter, "The discharge letter has gone to the GP, with a copy to the patient.",
+            "Summarise what was found, what was done and what the GP is asked to do. Copy to the patient.",
             VisitRequirement.None, "58000006", "Patient discharge"),
-        // Retired: consent is recorded with the Consent stage now. Archived, so admins see it but can't add it to templates.
-        new("Paper consent (retired)", "Consent recorded on the old paper form.",
-            "No longer used: record consent with the Consent stage.",
+        new(BloodAndUrineTests, "Bloods have been taken and a urine sample collected.",
+            "Confirm the patient, take the bloods on the request and collect the urine sample. Label at the bedside; send to the lab the same day.",
+            VisitRequirement.Required),
+        new(LabTests, "The lab has run and reported the blood and urine tests.",
+            "Book the samples in, run the tests on the request and authorise the results.",
+            VisitRequirement.None, "15220000", "Laboratory test"),
+        new(ClinicReview, "The patient has been reviewed in clinic with their results.",
+            "Review the results with the patient, examine as needed, agree targets and record the plan.",
+            VisitRequirement.Required),
+        new(MedicinesReview, "The pharmacist has reviewed the patient's medicines.",
+            "Check what is taken and how, side effects and interactions. Agree any changes and tell the GP. Can be by phone.",
+            VisitRequirement.Suggested, "182836005", "Review of medication"),
+        new(BiomechanicsSession, "A biomechanics session has taken place.",
+            "Assess, treat and progress the home programme. Record measurements against the goals.",
+            VisitRequirement.Required),
+        // Retired: triage is recorded with the Triage stage now. Archived, so admins see it but can't add it to templates.
+        new("Paper triage form (retired)", "Triage recorded on the old paper form.",
+            "No longer used: record the outcome with the Triage stage.",
             VisitRequirement.None, IsArchived: true),
     ];
 
-    private static readonly (Priority, int)[] RoutinePriorities = [(Priority.Low, 20), (Priority.Medium, 55), (Priority.High, 20), (Priority.Urgent, 5)];
+    private static readonly (Priority, int)[] RoutinePriorities = [(Priority.Low, 30), (Priority.Medium, 55), (Priority.High, 13), (Priority.Urgent, 2)];
+    private static readonly (Priority, int)[] SkinLesionPriorities = [(Priority.Low, 10), (Priority.Medium, 45), (Priority.High, 25), (Priority.Urgent, 20)];
 
-    /// <summary>The pathways, each a template.</summary>
+    /// <summary>
+    /// The pathways, each a pathway template. The slow parts are where a centre's are: booking the first clinic visit
+    /// (longest for the visiting consultants) and waiting for histology.
+    /// </summary>
     public static readonly PathwaySpec[] Pathways =
     [
-        new(Pathway.DayCase, "Day-case pathway",
+        new(Pathway.SkinLesion, "Skin lesion pathway",
         [
-            new("Referral received", StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
-            new("Pre-assessment", StageRole.PreAssessment, new(1, 4), default, 45, 45, new(2, 7), DayKind.Clinic),
-            new("Consent", StageRole.Lead, new(0.5, 3), new(0.2, 2), 30, 30, new(2, 6), DayKind.Clinic, VisitChance: 0.6),
-            new("Scheduling", StageRole.Coordinator, new(0, 2), new(0.5, 3)),
-            new("Procedure", StageRole.Lead, new(0.5, 2), default, 60, 90, new(4, 12), DayKind.Theatre),
-            new("Recovery", StageRole.Ward, new(0.005, 0.02), new(0.08, 0.2)),
-            new("Follow-up", StageRole.FollowUp, new(5, 10), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
-        ], DueWeeks: 6, UrgentDueWeeks: 4, RoutinePriorities),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
+            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
+            new(FirstClinicVisit, StageRole.Lead, new(1, 4), default, 30, 30, new(4, 11), DayKind.Clinic),
+            new(BiopsyOrSample, StageRole.Lead, new(0.5, 3), default, 30, 45, new(2, 7), DayKind.MinorSurgery),
+            new(Histology, StageRole.Lab, new(0.3, 1.5), new(5, 11)),
+            new(ResultsAndTeamReview, StageRole.Lead, new(1, 4), new(0.2, 2), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.45),
+            new(Treatment, StageRole.Lead, new(1, 4), default, 45, 60, new(4, 9), DayKind.MinorSurgery),
+            new(FollowUp, StageRole.Nurse, new(5, 9), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, SkinLesionPriorities),
 
-        new(Pathway.DayCase2024, "Day-case pathway (2024)",
+        new(Pathway.SkinLesion2024, "Skin lesion pathway (2024)",
         [
-            new("Referral received", StageRole.Coordinator, new(0, 2), new(0.1, 1)),
-            new("Pre-assessment", StageRole.PreAssessment, new(2, 6), default, 45, 45, new(2, 6), DayKind.Clinic),
-            new("Consent", StageRole.Lead, new(1, 3), new(0.5, 2), 30, 30, new(2, 5), DayKind.Clinic, VisitChance: 0.5),
-            new("Procedure", StageRole.Lead, new(2, 6), default, 60, 90, new(3, 8), DayKind.Theatre),
-            new("Follow-up", StageRole.FollowUp, new(4, 8), new(0.2, 1), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.5),
-        ], DueWeeks: 6, UrgentDueWeeks: 4, RoutinePriorities, IsArchived: true),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 2), new(0.1, 1)),
+            new(FirstClinicVisit, StageRole.Lead, new(2, 6), default, 30, 30, new(3, 10), DayKind.Clinic),
+            new(BiopsyOrSample, StageRole.Lead, new(1, 4), default, 30, 45, new(3, 8), DayKind.MinorSurgery),
+            new(Histology, StageRole.Lab, new(0.5, 2), new(6, 14)),
+            new(FollowUp, StageRole.Lead, new(4, 8), new(0.2, 1), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.5),
+        ], DueWeeks: 8, UrgentDueWeeks: 4, SkinLesionPriorities, IsArchived: true),
 
-        new(Pathway.Surgical, "Standard surgical pathway",
+        new(Pathway.InflammatorySkin, "Inflammatory skin review",
         [
-            new("Consultation", StageRole.Lead, new(2, 8), default, 30, 30, new(3, 10), DayKind.Clinic),
-            new("Pre-assessment", StageRole.PreAssessment, new(12, 32), default, 45, 45, new(3, 10), DayKind.Clinic),
-            new("Consultation", StageRole.Lead, new(3, 10), default, 30, 30, new(4, 12), DayKind.Clinic),
-            new("Consent", StageRole.Lead, new(1, 5), new(0.5, 3), 30, 30, new(2, 7), DayKind.Clinic, VisitChance: 0.7),
-            new("Scheduling", StageRole.Coordinator, new(14, 40), new(1, 5)),
-            new("Procedure", StageRole.Lead, new(1, 3), default, 90, 90, new(7, 18), DayKind.Theatre),
-            new("Recovery", StageRole.Ward, new(0.005, 0.02), new(0.12, 0.3)),
-            new("Wound check", StageRole.FollowUp, new(5, 9), default, 15, 15, new(1, 4), DayKind.Clinic),
-            new("Post-procedure review", StageRole.Lead, new(20, 34), default, 20, 20, new(3, 10), DayKind.Clinic),
-        ], DueWeeks: 18, UrgentDueWeeks: 8, [(Priority.Low, 15), (Priority.Medium, 50), (Priority.High, 30), (Priority.Urgent, 5)]),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
+            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
+            new(FirstClinicVisit, StageRole.Lead, new(2, 7), default, 30, 30, new(3, 9), DayKind.Clinic),
+            new(MedicinesReview, StageRole.Pharmacist, new(1, 4), new(0.2, 1.5), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
+            new(FollowUp, StageRole.Lead, new(10, 20), new(0.1, 0.5), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.6),
+            new(DischargeLetter, StageRole.Lead, new(0.1, 1.5), new(0.05, 0.5)),
+        ], DueWeeks: 8, UrgentDueWeeks: 4, [(Priority.Low, 45), (Priority.Medium, 45), (Priority.High, 10)]),
 
-        new(Pathway.Diagnostic, "Diagnostic procedure",
+        new(Pathway.PostMenopausalBleeding, "Post-menopausal bleeding pathway",
         [
-            new("Referral received", StageRole.Coordinator, new(0, 0.5), new(0.05, 0.3)),
-            new("Triage", StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
-            new("Consultation", StageRole.Lead, new(1, 5), default, 30, 30, new(3, 9), DayKind.Clinic),
-            new("Consent", StageRole.Lead, new(0, 1), new(0.1, 1), 30, 30, new(1, 4), DayKind.Clinic, VisitChance: 0.4),
-            new("Scheduling", StageRole.Coordinator, new(7, 20), new(0.5, 2)),
-            new("Procedure", StageRole.Lead, new(0.5, 2), default, 60, 75, new(3, 10), DayKind.Endoscopy),
-            new("Results review", StageRole.Lead, new(4, 10), new(0.2, 2), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.35),
-        ], DueWeeks: 6, UrgentDueWeeks: 2, [(Priority.Low, 5), (Priority.Medium, 45), (Priority.High, 25), (Priority.Urgent, 25)]),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 0.5), new(0.05, 0.3)),
+            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
+            new(FirstClinicVisit, StageRole.Lead, new(1, 5), default, 45, 45, new(3, 10), DayKind.Clinic),
+            new(BiopsyOrSample, StageRole.Lead, new(0.3, 2), default, 30, 30, new(2, 8), DayKind.Clinic),
+            new(Histology, StageRole.Lab, new(0.3, 1), new(4, 9)),
+            new(ResultsAndTeamReview, StageRole.Lead, new(0.5, 3), new(0.2, 2), 20, 20, new(2, 7), DayKind.Clinic, VisitChance: 0.4),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
+        ], DueWeeks: 6, UrgentDueWeeks: 3, [(Priority.Medium, 25), (Priority.High, 30), (Priority.Urgent, 45)]),
 
-        new(Pathway.Minor, "Minor procedure (clinic)",
+        new(Pathway.Prostate, "Prostate assessment",
         [
-            new("Consultation", StageRole.Lead, new(2, 8), default, 30, 30, new(3, 9), DayKind.Clinic),
-            new("Consent", StageRole.Lead, new(0, 0.2), new(0.02, 0.2), 0, 0, default, DayKind.Clinic, VisitChance: 0),
-            new("Procedure", StageRole.Lead, new(1, 4), default, 60, 60, new(5, 14), DayKind.Clinic),
-            new("Follow-up", StageRole.Lead, new(7, 11), new(0.1, 0.5), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.6),
-        ], DueWeeks: 8, UrgentDueWeeks: 4, [(Priority.Low, 50), (Priority.Medium, 45), (Priority.High, 5)]),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
+            new(Triage, StageRole.Lead, new(0.5, 4), new(0.05, 0.5)),
+            new(BloodAndUrineTests, StageRole.Samples, new(2, 8), default, 15, 15, new(2, 8)),
+            new(LabTests, StageRole.Lab, new(0.1, 0.5), new(1, 3)),
+            new(FirstClinicVisit, StageRole.Lead, new(8, 24), default, 30, 30, new(7, 18), DayKind.Clinic),
+            new(ResultsAndTeamReview, StageRole.Lead, new(2, 8), new(0.5, 3), 20, 20, new(3, 10), DayKind.Clinic, VisitChance: 0.5),
+            new(FollowUp, StageRole.Lead, new(20, 34), new(0.2, 1), 20, 20, new(3, 10), DayKind.Clinic, VisitChance: 0.5),
+            new(DischargeLetter, StageRole.Lead, new(0.5, 3), new(0.1, 1)),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 15), (Priority.Medium, 50), (Priority.High, 30), (Priority.Urgent, 5)]),
 
-        new(Pathway.Physio, "Physiotherapy course",
+        new(Pathway.Diabetes, "Diabetes review",
         [
-            new("Consultation", StageRole.Lead, new(1, 5), default, 30, 30, new(2, 7), DayKind.Clinic),
-            new("Physiotherapy session", StageRole.Lead, new(0.5, 2), default, 45, 45, new(4, 7), DayKind.Clinic),
-            new("Physiotherapy session", StageRole.Lead, new(0.2, 1), default, 45, 45, new(5, 7), DayKind.Clinic),
-            new("Physiotherapy session", StageRole.Lead, new(0.2, 1), default, 45, 45, new(5, 7), DayKind.Clinic),
-            new("Physiotherapy session", StageRole.Lead, new(0.2, 1), default, 45, 45, new(5, 7), DayKind.Clinic),
-            new("Discharge", StageRole.Lead, new(0.2, 2), new(0.1, 1)),
-        ], DueWeeks: 10, UrgentDueWeeks: 6, [(Priority.Low, 40), (Priority.Medium, 55), (Priority.High, 5)]),
+            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
+            new(BloodAndUrineTests, StageRole.Samples, new(1, 5), default, 15, 15, new(2, 7)),
+            new(LabTests, StageRole.Lab, new(0.1, 0.5), new(1, 3)),
+            new(ClinicReview, StageRole.Lead, new(2, 7), default, 30, 30, new(3, 10), DayKind.Clinic),
+            new(MedicinesReview, StageRole.Pharmacist, new(0.5, 4), new(0.2, 1.5), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
+            new(FollowUp, StageRole.Nurse, new(14, 28), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.4),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
+        ], DueWeeks: 10, UrgentDueWeeks: 4, RoutinePriorities),
+
+        new(Pathway.Biomechanics, "Biomechanics course",
+        [
+            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
+            new(FirstClinicVisit, StageRole.Lead, new(1, 5), default, 45, 45, new(2, 7), DayKind.Clinic),
+            new(BiomechanicsSession, StageRole.Lead, new(0.5, 2), default, 30, 30, new(5, 8), DayKind.Clinic),
+            new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(8, 12), DayKind.Clinic),
+            new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(10, 16), DayKind.Clinic),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 40), (Priority.Medium, 55), (Priority.High, 5)]),
     ];
 
     public static PathwaySpec For(Pathway pathway) => Pathways.Single(p => p.Pathway == pathway);

@@ -77,12 +77,14 @@ public static class DemoTour
             cancelledMeeting = plan.Cancelled is { } cancelled ? Describe(cancelled.Meeting) : null,
             personalTemplates = new[]
             {
-                $"l.northcott: '{DemoTemplates.PartTimeWeek}' since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 20))}, '{DemoTemplates.FullTimeWeek}' before",
-                $"{DemoTemplates.LateLunchUsername}: '{DemoTemplates.EndoscopyList}' lunch at 13:15 since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 10))}, 12:45 before",
+                $"{DemoStaff.DiabetesNurseUsername}: '{DemoTemplates.PartTimeWeek}' since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 20))}, '{DemoTemplates.FullTimeWeek}' before",
+                $"{DemoTemplates.LateLunchUsername}: '{DemoTemplates.MinorSurgeryList}' lunch at 13:15 since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 10))}, 12:45 before",
+                $"{DemoStaff.GynaecologistUsername} and {DemoStaff.UrologistUsername}: a 'Visiting week' ('{DemoTemplates.AtTheHospital}' on the days they aren't here)",
+                $"{DemoStaff.ScientistUsername}: '{DemoTemplates.LabReporting}' every day",
                 $"{DemoStaff.CoordinatorUsername}: a late lunch, 13:30, covering the desk",
-                $"d.ashworth: '{DemoTemplates.FridayList}' (theatre on Friday mornings)",
+                $"{DemoStaff.SkinGpUsername}: '{DemoTemplates.FridayList}' (minor surgery on Friday mornings)",
                 $"{DemoStaff.ManagerUsername}: '{DemoTemplates.OfficeEarlyFinish}' on Fridays",
-                $"{world.Lead.Username}: '{DemoTemplates.ClinicAndManagement}' on Wednesdays",
+                $"{world.Lead.Username}: '{DemoTemplates.ClinicAndManagement}' on Wednesdays, '{DemoTemplates.OutreachClinic}' on Thursdays",
             },
         };
     }

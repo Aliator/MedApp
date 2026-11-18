@@ -4,8 +4,8 @@ using MedApp.Application.Procedures.Insights.Common;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// The moments in the clinic's story, all relative to "now", so the data always looks current: when the app started
-/// being used, when people joined and left, when the day-case pathway was replaced, and the windows notifications
+/// The moments in the centre's story, all relative to "now", so the data always looks current: when the app started
+/// being used, when people joined and left, when the skin lesion pathway was redesigned, and the windows notifications
 /// and the activity log cover.
 /// </summary>
 public sealed class DemoTimeline
@@ -23,8 +23,8 @@ public sealed class DemoTimeline
         DiaryDay = diaryDay;
 
         AppStartUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.HistoryWeeks), 9, 0);
-        DayCaseLaunchedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.DayCaseLaunchedWeeksAgo), 8, 30);
-        PhysioStartedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.PhysioStartedWeeksAgo), 8, 30);
+        SkinLesionRedesignedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.SkinLesionRedesignedWeeksAgo), 8, 30);
+        BiomechanicsStartedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.BiomechanicsStartedWeeksAgo), 8, 30);
         LeaverLeftUtc = At(ThisMonday.AddDays(-7 * 16 + 4), 17, 0);
         ManagerMadeAdminUtc = WorkingMoment(NowUtc.AddDays(-49), 10, 15);
         TwoFactorEnabledUtc = WorkingMoment(NowUtc.AddDays(-42), 9, 40);
@@ -48,13 +48,14 @@ public sealed class DemoTimeline
     /// <summary>The day whose diary the demo fills: today, or Monday when today is a weekend.</summary>
     public DateOnly DiaryDay { get; }
 
-    /// <summary>When the clinic started using MedApp: about 18 months ago. Older records were imported.</summary>
+    /// <summary>When the centre started using MedApp: about 18 months ago. Older records were imported.</summary>
     public DateTime AppStartUtc { get; }
 
-    /// <summary>When the new day-case pathway replaced the 2024 one, which was archived then.</summary>
-    public DateTime DayCaseLaunchedUtc { get; }
+    /// <summary>When the redesigned skin lesion pathway replaced the 2024 one, which was archived then.</summary>
+    public DateTime SkinLesionRedesignedUtc { get; }
 
-    public DateTime PhysioStartedUtc { get; }
+    /// <summary>When the biomechanics service started; its podiatrist joined the week before.</summary>
+    public DateTime BiomechanicsStartedUtc { get; }
 
     /// <summary>The leaver's last day, when their account was deleted.</summary>
     public DateTime LeaverLeftUtc { get; }
@@ -77,11 +78,11 @@ public sealed class DemoTimeline
     /// <summary>The activity log's sign-ins, views and searches start here (60 days).</summary>
     public DateTime ActivityFromUtc { get; }
 
-    /// <summary>When an account was made: everyone a few weeks before the clinic started, except later joiners.</summary>
+    /// <summary>When an account was made: everyone a few weeks before the centre started, except later joiners.</summary>
     public DateTime AccountCreatedUtc(StaffKind kind) => kind switch
     {
         StaffKind.NewStarter => NewStarterCreatedUtc,
-        StaffKind.Physiotherapist => PhysioStartedUtc.AddDays(-7),
+        StaffKind.Podiatrist => BiomechanicsStartedUtc.AddDays(-7),
         StaffKind.Leaver => AppStartUtc.AddDays(-25),
         _ => AppStartUtc.AddDays(-21).AddMinutes(10 * (int)kind),
     };

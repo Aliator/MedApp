@@ -9,60 +9,96 @@ namespace MedApp.UnitTests.Tools.DemoData;
 [TestFixture]
 public sealed class VolumeCurvesTests
 {
-    [Test]
-    public void Expected_DayCase_RampsUpFromItsLaunchAndIsZeroBefore()
-    {
-        var weekly = Enumerable.Range(0, VolumeCurves.DayCaseLaunchedWeeksAgo + 1)
-            .Select(w => VolumeCurves.Expected(Pathway.DayCase, w)).Reverse().ToList();
+    /// <summary>The week's expected referrals, counted back from the test's "now" (Monday 16 November 2026).</summary>
+    private static double Expected(Pathway pathway, int weeksAgo) => VolumeCurves.Expected(pathway, weeksAgo, Now);
 
-        weekly.Should().BeInAscendingOrder();
-        weekly[0].Should().BeApproximately(3, 0.01);
-        weekly[^1].Should().BeApproximately(9, 0.01);
-        VolumeCurves.Expected(Pathway.DayCase, VolumeCurves.DayCaseLaunchedWeeksAgo + 1).Should().Be(0);
+    private static double Season(Pathway pathway, int weeksAgo) => VolumeCurves.Season(pathway, Monday.AddDays(-7 * weeksAgo));
+
+    [Test]
+    public void Expected_SkinLesion_RampsUpFromItsRedesignAndIsZeroBefore()
+    {
+        var launch = VolumeCurves.SkinLesionRedesignedWeeksAgo;
+
+        // Without the season (the redesign was in July, when more are referred), the ramp is 3 to 8 over six weeks.
+        var ramp = Enumerable.Range(0, launch + 1).Select(w => Expected(Pathway.SkinLesion, w) / Season(Pathway.SkinLesion, w)).Reverse().ToList();
+        ramp.Should().BeInAscendingOrder();
+        ramp[0].Should().BeApproximately(3, 0.01);
+        ramp[VolumeCurves.SkinLesionRampWeeks].Should().BeApproximately(8, 0.01);
+        ramp[^1].Should().BeApproximately(8, 0.01);
+
+        Expected(Pathway.SkinLesion, 0).Should().BeApproximately(8, 0.01, "November is neither summer nor winter");
+        Expected(Pathway.SkinLesion, launch + 1).Should().Be(0);
     }
 
     [Test]
-    public void Expected_ArchivedDayCase_RanUntilTheNewOneAndStopped()
+    public void Expected_ArchivedSkinLesion_RanUntilTheRedesignAndStopped()
     {
-        VolumeCurves.Expected(Pathway.DayCase2024, VolumeCurves.DayCaseLaunchedWeeksAgo).Should().Be(0);
-        VolumeCurves.Expected(Pathway.DayCase2024, 0).Should().Be(0);
-        VolumeCurves.Expected(Pathway.DayCase2024, VolumeCurves.DayCaseLaunchedWeeksAgo + 1).Should().Be(5);
+        var lastWeek = VolumeCurves.SkinLesionRedesignedWeeksAgo + 1;
+
+        Expected(Pathway.SkinLesion2024, VolumeCurves.SkinLesionRedesignedWeeksAgo).Should().Be(0);
+        Expected(Pathway.SkinLesion2024, 0).Should().Be(0);
+        Expected(Pathway.SkinLesion2024, lastWeek).Should().BeApproximately(5 * Season(Pathway.SkinLesion2024, lastWeek), 0.01);
     }
 
     [Test]
-    public void Expected_Diagnostic_HasASummerDipAndASpike()
+    public void Season_SkinLesionsPeakInSummer_AndInflammatorySkinInWinter_AndTheRestAreFlat()
     {
-        var usual = VolumeCurves.Expected(Pathway.Diagnostic, 5);
+        var (january, july, october) = (new DateOnly(2026, 1, 12), new DateOnly(2026, 7, 13), new DateOnly(2026, 10, 12));
 
-        VolumeCurves.Expected(Pathway.Diagnostic, 9).Should().BeLessThan(usual);
-        VolumeCurves.Expected(Pathway.Diagnostic, 2).Should().BeGreaterThan(usual * 1.5);
-        VolumeCurves.Expected(Pathway.Diagnostic, 3).Should().BeGreaterThan(usual * 1.5);
+        VolumeCurves.Season(Pathway.SkinLesion, july).Should().BeGreaterThan(VolumeCurves.Season(Pathway.SkinLesion, october));
+        VolumeCurves.Season(Pathway.SkinLesion, october).Should().BeGreaterThan(VolumeCurves.Season(Pathway.SkinLesion, january));
+        VolumeCurves.Season(Pathway.SkinLesion2024, july).Should().Be(VolumeCurves.Season(Pathway.SkinLesion, july));
+        VolumeCurves.Season(Pathway.InflammatorySkin, january).Should().BeGreaterThan(VolumeCurves.Season(Pathway.InflammatorySkin, october));
+        VolumeCurves.Season(Pathway.InflammatorySkin, october).Should().BeGreaterThan(VolumeCurves.Season(Pathway.InflammatorySkin, july));
+        foreach (var pathway in new[] { Pathway.PostMenopausalBleeding, Pathway.Prostate, Pathway.Diabetes, Pathway.Biomechanics })
+            new[] { january, july, october }.Select(m => VolumeCurves.Season(pathway, m)).Should().OnlyContain(s => s == 1);
     }
 
     [Test]
-    public void Expected_Minor_HadALowWeekLastWeek()
+    public void Expected_PostMenopausalBleeding_HasADipAndASpike()
     {
-        VolumeCurves.Expected(Pathway.Minor, 1).Should().BeLessThan(VolumeCurves.Expected(Pathway.Minor, 2) / 2);
+        var usual = Expected(Pathway.PostMenopausalBleeding, 5);
+
+        Expected(Pathway.PostMenopausalBleeding, 9).Should().BeLessThan(usual);
+        Expected(Pathway.PostMenopausalBleeding, 2).Should().BeGreaterThan(usual * 1.5);
+        Expected(Pathway.PostMenopausalBleeding, 3).Should().BeGreaterThan(usual * 1.5);
     }
 
     [Test]
-    public void Expected_Physio_OnlySinceTheServiceStarted()
+    public void Expected_InflammatorySkin_HadALowWeekLastWeek()
     {
-        VolumeCurves.Expected(Pathway.Physio, VolumeCurves.PhysioStartedWeeksAgo).Should().BeGreaterThan(0);
-        VolumeCurves.Expected(Pathway.Physio, VolumeCurves.PhysioStartedWeeksAgo + 1).Should().Be(0);
+        Expected(Pathway.InflammatorySkin, 1).Should().BeLessThan(Expected(Pathway.InflammatorySkin, 2) / 2);
+    }
+
+    /// <summary>The week of Monday 26 October 2026 has 1 November in it; the week of 2 November has no 1st.</summary>
+    [Test]
+    public void Expected_Diabetes_JumpsInTheWeekTheRecallLettersGoOut()
+    {
+        VolumeCurves.IsRecallWeek(new DateOnly(2026, 10, 26)).Should().BeTrue();
+        VolumeCurves.IsRecallWeek(new DateOnly(2026, 11, 2)).Should().BeFalse();
+        VolumeCurves.IsRecallWeek(new DateOnly(2026, 6, 1)).Should().BeTrue("the 1st is that Monday");
+
+        Expected(Pathway.Diabetes, 3).Should().BeGreaterThan(Expected(Pathway.Diabetes, 2) * 2, "three weeks before 16 November is the week of 26 October");
+    }
+
+    [Test]
+    public void Expected_Biomechanics_OnlySinceTheServiceStarted()
+    {
+        Expected(Pathway.Biomechanics, VolumeCurves.BiomechanicsStartedWeeksAgo).Should().BeGreaterThan(0);
+        Expected(Pathway.Biomechanics, VolumeCurves.BiomechanicsStartedWeeksAgo + 1).Should().Be(0);
     }
 
     [Test]
     public void Expected_BeforeTheDetailedWeeks_IsThinner()
     {
-        VolumeCurves.Expected(Pathway.Surgical, VolumeCurves.DetailedWeeks)
-            .Should().BeLessThan(VolumeCurves.Expected(Pathway.Surgical, VolumeCurves.DetailedWeeks - 1));
-        VolumeCurves.Expected(Pathway.Surgical, VolumeCurves.HistoryWeeks).Should().Be(0);
+        Expected(Pathway.Prostate, VolumeCurves.DetailedWeeks)
+            .Should().BeLessThan(Expected(Pathway.Prostate, VolumeCurves.DetailedWeeks - 1));
+        Expected(Pathway.Prostate, VolumeCurves.HistoryWeeks).Should().Be(0);
     }
 
-    [TestCase(Pathway.DayCase)]
-    [TestCase(Pathway.Diagnostic)]
-    [TestCase(Pathway.Minor)]
+    [TestCase(Pathway.SkinLesion)]
+    [TestCase(Pathway.PostMenopausalBleeding)]
+    [TestCase(Pathway.Diabetes)]
     public void CreationTimes_AreWeekdaysInWorkingHours_InOrder_AndNotInTheFuture(Pathway pathway)
     {
         var times = VolumeCurves.CreationTimes(pathway, Now, new Random(Seed));
@@ -77,20 +113,21 @@ public sealed class VolumeCurvesTests
     [Test]
     public void CreationTimes_FollowTheCurve_WeekByWeek()
     {
-        var times = VolumeCurves.CreationTimes(Pathway.Diagnostic, Now, new Random(Seed));
+        var times = VolumeCurves.CreationTimes(Pathway.SkinLesion, Now, new Random(Seed));
         var thisMonday = InsightsPeriod.MondayOf(UkTime.DateOf(Now));
         int InWeek(int weeksAgo) => times.Count(t => InsightsPeriod.MondayOf(UkTime.DateOf(t)) == thisMonday.AddDays(-7 * weeksAgo));
 
-        InWeek(2).Should().BeInRange(11, 13);
-        InWeek(9).Should().BeInRange(2, 4);
-        InWeek(5).Should().BeInRange(5, 7);
+        InWeek(2).Should().Be(8);
+        InWeek(5).Should().Be(8);
+        InWeek(VolumeCurves.SkinLesionRedesignedWeeksAgo).Should().BeInRange(3, 4, "3.75 in its first week, in July");
+        InWeek(VolumeCurves.SkinLesionRedesignedWeeksAgo + 1).Should().Be(0);
     }
 
     [Test]
     public void CreationTimes_SameSeed_GiveTheSameTimes()
     {
-        var first = VolumeCurves.CreationTimes(Pathway.Surgical, Now, new Random(Seed));
-        var second = VolumeCurves.CreationTimes(Pathway.Surgical, Now, new Random(Seed));
+        var first = VolumeCurves.CreationTimes(Pathway.Prostate, Now, new Random(Seed));
+        var second = VolumeCurves.CreationTimes(Pathway.Prostate, Now, new Random(Seed));
 
         first.Should().Equal(second);
     }

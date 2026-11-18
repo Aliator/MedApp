@@ -15,7 +15,7 @@ namespace MedApp.DevMcp.DemoData;
 public sealed record DemoSeedOptions(int Seed, DateTime NowUtc, IReadOnlyCollection<string> KeepUsers);
 
 /// <summary>
-/// Wipes the local database's data and fills it with the demo clinic: about 18 months of synthetic records, replayed
+/// Wipes the local database's data and fills it with the demo centre: about 18 months of synthetic records, replayed
 /// through the app's own rules (see <c>docs/demo-data.md</c> for what's in it and where to see each feature).
 /// It runs with a service provider of its own (<see cref="SeedServices"/>), whose clock and activity actor it moves,
 /// so the handlers it calls write history at the right moments and by the right people.
@@ -60,7 +60,7 @@ public static class DemoDataSeeder
         var (definitions, templates) = await CreatePathwaysAsync(services, timeline, ct);
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
-        var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, timeline, ct);
+        var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
 
         var plans = ProcedurePlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
@@ -175,7 +175,7 @@ public static class DemoDataSeeder
         };
     }
 
-    /// <summary>The stage definitions and templates, written as an admin set them up when the clinic started.</summary>
+    /// <summary>The stage definitions and pathway templates, written as an admin set them up when the centre started.</summary>
     private static async Task<(Dictionary<string, PatientProcedureStageDefinition> Definitions, Dictionary<Pathway, PatientProcedureStageTemplate> Templates)> CreatePathwaysAsync(
         SeedServices services, DemoTimeline timeline, CancellationToken ct)
     {

@@ -211,7 +211,7 @@ public static class DemoActivity
         }
 
         // A few sign-ins refused for a name no account has (a typo): by no account, with the name typed.
-        foreach (var (typo, daysAgo) in new[] { ("k.elison", 9), ("h.mash", 23), ("admn", 41) })
+        foreach (var (typo, daysAgo) in new[] { ("b.sandifrod", 9), ("h.mash", 23), ("admn", 41) })
         {
             var at = DemoTimeline.WorkingMoment(timeline.NowUtc.AddDays(-daysAgo), 8, 12);
             Add(at, RefusedSignIn.Action, null, details: RefusedSignIn.Details, actor: new ActivityActor(null, typo, "192.0.2.40"));

@@ -18,17 +18,34 @@ using ModelContextProtocol;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>What a member of staff does at the clinic, which decides the work they're given.</summary>
+/// <summary>What a member of staff does at the centre, which decides the work they're given.</summary>
 public enum StaffKind
 {
     ClinicalLead,
     ServiceManager,
-    Surgeon,
-    Endoscopist,
-    Nurse,
-    MinorProceduresNurse,
-    PartTimeNurse,
-    Physiotherapist,
+    Dermatologist,
+
+    /// <summary>A GP with a special interest in skin.</summary>
+    SkinGp,
+
+    /// <summary>The visiting consultant gynaecologist: here two days a week.</summary>
+    Gynaecologist,
+
+    /// <summary>The visiting consultant urologist: here a day and a half a week.</summary>
+    Urologist,
+
+    /// <summary>The clinical nurse specialist for skin cancer.</summary>
+    SkinCancerNurse,
+
+    /// <summary>The clinical nurse specialist for diabetes, part-time.</summary>
+    DiabetesNurse,
+
+    /// <summary>The lab: histology, blood and urine tests.</summary>
+    BiomedicalScientist,
+
+    /// <summary>The podiatrist who runs the biomechanics service.</summary>
+    Podiatrist,
+    Pharmacist,
     BookingCoordinator,
     HealthcareAssistant,
     NewStarter,
@@ -49,7 +66,6 @@ public sealed record StaffSeed(
     string Name,
     string JobTitle,
     StaffKind Kind,
-    string WeekTemplate,
     EmailState Email = EmailState.Confirmed);
 
 /// <summary>A member of staff as created: their account's ID and the password they sign in with.</summary>
@@ -82,44 +98,60 @@ public sealed class StaffMember(StaffSeed seed, Guid id)
 
     public ActivityActor ActivityActor => new(Id, Username, IpAddress);
 
-    public string Email => $"{Username}@clinic.example";
+    public string Email => $"{Username}@{DemoStaff.EmailDomain}";
 }
 
-/// <summary>The clinic's staff, and creating their accounts through the app's own commands.</summary>
+/// <summary>The centre's staff, and creating their accounts through the app's own commands.</summary>
 public static class DemoStaff
 {
+    /// <summary>The reserved domain staff email addresses are on (<c>.example</c> is never anyone's).</summary>
+    public const string EmailDomain = "centre.example";
+
     public const string ManagerUsername = "j.whitlock";
     public const string CoordinatorUsername = "h.marsh";
     public const string LockedUsername = "c.dunmore";
     public const string NewStarterUsername = "e.rowntree";
     public const string LeaverUsername = "g.harrow";
     public const string TwoFactorUsername = ManagerUsername;
-    public const string NoAssignmentNotificationsUsername = "m.fairbanks";
-    public const string PasswordResetUsername = "a.pemberton";
+
+    public const string DermatologistUsername = "n.thornbury";
+    public const string SkinGpUsername = "t.hallworth";
+    public const string GynaecologistUsername = "f.linton";
+    public const string UrologistUsername = "o.penhale";
+    public const string SkinCancerNurseUsername = "b.sandiford";
+    public const string DiabetesNurseUsername = "m.carrow";
+    public const string ScientistUsername = "r.aldous";
+    public const string PodiatristUsername = "s.winterburn";
+    public const string PharmacistUsername = "d.quince";
+
+    public const string NoAssignmentNotificationsUsername = GynaecologistUsername;
+    public const string PasswordResetUsername = PodiatristUsername;
 
     /// <summary>Everyone but admin (the kept account, the clinical lead). Invented names.</summary>
     public static readonly StaffSeed[] Roster =
     [
-        new(ManagerUsername, "Jo Whitlock", "Service manager", StaffKind.ServiceManager, "Office"),
-        new("r.calloway", "Rhian Calloway", "Consultant surgeon", StaffKind.Surgeon, "Surgeon"),
-        new("d.ashworth", "Dev Ashworth", "Consultant surgeon", StaffKind.Surgeon, "Surgeon"),
-        new(NoAssignmentNotificationsUsername, "Maya Fairbanks", "Consultant gastroenterologist", StaffKind.Endoscopist, "Endoscopy"),
-        new("k.ellison", "Kerry Ellison", "Nurse: pre-assessment and recovery", StaffKind.Nurse, "Nursing"),
-        new("s.brightwell", "Sam Brightwell", "Nurse: minor procedures clinic", StaffKind.MinorProceduresNurse, "Nursing"),
-        new("l.northcott", "Leah Northcott", "Nurse: wound care and follow-up (part-time)", StaffKind.PartTimeNurse, "Part-time (mornings)"),
-        new(PasswordResetUsername, "Alex Pemberton", "Physiotherapist", StaffKind.Physiotherapist, "Physiotherapy"),
-        new(CoordinatorUsername, "Hannah Marsh", "Booking coordinator", StaffKind.BookingCoordinator, "Office"),
-        new(LockedUsername, "Chris Dunmore", "Healthcare assistant", StaffKind.HealthcareAssistant, "Nursing", EmailState.None),
-        new(NewStarterUsername, "Eden Rowntree", "Staff nurse (new starter)", StaffKind.NewStarter, "Nursing", EmailState.Pending),
-        new(LeaverUsername, "Gray Harrow", "Consultant surgeon (left)", StaffKind.Leaver, "Surgeon"),
+        new(ManagerUsername, "Jo Whitlock", "Service manager", StaffKind.ServiceManager),
+        new(DermatologistUsername, "Nadia Thornbury", "Consultant dermatologist", StaffKind.Dermatologist),
+        new(SkinGpUsername, "Tom Hallworth", "GP with a special interest in skin", StaffKind.SkinGp),
+        new(GynaecologistUsername, "Farah Linton", "Consultant gynaecologist (visiting)", StaffKind.Gynaecologist),
+        new(UrologistUsername, "Owen Penhale", "Consultant urologist (visiting)", StaffKind.Urologist),
+        new(SkinCancerNurseUsername, "Bea Sandiford", "Clinical nurse specialist: skin cancer", StaffKind.SkinCancerNurse),
+        new(DiabetesNurseUsername, "Mina Carrow", "Clinical nurse specialist: diabetes (part-time)", StaffKind.DiabetesNurse),
+        new(ScientistUsername, "Ravi Aldous", "Biomedical scientist (the lab)", StaffKind.BiomedicalScientist),
+        new(PodiatristUsername, "Sol Winterburn", "Podiatrist: biomechanics", StaffKind.Podiatrist),
+        new(PharmacistUsername, "Dara Quince", "Pharmacist", StaffKind.Pharmacist),
+        new(CoordinatorUsername, "Hannah Marsh", "Booking coordinator", StaffKind.BookingCoordinator),
+        new(LockedUsername, "Chris Dunmore", "Healthcare assistant", StaffKind.HealthcareAssistant, EmailState.None),
+        new(NewStarterUsername, "Eden Rowntree", "Staff nurse (new starter)", StaffKind.NewStarter, EmailState.Pending),
+        new(LeaverUsername, "Gray Harrow", "GP with a special interest in skin (left)", StaffKind.Leaver),
     ];
 
-    /// <summary>The kept admin account, as the clinic's lead: a consultant surgeon who's also an admin.</summary>
-    public static readonly StaffSeed Lead = new(TestAdminTools.Username, "Clinical lead", "Clinical lead, consultant surgeon", StaffKind.ClinicalLead, "Clinical lead");
+    /// <summary>The kept admin account, as the centre's lead: a consultant physician who's also an admin.</summary>
+    public static readonly StaffSeed Lead = new(TestAdminTools.Username, "Clinical lead", "Clinical lead, consultant physician (diabetes)", StaffKind.ClinicalLead);
 
     /// <summary>
     /// Creates every account but the leaver's deletion and the special cases done later, each at the moment it was
-    /// made in the clinic's story, through the app's commands: the generated first password (which, as for every
+    /// made in the centre's story, through the app's commands: the generated first password (which, as for every
     /// account medapp-dev makes, needn't be changed, except the new starter's), the email address and its
     /// confirmation, and the roles, all recorded in the activity log as the app records them.
     /// </summary>
@@ -144,7 +176,7 @@ public static class DemoStaff
             var createdAt = timeline.AccountCreatedUtc(seed.Kind);
             services.At(createdAt, lead.ActivityActor);
 
-            var email = seed.Email == EmailState.None ? null : $"{seed.Username}@clinic.example";
+            var email = seed.Email == EmailState.None ? null : $"{seed.Username}@{EmailDomain}";
             var result = await services.Run(sp => Guards.Validated(() =>
                 sp.GetRequiredService<IMediator>().Send(new CreateUserCommand(seed.Username, email, lead.Id, lead.Username), ct)));
             if (!result.Succeeded)
@@ -222,22 +254,22 @@ public static class DemoStaff
         manager.RecoveryCodes = codes.RecoveryCodes;
 
         // A forgotten password: reset by an admin, then changed by its owner, as the app makes them.
-        var physio = Get(staff, PasswordResetUsername);
+        var podiatrist = Get(staff, PasswordResetUsername);
         services.At(timeline.PasswordResetUtc, manager.ActivityActor);
         var reset = await services.Run(sp =>
             sp.GetRequiredService<IMediator>().Send(new ResetUserPasswordCommand(PasswordResetUsername), ct));
         var chosen = Passwords.Generate();
-        services.At(timeline.PasswordResetUtc.AddHours(1), physio.ActivityActor);
+        services.At(timeline.PasswordResetUtc.AddHours(1), podiatrist.ActivityActor);
         var changed = await services.Run(sp => Guards.Validated(() =>
             sp.GetRequiredService<IMediator>().Send(new UpdateUserPasswordCommand(PasswordResetUsername, reset.GeneratedPassword!, chosen), ct)));
         Guards.Check(changed, $"Change {PasswordResetUsername}'s password");
-        physio.Password = chosen;
+        podiatrist.Password = chosen;
 
         // Turned off being told of assignments (Account Settings).
-        var endoscopist = Get(staff, NoAssignmentNotificationsUsername);
-        services.At(timeline.NotificationsTurnedOffUtc, endoscopist.ActivityActor);
+        var optedOut = Get(staff, NoAssignmentNotificationsUsername);
+        services.At(timeline.NotificationsTurnedOffUtc, optedOut.ActivityActor);
         await services.Run(sp =>
-            sp.GetRequiredService<IMediator>().Send(new UpdateMyNotificationPreferencesCommand(endoscopist.Id, ProcedureAssigned: false), ct));
+            sp.GetRequiredService<IMediator>().Send(new UpdateMyNotificationPreferencesCommand(optedOut.Id, ProcedureAssigned: false), ct));
 
         foreach (var member in staff)
             if (member.Kind == StaffKind.Leaver)

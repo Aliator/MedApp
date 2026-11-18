@@ -5,15 +5,16 @@ using MedApp.Domain.Notifications;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// The clinic's meetings, past and upcoming, each arranged by an admin at a moment in the story and replayed through
+/// The centre's meetings, past and upcoming, each arranged by an admin at a moment in the story and replayed through
 /// the app's meeting steps (<see cref="MeetingStory"/>):
 /// <list type="bullet">
-/// <item>every week: the <b>Monday huddle</b> (08:30, everyone in) and the <b>MDT</b> (Friday 13:30, the clinicians),
-/// arranged eight weeks at a time;</item>
+/// <item>every week: the <b>Monday huddle</b> (08:30, everyone in) and the <b>skin cancer team meeting</b> (Friday
+/// 13:30: the skin clinicians, the nurse specialist and the lab), arranged eight weeks at a time;</item>
 /// <item>every month: <b>Clinical governance</b> (the second Wednesday, 16:00) and four <b>1:1 catch-ups</b>;</item>
-/// <item>every six weeks: <b>mandatory training</b> for the nurses, the healthcare assistant and the physiotherapist;</item>
-/// <item>one-offs: the new starter's <b>welcome</b>, <b>theatre list planning</b> on the diary day (moved, with the
-/// booking coordinator added), and an <b>away day planning</b> meeting that was cancelled.</item>
+/// <item>every six weeks: <b>mandatory training</b> for the nurses, the healthcare assistant, the podiatrist and the
+/// pharmacist;</item>
+/// <item>one-offs: the new starter's <b>welcome</b>, <b>minor surgery list planning</b> on the diary day (moved, with
+/// the booking coordinator added), and an <b>away day planning</b> meeting that was cancelled.</item>
 /// </list>
 /// Each is checked as the handlers check it: inside the working day, not on a past day, and clear of everything on
 /// every attendee's calendar (<see cref="CalendarClashes"/>); a time to find is found as the app's suggested times find
@@ -30,11 +31,11 @@ namespace MedApp.DevMcp.DemoData;
 public sealed class DemoMeetings
 {
     public const string Huddle = "Monday huddle";
-    public const string Mdt = "MDT";
+    public const string SkinCancerTeam = "Skin cancer team meeting";
     public const string Governance = "Clinical governance";
     public const string OneToOne = "1:1 catch-up";
     public const string Welcome = "Welcome and induction";
-    public const string TheatrePlanning = "Theatre list planning";
+    public const string ListPlanning = "Minor surgery list planning";
     public const string AwayDayPlanning = "Away day planning";
 
     private readonly DemoCalendars _calendars;
@@ -85,33 +86,41 @@ public sealed class DemoMeetings
 
     private IEnumerable<StaffMember> OfKind(params StaffKind[] kinds) => _staff.Where(s => kinds.Contains(s.Kind));
 
+    /// <summary>Who goes to the skin cancer team meeting: the lead (who chairs it), the skin clinicians, the nurse specialist and the lab.</summary>
+    public static readonly StaffKind[] SkinCancerTeamKinds =
+    [
+        StaffKind.ClinicalLead, StaffKind.Dermatologist, StaffKind.SkinGp, StaffKind.Leaver, StaffKind.SkinCancerNurse, StaffKind.BiomedicalScientist,
+    ];
+
     private void Build()
     {
         var firstMonday = _timeline.ThisMonday.AddDays(-7 * VolumeCurves.HistoryWeeks);
         var horizon = _timeline.Today.AddDays(7 * (MeetingSchedule.BatchWeeks + MeetingSchedule.BatchLeadWeeks));
         var now = _timeline.NowUtc;
 
-        // Weekly: everyone in on Monday morning; the clinicians' MDT on Friday afternoon.
+        // Weekly: everyone in on Monday morning; the skin cancer team meeting on Friday afternoon, with the lab.
         var everyone = _staff.Where(s => s.Kind != StaffKind.ClinicalLead).Prepend(Lead).ToList();
         foreach (var date in MeetingSchedule.Weekly(firstMonday, horizon, DayOfWeek.Monday))
             if (BatchArrangedUtc(date, firstMonday) is { } arranged)
                 Arrange(Huddle, "The week ahead: cover, leave and room changes.", date, new(8, 30), 15, everyone, _ => Lead, arranged);
 
-        var clinicians = OfKind(StaffKind.ClinicalLead, StaffKind.Surgeon, StaffKind.Leaver, StaffKind.Endoscopist, StaffKind.Nurse, StaffKind.MinorProceduresNurse).ToList();
+        var skinTeam = OfKind(SkinCancerTeamKinds).ToList();
         foreach (var date in MeetingSchedule.Weekly(firstMonday, horizon, DayOfWeek.Friday))
             if (BatchArrangedUtc(date, firstMonday) is { } arranged)
-                Arrange(Mdt, "Weekly multidisciplinary team meeting. The agenda goes round on Thursday.", date, new(13, 30), 60, clinicians, _ => Lead, arranged);
+                Arrange(SkinCancerTeam, "Weekly team meeting: the week's histology reports and treatment plans. The list goes round on Thursday.",
+                    date, new(13, 30), 60, skinTeam, _ => Lead, arranged);
 
         // Monthly: clinical governance, arranged three weeks ahead.
-        var governance = OfKind(StaffKind.ClinicalLead, StaffKind.ServiceManager, StaffKind.Surgeon, StaffKind.Leaver, StaffKind.Endoscopist,
-            StaffKind.Nurse, StaffKind.MinorProceduresNurse, StaffKind.PartTimeNurse, StaffKind.Physiotherapist).ToList();
+        var governance = OfKind(StaffKind.ClinicalLead, StaffKind.ServiceManager, StaffKind.Dermatologist, StaffKind.SkinGp, StaffKind.Leaver,
+            StaffKind.Gynaecologist, StaffKind.Urologist, StaffKind.SkinCancerNurse, StaffKind.DiabetesNurse, StaffKind.BiomedicalScientist,
+            StaffKind.Podiatrist, StaffKind.Pharmacist).ToList();
         foreach (var date in MeetingSchedule.MonthlyNth(firstMonday, horizon, DayOfWeek.Wednesday, 2))
             if (ArrangedUtc(date.AddDays(-21), 14, 0) is { } arranged)
                 Arrange(Governance, "Incidents and learning, audit results and policy updates.", date, new(16, 0), 60, governance, ManagerOrLeadAt, arranged);
 
         // Every six weeks: mandatory training, at a time everyone going is free (Tuesday to Thursday, from 09:00).
-        var trainees = OfKind(StaffKind.Nurse, StaffKind.MinorProceduresNurse, StaffKind.PartTimeNurse, StaffKind.HealthcareAssistant,
-            StaffKind.NewStarter, StaffKind.Physiotherapist).ToList();
+        var trainees = OfKind(StaffKind.SkinCancerNurse, StaffKind.DiabetesNurse, StaffKind.HealthcareAssistant,
+            StaffKind.NewStarter, StaffKind.Podiatrist, StaffKind.Pharmacist).ToList();
         var session = 0;
         for (var monday = firstMonday.AddDays(14); monday <= horizon; monday = monday.AddDays(7 * MeetingSchedule.TrainingEveryWeeks), session++)
         {
@@ -126,13 +135,14 @@ public sealed class DemoMeetings
         }
 
         // Monthly 1:1s, over the last four months and the next: the service manager with the office and the healthcare
-        // assistant, the lead with two nurses. In the week of the month's second Tuesday, from 10:00.
+        // assistant, the lead with the pharmacist and the skin cancer nurse specialist. In the week of the month's second
+        // Tuesday, from 10:00.
         var pairs = new[]
         {
             (Manager, Member(DemoStaff.CoordinatorUsername)),
             (Manager, Member(DemoStaff.LockedUsername)),
-            (Lead, Member("k.ellison")),
-            (Lead, Member("s.brightwell")),
+            (Lead, Member(DemoStaff.PharmacistUsername)),
+            (Lead, Member(DemoStaff.SkinCancerNurseUsername)),
         };
         var firstMonth = new DateOnly(_timeline.Today.Year, _timeline.Today.Month, 1).AddMonths(-4);
         foreach (var tuesday in MeetingSchedule.MonthlyNth(firstMonth, firstMonth.AddMonths(6).AddDays(-1), DayOfWeek.Tuesday, 2))
@@ -147,7 +157,7 @@ public sealed class DemoMeetings
         }
 
         WelcomeTheNewStarter();
-        PlanTheatreLists(now);
+        PlanTheLists(now);
         CancelTheAwayDay(now);
         MoveTheNextGovernance(now);
         MoveTheNextOneToOne(now);
@@ -197,33 +207,33 @@ public sealed class DemoMeetings
             story.Reply(member, reply, at);
     }
 
-    /// <summary>The new starter's first morning (or the next free one): with the nurse who'll mentor them, and the service manager.</summary>
+    /// <summary>The new starter's first morning (or the next free one): with the nurse specialist who'll mentor them, and the service manager.</summary>
     private void WelcomeTheNewStarter()
     {
         var starter = _staff.Single(s => s.Kind == StaffKind.NewStarter);
-        var people = new[] { starter, Member("k.ellison"), Manager };
+        var people = new[] { starter, Member(DemoStaff.SkinCancerNurseUsername), Manager };
         var arranged = starter.StartedUtc.AddMinutes(20);
         var days = WorkingDaysFrom(UkTime.DateOf(starter.StartedUtc).AddDays(1), 3);
         if (FindTime(people, days, 60, new(9, 30), arranged) is { } time)
-            Arrange(Welcome, "Introductions, a tour of the unit, IT accounts and the mandatory training plan.", time, people, ManagerOrLeadAt, arranged);
+            Arrange(Welcome, "Introductions, a tour of the centre, IT accounts and the mandatory training plan.", time, people, ManagerOrLeadAt, arranged);
     }
 
     /// <summary>
-    /// Theatre list planning on the lead's diary day, arranged nine days ago with the surgeons (in the afternoon if they
-    /// can); three days ago it moved and the booking coordinator was added, so its notifications ("Meeting moved",
-    /// "Meeting invitation") show.
+    /// Minor surgery list planning on the lead's diary day, arranged nine days ago with the two skin clinicians (in the
+    /// afternoon if they can); three days ago it moved and the booking coordinator was added, so its notifications
+    /// ("Meeting moved", "Meeting invitation") show.
     /// </summary>
-    private void PlanTheatreLists(DateTime now)
+    private void PlanTheLists(DateTime now)
     {
         const int minutes = 30;
         var arranged = DemoTimeline.WorkingMoment(now.AddDays(-9), 10, 0);
-        var people = new[] { Lead, Member("r.calloway"), Member("d.ashworth") };
+        var people = new[] { Lead, Member(DemoStaff.DermatologistUsername), Member(DemoStaff.SkinGpUsername) };
         var day = _timeline.DiaryDay;
         if ((FindTime(people, [day], minutes, new(12, 0), arranged) ?? FindTime(people, [day], minutes, WorkingHours.Start, arranged)) is not { } time
-            || Arrange(TheatrePlanning, "Next month's theatre lists, and cover for leave.", time, people, ManagerOrLeadAt, arranged) is not { } story)
+            || Arrange(ListPlanning, "Next month's minor surgery lists, and cover for leave.", time, people, ManagerOrLeadAt, arranged) is not { } story)
             return;
 
-        // To the first time after it (else before it) when the coordinator can come too, else when the surgeons can.
+        // To the first time after it (else before it) when the coordinator can come too, else when the clinicians can.
         var changed = DemoTimeline.WorkingMoment(now.AddDays(-3), 15, 0);
         var coordinator = Member(DemoStaff.CoordinatorUsername);
         var current = story.Meeting.StartUtc;
@@ -247,7 +257,11 @@ public sealed class DemoMeetings
     private void CancelTheAwayDay(DateTime now)
     {
         var arranged = DemoTimeline.WorkingMoment(now.AddDays(-18), 11, 0);
-        var people = new[] { Lead, Manager, Member("r.calloway"), Member("d.ashworth"), Member(DemoStaff.NoAssignmentNotificationsUsername), Member("k.ellison") };
+        var people = new[]
+        {
+            Lead, Manager, Member(DemoStaff.DermatologistUsername), Member(DemoStaff.SkinGpUsername), Member(DemoStaff.PharmacistUsername),
+            Member(DemoStaff.SkinCancerNurseUsername),
+        };
         var nextMonday = _timeline.ThisMonday.AddDays(7);
         if (FindTime(people, [nextMonday.AddDays(1), nextMonday.AddDays(2), nextMonday.AddDays(3)], 60, new(14, 0), arranged) is not { } time
             || Arrange(AwayDayPlanning, "Agenda and venue for the spring away day.", time, people, ManagerOrLeadAt, arranged) is not { } story)
@@ -270,11 +284,11 @@ public sealed class DemoMeetings
             ManagerOrLeadAt, now.AddDays(-10), 11, 0);
     }
 
-    /// <summary>The lead's next 1:1 with the pre-assessment nurse, moved an hour or so.</summary>
+    /// <summary>The lead's next 1:1 with the pharmacist, moved an hour or so.</summary>
     private void MoveTheNextOneToOne(DateTime now)
     {
-        var nurse = Member("k.ellison");
-        if (NextUpcoming(OneToOne, now, s => s.Meeting.Attendees.Any(a => a.StaffUserId == nurse.Id)) is not { } story)
+        var pharmacist = Member(DemoStaff.PharmacistUsername);
+        if (NextUpcoming(OneToOne, now, s => s.Meeting.Attendees.Any(a => a.StaffUserId == pharmacist.Id)) is not { } story)
             return;
         var start = story.Meeting.StartUtc;
         var end = story.Meeting.EndUtc;
@@ -324,7 +338,7 @@ public sealed class DemoMeetings
         ArrangedUtc(MeetingSchedule.BatchArrangedOn(date, firstMonday), 9, 30);
 
     /// <summary>
-    /// A working moment on or after a date when something was arranged: not before the clinic got going (the Friday
+    /// A working moment on or after a date when something was arranged: not before the centre got going (the Friday
     /// before it started using MedApp), and null if it's still to come.
     /// </summary>
     private DateTime? ArrangedUtc(DateOnly date, int hour, int minute)
@@ -361,7 +375,7 @@ public sealed class DemoMeetings
 
     /// <summary>
     /// Arranges a meeting with whoever of <paramref name="invitees"/> can go, and replays what followed: people who
-    /// joined the clinic later added, and people who booked leave (or other time) over it later taken off first, as
+    /// joined the centre later added, and people who booked leave (or other time) over it later taken off first, as
     /// the app would need before that time could be booked. Null if nobody could go.
     /// </summary>
     private MeetingStory? Arrange(string title, string notes, TimeRange time, IEnumerable<StaffMember> invitees,
