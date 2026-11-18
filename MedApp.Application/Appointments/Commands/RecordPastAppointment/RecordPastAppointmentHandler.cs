@@ -18,7 +18,7 @@ namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
 
 /// <summary>
 /// Records an appointment after the event (a walk-in). Through <see cref="AppointmentChange.RecordAfterEvent"/>, so
-/// its history says who recorded it and when. For a stage, its visit in Needs booking (Requested) becomes the recorded
+/// its history says who recorded it and when. For a stage, its visit in Requires Appointment (Requested) becomes the recorded
 /// one rather than being cancelled beside a new one: the stage keeps one appointment per visit, its history reads
 /// "requested, then recorded after the event", and an Attended one is the visit a Required stage needs before it's
 /// finished. A stage with a visit Booked is a 409: that one should be given its outcome, or cancelled, first.

@@ -84,7 +84,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(dialog().queryByText('Requested')).not.toBeInTheDocument();
     unmount();
 
-    // A visit waiting in Needs booking, recorded later: it was asked for first.
+    // A visit waiting in Requires Appointment, recorded later: it was asked for first.
     renderDialog({...walkIn, isAutomatic: true, createdAtUtc: '2026-11-10T10:00:00Z'});
     expect(await dialog().findByText('Recorded after the event')).toBeInTheDocument();
     expect(dialog().getByText('Requested')).toBeInTheDocument();

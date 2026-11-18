@@ -93,7 +93,7 @@ export interface StageVisitProps {
   onOutcome: (booked: Appointment, outcome: 'Attended' | 'DidNotAttend') => void;
   /**
    * Record a visit that has already happened (a walk-in, or one booked outside MedApp), with its outcome: offered while
-   * nothing is booked (none, Needs booking, or after one the patient didn't attend). Left out, it isn't offered.
+   * nothing is booked (none, Requires appointment, or after one the patient didn't attend). Left out, it isn't offered.
    */
   onRecordPast?: () => void;
 }

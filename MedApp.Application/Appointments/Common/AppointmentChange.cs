@@ -77,8 +77,8 @@ public sealed class AppointmentChange(
     /// <summary>
     /// Records an appointment that has already happened (a walk-in, or one booked outside MedApp), with its member of
     /// staff, time and outcome, as one history entry (<see cref="AppointmentEventAction.RecordedAfterEvent"/>, with the
-    /// outcome and, for a stage's visit in Needs booking, its previous status). The actor recorded it, now: they're
-    /// its booker and the outcome's recorder. A new appointment, or a Requested one (a stage's visit in Needs booking,
+    /// outcome and, for a stage's visit in Requires Appointment, its previous status). The actor recorded it, now: they're
+    /// its booker and the outcome's recorder. A new appointment, or a Requested one (a stage's visit in Requires Appointment,
     /// <paramref name="wasRequested"/>), only.
     /// </summary>
     public void RecordAfterEvent(

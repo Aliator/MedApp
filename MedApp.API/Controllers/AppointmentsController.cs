@@ -50,7 +50,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Records an appointment that has already happened (a walk-in, or one booked outside MedApp) with its outcome:
-    /// started within the last 30 days, on a working day. A stage's visit in Needs booking becomes this one.
+    /// started within the last 30 days, on a working day. A stage's visit in Requires Appointment becomes this one.
     /// </summary>
     [HttpPost("past")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]

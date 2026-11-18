@@ -139,7 +139,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   const canBookAnother = (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
   const purpose = appointmentPurpose(appointment);
 
-  // One recorded after the event (a walk-in) was never asked for, unless it was a visit waiting in Needs booking (asked
+  // One recorded after the event (a walk-in) was never asked for, unless it was a visit waiting in Requires Appointment (asked
   // for earlier); it was recorded, not booked.
   const isWalkIn = appointment.isRecordedAfterEvent === true;
   const wasRequested = !isWalkIn || !sameMoment(appointment.createdAtUtc, appointment.bookedAtUtc);

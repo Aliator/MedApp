@@ -17,7 +17,7 @@ namespace MedApp.IntegrationTests.Appointments;
 
 /// <summary>
 /// Appointments recorded after the event (walk-ins): the time rules, the clash with other appointments (but not with
-/// blocked time), a stage's visit in Needs booking becoming the recorded one so a Required stage can be finished, the
+/// blocked time), a stage's visit in Requires Appointment becoming the recorded one so a Required stage can be finished, the
 /// restriction guard, the history and timeline entry, and the notification to the member of staff.
 /// </summary>
 [TestFixture]
@@ -164,7 +164,7 @@ public sealed class PastAppointmentTests : IntegrationTest
                 procedureId: procedure.Id, stageId: stage.Id))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
-        recorded.Id.Should().Be(requested.Id, "the stage's visit in Needs booking is the one recorded");
+        recorded.Id.Should().Be(requested.Id, "the stage's visit in Requires Appointment is the one recorded");
         (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new { Status = "Attended", IsRecordedAfterEvent = true });
         (await TimelineAsync(_staff.Client, _patient.Id)).Select(e => (e.Action, e.FromStatus))

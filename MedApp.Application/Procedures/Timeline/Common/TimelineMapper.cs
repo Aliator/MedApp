@@ -162,7 +162,7 @@ public static class TimelineMapper
                 break;
 
             case AppointmentEventAction.RecordedAfterEvent:
-                // The outcome, and Requested when it was a stage's visit in Needs booking: structured values.
+                // The outcome, and Requested when it was a stage's visit in Requires Appointment: structured values.
                 response.FromStatus = Text(details, "previousStatus");
                 response.ToStatus = Text(details, "outcome");
                 break;

@@ -83,7 +83,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     expect(dialog().getByText(/already happened: a walk-in, or one booked outside MedApp\. It.s recorded with your\s+name \(test-user\)/)).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
     expect(dialog().queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
-    expect(dialog().getByText(/waiting in Needs booking, this records that visit/)).toBeInTheDocument();
+    expect(dialog().getByText(/waiting in Requires Appointment, this records that visit/)).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_ME.userId}&From=${FROM}&To=${TODAY}`);
 
     // Today first; then the working days back to 30 days ago, never a weekend or the closed day.

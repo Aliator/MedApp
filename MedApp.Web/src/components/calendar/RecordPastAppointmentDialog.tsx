@@ -64,7 +64,7 @@ export interface RecordPastAppointmentDialogProps {
  * recording (hazard H-34, and the walk-in hazard: the wrong patient). A restricted or anonymised record can't be
  * changed, so it says why and offers no Record. The server has the final word: a 400 shows on the fields; a 409 (it
  * overlaps another appointment, the stage's visit is booked already) keeps the dialog open with its message and
- * refreshes the calendars and appointment lists. For a stage whose visit is in Needs booking, the server records that
+ * refreshes the calendars and appointment lists. For a stage whose visit is in Requires Appointment, the server records that
  * visit rather than a new one.
  *
  * Use it from the Calendar page's New menu and a stage's visit (Record Past Visit).
@@ -279,7 +279,7 @@ function RecordPastForm({isOpen, onClose, onSaved, patient, procedure, stage, st
       )}
       {chosenStageId !== undefined && (
         <Text type="supporting" color="secondary">
-          If the stage&apos;s visit is waiting in Needs booking, this records that visit.
+          If the stage&apos;s visit is waiting in Requires Appointment, this records that visit.
         </Text>
       )}
       <Selector

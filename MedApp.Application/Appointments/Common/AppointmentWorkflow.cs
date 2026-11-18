@@ -12,7 +12,7 @@ namespace MedApp.Application.Appointments.Common;
 /// Booked one can be moved the same way. Once its start has passed, it's marked Attended or Did not attend, which can
 /// be corrected either way. Requested and Booked ones can be Cancelled, with a reason; Cancelled is final. An
 /// appointment that already happened (a walk-in) is recorded after the event straight to Attended or Did not attend,
-/// within <see cref="BookingTimes.RecordAfterEventDays"/> days; a stage's visit in Needs booking becomes that one.
+/// within <see cref="BookingTimes.RecordAfterEventDays"/> days; a stage's visit in Requires Appointment becomes that one.
 /// </para>
 /// </summary>
 public static partial class AppointmentWorkflow
@@ -92,7 +92,7 @@ public static partial class AppointmentWorkflow
     };
 
     /// <summary>
-    /// Why an appointment can't be recorded after the event for a stage that has a visit Booked (one in Needs booking
+    /// Why an appointment can't be recorded after the event for a stage that has a visit Booked (one in Requires Appointment
     /// becomes the recorded one instead): record that one's outcome, or cancel it, so the stage isn't left with two.
     /// </summary>
     public static string StageHasBookedVisit(Appointment booked, string? staffUsername) =>
@@ -100,7 +100,7 @@ public static partial class AppointmentWorkflow
         $"{(staffUsername is null ? "" : $" with {staffUsername}")}. " +
         "If that's the one that happened, record its outcome instead; otherwise cancel it first.";
 
-    /// <summary>A stage's visit in Needs booking that someone booked or cancelled while it was being recorded.</summary>
+    /// <summary>A stage's visit in Requires Appointment that someone booked or cancelled while it was being recorded.</summary>
     public const string RequestedVisitChangedMeanwhileMessage =
         "Someone else changed this stage's visit just now. Reload it and try again.";
 

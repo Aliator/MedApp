@@ -104,7 +104,7 @@ export function useCreateAppointment() {
 /**
  * An appointment that has already happened (a walk-in, or one booked outside MedApp), recorded after the event with its
  * outcome: in the last 30 days, on a working day, inside the working day, started by now, and not over another of the
- * member of staff's appointments. For a stage whose visit is in Needs booking, that appointment is the one recorded.
+ * member of staff's appointments. For a stage whose visit is in Requires Appointment, that appointment is the one recorded.
  */
 export type PastAppointment = Schemas['RecordPastAppointmentRequest'];
 

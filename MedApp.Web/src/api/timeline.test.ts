@@ -234,7 +234,7 @@ describe('describeTimelineEntry', () => {
       [{action: 'AppointmentDidNotAttend', fromStatus: 'Attended'}, 'Marked Did not attend for Review', `${slot}. Was marked Attended`],
       [{action: 'AppointmentDidNotAttend', fromStatus: 'Booked'}, 'Marked Did not attend for Review', slot],
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'Attended'}, 'Appointment recorded after the event for Review: attended', slot],
-      [{action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}, 'Appointment recorded after the event for Review: did not attend', `${slot}. Was in Needs booking`],
+      [{action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}, 'Appointment recorded after the event for Review: did not attend', `${slot}. Was in Requires Appointment`],
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'Attended', stageName: null}, 'Appointment recorded after the event: attended', slot],
       [{action: 'AppointmentCancelled', reason: 'Patient asked to cancel.'}, 'Appointment cancelled for Review', `${slot}. Patient asked to cancel.`],
       [{action: 'AppointmentCancelled', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment cancelled for Review', 'Cancelled automatically'],
