@@ -427,6 +427,10 @@ The clinical safety documents are already done (section 8), so the build starts 
 
 **Later questions** take the option recommended for them, on the owner's instruction (18 November 2026). Whoever decides one records it here, as the next number, with the date and "recommended option taken".
 
+12. **The stage reached counts pathways on hold,** but never discharged, cancelled or archived ones, even when the list includes closed pathways or asks for those statuses (decision 42's "open pathways only", read as "not closed": a pathway on hold at Histology is still waiting there). 18 November 2026, recommended option taken.
+13. **Specialty and stage reached filters are "is" or "is any of", never "is not any of":** the API takes the IDs wanted, and the list's URL is read before the specialties and stages are loaded, so "every one but" can't be turned into IDs. 18 November 2026, recommended option taken.
+14. **My Worklist has the specialty and stage reached filters too** (the same search behind it), and Insights' Template choice lists only the chosen specialty's templates, dropping a chosen template that isn't the new specialty's. 18 November 2026, recommended option taken.
+
 ## 11. Left out, for later
 
 - Receiving referrals electronically (the NHS e-Referral Service): Phase 5, after NHS onboarding.

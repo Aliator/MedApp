@@ -19,6 +19,9 @@ public static class PathwaySearch
     public static readonly IReadOnlyList<string> SortColumns =
         [SortByDueDate, SortByPriority, SortByStatus, SortByTitle, SortByPatient, SortByLastUpdated];
 
+    /// <summary>The most IDs a list filter (specialties, stages) may name, so a URL can't make a huge query.</summary>
+    public const int MaxIdsPerFilter = 100;
+
     public static bool IsSortColumn(string sort) =>
         SortColumns.Contains(sort, StringComparer.OrdinalIgnoreCase);
 
@@ -51,6 +54,15 @@ public static class PathwaySearch
 
         if (query.TemplateId is { } templateId)
             pathways = pathways.Where(p => p.TemplateId == templateId);
+
+        if (query.SpecialtyIds is { Count: > 0 } specialtyIds)
+        {
+            var ids = specialtyIds.Distinct().ToList();
+            pathways = pathways.Where(p => ids.Contains(p.SpecialtyId));
+        }
+
+        if (query.StageDefinitionIds is { Count: > 0 } stageDefinitionIds)
+            pathways = pathways.AtStage(stageDefinitionIds);
 
         var statuses = (query.Statuses ?? [])
             .Select(s => PathwayEnums.TryParse<PatientPathwayStatus>(s, out var status) ? status : (PatientPathwayStatus?)null)
@@ -118,6 +130,26 @@ public static class PathwaySearch
         }
 
         return pathways;
+    }
+
+    /// <summary>
+    /// The stage reached: pathways whose current stage (the first unfinished one by order, as
+    /// <see cref="PathwayWorkflow.CurrentStage"/> has it) comes from any of these stage definitions, so "Waiting for
+    /// histology" is the Histology definition. Only pathways not yet closed: a discharged, cancelled or archived one has
+    /// stopped wherever it was, so it isn't waiting at a stage. On hold counts, since it still sits at that stage.
+    /// </summary>
+    public static IQueryable<PatientPathway> AtStage(this IQueryable<PatientPathway> pathways, IEnumerable<Guid> stageDefinitionIds)
+    {
+        // Nullable, to compare with the current stage's definition, which a pathway with every stage finished hasn't got.
+        var ids = stageDefinitionIds.Distinct().Select(id => (Guid?)id).ToList();
+        var closed = PathwayWorkflow.ClosedStatuses.ToList();
+        return pathways.Where(p =>
+            !closed.Contains(p.Status)
+            && ids.Contains(p.Stages
+                .Where(s => !s.IsCompleted)
+                .OrderBy(s => s.StageOrder)
+                .Select(s => (Guid?)s.StageDefinitionId)
+                .FirstOrDefault()));
     }
 
     /// <summary>

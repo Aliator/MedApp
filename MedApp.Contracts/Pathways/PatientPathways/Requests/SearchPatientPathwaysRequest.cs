@@ -28,6 +28,15 @@ public sealed class SearchPatientPathwaysRequest
 
     public Guid? TemplateId { get; set; }
 
+    /// <summary>In any of these specialties (the pathway's own, copied from its template when it was made).</summary>
+    public List<Guid>? SpecialtyIds { get; set; }
+
+    /// <summary>
+    /// The stage reached: pathways whose current stage (the first unfinished one) comes from any of these stage
+    /// definitions. Discharged, cancelled and archived pathways never match.
+    /// </summary>
+    public List<Guid>? StageDefinitionIds { get; set; }
+
     /// <summary>Any of these statuses. When set, it overrides <see cref="IncludeClosed"/>.</summary>
     public List<string>? Statuses { get; set; }
 

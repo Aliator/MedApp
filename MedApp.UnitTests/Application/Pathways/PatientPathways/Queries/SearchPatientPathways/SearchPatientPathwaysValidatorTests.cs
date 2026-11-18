@@ -66,4 +66,21 @@ public sealed class SearchPatientPathwaysValidatorTests
 
         _validator.Validate(query).IsValid.Should().BeFalse();
     }
+
+    [Test]
+    public void Validate_SpecialtiesAndStagesUpToTheLimit_Passes()
+    {
+        var ids = Enumerable.Range(0, PathwaySearch.MaxIdsPerFilter).Select(_ => Guid.NewGuid()).ToList();
+
+        _validator.Validate(CreateSearchQuery() with { SpecialtyIds = ids, StageDefinitionIds = ids }).IsValid.Should().BeTrue();
+    }
+
+    [Test]
+    public void Validate_TooManySpecialtiesOrStages_Fails()
+    {
+        var ids = Enumerable.Range(0, PathwaySearch.MaxIdsPerFilter + 1).Select(_ => Guid.NewGuid()).ToList();
+
+        _validator.Validate(CreateSearchQuery() with { SpecialtyIds = ids }).IsValid.Should().BeFalse();
+        _validator.Validate(CreateSearchQuery() with { StageDefinitionIds = ids }).IsValid.Should().BeFalse();
+    }
 }

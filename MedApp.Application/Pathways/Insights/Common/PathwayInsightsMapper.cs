@@ -16,11 +16,12 @@ public static class PathwayInsightsMapper
     public static PathwayInsightsResponse ToResponse(
         InsightsData data,
         InsightsPeriod period,
-        Guid? templateId,
+        InsightsScope scope,
         IReadOnlyDictionary<Guid, string> usernames) => new()
     {
         Weeks = period.Weeks.Count,
-        TemplateId = templateId,
+        TemplateId = scope.TemplateId,
+        SpecialtyId = scope.SpecialtyId,
         From = period.Weeks[0].Monday,
         To = DueDates.ToUkDate(period.NowUtc),
         Open = Compare(data, s => !PathwayWorkflow.IsClosed(s.Status)),

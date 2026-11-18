@@ -38,4 +38,10 @@ public sealed class GetPathwayInsightsValidatorTests
     {
         _validator.TestValidate(new GetPathwayInsightsQuery(4, Guid.Empty)).ShouldHaveValidationErrorFor(x => x.TemplateId);
     }
+
+    [Test]
+    public void Validate_EmptySpecialtyId_HasError()
+    {
+        _validator.TestValidate(new GetPathwayInsightsQuery(4, null, Guid.Empty)).ShouldHaveValidationErrorFor(x => x.SpecialtyId);
+    }
 }

@@ -8,4 +8,7 @@ public sealed class GetPathwayInsightsRequest
 
     /// <summary>Only pathways made from this template. Unset: every pathway.</summary>
     public Guid? TemplateId { get; set; }
+
+    /// <summary>Only pathways in this specialty (their own, copied from the template). Unset: every specialty.</summary>
+    public Guid? SpecialtyId { get; set; }
 }

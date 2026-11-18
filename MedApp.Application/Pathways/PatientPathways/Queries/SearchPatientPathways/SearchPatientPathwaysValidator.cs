@@ -49,6 +49,14 @@ public sealed class SearchPatientPathwaysValidator : AbstractValidator<SearchPat
             .Must(PathwayEnums.IsPriority)
             .WithMessage($"Each priority must be one of: {PathwayEnums.PriorityNames}.");
 
+        RuleFor(x => x.SpecialtyIds)
+            .Must(ids => ids is null || ids.Count <= PathwaySearch.MaxIdsPerFilter)
+            .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} specialties.");
+
+        RuleFor(x => x.StageDefinitionIds)
+            .Must(ids => ids is null || ids.Count <= PathwaySearch.MaxIdsPerFilter)
+            .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} stages.");
+
         RuleFor(x => x.DueTo)
             .GreaterThanOrEqualTo(x => x.DueFrom!.Value)
             .When(x => x.DueFrom.HasValue && x.DueTo.HasValue)

@@ -13,6 +13,12 @@ const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
 /** The list's own searches, leaving out what it asks for its filters' choices (accounts, templates). */
 const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
+const SPECIALTIES = 'GET /api/specialties';
+const DEFINITIONS = 'GET /api/pathways/patient-pathway-stage/definitions';
+const SKIN_ID = '0000005a-0000-0000-0000-0000000000aa';
+const FEET_ID = '0000005a-0000-0000-0000-0000000000bb';
+const HISTOLOGY_ID = '0000000d-0000-0000-0000-000000000001';
+const RETIRED_ID = '0000000d-0000-0000-0000-000000000002';
 
 const summary = (overrides: Record<string, unknown> = {}) => ({
   id: 'proc-1',
@@ -43,6 +49,16 @@ function renderList(
     [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com', ...options.patientFlags}),
     [USERS]: () => json(pageOf([{userId: STAFF_ID, username: 'k.ashford', roles: ['User']}])),
     [TEMPLATES]: () => json([{id: TEMPLATE_ID, name: 'Knee review', isArchived: false, stages: [], stageDefinitionIdsInOrder: []}]),
+    [SPECIALTIES]: () =>
+      json([
+        {id: SKIN_ID, name: 'Dermatology', isArchived: false},
+        {id: FEET_ID, name: 'Biomechanics', isArchived: false},
+      ]),
+    [DEFINITIONS]: () =>
+      json([
+        {id: HISTOLOGY_ID, name: 'Histology (lab)', isArchived: false},
+        {id: RETIRED_ID, name: 'Old lab', isArchived: true},
+      ]),
   });
   const onSearchChange = vi.fn();
   const result = renderWithApp(<PathwaysListPage search={search} onSearchChange={onSearchChange} patientId={options.patientId} />, {
@@ -95,12 +111,32 @@ describe('PathwaysListPage', () => {
     ]);
   });
 
+  it('asks the API for the specialties and stage reached in the URL, and names them in the search', async () => {
+    const {fetch} = renderList({specialty: `${SKIN_ID},${FEET_ID}`, stage: HISTOLOGY_ID});
+
+    expect(await screen.findByText('23 matching pathways')).toBeInTheDocument();
+    expect(searchCalls(fetch)).toEqual([
+      `${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true` +
+        `&SpecialtyIds=${SKIN_ID}&SpecialtyIds=${FEET_ID}&StageDefinitionIds=${HISTOLOGY_ID}`,
+    ]);
+    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Stage reached: is\s*Histology \(lab\)/));
+    // Several are counted in the token ("2 items"); their names are in its popover.
+    expect(searchBar()).toHaveTextContent(/Specialty: is any of\s*2 items/);
+  });
+
+  it('names a chosen stage that is not in the list as "Selected stage"', async () => {
+    const unknown = '0000000d-0000-0000-0000-0000000000ff';
+    renderList({stage: unknown});
+
+    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Stage reached: is\s*Selected stage/));
+  });
+
   it('starts on Assigned to me when Account Settings says so, until its filter is removed (mine=false)', async () => {
     localStorage.setItem('medapp.proceduresStartOnMine', 'true');
     const {user, fetch, onSearchChange} = renderList({});
 
     await screen.findByText('Colonoscopy');
-    expect(calls(fetch)[0]).toContain('AssignedToMe=true');
+    expect(searchCalls(fetch)[0]).toContain('AssignedToMe=true');
     expect(searchBar()).toHaveTextContent(/Assigned to me: only/);
     // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
     expect(screen.getByRole('button', {name: 'Favourites (showing Assigned to me)'})).toBeInTheDocument();
@@ -115,7 +151,7 @@ describe('PathwaysListPage', () => {
     const {fetch} = renderList({});
 
     await screen.findByText('Colonoscopy');
-    expect(calls(fetch)[0]).toContain('PageSize=30');
+    expect(searchCalls(fetch)[0]).toContain('PageSize=30');
   });
 
   it('shows the search as tokens, and a favourite sets its filter, keeping the sort', async () => {

@@ -44,18 +44,30 @@ public static class PathwayInsightsQueries
     /// <summary>Where a details change's old target date is: a UK day, <c>yyyy-MM-dd</c> (<c>UpdatePatientPathwayHandler</c>).</summary>
     public const string DueDateFromPath = "$.changes.dueDate.from";
 
-    /// <summary>Only pathways made from this template, when there is one.</summary>
-    public static IQueryable<PatientPathway> ForTemplate(this IQueryable<PatientPathway> pathways, Guid? templateId) =>
-        templateId is { } id ? pathways.Where(p => p.TemplateId == id) : pathways;
+    /// <summary>Only pathways in the scope: made from its template and in its specialty, for each it names.</summary>
+    public static IQueryable<PatientPathway> InScope(this IQueryable<PatientPathway> pathways, InsightsScope scope)
+    {
+        if (scope.TemplateId is { } templateId)
+            pathways = pathways.Where(p => p.TemplateId == templateId);
+        if (scope.SpecialtyId is { } specialtyId)
+            pathways = pathways.Where(p => p.SpecialtyId == specialtyId);
+        return pathways;
+    }
 
-    /// <summary>Only entries about pathways made from this template, when there is one (deleted pathways then drop out).</summary>
-    public static IQueryable<PatientPathwayAuditEntry> ForTemplate(
+    /// <summary>
+    /// Only entries about pathways in the scope, when it names a template or specialty (deleted pathways then drop out,
+    /// as the audit log keeps neither).
+    /// </summary>
+    public static IQueryable<PatientPathwayAuditEntry> InScope(
         this IQueryable<PatientPathwayAuditEntry> entries,
         IQueryable<PatientPathway> pathways,
-        Guid? templateId) =>
-        templateId is { } id
-            ? entries.Where(e => pathways.Any(p => p.Id == e.PatientPathwayId && p.TemplateId == id))
-            : entries;
+        InsightsScope scope)
+    {
+        if (!scope.IsNarrowed)
+            return entries;
+        var inScope = pathways.InScope(scope);
+        return entries.Where(e => inScope.Any(p => p.Id == e.PatientPathwayId));
+    }
 
     /// <summary>How many pathways have each status now, and whether they're past their target date.</summary>
     public static IQueryable<StatusCount> StatusCounts(this IQueryable<PatientPathway> pathways, DateTime nowUtc) =>
