@@ -177,6 +177,31 @@ describe('NotificationBell', () => {
     expect(calls(fetch).filter((call) => call.startsWith('POST'))).toEqual([]);
   });
 
+  it("opens an admin's note deletion request on its procedure's page, and links the requester's outcome to the procedure", async () => {
+    const requestId = '0000000c-0000-0000-0000-000000000021';
+    const requested = {...unread, id: '0000000c-0000-0000-0000-000000000022', kind: 'NoteDeletionRequested', title: 'Note deletion requested', message: 's.nurse asked to delete a note on a procedure.', noteDeletionRequestId: requestId};
+    const kept = {...read, id: '0000000c-0000-0000-0000-000000000023', kind: 'NoteDeletionDeclined', title: 'Note kept', message: 'test.admin kept the note you asked to delete.'};
+    const authors = {...read, id: '0000000c-0000-0000-0000-000000000024', kind: 'AuthorsNoteDeleted', title: 'Your note was deleted', message: 'test.admin deleted a note you wrote on a procedure.'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [requested, kept, authors], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const href = `/procedures/${procedureId}?deletionRequest=${requestId}`;
+    expect(list.getByRole('link', {name: /^Note deletion requested/})).toHaveAttribute('href', href);
+    expect(list.getByRole('link', {name: /^Note kept/})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    // An author told their note was deleted goes to the procedure too.
+    expect(list.getByRole('link', {name: /^Your note was deleted/})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(list.getAllByRole('listitem').every((item) => item.querySelector('svg'))).toBe(true);
+
+    await user.click(list.getByRole('link', {name: /^Note deletion requested/}));
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${requested.id}/read`));
+    await waitFor(() => expect(router.state.location.href).toBe(href));
+  });
+
   it('marks read only the unread notifications about the procedure opened', async () => {
     const otherProcedure = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other procedure', procedureId: '0000000c-0000-0000-0000-000000000006'};
     const fetch = mockApi({

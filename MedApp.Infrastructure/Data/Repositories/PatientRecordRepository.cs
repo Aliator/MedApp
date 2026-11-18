@@ -42,6 +42,12 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(v => v.AtUtc).ThenBy(v => v.Version).ThenBy(v => v.Id)
             .ToListAsync(ct);
 
+        // Requests to delete notes, with their reasons, those about deleted procedures included.
+        var noteDeletionRequests = await Tracking(context.ProcedureNoteDeletionRequests, forUpdate)
+            .Where(r => r.PatientId == patientId)
+            .OrderBy(r => r.RequestedAtUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+
         var activity = await Tracking(context.ActivityEntries, forUpdate)
             .Where(e => e.PatientId == patientId)
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
@@ -85,6 +91,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Procedures = procedures,
             ProcedureHistory = history,
             NoteVersions = noteVersions,
+            NoteDeletionRequests = noteDeletionRequests,
             Activity = activity,
             Appointments = appointments,
             AppointmentHistory = appointmentHistory,

@@ -51,6 +51,6 @@ public sealed class CreatePatientProcedureHandler(
 
         // The creator's own note, if any, is the only one, so the actor is the only username it names.
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return ProcedureMapper.ToResponse(procedure, usernames, now, patient: patient, viewerId: request.Actor.UserId);
+        return ProcedureMapper.ToResponse(procedure, usernames, now, patient: patient, viewerId: request.Actor.UserId, viewerIsAdmin: request.Actor.IsAdmin);
     }
 }

@@ -42,6 +42,16 @@ describe('describeAuditDetails', () => {
     );
   });
 
+  it("gives a deleted note's version and the admin's reason in words, with its detail, never its text", () => {
+    expect(auditActionLabel('NoteDeleted')).toBe('Note deleted');
+    expect(
+      describe_('NoteDeleted', {noteId: 'n1', version: 2, deletionReason: 'WrongPatient', detail: ' Synthetic: the other procedure. ', requestId: 'r1'}),
+    ).toBe('Version 2: Wrong patient: Synthetic: the other procedure.');
+    expect(describe_('NoteDeleted', {noteId: 'n1', version: 1, deletionReason: 'Duplicate'})).toBe('Version 1: Duplicate');
+    expect(describe_('NoteDeleted', {noteId: 'n1', version: 1})).toBe('Version 1');
+    expect(describe_('NoteDeleted', {detail: 'Synthetic detail.'})).toBe('Synthetic detail.');
+  });
+
   it('names who was assigned, the notes saved, and what a deleted procedure was', () => {
     expect(describe_('Assigned', {userId: 'u1', username: 'k.ashford'})).toBe('k.ashford');
     expect(describe_('StageNotesUpdated', {from: '', to: 'Sutures removed.'})).toBe('Nothing → "Sutures removed."');
@@ -67,6 +77,12 @@ describe('describeAuditDetails', () => {
     expect(describeAuditDetails({action: 'Deleted', details: null})).toBe('');
     expect(describeAuditDetails({action: 'Assigned', details: '"k.ashford"'})).toBe('');
     expect(describeAuditDetails({action: 'Deleted', details: 'null'})).toBe('');
+  });
+
+  it("names a note's version, never its text", () => {
+    expect(describe_('NoteAdded', {noteId: 'n1', version: 1})).toBe('Version 1');
+    expect(describe_('NoteEdited', {noteId: 'n1', version: 3})).toBe('Version 3');
+    expect(describe_('NoteEdited', {noteId: 'n1'})).toBe('');
   });
 
   it('copes with parts of the details left out', () => {

@@ -43,6 +43,22 @@ public static class PrivacyTestConstants
         Procedures = record.Procedures,
         ProcedureHistory = record.ProcedureHistory,
         NoteVersions = versions,
+        NoteDeletionRequests = record.NoteDeletionRequests,
+        Activity = record.Activity,
+        Appointments = record.Appointments,
+        AppointmentHistory = record.AppointmentHistory,
+        Notifications = record.Notifications,
+        Attachments = record.Attachments
+    };
+
+    /// <summary>The record with these requests to delete notes.</summary>
+    public static PatientRecord WithNoteDeletionRequests(PatientRecord record, params ProcedureNoteDeletionRequest[] requests) => new()
+    {
+        Patient = record.Patient,
+        Procedures = record.Procedures,
+        ProcedureHistory = record.ProcedureHistory,
+        NoteVersions = record.NoteVersions,
+        NoteDeletionRequests = requests,
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
@@ -104,7 +120,10 @@ public static class PrivacyTestConstants
                     ProcedureId = p.Id,
                     CreatedAtUtc = ProceduresTestConstants.Now.AddDays(-6)
                 })
-                .ToList()
+                .ToList(),
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
     }
 

@@ -7,6 +7,8 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.ExportPatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Attachments;
+using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -71,5 +73,44 @@ public sealed class ExportPatientHandlerTests
         _repository.Verify(r => r.GetAsync(record.Patient.Id, false, cts.Token), Times.Once);
         _identity.Verify(i => i.GetUsernamesByIdAsync(
             It.Is<IEnumerable<Guid>>(ids => ids.ToHashSet().SetEquals(PatientExportMapper.UserIds(record))), cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_EveryListInTheRecord_IsInTheExport()
+    {
+        // The handler copies the record to add the export's own access entry: no list may be lost in the copy.
+        var procedure = CreateProcedure();
+        var note = procedure.AddNote();
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        record = record with
+        {
+            NoteVersions =
+            [
+                new PatientProcedureNoteVersion
+                {
+                    Id = Guid.NewGuid(), NoteId = note.Id, Version = 1, PatientProcedureId = procedure.Id, PatientId = record.Patient.Id,
+                    Text = NoteText, UserId = Staff.UserId, Username = Staff.Username, AtUtc = Now
+                }
+            ],
+            NoteDeletionRequests = [procedure.RequestDeletion(note)],
+            Attachments =
+            [
+                new Attachment
+                {
+                    Id = Guid.NewGuid(), PatientId = record.Patient.Id, FileName = "synthetic.pdf", ContentType = "application/pdf",
+                    UploadedAtUtc = Now, UploadedByUserId = Staff.UserId, UploadedByUsername = Staff.Username
+                }
+            ]
+        };
+        _repository.Setup(r => r.GetAsync(record.Patient.Id, false, It.IsAny<CancellationToken>())).ReturnsAsync(record);
+
+        var export = await _fixture.Create<ExportPatientHandler>().Handle(new ExportPatientQuery(record.Patient.Id), CancellationToken.None);
+
+        export.NoteHistory.Should().ContainSingle().Which.NoteId.Should().Be(note.Id);
+        export.NoteDeletionRequests.Should().ContainSingle().Which.NoteId.Should().Be(note.Id);
+        export.Attachments.Should().ContainSingle().Which.FileName.Should().Be("synthetic.pdf");
+        export.Appointments.Should().HaveCount(record.Appointments.Count);
+        export.AppointmentHistory.Should().HaveCount(record.AppointmentHistory.Count);
+        export.ProcedureHistory.Should().HaveCount(record.ProcedureHistory.Count);
     }
 }

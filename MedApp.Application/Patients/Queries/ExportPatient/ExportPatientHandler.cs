@@ -28,18 +28,8 @@ public sealed class ExportPatientHandler(
         var entry = activityLog.Entry(ActivityAction.PatientExported, record.Patient.Id);
         await activityLog.RecordAsync(entry, cancellationToken);
 
-        var withExport = new PatientRecord
-        {
-            Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory = record.ProcedureHistory,
-            NoteVersions = record.NoteVersions,
-            Activity = [.. record.Activity, entry],
-            Appointments = record.Appointments,
-            AppointmentHistory = record.AppointmentHistory,
-            Notifications = record.Notifications,
-            Attachments = record.Attachments
-        };
+        // Everything else as read: a with expression copies every list, so a new one can't be left out.
+        var withExport = record with { Activity = [.. record.Activity, entry] };
 
         var usernames = await identity.GetUsernamesByIdAsync(PatientExportMapper.UserIds(withExport), cancellationToken);
 

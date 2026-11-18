@@ -877,6 +877,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid?>("NoteDeletionRequestId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("ProcedureId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1135,10 +1138,26 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletionDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DeletionReason")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("LastEditedAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("PatientProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PendingDeletionRequestId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
@@ -1397,6 +1416,70 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("StageDefinitionId");
 
                     b.ToTable("PatientProcedureStageTemplateMaps", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.ProcedureNoteDeletionRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DecidedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequestedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("PatientProcedureId", "Status");
+
+                    b.HasIndex(new[] { "NoteId" }, "IX_ProcedureNoteDeletionRequests_NoteId_Pending")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.ToTable("ProcedureNoteDeletionRequests", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Infrastructure.Common.Identity.ApplicationUser", b =>
