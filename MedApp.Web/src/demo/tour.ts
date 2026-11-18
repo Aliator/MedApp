@@ -1,3 +1,5 @@
+import {appSettings} from '../app/settingsStore';
+import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
@@ -14,10 +16,12 @@ export interface TourStep {
   account?: string;
   /** The page to open: a path in the app, with its query; none stays on the Read Me. */
   path?: string;
-  /** A page to open beside it, in half view. */
-  halfView?: string;
   /** Opens the notepad beside the page. */
   opensNotepad?: boolean;
+  /** Stays on the Read Me, on its own (closing any half view), for steps that start from it. */
+  staysOnReadMe?: boolean;
+  /** Its steps are numbered, as they're done in order. */
+  isNumbered?: boolean;
   buttonLabel: string;
   /** Why the step can't do what it says in this copy of the demo (already done, say), or null when it can. */
   whyNot?: (state: DemoState) => string | null;
@@ -25,18 +29,51 @@ export interface TourStep {
 
 const RESET_HINT = 'Reset (in the banner at the top of the Read Me) brings it back.';
 
+/**
+ * Whether the signed-in person has pinned a patient: their pins as this browser holds them (`medapp.pins`, what the
+ * side nav shows), which the stand-in saves with the account a moment after each change.
+ */
+export function isPatientPinned(patientId: string): boolean {
+  try {
+    const pins: unknown = JSON.parse(appSettings.get(PINS_KEY) ?? '{}');
+    const patients = pins && typeof pins === 'object' ? (pins as {patients?: unknown}).patients : undefined;
+    return Array.isArray(patients) && patients.includes(patientId);
+  } catch {
+    return false;
+  }
+}
+
 export const TOUR: TourStep[] = [
   {
     key: 'half-view',
     title: 'Two pages side by side',
     steps: [
-      'Opens the home page. In the side nav, rest the pointer on Patients and open its menu (the … at the end of the row), then choose Open in half view.',
-      'Patients opens on the right, beside the home page. Close it with the close button (×) at the top of the Patients half.',
-      'Now Shift-click Patients in the side nav: it opens in the half view again. Shift-click works on any link or button that opens a page.',
-      'Ctrl-click (⌘-click on a Mac) does the opposite: the page opens on the left, and the one there moves to the right.',
+      'Rest the pointer on Patients in the side nav and open its menu (the … at the end of the row), then choose Open in half view. Patients opens on the right, beside this Read Me.',
+      'Close it with the close button (×) at the top of the Patients half.',
+      'Shift-click Patients in the side nav: it opens on the right again.',
+      'Close it again.',
+      'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
+      'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
     ],
-    path: '/',
-    buttonLabel: 'Start on the home page',
+    isNumbered: true,
+    staysOnReadMe: true,
+    buttonLabel: 'Start here, on the Read Me',
+  },
+  {
+    key: 'pin-patient',
+    title: 'Pin a patient',
+    steps: [
+      'Opens Samuel Okafor’s record. While it’s open, he shows in the side nav, indented under Patients.',
+      'Rest the pointer on his row there and open its menu (the … at the end of the row), then choose Pin.',
+      'Go to another page, Home say: he stays under Patients. Click his name there to open him again. Unpin is in the same menu.',
+      'Pins belong to the account (up to five patients and five pathways), so they follow you to another browser.',
+    ],
+    path: `/patients/${PATIENTS.samuelOkafor}`,
+    buttonLabel: 'Open the patient to pin',
+    whyNot: () =>
+      isPatientPinned(PATIENTS.samuelOkafor)
+        ? `You've pinned Samuel Okafor already: he's under Patients in the side nav. Unpin him from his row's menu (the …) to try again.`
+        : null,
   },
   {
     key: 'meeting',

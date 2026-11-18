@@ -1,6 +1,6 @@
 import {useAppShellMobile} from '@astryxdesign/core/AppShell';
 import {useRouter} from '@tanstack/react-router';
-import {useEffect, useRef, useSyncExternalStore} from 'react';
+import {useEffect, useRef} from 'react';
 import {useHalfViews} from '../pages/halfView';
 
 /**
@@ -121,15 +121,4 @@ export function HalfViewClicks() {
   }, [router]);
 
   return null;
-}
-
-const isApple = () => /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
-const subscribeNever = () => () => {};
-
-/**
- * The words for a Ctrl-click: "⌘-click" on a Mac (where Ctrl-click is a right-click), "Ctrl-click" elsewhere. "Ctrl-click"
- * on the server and while hydrating, so the two match, then the browser's.
- */
-export function useCtrlClickWords(): string {
-  return useSyncExternalStore(subscribeNever, () => (isApple() ? '⌘-click' : 'Ctrl-click'), () => 'Ctrl-click');
 }
