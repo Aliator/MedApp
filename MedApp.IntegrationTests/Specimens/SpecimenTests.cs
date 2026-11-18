@@ -74,6 +74,9 @@ public sealed class SpecimenTests : IntegrationTest
 {
     private HttpClient _admin = null!;
     private StaffAccount _nurse = null!;
+
+    /// <summary>Who requests the specimens the nurse takes: a clinician, who can sign off the result.</summary>
+    private StaffAccount _clinician = null!;
     private StaffAccount _lab = null!;
     private SpecimenTypeResponse _type = null!;
     private LaboratoryResponse _laboratory = null!;
@@ -83,6 +86,7 @@ public sealed class SpecimenTests : IntegrationTest
     {
         _admin = await SignInAsAdminAsync();
         _nurse = await CreateStaffAsync("Nurse");
+        _clinician = await CreateStaffAsync("Clinician");
         _lab = await CreateStaffAsync("Lab");
         (_type, _laboratory) = await SpecimenApi.CreateSetupAsync(_admin);
     }
@@ -90,7 +94,7 @@ public sealed class SpecimenTests : IntegrationTest
     private async Task<(PatientPathwayResponse Pathway, SpecimenResponse Specimen)> TakenAsync(int stages = 2)
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin, stages);
-        var specimen = await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _nurse.UserId);
+        var specimen = await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId);
         return (pathway, specimen);
     }
 
@@ -106,7 +110,7 @@ public sealed class SpecimenTests : IntegrationTest
         first.Version.Should().Be(1);
         first.Label.QrPath.Should().NotBeNullOrEmpty();
         first.Label.Size.Should().BeGreaterThan(20, "a version 1 code is 21 modules, plus the quiet zone");
-        first.RequestingUsername.Should().Be(_nurse.Username);
+        first.RequestingUsername.Should().Be(_clinician.Username);
         first.Site.Should().Be(SpecimenApi.Site);
     }
 
@@ -115,9 +119,9 @@ public sealed class SpecimenTests : IntegrationTest
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin);
 
-        (await SpecimenApi.PostRecordAsync(_admin, pathway, _type.Id, _laboratory.Id, _nurse.UserId))
+        (await SpecimenApi.PostRecordAsync(_admin, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
             .StatusCode.Should().Be(HttpStatusCode.Forbidden, "admins don't record specimens: it's clinical");
-        (await SpecimenApi.PostRecordAsync(_lab.Client, pathway, _type.Id, _laboratory.Id, _nurse.UserId))
+        (await SpecimenApi.PostRecordAsync(_lab.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
             .StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
@@ -156,7 +160,7 @@ public sealed class SpecimenTests : IntegrationTest
     public async Task LastStage_CantBeFinishedWhileASpecimenIsOpen()
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin, stages: 1);
-        var specimen = await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _nurse.UserId);
+        var specimen = await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId);
 
         var refused = await FinishStageAsync(_nurse.Client, pathway.Id, pathway.Stages[0].Id);
         refused.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -180,7 +184,7 @@ public sealed class SpecimenTests : IntegrationTest
         var overdue = await (await _nurse.Client.PostAsJsonAsync($"/api/pathways/{pathway.Id}/specimens", new RecordSpecimenRequest
         {
             StageId = pathway.Stages[0].Id, SpecimenTypeId = quick.Id, LaboratoryId = _laboratory.Id,
-            RequestingUserId = _nurse.UserId, TakenAtUtc = Now.AddDays(-2),
+            RequestingUserId = _clinician.UserId, TakenAtUtc = Now.AddDays(-2),
         })).ReadAsAsync<SpecimenResponse>(HttpStatusCode.Created);
 
         async Task<IReadOnlyList<SpecimenSummaryResponse>> View(string view) =>
@@ -238,7 +242,7 @@ public sealed class SpecimenTests : IntegrationTest
             new RejectSpecimenRequest { Reason = "Leaked", Detail = "Synthetic: the pot leaked", ExpectedVersion = sent.Version }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var notifications = await (await _nurse.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
+        var notifications = await (await _clinician.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         var notification = notifications.Items.Should().ContainSingle(n => n.Kind == "SpecimenRejectedByLab").Subject;
         notification.Title.Should().Be("Specimen rejected");
         notification.SubjectId.Should().Be(specimen.Id);
@@ -254,7 +258,7 @@ public sealed class SpecimenTests : IntegrationTest
         var export = await (await _admin.GetAsync($"/api/patients/{pathway.PatientId}/export")).ReadAsAsync<PatientExportResponse>();
         export.Specimens.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            specimen.Number, Site = SpecimenApi.Site, RequestedBy = _nurse.Username, Status = "Taken",
+            specimen.Number, Site = SpecimenApi.Site, RequestedBy = _clinician.Username, Status = "Taken",
         });
 
         await (await SpecimenApi.StepAsync(_nurse.Client, specimen, "lost",
@@ -295,12 +299,12 @@ public sealed class SpecimenTests : IntegrationTest
     public async Task Setup_TypeInUse_IsArchivedNotDeleted_AndCantBeChosenAgain()
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin);
-        await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _nurse.UserId);
+        await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId);
 
         (await _admin.DeleteAsync($"/api/specimen-types/{_type.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         await (await _admin.PostAsync($"/api/specimen-types/{_type.Id}/archive", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        (await SpecimenApi.PostRecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _nurse.UserId))
+        (await SpecimenApi.PostRecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var listed = await (await _nurse.Client.GetAsync("/api/specimen-types")).ReadAsAsync<List<SpecimenTypeResponse>>();
         listed.Should().NotContain(t => t.Id == _type.Id);

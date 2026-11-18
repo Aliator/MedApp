@@ -214,11 +214,18 @@ public sealed class EndpointCoverageTests : IntegrationTest
             TemplateId = letterTemplate.Id, PathwayId = pathway.Id
         })).ReadAsAsync<MedApp.Contracts.Letters.Responses.LetterResponse>(HttpStatusCode.Created);
 
-        // A specimen, taken by a nurse (admins don't record specimens), for its page and the lab's worklist.
+        // A specimen, taken by a nurse (admins don't record specimens) for the clinician (who signs off its result), for
+        // its page and the lab's worklist.
         var nurse = await CreateStaffAsync("Nurse");
         var (specimenType, laboratory) = await MedApp.IntegrationTests.Specimens.SpecimenApi.CreateSetupAsync(admin);
         var specimen = await MedApp.IntegrationTests.Specimens.SpecimenApi.RecordAsync(
-            nurse.Client, pathway, specimenType.Id, laboratory.Id, nurse.UserId);
+            nurse.Client, pathway, specimenType.Id, laboratory.Id, writer.UserId);
+
+        // A result from elsewhere (the attached file), for the clinician to sign off: for its page and the results list.
+        var result = await (await writer.Client.PostAsJsonAsync("/api/results/external", new MedApp.Contracts.Results.Requests.RecordExternalResultRequest
+        {
+            AttachmentId = file.Id, Title = "Synthetic CT report", PathwayId = pathway.Id, ResponsibleUserId = writer.UserId
+        })).ReadAsAsync<MedApp.Contracts.Results.Responses.ResultResponse>(HttpStatusCode.Created);
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -248,6 +255,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/specimens/{specimen.Id}", "SpecimenViewed", patientId),
             ("/api/specimens/search?view=ToSend", "PatientListed", patientId),
             ($"/api/pathways/{pathway.Id}/consent-records", "PathwayViewed", patientId),
+            ($"/api/results/{result.Id}", "ResultViewed", patientId),
+            ("/api/results/search?view=Awaiting", "PatientListed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

@@ -669,6 +669,58 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/by s\.brightwell; present: k\.ashford, s\.brightwell\): Synthetic outcome\.$/)).toBeInTheDocument();
   });
 
+  it('lists consent as recorded: the form, who signed and when, the scan, and a withdrawal or correction', async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      pathways: [{id: pathwayId, title: 'Skin lesion', stages: []}],
+      consentRecords: [
+        {
+          id: 'c-1',
+          pathwayId,
+          formName: 'Synthetic excision consent',
+          formVersion: '2',
+          status: 'Withdrawn',
+          signedOn: '2026-11-01',
+          signedBy: 'Patient',
+          recordedAtUtc: '2026-11-01T10:00:00Z',
+          recordedBy: 'k.ashford',
+          scanAttachmentId: 'a-1',
+          withdrawnOn: '2026-11-05',
+          statusChangedAtUtc: '2026-11-05T11:00:00Z',
+          statusChangedBy: 's.brightwell',
+          statusDetail: 'Synthetic: changed their mind.',
+        },
+        {
+          id: 'c-2',
+          pathwayId: 'gone',
+          formName: 'Synthetic old form',
+          status: 'EnteredInError',
+          signedBy: 'BestInterestsDecision',
+          statusChangedAtUtc: '2026-11-06T11:00:00Z',
+        },
+      ],
+      mdtItems: [
+        {pathwayTitle: 'Skin lesion', status: 'Withdrawn', meetingCancelledStartUtc: '2026-11-12T13:00:00Z', withdrawnAtUtc: '2026-11-13T09:00:00Z', withdrawnBy: 'k.ashford'},
+        {pathwayTitle: 'Skin lesion', status: 'Listed'},
+      ],
+    });
+
+    expect(await screen.findByText('Consent (2)')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic excision consent (version 2)')).toBeInTheDocument();
+    expect(screen.getByText('Under Files')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: changed their mind.')).toBeInTheDocument();
+    expect(screen.getByText(/by s\.brightwell$/)).toBeInTheDocument();
+    expect(screen.getByText('Synthetic old form')).toBeInTheDocument();
+    expect(screen.getByText('A deleted pathway')).toBeInTheDocument();
+    expect(screen.getByText('No scan')).toBeInTheDocument();
+    expect(screen.getByText(/^—, best-interests decision by a clinician$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/by unknown$/).length).toBe(2);
+    expect(screen.getByText(/Meeting of .+ cancelled · Withdrawn .+ by k\.ashford/)).toBeInTheDocument();
+    expect(screen.getAllByText('Question:').length).toBeGreaterThan(0);
+  });
+
   it('says when no messages were sent', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 
