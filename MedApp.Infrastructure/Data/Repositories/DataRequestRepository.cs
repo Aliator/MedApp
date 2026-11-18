@@ -59,8 +59,35 @@ public sealed class DataRequestRepository(MedAppDbContext context) : IDataReques
 
     public async Task SaveAsync(ActivityEntry activity, CancellationToken ct)
     {
+        AddNewWithheldItems();
         context.ActivityEntries.Add(activity);
         await context.SaveChangesOrConflictAsync(DataRequestRules.ChangedMeanwhileMessage, ct);
+    }
+
+    /// <summary>
+    /// Marks a review's new withheld items as added. Their IDs are already set, so EF's change detection would take them
+    /// for existing rows and update them, which matches nothing and reads as a false "changed meanwhile" (409). Change
+    /// detection is held off while they're found, so it can't do that first; the old items, left out of the list, are
+    /// still deleted as orphans when the save detects changes.
+    /// </summary>
+    private void AddNewWithheldItems()
+    {
+        var detect = context.ChangeTracker.AutoDetectChangesEnabled;
+        context.ChangeTracker.AutoDetectChangesEnabled = false;
+        try
+        {
+            foreach (var request in context.ChangeTracker.Entries<DataRequest>().Select(e => e.Entity).ToList())
+            foreach (var item in request.WithheldItems)
+            {
+                var entry = context.Entry(item);
+                if (entry.State == EntityState.Detached)
+                    entry.State = EntityState.Added;
+            }
+        }
+        finally
+        {
+            context.ChangeTracker.AutoDetectChangesEnabled = detect;
+        }
     }
 
     public async Task SaveRemindersAsync(IReadOnlyCollection<Notification> notifications, CancellationToken ct)

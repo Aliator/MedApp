@@ -768,6 +768,62 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('Synthetic serious harm reason')).toBeInTheDocument();
   });
 
+  it("lists a refused data request, one the patient made, and one with only what's required, in words for what's missing", async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      dataRequests: [
+        {
+          id: '000000d1-0000-0000-0000-000000000011',
+          receivedOn: '2026-10-01',
+          requestedByPatient: false,
+          requesterName: null,
+          requesterRelationship: null,
+          identityCheckedOn: '2026-10-02',
+          identityCheckedBy: null,
+          identityCheckMethod: 'Other',
+          identityCheckDetail: 'Synthetic video call',
+          dueOn: '2026-12-01',
+          extensionMonths: 2,
+          extensionReason: null,
+          status: 'Refused',
+          refusalReason: 'Synthetic manifestly excessive',
+          sentOn: '2026-11-20',
+          sendMethod: null,
+          closedAtUtc: '2026-11-20T10:00:00Z',
+          closedBy: null,
+          reviewedAtUtc: '2026-11-10T14:00:00Z',
+          reviewedBy: null,
+          withheld: null,
+          createdAtUtc: '2026-10-01T09:00:00Z',
+          createdBy: null,
+        },
+        {
+          id: '000000d1-0000-0000-0000-000000000012',
+          receivedOn: null,
+          requestedByPatient: true,
+          dueOn: null,
+          extensionMonths: 0,
+          status: 'Open',
+        },
+      ],
+    });
+
+    expect(await screen.findByText('Data Requests (2)')).toBeInTheDocument();
+    expect(screen.getByText('Someone on their behalf')).toBeInTheDocument();
+    expect(screen.getByText('2 October 2026, other, by unknown: Synthetic video call')).toBeInTheDocument();
+    expect(screen.getByText('1 December 2026, extended by 2 months')).toBeInTheDocument();
+    expect(screen.getByText('20 November 2026')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic manifestly excessive')).toBeInTheDocument();
+    expect(screen.getAllByText(/ by unknown$/).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByRole('heading', {name: 'Received —'})).toBeInTheDocument();
+    expect(screen.getByText('The patient')).toBeInTheDocument();
+    expect(screen.getByText('Not checked')).toBeInTheDocument();
+    expect(screen.getByText('Not reviewed')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
   it('says when no messages were sent', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 
