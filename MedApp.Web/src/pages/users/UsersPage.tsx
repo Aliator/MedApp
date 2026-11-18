@@ -23,6 +23,7 @@ import {
   useSignOutEverywhere,
   type CreatedUser,
 } from '../../api/users';
+import {ADMIN_ROLE, sortRoles} from '../../auth/roles';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
@@ -196,8 +197,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       renderCell: (u) =>
         u.roles?.length ? (
           <HStack gap={1} wrap="wrap">
-            {u.roles.map((role) => (
-              <Token key={role} label={role} size="sm" color={role === 'Admin' ? 'blue' : 'default'} />
+            {sortRoles(u.roles).map((role) => (
+              <Token key={role} label={role} size="sm" color={role === ADMIN_ROLE ? 'blue' : 'default'} />
             ))}
           </HStack>
         ) : (

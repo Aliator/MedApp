@@ -100,6 +100,14 @@ describe('StageVisit', () => {
     expect(onBook).toHaveBeenCalledWith(requested);
   });
 
+  it("says where the visit stands, with nothing to book, for someone who can't book", async () => {
+    renderVisit([requested], {canBook: false, onRecordPast: vi.fn()});
+
+    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Visit'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
+  });
+
   it('books a new one when there is none, for a suggested visit', async () => {
     const {user, onBook} = renderVisit([cancelled], {stage: {...stage, visitRequirement: 'Suggested'}});
 

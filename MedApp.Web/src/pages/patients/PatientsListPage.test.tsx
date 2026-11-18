@@ -1,22 +1,31 @@
 import {screen, within} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
+import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, findAlert, searchBar, userWithRoles} from '../../test/render';
 import type {PatientsListSearch} from '../listSearch';
 import {PatientsListPage} from './PatientsListPage';
 
 const freya = {id: 'f184a7b8-2585-4437-bcd4-e1700be38287', firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'freya.ahmed18@example.com'};
 const priya = {id: '7499c758-0000-4000-8000-000000000002', firstName: 'Priya', lastName: 'Ali', dateOfBirth: '1966-12-29', email: 'priya.ali84@example.com'};
 
-function renderList(search: PatientsListSearch = {}, body = pageOf([freya, priya], 60)) {
+function renderList(search: PatientsListSearch = {}, body = pageOf([freya, priya], 60), user = adminUser) {
   const fetch = mockApi({'GET /api/patients/search': () => json(body)});
   const onSearchChange = vi.fn();
   const result = renderWithApp(<PatientsListPage search={search} onSearchChange={onSearchChange} />, {
     path: '/patients',
-    user: adminUser,
+    user,
   });
   return {...result, fetch, onSearchChange};
 }
 
 describe('PatientsListPage', () => {
+  it("offers adding and editing patients only to someone whose roles allow it (EditPatients)", async () => {
+    renderList({}, undefined, userWithRoles('test-lab', 'Lab'));
+
+    expect(await screen.findByText('Freya Ahmed')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', {name: 'View patient'})[0]).toHaveAttribute('href', `/patients/${freya.id}`);
+    expect(screen.queryByRole('link', {name: 'Edit patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Add Patient'})).not.toBeInTheDocument();
+  });
+
   it('shows a page of patients with links to view and edit them', async () => {
     renderList();
 

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -157,9 +158,32 @@ public sealed class PathwayNoteMapperTests
     {
         var note = CreatePathway().AddNote(OtherUserId);
 
-        var response = PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerCanCorrectRecords: true);
+        var response = PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerPermissions: TestPermissions.Admin);
 
         response.Should().BeEquivalentTo(new { CanDelete = true, CanRequestDeletion = false });
+    }
+
+    [Test]
+    public void ToResponse_AuthorWithoutWorkPathways_CantEditOrAskForDeletion()
+    {
+        // Their roles changed since they wrote it: a Manager doesn't work on pathways.
+        var note = CreatePathway().AddNote(Staff.UserId);
+
+        var response = PathwayNoteMapper.ToResponse(
+            note, Usernames, Staff.UserId, canChange: true, viewerPermissions: StandardRoles.Manager.Permissions);
+
+        response.Should().BeEquivalentTo(new { CanEdit = false, CanDelete = false, CanRequestDeletion = false });
+    }
+
+    [Test]
+    public void ToResponse_AuthorWhoWorksOnPathways_CanEditAndAskForDeletion()
+    {
+        var note = CreatePathway().AddNote(Staff.UserId);
+
+        var response = PathwayNoteMapper.ToResponse(
+            note, Usernames, Staff.UserId, canChange: true, viewerPermissions: StandardRoles.Nurse.Permissions);
+
+        response.Should().BeEquivalentTo(new { CanEdit = true, CanDelete = false, CanRequestDeletion = true });
     }
 
     [Test]
@@ -171,7 +195,7 @@ public sealed class PathwayNoteMapperTests
 
         PathwayNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: true)
             .Should().BeEquivalentTo(new { CanDelete = false, CanRequestDeletion = false, DeletionRequestId = (Guid?)request.Id });
-        PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerCanCorrectRecords: true)
+        PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerPermissions: TestPermissions.Admin)
             .Should().BeEquivalentTo(new { CanDelete = true, DeletionRequestId = (Guid?)request.Id });
     }
 
@@ -183,17 +207,20 @@ public sealed class PathwayNoteMapperTests
 
         PathwayNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: false, recordCanChange: true)
             .Should().BeEquivalentTo(new { CanEdit = false, CanDelete = false, CanRequestDeletion = true });
-        PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: false, recordCanChange: true, viewerCanCorrectRecords: true)
+        PathwayNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: false, recordCanChange: true, viewerPermissions: TestPermissions.Admin)
             .Should().BeEquivalentTo(new { CanEdit = false, CanDelete = true, CanRequestDeletion = false });
     }
 
     [Test]
-    public void PathwayMapper_ToResponse_PassesWhetherTheViewerIsAnAdmin()
+    public void PathwayMapper_ToResponse_PassesTheViewersPermissions()
     {
         var pathway = CreatePathway(Status.InProgress);
         pathway.AddNote(OtherUserId);
 
-        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerId: Admin.UserId, viewerCanCorrectRecords: true).NoteList.Single().CanDelete.Should().BeTrue();
+        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerId: Staff.UserId, viewerPermissions: StandardRoles.Manager.Permissions)
+            .NoteList.Single().CanRequestDeletion.Should().BeFalse();
+
+        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerId: Admin.UserId, viewerPermissions: TestPermissions.Admin).NoteList.Single().CanDelete.Should().BeTrue();
         PathwayMapper.ToResponse(pathway, Usernames, Now, viewerId: Staff.UserId).NoteList.Single().CanDelete.Should().BeFalse();
     }
 

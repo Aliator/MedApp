@@ -62,4 +62,4 @@ The concept and decisions are in `docs/calendar-plan.md`. Each member of staff's
   - **Reads:** opening an appointment records `PatientViewed`; the calendar and appointment search record `PatientListed` for the patients shown. `GET api/calendar?withoutAppointments=true` (Apply Template's days) records nothing.
   - **Export and anonymisation:** `PatientRecordRepository` loads a patient's appointments, their history and the notifications about them. `PatientAnonymiser` replaces appointments' notes and cancellation reasons, and the history's notes, reasons and pathway titles. Appointment notifications stay as they are (`Notification.HasFixedTitle`).
   - **Not monitored:** appointments aren't `MonitoringEvent`s, nor is the admin bypass yet (`docs/todo.md`).
-- **Endpoints** are under `api/calendar` and `api/appointments` (the plan's section 4), closed days at `api/calendar/closed-days`.
+- **Endpoints** are under `api/calendar` and `api/appointments` (the plan's section 4), closed days at `api/calendar/closed-days`. `GET api/calendar/staff` lists everyone with a role; `?permission=<name>` only the holders of one permission (see [Auth](auth.md)).

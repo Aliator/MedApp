@@ -21,9 +21,9 @@ const stage = (overrides: Partial<PathwayStage> = {}): PathwayStage => ({
   ...overrides,
 });
 
-function renderWork(overrides: Partial<PathwayStage> = {}, isAdmin = false) {
+function renderWork(overrides: Partial<PathwayStage> = {}, canUnlock = false) {
   const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
-  const result = renderWithApp(<StageWork stage={stage(overrides)} isAdmin={isAdmin} isBusy={false} {...handlers} />);
+  const result = renderWithApp(<StageWork stage={stage(overrides)} canUnlock={canUnlock} isBusy={false} {...handlers} />);
   return {...result, ...handlers};
 }
 
@@ -37,7 +37,7 @@ describe('StageWork', () => {
 
     const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
     const onFitNotes = vi.fn();
-    renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} notesHeight={240} onFitNotes={onFitNotes} {...handlers} />);
+    renderWithApp(<StageWork stage={stage()} canUnlock={false} isBusy={false} notesHeight={240} onFitNotes={onFitNotes} {...handlers} />);
     expect(minHeight(await screen.findByRole('textbox', {name: 'Notes'}))).toBe('240px');
     // Already fitted: it doesn't measure again.
     await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -62,7 +62,7 @@ describe('StageWork', () => {
     const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
     renderWithApp(
       <SaveShortcutProvider>
-        <StageWork stage={stage()} isAdmin={false} isBusy={false} {...handlers} />
+        <StageWork stage={stage()} canUnlock={false} isBusy={false} {...handlers} />
       </SaveShortcutProvider>,
     );
     const box = await screen.findByRole('textbox', {name: 'Notes'});
@@ -80,7 +80,7 @@ describe('StageWork', () => {
     const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
     renderWithApp(
       <SaveShortcutProvider>
-        <StageWork stage={stage()} isAdmin={false} isBusy {...handlers} />
+        <StageWork stage={stage()} canUnlock={false} isBusy {...handlers} />
       </SaveShortcutProvider>,
     );
 
@@ -114,7 +114,7 @@ describe('StageWork', () => {
     expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
 
-  it('lets an admin unlock a finished, locked stage', async () => {
+  it('lets a holder of OverrideStages unlock a finished, locked stage', async () => {
     const {user, onUnlock} = renderWork({canEdit: false, canUnlock: true, state: 'Completed', isLocked: true}, true);
 
     await user.click(await screen.findByRole('button', {name: 'Unlock Stage'}));
@@ -143,7 +143,7 @@ describe('StageWork fitting its notes box', () => {
   const renderInScroller = (onFitNotes: (height: number) => void) =>
     renderWithApp(
       <div data-testid="scroller" style={{overflowY: 'auto', padding: 0}}>
-        <StageWork stage={stage()} isAdmin={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />
+        <StageWork stage={stage()} canUnlock={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />
       </div>,
     );
 
@@ -167,7 +167,7 @@ describe('StageWork fitting its notes box', () => {
   it('keeps its size when nothing is laid out to measure, or nothing round it scrolls', async () => {
     const onFitNotes = vi.fn();
     renderInScroller(onFitNotes);
-    renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />);
+    renderWithApp(<StageWork stage={stage()} canUnlock={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />);
 
     await waitFor(() => expect(screen.getAllByRole('textbox', {name: 'Notes'})).toHaveLength(2));
     // It tries for a few frames, then gives up.
@@ -180,7 +180,7 @@ describe('StageWork fitting its notes box', () => {
     const {user} = renderWithApp(
       <StageWork
         stage={stage()}
-        isAdmin={false}
+        canUnlock={false}
         isBusy={false}
         visit={<p>The visit</p>}
         finishDisabledReason="Needs an attended visit first"

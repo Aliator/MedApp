@@ -1,6 +1,7 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
+import type {Permission} from '../auth/permissions';
 
 /**
  * Staff calendars (docs/calendar-plan.md): an 08:00 to 18:00 working day, UK time, Monday to Friday, with blocked
@@ -106,6 +107,18 @@ export const staffQuery = queryOptions({
   queryKey: calendarKeys.staff,
   queryFn: () => unwrap(api.GET('/api/calendar/staff')),
 });
+
+/**
+ * The staff whose roles grant `permission` (`GET api/calendar/staff?permission=`), for choosing someone who can do a
+ * thing: who can be assigned a pathway (WorkPathways), or the person a "Stage unlocked" monitoring rule follows
+ * (OverrideStages). Open to anyone signed in, unlike the Users page's list.
+ */
+export function staffWithPermissionQuery(permission: Permission) {
+  return queryOptions({
+    queryKey: [...calendarKeys.staff, permission] as const,
+    queryFn: () => unwrap(api.GET('/api/calendar/staff', {params: {query: {permission}}})),
+  });
+}
 
 /** A person's default week template. */
 export function staffWeekTemplateQuery(userId: string) {

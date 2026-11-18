@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, descriptionOf, expectAnnounced, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, withAnnouncements} from '../../test/render';
+import {adminUser, calls, descriptionOf, expectAnnounced, findAlert, json, managerUser, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {MonitoringPage} from './MonitoringPage';
 
@@ -10,9 +10,10 @@ const KNEE = '0000000e-0000-0000-0000-000000000001';
 const BLOODS = '0000000d-0000-0000-0000-000000000001';
 const SCAN = '0000000d-0000-0000-0000-000000000002';
 
+// The staff list (everyone with a role), as `GET api/calendar/staff` sends it.
 const people = [
-  {userId: SAM, username: 'sam.staff', roles: ['User']},
-  {userId: KIM, username: 'kim.staff', roles: ['User']},
+  {userId: SAM, username: 'sam.staff'},
+  {userId: KIM, username: 'kim.staff'},
 ];
 const templates = [{id: KNEE, name: 'Knee review', isArchived: false, stages: []}];
 const definitions = [
@@ -39,7 +40,7 @@ const rules = [
 function renderPage(extra: Parameters<typeof mockApi>[0] = {}, list: unknown[] = rules) {
   const fetch = mockApi({
     [`GET ${RULES}`]: () => json(list),
-    'GET /api/auth/users/search': () => json(pageOf(people)),
+    'GET /api/calendar/staff': () => json(people),
     'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
     'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
     ...extra,
@@ -180,18 +181,27 @@ describe('MonitoringPage', () => {
     await findAlert('That rule no longer exists');
   });
 
-  it('offers only admins for "Unlocks a stage", and says when the list is cut short', async () => {
-    const admins = [{userId: KIM, username: 'kim.admin', roles: ['Admin', 'User']}, {userId: SAM, username: 'sam.staff', roles: ['User']}];
-    const {user} = renderPage({'GET /api/auth/users/search': () => json(pageOf(admins, 140))});
+  it('offers only holders of OverrideStages for "Unlocks a stage", from the staff list a manager can read', async () => {
+    // The staff list, and with ?permission=OverrideStages, only those whose roles let them unlock.
+    const fetch = mockApi({
+      [`GET ${RULES}`]: () => json(rules),
+      'GET /api/calendar/staff': (request) =>
+        json(new URL(request.url).searchParams.get('permission') === 'OverrideStages' ? [{userId: KIM, username: 'kim.clinician'}] : people),
+      'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
+      'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
+    });
+    const {user} = renderWithApp(<MonitoringPage />, {user: managerUser});
 
     await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
     const person = () => within(openDialog()!).getByRole('combobox', {name: /Staff member/});
-    expect(descriptionOf(person())).toContain('Only the first 100 accounts by username are listed for now.');
-    await pick(user, /Does this/, 'Unlocks a stage (admins only)');
-    expect(descriptionOf(person())).toContain('Only admins unlock stages, so only admins are listed.');
+    expect(descriptionOf(person())).toContain('For an assignment, the person assigned.');
+    await pick(user, /Does this/, 'Unlocks a stage');
+    expect(descriptionOf(person())).toContain('Only people whose roles let them unlock stages are listed.');
     await user.click(person());
 
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Anyone', 'kim.admin']);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Anyone', 'kim.clinician']);
+    // Never the Users page's list, which needs ManageUsers.
+    expect(calls(fetch).some((call) => call.includes('/api/auth/users'))).toBe(false);
   });
 
   it('deletes a rule after a confirmation', async () => {
@@ -240,7 +250,7 @@ describe('MonitoringPage', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(320);
     mockApi({
       [`GET ${RULES}`]: () => json(rules),
-      'GET /api/auth/users/search': () => json(pageOf(people)),
+      'GET /api/calendar/staff': () => json(people),
       'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
       'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
     });

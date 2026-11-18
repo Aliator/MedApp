@@ -7,6 +7,7 @@ using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Application.Attachments.Queries.GetAttachmentThumbnail;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Attachments.Requests;
 using MedApp.Contracts.Attachments.Responses;
@@ -33,9 +34,22 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).GetAttachments(request, cts.Token);
 
-        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, true, UserId, isAdmin));
+        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, true, UserId, isAdmin, CanAttachFiles: true));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(list);
+    }
+
+    [Test]
+    public async Task GetAttachments_ViewerWithoutAttachFiles_SaysSo()
+    {
+        var mediator = new RecordingMediator(_ => new AttachmentListResponse());
+        var request = new GetAttachmentsRequest { PatientId = RecordId };
+
+        await new AttachmentsController(mediator)
+            .WithRequest(SignedInWith(Permission.UseApp, Permission.ViewPatients))
+            .GetAttachments(request, CancellationToken.None);
+
+        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, false, UserId, false, CanAttachFiles: false));
     }
 
     [Test]

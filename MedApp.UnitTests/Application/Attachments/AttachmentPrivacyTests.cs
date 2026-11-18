@@ -110,7 +110,7 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     public async Task List_RecordsAViewOfThePatientsFiles_WithThePathway()
     {
         var pathway = GivenPathway(CreatePathway());
-        var query = new GetAttachmentsQuery(null, pathway.Id, null, false, Staff.UserId, false);
+        var query = new GetAttachmentsQuery(null, pathway.Id, null, false, Staff.UserId, false, true);
         Attachments.Setup(a => a.ListAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(([], 0));
         using var cts = new CancellationTokenSource();
 
@@ -125,7 +125,7 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     public async Task List_PatientsOwnFiles_RecordsAViewWithNoPathway()
     {
         var patient = GivenPatient();
-        var query = new GetAttachmentsQuery(patient.Id, null, null, false, Staff.UserId, false);
+        var query = new GetAttachmentsQuery(patient.Id, null, null, false, Staff.UserId, false, true);
         Attachments.Setup(a => a.ListAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(([], 0));
 
         await Fixture.Create<GetAttachmentsHandler>().Handle(query, CancellationToken.None);

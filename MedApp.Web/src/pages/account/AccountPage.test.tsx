@@ -9,11 +9,21 @@ describe('AccountPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Account Settings', level: 1})).toBeInTheDocument();
     expect(screen.getByText(staffUser.username)).toBeInTheDocument();
-    expect(screen.getByText('User')).toBeInTheDocument();
+    expect(screen.getByText('All staff (before roles)')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Change Password'})).toHaveAttribute('href', '/account/password');
     expect(screen.getByRole('link', {name: 'Email Address'})).toHaveAttribute('href', '/account/email');
     expect(screen.getByRole('link', {name: 'Security'})).toHaveAttribute('href', '/account/security');
     expect(screen.getByRole('link', {name: 'Change Colours'})).toHaveAttribute('href', '/account/colours');
+  });
+
+  it('lists every role, Admin first, or says there are none', async () => {
+    const {unmount} = renderWithApp(<AccountPage />, {user: {...adminUser, roles: ['Nurse', 'Admin']}});
+    expect(await screen.findByText('Admin, Nurse')).toBeInTheDocument();
+    expect(screen.getByText('Roles')).toBeInTheDocument();
+    unmount();
+
+    renderWithApp(<AccountPage />, {user: {...staffUser, roles: []}});
+    expect(await screen.findByText('No role')).toBeInTheDocument();
   });
 
   it('switches between dark and light mode and remembers the choice', async () => {

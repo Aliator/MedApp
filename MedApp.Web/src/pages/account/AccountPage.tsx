@@ -12,6 +12,7 @@ import {useRef, useState} from 'react';
 import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSettings';
 import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
+import {sortRoles} from '../../auth/roles';
 import {useCurrentUser} from '../../auth/auth';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page} from '../../components/pages/Page';
@@ -72,7 +73,10 @@ export function AccountPage() {
           }>
           <ViewSection title="Account">
             <MetadataListItem label="Username">{me.username}</MetadataListItem>
-            <MetadataListItem label="Role">{me.isAdmin ? 'Administrator' : 'User'}</MetadataListItem>
+            {/* Your roles, read only: admins give them on the Users page. */}
+            <MetadataListItem label={me.roles.length === 1 ? 'Role' : 'Roles'}>
+              {me.roles.length > 0 ? sortRoles(me.roles).join(', ') : 'No role'}
+            </MetadataListItem>
           </ViewSection>
         </ViewCard>
         <ViewCard

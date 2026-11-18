@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, managerUser, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
 import {authenticatorSetup} from '../test/twoFactor';
 import {insights, templates} from '../test/insights';
 
@@ -18,19 +18,33 @@ describe('route guards', () => {
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  it('sends a non-admin away from the admin pages', async () => {
+  it('tells someone without ManageUsers that the Users page needs it, rather than showing it', async () => {
     const {router} = renderApp({path: '/admin/users', user: staffUser});
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+    expect(router.state.location.search).toEqual({permission: 'ManageUsers'});
+    expect(await screen.findByRole('heading', {name: "You don't have permission to use this page"})).toBeInTheDocument();
+    expect(screen.getAllByText(/It needs the permission to: Manage accounts: create and delete them/)[0]).toBeInTheDocument();
+    // Inside the signed-in layout, so the side nav is still there to go elsewhere.
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+  });
+
+  it('lets a manager into Insights (ViewInsights) but not the Users page', async () => {
+    mockApi({'GET /api/pathways/insights': () => json({}), 'GET /api/pathway-templates*': () => json([])});
+    const {router} = renderApp({path: '/admin/users', user: managerUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+
+    await router.navigate({href: '/admin/insights'});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/insights'));
   });
 
   it.each(['/admin/activity', '/admin/retention', '/patients/0000000d-0000-4000-8000-000000000001/export'])(
-    'sends a non-admin away from %s, without asking for its data',
+    'sends someone without the permission away from %s, without asking for its data',
     async (path) => {
       const fetch = mockFetch(() => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}));
       const {router} = renderApp({path, user: staffUser});
 
-      await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
       expect(fetch.mock.calls.some(([r]) => /activity|retention|export/.test(new URL((r as Request).url).pathname))).toBe(false);
     },
   );
@@ -45,10 +59,10 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: heading, level: 1})).toBeInTheDocument();
   });
 
-  it('sends a non-admin away from Closed Days, without asking for them', async () => {
+  it('sends someone without ManageSetup away from Closed Days, without asking for them', async () => {
     const fetch = mockApi({'GET /api/calendar/closed-days': () => json([])});
     const {router} = renderApp({path: '/admin/closed-days?year=2027', user: staffUser});
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
     expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('closed-days'))).toBe(false);
   });
 
@@ -100,10 +114,10 @@ describe('route guards', () => {
     expect(router.history.length).toBe(1);
   });
 
-  it('sends a non-admin away from Insights', async () => {
+  it('sends someone without ViewInsights away from Insights', async () => {
     const {router} = renderApp({path: '/admin/insights', user: staffUser});
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
   });
 
   it('lets an admin into Insights, loading it for the period in the address', async () => {
@@ -136,7 +150,7 @@ describe('route guards', () => {
     const fetch = mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/me/settings' ? json({settings: null}) : json({title: 'Password change required'}, 403),
     );
-    const {router} = renderApp({path: '/admin/insights', user: {...mustChangePasswordUser, roles: ['Admin', 'User'], isAdmin: true}});
+    const {router} = renderApp({path: '/admin/insights', user: {...adminUser, mustChangePassword: true}});
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/change-password'));
     expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).not.toContain('/api/pathways/insights');
@@ -191,10 +205,10 @@ describe('route guards', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(path));
   });
 
-  it('sends a non-admin away from Admin Settings', async () => {
+  it('sends someone without ManageSecuritySettings away from Admin Settings', async () => {
     const {router} = renderApp({path: '/admin/settings', user: staffUser});
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
   });
 
   it('lets an admin into Admin Settings', async () => {
