@@ -22,13 +22,15 @@ export interface AdminCategory {
 }
 
 /**
- * The Administration section's pages, in categories (the owner's grouping, 18 November 2026). A category shows only
- * when the person can see at least one page in it, and the section only when they can see any.
+ * The Administration section's pages, in categories (the owner's grouping, 18 November 2026, and the owner's changes
+ * the same evening: Account Management and Calendar renamed, Practices into Calendar and Data Requests into Oversight,
+ * Sites and Rooms hidden as deprecated). A category shows only when the person can see at least one page in it, and
+ * the section only when they can see any. The keys are kept as they were, as the account's settings remember them.
  */
 export const ADMIN_CATEGORIES: AdminCategory[] = [
   {
     key: 'people',
-    label: 'People and Access',
+    label: 'Account Management',
     icon: AppIcon.AdminPeople,
     pages: [
       {label: 'Users', icon: AppIcon.Users, href: '/admin/users', permission: 'ManageUsers'},
@@ -50,12 +52,14 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
   },
   {
     key: 'clinics',
-    label: 'Clinics and Calendar',
+    label: 'Calendar',
     icon: AppIcon.AdminClinics,
+    // Sites and Rooms (/admin/sites) is deprecated and left out of the nav: its page still works by address.
     pages: [
-      {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},
       {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
       {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
+      // The GP practice directory, for admins (its route checks the same); staff pick practices on the patient form.
+      {label: 'Practices', icon: AppIcon.Practices, href: '/practices', permission: 'ManageSetup'},
     ],
   },
   {
@@ -67,6 +71,8 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
       {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring', permission: 'ManageMonitoring'},
       {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
       {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
+      // Patients' data requests (subject access), for those who answer them.
+      {label: 'Data Requests', icon: AppIcon.DataRequests, href: '/data-requests', permission: 'ManagePrivacy'},
     ],
   },
   {

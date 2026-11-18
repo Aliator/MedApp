@@ -93,6 +93,9 @@ export interface SitesPageProps {
  * archived first, and one site must always stay open), restore them, and delete ones nothing has used. Each site's
  * Rooms opens its rooms, where admins add, rename, archive, restore and delete them the same way. The API's refusals
  * (409s) show in its own words.
+ *
+ * **Deprecated** (the owner, 18 November 2026): no new work, kept building and working by address, with its tests;
+ * hidden from the side nav. Sites and rooms still drive what relies on them (room clash checks, the room picker).
  */
 export function SitesPage({search, onSearchChange}: SitesPageProps) {
   const {data = [], isPending, isError} = useQuery(sitesPageQuery);
