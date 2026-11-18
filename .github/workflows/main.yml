@@ -56,7 +56,7 @@ jobs:
       helm: ${{ steps.plan.outputs.helm }}
       coverage: ${{ steps.plan.outputs.coverage }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
 
@@ -192,7 +192,7 @@ jobs:
       run:
         working-directory: MedApp.Web
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -318,7 +318,7 @@ jobs:
     env:
       SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -356,7 +356,7 @@ jobs:
       run:
         working-directory: MedApp.Web
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -428,7 +428,7 @@ jobs:
       # Dependabot doesn't update it: bump it by hand, from `docker buildx imagetools inspect aquasec/trivy:<version>`.
       TRIVY_IMAGE: aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -517,7 +517,7 @@ jobs:
       # what was typed, the run's admin password included. e2e.yml, which runs against a deployment, never sets it.
       E2E_TRACE_DIR: ${{ github.workspace }}/e2e-traces
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Started first, so it's up by the time the image is built. Upper and lower case, digits and a symbol, as SQL
       # Server's rules need; the password goes to the container through the environment, never on a command line.
@@ -670,7 +670,7 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.helm != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lint with the chart's own SQL Server
         run: helm lint --strict deploy/helm/medapp --set image.tag=ci
@@ -835,7 +835,7 @@ jobs:
       tests-2: ${{ steps.run.outputs.tests-2 }}
       tests-3: ${{ steps.run.outputs.tests-3 }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -891,7 +891,7 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.dotnet != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
