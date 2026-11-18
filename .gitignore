@@ -17,3 +17,4 @@ MedApp.API/wwwroot/
 
 # The demo data seeder's summary (tools/seed-demo-data.sh --out): it holds local accounts' passwords.
 /demo-summary.json
+*demo-summary*.json
