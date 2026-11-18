@@ -142,7 +142,7 @@ jobs:
             fi
           fi
 
-          # The web app's changed files, for the light tier's related tests.
+          # The web app's changed files, for the light tier's tests.
           web_files=''
           [ "$web" != light ] || web_files=$(grep '^MedApp\.Web/' <<< "$files" || true)
           delimiter="files_$(openssl rand -hex 16)"
@@ -161,7 +161,7 @@ jobs:
             echo
             case "$web" in
               none) echo "- **web:** skipped" ;;
-              light) echo "- **web:** lint, type check and the tests related to the changed files$([ "$web_build" = true ] && echo ', and the production build'); no coverage" ;;
+              light) echo "- **web:** lint, type check and the changed files' own tests$([ "$web_build" = true ] && echo ', and the production build'); no coverage" ;;
               *) echo "- **web:** everything (audit, lint, type check, every test with the coverage thresholds, the production build)" ;;
             esac
             say unit-tests "$dotnet"
@@ -179,8 +179,8 @@ jobs:
   # MedApp.Web (React), in parallel jobs: web-checks (the audit, lint, type check, theme drift and the production
   # build), web-tests (Vitest, in shards) and, in the full tier, web-coverage (the shards' coverage as one report, held
   # to the thresholds). The `web` job after them is the required check: it passes only if each did what the tier asks.
-  #   - Light: lint, the type check, theme drift and the tests related to the changed files; the build only if the
-  #     pull request changed something the build reads beyond the source (`web_build`). No audit and no coverage.
+  #   - Light: web-checks alone. Lint, the type check, theme drift and the changed files' own tests; the build only if
+  #     the pull request changed something the build reads beyond the source (`web_build`). No audit and no coverage.
   #   - Full (and whenever `changes` gave no answer): everything.
   web-checks:
     needs: changes
@@ -260,21 +260,50 @@ jobs:
       - name: Check the built theme is up to date
         run: npm run theme:check
 
+      # Light tier only: the tests of the files the pull request changed. That's each changed test file, and the test
+      # beside each changed source file (Page.tsx has Page.test.tsx). Not the tests that import them: the route tree
+      # imports every page, so `vitest related` ran three quarters of the suite for one page. What a change breaks
+      # elsewhere is found by main's run. The names come from the pull request, so they're only ever passed as
+      # arguments, by their full paths (never read by the shell, and never mistaken for an option).
+      - name: Unit tests of the changed files
+        if: ${{ needs.changes.outputs.web == 'light' }}
+        env:
+          WEB_FILES: ${{ needs.changes.outputs.web_files }}
+        run: |
+          tests=()
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            path="$GITHUB_WORKSPACE/$file"
+            case "$file" in
+              *.test.*) candidates=("$path") ;;
+              *.*) candidates=("${path%.*}.test.tsx" "${path%.*}.test.ts") ;;
+              *) candidates=() ;;
+            esac
+            for test in "${candidates[@]}"; do
+              # A deleted file has nothing to run.
+              if [ -f "$test" ] && [[ " ${tests[*]} " != *" $test "* ]]; then tests+=("$test"); fi
+            done
+          done <<< "$WEB_FILES"
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo "None of the changed files has a test of its own."
+            exit 0
+          fi
+          printf 'Running %s\n' "${tests[@]#"$GITHUB_WORKSPACE/MedApp.Web/"}"
+          npx vitest run "${tests[@]}"
+
       # The whole production build, as the image's Dockerfile runs it: tsc, the client build, the server rendering
       # bundle (vite build --ssr) and the copy of the page server.
       - name: Build
         if: ${{ needs.changes.outputs.web != 'light' || needs.changes.outputs.web_build == 'true' }}
         run: npm run build
 
-  # Vitest, split across runners by file (--shard). Each shard's number and the count come from the matrix, so changing
-  # the list is all it takes to change the count.
-  #   - Full: every test, with coverage. A shard covers only its share, so the thresholds can't apply to it: they're set
-  #     to 0 on the command line here only, and web-coverage applies vite.config.ts's to the merged report. Each shard
-  #     saves its results and coverage as a blob for that.
-  #   - Light: only the tests that import a changed file (`vitest related`), with no coverage. A shard with none passes.
+  # Every Vitest test, with coverage, split across runners by file (--shard): full tier only. Each shard's number and
+  # the count come from the matrix, so changing the list is all it takes to change the count. A shard covers only its
+  # share, so the thresholds can't apply to it: they're set to 0 on the command line here only, and web-coverage
+  # applies vite.config.ts's to the merged report. Each shard saves its results and coverage as a blob for that.
   web-tests:
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' }}
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' && needs.changes.outputs.web != 'light' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -300,25 +329,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The changed files come as names from the pull request, so they're passed as arguments, by their full paths
-      # (never read by the shell, and never mistaken for an option). A deleted file has nothing to run.
-      - name: Unit tests related to the changed files
-        if: ${{ needs.changes.outputs.web == 'light' }}
-        env:
-          WEB_FILES: ${{ needs.changes.outputs.web_files }}
-        run: |
-          files=()
-          while IFS= read -r file; do
-            if [ -n "$file" ] && [ -f "$GITHUB_WORKSPACE/$file" ]; then files+=("$GITHUB_WORKSPACE/$file"); fi
-          done <<< "$WEB_FILES"
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No changed file is left to find tests for."
-            exit 0
-          fi
-          npx vitest related --run --passWithNoTests --shard="$SHARD" "${files[@]}"
-
       - name: Unit tests with coverage
-        if: ${{ needs.changes.outputs.web != 'light' }}
         run: >-
           npx vitest run --shard="$SHARD" --coverage
           --coverage.thresholds.lines=0 --coverage.thresholds.statements=0
@@ -326,7 +337,6 @@ jobs:
           --reporter=default --reporter=blob --outputFile.blob="blob-reports/blob-${{ matrix.shard }}.json"
 
       - name: Upload the shard's results and coverage
-        if: ${{ needs.changes.outputs.web != 'light' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-blob-${{ matrix.shard }}
@@ -375,10 +385,11 @@ jobs:
 
   # The required check for the web app. The jobs above report under their own names (and the shards as
   # "web-tests (1)"), so this one keeps the name main's ruleset requires, and says whether each did what the tier asks:
-  # passed, or skipped because `changes` said so. A failed, cancelled or wrongly skipped job fails it.
+  # passed, or skipped because `changes` said so. A failed, cancelled or wrongly skipped job fails it. When the tier
+  # has no web job at all, this one is skipped too (which passes the check), rather than wait for a runner to say so.
   web:
     needs: [changes, web-checks, web-tests, web-coverage]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' }}
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -388,8 +399,7 @@ jobs:
           GOT: ${{ needs.web-checks.result }} ${{ needs.web-tests.result }} ${{ needs.web-coverage.result }}
         run: |
           case "$TIER" in
-            none) want='skipped skipped skipped' ;;
-            light) want='success success skipped' ;;
+            light) want='success skipped skipped' ;;
             *) want='success success success' ;;
           esac
           echo "web-checks, web-tests and web-coverage: $GOT (the '${TIER:-full}' web tier needs: $want)"
@@ -857,27 +867,23 @@ jobs:
           [ "${tests:-0}" -gt 0 ]
 
   # The required check for the integration tests: the shards report as "integration-tests (shard 1)", so this job
-  # keeps the name main's ruleset requires. It passes only if every shard passed, or all were skipped because `changes`
-  # said so; a failed or cancelled shard fails it. It also adds up how many tests the shards ran.
+  # keeps the name main's ruleset requires. It passes only if every shard passed; a failed, cancelled or skipped shard
+  # fails it. It also adds up how many tests the shards ran. When the tier has no integration tests, this job is
+  # skipped with them (which passes the check), rather than wait for a runner to say so.
   integration-tests:
     needs: [changes, integration-shards]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.changes.outputs.integration != 'false' }}
     runs-on: ubuntu-latest
     permissions: {}
     steps:
       - name: Check the shards did what the tier asks
         env:
-          WANTED: ${{ needs.changes.outputs.integration }}
           GOT: ${{ needs.integration-shards.result }}
           TESTS: ${{ needs.integration-shards.outputs.tests-1 }} + ${{ needs.integration-shards.outputs.tests-2 }} + ${{ needs.integration-shards.outputs.tests-3 }}
         run: |
-          want=success
-          if [ "$WANTED" = false ]; then want=skipped; fi
-          echo "The shards: $GOT (needed: $want)"
-          [ "$GOT" = "$want" ]
-          if [ "$GOT" = success ]; then
-            echo "Integration tests run: $TESTS = $((TESTS))" | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "The shards: $GOT (needed: success)"
+          [ "$GOT" = success ]
+          echo "Integration tests run: $TESTS = $((TESTS))" | tee -a "$GITHUB_STEP_SUMMARY"
 
   unit-tests:
     needs: changes

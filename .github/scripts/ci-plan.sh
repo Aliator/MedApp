@@ -13,8 +13,8 @@
 #
 # The tiers (AGENTS.md, CI):
 #   none   nothing builds or tests: only docs changed, or the `ci:none` label (a small fix)
-#   light  the default: the side that changed gets its quick checks (web: lint, type check and the Vitest tests related
-#          to the changed files; .NET: the solution's build and the unit tests). No integration tests, E2E or image.
+#   light  the default: the side that changed gets its quick checks (web: lint, type check and the changed files' own
+#          Vitest tests; .NET: the solution's build and the unit tests). No integration tests, E2E or image.
 #   full   everything: the `ci:full` label, and always on main. Still by side: a web-only change runs no .NET tests.
 #
 # Never light, whatever the label: a workflow change (.github/) runs everything; deploy/ runs helm; the Dockerfile,
