@@ -23,6 +23,7 @@ import {
 import {calendarKeys, calendarQuery, staffQuery} from '../../api/calendar';
 import {clinicKeys} from '../../api/clinics';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
+import {tellsPatientByDefault} from '../../api/patientMessages';
 import {whyCantChange} from '../../api/patients';
 import {pathwayQuery} from '../../api/pathways';
 import {patientSearchQuery, pathwaySearchQuery} from '../../api/search';
@@ -53,6 +54,7 @@ import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
 import {ClinicSlotPicker, type ClinicSlotChoice} from './ClinicSlotPicker';
+import {TellPatientField, usePatientMessagingOn} from './TellPatientField';
 
 export interface BookAppointmentDialogProps {
   isOpen: boolean;
@@ -202,6 +204,10 @@ function BookingForm({
   // rescheduling; on a day with neither, the first time chosen there. Never the latest choice, which would move them.
   const [fineAnchor, setFineAnchor] = useState<string | undefined>(startUtc ?? (isRescheduling ? (appointment?.startUtc ?? undefined) : undefined));
   const [notes, setNotes] = useState('');
+  // Moving a booking: whether to tell the patient (decision 130), ticked when they chose a channel.
+  const [tellPatient, setTellPatient] = useState(() => tellsPatientByDefault(appointment?.patientReminderChannel));
+  const isMessagingOn = usePatientMessagingOn(isOpen && isRescheduling);
+  const offersTell = isRescheduling && isMessagingOn;
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
   // Into a time on someone's calendar, or into a clinic session's slot (centre plan decision 124).
   const [bookInto, setBookInto] = useState<BookInto>(clinicSlot ? 'clinics' : 'times');
@@ -308,7 +314,7 @@ function BookingForm({
       // Says what this is, by the status the page showed: booking a Requested one, or moving a Booked one. If someone
       // else has booked or changed it since, the API refuses (409) rather than book over them or move theirs.
       book.mutate(
-        {id: appointment.id ?? '', ...time, expectedStatus: appointment.status},
+        {id: appointment.id ?? '', ...time, expectedStatus: appointment.status, ...(offersTell && {tellPatient})},
         {onSuccess: (saved) => succeed(saved, isRescheduling ? 'Appointment rescheduled' : 'Appointment booked'), onError: fail},
       );
     } else {
@@ -374,6 +380,7 @@ function BookingForm({
   const details = (
     <VStack gap={4} hAlign="stretch">
       {fixedItems.length > 0 && <MetadataList label={{position: 'top'}}>{fixedItems}</MetadataList>}
+      {offersTell && <TellPatientField value={tellPatient} onChange={setTellPatient} isDisabled={isSaving} />}
       {fixedPatientId === undefined && (
         <PatientPicker value={pickedPatient} onChange={choosePatient} status={fieldStatus(problem.validation, 'patientId')} />
       )}

@@ -159,9 +159,37 @@ public sealed class AppointmentChange(
         appointment.Status = outcome;
         appointment.OutcomeAtUtc = nowUtc;
         appointment.OutcomeByUserId = actor.UserId;
+        // A follow-up applies to a Did not attend only: corrected to Attended, it's cleared (the history keeps it).
+        if (outcome != DidNotAttend)
+            ClearDnaFollowUp();
         Record(
             outcome == Attended ? AppointmentEventAction.Attended : AppointmentEventAction.DidNotAttend,
             new { previousStatus = previous.ToString() });
+    }
+
+    /// <summary>
+    /// Records what booking staff decided after a Did not attend (centre plan decision 132), with an optional detail of
+    /// free text (kept on the appointment and in the history, which shows it to admins only). Nothing happens if the same
+    /// decision and detail are recorded again. It changes nothing else: never the pathway.
+    /// </summary>
+    public void RecordDnaFollowUp(DnaFollowUpDecision decision, string? detail)
+    {
+        if (appointment.DnaFollowUp == decision && appointment.DnaFollowUpDetail == detail)
+            return;
+
+        appointment.DnaFollowUp = decision;
+        appointment.DnaFollowUpDetail = detail;
+        appointment.DnaFollowUpAtUtc = nowUtc;
+        appointment.DnaFollowUpByUserId = actor.UserId;
+        Record(AppointmentEventAction.DnaFollowUpRecorded, new { decision = decision.ToString(), detail });
+    }
+
+    private void ClearDnaFollowUp()
+    {
+        appointment.DnaFollowUp = null;
+        appointment.DnaFollowUpDetail = null;
+        appointment.DnaFollowUpAtUtc = null;
+        appointment.DnaFollowUpByUserId = null;
     }
 
     /// <summary>Cancels it with a reason, by someone or by the app (<paramref name="automatic"/>).</summary>

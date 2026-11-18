@@ -6,6 +6,8 @@ import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
+  RiChatFollowUpLine,
+  RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
   RiFirstAidKitLine,
@@ -295,4 +297,8 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  /** A text or email to a patient about an appointment (a reminder, a move, a cancellation, a missed appointment). */
+  PatientMessage: remix(RiMessage2Line),
+  /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */
+  DnaFollowUp: remix(RiChatFollowUpLine),
 } as const satisfies Record<string, IconType>;

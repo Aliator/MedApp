@@ -53,6 +53,11 @@ describe('parseRequiresAppointmentSearch', () => {
     expect(parseRequiresAppointmentSearch({asc: 'TRUE'})).toEqual({asc: true});
   });
 
+  it('keeps the Did not attend view, in any case, and drops any other', () => {
+    expect(parseRequiresAppointmentSearch({view: 'DIDNOTATTEND', page: '2'})).toEqual({view: 'didNotAttend', page: 2});
+    expect(parseRequiresAppointmentSearch({view: 'cancelled'})).toEqual({});
+  });
+
   it('drops anything invalid', () => {
     expect(parseRequiresAppointmentSearch({page: '1', sort: 'colour', asc: 'maybe', patient: ''})).toEqual({});
     expect(parseRequiresAppointmentSearch({page: 'two'})).toEqual({});

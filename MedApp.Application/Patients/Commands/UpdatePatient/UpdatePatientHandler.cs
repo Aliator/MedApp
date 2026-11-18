@@ -106,6 +106,16 @@ public sealed class UpdatePatientHandler(
             }
         }
 
+        if (request.ReminderChannel is not null)
+        {
+            var channel = ReminderChannelRules.ParseOrNone(request.ReminderChannel);
+            if (channel != patient.ReminderChannel)
+            {
+                patient.ReminderChannel = channel;
+                changed.Add("reminderChannel");
+            }
+        }
+
         Practice? practice = null;
         if (request.PracticeId is { } practiceId)
         {

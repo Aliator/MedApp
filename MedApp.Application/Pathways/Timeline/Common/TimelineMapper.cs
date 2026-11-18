@@ -209,6 +209,12 @@ public static class TimelineMapper
             case AppointmentEventAction.NotesUpdated:
                 response.Changes = [Change("appointmentNotes", details, isAdmin)];
                 break;
+
+            case AppointmentEventAction.DnaFollowUpRecorded:
+                // The decision is a fixed choice; its detail is free text, for admins only.
+                response.DnaFollowUp = Text(details, "decision");
+                response.Reason = isAdmin ? Text(details, "detail") : null;
+                break;
         }
 
         return response;

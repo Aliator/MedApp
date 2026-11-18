@@ -158,9 +158,22 @@ export function useAppointmentActions() {
         unwrap(api.POST(`${APPOINTMENT}/outcome`, {...path(id), body: {outcome}})),
       onSuccess: refresh,
     }),
+    /**
+     * Cancels it, with a reason. `tellPatient` (sent only when the dialog offered it: patient messages are on) texts or
+     * emails the patient as they chose; the message never gives the reason.
+     */
     cancel: useMutation({
-      mutationFn: ({id, reason}: {id: string; reason: string}) =>
-        unwrap(api.POST(`${APPOINTMENT}/cancel`, {...path(id), body: {reason}})),
+      mutationFn: ({id, reason, tellPatient}: {id: string; reason: string; tellPatient?: boolean}) =>
+        unwrap(api.POST(`${APPOINTMENT}/cancel`, {...path(id), body: tellPatient === undefined ? {reason} : {reason, tellPatient}})),
+      onSuccess: refresh,
+    }),
+    /**
+     * After a Did not attend, what happens next (centre plan decision 132): Rebook, Clinician to review, or No further
+     * appointment (with who decided, and why). It's recorded in the appointment's history, and changes nothing else.
+     */
+    recordDnaFollowUp: useMutation({
+      mutationFn: ({id, decision, detail}: {id: string; decision: DnaFollowUpDecision; detail: string | null}) =>
+        unwrap(api.POST(`${APPOINTMENT}/dna-follow-up`, {...path(id), body: {decision, detail}})),
       onSuccess: refresh,
     }),
     saveNotes: useMutation({
@@ -191,4 +204,31 @@ export function appointmentStatusLabel(status: string | null | undefined): strin
     default:
       return status ?? '';
   }
+}
+
+/** What happens after a patient did not attend (decision 132), by the names the API uses, with their words. */
+export const DNA_FOLLOW_UPS = [
+  {value: 'Rebook', label: 'Rebook'},
+  {value: 'ClinicianToReview', label: 'Clinician to review'},
+  {value: 'NoFurtherAppointment', label: 'No further appointment'},
+] as const;
+export type DnaFollowUpDecision = (typeof DNA_FOLLOW_UPS)[number]['value'];
+
+/** The longest detail a follow-up can have (the API's limit). */
+export const MAX_DNA_FOLLOW_UP_DETAIL = 500;
+
+/** A follow-up decision in words: "Rebook", "Clinician to review" or "No further appointment". */
+export const dnaFollowUpLabel = (decision: string | null | undefined): string =>
+  DNA_FOLLOW_UPS.find((d) => d.value === decision)?.label ?? decision ?? '';
+
+/** The Did not attend list's view (`View=didNotAttend`): missed appointments with no later one, waiting for a follow-up. */
+export const DID_NOT_ATTEND_VIEW = 'didNotAttend';
+
+/**
+ * The Did not attend list (decision 132): appointments marked Did not attend with no later appointment for the same
+ * stage (or pathway) and no decision of No further appointment, oldest first, each with how many were missed on its
+ * pathway (`missedOnPathwayCount`).
+ */
+export function didNotAttendSearch({page, pageSize, patient}: {page?: number; pageSize?: number; patient?: string}): AppointmentSearch {
+  return {View: DID_NOT_ATTEND_VIEW, Sort: 'start', Ascending: true, Page: page ?? 1, PageSize: pageSize, Search: patient};
 }

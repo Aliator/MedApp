@@ -2,7 +2,7 @@ import {screen, waitFor} from '@testing-library/react';
 import {useState} from 'react';
 import type {PatientInput} from '../../api/patients';
 import {adminUser, json, mockApi, renderWithApp} from '../../test/render';
-import {CONTACT_MESSAGES, contactProblems, PatientContactFields, PatientPracticeField} from './PatientContactFields';
+import {CONTACT_MESSAGES, contactProblems, PatientContactFields, PatientPracticeField, PatientReminderField, REMINDER_HINT, reminderContactGap} from './PatientContactFields';
 import {EMPTY_PATIENT} from './PatientFormFields';
 
 function Harness({start = EMPTY_PATIENT, current}: {start?: PatientInput; current?: {id: string; name: string; isArchived: boolean}}) {
@@ -59,5 +59,32 @@ describe('PatientContactFields and PatientPracticeField', () => {
     await user.click(screen.getByRole('option', {name: 'Testbrook Surgery'}));
     await user.click(practice);
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Oldfield Practice (archived)', 'Testbrook Surgery']);
+  });
+});
+
+describe('PatientReminderField', () => {
+  it('says when the choice needs a mobile or an email the patient has not given, without blocking', () => {
+    const none = {mobilePhone: '', email: ''};
+    expect(reminderContactGap({...none, reminderChannel: 'None'})).toBeNull();
+    expect(reminderContactGap({...none, reminderChannel: 'Text'})).toBe('Texts can’t be sent without a mobile number.');
+    expect(reminderContactGap({...none, reminderChannel: 'Email'})).toBe('Emails can’t be sent without an email address.');
+    expect(reminderContactGap({...none, reminderChannel: 'TextAndEmail'})).toBe('Nothing can be sent without a mobile or an email address.');
+    expect(reminderContactGap({mobilePhone: '07700 900123', email: 'a@example.org', reminderChannel: 'TextAndEmail'})).toBeNull();
+  });
+
+  it('offers the choices in words with the hint, and warns when texts are chosen without a mobile', async () => {
+    function ReminderHarness() {
+      const [value, setValue] = useState<PatientInput>({...EMPTY_PATIENT, email: 'test.patient@example.org'});
+      return <PatientReminderField value={value} onChange={setValue} />;
+    }
+    const {user} = renderWithApp(<ReminderHarness />, {user: adminUser});
+
+    const reminders = await screen.findByRole('combobox', {name: /^Reminders/});
+    expect(reminders).toHaveTextContent('No reminders');
+    expect(reminders).toHaveAccessibleDescription(new RegExp(REMINDER_HINT.slice(0, 20)));
+    await user.click(reminders);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['No reminders', 'Text', 'Email', 'Text and email']);
+    await user.click(screen.getByRole('option', {name: 'Text'}));
+    expect(reminders).toHaveAccessibleDescription(/Texts can’t be sent without a mobile number/);
   });
 });

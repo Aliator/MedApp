@@ -1,6 +1,7 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
+import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
 import {referralFieldWords, rejectionReasonWords} from './referrals';
 import {api, unwrap, type Schemas} from './client';
@@ -363,6 +364,12 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
     // A walk-in withdrawn: it didn't happen, or is on the wrong patient. Why comes only to admins, as for cancelling.
     case 'AppointmentEnteredInError':
       return {title: `Appointment marked entered in error${about}`, detail: sentences(slot, entry.reason)};
+    // After a Did not attend, what happens next. Its detail (free text) comes only to admins, as the reason.
+    case 'AppointmentDnaFollowUpRecorded':
+      return {
+        title: `Did not attend follow-up recorded${about}: ${dnaFollowUpLabel(entry.dnaFollowUp) || 'unknown'}`,
+        detail: sentences(slot, entry.reason),
+      };
     case 'AppointmentNotesUpdated': {
       const changes = (entry.changes ?? []).filter(hasValues).map(describeChange);
       return {title: `Appointment notes changed${about}`, detail: changes.join('; ')};

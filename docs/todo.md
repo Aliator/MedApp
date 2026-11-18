@@ -29,7 +29,6 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 
 **Phase 3: clinic to lab to result to letter.**
 - **Contact details, practices and staff details are built** (PR 12, `feature/patient-contact-gp`: `docs/agents/privacy.md`). Left from it:
-  - **The reminder channel** (`Patient.ReminderChannel`) is stored, always None: the patient form shows it with reminders (PR 26).
   - **The offline demographics stub gives no GP practice**, as it knows no ODS codes; the real PDS gives one, to match against the directory when PDS is wired in.
   - **Demo data** for practices, contact details and staff names comes with Phase 3's demo data (PR 17).
   - **Looking practices up in the national ODS service** stays for later (plan, section 8): the directory is typed.
@@ -41,7 +40,15 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
 - **Clinics, rooms and longer hours:** clinic sessions with a set number of slots, in a named room at a named site; evening and weekend clinics; working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday, except closed days).
 - **Roles that limit what people see:** the starting roles (Clinician, Nurse, Booking, Lab, Manager) limit what each does since Phase 2, but every role still sees every patient. The privacy items naming roles (hiding restricted patients from lists, an `Auditor` read permission) build on it.
-- **Patient reminders:** texts or emails before an appointment, and the rule for a missed one. A job on the scheduled job runner (`docs/agents/jobs.md`).
+- **Patient reminders and the Did not attend list are built** (PR 26, `feature/patient-reminders`: `docs/agents/calendar.md`, Patient reminders). Left from it:
+  - **Turning the real sender on** is the customer's: their own GOV.UK Notify service (or another provider's adapter, for a customer Notify won't serve), its two templates (`((message))`; `((subject))` and `((message))`), the API key in the secret store as `PatientMessages__Notify__ApiKey`, the sub-processor notice (`docs/governance/sub-processors.md`) and `PatientMessages:Mode=Live`. Try it against Notify's test key (messages accepted, never delivered) before a live one.
+  - **The chart sets no mode,** so kind and Azure are Off: kind should be Offline into its Mailpit (`PatientMessages__Mode`, `PatientMessages__SenderName` in the chart's values) and Azure Live once a customer has a Notify service. A deploy change, tried on kind before it merges (`docs/agents/deploy.md`).
+  - **Telling the patient when a calendar drag moves an appointment:** the booking dialog offers it; a drag on the grid doesn't (it moves without asking).
+  - **A session's room moved** moves its Booked appointments' room (perhaps to another site) without offering to tell the patients.
+  - **Messages about a cancelled pathway's or a closed day's appointments:** cancelling a pathway leaves Booked appointments for staff to cancel (and tell); closing a day tells nobody yet.
+  - **Video appointment links** in reminders come with video appointments (PR 34).
+  - **A message's content kept for as long as the record:** messages are part of the patient record and kept with it; whether their text and destination should be purged sooner (a few months) is the DPO's decision (`docs/governance/retention-schedule.md`).
+  - **Demo data:** offline messages for past appointments, some not sent and some failed, follow-ups recorded and three waiting (PR 28).
 - **Adjusted with them:**
   - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked.
   - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin.
@@ -272,7 +279,7 @@ What the security baseline left, so the app would work exactly as before (`docs/
 
 ## Clinic sessions (centre plan PR 23)
 
-- **Tell a cancelled session's patients by text or email** (decision 126): the call list is for phoning them until reminders (PR 26) give messages.
+- **Telling a cancelled session's patients by text or email is built** (PR 26: `tellPatients`); the call list stays for phoning those with no choice or no contact.
 - **An account's upcoming sessions** with no bookings stay when the account is deleted or loses its staff roles (sessions with bookings stop that, through their appointments): cancel them with it, or refuse it as for appointments.
 - **Closing a day** counts and tells of appointments, blocks and meetings, but not clinic sessions on it; a session on a day closed later stays, unflagged.
 - **Demo data:** patterns, sessions for the 18 months and the next 6 weeks, appointments in their slots and one cancelled session (PR 28).

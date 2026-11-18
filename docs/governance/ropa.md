@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.3 (draft), 18 November 2026: referrals, with the referrer as a new source (A3.10) |
+| **Version** | 0.3 (draft), 18 November 2026: referrals, with the referrer as a new source (A3.10); 0.4 (draft), 18 November 2026: texts and emails to patients (A3.11) and a missed appointment's follow-up (A3.8) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 6 months, when a customer or sub-processor is added or removed, and when the processing changes |
@@ -52,11 +52,12 @@ All customers receive the same service, so the categories are the same for each.
 | A3.5 | **Operating the service** | Staff users; patients indirectly | Application logs and traces, which can contain record IDs and URLs | Monitoring, troubleshooting, security investigation |
 | A3.6 | **Support, on the customer's instruction** | Patients; staff users | Whatever the instruction needs, under [support-access-policy.md](support-access-policy.md) | Viewing, correcting, exporting, restoring |
 | A3.7 | **Data subject requests and exit, on instruction** | Patients; staff users | All the customer's data | Export, correction, erasure, return and deletion at the end of the contract |
-| A3.8 | **Appointments** | Patients; staff users | The patient, optionally the pathway and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment |
+| A3.8 | **Appointments** | Patients; staff users | The patient, optionally the pathway and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment. After a Did not attend, the follow-up staff record (rebook, clinician to review, or no further appointment, with a detail), listed for booking staff until it's resolved; nothing about the pathway changes because of it |
 | A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's own day and week templates, their default week and one day's changes to it; meetings admins arrange (title, notes, time, organiser and attendees, and each attendee's reply: accepted or declined) and the notifications about them | Storage; display to every staff user; changes by the calendar's owner or an admin (meetings: admins only); admins' team view and suggested meeting times |
 | A3.10 | **Referrals** (`feature/referrals`) | Patients; **referrers** (the referring clinician and practice, a new source); staff users | The patient, the specialty asked for, the date received, the referring practice, clinician and ODS code, the priority asked for, the reason for referral (clinical free text), the status, who registered, triaged or closed it, and the detail given (a rejection reason, where it was redirected, and why); the referral's history (structured values only); the letter, as an attached file; a notification to whoever registered it when it's triaged (no patient or free text). **The source is the referrer**, not the patient: staff type the details in from the letter, and nothing reaches MedApp from the referrer directly | Storage, retrieval, display, change while it awaits triage, closing (withdrawn, entered in error), on the customer's staff's actions; listed in an inbox for triage; triage by a clinician of the specialty (accepted into a pathway it creates, rejected, or redirected to another specialty or elsewhere: `feature/triage`). A waiting-time clock comes later, updating this entry |
+| A3.11 | **Texts and emails to patients** (PR 26, `feature/patient-reminders`; only when the customer turns them on) | Patients; staff users (who asked for a patient to be told) | The patient's reminder choice, mobile number or email address; each message as sent (its kind, channel, destination, text, the appointment's start, status and reason, the provider's reference and delivery status, who asked and when). The text holds the organisation's name, the appointment's date, time and site, never why | Made and sent by a scheduled job (reminders before a booked appointment, and, if turned on, a message the day after a missed one) or when staff ask for a patient to be told of a move or cancellation; transmission to the customer's own messaging provider (GOV.UK Notify, in the Live mode only), which delivers it; delivery status fetched for 3 days; storage and display on the appointment. In development and on kind, messages go to a local mail catcher instead, with synthetic data only |
 
-**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, A3.10, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 25).
+**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, A3.10, A3.11 (that the patient has an appointment, and where), and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 25).
 
 **What the supplier does not do with customer data:** analytics, profiling, AI training, marketing, sale, research, or any purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md), section 1).
 
@@ -66,7 +67,7 @@ All customers receive the same service, so the categories are the same for each.
 
 ### A5. Sub-processors
 
-See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub holds no customer personal data.
+See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub holds no customer personal data. **GOV.UK Notify,** which delivers texts and emails to patients in the Live mode (A3.11), is the customer's own processor, contracted by the customer, not a sub-processor of the supplier; the supplier sends messages to it on the customer's instruction, with the customer's API key.
 
 ### A6. General description of technical and organisational security measures
 
@@ -119,3 +120,4 @@ Rows marked with brackets are to be filled in when the supplier picks those prov
 | 17 November 2026 | Meetings and personal calendar templates in A3.9 (review of #99) | AI coding agent, for review |
 | 17 November 2026 | Replies to meetings in A3.9 | AI coding agent, for review |
 | 18 November 2026 | 0.3: referrals (A3.10), with the referrer as a new source of data and a third party named in it | AI coding agent, for review |
+| 18 November 2026 | 0.4: texts and emails to patients (A3.11), sent through the customer's own GOV.UK Notify service in the Live mode (A5); a missed appointment's follow-up (A3.8) | AI coding agent, for review |

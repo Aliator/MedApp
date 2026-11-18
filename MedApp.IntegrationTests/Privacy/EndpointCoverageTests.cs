@@ -51,6 +51,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
         ["api/appointments/search"] = Records("PatientListed"),
+        ["api/appointments/{id:guid}/messages"] = Records("PatientViewed"), // the texts and emails, with the patient's mobile or address
         ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar; nothing withoutAppointments
         ["api/calendar/team"] = Records("PatientListed"), // each patient with an appointment on any calendar shown
         ["api/attachments"] = Records("AttachmentsViewed"),
@@ -99,6 +100,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/calendar/staff/{userId:guid}/hours"] = Nothing("a member of staff's working hours: staff data, no patient"),
         ["api/calendar/availability"] = Nothing("staff's free and busy times; an appointment is only \"another appointment\", never a patient"),
         ["api/calendar/meetings/{id:guid}"] = Nothing("a staff meeting: staff, not patients"),
+        ["api/appointments/patient-messages/status"] = Nothing("whether patients are texted and emailed here: configuration"),
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 
         // Configuration.
@@ -196,6 +198,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
             ("/api/appointments/search", "PatientListed", patientId),
+            ($"{AppointmentUrl(appointment.Id)}/messages", "PatientViewed", patientId),
             ($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
             ($"/api/calendar/team?date={day:yyyy-MM-dd}&staffUserIds={adminId}", "PatientListed", patientId),
             ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),

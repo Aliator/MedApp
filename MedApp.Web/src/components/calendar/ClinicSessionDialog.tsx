@@ -16,6 +16,7 @@ import {formatNhsNumber} from '../../utils/nhsNumber';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {TellPatientField, usePatientMessagingOn} from './TellPatientField';
 
 /** The longest reason for cancelling a session (the API's limit, as an appointment's). */
 const MAX_REASON = 500;
@@ -38,8 +39,9 @@ type Step = 'view' | 'cancelling';
  * slot that hasn't started can be booked. Holders of ManageClinics can change it or cancel it: cancelling asks for a
  * reason (about the clinic, never a patient), cancels every appointment booked into it that hasn't started (those that
  * have stay, for their outcome), and then lists the patients to tell, by name, NHS number and time; a session cancelled
- * earlier shows that list again. Telling them by text or email comes with patient reminders (centre plan decision
- * 130); until then the list is for phoning them.
+ * earlier shows that list again. While patient messages are on, cancelling offers "Tell the patients by text or
+ * email" (ticked: centre plan decision 130), and the list then says messages will go to those who chose them; the
+ * list is still there for phoning anyone who didn't.
  */
 export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: ClinicSessionDialogProps) {
   const isOpen = sessionId !== null;
@@ -50,26 +52,37 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState<CancelledSession | null>(null);
+  const [tellPatients, setTellPatients] = useState(true);
+  // Whether the session's cancellation told the patients (for what the call list says).
+  const [toldPatients, setToldPatients] = useState(false);
+  const isMessagingOn = usePatientMessagingOn(isOpen);
 
   const close = () => {
     setStep('view');
     setReason('');
     setProblem(null);
     setCancelled(null);
+    setTellPatients(true);
+    setToldPatients(false);
     onClose();
   };
 
   const session = cancelled?.session ?? detail.data?.session;
   const canChange = session?.canChange === true && cancelled === null;
 
+  // Only when someone is booked into it: otherwise there's nobody to tell.
+  const offersTell = isMessagingOn && (session?.bookedCount ?? 0) > 0;
+
   const confirmCancel = () => {
     if (!session || reason.trim() === '') return;
     setProblem(null);
+    const tells = offersTell ? tellPatients : undefined;
     cancel.mutate(
-      {id: session.id ?? '', reason: reason.trim(), expectedLastUpdated: session.lastUpdated ?? ''},
+      {id: session.id ?? '', reason: reason.trim(), expectedLastUpdated: session.lastUpdated ?? '', tellPatients: tells},
       {
         onSuccess: (result) => {
           setCancelled(result);
+          setToldPatients(tells === true);
           setStep('view');
           announce('Clinic session cancelled');
         },
@@ -117,7 +130,7 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
             !detail.isError && <Skeleton height="var(--spacing-20)" />
           ) : (
             <>
-              {cancelled && <AlertMessage status="success" message={cancelledWords(cancelled)} />}
+              {cancelled && <AlertMessage status="success" message={cancelledWords(cancelled, toldPatients)} />}
               <MetadataList label={{position: 'start'}}>
                 <MetadataListItem label="When">{`${formatCalendarDay(session.date ?? '')}, ${formatTimeRange(session.startUtc ?? '', session.endUtc ?? '')}`}</MetadataListItem>
                 <MetadataListItem label="Clinician">{session.staffUsername}</MetadataListItem>
@@ -144,6 +157,7 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
                     maxLength={MAX_REASON}
                     isRequired
                   />
+                  {offersTell && <TellPatientField value={tellPatients} onChange={setTellPatients} isPlural isDisabled={cancel.isPending} />}
                 </VStack>
               ) : cancelled ? (
                 <PatientsToTell cancelled={cancelled} />
@@ -161,11 +175,17 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
   );
 }
 
-/** What cancelling did, in words. */
-export function cancelledWords(cancelled: CancelledSession): string {
+/**
+ * What cancelling did, in words. With `toldPatients` (cancelled with "Tell the patients"), it says texts and emails will
+ * go to those who chose them, and asks staff to tell anyone else.
+ */
+export function cancelledWords(cancelled: CancelledSession, toldPatients = false): string {
   const count = cancelled.patientsToTell?.length ?? 0;
   if (count === 0) return 'Clinic session cancelled. Nobody was booked into it.';
-  return `Clinic session cancelled, with ${count === 1 ? 'its appointment' : `its ${count} appointments`}. Please tell ${count === 1 ? 'this patient' : 'these patients'}.`;
+  const what = `Clinic session cancelled, with ${count === 1 ? 'its appointment' : `its ${count} appointments`}.`;
+  if (toldPatients)
+    return `${what} A text or email will go to ${count === 1 ? 'the patient if they chose one' : 'each patient who chose one'}; please tell anyone who didn't.`;
+  return `${what} Please tell ${count === 1 ? 'this patient' : 'these patients'}.`;
 }
 
 function PatientsToTell({cancelled}: {cancelled: CancelledSession}) {

@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft template), 16 November 2026: adds appointments; 0.3 (draft template), 18 November 2026: adds referrals (the referral and its letter, received from the professional who referred the patient) |
+| **Version** | 0.2 (draft template), 16 November 2026: adds appointments; 0.3 (draft template), 18 November 2026: adds referrals (the referral and its letter, received from the professional who referred the patient); 0.4 (draft template), 18 November 2026: adds texts and emails about appointments, for customers who turn them on, and the follow-up of a missed appointment |
 | **For** | Customers, to adapt and publish to their patients |
 | **Prepared by** | [Company name], the supplier of MedApp |
 
@@ -24,6 +24,8 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Your information is stored in the UK. [Company name] and its hosting provider, Microsoft, can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. [Company name]'s support staff look at records only when we ask them to, under a written policy. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires.
 >
+> [*Only if you text or email patients through MedApp:* If you tell us you'd like them, we send you texts or emails about your appointments: a reminder before one, and a message if we move or cancel one [or if you miss one]. They say only that they're from us, when your appointment is and where, never what it's for. We keep a copy of each message we send, with the number or address we sent it to. They're delivered for us by GOV.UK Notify, the government's messaging service [or: your provider], which handles them only on our instructions. Tell us at any time if you'd like to stop them, or change how we contact you: replies to them aren't read.]
+>
 > In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *MedApp records access to records (roadmap step 7). Include the sentence in brackets once your organisation checks those records regularly.*
 
 ## Section B: a full notice
@@ -32,7 +34,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; your address, postcode and mobile number, and the GP practice you're registered with, if you give them to us (to write to you and your GP, and later to remind you of appointments); the pathways you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); the referral that asked us to see you (who referred you, when, to which of our services, how soon they asked for you to be seen and why), with a copy of the referral letter; notes our staff write about your care; and copies of documents about your care, such as letters, test results, scans and photos [of the area being treated]. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; your address, postcode and mobile number, and the GP practice you're registered with, if you give them to us (to write to you and your GP, and [*if you use them:* to text or email you about your appointments]); the pathways you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled, and, if you missed one, what we decided to do next); [*if you text or email patients through MedApp:* whether you'd like texts or emails about your appointments, and a copy of each one we send you, with the number or address it went to and whether it was delivered;] the referral that asked us to see you (who referred you, when, to which of our services, how soon they asked for you to be seen and why), with a copy of the referral letter; notes our staff write about your care; and copies of documents about your care, such as letters, test results, scans and photos [of the area being treated]. [Add anything else you hold in other systems.]
 >
 > **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you]. When you're referred to us, the referral letter comes from the professional who referred you (usually your GP practice); our staff record its details in MedApp, including the name of the professional and their practice, and keep a copy of the letter. [*Only once MedApp is connected to it:* We may check your name and date of birth against the NHS's national record of patients' details (the Personal Demographics Service), using your NHS number.]
 >
@@ -45,13 +47,13 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Everyone who sees your information is a health professional or has a duty to keep it confidential.
 >
-> **Who we share it with.** Our staff caring for you. Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, who can reach it only to run and support the system, under contracts that only let them use it for us. [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
+> **Who we share it with.** Our staff caring for you. Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, who can reach it only to run and support the system, under contracts that only let them use it for us. [*If you text or email patients through MedApp:* GOV.UK Notify [or your provider], which sends our texts and emails about your appointments, with your mobile number or email address, on our instructions.] [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
 >
 > **Where it's kept.** Stored in the United Kingdom. In rare cases Microsoft's support engineers may reach it from outside the UK to support the system, under the safeguards UK law requires.
 >
 > **How long we keep it.** We keep health records for the periods in the NHS Records Management Code of Practice: usually 8 years after your treatment ends, and for children until their 25th birthday (or 26th if they were 17 when treatment ended). [Other periods for mental health, maternity or cancer care, if they apply.] After that, we review the record and securely destroy it if it's no longer needed. Copies in our backups are deleted within [12 months] after that.
 >
-> **Automated decisions.** We don't make decisions about you by automated means alone.
+> **Automated decisions.** We don't make decisions about you by automated means alone. [*If you text or email patients through MedApp:* Reminders are sent automatically, but only about appointments our staff booked, and only in the way you chose.] If you miss an appointment, a member of our staff decides what happens next.
 >
 > **Your rights.** You have the right to:
 > - ask for a copy of your information
@@ -76,4 +78,4 @@ Write it so your patients can understand it: plain words, short sentences, and a
 - **Where to publish it.** On your website, in waiting areas, in appointment letters, and in the information given before a pathway.
 - **Keep it true.** If you change how you use MedApp (for example sharing records with another organisation), update the notice before you do it.
 - **Referrals.** If you accept referrals, say who they come from in "Where it comes from" (the patient didn't give you this information, so Article 14 applies). A referral names the referring clinician; that's their personal data too, which your notice for professionals, or your contracts with referrers, should cover.
-- **Appointment reminders.** MedApp doesn't send patients reminders or confirmations. If you send them from another system, your notice should say so.
+- **Appointment texts and emails.** MedApp can text and email patients about their appointments (a reminder before one, a message when one is moved or cancelled and staff ask for the patient to be told, and, if you turn it on, a message the day after a missed one), only on the channels each patient chose. It's off unless you turn it on, with your own GOV.UK Notify service (or another provider). If you turn it on, keep the bracketed sentences above, name your provider, and check what you say about where it processes messages and how long it keeps them [to confirm with GOV.UK Notify's documentation]. They're service messages about the patient's care, not marketing. If you send reminders from another system instead, your notice should say so.

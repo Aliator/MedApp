@@ -257,6 +257,10 @@ describe('describeTimelineEntry', () => {
       // Why comes to admins only; staff see just when and with whom.
       [{action: 'AppointmentEnteredInError', reason: 'Recorded on the wrong patient.'}, 'Appointment marked entered in error for Review', `${slot}. Recorded on the wrong patient.`],
       [{action: 'AppointmentEnteredInError', reason: null}, 'Appointment marked entered in error for Review', slot],
+      // A missed appointment's follow-up: the decision for everyone, its detail (the reason) for admins only.
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'ClinicianToReview', reason: 'Dr Test to call.'}, 'Did not attend follow-up recorded for Review: Clinician to review', `${slot}. Dr Test to call.`],
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook', reason: null}, 'Did not attend follow-up recorded for Review: Rebook', slot],
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: null}, 'Did not attend follow-up recorded for Review: unknown', slot],
       [{action: 'AppointmentSomethingNew', appointmentStartUtc: null}, 'Appointment changed for Review', 'With test.doctor'],
     ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
       expect(describeTimelineEntry(appointment(fields))).toEqual({title, detail});

@@ -38,6 +38,7 @@ public sealed class CreatePatientValidator
         RuleFor(x => x.AddressLines).AddressLines();
         RuleFor(x => x.Postcode).Postcode();
         RuleFor(x => x.MobilePhone).MobilePhone();
+        RuleFor(x => x.ReminderChannel).ReminderChannelName();
         RuleFor(x => x.PracticeId)
             .Must(id => id != Guid.Empty)
             .WithMessage("Practice id must not be empty: leave it out for none.");
