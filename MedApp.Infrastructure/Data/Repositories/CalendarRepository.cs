@@ -97,6 +97,9 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
             .Where(d => d.Date >= from && d.Date <= to)
             .ToListAsync(ct));
 
+        // Their working hours, with their sites' (everyone's own rows are told apart by their IDs).
+        var hours = await WorkingHoursRepository.LoadAsync(context, ids, from, to, ct);
+
         // Each person's own share of what was loaded for them all.
         return ids.Select(staffUserId =>
         {
@@ -122,7 +125,8 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
                 dayTemplateNames.Where(n => theirDayTemplateIds.Contains(n.Key)).ToDictionary(n => n.Key, n => n.Value))
             {
                 Meetings = meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == staffUserId)).ToList(),
-                ClosedDays = closedDays
+                ClosedDays = closedDays,
+                Hours = hours
             };
         }).ToList();
     }

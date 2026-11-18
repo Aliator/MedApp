@@ -9,8 +9,8 @@ public sealed class ApplyDayTemplateValidator : AbstractValidator<ApplyDayTempla
     {
         RuleFor(x => x.StaffUserId).NotEmpty().WithMessage("Member of staff is required.");
 
-        // Templates don't apply on weekends or closed days, so there's nothing to choose there.
-        RuleFor(x => x.Date).WorkingDay(workingDays);
+        // Templates don't apply on days the person doesn't work or closed days, so there's nothing to choose there.
+        RuleFor(x => x.Date).WorkingDay(x => x.StaffUserId, workingDays);
 
         RuleFor(x => x.DayTemplateId)
             .NotEqual(Guid.Empty)

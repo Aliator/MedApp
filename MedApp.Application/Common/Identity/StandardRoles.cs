@@ -64,7 +64,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar,
-            AttachFiles,
+            ManageClinics, AttachFiles,
         });
 
     public static readonly StandardRole Lab = new(
@@ -79,7 +79,7 @@ public static class StandardRoles
         "Service managers: assigning work, meetings, Insights and monitoring.",
         new HashSet<Permission>
         {
-            UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ViewInsights, ManageMonitoring,
+            UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ManageClinics, ViewInsights, ManageMonitoring,
         });
 
     /// <summary>The five starting roles, editable, in the order the page lists them.</summary>

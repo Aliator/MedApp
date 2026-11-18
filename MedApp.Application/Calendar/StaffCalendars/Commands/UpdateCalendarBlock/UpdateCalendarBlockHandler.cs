@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -10,6 +12,7 @@ public sealed class UpdateCalendarBlockHandler(
     ICalendarRepository repository,
     ICalendarSetupRepository setupRepository,
     ICalendarLock calendarLock,
+    WorkingDays workingDays,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateCalendarBlockCommand, CalendarBlockResponse>
 {
@@ -26,6 +29,11 @@ public sealed class UpdateCalendarBlockHandler(
         var today = UkTime.DateOf(now);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(existing.StartUtc), today);
         CalendarGuards.EnsureNotPast(date, today);
+
+        // The validator can't know whose block it is, so the owner's working day is checked here (a 400, as for a new
+        // block), then again under the lock with the clashes.
+        if (await workingDays.WhyOutsideAsync(existing.StaffUserId, start, end, cancellationToken) is { } outside)
+            throw new ValidationException([new ValidationFailure(nameof(UpdateCalendarBlockCommand.StartUtc), outside)]);
 
         var activityType = await setupRepository.GetActivityTypeForBlockAsync(
             request.ActivityTypeId, existing.ActivityTypeId, cancellationToken);

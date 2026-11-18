@@ -51,7 +51,7 @@ public sealed class PermissionCatalogueTests
         [
             UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, CreatePathways, WorkPathways,
             AssignPathways, OverrideStages, DeletePathways, BookAppointments, ManageAnyCalendar, ArrangeMeetings,
-            AttachFiles, ViewInsights, ManageMonitoring, ManageSetup, ManageUsers, ManageRoles, ManageSecuritySettings,
+            ManageClinics, AttachFiles, ViewInsights, ManageMonitoring, ManageSetup, ManageUsers, ManageRoles, ManageSecuritySettings,
             ViewAudit, ExportPatientRecords, ManagePrivacy, CorrectRecords,
         ]);
         Permissions.Admin.Should().NotContain(TriageReferrals);
@@ -67,10 +67,10 @@ public sealed class PermissionCatalogueTests
         StandardRoles.Nurse.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles]);
         StandardRoles.Booking.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar, AttachFiles]);
+            [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar, ManageClinics, AttachFiles]);
         StandardRoles.Lab.Permissions.Should().BeEquivalentTo([UseApp, ViewPatients, WorkPathways, AttachFiles]);
         StandardRoles.Manager.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ViewInsights, ManageMonitoring]);
+            [UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ManageClinics, ViewInsights, ManageMonitoring]);
     }
 
     [Test]
@@ -154,12 +154,27 @@ public sealed class PermissionCatalogueTests
         allStaff.Should().BeEquivalentTo(StandardRoles.AllStaffBeforeRoles.Permissions.Select(p => p.ToString()));
         starting.Select(r => (Guid.Parse(r.Id), r.Name, r.Description)).Should().Equal(
             StandardRoles.Starting.Select(r => (r.Id, r.Name, r.Description)));
+        // Later migrations add the permissions that came after (AddedWorkingHours: ManageClinics).
         foreach (var (role, standard) in starting.Zip(StandardRoles.Starting))
-            role.Permissions.Should().BeEquivalentTo(standard.Permissions.Select(p => p.ToString()), standard.Name);
+            role.Permissions.Should().BeEquivalentTo(
+                standard.Permissions.Where(p => p != ManageClinics).Select(p => p.ToString()), standard.Name);
 
         ((string)migration.GetField("AdminId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Admin.Id.ToString());
         ((string)migration.GetField("AllStaffId", Private)!.GetValue(null)!).Should().Be(StandardRoles.AllStaffBeforeRoles.Id.ToString());
         ((string)migration.GetField("AdminDescription", Private)!.GetValue(null)!).Should().Be(StandardRoles.Admin.Description);
         ((string)migration.GetField("AllStaffDescription", Private)!.GetValue(null)!).Should().Be(StandardRoles.AllStaffBeforeRoles.Description);
+    }
+
+    [Test]
+    public void WorkingHoursMigration_GivesManageClinicsToBookingAndManager_AsTheStandardRolesHaveIt()
+    {
+        const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Static;
+        var migration = typeof(AddedWorkingHours);
+
+        ((string)migration.GetField("Permission", Private)!.GetValue(null)!).Should().Be(nameof(ManageClinics));
+        ((string)migration.GetField("BookingId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Booking.Id.ToString());
+        ((string)migration.GetField("ManagerId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Manager.Id.ToString());
+        StandardRoles.Starting.Where(r => r.Permissions.Contains(ManageClinics))
+            .Should().BeEquivalentTo([StandardRoles.Booking, StandardRoles.Manager]);
     }
 }

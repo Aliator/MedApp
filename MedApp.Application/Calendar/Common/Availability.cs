@@ -18,10 +18,11 @@ public static class Availability
     public const int SuggestionStepMinutes = 15;
 
     /// <summary>
-    /// For each working day from <paramref name="from"/> to <paramref name="to"/>, the times everyone is free: inside
-    /// the working day, after <paramref name="nowUtc"/>, rounded inwards to 5-minute boundaries. A day with no free time
-    /// is still listed, with none; weekends and closed days aren't. Each person's data must cover the range (and its
-    /// closed days, which every person's data shares).
+    /// For each day from <paramref name="from"/> to <paramref name="to"/> that everyone works, the times everyone is
+    /// free: inside everyone's working day (their hours, <see cref="CalendarData.WorkingTimeOn"/>), after
+    /// <paramref name="nowUtc"/>, rounded inwards to 5-minute boundaries. A day with no free time is still listed, with
+    /// none; a day anyone doesn't work, or that's closed for anyone, isn't. Each person's data must cover the range,
+    /// with its closed days and hours.
     /// </summary>
     /// <param name="exceptMeetingId">A meeting being moved, which doesn't count as busy.</param>
     public static IReadOnlyList<FreeDay> FreeTime(
@@ -37,16 +38,18 @@ public static class Availability
             .OrderBy(r => r.StartUtc)
             .ToList();
 
-        var closedDays = new ClosedDaySet(people.SelectMany(p => p.ClosedDays.Dates.Select(d => (d, p.ClosedDays.NameOn(d)!))));
-
         var days = new List<FreeDay>();
         for (var date = from; date <= to; date = date.AddDays(1))
         {
-            if (!WorkingHours.IsWorkingDay(date, closedDays))
+            // Everyone's working day, or the default's when nobody is asked about.
+            List<WorkingTime> working = people.Count == 0
+                ? [WorkingTimeSet.None.For(Guid.Empty, date, ClosedDaySet.None)]
+                : people.Select(p => p.WorkingTimeOn(date)).ToList();
+            if (!working.All(w => w.IsWorking))
                 continue;
 
-            var dayStart = WorkingHours.DayStartUtc(date);
-            var dayEnd = WorkingHours.DayEndUtc(date);
+            var dayStart = working.Max(w => w.StartUtc);
+            var dayEnd = working.Min(w => w.EndUtc);
             var start = nowUtc > dayStart ? nowUtc : dayStart;
             days.Add(new FreeDay(date, Subtract(new TimeRange(start, dayEnd), busy)));
         }

@@ -33,6 +33,13 @@ public sealed class UpdateCalendarBlockValidatorTests
         _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end }).IsValid.Should().BeTrue();
     }
 
+    [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.OutsideTheDefaultDay))]
+    public void ValidateWithoutThePerson(DateTime start, DateTime end, string message)
+    {
+        // The validator can't know whose working day it is: the handler checks it under the calendar lock.
+        _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end }).IsValid.Should().BeTrue(message);
+    }
+
     [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.Invalid))]
     public void Validate(DateTime start, DateTime end, string message)
     {

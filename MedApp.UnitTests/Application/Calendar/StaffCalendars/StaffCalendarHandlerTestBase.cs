@@ -11,7 +11,7 @@ namespace MedApp.UnitTests.Application.Calendar.StaffCalendars;
 
 /// <summary>
 /// Shared setup for staff calendar handler tests: mocked calendar and setup repositories, a lock that runs the work
-/// straight away and records it, an identity service listing <see cref="Staff"/>, and a clock fixed at
+/// straight away and records it, staff hours in memory (<see cref="Hours"/>: none, so the default day), an identity service listing <see cref="Staff"/>, and a clock fixed at
 /// <see cref="Now"/> (Monday 16 November 2026, 09:00 UK time). A cancellation token of its own is passed to each handler.
 /// </summary>
 public abstract class StaffCalendarHandlerTestBase
@@ -21,6 +21,7 @@ public abstract class StaffCalendarHandlerTestBase
     protected Mock<ICalendarSetupRepository> SetupRepository { get; private set; } = null!;
     protected Mock<IIdentityReadService> Identity { get; private set; } = null!;
     protected RecordingCalendarLock Lock { get; private set; } = null!;
+    protected InMemoryWorkingHours Hours { get; private set; } = null!;
     protected CancellationTokenSource Cts { get; private set; } = null!;
     protected CancellationToken Token => Cts.Token;
 
@@ -32,6 +33,7 @@ public abstract class StaffCalendarHandlerTestBase
         SetupRepository = new Mock<ICalendarSetupRepository>();
         Identity = new Mock<IIdentityReadService>();
         Lock = new RecordingCalendarLock();
+        Hours = new InMemoryWorkingHours();
         Cts = new CancellationTokenSource();
 
         Identity.Setup(i => i.GetStaffAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Staff);
@@ -40,6 +42,8 @@ public abstract class StaffCalendarHandlerTestBase
         Fixture.Inject(SetupRepository.Object);
         Fixture.Inject(Identity.Object);
         Fixture.Inject<ICalendarLock>(Lock);
+        Fixture.Inject<IWorkingHoursRepository>(Hours);
+        Fixture.Inject(InMemoryClosedDays.WorkingDays(Hours));
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
     }
 

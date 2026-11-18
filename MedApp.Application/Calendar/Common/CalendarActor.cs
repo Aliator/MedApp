@@ -11,9 +11,16 @@ public sealed record CalendarActor(Guid UserId, string Username, IReadOnlySet<Pe
 {
     public const string NotYourCalendar = "You can't change someone else's calendar.";
     public const string NotYourTemplates = "You can't change someone else's calendar templates.";
+    public const string CantSetHours = "Only staff who manage clinics or anyone's calendar can set working hours.";
 
     /// <summary>Whether their roles grant this permission.</summary>
     public bool Has(Permission permission) => Permissions?.Contains(permission) == true;
+
+    /// <summary>
+    /// Whether they may set anyone's working hours (<see cref="Permission.ManageClinics"/> or
+    /// <see cref="Permission.ManageAnyCalendar"/>, centre plan decision 119).
+    /// </summary>
+    public bool CanSetHours => Has(Permission.ManageClinics) || Has(Permission.ManageAnyCalendar);
 
     /// <summary>Whether they may arrange, change and cancel meetings.</summary>
     public bool CanArrangeMeetings => Has(Permission.ArrangeMeetings);

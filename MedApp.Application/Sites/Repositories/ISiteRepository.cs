@@ -24,7 +24,7 @@ public interface ISiteRepository
     /// <summary>How many sites aren't archived.</summary>
     Task<int> CountOpenSitesAsync(CancellationToken ct);
 
-    /// <summary>Of these sites, those something names (a room or a closed day), so they can't be deleted.</summary>
+    /// <summary>Of these sites, those something names (a room, a closed day or anyone's working hours), so they can't be deleted.</summary>
     Task<IReadOnlySet<Guid>> GetSitesInUseAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
     /// <summary>

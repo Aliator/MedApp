@@ -1,5 +1,7 @@
 using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
+using MedApp.Application.Calendar.Hours.Commands.SetStaffHours;
+using MedApp.Application.Calendar.Hours.Queries.GetStaffHours;
 using MedApp.Application.Calendar.StaffCalendars.Commands.ApplyDayTemplate;
 using MedApp.Application.Calendar.StaffCalendars.Commands.ChangeTemplateBlockForDay;
 using MedApp.Application.Calendar.StaffCalendars.Commands.ClearDayTemplate;
@@ -22,8 +24,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Members of staff's calendars: an 08:00 to 18:00 working day, UK time, Monday to Friday, with their appointments and
-/// blocked time. Any member of staff can see anyone's calendar; its blocks, a day's template and the default week can
+/// Members of staff's calendars: each person's working day (their hours, or the default 08:00 to 18:00 UK time, Monday
+/// to Friday), with their appointments and blocked time. Any member of staff can see anyone's calendar; its blocks, a day's template and the default week can
 /// be changed by its owner or an admin (403 otherwise), never on a past day (409).
 /// </summary>
 [ApiController]
@@ -214,4 +216,33 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> SetWeekTemplate(Guid userId, [FromBody] SetStaffWeekTemplateRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetStaffWeekTemplateCommand(userId, request.WeekTemplateId, User.ToCalendarActor()), ct));
+
+    /// <summary>
+    /// A person's working hours today: their own, or the default (Monday to Friday, 08:00 to 18:00) when they have none.
+    /// Anyone signed in can read them, as their calendar shows them anyway.
+    /// </summary>
+    [HttpGet("staff/{userId:guid}/hours")]
+    [ProducesResponseType(typeof(StaffHoursResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.UseApp)]
+    public async Task<IActionResult> GetStaffHours(Guid userId, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetStaffHoursQuery(userId, User.ToCalendarActor()), ct));
+
+    /// <summary>
+    /// Sets a person's working hours from today (past days keep theirs): one entry per day they work, each inside its
+    /// site's opening hours (409 otherwise); none puts them back on the default. Holders of ManageClinics or
+    /// ManageAnyCalendar only (403 otherwise). What's already on their calendar stays where it is.
+    /// </summary>
+    [HttpPut("staff/{userId:guid}/hours")]
+    [ProducesResponseType(typeof(StaffHoursResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
+    public async Task<IActionResult> SetStaffHours(Guid userId, [FromBody] StaffHoursRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetStaffHoursCommand(
+            userId,
+            request.Days?.Select(d => new StaffHoursDay(d.DayOfWeek, d.Starts, d.Ends, d.SiteId)).ToList(),
+            User.ToCalendarActor()), ct));
 }

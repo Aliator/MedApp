@@ -19,9 +19,11 @@ public static class CalendarClashes
     /// (<paramref name="ignoreBlockId"/>), a template block on that date (<paramref name="ignoreTemplateBlockId"/>), an
     /// appointment (<paramref name="ignoreAppointmentId"/>) or a meeting (<paramref name="ignoreMeetingId"/>).
     /// <para>
-    /// A closed day comes first: the validators refuse one (<see cref="WorkingDays"/>), but before the calendar lock, so
-    /// a day closed between the validator and the save is caught here, as the handlers call this holding the lock and
-    /// <see cref="CalendarData.ClosedDays"/> is read under it.
+    /// The person's working day comes first (<see cref="WhyOutsideWorkingDay"/>: closed, not one of their days, or
+    /// outside their hours): the validators refuse those (<see cref="WorkingDays"/>), but before the calendar lock, so a
+    /// day closed or hours changed between the validator and the save are caught here, as the handlers call this
+    /// holding the lock and <see cref="CalendarData.ClosedDays"/> and <see cref="CalendarData.Hours"/> are read under it.
+    /// It also covers commands whose validators can't know the person (moving a block).
     /// </para>
     /// </summary>
     public static string? Find(
@@ -32,17 +34,17 @@ public static class CalendarClashes
         Guid? ignoreTemplateBlockId = null,
         Guid? ignoreAppointmentId = null,
         Guid? ignoreMeetingId = null) =>
-        WhyClosed(data, startUtc)
+        WhyOutsideWorkingDay(data, startUtc, endUtc)
         ?? (FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId) is { } clash
             ? $"That time overlaps {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}."
             : null);
 
-    /// <summary>Why nothing new can go on the time's day because it's closed (as the data has it), or null.</summary>
-    public static string? WhyClosed(CalendarData data, DateTime startUtc)
-    {
-        var date = UkTime.DateOf(UkTime.Utc(startUtc));
-        return data.ClosedDays.NameOn(date) is { } name ? WorkingHours.ClosedDay(date, name) : null;
-    }
+    /// <summary>
+    /// Why the time isn't inside the person's working day (as the data has it: closed, not one of their days, or
+    /// outside their hours), or null. <paramref name="who"/> names them (a meeting's attendee).
+    /// </summary>
+    public static string? WhyOutsideWorkingDay(CalendarData data, DateTime startUtc, DateTime endUtc, string? who = null) =>
+        data.WorkingTimeOn(UkTime.DateOf(UkTime.Utc(startUtc))).WhyOutside(startUtc, endUtc, who);
 
     /// <summary>The first thing, in time order, that a time overlaps on the calendar (see <see cref="Find"/>), or null.</summary>
     public static CalendarClash? FindFirst(

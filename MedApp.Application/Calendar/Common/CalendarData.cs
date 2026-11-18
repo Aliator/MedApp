@@ -39,6 +39,15 @@ public sealed record CalendarData(
     /// <summary>The days in the range the clinic is closed: no templates apply on them, and nothing new can go on them.</summary>
     public ClosedDaySet ClosedDays { get; init; } = ClosedDaySet.None;
 
+    /// <summary>
+    /// The person's working hours over the range, with their sites' hours (none: the default, Monday to Friday, 08:00
+    /// to 18:00). With <see cref="ClosedDays"/>, they decide each date's <see cref="WorkingTimeOn"/>.
+    /// </summary>
+    public WorkingTimeSet Hours { get; init; } = WorkingTimeSet.None;
+
+    /// <summary>The person's working day on a date in the range (<see cref="WorkingTime"/>).</summary>
+    public WorkingTime WorkingTimeOn(DateOnly date) => Hours.For(StaffUserId, date, ClosedDays);
+
     /// <summary>Nothing on the calendar: no templates, blocks, appointments or meetings.</summary>
     public static CalendarData Empty(Guid staffUserId, DateOnly from, DateOnly to) =>
         new(staffUserId, from, to, [], [], [], [], [], [], [], new Dictionary<Guid, string>());

@@ -23,8 +23,9 @@ public sealed class BookAppointmentValidator : AbstractValidator<BookAppointment
         RuleFor(x => x.StartUtc)
             .CustomAsync(async (start, context, ct) =>
             {
+                var command = context.InstanceToValidate;
                 if (await BookingTimes.WhyNotAsync(
-                        workingDays, start, context.InstanceToValidate.EndUtc, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
+                        workingDays, command.StaffUserId, start, command.EndUtc, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
                     context.AddFailure(why);
             });
     }

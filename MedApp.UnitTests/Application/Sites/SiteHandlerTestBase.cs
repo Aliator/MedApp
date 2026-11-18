@@ -1,4 +1,5 @@
 using AutoFixture;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Sites.Repositories;
 using MedApp.Domain.Sites;
 using MedApp.UnitTests.Common.Fixtures;
@@ -9,7 +10,8 @@ namespace MedApp.UnitTests.Application.Sites;
 
 /// <summary>
 /// Handler tests for sites and rooms: a mocked repository answering from the sites and rooms given
-/// (<see cref="GivenSites"/>, <see cref="GivenRooms"/>), a fixed clock, and a token to check is passed on.
+/// (<see cref="GivenSites"/>, <see cref="GivenRooms"/>), staff and site hours in memory (<see cref="Hours"/>), a
+/// calendar lock that records what it holds, a fixed clock, and a token to check is passed on.
 /// </summary>
 public abstract class SiteHandlerTestBase
 {
@@ -19,6 +21,8 @@ public abstract class SiteHandlerTestBase
     protected List<Room> Rooms = null!;
     protected HashSet<Guid> SitesInUse = null!;
     protected HashSet<Guid> RoomsInUse = null!;
+    protected InMemoryWorkingHours Hours = null!;
+    protected RecordingCalendarLock CalendarLock = null!;
     private CancellationTokenSource _cts = null!;
 
     protected CancellationToken Token => _cts.Token;
@@ -65,8 +69,13 @@ public abstract class SiteHandlerTestBase
             .Callback((Room room, CancellationToken _) => Rooms.Add(room))
             .Returns(Task.CompletedTask);
 
+        Hours = new InMemoryWorkingHours();
+        CalendarLock = new RecordingCalendarLock();
+
         Fixture = AutoFixtureFactory.Create();
         Fixture.Inject(Repository.Object);
+        Fixture.Inject<IWorkingHoursRepository>(Hours);
+        Fixture.Inject<ICalendarLock>(CalendarLock);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
     }
 
