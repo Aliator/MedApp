@@ -180,8 +180,8 @@ export function testMeeting(overrides: Partial<Meeting> & {date?: string; start?
     organiserUserId: STAFF_ME.userId,
     organiserUsername: STAFF_ME.username,
     attendees: [
-      {userId: STAFF_ME.userId, username: STAFF_ME.username},
-      {userId: STAFF_OTHER.userId, username: STAFF_OTHER.username},
+      {userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'NoReply', repliedAtUtc: null},
+      {userId: STAFF_OTHER.userId, username: STAFF_OTHER.username, reply: 'NoReply', repliedAtUtc: null},
     ],
     canEdit: true,
     createdAtUtc: '2026-11-10T10:00:00Z',

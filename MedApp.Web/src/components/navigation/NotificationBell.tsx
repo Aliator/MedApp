@@ -36,6 +36,7 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingInvited: AppIcon.Meeting,
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,
+  MeetingDeclined: AppIcon.MeetingDeclined,
 };
 
 /** The bell's label: what it is, and how many are unread. */

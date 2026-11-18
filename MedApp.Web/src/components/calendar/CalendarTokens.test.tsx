@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {ActivityToken, activityColour, AppointmentStatusToken, VisitRequirementToken} from './CalendarTokens';
+import {ActivityToken, activityColour, AppointmentStatusToken, MeetingReplyToken, VisitRequirementToken} from './CalendarTokens';
 
 const tokenColour = (text: string) => screen.getByText(text).closest('.astryx-token')?.getAttribute('data-color');
 
@@ -70,5 +70,34 @@ describe('CalendarTokens', () => {
     expect(await screen.findByText('Visit suggested')).toBeInTheDocument();
     expect(screen.getByText('Visit required')).toBeInTheDocument();
     expect(container.querySelectorAll('.astryx-token')).toHaveLength(2);
+  });
+
+  it("shows a meeting reply in words and its colour, with its icon when they're on", async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+    renderWithApp(
+      <>
+        <MeetingReplyToken reply="Accepted" />
+        <MeetingReplyToken reply="Declined" />
+        <MeetingReplyToken reply="NoReply" />
+      </>,
+    );
+
+    expect(await screen.findByText('Accepted')).toBeInTheDocument();
+    expect(tokenColour('Accepted')).toBe('green');
+    expect(tokenColour('Declined')).toBe('red');
+    expect(tokenColour('No reply')).toBe('gray');
+    expect(document.querySelectorAll('.astryx-token svg')).toHaveLength(3);
+  });
+
+  it('shows an unknown or missing reply as No reply, without icons when they are off', async () => {
+    renderWithApp(
+      <>
+        <MeetingReplyToken reply="Maybe" />
+        <MeetingReplyToken reply={null} />
+      </>,
+    );
+
+    expect(await screen.findAllByText('No reply')).toHaveLength(2);
+    expect(document.querySelector('.astryx-token svg')).toBeNull();
   });
 });

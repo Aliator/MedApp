@@ -1037,7 +1037,8 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 }
 
 /**
- * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
+ * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter, a faded item plain with
+ * a dashed edge: a meeting its calendar's owner declined), as many lines as fit,
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
  * it never relies on colour alone. One too short for any text has a tooltip. On a compact grid its words wrap to the
  * lines it has room for (the short ones at the same size as the rest), in full in a tooltip, and where even that's
@@ -1065,7 +1066,11 @@ function GridItem({
   const {item, top, height, column, columns} = placed;
   const fit = itemFit(height * rows);
   const lines = Math.max(1, Math.round(height * rows));
-  const isTinted = item.kind !== 'block';
+  // A faded item (a meeting its calendar's owner declined) is untinted, unstriped and behind the rest, with a dashed
+  // edge: faded without lowering its words' contrast, which opacity would.
+  const isFaded = item.isFaded === true;
+  const isTinted = item.kind !== 'block' && !isFaded;
+  const isStriped = item.kind === 'block';
   const time = formatTimeRange(item.startUtc, item.endUtc);
   const style = {
     position: 'absolute' as const,
@@ -1079,7 +1084,7 @@ function GridItem({
     containerType: 'inline-size' as const,
     padding: isCompact ? '0 var(--spacing-1)' : '0 var(--spacing-1-5)',
     overflow: 'hidden',
-    borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
+    borderInlineStart: `var(--spacing-1) ${isFaded ? 'dashed' : 'solid'} var(--color-border-${item.colour})`,
     borderRadius: 'var(--radius-inner)',
     opacity: isDragged ? 0.5 : undefined,
     cursor: onPointerDown ? 'grab' : undefined,
@@ -1087,7 +1092,7 @@ function GridItem({
     // A press that wobbles across its words would select some, and Astryx's ClickableCard ignores a click while its
     // text is selected: the wobble that should open it would do nothing.
     userSelect: onPointerDown ? ('none' as const) : undefined,
-    ...(isTinted
+    ...(!isStriped
       ? {}
       : {
           // Quieter stripes in dark mode, where the full colour behind the text is busy.
@@ -1176,7 +1181,7 @@ function GridItem({
   if (!onOpen) {
     // Nothing to open: shown as a plain card, named by its description.
     return withTooltip(
-      <Card variant={variant} padding={0} data-kind={item.kind} data-fit={fit} style={style}>
+      <Card variant={variant} padding={0} data-kind={item.kind} data-fit={fit} data-faded={isFaded || undefined} style={style}>
         <VisuallyHidden>{item.description}</VisuallyHidden>
         <span aria-hidden>{content}</span>
       </Card>,
@@ -1192,6 +1197,7 @@ function GridItem({
       onPointerMove={onPointerDown ? onPointerMove : undefined}
       onPointerUp={onPointerDown ? onPointerUp : undefined}
       data-kind={item.kind}
+      data-faded={isFaded || undefined}
       data-fit={fit}
       style={style}>
       {content}

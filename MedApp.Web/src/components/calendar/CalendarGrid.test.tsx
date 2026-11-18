@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {calendarDay, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
+import {calendarDay, STAFF_ME, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
 import {appointmentItem, blockItem, meetingItem, type CalendarGridItem} from './calendarItems';
@@ -551,6 +551,34 @@ describe('CalendarGrid', () => {
     expect(box).toHaveTextContent('2 attending');
     await user.click(card);
     expect(onItemOpen).toHaveBeenCalledWith(meeting, expect.objectContaining({key: MONDAY}));
+  });
+
+  it('shows a meeting its calendar owner declined faded: plain, behind, with a dashed edge, still opening', async () => {
+    atMondayMorning();
+    const declined = testMeeting({
+      date: MONDAY,
+      start: '09:00',
+      end: '10:00',
+      title: 'MDT',
+      attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'}],
+    });
+    const {user, onItemOpen} = renderGrid({items: [meetingItem(declined, STAFF_ME.userId), meetingItem({...declined, id: 'other'})]});
+
+    const cards = await screen.findAllByRole('button', {name: /^MDT, meeting, 09:00 to 10:00/});
+    const card = (ending: string) => cards.find((c) => c.getAttribute('aria-label')?.endsWith(ending))!.closest<HTMLElement>('[data-kind]')!;
+    const faded = card('Declined');
+    const usual = card('0 attending');
+    expect(faded).toHaveAttribute('data-faded', 'true');
+    expect(faded).toHaveTextContent('Declined');
+    expect(faded.style.borderInlineStart).toContain('dashed');
+    expect(faded.style.zIndex).toBe('1');
+    expect(faded.style.backgroundImage).toBe('');
+    expect(faded.style.opacity).toBe('');
+    expect(usual).not.toHaveAttribute('data-faded');
+    expect(usual.style.borderInlineStart).toContain('solid');
+    expect(usual.style.zIndex).toBe('2');
+    await user.click(cards[0]);
+    expect(onItemOpen).toHaveBeenCalled();
   });
 
   describe('with a column for each person', () => {

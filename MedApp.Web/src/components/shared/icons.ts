@@ -223,6 +223,10 @@ export const AppIcon = {
   ApplyTemplate: remix(RiPaintBrushLine),
   /** A meeting on a calendar (beside its colour, so it never relies on colour alone), and New Meeting. */
   Meeting: remix(RiGroupLine),
+  /** A meeting reply: accepted (Accept, and the token), declined (Decline, and the token), or not yet answered. */
+  MeetingAccepted: remix(RiCheckboxCircleLine),
+  MeetingDeclined: remix(RiCloseCircleLine),
+  MeetingNoReply: remix(RiQuestionLine),
   /** The Calendar page's View options, in a narrow card: whose calendar, the row length, the default week, templates. */
   ViewOptions: remix(RiEqualizerLine),
   /** The Calendar page's team view (admins): a column per member of staff. */
