@@ -9,7 +9,7 @@ The detail behind the root `AGENTS.md`, one file per area, read on demand. `AGEN
 | File | Covers |
 |---|---|
 | [pathways.md](pathways.md) | Pathways, templates and stages, pathway notes and note deletion |
-| [specialties.md](specialties.md) | Specialties, each template's and pathway's specialty, and staff memberships |
+| [teams.md](teams.md) | Teams, each template's and pathway's team, and staff memberships |
 | [referrals.md](referrals.md) | Referrals, their history and letters, the inbox, and their privacy rules |
 | [specimens.md](specimens.md) | Specimens, the lab's worklist, the label, and the specimen setup lists |
 | [results.md](results.md) | Results sign-off, the results list, and the results stage gates |

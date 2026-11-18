@@ -45,7 +45,7 @@ export const ANONYMISE_MESSAGE =
  * name, email and notes are replaced with placeholders, their date of birth keeps only its year, and their attached files'
  * names are replaced and the files deleted; the rest stays, for
  * statistics and the audit trail. It can't be undone, and the API refuses it while a pathway is under way or the
- * record is restricted. It warns that specialty records keep longer periods than the ones MedApp applies. Give it a
+ * record is restricted. It warns that team records keep longer periods than the ones MedApp applies. Give it a
  * `key` per patient so the fields start empty.
  */
 export function AnonymiseDialog({patient, defaultReason, onDone, onCancel}: AnonymiseDialogProps) {

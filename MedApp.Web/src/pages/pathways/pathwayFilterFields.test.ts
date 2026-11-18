@@ -1,13 +1,13 @@
 import {configFor} from '../../components/tables/ListFilterBar';
-import {specialtyField, stageReachedField} from './pathwayFilterFields';
+import {teamField, stageReachedField} from './pathwayFilterFields';
 
 const SKIN = '0000005a-0000-0000-0000-0000000000aa';
 const FEET = '0000005a-0000-0000-0000-0000000000bb';
 const HISTOLOGY = '0000000d-0000-0000-0000-000000000001';
 
 describe('pathway filter fields', () => {
-  it('offers specialties by name, archived ones marked, by their IDs in lower case', () => {
-    const field = specialtyField(
+  it('offers teams by name, archived ones marked, by their IDs in lower case', () => {
+    const field = teamField(
       [
         {id: SKIN.toUpperCase(), name: 'Dermatology', isArchived: false},
         {id: FEET, name: 'Biomechanics', isArchived: true},
@@ -15,7 +15,7 @@ describe('pathway filter fields', () => {
       undefined,
     );
 
-    expect(field).toMatchObject({kind: 'choice', key: 'specialty', label: 'Specialty', isMultiple: true, canExclude: false});
+    expect(field).toMatchObject({kind: 'choice', key: 'team', label: 'Team', isMultiple: true, canExclude: false});
     expect(field.kind === 'choice' && field.options).toEqual([
       {value: FEET, label: 'Biomechanics (archived)'},
       {value: SKIN, label: 'Dermatology'},
@@ -34,13 +34,13 @@ describe('pathway filter fields', () => {
   });
 
   it('offers "is" and "is any of", but not "is not any of", which the API has no way to ask', () => {
-    const operators = configFor([specialtyField([], undefined)]).fields[0].operators.map((o) => o.label);
+    const operators = configFor([teamField([], undefined)]).fields[0].operators.map((o) => o.label);
 
     expect(operators).toEqual(['is', 'is any of']);
   });
 
   it('names one with no name by an empty label rather than failing', () => {
-    const field = specialtyField([{id: SKIN, name: null}, {}], undefined);
+    const field = teamField([{id: SKIN, name: null}, {}], undefined);
 
     expect(field.kind === 'choice' && field.options.map((o) => o.label)).toEqual(['', '']);
   });

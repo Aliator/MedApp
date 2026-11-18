@@ -68,6 +68,10 @@ Stored numbers never changed (statuses, audit actions, notification kinds, monit
 | Notifications already sent | Left as they were: they keep the words people were shown |
 | Account settings: `medapp.proceduresStartOnMine`, the start page's value `procedures`, saved searches under `procedures` and `patientProcedures` | Kept: the keys aren't shown to anyone |
 | Account settings: pinned pathways, under `procedures` in `medapp.pins` | Read from the old key until the pins are next saved, which writes them under `pathways` |
+| **Specialties to teams (MC2):** tables, columns, keys and indexes (`Specialties`, `StaffSpecialties`, every `SpecialtyId`) | Renamed in place by `RenamedSpecialtiesToTeams`; every row kept |
+| A referral history's details (`specialtyId`, `specialtyName`, `previousSpecialtyId`, `previousSpecialtyName`, the edited field `specialty`, a target's cause `specialty`) and an MDT audit entry's `specialty` | Kept: still written and read under these keys |
+| `ActivityAction` 42 | Member renamed `TeamMembershipChanged`; the number kept |
+| Saved searches with a `specialty` filter or a sort by `Specialty` | Kept in settings; read as `team` and `Team` |
 
 ## Old addresses and saved searches
 
@@ -78,5 +82,6 @@ The web app still answers the addresses pages had before, and sends them on (`Me
 | `/procedures`, `/procedures/new`, `/procedures/{id}`, `/procedures/{id}/edit` | `/pathways/…` |
 | `/patients/{id}/procedures` | `/patients/{id}/pathways` |
 | `/admin/templates`, `/admin/templates/new`, `/admin/templates/{id}` | `/admin/pathway-templates/…` |
+| `/admin/specialties` | `/admin/teams` |
 
-A bookmark or saved search that sorts by the old Procedure column, filters the activity log by `ProcedureViewed`, or opens the audit log with `procedureId`, is read as its name now. The API has no aliases: `api/procedures/…` is gone, and `api/pathways/…` replaced it.
+A bookmark or saved search that sorts by the old Procedure column, filters the activity log by `ProcedureViewed`, or opens the audit log with `procedureId`, is read as its name now. So is one with a `specialty` filter, a sort by Specialty or the `StaffSpecialtiesChanged` action. The API has no aliases: `api/procedures/…` is gone, and `api/pathways/…` replaced it. Likewise `api/specialties` is gone (`api/teams`), with `api/auth/users/{u}/teams` and `api/auth/me/teams`.

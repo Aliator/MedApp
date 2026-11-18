@@ -18,8 +18,8 @@ export interface RuleDescription {
   stageDefinitionId?: string | null;
   stageName?: string | null;
   thresholdDays?: number | null;
-  specialtyId?: string | null;
-  specialtyName?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
 }
 
 /** The choices for "only pathways of this priority or higher", and how each reads in a sentence. */
@@ -41,12 +41,12 @@ function pathway(rule: RuleDescription): SentencePart[] {
     : [{text: 'a pathway'}];
   const template = named(rule.templateId, rule.templateName, 'a deleted template');
   if (template) parts.push({text: template.strong ? ' from the ' : ' from '}, template, ...(template.strong ? [{text: ' template'}] : []));
-  return [...parts, ...specialty(rule)];
+  return [...parts, ...team(rule)];
 }
 
-/** " in Dermatology" (strong), " in a deleted specialty", or nothing for any. */
-function specialty(rule: RuleDescription): SentencePart[] {
-  const chosen = named(rule.specialtyId, rule.specialtyName, 'a deleted specialty');
+/** " in Dermatology" (strong), " in a deleted team", or nothing for any. */
+function team(rule: RuleDescription): SentencePart[] {
+  const chosen = named(rule.teamId, rule.teamName, 'a deleted team');
   return chosen ? [{text: ' in '}, chosen] : [];
 }
 

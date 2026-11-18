@@ -25,7 +25,7 @@ export interface ClinicSessionDialogProps {
   /** The session to show; the dialog is open while it's set. */
   sessionId: string | null;
   onClose: () => void;
-  /** Change it (its room, specialty, time or slots): the caller opens the session form. Shown when it can be changed. */
+  /** Change it (its room, team, time or slots): the caller opens the session form. Shown when it can be changed. */
   onEdit?: (session: ClinicSession) => void;
   /** Book a patient into a free slot that hasn't started: the caller opens the booking dialog with that slot. */
   onBookSlot?: (session: ClinicSession, startUtc: string) => void;
@@ -34,7 +34,7 @@ export interface ClinicSessionDialogProps {
 type Step = 'view' | 'cancelling';
 
 /**
- * A clinic session (centre plan decisions 123 and 126): its clinician, room, specialty, time and how full it is, then
+ * A clinic session (centre plan decisions 123 and 126): its clinician, room, team, time and how full it is, then
  * each slot, free or with the patient booked into it (opening it lists them, which the API records as a read). A free
  * slot that hasn't started can be booked. Holders of ManageClinics can change it or cancel it: cancelling asks for a
  * reason (about the clinic, never a patient), cancels every appointment booked into it that hasn't started (those that
@@ -135,7 +135,7 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
                 <MetadataListItem label="When">{`${formatCalendarDay(session.date ?? '')}, ${formatTimeRange(session.startUtc ?? '', session.endUtc ?? '')}`}</MetadataListItem>
                 <MetadataListItem label="Clinician">{session.staffUsername}</MetadataListItem>
                 <MetadataListItem label="Room">{`${session.roomName}, ${session.siteName}`}</MetadataListItem>
-                <MetadataListItem label="Specialty">{session.specialtyName}</MetadataListItem>
+                <MetadataListItem label="Team">{session.teamName}</MetadataListItem>
                 <MetadataListItem label="Slots">{`${session.slotMinutes} minutes · ${slotsWords(session)}`}</MetadataListItem>
                 {session.status === 'Cancelled' && session.cancelReason && (
                   <MetadataListItem label="Cancelled because">{session.cancelReason}</MetadataListItem>

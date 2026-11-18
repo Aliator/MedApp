@@ -152,23 +152,23 @@ describe('UsersPage', () => {
     expect((await within(openDialog()!).findAllByText('The user could not be created. Please try again.')).length).toBeGreaterThan(0);
   });
 
-  it("sets a user's specialties, their own admin's too, and says it's done", async () => {
+  it("sets a user's teams, their own admin's too, and says it's done", async () => {
     const {user, fetch} = renderUsers(
       {},
       {
-        'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
-        [`GET /api/auth/users/${adminUser.username}/specialties`]: () => json([]),
-        [`PUT /api/auth/users/${adminUser.username}/specialties`]: () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
+        'GET /api/teams': () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
+        [`GET /api/auth/users/${adminUser.username}/teams`]: () => json([]),
+        [`PUT /api/auth/users/${adminUser.username}/teams`]: () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
       },
     );
 
-    await user.click(within(await rowOf(adminUser.username)).getByRole('button', {name: 'Edit specialties'}));
+    await user.click(within(await rowOf(adminUser.username)).getByRole('button', {name: 'Edit teams'}));
     await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'Dermatology'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Save Specialties'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Save Teams'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'PUT')).toEqual([{specialtyIds: ['s1']}]);
-    expect(await screen.findByText(`${adminUser.username}'s specialties have been saved.`)).toBeInTheDocument();
+    expect(await bodies(fetch, 'PUT')).toEqual([{teamIds: ['s1']}]);
+    expect(await screen.findByText(`${adminUser.username}'s teams have been saved.`)).toBeInTheDocument();
   });
 
   it("shows each user's full name and job title, and edits them, starting from theirs", async () => {

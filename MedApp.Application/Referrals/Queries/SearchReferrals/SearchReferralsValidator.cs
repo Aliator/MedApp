@@ -24,9 +24,9 @@ public sealed class SearchReferralsValidator : AbstractValidator<SearchReferrals
             .Must(ReferralSearch.IsStatus)
             .WithMessage($"Each status must be one of: {ReferralSearch.StatusNames}.");
 
-        RuleFor(x => x.SpecialtyIds)
+        RuleFor(x => x.TeamIds)
             .Must(ids => ids is null || ids.Count <= PathwaySearch.MaxIdsPerFilter)
-            .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} specialties.");
+            .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} teams.");
 
         RuleFor(x => x.Search)
             .MaximumLength(200)

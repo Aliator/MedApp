@@ -2,15 +2,15 @@ using MedApp.Contracts.Pathways.PatientPathways.Responses;
 
 namespace MedApp.Contracts.Mdt.Responses;
 
-/// <summary>A specialty's MDT (a meeting marked as one), with how many items are on it.</summary>
+/// <summary>A team's MDT (a meeting marked as one), with how many items are on it.</summary>
 public sealed class MdtMeetingResponse
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public DateTime StartUtc { get; set; }
     public DateTime EndUtc { get; set; }
-    public Guid SpecialtyId { get; set; }
-    public string SpecialtyName { get; set; } = string.Empty;
+    public Guid TeamId { get; set; }
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>Items listed or deferred to it, still to be discussed.</summary>
     public int OpenItemCount { get; set; }
@@ -52,8 +52,8 @@ public sealed class MdtItemResponse
     public Guid PathwayId { get; set; }
     public string PathwayTitle { get; set; } = string.Empty;
 
-    public Guid SpecialtyId { get; set; }
-    public string SpecialtyName { get; set; } = string.Empty;
+    public Guid TeamId { get; set; }
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>The meeting it's on; null once that meeting was cancelled.</summary>
     public Guid? MeetingId { get; set; }

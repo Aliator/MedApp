@@ -25,8 +25,8 @@ export interface ParityData {
   meetingDate?: string;
   /** The demo data's Histology (lab) stage definition, or else the first, for the stage reached filter (React only). */
   stageId?: string;
-  /** The demo data's Dermatology specialty, or else the first, for the specialty filters (React only). */
-  specialtyId?: string;
+  /** The demo data's Dermatology team, or else the first, for the team filters (React only). */
+  teamId?: string;
   /**
    * A template with a branch point, and a pathway made from it, for the branching screens (React only; the demo data
    * has them from Phase 4's, PR 28: until then those screens skip).

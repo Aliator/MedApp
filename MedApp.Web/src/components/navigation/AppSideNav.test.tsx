@@ -52,7 +52,7 @@ describe('AppSideNav', () => {
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
     expect(screen.getByRole('link', {name: 'Roles and Permissions'})).toHaveAttribute('href', '/admin/roles');
-    expect(screen.getByRole('link', {name: 'Specialties'})).toHaveAttribute('href', '/admin/specialties');
+    expect(screen.getByRole('link', {name: 'Teams'})).toHaveAttribute('href', '/admin/teams');
     expect(screen.getByRole('link', {name: 'Stage Library'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: 'Pathway Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
     expect(screen.getByRole('link', {name: 'Letter Templates'})).toHaveAttribute('href', '/admin/letter-templates');
@@ -173,7 +173,7 @@ describe('AppSideNav', () => {
   });
 
   it('has Referrals between My Worklist and Patients, with no count badge (the owner removed it)', async () => {
-    const fetch = mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
+    const fetch = mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourTeams: true})});
     renderWithApp(<AppSideNav />, {user: staffUser, path: '/referrals/new'});
 
     const referrals = await screen.findByRole('link', {name: 'Referrals'});

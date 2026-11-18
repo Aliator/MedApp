@@ -13,8 +13,8 @@ public static class ReferralMapper
 {
     /// <summary>
     /// A referral's page: the patient for the banner, its details, history and what <paramref name="viewer"/> may do.
-    /// The referral is loaded with its patient, specialty and pauses. <paramref name="viewerIsMember"/> says whether the
-    /// viewer belongs to its specialty (triage needs it, with the permission). Its clock counts to
+    /// The referral is loaded with its patient, team and pauses. <paramref name="viewerIsMember"/> says whether the
+    /// viewer belongs to its team (triage needs it, with the permission). Its clock counts to
     /// <paramref name="today"/> (UK) while it runs.
     /// </summary>
     public static ReferralResponse ToResponse(
@@ -33,8 +33,8 @@ public static class ReferralMapper
             PatientId = referral.PatientId,
             Patient = PathwayMapper.ToPatient(referral.Patient),
             PatientFlags = referral.Patient is null ? null : PatientMapper.ToFlags(referral.Patient),
-            SpecialtyId = referral.SpecialtyId,
-            SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+            TeamId = referral.TeamId,
+            TeamName = referral.Team?.Name ?? string.Empty,
             ReceivedOn = referral.ReceivedOn,
             ReferrerPractice = referral.ReferrerPractice,
             ReferrerClinician = referral.ReferrerClinician,
@@ -128,7 +128,7 @@ public static class ReferralMapper
         && PatientRules.CanChange(referral.Patient);
 
     /// <summary>
-    /// A row in a list, with its patient and specialty, and the whole days since it was received: up to
+    /// A row in a list, with its patient and team, and the whole days since it was received: up to
     /// <paramref name="today"/> (UK) while it's open, or to the day it was decided.
     /// </summary>
     public static ReferralSummaryResponse ToSummary(ReferralRow row, DateOnly today)
@@ -142,8 +142,8 @@ public static class ReferralMapper
             PatientName = referral.Patient is null ? string.Empty : PatientMapper.FullName(referral.Patient),
             PatientNhsNumber = referral.Patient?.NhsNumber,
             PatientDateOfBirth = referral.Patient?.DateOfBirth ?? default,
-            SpecialtyId = referral.SpecialtyId,
-            SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+            TeamId = referral.TeamId,
+            TeamName = referral.Team?.Name ?? string.Empty,
             ReceivedOn = referral.ReceivedOn,
             DaysSinceReceived = Math.Max(0, until.DayNumber - referral.ReceivedOn.DayNumber),
             RequestedPriority = referral.RequestedPriority.ToString(),
@@ -157,7 +157,7 @@ public static class ReferralMapper
     }
 
     /// <summary>
-    /// The referral a pathway was accepted from, for the pathway's page (loaded with its specialty and pauses, and its
+    /// The referral a pathway was accepted from, for the pathway's page (loaded with its team and pauses, and its
     /// patient for what <paramref name="viewer"/> may do to the clock): a link back, and its clock as of
     /// <paramref name="today"/>.
     /// </summary>
@@ -165,7 +165,7 @@ public static class ReferralMapper
     {
         Id = referral.Id,
         ReceivedOn = referral.ReceivedOn,
-        SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+        TeamName = referral.Team?.Name ?? string.Empty,
         Version = referral.Version,
         Clock = ToClock(referral, today),
         Pauses = ToPauses(referral),
@@ -184,8 +184,8 @@ public static class ReferralMapper
             AtUtc = entry.AtUtc,
             Username = entry.Username,
             ToStatus = details.ToStatus,
-            SpecialtyName = details.SpecialtyName,
-            PreviousSpecialtyName = details.PreviousSpecialtyName,
+            TeamName = details.TeamName,
+            PreviousTeamName = details.PreviousTeamName,
             RequestedPriority = details.RequestedPriority,
             Priority = details.Priority,
             TemplateName = details.TemplateName,
@@ -205,14 +205,14 @@ public static class ReferralMapper
 
 /// <summary>
 /// What a referral history entry's details say, read from the JSON <see cref="ReferralChange"/> writes: the status
-/// after it, the specialty (and the one before, for an edit or a redirection that moved it), the priority asked for,
+/// after it, the team (and the one before, for an edit or a redirection that moved it), the priority asked for,
 /// the fields an edit changed with the structured ones' values before and after, and for triage the priority and
 /// template chosen, the pathway and the rejection reason.
 /// </summary>
 public sealed record ReferralEventDetails(
     string? ToStatus,
-    string? SpecialtyName,
-    string? PreviousSpecialtyName,
+    string? TeamName,
+    string? PreviousTeamName,
     string? RequestedPriority,
     IReadOnlyList<string> ChangedFields,
     IReadOnlyDictionary<string, (string? From, string? To)> Changes)
@@ -279,11 +279,11 @@ public sealed record ReferralEventDetails(
             foreach (var change in changed.EnumerateObject().Where(c => c.Value.ValueKind == JsonValueKind.Object))
                 changes[change.Name] = (Text(change.Value, "from"), Text(change.Value, "to"));
 
-        var specialty = changes.GetValueOrDefault(ReferralChange.SpecialtyField);
+        var team = changes.GetValueOrDefault(ReferralChange.TeamField);
         return new ReferralEventDetails(
             ToStatus: Text(root, "to") ?? Text(root, "status"),
-            SpecialtyName: Text(root, "specialtyName") ?? specialty.To,
-            PreviousSpecialtyName: Text(root, "previousSpecialtyName") ?? specialty.From,
+            TeamName: Text(root, "specialtyName") ?? team.To,
+            PreviousTeamName: Text(root, "previousSpecialtyName") ?? team.From,
             RequestedPriority: Text(root, "requestedPriority"),
             ChangedFields: fields,
             Changes: changes)

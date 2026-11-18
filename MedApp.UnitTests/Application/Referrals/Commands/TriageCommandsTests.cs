@@ -13,7 +13,7 @@ using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -21,7 +21,7 @@ using static MedApp.UnitTests.Common.Constants.ReferralsTestConstants;
 
 namespace MedApp.UnitTests.Application.Referrals.Commands;
 
-/// <summary>Shared mocks for triage: the triager belongs to the referral's specialty, and notifications are kept.</summary>
+/// <summary>Shared mocks for triage: the triager belongs to the referral's team, and notifications are kept.</summary>
 public abstract class TriageCommandTestBase : ReferralCommandTestBase
 {
     protected Mock<INotificationSender> Notifications { get; private set; } = null!;
@@ -37,14 +37,14 @@ public abstract class TriageCommandTestBase : ReferralCommandTestBase
             .Callback((Notification notification, CancellationToken _) => Sent.Add(notification))
             .Returns(Task.CompletedTask);
         Repository
-            .Setup(r => r.IsSpecialtyMemberAsync(It.IsAny<Guid>(), Specialty.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.IsTeamMemberAsync(It.IsAny<Guid>(), Team.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
     }
 
     /// <summary>Saving finds the referral changed meanwhile, decided by someone else as <paramref name="status"/>.</summary>
     protected void GivenSomeoneElseDecidedItFirst(Referral referral, ReferralStatus status)
     {
-        var decided = CreateReferral(Patient, Specialty, status);
+        var decided = CreateReferral(Patient, Team, status);
         decided.DecidedByUsername = "o.synthetic";
         decided.DecidedAtUtc = NowUtc;
         Repository.Setup(r => r.GetByIdAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(decided);
@@ -75,7 +75,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
             PathwaysTestConstants.TemplateName, false,
             PathwaysTestConstants.CreateDefinition(PathwaysTestConstants.ConsultationStage).WithVisit(VisitRequirement.Required),
             PathwaysTestConstants.CreateDefinition(PathwaysTestConstants.PathwayStage));
-        _template.SpecialtyId = Specialty.Id;
+        _template.TeamId = Team.Id;
 
         _pathways = new Mock<IPatientPathwayRepository>();
         _pathways
@@ -133,7 +133,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         var change = _added.Single();
         var pathway = change.Pathway;
         pathway.PatientId.Should().Be(Patient.Id);
-        pathway.SpecialtyId.Should().Be(Specialty.Id);
+        pathway.TeamId.Should().Be(Team.Id);
         pathway.Priority.Should().Be(PatientPathwayPriority.Urgent);
         pathway.Title.Should().Be(PathwaysTestConstants.TemplateName);
         pathway.Stages.Should().HaveCount(2);
@@ -156,8 +156,8 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
 
         // The clock keeps running from the day received, with Urgent's target (asked for: High); the pathway's target
         // date is the clock's, not one the triager chose.
-        referral.TargetDays.Should().Be(Specialty.TargetDaysUrgent);
-        referral.TargetOn.Should().Be(ReceivedOn.AddDays(Specialty.TargetDaysUrgent));
+        referral.TargetDays.Should().Be(Team.TargetDaysUrgent);
+        referral.TargetOn.Should().Be(ReceivedOn.AddDays(Team.TargetDaysUrgent));
         DueDates.ToUkDate(pathway.DueDateUtc).Should().Be(referral.TargetOn);
         response.Referral!.Clock!.State.Should().Be(WaitingClock.Running);
         Repository.Verify(r => r.SaveAsync(It.IsAny<IEnumerable<ReferralEvent>>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -165,7 +165,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
 
         response.Id.Should().Be(pathway.Id);
         response.Referral!.Id.Should().Be(referral.Id);
-        response.Referral.SpecialtyName.Should().Be(Specialty.Name);
+        response.Referral.TeamName.Should().Be(Team.Name);
     }
 
     [Test]
@@ -180,7 +180,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         told.UserId.Should().Be(Registrar.UserId);
         told.ReferralId.Should().Be(referral.Id);
         told.Title.Should().Be(ReferralNotifications.TriagedTitle);
-        told.Message.Should().Be($"{Triager.Username} accepted a {Specialty.Name} referral.");
+        told.Message.Should().Be($"{Triager.Username} accepted a {Team.Name} referral.");
         _order.Should().Equal("save", "notify ReferralTriaged", "monitor");
         _monitor.Verify(m => m.NotifyAsync(_added.Single(), Cts.Token), Times.Once);
     }
@@ -246,15 +246,15 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
     }
 
     [Test]
-    public async Task Handle_AnotherSpecialtysTemplate_IsAValidationErrorSayingToRedirectFirst()
+    public async Task Handle_AnotherTeamsTemplate_IsAValidationErrorSayingToRedirectFirst()
     {
         var referral = GivenReferral();
-        _template.SpecialtyId = Guid.NewGuid();
+        _template.TeamId = Guid.NewGuid();
 
         var act = () => Handler.Handle(Command(referral), Cts.Token);
 
         (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single().ErrorMessage
-            .Should().Be(ReferralWorkflow.TemplateNotInSpecialtyMessage(PathwaysTestConstants.TemplateName, Specialty.Name));
+            .Should().Be(ReferralWorkflow.TemplateNotInTeamMessage(PathwaysTestConstants.TemplateName, Team.Name));
         _added.Should().BeEmpty();
     }
 
@@ -291,16 +291,16 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
     }
 
     [Test]
-    public async Task Handle_NotAMemberOfItsSpecialty_IsForbidden()
+    public async Task Handle_NotAMemberOfItsTeam_IsForbidden()
     {
         var referral = GivenReferral();
         Repository
-            .Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, Specialty.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.IsTeamMemberAsync(Triager.UserId, Team.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var act = () => Handler.Handle(Command(referral), Cts.Token);
 
-        await act.Should().ThrowAsync<ForbiddenException>().WithMessage(ReferralWorkflow.NotInSpecialtyMessage(Specialty.Name));
+        await act.Should().ThrowAsync<ForbiddenException>().WithMessage(ReferralWorkflow.NotInTeamMessage(Team.Name));
         _added.Should().BeEmpty();
     }
 
@@ -368,7 +368,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
     public async Task Handle_SavedMeanwhileButStillOpen_IsChangedMeanwhile()
     {
         var referral = GivenReferral();
-        Repository.Setup(r => r.GetByIdAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(CreateReferral(Patient, Specialty));
+        Repository.Setup(r => r.GetByIdAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(CreateReferral(Patient, Team));
         _pathways
             .Setup(r => r.AddAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ConflictException("refused"));
@@ -411,7 +411,7 @@ public sealed class RejectReferralHandlerTests : TriageCommandTestBase
         referral.StopReason.Should().Be(ClockStopReason.Rejected);
         referral.StoppedOn.Should().Be(Today);
         Tokens.Should().Equal(Cts.Token);
-        Sent.Single().Message.Should().Be($"{Triager.Username} rejected a {Specialty.Name} referral.");
+        Sent.Single().Message.Should().Be($"{Triager.Username} rejected a {Team.Name} referral.");
         response.Status.Should().Be("Rejected");
         response.CanTriage.Should().BeFalse();
     }
@@ -443,7 +443,7 @@ public sealed class RejectReferralHandlerTests : TriageCommandTestBase
     {
         var referral = GivenReferral();
         Repository
-            .Setup(r => r.IsSpecialtyMemberAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.IsTeamMemberAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var act = () => Handler.Handle(new RejectReferralCommand(referral.Id, "Duplicate", null, referral.Version, Triager), Cts.Token);
@@ -456,19 +456,19 @@ public sealed class RejectReferralHandlerTests : TriageCommandTestBase
 [TestFixture]
 public sealed class RedirectReferralHandlerTests : TriageCommandTestBase
 {
-    private Specialty _urology = null!;
+    private Team _urology = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _urology = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
-        Specialties.Setup(s => s.GetAsync(_urology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_urology);
+        _urology = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName);
+        Teams.Setup(s => s.GetAsync(_urology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_urology);
     }
 
-    private RedirectReferralHandler Handler => new(Repository.Object, Specialties.Object, Notifications.Object, Clock);
+    private RedirectReferralHandler Handler => new(Repository.Object, Teams.Object, Notifications.Object, Clock);
 
     [Test]
-    public async Task Handle_ToAnotherSpecialty_KeepsItAwaitingTriageThere()
+    public async Task Handle_ToAnotherTeam_KeepsItAwaitingTriageThere()
     {
         var referral = GivenReferral();
 
@@ -476,15 +476,15 @@ public sealed class RedirectReferralHandlerTests : TriageCommandTestBase
             new RedirectReferralCommand(referral.Id, _urology.Id, null, $" {Detail} ", referral.Version, Triager), Cts.Token);
 
         referral.Status.Should().Be(ReferralStatus.AwaitingTriage);
-        referral.SpecialtyId.Should().Be(_urology.Id);
+        referral.TeamId.Should().Be(_urology.Id);
         referral.RedirectDetail.Should().Be(Detail);
         referral.DecidedAtUtc.Should().BeNull();
         referral.ReceivedOn.Should().Be(ReceivedOn);
         var entry = Saved.Single();
-        entry.Action.Should().Be(ReferralEventAction.SpecialtyChanged);
-        entry.Details.Should().Contain(_urology.Name).And.Contain(Specialty.Name).And.NotContain(Detail);
-        Sent.Single().Message.Should().Be($"{Triager.Username} redirected a {Specialty.Name} referral to {_urology.Name}.");
-        response.SpecialtyName.Should().Be(_urology.Name);
+        entry.Action.Should().Be(ReferralEventAction.TeamChanged);
+        entry.Details.Should().Contain(_urology.Name).And.Contain(Team.Name).And.NotContain(Detail);
+        Sent.Single().Message.Should().Be($"{Triager.Username} redirected a {Team.Name} referral to {_urology.Name}.");
+        response.TeamName.Should().Be(_urology.Name);
         response.IsOpen.Should().BeTrue();
     }
 
@@ -502,33 +502,33 @@ public sealed class RedirectReferralHandlerTests : TriageCommandTestBase
         Saved.Select(e => e.Action).Should().Equal(ReferralEventAction.RedirectedElsewhere, ReferralEventAction.ClockStopped);
         Saved.Should().AllSatisfy(e => e.Details.Should().NotContain("Synthetic Community Trust").And.NotContain(Detail));
         referral.StopReason.Should().Be(ClockStopReason.RedirectedElsewhere);
-        Sent.Single().Message.Should().Be($"{Triager.Username} redirected a {Specialty.Name} referral elsewhere.");
+        Sent.Single().Message.Should().Be($"{Triager.Username} redirected a {Team.Name} referral elsewhere.");
     }
 
     [Test]
-    public async Task Handle_ItsOwnSpecialty_IsAValidationError()
+    public async Task Handle_ItsOwnTeam_IsAValidationError()
     {
         var referral = GivenReferral();
 
-        var act = () => Handler.Handle(new RedirectReferralCommand(referral.Id, Specialty.Id, null, Detail, referral.Version, Triager), Cts.Token);
+        var act = () => Handler.Handle(new RedirectReferralCommand(referral.Id, Team.Id, null, Detail, referral.Version, Triager), Cts.Token);
 
         await act.Should().ThrowAsync<ValidationException>();
         Saved.Should().BeEmpty();
     }
 
     [Test]
-    public async Task Handle_ArchivedSpecialty_IsAConflict()
+    public async Task Handle_ArchivedTeam_IsAConflict()
     {
         var referral = GivenReferral();
         _urology.IsArchived = true;
 
         var act = () => Handler.Handle(new RedirectReferralCommand(referral.Id, _urology.Id, null, Detail, referral.Version, Triager), Cts.Token);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage(ReferralWorkflow.ArchivedSpecialtyMessage(_urology.Name));
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(ReferralWorkflow.ArchivedTeamMessage(_urology.Name));
     }
 
     [Test]
-    public async Task Handle_UnknownSpecialty_IsNotFound()
+    public async Task Handle_UnknownTeam_IsNotFound()
     {
         var referral = GivenReferral();
 
@@ -599,7 +599,7 @@ public sealed class TriageValidatorTests
             .IsValid.Should().BeFalse();
 
     [Test]
-    public void Redirect_ToASpecialty_Passes() =>
+    public void Redirect_ToATeam_Passes() =>
         new RedirectReferralValidator()
             .Validate(new RedirectReferralCommand(Guid.NewGuid(), Guid.NewGuid(), null, Detail, 1, Triager))
             .IsValid.Should().BeTrue();
@@ -618,7 +618,7 @@ public sealed class TriageValidatorTests
         validator.Validate(new RedirectReferralCommand(Guid.NewGuid(), Guid.NewGuid(), "Synthetic Trust", Detail, 1, Triager))
             .Errors.Single().ErrorMessage.Should().Be(RedirectReferralValidator.OneDestinationMessage);
         validator.Validate(new RedirectReferralCommand(Guid.NewGuid(), null, " ", Detail, 1, Triager))
-            .Errors.Single().PropertyName.Should().Be(nameof(RedirectReferralCommand.SpecialtyId));
+            .Errors.Single().PropertyName.Should().Be(nameof(RedirectReferralCommand.TeamId));
     }
 
     [Test]

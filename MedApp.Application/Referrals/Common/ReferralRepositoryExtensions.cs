@@ -36,7 +36,7 @@ public static class ReferralRepositoryExtensions
 
     /// <summary>
     /// The referral, tracked for changes, for <paramref name="actor"/> to triage it, or a 404; a 403 unless they hold
-    /// <c>TriageReferrals</c> and belong to its specialty; a 409 once it's been decided (naming who and how), while its
+    /// <c>TriageReferrals</c> and belong to its team; a 409 once it's been decided (naming who and how), while its
     /// record is restricted or anonymised, or if it changed since <paramref name="expectedVersion"/>
     /// (<see cref="ReferralWorkflow.EnsureCanTriage"/>).
     /// </summary>
@@ -45,7 +45,7 @@ public static class ReferralRepositoryExtensions
     {
         var referral = await GetForUpdateOrThrowAsync(repository, id, ct);
         var isMember = actor.Has(Permission.TriageReferrals)
-                       && await repository.IsSpecialtyMemberAsync(actor.UserId, referral.SpecialtyId, ct);
+                       && await repository.IsTeamMemberAsync(actor.UserId, referral.TeamId, ct);
         ReferralWorkflow.EnsureCanTriage(referral, actor, isMember, expectedVersion);
         return referral;
     }

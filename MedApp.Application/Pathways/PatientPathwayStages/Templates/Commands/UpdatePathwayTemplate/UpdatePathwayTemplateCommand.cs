@@ -4,8 +4,8 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
 
 /// <summary>
-/// Renames a template, moves it to another specialty and/or replaces its stage list; null fields are left as they
-/// are. Pathways already created from it keep their stages, their clock-stop stage and their specialty.
+/// Renames a template, moves it to another team and/or replaces its stage list; null fields are left as they
+/// are. Pathways already created from it keep their stages, their clock-stop stage and their team.
 /// <paramref name="ClockStopStageOrder"/> goes with the stage list (positions mean nothing without it): the position
 /// of the stage that stops the waiting-time clock, or null for none.
 /// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
@@ -15,7 +15,7 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 public sealed record UpdatePathwayTemplateCommand(
     Guid TemplateId,
     string? Name,
-    Guid? SpecialtyId,
+    Guid? TeamId,
     IReadOnlyList<Guid>? StageDefinitionIdsInOrder,
     int? ClockStopStageOrder = null,
     IReadOnlyList<TemplateStageOptions>? StageOptions = null,

@@ -20,9 +20,9 @@ public sealed class ClinicPatternConfiguration : IEntityTypeConfiguration<Clinic
             .HasForeignKey(x => x.RoomId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Specialty)
+        builder.HasOne(x => x.Team)
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.StaffUserId);

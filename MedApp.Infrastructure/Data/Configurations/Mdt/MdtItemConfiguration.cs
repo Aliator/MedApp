@@ -38,15 +38,15 @@ public sealed class MdtItemConfiguration : IEntityTypeConfiguration<MdtItem>
 
         builder.Ignore(x => x.IsOpen);
 
-        // A patient with pathways can't be deleted, nor a specialty in use: the keys refuse too, should either race.
+        // A patient with pathways can't be deleted, nor a team in use: the keys refuse too, should either race.
         builder.HasOne(x => x.Patient)
             .WithMany()
             .HasForeignKey(x => x.PatientId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Specialty)
+        builder.HasOne(x => x.Team)
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Deleting the pathway deletes its items in the same save (PatientPathwayRepository.DeleteAsync), and
@@ -71,6 +71,6 @@ public sealed class MdtItemConfiguration : IEntityTypeConfiguration<MdtItem>
         builder.HasIndex(x => x.MeetingId);
         builder.HasIndex(x => x.PathwayId);
         builder.HasIndex(x => x.PatientId);
-        builder.HasIndex(x => new { x.SpecialtyId, x.Status });
+        builder.HasIndex(x => new { x.TeamId, x.Status });
     }
 }

@@ -43,7 +43,7 @@ public enum PauseFate
 
 /// <summary>
 /// One pathway to replay: when it came in, what for, and the twists its story takes. Most come in as a referral,
-/// registered by the booking coordinator and accepted at triage by a clinician of its specialty, who creates the
+/// registered by the booking coordinator and accepted at triage by a clinician of its team, who creates the
 /// pathway (<see cref="CreatedUtc"/> is that moment); a diabetes recall or a biomechanics course asked for in clinic is
 /// often created directly by its clinician instead, with no referral and no waiting-time clock.
 /// </summary>
@@ -129,7 +129,7 @@ public sealed class PathwayPlan
     /// <summary>The priority the triager chose: the plan's, or Urgent for a referral raised at triage.</summary>
     public Priority ChosenPriority => RaisePriority ? Priority.Urgent : Priority;
 
-    /// <summary>The specialty its referral was first registered under, moved to this one by a triager there.</summary>
+    /// <summary>The team its referral was first registered under, moved to this one by a triager there.</summary>
     public string? RedirectedFrom { get; set; }
 
     /// <summary>When it was moved here (between its registration and its acceptance).</summary>
@@ -188,7 +188,7 @@ public static class PathwayPlans
     /// Each pathway's referral: whether it had one (a diabetes recall or a biomechanics course asked for in clinic is
     /// often created directly), when it was registered and received (urgent ones triaged within a day or so, routine
     /// ones within two weeks), the priority the referrer asked for (usually what the triager chose; a bleeding referral
-    /// raised to Urgent at triage asked for less), a few moved here from another specialty first, and the pauses.
+    /// raised to Urgent at triage asked for less), a few moved here from another team first, and the pauses.
     /// </summary>
     private static void PlanReferrals(List<PathwayPlan> plans, DemoTimeline timeline, Random random)
     {
@@ -213,11 +213,11 @@ public static class PathwayPlans
             Register(plan, wait);
         }
 
-        // Moved here by a triager of the specialty it was first registered under: bleeding referrals sent to urology,
+        // Moved here by a triager of the team it was first registered under: bleeding referrals sent to urology,
         // and foot pain sent to diabetes, then accepted here.
         var redirectable = plans.Where(p => p.FromReferral && p.Fate == Fate.Normal && !p.Straggler && p.NeverBookStage < 0
                                             && p.CreatedUtc >= now.AddDays(-300) && p.CreatedUtc <= now.AddDays(-20)).ToList();
-        foreach (var (kind, from) in new[] { (PathwayKind.PostMenopausalBleeding, DemoSpecialties.Urology), (PathwayKind.Biomechanics, DemoSpecialties.Diabetes) })
+        foreach (var (kind, from) in new[] { (PathwayKind.PostMenopausalBleeding, DemoTeams.Urology), (PathwayKind.Biomechanics, DemoTeams.Diabetes) })
             foreach (var plan in Choose(redirectable.Where(p => p.PathwayKind == kind), 2))
             {
                 plan.RedirectedFrom = from;

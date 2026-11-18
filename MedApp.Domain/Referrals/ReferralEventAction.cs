@@ -9,7 +9,7 @@ public enum ReferralEventAction
 {
     Registered = 0,
     DetailsEdited = 1,
-    SpecialtyChanged = 2,
+    TeamChanged = 2,
     Accepted = 3,
     Rejected = 4,
     RedirectedElsewhere = 5,

@@ -12,7 +12,7 @@ public sealed record UpdateClinicPatternCommand(
     Guid PatternId,
     Guid StaffUserId,
     Guid RoomId,
-    Guid SpecialtyId,
+    Guid TeamId,
     string DayOfWeek,
     TimeOnly Starts,
     TimeOnly Ends,

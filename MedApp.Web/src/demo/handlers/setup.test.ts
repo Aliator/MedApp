@@ -1,7 +1,7 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {addDays, weekStart} from '../../utils/calendarSlots';
 import {ADMIN, STAFF} from '../accounts';
-import {PATHWAYS, PATIENTS, ROOMS, SPECIALTIES, USERS} from '../ids';
+import {PATHWAYS, PATIENTS, ROOMS, TEAMS, USERS} from '../ids';
 import {CLINIC_SESSIONS, DAY_TEMPLATES, MONITORING_RULES, PRACTICES, ROLES} from '../slices/setup';
 import {db} from '../store';
 import {today} from '../time';
@@ -21,26 +21,26 @@ describe('the light demo’s setup and admin handlers', () => {
     expect((await call('DELETE', `/api/practices/${PRACTICES.oldMill}`)).status).toBe(204);
   });
 
-  it('archives a specialty only once nothing awaits triage in it, and keeps setup to admins', async () => {
+  it('archives a team only once nothing awaits triage in it, and keeps setup to admins', async () => {
     startLightDemo(STAFF);
-    expect((await call('POST', '/api/specialties', {name: 'Rheumatology'})).status).toBe(403);
+    expect((await call('POST', '/api/teams', {name: 'Rheumatology'})).status).toBe(403);
     startLightDemo(ADMIN);
-    const archive = await call('POST', `/api/specialties/${SPECIALTIES.dermatology}/archive`, {expectedVersion: 1});
+    const archive = await call('POST', `/api/teams/${TEAMS.dermatology}/archive`, {expectedVersion: 1});
     expect(archive.status).toBe(409);
     expect(archive.body.title).toMatch(/awaiting triage/);
-    const added = await call('POST', '/api/specialties', {name: 'Rheumatology'});
+    const added = await call('POST', '/api/teams', {name: 'Rheumatology'});
     expect(added.status).toBe(201);
     expect(added.body).toMatchObject({canBeDeleted: true, targetDaysUrgent: 14});
-    expect((await call('DELETE', `/api/specialties/${added.body.id}`)).status).toBe(204);
-    expect((await call('DELETE', `/api/specialties/${SPECIALTIES.urology}`)).status).toBe(204);
-    expect((await call('DELETE', `/api/specialties/${SPECIALTIES.dermatology}`)).status).toBe(409);
+    expect((await call('DELETE', `/api/teams/${added.body.id}`)).status).toBe(204);
+    expect((await call('DELETE', `/api/teams/${TEAMS.urology}`)).status).toBe(204);
+    expect((await call('DELETE', `/api/teams/${TEAMS.dermatology}`)).status).toBe(409);
   });
 
-  it('changes someone’s specialties, and records it in the activity log', async () => {
+  it('changes someone’s teams, and records it in the activity log', async () => {
     startLightDemo(ADMIN);
-    const set = await call('PUT', '/api/auth/users/h.marsh/specialties', {specialtyIds: [SPECIALTIES.urology]});
+    const set = await call('PUT', '/api/auth/users/h.marsh/teams', {teamIds: [TEAMS.urology]});
     expect(set.body.map((s: {name: string}) => s.name)).toEqual(['Urology']);
-    const log = (await call('GET', '/api/activity/search?Actions=StaffSpecialtiesChanged')).body;
+    const log = (await call('GET', '/api/activity/search?Actions=TeamMembershipChanged')).body;
     expect(log.items[0]).toMatchObject({targetUsername: 'h.marsh', details: JSON.stringify({from: [], to: ['Urology']})});
   });
 

@@ -8,9 +8,9 @@ using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,10 +18,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MedApp.IntegrationTests.Referrals;
 
 /// <summary>
-/// Triage through the API against SQL Server: a Clinician in the referral's specialty accepts it into a pathway (one
+/// Triage through the API against SQL Server: a Clinician in the referral's team accepts it into a pathway (one
 /// save: the pathway, its audit and the referral), rejects it or redirects it; whoever registered it is told; two
-/// triagers at once get one 409; the permission without the specialty is a 403; a restricted record is a 409; and the
-/// Specialties list says how many members can triage.
+/// triagers at once get one 409; the permission without the team is a 403; a restricted record is a 409; and the
+/// Teams list says how many members can triage.
 /// </summary>
 [TestFixture]
 public sealed class TriageTests : IntegrationTest
@@ -38,22 +38,22 @@ public sealed class TriageTests : IntegrationTest
         _booking = await CreateStaffAsync("Booking");
     }
 
-    /// <summary>A Clinician who belongs to these specialties (General when none are given).</summary>
-    private async Task<StaffAccount> ClinicianInAsync(params Guid[] specialtyIds)
+    /// <summary>A Clinician who belongs to these teams (General when none are given).</summary>
+    private async Task<StaffAccount> ClinicianInAsync(params Guid[] teamIds)
     {
         var clinician = await CreateStaffAsync("Clinician");
         (await _admin.PutAsJsonAsync(
-                $"/api/auth/users/{clinician.Username}/specialties",
-                new SetUserSpecialtiesRequest(specialtyIds.Length == 0 ? [Specialty.GeneralId] : specialtyIds)))
+                $"/api/auth/users/{clinician.Username}/teams",
+                new SetUserTeamsRequest(teamIds.Length == 0 ? [Team.GeneralId] : teamIds)))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         return clinician;
     }
 
-    private async Task<ReferralResponse> RegisterAsync(Guid patientId, Guid? specialtyId = null) =>
+    private async Task<ReferralResponse> RegisterAsync(Guid patientId, Guid? teamId = null) =>
         await (await _booking.Client.PostAsJsonAsync(Referrals, new RegisterReferralRequest
         {
             PatientId = patientId,
-            SpecialtyId = specialtyId ?? Specialty.GeneralId,
+            TeamId = teamId ?? Team.GeneralId,
             ReceivedOn = UkToday.AddDays(-2),
             ReferrerPractice = "Synthetic Lane Surgery",
             RequestedPriority = "Urgent",
@@ -69,7 +69,7 @@ public sealed class TriageTests : IntegrationTest
     };
 
     [Test]
-    public async Task Accept_AsAClinicianInItsSpecialty_CreatesThePathwayAndTellsTheRegistrar()
+    public async Task Accept_AsAClinicianInItsTeam_CreatesThePathwayAndTellsTheRegistrar()
     {
         var clinician = await ClinicianInAsync();
         var patient = await CreatePatientAsync(_admin);
@@ -98,13 +98,13 @@ public sealed class TriageTests : IntegrationTest
 
         // The pathway's own page links back to it, and its creation is in the audit like any new pathway's.
         var page = await (await clinician.Client.GetAsync($"/api/pathways/patient-pathways/{pathway.Id}")).ReadAsAsync<PatientPathwayResponse>();
-        page.Referral.Should().BeEquivalentTo(new { referral.Id, ReceivedOn = UkToday.AddDays(-2), SpecialtyName = Specialty.GeneralName });
+        page.Referral.Should().BeEquivalentTo(new { referral.Id, ReceivedOn = UkToday.AddDays(-2), TeamName = Team.GeneralName });
         page.NoteList.Should().ContainSingle();
 
         var told = (await (await _booking.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>()).Items
             .Single(n => n.Kind == "ReferralTriaged");
         told.Title.Should().Be(ReferralNotifications.TriagedTitle);
-        told.Message.Should().Be($"{clinician.Username} accepted a {Specialty.GeneralName} referral.");
+        told.Message.Should().Be($"{clinician.Username} accepted a {Team.GeneralName} referral.");
         told.ReferralId.Should().Be(referral.Id);
     }
 
@@ -147,7 +147,7 @@ public sealed class TriageTests : IntegrationTest
         await (await _booking.Client.PostAsJsonAsync(Referrals, new RegisterReferralRequest
         {
             PatientId = patientId,
-            SpecialtyId = Specialty.GeneralId,
+            TeamId = Team.GeneralId,
             ReceivedOn = UkToday.AddDays(-2),
             ReferrerPractice = "Synthetic Lane Surgery",
             RequestedPriority = "Urgent",
@@ -156,9 +156,9 @@ public sealed class TriageTests : IntegrationTest
         })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 
     [Test]
-    public async Task Triage_ThePermissionWithoutTheSpecialty_IsForbidden()
+    public async Task Triage_ThePermissionWithoutTheTeam_IsForbidden()
     {
-        var other = await CreateSpecialtyAsync();
+        var other = await CreateTeamAsync();
         var outsider = await ClinicianInAsync(other.Id);
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(patient.Id);
@@ -167,7 +167,7 @@ public sealed class TriageTests : IntegrationTest
             $"{Referrals}/{referral.Id}/reject", new RejectReferralRequest { Reason = "NotOfferedHere", ExpectedVersion = 1 });
 
         var problem = await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Forbidden);
-        problem.Title.Should().Be(ReferralWorkflow.NotInSpecialtyMessage(Specialty.GeneralName));
+        problem.Title.Should().Be(ReferralWorkflow.NotInTeamMessage(Team.GeneralName));
         var read = await (await outsider.Client.GetAsync($"{Referrals}/{referral.Id}")).ReadAsAsync<ReferralResponse>();
         read.Status.Should().Be("AwaitingTriage");
         read.CanTriage.Should().BeFalse();
@@ -198,13 +198,13 @@ public sealed class TriageTests : IntegrationTest
     }
 
     [Test]
-    public async Task Accept_AnotherSpecialtysTemplate_IsABadRequest()
+    public async Task Accept_AnotherTeamsTemplate_IsABadRequest()
     {
         var clinician = await ClinicianInAsync();
         var patient = await CreatePatientAsync(_admin);
-        var other = await CreateSpecialtyAsync();
+        var other = await CreateTeamAsync();
         var template = await CreateTemplateWithStagesAsync(_admin, 1);
-        (await _admin.PatchAsJsonAsync($"/api/pathways/patient-pathway-stage/templates/{template.Id}", new { specialtyId = other.Id }))
+        (await _admin.PatchAsJsonAsync($"/api/pathways/patient-pathway-stage/templates/{template.Id}", new { teamId = other.Id }))
             .IsSuccessStatusCode.Should().BeTrue();
         var referral = await RegisterAsync(patient.Id);
 
@@ -215,22 +215,22 @@ public sealed class TriageTests : IntegrationTest
     }
 
     [Test]
-    public async Task Redirect_ToAnotherSpecialty_MovesItToThatInboxStillAwaitingTriage_ThenElsewhereClosesIt()
+    public async Task Redirect_ToAnotherTeam_MovesItToThatInboxStillAwaitingTriage_ThenElsewhereClosesIt()
     {
-        var other = await CreateSpecialtyAsync();
-        var clinician = await ClinicianInAsync(Specialty.GeneralId, other.Id);
+        var other = await CreateTeamAsync();
+        var clinician = await ClinicianInAsync(Team.GeneralId, other.Id);
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(patient.Id);
 
         var moved = await (await clinician.Client.PostAsJsonAsync($"{Referrals}/{referral.Id}/redirect",
-            new RedirectReferralRequest { SpecialtyId = other.Id, Detail = "Synthetic: better seen there.", ExpectedVersion = 1 }))
+            new RedirectReferralRequest { TeamId = other.Id, Detail = "Synthetic: better seen there.", ExpectedVersion = 1 }))
             .ReadAsAsync<ReferralResponse>();
 
         moved.Status.Should().Be("AwaitingTriage");
-        moved.SpecialtyName.Should().Be(other.Name);
+        moved.TeamName.Should().Be(other.Name);
         moved.RedirectDetail.Should().Be("Synthetic: better seen there.");
-        moved.History.Single(h => h.Action == "SpecialtyChanged").Should().BeEquivalentTo(new { Action = "SpecialtyChanged", SpecialtyName = other.Name, PreviousSpecialtyName = Specialty.GeneralName });
-        moved.CanTriage.Should().BeTrue("the clinician belongs to the new specialty too");
+        moved.History.Single(h => h.Action == "TeamChanged").Should().BeEquivalentTo(new { Action = "TeamChanged", TeamName = other.Name, PreviousTeamName = Team.GeneralName });
+        moved.CanTriage.Should().BeTrue("the clinician belongs to the new team too");
 
         var sent = await (await clinician.Client.PostAsJsonAsync($"{Referrals}/{referral.Id}/redirect",
             new RedirectReferralRequest { Elsewhere = "Synthetic Community Trust", Detail = "Synthetic: not offered here.", ExpectedVersion = 2 }))
@@ -243,29 +243,29 @@ public sealed class TriageTests : IntegrationTest
             .Where(n => n.Kind == "ReferralTriaged").Select(n => n.Message);
         messages.Should().BeEquivalentTo(
         [
-            $"{clinician.Username} redirected a {Specialty.GeneralName} referral to {other.Name}.",
+            $"{clinician.Username} redirected a {Team.GeneralName} referral to {other.Name}.",
             $"{clinician.Username} redirected a {other.Name} referral elsewhere.",
         ]);
     }
 
     [Test]
-    public async Task Specialties_SayHowManyMembersCanTriage()
+    public async Task Teams_SayHowManyMembersCanTriage()
     {
-        var nobody = await CreateSpecialtyAsync();
-        await ClinicianInAsync(Specialty.GeneralId);
+        var nobody = await CreateTeamAsync();
+        await ClinicianInAsync(Team.GeneralId);
         var nurse = await CreateStaffAsync("Nurse");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{nurse.Username}/specialties", new SetUserSpecialtiesRequest([nobody.Id])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{nurse.Username}/teams", new SetUserTeamsRequest([nobody.Id])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var specialties = await (await _admin.GetAsync("/api/specialties")).ReadAsAsync<List<SpecialtyResponse>>();
+        var teams = await (await _admin.GetAsync("/api/teams")).ReadAsAsync<List<TeamResponse>>();
 
-        specialties.Single(s => s.Id == Specialty.GeneralId).TriagerCount.Should().Be(1);
-        var withoutTriager = specialties.Single(s => s.Id == nobody.Id);
+        teams.Single(s => s.Id == Team.GeneralId).TriagerCount.Should().Be(1);
+        var withoutTriager = teams.Single(s => s.Id == nobody.Id);
         withoutTriager.MemberCount.Should().Be(1);
         withoutTriager.TriagerCount.Should().Be(0);
     }
 
-    private async Task<SpecialtyResponse> CreateSpecialtyAsync() =>
-        await (await _admin.PostAsJsonAsync("/api/specialties", new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+    private async Task<TeamResponse> CreateTeamAsync() =>
+        await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
 }

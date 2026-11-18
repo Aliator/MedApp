@@ -1,5 +1,5 @@
 import {screen, within} from '@testing-library/react';
-import {SPECIALTY, testSession} from '../../test/clinics';
+import {TEAM, testSession} from '../../test/clinics';
 import {calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {ClinicSlotPicker, sessionHeading, slotOf} from './ClinicSlotPicker';
 
@@ -9,7 +9,7 @@ function renderPicker(props: Partial<Parameters<typeof ClinicSlotPicker>[0]> = {
   const onChoose = vi.fn();
   const fetch = mockApi({
     [`GET ${SESSIONS}`]: () => json(status === 200 ? sessions : {title: 'Error'}, status),
-    'GET /api/specialties': () => json([SPECIALTY]),
+    'GET /api/teams': () => json([TEAM]),
   });
   const result = renderWithApp(<ClinicSlotPicker from="2026-11-23" to="2026-12-20" onChoose={onChoose} {...props} />, {user: staffUser});
   return {...result, fetch, onChoose};
@@ -45,10 +45,10 @@ describe('ClinicSlotPicker', () => {
     expect(screen.getByRole('button', {name: '11:20', pressed: false})).toBeInTheDocument();
   });
 
-  it("asks for the specialty's sessions only, and says when there are none", async () => {
-    const {fetch} = renderPicker({specialtyId: SPECIALTY.id}, []);
+  it("asks for the team's sessions only, and says when there are none", async () => {
+    const {fetch} = renderPicker({teamId: TEAM.id}, []);
     expect(await screen.findByText('No Synthetic dermatology clinic sessions have a free slot in these weeks.')).toBeInTheDocument();
-    expect(calls(fetch)).toContain(`GET ${SESSIONS}?From=2026-11-23&To=2026-12-20&SpecialtyId=${SPECIALTY.id}&WithFreeSlots=true`);
+    expect(calls(fetch)).toContain(`GET ${SESSIONS}?From=2026-11-23&To=2026-12-20&TeamId=${TEAM.id}&WithFreeSlots=true`);
   });
 
   it('says when there are none at all, or they could not be loaded', async () => {

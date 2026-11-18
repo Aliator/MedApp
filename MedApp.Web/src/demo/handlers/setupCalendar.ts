@@ -3,7 +3,7 @@ import {addDays, dayOfWeek} from '../../utils/calendarSlots';
 import {usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {specialtyName} from '../seed';
+import {teamName} from '../seed';
 import {
   WEEKDAYS,
   type DemoClinicPattern,
@@ -202,8 +202,8 @@ export function sessionResponse(s: DemoClinicSession): Schemas['ClinicSessionRes
     roomName: room?.name ?? null,
     siteId: site?.id,
     siteName: site?.name ?? null,
-    specialtyId: s.specialtyId,
-    specialtyName: db().specialties.find((x) => x.id === s.specialtyId)?.name ?? specialtyName(s.specialtyId),
+    teamId: s.teamId,
+    teamName: db().teams.find((x) => x.id === s.teamId)?.name ?? teamName(s.teamId),
     patternId: s.patternId,
     date: s.date,
     startUtc: s.startUtc,
@@ -278,10 +278,10 @@ function checkSlots(startUtc: string | undefined, endUtc: string | undefined, sl
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
 }
 
-function requireSpecialty(specialtyId: string | null | undefined) {
-  const specialty = db().specialties.find((s) => s.id === specialtyId);
-  if (!specialty) refuse(invalid({specialtyId: ['Choose a specialty.']}));
-  return specialty;
+function requireTeam(teamId: string | null | undefined) {
+  const team = db().teams.find((s) => s.id === teamId);
+  if (!team) refuse(invalid({teamId: ['Choose a team.']}));
+  return team;
 }
 
 function patternResponse(p: DemoClinicPattern): Schemas['ClinicPatternResponse'] {
@@ -293,7 +293,7 @@ function patternResponse(p: DemoClinicPattern): Schemas['ClinicPatternResponse']
     roomName: room?.name ?? null,
     siteId: site?.id,
     siteName: site?.name ?? null,
-    specialtyName: db().specialties.find((x) => x.id === p.specialtyId)?.name ?? null,
+    teamName: db().teams.find((x) => x.id === p.teamId)?.name ?? null,
     hasEnded: !!p.untilDate && p.untilDate < today(),
   };
 }
@@ -315,11 +315,11 @@ function patternInput(body: Partial<Schemas['ClinicPatternRequest']>) {
   if (slot < 5 || slot > 120 || slot % 5 !== 0 || (length > 0 && length % slot !== 0))
     errors.slotMinutes = ['Slots are 5 to 120 minutes, in steps of 5, filling the clinic exactly.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
-  requireSpecialty(body.specialtyId);
+  requireTeam(body.teamId);
   return {
     staffUserId: body.staffUserId!,
     roomId: body.roomId!,
-    specialtyId: body.specialtyId!,
+    teamId: body.teamId!,
     dayOfWeek: body.dayOfWeek!,
     starts: starts!,
     ends: ends!,
@@ -865,7 +865,7 @@ export function registerSetupCalendar() {
           (!query.get('StaffUserId') || s.staffUserId === query.get('StaffUserId')) &&
           (!query.get('RoomId') || s.roomId === query.get('RoomId')) &&
           (!roomIds || roomIds.includes(s.roomId)) &&
-          (!query.get('SpecialtyId') || s.specialtyId === query.get('SpecialtyId')) &&
+          (!query.get('TeamId') || s.teamId === query.get('TeamId')) &&
           (query.get('IncludeCancelled') === 'true' || s.status === 'Planned'),
       )
       .sort((a, b) => a.startUtc.localeCompare(b.startUtc) || a.id.localeCompare(b.id))
@@ -897,12 +897,12 @@ export function registerSetupCalendar() {
     requirePermission('ManageClinics');
     if (!body.staffUserId || !usernameOf(body.staffUserId)) return invalid({staffUserId: ['Choose who runs the clinic.']});
     checkSlots(body.startUtc, body.endUtc, body.slotMinutes);
-    requireSpecialty(body.specialtyId);
+    requireTeam(body.teamId);
     const session: DemoClinicSession = {
       id: newId(),
       staffUserId: body.staffUserId,
       roomId: body.roomId ?? '',
-      specialtyId: body.specialtyId!,
+      teamId: body.teamId!,
       patternId: null,
       date: ukDateOf(body.startUtc!),
       startUtc: body.startUtc!,
@@ -927,11 +927,11 @@ export function registerSetupCalendar() {
     if (session.status !== 'Planned') return problem(409, 'A cancelled session doesn’t change.');
     if (session.date < today()) return problem(409, 'A session on a past day doesn’t change.');
     checkSlots(body.startUtc, body.endUtc, body.slotMinutes);
-    requireSpecialty(body.specialtyId);
+    requireTeam(body.teamId);
     const booked = bookingsIn(session);
     if (booked.length > 0 && (body.startUtc !== session.startUtc || body.endUtc !== session.endUtc || body.slotMinutes !== session.slotMinutes))
-      return problem(409, 'This session has bookings: only its room and specialty can change.');
-    const changed = {...session, roomId: body.roomId ?? session.roomId, specialtyId: body.specialtyId!, startUtc: body.startUtc!, endUtc: body.endUtc!, slotMinutes: body.slotMinutes!, date: ukDateOf(body.startUtc!)};
+      return problem(409, 'This session has bookings: only its room and team can change.');
+    const changed = {...session, roomId: body.roomId ?? session.roomId, teamId: body.teamId!, startUtc: body.startUtc!, endUtc: body.endUtc!, slotMinutes: body.slotMinutes!, date: ukDateOf(body.startUtc!)};
     const why = whySessionCant(changed);
     if (why) return problem(409, why);
     Object.assign(session, changed, {lastUpdated: nowUtc()});
@@ -996,7 +996,7 @@ export function registerSetupCalendar() {
         id: newId(),
         staffUserId: pattern.staffUserId,
         roomId: pattern.roomId,
-        specialtyId: pattern.specialtyId,
+        teamId: pattern.teamId,
         patternId: pattern.id,
         date,
         startUtc: atClock(date, pattern.starts),

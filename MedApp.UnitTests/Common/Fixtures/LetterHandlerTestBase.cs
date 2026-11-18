@@ -72,7 +72,7 @@ public abstract class LetterHandlerTestBase
         Patient.PracticeId = Practice.Id;
         Patient.NhsNumber = "9990000018";
         Pathway = PathwaysTestConstants.CreatePathway(PatientPathwayStatus.InProgress, patient: Patient);
-        Pathway.SpecialtyId = PathwaysTestConstants.SpecialtyId;
+        Pathway.TeamId = PathwaysTestConstants.TeamId;
 
         Letters = new Mock<ILetterRepository>();
         Letters.Setup(l => l.AddAsync(It.IsAny<Letter>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))

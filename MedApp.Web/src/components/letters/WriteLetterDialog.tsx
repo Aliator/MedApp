@@ -3,7 +3,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {ApiValidationError, fieldStatus, otherMessages, problemMessage, type ValidationErrors} from '../../api/errors';
-import {compareLetterTemplates, letterTemplatesQuery, letterTemplateSpecialty, type LetterTemplate} from '../../api/letterTemplates';
+import {compareLetterTemplates, letterTemplatesQuery, letterTemplateTeam, type LetterTemplate} from '../../api/letterTemplates';
 import {letterKindWords, REFERRAL_LETTER_KINDS, useCreateLetter, type Letter} from '../../api/letters';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
@@ -15,22 +15,22 @@ import {AppIcon} from '../shared/icons';
 export type LetterAbout = {pathwayId: string; referralId?: undefined} | {referralId: string; pathwayId?: undefined};
 
 /**
- * The templates a letter about this can start from: not archived, for its specialty or every specialty, and from a
+ * The templates a letter about this can start from: not archived, for its team or every team, and from a
  * referral only replies to it (a referral response or a request for more information), in the API's order (every
- * specialty's first, then by name). Never ranked or suggested (decision 69).
+ * team's first, then by name). Never ranked or suggested (decision 69).
  */
-export function templatesForLetter(templates: readonly LetterTemplate[], specialtyId: string | null | undefined, about: LetterAbout): LetterTemplate[] {
+export function templatesForLetter(templates: readonly LetterTemplate[], teamId: string | null | undefined, about: LetterAbout): LetterTemplate[] {
   return templates
     .filter((t) => !t.isArchived)
-    .filter((t) => !t.specialtyId || t.specialtyId === specialtyId)
+    .filter((t) => !t.teamId || t.teamId === teamId)
     .filter((t) => !about.referralId || REFERRAL_LETTER_KINDS.includes(t.kind ?? ''))
     .sort(compareLetterTemplates);
 }
 
 export interface WriteLetterDialogProps {
   about: LetterAbout;
-  /** The pathway's or referral's specialty: its templates, and those for every specialty, are offered. */
-  specialtyId: string | null | undefined;
+  /** The pathway's or referral's team: its templates, and those for every team, are offered. */
+  teamId: string | null | undefined;
   /** Who the letter is about, as the banner shows them. */
   patient?: BannerPatient | null;
   onCancel: () => void;
@@ -44,9 +44,9 @@ export interface WriteLetterDialogProps {
  * so it's started on the right one. Nothing is chosen to begin with. A refusal shows in the dialog in the API's words.
  * Mount it only while open.
  */
-export function WriteLetterDialog({about, specialtyId, patient, onCancel, onCreated}: WriteLetterDialogProps) {
+export function WriteLetterDialog({about, teamId, patient, onCancel, onCreated}: WriteLetterDialogProps) {
   const templates = useQuery(letterTemplatesQuery(false));
-  const choices = templatesForLetter(templates.data ?? [], specialtyId, about);
+  const choices = templatesForLetter(templates.data ?? [], teamId, about);
   const create = useCreateLetter();
   const [templateId, setTemplateId] = useState('');
   const [errors, setErrors] = useState<ValidationErrors | null>(null);
@@ -92,7 +92,7 @@ export function WriteLetterDialog({about, specialtyId, patient, onCancel, onCrea
           options={choices.map((t) => ({
             value: t.id ?? '',
             label: t.name ?? '',
-            description: `${letterKindWords(t.kind)} · ${letterTemplateSpecialty(t)}`,
+            description: `${letterKindWords(t.kind)} · ${letterTemplateTeam(t)}`,
           }))}
           value={templateId || undefined}
           onChange={(value: string) => setTemplateId(value)}
@@ -103,8 +103,8 @@ export function WriteLetterDialog({about, specialtyId, patient, onCancel, onCrea
         {templates.isSuccess && choices.length === 0 && (
           <Text type="body" color="secondary">
             {about.referralId
-              ? 'There are no templates for replies to referrals in this specialty. An administrator adds them in Letter Templates.'
-              : 'There are no letter templates for this specialty. An administrator adds them in Letter Templates.'}
+              ? 'There are no templates for replies to referrals in this team. An administrator adds them in Letter Templates.'
+              : 'There are no letter templates for this team. An administrator adds them in Letter Templates.'}
           </Text>
         )}
         {templates.isError && <AlertMessage message="The templates could not be loaded. Please try again." />}

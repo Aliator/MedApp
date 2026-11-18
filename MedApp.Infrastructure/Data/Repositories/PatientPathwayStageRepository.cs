@@ -81,9 +81,9 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
     public async Task AddPathwayTemplateAsync(PathwayTemplate template, CancellationToken ct)
     {
         Templates.Add(template);
-        // The specialty it's in already exists: attached (if given) for the response's name, never inserted.
-        if (template.Specialty is not null)
-            context.Entry(template.Specialty).State = EntityState.Unchanged;
+        // The team it's in already exists: attached (if given) for the response's name, never inserted.
+        if (template.Team is not null)
+            context.Entry(template.Team).State = EntityState.Unchanged;
         await context.SaveChangesAsync(ct);
     }
 
@@ -138,7 +138,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
 
         existing.Name = template.Name;
         existing.IsArchived = template.IsArchived;
-        existing.SpecialtyId = template.SpecialtyId;
+        existing.TeamId = template.TeamId;
 
         // Only the template's own: its existing pathways are raised, never lowered, by RaisePathwayRetentionClassesAsync.
         existing.RetentionClass = template.RetentionClass;
@@ -198,7 +198,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
 
     private static IQueryable<PathwayTemplate> WithStages(IQueryable<PathwayTemplate> templates) =>
         templates
-            .Include(x => x.Specialty)
+            .Include(x => x.Team)
             .Include(x => x.Maps.OrderBy(m => m.StageOrder))
             .ThenInclude(x => x.StageDefinition);
 }

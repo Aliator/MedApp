@@ -174,9 +174,9 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       startUtc: '2026-11-17T14:00:00.000Z',
       endUtc: '2026-11-17T15:00:00.000Z',
       attendeeUserIds: ALL,
-      // An ordinary meeting, not a specialty's MDT.
+      // An ordinary meeting, not a team's MDT.
       isMdt: false,
-      specialtyId: null,
+      teamId: null,
     });
   });
 
@@ -394,14 +394,14 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       attendeeUserIds: [KAY.userId, GONE],
       // What it is, as shown, so a change never turns an MDT into an ordinary meeting.
       isMdt: false,
-      specialtyId: null,
+      teamId: null,
       // The version it was changed from: the API refuses the change if anyone has changed the meeting since.
       expectedLastUpdated: MEETING.lastUpdated,
     });
   });
 
   it("opens an MDT's list from the meeting, for those who can view patients; another meeting has no such link", async () => {
-    const mdt = {...MEETING, isMdt: true, specialtyId: '00000000-0000-0000-0000-00000000f001'};
+    const mdt = {...MEETING, isMdt: true, teamId: '00000000-0000-0000-0000-00000000f001'};
     const first = renderDialog({meeting: mdt});
     expect(await dialog().findByRole('link', {name: 'Open MDT List'})).toHaveAttribute('href', `/mdt?meeting=${MEETING.id}`);
     first.unmount();
@@ -416,25 +416,25 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     expect(dialog().queryByRole('link', {name: 'Open MDT List'})).not.toBeInTheDocument();
   });
 
-  it("keeps an MDT's archived specialty when changing it, and sends the specialty chosen", async () => {
+  it("keeps an MDT's archived team when changing it, and sends the team chosen", async () => {
     const DERM = {id: '00000000-0000-0000-0000-00000000f001', name: 'Dermatology', isArchived: false};
     const ARCHIVED = '00000000-0000-0000-0000-00000000f002';
-    const mdt = {...MEETING, isMdt: true, specialtyId: ARCHIVED};
+    const mdt = {...MEETING, isMdt: true, teamId: ARCHIVED};
     const {user, fetch} = renderDialog(
       {meeting: mdt},
-      {handlers: {'GET /api/specialties': () => json([DERM]), [`PUT /api/calendar/meetings/${MEETING.id}`]: () => json(mdt)}},
+      {handlers: {'GET /api/teams': () => json([DERM]), [`PUT /api/calendar/meetings/${MEETING.id}`]: () => json(mdt)}},
     );
 
     await user.click(await dialog().findByRole('button', {name: 'Change'}));
-    expect(await dialog().findByRole('checkbox', {name: /A specialty's MDT/})).toBeChecked();
-    expect(dialog().getByRole('combobox', {name: /Specialty/})).toHaveTextContent('Archived specialty');
-    await user.click(dialog().getByRole('combobox', {name: /Specialty/}));
+    expect(await dialog().findByRole('checkbox', {name: /A team's MDT/})).toBeChecked();
+    expect(dialog().getByRole('combobox', {name: /Team/})).toHaveTextContent('Archived team');
+    await user.click(dialog().getByRole('combobox', {name: /Team/}));
     await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
     await user.click(await dialog().findByRole('button', {name: 'Thu 19 Nov, 09:00 to 10:00'}));
     await user.click(dialog().getByRole('button', {name: 'Save'}));
 
     await waitFor(() => expect(requests(fetch, 'PUT', `/api/calendar/meetings/${MEETING.id}`)).toHaveLength(1));
-    expect(await bodyOf(fetch, 'PUT', `/api/calendar/meetings/${MEETING.id}`)).toMatchObject({isMdt: true, specialtyId: DERM.id});
+    expect(await bodyOf(fetch, 'PUT', `/api/calendar/meetings/${MEETING.id}`)).toMatchObject({isMdt: true, teamId: DERM.id});
   });
 
   it('says a meeting on a day that has since closed must move, and asks only for the closed days still to come', async () => {

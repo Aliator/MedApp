@@ -25,7 +25,7 @@ import {
   type MeetingReply,
 } from '../../api/calendar';
 import {closedDaysQuery, isClosedEverywhere} from '../../api/closedDays';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {can, useCurrentUser} from '../../auth/auth';
@@ -222,7 +222,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
                 ))}
               </VStack>
             </MetadataListItem>
-            {meeting.isMdt && <MetadataListItem label="MDT">A specialty's multidisciplinary team meeting</MetadataListItem>}
+            {meeting.isMdt && <MetadataListItem label="MDT">A team's multidisciplinary team meeting</MetadataListItem>}
             {meeting.notes && <MetadataListItem label="Notes">{meeting.notes}</MetadataListItem>}
           </MetadataList>
         </VStack>
@@ -274,7 +274,7 @@ function meetingWhen(meeting: Meeting): string {
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
-const FIELDS = ['title', 'notes', 'startUtc', 'endUtc', 'attendeeUserIds', 'specialtyId'];
+const FIELDS = ['title', 'notes', 'startUtc', 'endUtc', 'attendeeUserIds', 'teamId'];
 
 interface Problem {
   validation: ValidationErrors | null;
@@ -320,10 +320,10 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
 
   const [title, setTitle] = useState(meeting?.title ?? '');
   const [notes, setNotes] = useState(meeting?.notes ?? '');
-  // A specialty's MDT (decision 141): pathways can be listed for it. A change sends what's shown, so nothing is lost.
+  // A team's MDT (decision 141): pathways can be listed for it. A change sends what's shown, so nothing is lost.
   const [isMdt, setIsMdt] = useState(meeting?.isMdt ?? false);
-  const [specialtyId, setSpecialtyId] = useState(meeting?.specialtyId ?? '');
-  const specialties = useQuery({...specialtiesQuery(false), enabled: isMdt});
+  const [teamId, setTeamId] = useState(meeting?.teamId ?? '');
+  const teams = useQuery({...teamsQuery(false), enabled: isMdt});
   const [who, setWho] = useState<string[]>(() =>
     meeting ? (meeting.attendees ?? []).map((a) => a.userId ?? '') : [...(initial?.attendeeUserIds ?? [])],
   );
@@ -392,7 +392,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const closedName = date !== undefined ? closed.get(date) : undefined;
   const isSaving = actions.create.isPending || actions.save.isPending;
   const canSave =
-    title.trim() !== '' && attendees.length > 0 && times !== undefined && closedName === undefined && !isSaving && (!isMdt || specialtyId !== '');
+    title.trim() !== '' && attendees.length > 0 && times !== undefined && closedName === undefined && !isSaving && (!isMdt || teamId !== '');
 
   const fail = (error: unknown) => {
     if (error instanceof ApiValidationError) {
@@ -420,7 +420,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
       endUtc: times.endUtc,
       attendeeUserIds: attendees,
       isMdt,
-      specialtyId: isMdt ? specialtyId : null,
+      teamId: isMdt ? teamId : null,
     };
     // A change says which version of the meeting it was made from: if anyone has changed it since, it's a 409.
     if (meeting) actions.save.mutate({id: meeting.id ?? '', ...body, expectedLastUpdated: meeting.lastUpdated}, {onSuccess: succeed, onError: fail});
@@ -474,23 +474,23 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         options={lengthOptions(length).map((minutes) => ({value: String(minutes), label: lengthLabel(minutes)}))}
       />
       <CheckboxInput
-        label="A specialty's MDT"
+        label="A team's MDT"
         description="A multidisciplinary team meeting that pathways can be listed for. The list stays separate: don't name patients here."
         value={isMdt}
         onChange={setIsMdt}
       />
       {isMdt && (
         <AnchoredSelector
-          label="Specialty"
+          label="Team"
           isRequired
-          value={specialtyId}
-          onChange={setSpecialtyId}
-          isLoading={specialties.isLoading}
-          status={fieldStatus(validation, 'specialtyId')}
+          value={teamId}
+          onChange={setTeamId}
+          isLoading={teams.isLoading}
+          status={fieldStatus(validation, 'teamId')}
           options={[
-            ...(specialties.data ?? []).map((sp) => ({value: sp.id ?? '', label: sp.name ?? ''})),
-            // An MDT keeps a specialty archived since it was chosen.
-            ...(specialtyId && !(specialties.data ?? []).some((sp) => sp.id === specialtyId) ? [{value: specialtyId, label: 'Archived specialty'}] : []),
+            ...(teams.data ?? []).map((sp) => ({value: sp.id ?? '', label: sp.name ?? ''})),
+            // An MDT keeps a team archived since it was chosen.
+            ...(teamId && !(teams.data ?? []).some((sp) => sp.id === teamId) ? [{value: teamId, label: 'Archived team'}] : []),
           ]}
         />
       )}

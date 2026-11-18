@@ -35,9 +35,9 @@ public sealed class CreateSessionsFromPatternHandler(
         if (dates.Count == 0)
             return response;
 
-        // An archived room or specialty can't be chosen for anything new: every date is skipped, saying why.
+        // An archived room or team can't be chosen for anything new: every date is skipped, saying why.
         var archived = pattern.Room.IsArchived ? ClinicRules.RoomArchived(pattern.Room)
-            : pattern.Specialty.IsArchived ? $"The '{pattern.Specialty.Name}' specialty is archived."
+            : pattern.Team.IsArchived ? $"The '{pattern.Team.Name}' team is archived."
             : null;
         if (archived is not null)
         {
@@ -80,7 +80,7 @@ public sealed class CreateSessionsFromPatternHandler(
             Id = Guid.NewGuid(),
             StaffUserId = pattern.StaffUserId,
             RoomId = pattern.RoomId,
-            SpecialtyId = pattern.SpecialtyId,
+            TeamId = pattern.TeamId,
             PatternId = pattern.Id,
             Date = date,
             StartUtc = start,

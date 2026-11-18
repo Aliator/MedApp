@@ -27,7 +27,7 @@ public sealed class UpdateClinicSessionHandlerTests : ClinicHandlerTestBase
 
     private UpdateClinicSessionCommand Command(
         Guid? roomId = null, DateTime? startUtc = null, DateTime? endUtc = null, int slotMinutes = 20, DateTime? expected = null) =>
-        new(_session.Id, roomId ?? _session.RoomId, SpecialtyId, startUtc ?? At(NextMonday, 9), endUtc ?? At(NextMonday, 12), slotMinutes,
+        new(_session.Id, roomId ?? _session.RoomId, TeamId, startUtc ?? At(NextMonday, 9), endUtc ?? At(NextMonday, 12), slotMinutes,
             expected ?? _session.LastUpdated, AdminActor);
 
     private void GivenBooked(params Appointment[] appointments) =>

@@ -31,7 +31,7 @@ export function attentionLines(counts: {
   lettersToApprove?: number;
   lettersToSend?: number;
   referralsAwaitingTriage?: number;
-  inYourSpecialties?: boolean;
+  inYourTeams?: boolean;
 }): AttentionLine[] {
   const lines: AttentionLine[] = [
     {
@@ -58,7 +58,7 @@ export function attentionLines(counts: {
     {
       key: 'referrals',
       count: counts.referralsAwaitingTriage ?? 0,
-      words: (n) => `${plural(n, 'referral', 'referrals')} awaiting triage${counts.inYourSpecialties ? ' in your specialties' : ''}`,
+      words: (n) => `${plural(n, 'referral', 'referrals')} awaiting triage${counts.inYourTeams ? ' in your teams' : ''}`,
       href: '/referrals',
       icon: AppIcon.Referrals,
     },
@@ -88,7 +88,7 @@ export function NeedsAttention() {
     lettersToApprove: canApprove ? letters?.toApprove : undefined,
     lettersToSend: canSend ? letters?.toSend : undefined,
     referralsAwaitingTriage: canTriage ? referrals?.count : undefined,
-    inYourSpecialties: referrals?.inYourSpecialties,
+    inYourTeams: referrals?.inYourTeams,
   });
   if (lines.length === 0) return null;
 

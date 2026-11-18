@@ -13,7 +13,7 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_RepeatedStage_Passes()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId]))
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId]))
             .IsValid.Should().BeTrue();
     }
 
@@ -25,7 +25,7 @@ public sealed class CreatePathwayTemplateValidatorTests
     public void Validate_ClockStopStage_IsOneOfItsStages(int? order, bool valid)
     {
         var result = _validator.Validate(new CreatePathwayTemplateCommand(
-            TemplateName, SpecialtyId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId], order));
+            TemplateName, TeamId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId], order));
 
         result.IsValid.Should().Be(valid);
         if (!valid)
@@ -35,7 +35,7 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_NoStages_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [])).IsValid.Should().BeFalse();
     }
 
     [Test]
@@ -43,14 +43,14 @@ public sealed class CreatePathwayTemplateValidatorTests
     {
         var stages = Enumerable.Repeat(ConsultationDefinitionId, CreatePathwayTemplateValidator.MaxStages + 1).ToList();
 
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, stages)).Errors
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, stages)).Errors
             .Should().ContainSingle(e => e.ErrorMessage == $"A template can have at most {CreatePathwayTemplateValidator.MaxStages} stages.");
     }
 
     [Test]
     public void Validate_NullStageList_FailsAsRequiredOnly()
     {
-        var result = _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, null!));
+        var result = _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, null!));
 
         result.IsValid.Should().BeFalse();
         result.Errors.Select(e => e.ErrorMessage).Should().Contain("Stage definition ids are required.")
@@ -60,24 +60,24 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_BlankName_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(" ", SpecialtyId, [ConsultationDefinitionId])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(" ", TeamId, [ConsultationDefinitionId])).IsValid.Should().BeFalse();
     }
 
     [Test]
     public void Validate_EmptyStageId_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [Guid.Empty])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [Guid.Empty])).IsValid.Should().BeFalse();
     }
 
     [Test]
-    public void Validate_NoSpecialty_IsInvalid() =>
+    public void Validate_NoTeam_IsInvalid() =>
         _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, Guid.Empty, [ConsultationDefinitionId])).Errors
-            .Should().ContainSingle(e => e.ErrorMessage == "Specialty is required.");
+            .Should().ContainSingle(e => e.ErrorMessage == "Team is required.");
 
     [Test]
     public void Validate_WellFormedBranches_Passes()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId,
                 [ConsultationDefinitionId, PathwayDefinitionId, PathwayDefinitionId, ConsultationDefinitionId],
                 StageOptions: [new(ChoosesBranch: true), new(Branch: "Benign"), new(Branch: "Treatment"), TemplateStageOptions.Plain]))
             .IsValid.Should().BeTrue();
@@ -86,14 +86,14 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_OptionsForADifferentNumberOfStages_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], StageOptions: [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [ConsultationDefinitionId], StageOptions: [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
             .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
     }
 
     [Test]
     public void Validate_BranchesBreakingTheRules_FailsWithTheRule()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId,
                 [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [TemplateStageOptions.Plain, new(IsOptional: true)]))
             .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.LastStageMessage);
     }
@@ -106,6 +106,6 @@ public sealed class CreatePathwayTemplateValidatorTests
     [TestCase("Dental", false)]
     public void Validate_RetentionClass_IsOneByName(string? value, bool valid)
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], RetentionClass: value)).IsValid.Should().Be(valid);
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [ConsultationDefinitionId], RetentionClass: value)).IsValid.Should().Be(valid);
     }
 }

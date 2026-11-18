@@ -1,6 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router';
 import {preload} from '../../../api/preload';
-import {specialtiesQuery} from '../../../api/specialties';
+import {teamsQuery} from '../../../api/teams';
 import {listSettingsFor} from '../../../app/listSettings';
 import {can, requirePermission, whoamiQuery} from '../../../auth/auth';
 import {ResultsPage, resultsListQuery} from '../../../pages/results/ResultsPage';
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/_app/results/')({
   loader: async ({context, deps}) => {
     const user = await context.queryClient.ensureQueryData(whoamiQuery);
     const view = resultsViewOf(deps, can(user, 'SignOffResults'));
-    return preload(context.queryClient, resultsListQuery(view, deps, listSettingsFor(context.queryClient).pageSize), specialtiesQuery(true));
+    return preload(context.queryClient, resultsListQuery(view, deps, listSettingsFor(context.queryClient).pageSize), teamsQuery(true));
   },
   component: function ResultsRoute() {
     const navigate = Route.useNavigate();

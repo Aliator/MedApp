@@ -13,7 +13,7 @@ public sealed class SearchClinicSessionsRequest
 
     public Guid? RoomId { get; set; }
 
-    public Guid? SpecialtyId { get; set; }
+    public Guid? TeamId { get; set; }
 
     /// <summary>Cancelled sessions too (left out by default).</summary>
     public bool IncludeCancelled { get; set; }

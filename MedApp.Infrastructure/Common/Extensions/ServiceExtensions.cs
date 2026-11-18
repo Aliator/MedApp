@@ -31,7 +31,7 @@ using MedApp.Application.PatientMessages.Repositories;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Application.Specimens.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
@@ -286,7 +286,7 @@ public static class ServiceExtensions
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
-        services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
+        services.AddScoped<ITeamRepository, TeamRepository>();
         services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
         services.AddScoped<ILetterRepository, LetterRepository>();

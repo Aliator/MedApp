@@ -56,7 +56,7 @@ public sealed class ClinicsControllerTests
         var result = await Controller(mediator).SearchSessions(request, _cts.Token);
 
         ExpectSent(mediator, new SearchClinicSessionsQuery(
-            request.From, request.To, request.StaffUserId, request.SiteId, request.RoomId, request.SpecialtyId,
+            request.From, request.To, request.StaffUserId, request.SiteId, request.RoomId, request.TeamId,
             request.IncludeCancelled, request.WithFreeSlots, AdminActor));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(sessions);
     }
@@ -83,7 +83,7 @@ public sealed class ClinicsControllerTests
         var result = await Controller(mediator).CreateSession(request, _cts.Token);
 
         ExpectSent(mediator, new CreateClinicSessionCommand(
-            request.StaffUserId, request.RoomId, request.SpecialtyId, request.StartUtc, request.EndUtc, request.SlotMinutes, AdminActor));
+            request.StaffUserId, request.RoomId, request.TeamId, request.StartUtc, request.EndUtc, request.SlotMinutes, AdminActor));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/clinics/sessions/{session.Id}");
         created.Value.Should().Be(session);
@@ -99,7 +99,7 @@ public sealed class ClinicsControllerTests
         var result = await Controller(mediator).UpdateSession(RecordId, request, _cts.Token);
 
         ExpectSent(mediator, new UpdateClinicSessionCommand(
-            RecordId, request.RoomId, request.SpecialtyId, request.StartUtc, request.EndUtc, request.SlotMinutes, request.ExpectedLastUpdated, AdminActor));
+            RecordId, request.RoomId, request.TeamId, request.StartUtc, request.EndUtc, request.SlotMinutes, request.ExpectedLastUpdated, AdminActor));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(session);
     }
 
@@ -140,7 +140,7 @@ public sealed class ClinicsControllerTests
         var result = await Controller(mediator).CreatePattern(request, _cts.Token);
 
         ExpectSent(mediator, new CreateClinicPatternCommand(
-            request.StaffUserId, request.RoomId, request.SpecialtyId, request.DayOfWeek, request.Starts, request.Ends,
+            request.StaffUserId, request.RoomId, request.TeamId, request.DayOfWeek, request.Starts, request.Ends,
             request.SlotMinutes, request.EveryWeeks, request.FromDate, request.UntilDate, AdminActor));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/clinics/patterns/{pattern.Id}");
@@ -156,7 +156,7 @@ public sealed class ClinicsControllerTests
         var result = await Controller(mediator).UpdatePattern(RecordId, request, _cts.Token);
 
         ExpectSent(mediator, new UpdateClinicPatternCommand(
-            RecordId, request.StaffUserId, request.RoomId, request.SpecialtyId, request.DayOfWeek, request.Starts, request.Ends,
+            RecordId, request.StaffUserId, request.RoomId, request.TeamId, request.DayOfWeek, request.Starts, request.Ends,
             request.SlotMinutes, request.EveryWeeks, request.FromDate, request.UntilDate, request.ExpectedLastUpdated, AdminActor));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(pattern);
     }

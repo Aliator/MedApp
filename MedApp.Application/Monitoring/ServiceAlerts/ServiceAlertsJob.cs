@@ -52,10 +52,10 @@ public sealed class ServiceAlertsJob(
         if (enabled.Count == 0)
             return 0;
 
-        var specialtyIds = enabled.Select(r => r.SpecialtyId).OfType<Guid>().Distinct().ToList();
-        IReadOnlyDictionary<Guid, string> specialties = specialtyIds.Count == 0
+        var teamIds = enabled.Select(r => r.TeamId).OfType<Guid>().Distinct().ToList();
+        IReadOnlyDictionary<Guid, string> teams = teamIds.Count == 0
             ? new Dictionary<Guid, string>()
-            : await alerts.GetSpecialtyNamesAsync(specialtyIds, cancellationToken);
+            : await alerts.GetTeamNamesAsync(teamIds, cancellationToken);
         var userIds = enabled.Select(r => r.SubjectUserId).OfType<Guid>().Distinct().ToList();
         IReadOnlyDictionary<Guid, string> usernames = userIds.Count == 0
             ? new Dictionary<Guid, string>()
@@ -73,7 +73,7 @@ public sealed class ServiceAlertsJob(
             var notification = ServiceAlertNotifications.Create(
                 rule,
                 items.Count,
-                rule.SpecialtyId is { } specialtyId ? specialties.GetValueOrDefault(specialtyId) : null,
+                rule.TeamId is { } teamId ? teams.GetValueOrDefault(teamId) : null,
                 rule.SubjectUserId is { } userId ? usernames.GetValueOrDefault(userId) : null,
                 nowUtc);
             await alerts.RecordAsync(rule.Id, items, notification, nowUtc, cancellationToken);

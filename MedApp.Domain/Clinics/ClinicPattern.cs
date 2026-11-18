@@ -1,5 +1,5 @@
 using MedApp.Domain.Sites;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Domain.Clinics;
 
@@ -17,8 +17,8 @@ public sealed class ClinicPattern
     public Guid RoomId { get; set; }
     public Room Room { get; set; } = null!;
 
-    public Guid SpecialtyId { get; set; }
-    public Specialty Specialty { get; set; } = null!;
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 
     /// <summary>Any day of the week (stored as .NET's number: Sunday 0 to Saturday 6).</summary>
     public DayOfWeek DayOfWeek { get; set; }

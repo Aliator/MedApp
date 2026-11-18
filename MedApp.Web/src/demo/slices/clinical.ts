@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
 import {dayOfWeek, nextWeekday} from '../../utils/calendarSlots';
 import {ADMIN, STAFF} from '../accounts';
-import {id, MEETINGS, PATHWAYS, SPECIALTIES, USERS} from '../ids';
+import {id, MEETINGS, PATHWAYS, TEAMS, USERS} from '../ids';
 import type {BaseState, DemoPathway} from '../state';
 import {daysFrom, nowUtc, today, ukTime} from '../time';
 
@@ -59,12 +59,12 @@ export interface DemoLetter {
   recipients: DemoLetterRecipient[];
 }
 
-/** A letter template, as stored (`LetterTemplateResponse` without what's worked out: usage, specialty name, fields). */
-export type DemoLetterTemplate = Omit<Schemas['LetterTemplateResponse'], 'canBeDeleted' | 'specialtyName' | 'mergeFields'> & {
+/** A letter template, as stored (`LetterTemplateResponse` without what's worked out: usage, team name, fields). */
+export type DemoLetterTemplate = Omit<Schemas['LetterTemplateResponse'], 'canBeDeleted' | 'teamName' | 'mergeFields'> & {
   id: string;
   name: string;
   kind: string;
-  specialtyId: string | null;
+  teamId: string | null;
   letterhead: string;
   bodySkeleton: string;
   closing: string;
@@ -77,7 +77,7 @@ export interface DemoMdtItem {
   id: string;
   patientId: string;
   pathwayId: string;
-  specialtyId: string;
+  teamId: string;
   /** The MDT it's on, or null when its meeting was cancelled. */
   meetingId: string | null;
   /** When its meeting starts (kept, so a cancelled one can say when it was). */
@@ -137,9 +137,9 @@ export interface ClinicalSlice {
 
 /** Letter templates (kind 0xe6). */
 export const LETTER_TEMPLATES = {
-  /** A clinic letter, for every specialty. */
+  /** A clinic letter, for every team. */
   clinicLetter: id(0xe6, 1),
-  /** A discharge summary to the GP, for every specialty: what the "Discharge letter to GP" stage needs. */
+  /** A discharge summary to the GP, for every team: what the "Discharge letter to GP" stage needs. */
   dischargeSummary: id(0xe6, 2),
   /** A reply to a Dermatology referral. */
   referralResponse: id(0xe6, 3),
@@ -230,7 +230,7 @@ const TEMPLATE_SPECS: [string, string, string, string | null, string][] = [
     LETTER_TEMPLATES.referralResponse,
     'Referral response',
     'ReferralResponse',
-    SPECIALTIES.dermatology,
+    TEAMS.dermatology,
     `Dear colleague,\n\n${RE_LINE}\n\nThank you for your referral, received on {{referral.receivedDate}}.\n\n## Our decision`,
   ],
 ];
@@ -253,11 +253,11 @@ export function seedClinical(state: BaseState): ClinicalSlice {
   /** The pathway's stage of this name. */
   const stage = (p: DemoPathway, name: string) => p.stages.find((s) => s.name === name)!;
 
-  const letterTemplates: DemoLetterTemplate[] = TEMPLATE_SPECS.map(([templateId, name, kind, specialtyId, bodySkeleton]) => ({
+  const letterTemplates: DemoLetterTemplate[] = TEMPLATE_SPECS.map(([templateId, name, kind, teamId, bodySkeleton]) => ({
     id: templateId,
     name,
     kind,
-    specialtyId,
+    teamId,
     letterhead: LETTERHEAD,
     bodySkeleton,
     closing: CLOSING,
@@ -266,8 +266,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     createdAt: ago(90),
     lastUpdated: ago(90),
   }));
-  for (const specialty of state.specialties)
-    specialty.letterTemplateCount = letterTemplates.filter((t) => t.specialtyId === specialty.id).length;
+  for (const team of state.teams)
+    team.letterTemplateCount = letterTemplates.filter((t) => t.teamId === team.id).length;
 
   const dispatch = (sent?: {daysAgo: number}) =>
     sent
@@ -410,7 +410,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
 
   // The MDTs: the base seed's skin cancer team meeting ahead, and one that has started.
   const ahead = state.meetings.find((m) => m.id === MEETINGS.skinMdt);
-  if (ahead) Object.assign(ahead, {isMdt: true, specialtyId: SPECIALTIES.dermatology});
+  if (ahead) Object.assign(ahead, {isMdt: true, teamId: TEAMS.dermatology});
   const todayDate = mdtTodayDate();
   const todayStart = ukTime(todayDate, 8, 0);
   state.meetings.push({
@@ -431,7 +431,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     createdAtUtc: ago(7, 9, 0),
     lastUpdated: ago(6, 10, 0),
     isMdt: true,
-    specialtyId: SPECIALTIES.dermatology,
+    teamId: TEAMS.dermatology,
   });
 
   const item = (
@@ -445,7 +445,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     id: itemId,
     patientId: pathway(pathwayId).patientId,
     pathwayId,
-    specialtyId: SPECIALTIES.dermatology,
+    teamId: TEAMS.dermatology,
     meetingId: meeting.id,
     meetingStartUtc: meeting.startUtc,
     question,

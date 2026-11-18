@@ -40,7 +40,7 @@ export function stagesSummary(template: PathwayTemplate): string {
 }
 
 /**
- * Templates (admin, decision 17): the ordered stages staff create pathways from, each in a specialty. Admins add and edit them on
+ * Templates (admin, decision 17): the ordered stages staff create pathways from, each in a team. Admins add and edit them on
  * their own page, archive ones no longer wanted (New pathway stops offering them; pathways made from them keep
  * their stages), restore them, and delete ones never used.
  */
@@ -71,10 +71,10 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
       renderCell: (t) => <SetupNameCell name={t.name ?? ''} secondary={stagesSummary(t)} />,
     },
     {
-      key: 'specialty',
-      header: 'Specialty',
+      key: 'team',
+      header: 'Team',
       width: proportional(1, {minWidth: 120}),
-      renderCell: (t) => <TextCell text={t.specialtyName || 'None'} />,
+      renderCell: (t) => <TextCell text={t.teamName || 'None'} />,
     },
     {
       key: 'pathways',

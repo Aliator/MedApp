@@ -22,7 +22,7 @@ public static class LettersTestConstants
 
     public static LetterTemplate CreateTemplate(
         string name = TemplateName,
-        Guid? specialtyId = null,
+        Guid? teamId = null,
         LetterKind kind = LetterKind.ClinicLetter,
         bool isArchived = false,
         int version = 3) => new()
@@ -30,7 +30,7 @@ public static class LettersTestConstants
         Id = Guid.NewGuid(),
         Name = name,
         Kind = kind,
-        SpecialtyId = specialtyId,
+        TeamId = teamId,
         Letterhead = Letterhead,
         BodySkeleton = BodySkeleton,
         Closing = Closing,

@@ -249,12 +249,12 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Attached ${entry.fileName?.trim() || 'a file'}`, detail: `To ${attachedToWords(entry)}`};
     case 'AttachmentDeleted':
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
-    // MDT items (decision 70): the specialty, the meetings' times and who was present; never the question or outcome.
+    // MDT items (decision 70): the team, the meetings' times and who was present; never the question or outcome.
     case 'MdtListed':
       return {title: `Listed for ${mdtName(entry)}`, detail: entry.meetingStartUtc ? `On ${formatDateTime(entry.meetingStartUtc)}` : ''};
     case 'MdtDeferred':
       return {
-        title: `Moved to a later ${entry.specialtyName ? `${entry.specialtyName} MDT` : 'MDT'}`,
+        title: `Moved to a later ${entry.teamName ? `${entry.teamName} MDT` : 'MDT'}`,
         detail: sentences(
           entry.previousMeetingStartUtc ? `From ${formatDateTime(entry.previousMeetingStartUtc)}` : null,
           entry.meetingStartUtc ? `To ${formatDateTime(entry.meetingStartUtc)}` : null,
@@ -459,7 +459,7 @@ function describeLetterEntry(entry: TimelineEntry): TimelineWording {
 export const isReferralEntry = (entry: TimelineEntry) =>
   entry.kind === 'Referrals' || entry.kind === 'WaitingTime' || (entry.action ?? '').startsWith('Referral');
 
-/** A referral's changed field in words, with its values where the API sends them (dates, priorities, specialties). */
+/** A referral's changed field in words, with its values where the API sends them (dates, priorities, teams). */
 function describeReferralChange(change: TimelineChange): string {
   const field = change.field ?? '';
   const name = capitalised(referralFieldWords(field));
@@ -475,12 +475,12 @@ function describeReferralChange(change: TimelineChange): string {
 }
 
 /**
- * A referral history entry in words. Staff get the structured values only (the specialty, the requested priority,
+ * A referral history entry in words. Staff get the structured values only (the team, the requested priority,
  * which fields were edited, the status after); the reason for referral, a withdrawal's or an entry in error's
  * detail and the referring practice come only to admins.
  */
 function describeReferralEntry(entry: TimelineEntry): TimelineWording {
-  const referral = entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'Referral';
+  const referral = entry.teamName ? `Referral to ${entry.teamName}` : 'Referral';
   const reason = entry.reason?.trim();
   const practice = entry.referrerPractice?.trim();
   switch (entry.action) {
@@ -511,11 +511,11 @@ function describeReferralEntry(entry: TimelineEntry): TimelineWording {
       const to = entry.redirectedTo?.trim();
       return {title: `${referral} redirected elsewhere`, detail: sentences(to ? `To ${to}` : null, reason)};
     }
-    case 'ReferralSpecialtyChanged':
+    case 'ReferralTeamChanged':
       return {
-        title: 'Referral redirected to another specialty',
+        title: 'Referral redirected to another team',
         detail: sentences(
-          entry.specialtyName ? `Specialty ${entry.previousSpecialtyName ?? 'unknown'} → ${entry.specialtyName}` : null,
+          entry.teamName ? `Team ${entry.previousTeamName ?? 'unknown'} → ${entry.teamName}` : null,
           reason,
         ),
       };
@@ -677,8 +677,8 @@ function describeStatusChange(entry: TimelineEntry): TimelineWording {
   return {title: `Status changed to ${words(entry.toStatus)}`, detail: [was, reason].filter(Boolean).join('. ')};
 }
 
-/** "the Dermatology MDT" (or "The Dermatology MDT" at the start of a sentence); "the MDT" without a specialty. */
+/** "the Dermatology MDT" (or "The Dermatology MDT" at the start of a sentence); "the MDT" without a team. */
 function mdtName(entry: TimelineEntry, isStart = false): string {
   const the = isStart ? 'The' : 'the';
-  return entry.specialtyName ? `${the} ${entry.specialtyName} MDT` : `${the} MDT`;
+  return entry.teamName ? `${the} ${entry.teamName} MDT` : `${the} MDT`;
 }

@@ -10,8 +10,8 @@ namespace MedApp.Application.Referrals.Common;
 public static class ReferralResponses
 {
     /// <summary>
-    /// The referral (loaded with its patient and specialty), its history, how many letters it has, and whether the
-    /// viewer can triage it (asking their membership of its specialty only when it's open and they hold the permission),
+    /// The referral (loaded with its patient and team), its history, how many letters it has, and whether the
+    /// viewer can triage it (asking their membership of its team only when it's open and they hold the permission),
     /// with its clock as of today (UK).
     /// </summary>
     public static async Task<ReferralResponse> ForAsync(
@@ -21,7 +21,7 @@ public static class ReferralResponses
         var letters = await repository.CountLettersAsync(referral.Id, ct);
         var isMember = ReferralWorkflow.IsOpen(referral.Status)
                        && viewer.Has(Permission.TriageReferrals)
-                       && await repository.IsSpecialtyMemberAsync(viewer.UserId, referral.SpecialtyId, ct);
+                       && await repository.IsTeamMemberAsync(viewer.UserId, referral.TeamId, ct);
         var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
         return ReferralMapper.ToResponse(referral, history, letters, viewer, isMember, today);
     }

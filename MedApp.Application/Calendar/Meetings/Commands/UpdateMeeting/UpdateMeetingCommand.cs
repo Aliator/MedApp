@@ -20,5 +20,5 @@ public sealed record UpdateMeetingCommand(
     DateTime? ExpectedLastUpdated,
     CalendarActor Actor,
     bool? IsMdt = null,
-    Guid? SpecialtyId = null)
+    Guid? TeamId = null)
     : IRequest<MeetingResponse>, IMeetingCommand;

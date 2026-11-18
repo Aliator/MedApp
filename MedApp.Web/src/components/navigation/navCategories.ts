@@ -42,7 +42,7 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
     label: 'Pathway Setup',
     icon: AppIcon.AdminPathwaySetup,
     pages: [
-      {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
+      {label: 'Teams', icon: AppIcon.Teams, href: '/admin/teams', permission: 'ManageSetup'},
       {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
       {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
       {label: 'Letter Templates', icon: AppIcon.LetterTemplates, href: '/admin/letter-templates', permission: 'ManageSetup'},

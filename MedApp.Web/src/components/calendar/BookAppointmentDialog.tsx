@@ -239,7 +239,7 @@ function BookingForm({
     enabled: isOpen && fixedStage === undefined && chosenPathwayId !== undefined,
   });
   const openStages = (pathwayDetail.data?.stages ?? []).filter((s) => s.state !== 'Completed');
-  // The pathway's specialty, so Clinic slots lists only its sessions (the same query, shared with the stages').
+  // The pathway's team, so Clinic slots lists only its sessions (the same query, shared with the stages').
   const pathwayForClinics = useQuery({...pathwayQuery(chosenPathwayId ?? ''), enabled: isOpen && isClinic && chosenPathwayId !== undefined});
 
   const weekEnd = addDays(week, 4);
@@ -476,7 +476,7 @@ function BookingForm({
       <ClinicSlotPicker
         from={today}
         to={addDays(today, CLINIC_DAYS - 1)}
-        specialtyId={pathwayForClinics.data?.specialtyId ?? undefined}
+        teamId={pathwayForClinics.data?.teamId ?? undefined}
         chosen={slot}
         onChoose={setSlot}
       />

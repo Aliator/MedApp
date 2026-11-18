@@ -70,8 +70,8 @@ public sealed class SearchResultsRequest
     /// </summary>
     public string? View { get; set; }
 
-    /// <summary>Only results on pathways of this specialty.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>Only results on pathways of this team.</summary>
+    public Guid? TeamId { get; set; }
 
     public Guid? PathwayId { get; set; }
 

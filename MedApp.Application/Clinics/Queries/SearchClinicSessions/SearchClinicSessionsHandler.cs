@@ -21,7 +21,7 @@ public sealed class SearchClinicSessionsHandler(
                 request.StaffUserId,
                 request.SiteId,
                 request.RoomId,
-                request.SpecialtyId,
+                request.TeamId,
                 request.IncludeCancelled && !request.WithFreeSlots),
             cancellationToken);
         if (sessions.Count == 0)

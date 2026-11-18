@@ -10,7 +10,7 @@ public sealed class UpdateClinicPatternValidator : AbstractValidator<UpdateClini
         this.Rules(
             x => x.StaffUserId,
             x => x.RoomId,
-            x => x.SpecialtyId,
+            x => x.TeamId,
             x => x.DayOfWeek,
             x => x.Starts,
             x => x.Ends,

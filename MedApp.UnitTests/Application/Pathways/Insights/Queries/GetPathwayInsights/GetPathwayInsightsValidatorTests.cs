@@ -40,8 +40,8 @@ public sealed class GetPathwayInsightsValidatorTests
     }
 
     [Test]
-    public void Validate_EmptySpecialtyId_HasError()
+    public void Validate_EmptyTeamId_HasError()
     {
-        _validator.TestValidate(new GetPathwayInsightsQuery(4, null, Guid.Empty)).ShouldHaveValidationErrorFor(x => x.SpecialtyId);
+        _validator.TestValidate(new GetPathwayInsightsQuery(4, null, Guid.Empty)).ShouldHaveValidationErrorFor(x => x.TeamId);
     }
 }

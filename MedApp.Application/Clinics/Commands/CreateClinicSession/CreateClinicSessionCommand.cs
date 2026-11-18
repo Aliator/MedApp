@@ -11,7 +11,7 @@ namespace MedApp.Application.Clinics.Commands.CreateClinicSession;
 public sealed record CreateClinicSessionCommand(
     Guid StaffUserId,
     Guid RoomId,
-    Guid SpecialtyId,
+    Guid TeamId,
     DateTime StartUtc,
     DateTime EndUtc,
     int SlotMinutes,

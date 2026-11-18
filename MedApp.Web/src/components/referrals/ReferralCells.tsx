@@ -109,7 +109,7 @@ export function ReferralActions({id, patientId}: {id: string; patientId: string}
 /** The referral list's column widths: the patient and practice take what's left, as in the pathway lists. */
 export const REFERRAL_COLUMN_WIDTH = {
   patient: proportional(2, {minWidth: 72}),
-  specialty: proportional(1.5, {minWidth: 56}),
+  team: proportional(1.5, {minWidth: 56}),
   practice: proportional(1.5, {minWidth: 56}),
   received: pixel(112),
   /** "Day 128 of 126" over Breached and Paused. */

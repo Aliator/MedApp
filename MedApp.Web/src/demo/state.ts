@@ -76,7 +76,7 @@ export interface DemoPathway {
   patientId: string;
   templateId: string;
   templateName: string;
-  specialtyId: string;
+  teamId: string;
   referralId: string | null;
   title: string;
   /** The target date (a UK date). */
@@ -96,7 +96,7 @@ export interface DemoPathway {
 export interface DemoReferral {
   id: string;
   patientId: string;
-  specialtyId: string;
+  teamId: string;
   receivedOn: string;
   referrerPractice: string;
   referrerClinician: string;
@@ -135,7 +135,7 @@ export interface BaseState {
   /** Who's signed in (a username), or null. */
   user: string | null;
   patients: Schemas['PatientResponse'][];
-  specialties: Schemas['SpecialtyResponse'][];
+  teams: Schemas['TeamResponse'][];
   /** The stage library. */
   stageDefinitions: DemoStageDefinition[];
   templates: Schemas['PathwayTemplateResponse'][];

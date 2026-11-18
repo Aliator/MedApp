@@ -121,8 +121,8 @@ describe('groupByDay', () => {
 });
 
 describe('describeTimelineEntry', () => {
-  it('words MDT entries with the specialty, the meetings and who was present, never the question or outcome', () => {
-    const base = {kind: 'Mdt', specialtyName: 'Dermatology', meetingStartUtc: '2026-12-03T13:00:00Z'};
+  it('words MDT entries with the team, the meetings and who was present, never the question or outcome', () => {
+    const base = {kind: 'Mdt', teamName: 'Dermatology', meetingStartUtc: '2026-12-03T13:00:00Z'};
     expect(describeTimelineEntry(entry({...base, action: 'MdtListed'})).title).toBe('Listed for the Dermatology MDT');
     expect(describeTimelineEntry(entry({...base, action: 'MdtWithdrawn'})).title).toBe('Withdrawn from the Dermatology MDT');
     const outcome = describeTimelineEntry(entry({...base, action: 'MdtOutcomeRecorded', presentUsernames: ['k.ashford', 's.brightwell']}));
@@ -372,9 +372,9 @@ describe('isPatientEntry', () => {
 
 const referralId = '00000031-0000-0000-0000-00000000000a';
 
-/** A referral history entry, as the API sends it: no pathway, its referral and specialty. */
+/** A referral history entry, as the API sends it: no pathway, its referral and team. */
 const referralEntry = (fields: Partial<TimelineEntry>) =>
-  entry({kind: 'Referrals', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology', ...fields});
+  entry({kind: 'Referrals', pathwayId: null, pathwayTitle: null, referralId, teamName: 'Dermatology', ...fields});
 
 describe('referral entries', () => {
   it('knows a referral entry, and a file attached to a referral', () => {
@@ -386,7 +386,7 @@ describe('referral entries', () => {
     expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Patient'}))).toBe(false);
   });
 
-  it('words a registration: the specialty and priority to staff, the practice and reason only to admins', () => {
+  it('words a registration: the team and priority to staff, the practice and reason only to admins', () => {
     expect(describeTimelineEntry(referralEntry({action: 'ReferralRegistered', priority: 'High'}))).toEqual({
       title: 'Referral to Dermatology registered',
       detail: 'high priority asked for',
@@ -403,7 +403,7 @@ describe('referral entries', () => {
       describeTimelineEntry(
         referralEntry({
           action: 'ReferralDetailsEdited',
-          specialtyName: 'Urology',
+          teamName: 'Urology',
           changes: [
             {field: 'reason'},
             {field: 'receivedOn', from: '2026-11-02', to: '2026-11-03'},
@@ -415,7 +415,7 @@ describe('referral entries', () => {
       ),
     ).toEqual({
       title: 'Referral to Urology: details edited',
-      detail: 'Reason changed; Received date 2 Nov 2026 → 3 Nov 2026; Requested priority low → high; Specialty Dermatology → Urology; ODS code changed',
+      detail: 'Reason changed; Received date 2 Nov 2026 → 3 Nov 2026; Requested priority low → high; Team Dermatology → Urology; ODS code changed',
     });
   });
 
@@ -471,7 +471,7 @@ describe('referral entries', () => {
   });
 
   it('words a referral change it does not know yet by the status after it', () => {
-    expect(describeTimelineEntry(referralEntry({action: 'ReferralPaused', toStatus: 'AwaitingTriage', specialtyName: null}))).toEqual({
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralPaused', toStatus: 'AwaitingTriage', teamName: null}))).toEqual({
       title: 'Referral changed',
       detail: 'Now awaiting triage',
     });
@@ -499,10 +499,10 @@ describe('referral entries', () => {
       detail: 'To Synthetic Service. Closer',
     });
     expect(
-      describeTimelineEntry(referralEntry({action: 'ReferralSpecialtyChanged', previousSpecialtyName: 'Urology', specialtyName: 'Dermatology'})),
-    ).toEqual({title: 'Referral redirected to another specialty', detail: 'Specialty Urology → Dermatology'});
-    expect(describeTimelineEntry(referralEntry({action: 'ReferralSpecialtyChanged', specialtyName: null, reason: 'Wrong clinic'}))).toEqual({
-      title: 'Referral redirected to another specialty',
+      describeTimelineEntry(referralEntry({action: 'ReferralTeamChanged', previousTeamName: 'Urology', teamName: 'Dermatology'})),
+    ).toEqual({title: 'Referral redirected to another team', detail: 'Team Urology → Dermatology'});
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralTeamChanged', teamName: null, reason: 'Wrong clinic'}))).toEqual({
+      title: 'Referral redirected to another team',
       detail: 'Wrong clinic',
     });
   });

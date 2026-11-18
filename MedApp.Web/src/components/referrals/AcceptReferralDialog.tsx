@@ -20,19 +20,19 @@ const FIELDS = ['templateId', 'priority', 'title', 'assigneeUserId', 'notes'] as
 
 /** Where the new pathway's target date comes from: said beside the priority, and on Check and Confirm. */
 export const TARGET_FROM_CLOCK =
-  "The target date comes from the waiting-time clock: the specialty's target for the priority you choose, counted from the date received.";
+  "The target date comes from the waiting-time clock: the team's target for the priority you choose, counted from the date received.";
 
 /** The assignee choice that means nobody (assigning is optional, and can be done later on the pathway's page). */
 const NOBODY = 'nobody';
 
 /**
- * The templates a referral can be accepted with: its specialty's, not archived, with stages (a template with none
- * can't make a pathway), by name. Never ranked or suggested (decision 19): using another specialty's template means
+ * The templates a referral can be accepted with: its team's, not archived, with stages (a template with none
+ * can't make a pathway), by name. Never ranked or suggested (decision 19): using another team's template means
  * redirecting the referral first.
  */
-export function templatesFor(templates: readonly PathwayTemplate[], specialtyId: string | null | undefined): PathwayTemplate[] {
+export function templatesFor(templates: readonly PathwayTemplate[], teamId: string | null | undefined): PathwayTemplate[] {
   return templates
-    .filter((t) => t.specialtyId === specialtyId && !t.isArchived && (t.stages?.length ?? 0) > 0)
+    .filter((t) => t.teamId === teamId && !t.isArchived && (t.stages?.length ?? 0) > 0)
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'en-GB', {sensitivity: 'base'}));
 }
 
@@ -45,13 +45,13 @@ export interface AcceptReferralDialogProps {
 }
 
 /**
- * Accepting a referral into a new pathway (decision 19): the template (its specialty's only, by name), the priority
+ * Accepting a referral into a new pathway (decision 19): the template (its team's only, by name), the priority
  * (empty, with "The referrer asked for: High" beside it as plain text, so the clinician chooses rather than agrees),
  * and optionally a title (blank takes the template's name), someone to
  * assign (holders of AssignPathways only: the people who can work on pathways) and a first note. Nothing is prefilled
  * or suggested: the clinician decides and the app records. There's no target date to choose: the pathway's comes from
- * the referral's waiting-time clock, for the specialty's target at the priority chosen (decision 32), and the dialog
- * says so. Then Check and Confirm shows the patient, the specialty,
+ * the referral's waiting-time clock, for the team's target at the priority chosen (decision 32), and the dialog
+ * says so. Then Check and Confirm shows the patient, the team,
  * the template and the priority before it's sent (hazard H-41). A 400 goes back to the form with the errors on their
  * fields; a 403 or 409 (triaged by someone else meanwhile, changed, the record restricted) shows the API's words, and
  * the referral is read again. Mount it afresh for each opening (a `key`), so it starts empty.
@@ -67,7 +67,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
   const [message, setMessage] = useState<string | null>(null);
   const set = <K extends keyof typeof input>(key: K, value: (typeof input)[K]) => setInput((current) => ({...current, [key]: value}));
 
-  const usable = templatesFor(templates.data ?? [], referral.specialtyId);
+  const usable = templatesFor(templates.data ?? [], referral.teamId);
   const template = usable.find((t) => t.id === input.templateId);
   const people = [...(staff.data ?? [])].sort((a, b) => (a.username ?? '').localeCompare(b.username ?? ''));
   const assignee = people.find((p) => p.userId === input.assigneeUserId);
@@ -123,7 +123,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
         <AnchoredSelector
           label="Template"
           placeholder="Choose a template"
-          description={`${referral.specialtyName}'s templates, by name.`}
+          description={`${referral.teamName}'s templates, by name.`}
           options={usable.map((t) => ({value: t.id ?? '', label: t.name ?? ''}))}
           value={input.templateId || undefined}
           onChange={(value: string) => set('templateId', value)}
@@ -138,7 +138,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
         )}
         {templates.isSuccess && usable.length === 0 && (
           <Text type="body" color="secondary">
-            {`${referral.specialtyName} has no pathway templates yet: an admin adds them under Pathway Templates. To use another specialty's, redirect the referral there.`}
+            {`${referral.teamName} has no pathway templates yet: an admin adds them under Pathway Templates. To use another team's, redirect the referral there.`}
           </Text>
         )}
         <AnchoredSelector

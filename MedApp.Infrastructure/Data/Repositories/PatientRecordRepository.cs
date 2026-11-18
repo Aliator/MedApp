@@ -98,7 +98,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
 
         // Referrals, with what the referrer sent and what was decided, their clocks' pauses, and their history.
         var referrals = await Tracking(context.Referrals, forUpdate)
-            .Include(r => r.Specialty)
+            .Include(r => r.Team)
             .Include(r => r.Pauses)
             .Where(r => r.PatientId == patientId)
             .OrderBy(r => r.ReceivedOn).ThenBy(r => r.RegisteredAtUtc).ThenBy(r => r.Id)
@@ -137,10 +137,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var result in results)
             result.Patient = patient;
 
-        // MDT items, with the question and outcome, who was present, and their specialty and meeting for the export.
+        // MDT items, with the question and outcome, who was present, and their team and meeting for the export.
         var mdtItems = await Tracking(context.MdtItems, forUpdate)
             .Include(i => i.Attendees)
-            .Include(i => i.Specialty)
+            .Include(i => i.Team)
             .Include(i => i.Meeting)
             .Include(i => i.Pathway)
             .Where(i => i.PatientId == patientId)

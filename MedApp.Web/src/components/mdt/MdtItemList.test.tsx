@@ -127,7 +127,7 @@ describe('MdtItemList', () => {
       listedByUsername: null,
       listedAtUtc: undefined,
       version: undefined,
-      specialtyName: null,
+      teamName: null,
       status: 'Discussed',
       outcome: null,
       outcomeByUsername: null,
@@ -157,7 +157,7 @@ describe('mdtMeetingWords', () => {
     expect(mdtMeetingWords(mdtItem({status: 'Discussed', meetingId: null, meetingStartUtc: null, meetingCancelledStartUtc: '2099-12-03T13:00:00Z'}))).toMatch(
       /^Meeting cancelled \(.+\)$/,
     );
-    expect(mdtMeetingWords(mdtItem({meetingStartUtc: null, specialtyName: null}))).toBe(' MDT');
+    expect(mdtMeetingWords(mdtItem({meetingStartUtc: null, teamName: null}))).toBe(' MDT');
     expect(mdtMeetingWords(mdtItem({meetingStartUtc: null}))).toBe('Dermatology MDT');
   });
 });

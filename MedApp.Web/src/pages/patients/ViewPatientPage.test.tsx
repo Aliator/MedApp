@@ -42,8 +42,8 @@ describe('ViewPatientPage, referrals', () => {
       'GET /api/referrals/search': () =>
         json(
           pageOf([
-            {id: 'r-closed', specialtyName: 'Urology', status: 'Withdrawn', receivedOn: '2026-10-01', requestedPriority: 'Low', referrerPractice: 'Synthetic Surgery'},
-            {id: 'r-open', specialtyName: 'Dermatology', status: 'AwaitingTriage', receivedOn: '2026-11-02', daysSinceReceived: 4, requestedPriority: 'High'},
+            {id: 'r-closed', teamName: 'Urology', status: 'Withdrawn', receivedOn: '2026-10-01', requestedPriority: 'Low', referrerPractice: 'Synthetic Surgery'},
+            {id: 'r-open', teamName: 'Dermatology', status: 'AwaitingTriage', receivedOn: '2026-11-02', daysSinceReceived: 4, requestedPriority: 'High'},
           ]),
         ),
     });

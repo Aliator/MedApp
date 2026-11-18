@@ -6,12 +6,12 @@ using MedApp.Application.Letters.Queries.GetLetterTemplateById;
 using MedApp.Application.Letters.Queries.GetLetterTemplates;
 using MedApp.Application.Letters.Queries.PreviewLetterTemplate;
 using MedApp.Application.Letters.Repositories;
-using MedApp.Application.Specialties.Repositories;
-using MedApp.Domain.Specialties;
+using MedApp.Application.Teams.Repositories;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.LettersTestConstants;
-using static MedApp.UnitTests.Common.Constants.SpecialtiesTestConstants;
+using static MedApp.UnitTests.Common.Constants.TeamsTestConstants;
 
 namespace MedApp.UnitTests.Application.Letters.Queries;
 
@@ -20,9 +20,9 @@ public sealed class LetterTemplateQueriesTests
 {
     private CancellationTokenSource _cts = null!;
     private Mock<ILetterTemplateRepository> _repository = null!;
-    private Mock<ISpecialtyRepository> _specialties = null!;
-    private Specialty _urology = null!;
-    private Specialty _dermatology = null!;
+    private Mock<ITeamRepository> _teams = null!;
+    private Team _urology = null!;
+    private Team _dermatology = null!;
 
     [SetUp]
     public void SetUp()
@@ -31,20 +31,20 @@ public sealed class LetterTemplateQueriesTests
         _repository = new Mock<ILetterTemplateRepository>();
         _repository.Setup(r => r.GetInUseAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<Guid>());
-        _urology = CreateSpecialty(OtherSpecialtyName);
-        _dermatology = CreateSpecialty(SpecialtyName);
-        _specialties = new Mock<ISpecialtyRepository>();
-        _specialties.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+        _urology = CreateTeam(OtherTeamName);
+        _dermatology = CreateTeam(TeamName);
+        _teams = new Mock<ITeamRepository>();
+        _teams.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
                 new[] { _urology, _dermatology }.Where(s => ids.Contains(s.Id)).ToList());
-        _specialties.Setup(r => r.GetAsync(_urology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_urology);
+        _teams.Setup(r => r.GetAsync(_urology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_urology);
     }
 
     [TearDown]
     public void TearDown() => _cts.Dispose();
 
     [Test]
-    public async Task GetAll_EverySpecialtysFirst_ThenBySpecialtyName_ThenByName()
+    public async Task GetAll_EveryTeamsFirst_ThenByTeamName_ThenByName()
     {
         var urology = CreateTemplate("A urology letter", _urology.Id);
         var dermatologyB = CreateTemplate("b dermatology letter", _dermatology.Id);
@@ -52,43 +52,43 @@ public sealed class LetterTemplateQueriesTests
         var everyone = CreateTemplate("Z for everyone");
         _repository.Setup(r => r.GetAllAsync(true, _cts.Token)).ReturnsAsync([urology, dermatologyB, everyone, dermatologyA]);
 
-        var result = await new GetLetterTemplatesHandler(_repository.Object, _specialties.Object)
+        var result = await new GetLetterTemplatesHandler(_repository.Object, _teams.Object)
             .Handle(new GetLetterTemplatesQuery(true), _cts.Token);
 
         result.Select(t => t.Id).Should().Equal(everyone.Id, dermatologyA.Id, dermatologyB.Id, urology.Id);
-        result[1].SpecialtyName.Should().Be(SpecialtyName);
+        result[1].TeamName.Should().Be(TeamName);
     }
 
     [Test]
-    public async Task GetById_ReturnsIt_WithItsSpecialtysName()
+    public async Task GetById_ReturnsIt_WithItsTeamsName()
     {
-        var template = CreateTemplate(specialtyId: _urology.Id);
+        var template = CreateTemplate(teamId: _urology.Id);
         _repository.Setup(r => r.GetAsync(template.Id, _cts.Token)).ReturnsAsync(template);
 
-        var response = await new GetLetterTemplateByIdHandler(_repository.Object, _specialties.Object)
+        var response = await new GetLetterTemplateByIdHandler(_repository.Object, _teams.Object)
             .Handle(new GetLetterTemplateByIdQuery(template.Id), _cts.Token);
 
         response.Id.Should().Be(template.Id);
-        response.SpecialtyName.Should().Be(OtherSpecialtyName);
+        response.TeamName.Should().Be(OtherTeamName);
     }
 
     [Test]
-    public async Task GetById_ForEverySpecialty_LooksUpNoSpecialty()
+    public async Task GetById_ForEveryTeam_LooksUpNoTeam()
     {
         var template = CreateTemplate();
         _repository.Setup(r => r.GetAsync(template.Id, _cts.Token)).ReturnsAsync(template);
 
-        var response = await new GetLetterTemplateByIdHandler(_repository.Object, _specialties.Object)
+        var response = await new GetLetterTemplateByIdHandler(_repository.Object, _teams.Object)
             .Handle(new GetLetterTemplateByIdQuery(template.Id), _cts.Token);
 
-        response.SpecialtyName.Should().BeNull();
-        _specialties.Verify(r => r.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        response.TeamName.Should().BeNull();
+        _teams.Verify(r => r.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task GetById_Unknown_IsNotFound()
     {
-        var act = () => new GetLetterTemplateByIdHandler(_repository.Object, _specialties.Object)
+        var act = () => new GetLetterTemplateByIdHandler(_repository.Object, _teams.Object)
             .Handle(new GetLetterTemplateByIdQuery(Guid.NewGuid()), _cts.Token);
 
         await act.Should().ThrowAsync<NotFoundException>();

@@ -6,7 +6,7 @@ namespace MedApp.Application.Clinics.Queries.SearchClinicSessions;
 
 /// <summary>
 /// Clinic sessions starting from one UK date to another (at most 62 days), by start, optionally narrowed by clinician,
-/// site, room or specialty; with <paramref name="WithFreeSlots"/>, only those with a slot free and not started (the
+/// site, room or team; with <paramref name="WithFreeSlots"/>, only those with a slot free and not started (the
 /// booking dialog's list). Names no patient, so it records nothing in the activity log.
 /// </summary>
 public sealed record SearchClinicSessionsQuery(
@@ -15,7 +15,7 @@ public sealed record SearchClinicSessionsQuery(
     Guid? StaffUserId,
     Guid? SiteId,
     Guid? RoomId,
-    Guid? SpecialtyId,
+    Guid? TeamId,
     bool IncludeCancelled,
     bool WithFreeSlots,
     CalendarActor Actor)

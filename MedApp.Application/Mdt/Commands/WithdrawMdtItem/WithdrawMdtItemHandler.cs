@@ -27,7 +27,7 @@ public sealed class WithdrawMdtItemHandler(IMdtItemRepository repository, TimePr
         item.WithdrawnAtUtc = now;
         item.Version++;
 
-        await repository.SaveAsync(MdtAudit.Withdrawn(item, item.Specialty?.Name ?? string.Empty, request.Actor, now), cancellationToken);
+        await repository.SaveAsync(MdtAudit.Withdrawn(item, item.Team?.Name ?? string.Empty, request.Actor, now), cancellationToken);
         return MdtMapper.ToResponse(item, request.Actor, now);
     }
 }

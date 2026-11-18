@@ -1,7 +1,7 @@
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
 import {stageDefinitionsQuery} from '../../api/pathwaySetup';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import type {ListFilterField} from '../../components/tables/ListFilterBar';
 
 type Named = {id?: string; name?: string | null; isArchived?: boolean};
@@ -20,9 +20,9 @@ function idField(key: string, label: string, items: readonly Named[], current: s
   return {kind: 'choice', key, label, options, isMultiple: true, canExclude: false};
 }
 
-/** The pathways' own specialty (copied from the template when each was made): any of them. */
-export const specialtyField = (specialties: readonly Named[], current: string | undefined) =>
-  idField('specialty', 'Specialty', specialties, current, 'Selected specialty');
+/** The pathways' own team (copied from the template when each was made): any of them. */
+export const teamField = (teams: readonly Named[], current: string | undefined) =>
+  idField('team', 'Team', teams, current, 'Selected team');
 
 /**
  * The stage reached: pathways whose current stage comes from any of these stage definitions (e.g. "Stage reached: is
@@ -31,12 +31,12 @@ export const specialtyField = (specialties: readonly Named[], current: string | 
 export const stageReachedField = (definitions: readonly Named[], current: string | undefined) =>
   idField('stage', 'Stage reached', definitions, current, 'Selected stage');
 
-/** Both fields, from the specialties and stage definitions (archived ones too, as old pathways have them). */
-export function useSpecialtyAndStageFields(search: {specialty?: string; stage?: string}): ListFilterField[] {
-  const specialties = useQuery(specialtiesQuery(true)).data;
+/** Both fields, from the teams and stage definitions (archived ones too, as old pathways have them). */
+export function useTeamAndStageFields(search: {team?: string; stage?: string}): ListFilterField[] {
+  const teams = useQuery(teamsQuery(true)).data;
   const definitions = useQuery(stageDefinitionsQuery).data;
   return useMemo(
-    () => [specialtyField(specialties ?? [], search.specialty), stageReachedField(definitions ?? [], search.stage)],
-    [specialties, definitions, search.specialty, search.stage],
+    () => [teamField(teams ?? [], search.team), stageReachedField(definitions ?? [], search.stage)],
+    [teams, definitions, search.team, search.stage],
   );
 }

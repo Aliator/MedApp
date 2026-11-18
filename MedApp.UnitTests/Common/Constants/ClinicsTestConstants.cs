@@ -4,7 +4,7 @@ using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Clinics;
 using MedApp.Domain.Sites;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
 namespace MedApp.UnitTests.Common.Constants;
@@ -18,8 +18,8 @@ public static class ClinicsTestConstants
     public static readonly Guid SessionId = Guid.Parse("0000c1c0-0000-0000-0000-000000000001");
     public static readonly Guid OtherSessionId = Guid.Parse("0000c1c0-0000-0000-0000-000000000002");
     public static readonly Guid PatternId = Guid.Parse("0000c1c0-0000-0000-0000-000000000010");
-    public static readonly Guid SpecialtyId = Guid.Parse("0000c1c0-0000-0000-0000-000000000020");
-    public const string SpecialtyName = "Synthetic dermatology";
+    public static readonly Guid TeamId = Guid.Parse("0000c1c0-0000-0000-0000-000000000020");
+    public const string TeamName = "Synthetic dermatology";
     public const string CancelReason = "Synthetic reason: clinician away.";
 
     public static Site Site() => SitesTestConstants.NewSite();
@@ -31,8 +31,8 @@ public static class ClinicsTestConstants
         return room;
     }
 
-    public static Specialty Specialty(bool isArchived = false) => SpecialtiesTestConstants.CreateSpecialty(
-        SpecialtyName, isArchived, id: SpecialtyId);
+    public static Team Team(bool isArchived = false) => TeamsTestConstants.CreateTeam(
+        TeamName, isArchived, id: TeamId);
 
     /// <summary>A Planned session, by default next Monday 09:00 to 12:00 in 20-minute slots, in Room 2.</summary>
     public static ClinicSession CreateSession(
@@ -52,8 +52,8 @@ public static class ClinicsTestConstants
             StaffUserId = staffUserId ?? StaffUserId,
             RoomId = room.Id,
             Room = room,
-            SpecialtyId = SpecialtyId,
-            Specialty = Specialty(),
+            TeamId = TeamId,
+            Team = Team(),
             Date = UkTime.DateOf(start),
             StartUtc = start,
             EndUtc = endUtc ?? At(NextMonday, 12),
@@ -103,8 +103,8 @@ public static class ClinicsTestConstants
         StaffUserId = StaffUserId,
         RoomId = (room ?? Room()).Id,
         Room = room ?? Room(),
-        SpecialtyId = SpecialtyId,
-        Specialty = Specialty(),
+        TeamId = TeamId,
+        Team = Team(),
         DayOfWeek = dayOfWeek,
         Starts = new TimeOnly(9, 0),
         Ends = new TimeOnly(12, 0),

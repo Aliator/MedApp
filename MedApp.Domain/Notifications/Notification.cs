@@ -51,7 +51,7 @@ public sealed class Notification
     /// What it's about, when that isn't one of the columns above: its meaning comes from the kind (a letter for
     /// <see cref="NotificationKind.LetterAwaitingApproval"/>, <see cref="NotificationKind.LetterApproved"/> and
     /// <see cref="NotificationKind.LetterReturned"/>; a specimen for <see cref="NotificationKind.SpecimenRejectedByLab"/>
-    /// and <see cref="NotificationKind.SpecimenLost"/>; a result for the result kinds; the rule's specialty, if it has one, for
+    /// and <see cref="NotificationKind.SpecimenLost"/>; a result for the result kinds; the rule's team, if it has one, for
     /// the service alerts, 32 to 37; a data request for <see cref="NotificationKind.DataRequestDueSoon"/>), and the web app links each kind to its page. No foreign key: the
     /// notification outlives what it's about.
     /// </summary>

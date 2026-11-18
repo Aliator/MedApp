@@ -52,7 +52,7 @@ public sealed class RecordMdtOutcomeHandler(
         item.Version++;
 
         await repository.SaveAsync(
-            MdtAudit.OutcomeRecorded(item, item.Specialty?.Name ?? string.Empty, request.Actor, now), cancellationToken);
+            MdtAudit.OutcomeRecorded(item, item.Team?.Name ?? string.Empty, request.Actor, now), cancellationToken);
 
         foreach (var notification in MdtNotifications.OutcomeRecorded(item, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);

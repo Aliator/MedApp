@@ -44,7 +44,7 @@ public sealed class MonitoringController(IMediator mediator) : ControllerBase
             request.StageDefinitionId,
             request.IsEnabled,
             request.ThresholdDays,
-            request.SpecialtyId), ct);
+            request.TeamId), ct);
 
         return Created($"/api/monitoring/rules/{rule.Id}", rule);
     }
@@ -65,7 +65,7 @@ public sealed class MonitoringController(IMediator mediator) : ControllerBase
             request.StageDefinitionId,
             request.IsEnabled,
             request.ThresholdDays,
-            request.SpecialtyId), ct));
+            request.TeamId), ct));
 
     /// <summary>Switches one of your rules on or off, changing nothing else (so one naming something since deleted can be switched too).</summary>
     [HttpPut("{id:guid}/enabled")]

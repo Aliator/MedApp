@@ -124,7 +124,7 @@ public sealed class PatientPathwayStagesControllerTests
         var result = await Controller(mediator).CreatePathwayTemplate(request, _cts.Token);
 
         mediator.Request.Should().Be(new CreatePathwayTemplateCommand(
-            request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
+            request.Name, request.TeamId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
             RetentionClass: request.RetentionClass));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/pathways/patient-pathway-stage/templates/{template.Id}");
@@ -137,7 +137,7 @@ public sealed class PatientPathwayStagesControllerTests
         var request = _fixture.Create<UpdatePathwayTemplateRequest>();
         request.StageOptions = null;
         await ExpectOk(_fixture.Create<PathwayTemplateResponse>(),
-            new UpdatePathwayTemplateCommand(RecordId, request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
+            new UpdatePathwayTemplateCommand(RecordId, request.Name, request.TeamId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
                 RetentionClass: request.RetentionClass),
             c => c.UpdatePathwayTemplate(RecordId, request, _cts.Token));
     }

@@ -9,9 +9,9 @@ using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,10 +37,10 @@ public sealed class ReferralTests : IntegrationTest
     [SetUp]
     public async Task SignInAsync() => _admin = await SignInAsAdminAsync();
 
-    private static RegisterReferralRequest Request(Guid patientId, Guid? specialtyId = null, bool confirm = false) => new()
+    private static RegisterReferralRequest Request(Guid patientId, Guid? teamId = null, bool confirm = false) => new()
     {
         PatientId = patientId,
-        SpecialtyId = specialtyId ?? Specialty.GeneralId,
+        TeamId = teamId ?? Team.GeneralId,
         ReceivedOn = UkToday.AddDays(-3),
         ReferrerPractice = Practice,
         ReferrerClinician = "Dr A Synthetic",
@@ -66,7 +66,7 @@ public sealed class ReferralTests : IntegrationTest
         read.ReferrerOdsCode.Should().Be("Z99999");
         read.RegisteredByUsername.Should().Be(staff.Username);
         read.Patient!.Id.Should().Be(patient.Id);
-        read.SpecialtyName.Should().Be(Specialty.GeneralName);
+        read.TeamName.Should().Be(Team.GeneralName);
         read.Version.Should().Be(1);
         read.CanEdit.Should().BeTrue();
         read.History.Should().ContainSingle().Which.Action.Should().Be("Registered");
@@ -74,7 +74,7 @@ public sealed class ReferralTests : IntegrationTest
     }
 
     [Test]
-    public async Task Register_AnOpenOneToTheSameSpecialty_AsksForConfirmation()
+    public async Task Register_AnOpenOneToTheSameTeam_AsksForConfirmation()
     {
         var patient = await CreatePatientAsync(_admin);
         await RegisterAsync(_admin, patient.Id);
@@ -107,7 +107,7 @@ public sealed class ReferralTests : IntegrationTest
         var referral = await RegisterAsync(_admin, patient.Id);
         var edit = new EditReferralRequest
         {
-            SpecialtyId = referral.SpecialtyId, ReceivedOn = referral.ReceivedOn, ReferrerPractice = Practice,
+            TeamId = referral.TeamId, ReceivedOn = referral.ReceivedOn, ReferrerPractice = Practice,
             RequestedPriority = "High", Reason = "Synthetic corrected reason.", ExpectedVersion = 1
         };
 
@@ -161,7 +161,7 @@ public sealed class ReferralTests : IntegrationTest
 
         var edit = new EditReferralRequest
         {
-            SpecialtyId = referral.SpecialtyId, ReceivedOn = referral.ReceivedOn, ReferrerPractice = Practice,
+            TeamId = referral.TeamId, ReceivedOn = referral.ReceivedOn, ReferrerPractice = Practice,
             RequestedPriority = "High", Reason = Reason, ExpectedVersion = 1
         };
         (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -194,17 +194,17 @@ public sealed class ReferralTests : IntegrationTest
     [Test]
     public async Task Search_Inbox_OldestFirst_AndTheCountRecordsNothing()
     {
-        var specialty = await (await _admin.PostAsJsonAsync("/api/specialties", new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+        var team = await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
         var newer = await CreatePatientAsync(_admin);
         var older = await CreatePatientAsync(_admin);
-        await _admin.PostAsJsonAsync(Referrals, Request(newer.Id, specialty.Id));
-        var olderRequest = Request(older.Id, specialty.Id);
+        await _admin.PostAsJsonAsync(Referrals, Request(newer.Id, team.Id));
+        var olderRequest = Request(older.Id, team.Id);
         olderRequest.ReceivedOn = UkToday.AddDays(-30);
         await _admin.PostAsJsonAsync(Referrals, olderRequest);
         await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
 
-        var inbox = await (await _admin.GetAsync($"{Referrals}/search?Statuses=AwaitingTriage&SpecialtyIds={specialty.Id}"))
+        var inbox = await (await _admin.GetAsync($"{Referrals}/search?Statuses=AwaitingTriage&TeamIds={team.Id}"))
             .ReadAsAsync<PagedResponse<ReferralSummaryResponse>>();
         inbox.Items.Select(i => i.PatientId).Should().Equal(older.Id, newer.Id);
         inbox.Items[0].DaysSinceReceived.Should().Be(30);
@@ -216,10 +216,10 @@ public sealed class ReferralTests : IntegrationTest
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;
         entries.Select(e => e.PatientId).Should().BeEquivalentTo([older.Id, newer.Id]);
 
-        // The specialty can't be archived while they wait, nor deleted at all.
-        (await _admin.PostAsJsonAsync($"/api/specialties/{specialty.Id}/archive", new SpecialtyVersionRequest { ExpectedVersion = specialty.Version }))
+        // The team can't be archived while they wait, nor deleted at all.
+        (await _admin.PostAsJsonAsync($"/api/teams/{team.Id}/archive", new TeamVersionRequest { ExpectedVersion = team.Version }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await _admin.DeleteAsync($"/api/specialties/{specialty.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await _admin.DeleteAsync($"/api/teams/{team.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Test]

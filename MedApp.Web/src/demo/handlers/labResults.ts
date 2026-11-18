@@ -155,7 +155,7 @@ export function registerResults() {
     const viewer = me();
     requirePermission('ViewPatients');
     const view = VIEWS[query.get('View') ?? ''] ?? VIEWS.All;
-    const specialtyId = query.get('SpecialtyId');
+    const teamId = query.get('TeamId');
     const pathwayId = query.get('PathwayId');
     const patientId = query.get('PatientId');
     // The patient's name only, as the API: a title can hold a specimen number, which stays out of URLs.
@@ -165,7 +165,7 @@ export function registerResults() {
       .results.filter(
         (r) =>
           view.match(r, viewer.id) &&
-          (!specialtyId || pathwayOf(r)?.specialtyId === specialtyId) &&
+          (!teamId || pathwayOf(r)?.teamId === teamId) &&
           (!pathwayId || r.pathwayId === pathwayId) &&
           (!patientId || r.patientId === patientId) &&
           contains(patientName(r.patientId), search),

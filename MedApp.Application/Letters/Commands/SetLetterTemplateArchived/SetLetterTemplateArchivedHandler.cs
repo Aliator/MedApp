@@ -1,6 +1,6 @@
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Letters.Responses;
 using MediatR;
 
@@ -8,7 +8,7 @@ namespace MedApp.Application.Letters.Commands.SetLetterTemplateArchived;
 
 public sealed class SetLetterTemplateArchivedHandler(
     ILetterTemplateRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     TimeProvider timeProvider) : IRequestHandler<SetLetterTemplateArchivedCommand, LetterTemplateResponse>
 {
     public async Task<LetterTemplateResponse> Handle(SetLetterTemplateArchivedCommand request, CancellationToken cancellationToken)
@@ -25,8 +25,8 @@ public sealed class SetLetterTemplateArchivedHandler(
             await repository.UpdateAsync(template, originalVersion, cancellationToken);
         }
 
-        var specialty = template.SpecialtyId is { } id ? await specialties.GetAsync(id, cancellationToken) : null;
+        var team = template.TeamId is { } id ? await teams.GetAsync(id, cancellationToken) : null;
         return LetterTemplateMapper.ToResponse(
-            template, specialty?.Name, !await repository.IsInUseAsync(template.Id, cancellationToken));
+            template, team?.Name, !await repository.IsInUseAsync(template.Id, cancellationToken));
     }
 }

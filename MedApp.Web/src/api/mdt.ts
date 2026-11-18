@@ -2,7 +2,7 @@ import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 
 /**
- * The MDT list (docs/centre-phases-3-5-plan.md, decisions 141 to 144): pathways put forward for a specialty's
+ * The MDT list (docs/centre-phases-3-5-plan.md, decisions 141 to 144): pathways put forward for a team's
  * multidisciplinary team meeting (a calendar meeting marked as its MDT), with the question for the team and, once
  * discussed, the outcome as a person wrote it and who was present. **MedApp never suggests an outcome:** nothing here
  * is prefilled. Reading a list records PatientListed for each patient on it; a pathway's items record PathwayViewed.
@@ -14,17 +14,17 @@ export type MdtMeetingList = Schemas['MdtMeetingListResponse'];
 /** Every MDT query is under ['mdt'], so any change refreshes them all. */
 export const mdtKeys = {
   all: ['mdt'] as const,
-  meetings: (specialtyId: string | undefined) => ['mdt', 'meetings', specialtyId ?? null] as const,
+  meetings: (teamId: string | undefined) => ['mdt', 'meetings', teamId ?? null] as const,
   list: (meetingId: string) => ['mdt', 'list', meetingId] as const,
-  awaiting: (specialtyId: string | undefined) => ['mdt', 'awaiting', specialtyId ?? null] as const,
+  awaiting: (teamId: string | undefined) => ['mdt', 'awaiting', teamId ?? null] as const,
   pathway: (pathwayId: string) => ['mdt', 'pathway', pathwayId] as const,
 };
 
-/** The MDTs from 60 days ago to 180 days ahead, by start: one specialty's, or every one's. Names no patient. */
-export function mdtMeetingsQuery(specialtyId?: string) {
+/** The MDTs from 60 days ago to 180 days ahead, by start: one team's, or every one's. Names no patient. */
+export function mdtMeetingsQuery(teamId?: string) {
   return queryOptions({
-    queryKey: mdtKeys.meetings(specialtyId),
-    queryFn: () => unwrap(api.GET('/api/mdt/meetings', {params: {query: {specialtyId}}})),
+    queryKey: mdtKeys.meetings(teamId),
+    queryFn: () => unwrap(api.GET('/api/mdt/meetings', {params: {query: {teamId}}})),
   });
 }
 
@@ -37,10 +37,10 @@ export function mdtMeetingListQuery(meetingId: string) {
 }
 
 /** Open items whose MDT was cancelled ("Meeting cancelled: list again"). */
-export function mdtAwaitingMeetingQuery(specialtyId?: string) {
+export function mdtAwaitingMeetingQuery(teamId?: string) {
   return queryOptions({
-    queryKey: mdtKeys.awaiting(specialtyId),
-    queryFn: () => unwrap(api.GET('/api/mdt/awaiting-meeting', {params: {query: {specialtyId}}})),
+    queryKey: mdtKeys.awaiting(teamId),
+    queryFn: () => unwrap(api.GET('/api/mdt/awaiting-meeting', {params: {query: {teamId}}})),
   });
 }
 

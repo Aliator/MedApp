@@ -129,12 +129,12 @@ describe('PatientTimeline', () => {
               pathwayId: '00000000-0000-0000-0000-000000000000',
               pathwayTitle: '',
               referralId: 'r1',
-              specialtyName: 'Dermatology',
+              teamName: 'Dermatology',
             }),
             letter({action: 'LetterDrafted', letterId: 'l3', letterKind: 'InformationRequest', pathwayId: null, pathwayTitle: null, referralId: 'r2'}),
             letter({action: 'LetterDrafted', letterId: 'l4', letterKind: 'ClinicLetter', pathwayId: null, pathwayTitle: null, referralId: null}),
-            entry({kind: 'Referrals', action: 'ReferralInformationRequested', pathwayId: null, referralId: 'r1', specialtyName: 'Dermatology'}),
-            entry({kind: 'Referrals', action: 'ReferralInformationReceived', pathwayId: null, referralId: 'r1', specialtyName: 'Dermatology'}),
+            entry({kind: 'Referrals', action: 'ReferralInformationRequested', pathwayId: null, referralId: 'r1', teamName: 'Dermatology'}),
+            entry({kind: 'Referrals', action: 'ReferralInformationReceived', pathwayId: null, referralId: 'r1', teamName: 'Dermatology'}),
           ],
           nextCursor: null,
         }),
@@ -571,7 +571,7 @@ describe('PatientTimeline', () => {
     it('lists the referrals awaiting triage beside the open pathways, each linking to its page', async () => {
       mockApi({
         [`GET ${OVERVIEW}`]: () =>
-          json({...overview, awaitingReferrals: [{referralId, specialtyName: 'Dermatology', receivedOn: '2026-06-01', requestedPriority: 'Urgent'}]}),
+          json({...overview, awaitingReferrals: [{referralId, teamName: 'Dermatology', receivedOn: '2026-06-01', requestedPriority: 'Urgent'}]}),
         [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null}),
       });
       renderWithApp(<Harness />, {user: staffUser});
@@ -584,7 +584,7 @@ describe('PatientTimeline', () => {
 
     it('shows the waiting-time clock entries in words, each linking to its referral, with a Waiting time filter', async () => {
       const clock = (fields: Partial<TimelineEntry>) =>
-        entry({kind: 'WaitingTime', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology', ...fields});
+        entry({kind: 'WaitingTime', pathwayId: null, pathwayTitle: null, referralId, teamName: 'Dermatology', ...fields});
       mockApi({
         [`GET ${OVERVIEW}`]: () => json(overview),
         [`GET ${TIMELINE}`]: () =>
@@ -617,7 +617,7 @@ describe('PatientTimeline', () => {
         [`GET ${TIMELINE}`]: () =>
           json({
             items: [
-              entry({kind: 'Referrals', action: 'ReferralWithdrawn', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology'}),
+              entry({kind: 'Referrals', action: 'ReferralWithdrawn', pathwayId: null, pathwayTitle: null, referralId, teamName: 'Dermatology'}),
               entry({
                 kind: 'Files',
                 action: 'AttachmentAdded',
@@ -654,12 +654,12 @@ describe('PatientTimeline', () => {
                 pathwayId,
                 pathwayTitle: 'Skin check',
                 referralId,
-                specialtyName: 'Dermatology',
+                teamName: 'Dermatology',
                 templateName: 'Skin check',
                 priority: 'High',
               }),
               entry({id: 'created', kind: 'Created', action: 'Created', pathwayId, pathwayTitle: 'Skin check', referralId, templateName: 'Skin check'}),
-              entry({id: 'rejected', kind: 'Referrals', action: 'ReferralRejected', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Urology', rejectionReason: 'Duplicate'}),
+              entry({id: 'rejected', kind: 'Referrals', action: 'ReferralRejected', pathwayId: null, pathwayTitle: null, referralId, teamName: 'Urology', rejectionReason: 'Duplicate'}),
             ],
             nextCursor: null,
           }),

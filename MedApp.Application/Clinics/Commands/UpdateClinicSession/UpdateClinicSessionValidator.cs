@@ -14,7 +14,7 @@ public sealed class UpdateClinicSessionValidator : AbstractValidator<UpdateClini
     {
         RuleFor(x => x.RoomId).NotEmpty().WithMessage("Room is required.");
 
-        RuleFor(x => x.SpecialtyId).NotEmpty().WithMessage("Specialty is required.");
+        RuleFor(x => x.TeamId).NotEmpty().WithMessage("Team is required.");
 
         RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
 

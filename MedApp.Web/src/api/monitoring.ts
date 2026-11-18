@@ -14,7 +14,7 @@ export interface MonitoringRuleInput {
   stageDefinitionId: string | null;
   /** A service alert's days (0 to 90); null for every other event. */
   thresholdDays: number | null;
-  specialtyId: string | null;
+  teamId: string | null;
   isEnabled: boolean;
 }
 
@@ -125,7 +125,7 @@ export function inputOf(rule: MonitoringRule): MonitoringRuleInput {
     templateId: rule.templateId ?? null,
     stageDefinitionId: rule.stageDefinitionId ?? null,
     thresholdDays: rule.thresholdDays ?? null,
-    specialtyId: rule.specialtyId ?? null,
+    teamId: rule.teamId ?? null,
     isEnabled: rule.isEnabled ?? true,
   };
 }

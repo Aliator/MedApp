@@ -5,7 +5,7 @@ using MedApp.Contracts.Calendar.Requests;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Mdt.Requests;
 using MedApp.Contracts.Mdt.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 
 namespace MedApp.IntegrationTests.Pathways;
@@ -26,7 +26,7 @@ public sealed class MdtTests : IntegrationTest
             EndUtc = startUtc.AddHours(1),
             AttendeeUserIds = [attendee],
             IsMdt = true,
-            SpecialtyId = Specialty.GeneralId,
+            TeamId = Team.GeneralId,
         });
         return await response.ReadAsAsync<MeetingResponse>(HttpStatusCode.Created);
     }

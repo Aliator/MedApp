@@ -12,7 +12,7 @@ import {DAY_NAMES, DEFAULT_END, DEFAULT_START, registerSetupCalendar} from './se
 import {registerSetupPrivacy} from './setupPrivacy';
 
 /**
- * Setup and admin pages: the GP practice directory, sites and rooms with their opening hours, and specialties (with
+ * Setup and admin pages: the GP practice directory, sites and rooms with their opening hours, and teams (with
  * `setupCalendar.ts`'s calendar setup and clinics, `adminAccess.ts`'s users and roles, `adminLogs.ts`'s logs,
  * monitoring and jobs, and `setupPrivacy.ts`'s patient privacy). Lists change as the API's do: a change names the
  * version it saw where the API takes one (a 409 when stale), and what's in use is archived, never deleted.
@@ -148,35 +148,35 @@ function siteHoursResponse(site: DemoSite): Schemas['SiteHoursResponse'] {
   };
 }
 
-// Specialties.
+// Teams.
 
-type Specialty = Schemas['SpecialtyResponse'];
+type Team = Schemas['TeamResponse'];
 
-/** A specialty with its counts as they are now (`SpecialtyUsage`): what has it, and who can triage its referrals. */
-export function specialtyResponse(specialty: Specialty): Specialty {
+/** A team with its counts as they are now (`TeamUsage`): what has it, and who can triage its referrals. */
+export function teamResponse(team: Team): Team {
   const state = db();
-  const members = PEOPLE.filter((p) => (state.memberships[p.id] ?? []).includes(specialty.id ?? ''));
+  const members = PEOPLE.filter((p) => (state.memberships[p.id] ?? []).includes(team.id ?? ''));
   const counts = {
-    templateCount: state.templates.filter((t) => t.specialtyId === specialty.id).length,
-    pathwayCount: state.pathways.filter((p) => p.specialtyId === specialty.id).length,
-    referralCount: state.referrals.filter((r) => r.specialtyId === specialty.id).length,
+    templateCount: state.templates.filter((t) => t.teamId === team.id).length,
+    pathwayCount: state.pathways.filter((p) => p.teamId === team.id).length,
+    referralCount: state.referrals.filter((r) => r.teamId === team.id).length,
     memberCount: members.length,
     triagerCount: members.filter((p) => p.permissions.includes('TriageReferrals')).length,
   };
-  const inUse = Object.values(counts).some((n) => n > 0) || (specialty.letterTemplateCount ?? 0) > 0;
-  return {...specialty, ...counts, canBeDeleted: !inUse};
+  const inUse = Object.values(counts).some((n) => n > 0) || (team.letterTemplateCount ?? 0) > 0;
+  return {...team, ...counts, canBeDeleted: !inUse};
 }
 
-function findSpecialty(specialtyId: string): Specialty {
-  const specialty = db().specialties.find((s) => s.id === specialtyId);
-  if (!specialty) refuse(notFound('The specialty'));
-  return specialty;
+function findTeam(teamId: string): Team {
+  const team = db().teams.find((s) => s.id === teamId);
+  if (!team) refuse(notFound('The team'));
+  return team;
 }
 
-function specialtyInput(body: Partial<Schemas['UpdateSpecialtyRequest']>, current?: Specialty) {
+function teamInput(body: Partial<Schemas['UpdateTeamRequest']>, current?: Team) {
   const name = body.name?.trim() ?? '';
   const errors: Record<string, string[]> = {};
-  if (!name || name.length > 100) errors.name = ['Give the specialty a name (up to 100 characters).'];
+  if (!name || name.length > 100) errors.name = ['Give the team a name (up to 100 characters).'];
   const targets = {
     targetDaysUrgent: body.targetDaysUrgent ?? current?.targetDaysUrgent ?? 14,
     targetDaysHigh: body.targetDaysHigh ?? current?.targetDaysHigh ?? 28,
@@ -185,8 +185,8 @@ function specialtyInput(body: Partial<Schemas['UpdateSpecialtyRequest']>, curren
   };
   for (const [field, days] of Object.entries(targets)) if (days < 1 || days > 365) errors[field] = ['A target is 1 to 365 days.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
-  if (db().specialties.some((s) => s.id !== current?.id && (s.name ?? '').toLowerCase() === name.toLowerCase()))
-    refuse(problem(409, `There's already a specialty called '${name}'.`));
+  if (db().teams.some((s) => s.id !== current?.id && (s.name ?? '').toLowerCase() === name.toLowerCase()))
+    refuse(problem(409, `There's already a team called '${name}'.`));
   return {name, ...targets};
 }
 
@@ -358,57 +358,57 @@ export function registerSetup() {
     return undefined;
   });
 
-  // Specialties: labels that decide nothing clinical. Every change names the version it saw.
-  on('get', '/api/specialties', ({query}) => {
+  // Teams: labels that decide nothing clinical. Every change names the version it saw.
+  on('get', '/api/teams', ({query}) => {
     me();
     return db()
-      .specialties.filter((s) => query.get('includeArchived') === 'true' || !s.isArchived)
-      .map(specialtyResponse)
+      .teams.filter((s) => query.get('includeArchived') === 'true' || !s.isArchived)
+      .map(teamResponse)
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
   });
-  on('get', '/api/specialties/{id}', ({params}) => {
+  on('get', '/api/teams/{id}', ({params}) => {
     me();
-    return specialtyResponse(findSpecialty(params.id));
+    return teamResponse(findTeam(params.id));
   });
-  on('post', '/api/specialties', ({body}) => {
+  on('post', '/api/teams', ({body}) => {
     requirePermission('ManageSetup');
     const now = nowUtc();
-    const specialty: Specialty = {id: newId(), ...specialtyInput(body), isArchived: false, version: 1, letterTemplateCount: 0, createdAt: now, lastUpdated: now};
-    db().specialties.push(specialty);
-    return new DemoReply(201, specialtyResponse(specialty));
+    const team: Team = {id: newId(), ...teamInput(body), isArchived: false, version: 1, letterTemplateCount: 0, createdAt: now, lastUpdated: now};
+    db().teams.push(team);
+    return new DemoReply(201, teamResponse(team));
   });
-  on('put', '/api/specialties/{id}', ({params, body}) => {
+  on('put', '/api/teams/{id}', ({params, body}) => {
     requirePermission('ManageSetup');
-    const specialty = findSpecialty(params.id);
-    checkVersion(specialty.version, body.expectedVersion);
-    Object.assign(specialty, specialtyInput(body, specialty), {version: (specialty.version ?? 1) + 1, lastUpdated: nowUtc()});
-    // Templates carry their specialty's name.
-    for (const t of db().templates) if (t.specialtyId === specialty.id) t.specialtyName = specialty.name;
-    return specialtyResponse(specialty);
+    const team = findTeam(params.id);
+    checkVersion(team.version, body.expectedVersion);
+    Object.assign(team, teamInput(body, team), {version: (team.version ?? 1) + 1, lastUpdated: nowUtc()});
+    // Templates carry their team's name.
+    for (const t of db().templates) if (t.teamId === team.id) t.teamName = team.name;
+    return teamResponse(team);
   });
-  on('post', '/api/specialties/{id}/archive', ({params, body}) => {
+  on('post', '/api/teams/{id}/archive', ({params, body}) => {
     requirePermission('ManageSetup');
-    const specialty = findSpecialty(params.id);
-    checkVersion(specialty.version, body.expectedVersion);
-    const awaiting = db().referrals.filter((r) => r.specialtyId === specialty.id && r.status === 'AwaitingTriage').length;
+    const team = findTeam(params.id);
+    checkVersion(team.version, body.expectedVersion);
+    const awaiting = db().referrals.filter((r) => r.teamId === team.id && r.status === 'AwaitingTriage').length;
     if (awaiting > 0)
-      return problem(409, `${awaiting} ${awaiting === 1 ? 'referral is' : 'referrals are'} awaiting triage in '${specialty.name}': triage or redirect them before archiving it.`);
-    Object.assign(specialty, {isArchived: true, version: (specialty.version ?? 1) + 1, lastUpdated: nowUtc()});
-    return specialtyResponse(specialty);
+      return problem(409, `${awaiting} ${awaiting === 1 ? 'referral is' : 'referrals are'} awaiting triage in '${team.name}': triage or redirect them before archiving it.`);
+    Object.assign(team, {isArchived: true, version: (team.version ?? 1) + 1, lastUpdated: nowUtc()});
+    return teamResponse(team);
   });
-  on('post', '/api/specialties/{id}/restore', ({params, body}) => {
+  on('post', '/api/teams/{id}/restore', ({params, body}) => {
     requirePermission('ManageSetup');
-    const specialty = findSpecialty(params.id);
-    checkVersion(specialty.version, body.expectedVersion);
-    Object.assign(specialty, {isArchived: false, version: (specialty.version ?? 1) + 1, lastUpdated: nowUtc()});
-    return specialtyResponse(specialty);
+    const team = findTeam(params.id);
+    checkVersion(team.version, body.expectedVersion);
+    Object.assign(team, {isArchived: false, version: (team.version ?? 1) + 1, lastUpdated: nowUtc()});
+    return teamResponse(team);
   });
-  on('delete', '/api/specialties/{id}', ({params}) => {
+  on('delete', '/api/teams/{id}', ({params}) => {
     requirePermission('ManageSetup');
-    const specialty = specialtyResponse(findSpecialty(params.id));
-    if (!specialty.canBeDeleted)
-      return problem(409, `Templates, pathways, referrals, letter templates or staff have '${specialty.name}', so it can't be deleted: archive it instead.`);
-    db().specialties = db().specialties.filter((s) => s.id !== specialty.id);
+    const team = teamResponse(findTeam(params.id));
+    if (!team.canBeDeleted)
+      return problem(409, `Templates, pathways, referrals, letter templates or staff have '${team.name}', so it can't be deleted: archive it instead.`);
+    db().teams = db().teams.filter((s) => s.id !== team.id);
     return undefined;
   });
 }

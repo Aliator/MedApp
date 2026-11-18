@@ -21,8 +21,8 @@ public static class PathwayTemplateMapper
             Id = template.Id,
             Name = template.Name,
             IsArchived = template.IsArchived,
-            SpecialtyId = template.SpecialtyId,
-            SpecialtyName = template.Specialty?.Name ?? string.Empty,
+            TeamId = template.TeamId,
+            TeamName = template.Team?.Name ?? string.Empty,
             RetentionClass = template.RetentionClass.ToString(),
             PathwayCount = pathwayCount,
             Stages = maps

@@ -104,14 +104,14 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
 
     /// <summary>
     /// After the pathway's priority changed: its clock (running or paused) re-reads the target for the new priority
-    /// from the specialty's table, and the target date follows a running clock.
+    /// from the team's table, and the target date follows a running clock.
     /// </summary>
     public void PriorityChanged()
     {
-        if (Clock is not { } clock || pathway.Referral?.Specialty is not { } specialty)
+        if (Clock is not { } clock || pathway.Referral?.Team is not { } team)
             return;
 
-        if (clock.ReTarget(specialty, pathway.Priority))
+        if (clock.ReTarget(team, pathway.Priority))
             FollowClock();
     }
 

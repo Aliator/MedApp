@@ -107,7 +107,7 @@ public static class Permissions
         new(Permission.RegisterReferrals, PermissionGroup.Referrals,
             "Register, edit and withdraw referrals, and mark them entered in error."),
         new(Permission.TriageReferrals, PermissionGroup.Referrals,
-            "Accept, reject or redirect referrals in your specialties."),
+            "Accept, reject or redirect referrals in your teams."),
 
         new(Permission.CreatePathways, PermissionGroup.Pathways,
             "Start a pathway for a patient."),
@@ -157,7 +157,7 @@ public static class Permissions
             "Set up your own monitoring rules."),
 
         new(Permission.ManageSetup, PermissionGroup.Setup,
-            "Manage the stage library, pathway templates, specialties, activity types and closed days."),
+            "Manage the stage library, pathway templates, teams, activity types and closed days."),
 
         new(Permission.ManageUsers, PermissionGroup.AdministratorOnly,
             "Manage accounts: create and delete them, give roles, reset passwords and two-factor, sign people out everywhere."),

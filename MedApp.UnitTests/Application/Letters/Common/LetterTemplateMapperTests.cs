@@ -12,18 +12,18 @@ namespace MedApp.UnitTests.Application.Letters.Common;
 public sealed class LetterTemplateMapperTests
 {
     [Test]
-    public void ToResponse_CopiesTheTemplate_WithItsSpecialtysName_AndTheMergeFieldsItUses()
+    public void ToResponse_CopiesTheTemplate_WithItsTeamsName_AndTheMergeFieldsItUses()
     {
-        var specialtyId = Guid.NewGuid();
-        var template = CreateTemplate(specialtyId: specialtyId, kind: LetterKind.DischargeSummary, isArchived: true);
+        var teamId = Guid.NewGuid();
+        var template = CreateTemplate(teamId: teamId, kind: LetterKind.DischargeSummary, isArchived: true);
 
         var response = LetterTemplateMapper.ToResponse(template, "Synthetic dermatology");
 
         response.Id.Should().Be(template.Id);
         response.Name.Should().Be(TemplateName);
         response.Kind.Should().Be("DischargeSummary");
-        response.SpecialtyId.Should().Be(specialtyId);
-        response.SpecialtyName.Should().Be("Synthetic dermatology");
+        response.TeamId.Should().Be(teamId);
+        response.TeamName.Should().Be("Synthetic dermatology");
         response.Letterhead.Should().Be(Letterhead);
         response.BodySkeleton.Should().Be(BodySkeleton);
         response.Closing.Should().Be(Closing);
@@ -35,8 +35,8 @@ public sealed class LetterTemplateMapperTests
     }
 
     [Test]
-    public void ToResponse_ForEverySpecialty_HasNoSpecialtyName() =>
-        LetterTemplateMapper.ToResponse(CreateTemplate(), "ignored").SpecialtyName.Should().BeNull();
+    public void ToResponse_ForEveryTeam_HasNoTeamName() =>
+        LetterTemplateMapper.ToResponse(CreateTemplate(), "ignored").TeamName.Should().BeNull();
 
     [Test]
     public void ToResponse_MergeField_CopiesIt()
@@ -107,9 +107,9 @@ public sealed class LetterTemplateMapperTests
     }
 
     [Test]
-    public void NameTakenMessages_NameTheSpecialty()
+    public void NameTakenMessages_NameTheTeam()
     {
-        LetterTemplateRules.NameTakenMessage("X", null).Should().Be("A letter template for every specialty is already called 'X'.");
+        LetterTemplateRules.NameTakenMessage("X", null).Should().Be("A letter template for every team is already called 'X'.");
         LetterTemplateRules.NameTakenMessage("X", "Synthetic dermatology")
             .Should().Be("A Synthetic dermatology letter template is already called 'X'.");
         LetterTemplateRules.NameTakenMessage("X").Should().Contain("'X'");

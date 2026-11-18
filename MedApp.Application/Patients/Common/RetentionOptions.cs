@@ -29,7 +29,7 @@ public sealed class RetentionOptions
     public int MaxKeepYears { get; set; } = 2;
 
     /// <summary>
-    /// The longer periods of the specialty classes a pathway template can have (<see cref="RetentionClass"/>), in years
+    /// The longer periods of the team classes a pathway template can have (<see cref="RetentionClass"/>), in years
     /// after the conclusion of treatment. Proposed defaults, for the DPO to check against the Records Management Code of
     /// Practice before use.
     /// </summary>
@@ -41,7 +41,7 @@ public sealed class RetentionOptions
     public const string InvalidPeriods = "Each of Retention:Classes (Oncology, Maternity, MentalHealth) must be at least 1 year.";
 }
 
-/// <summary>The years kept after the conclusion of treatment for each specialty class (<c>Retention:Classes</c>).</summary>
+/// <summary>The years kept after the conclusion of treatment for each team class (<c>Retention:Classes</c>).</summary>
 public sealed class RetentionClassYears
 {
     public int Oncology { get; set; } = 30;

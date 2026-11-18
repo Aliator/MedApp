@@ -6,8 +6,8 @@ using MedApp.Domain.Pathways.PatientPathways;
 namespace MedApp.Application.Mdt.Repositories;
 
 /// <summary>
-/// MDT items and the MDTs (meetings marked as a specialty's) they're listed for. Each change saves its audit entry in
-/// the same save. Items are read with their patient, pathway (and its assignees), specialty, meeting (and its
+/// MDT items and the MDTs (meetings marked as a team's) they're listed for. Each change saves its audit entry in
+/// the same save. Items are read with their patient, pathway (and its assignees), team, meeting (and its
 /// attendees) and who was present.
 /// </summary>
 public interface IMdtItemRepository
@@ -21,8 +21,8 @@ public interface IMdtItemRepository
     /// <summary>A meeting's items, in the order they were listed (then by ID).</summary>
     Task<IReadOnlyList<MdtItem>> GetForMeetingAsync(Guid meetingId, CancellationToken ct);
 
-    /// <summary>Open items whose meeting was cancelled, oldest listed first, in one specialty or all.</summary>
-    Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? specialtyId, CancellationToken ct);
+    /// <summary>Open items whose meeting was cancelled, oldest listed first, in one team or all.</summary>
+    Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? teamId, CancellationToken ct);
 
     /// <summary>A pathway's items, newest listed first.</summary>
     Task<IReadOnlyList<MdtItem>> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);
@@ -33,10 +33,10 @@ public interface IMdtItemRepository
     /// <summary>A meeting with its attendees, read-only; null if there's none.</summary>
     Task<Meeting?> GetMeetingAsync(Guid meetingId, CancellationToken ct);
 
-    /// <summary>MDTs starting in the window, in one specialty or all, by start, with their counts and specialty's name.</summary>
-    Task<IReadOnlyList<MdtMeetingRow>> GetMeetingsAsync(Guid? specialtyId, DateTime fromUtc, DateTime toUtc, CancellationToken ct);
+    /// <summary>MDTs starting in the window, in one team or all, by start, with their counts and team's name.</summary>
+    Task<IReadOnlyList<MdtMeetingRow>> GetMeetingsAsync(Guid? teamId, DateTime fromUtc, DateTime toUtc, CancellationToken ct);
 
-    /// <summary>One MDT with its counts and specialty's name; null if there's no such meeting or it isn't an MDT.</summary>
+    /// <summary>One MDT with its counts and team's name; null if there's no such meeting or it isn't an MDT.</summary>
     Task<MdtMeetingRow?> GetMeetingRowAsync(Guid meetingId, CancellationToken ct);
 
     /// <summary>How many items on a meeting are still to be discussed, and how many have an outcome.</summary>

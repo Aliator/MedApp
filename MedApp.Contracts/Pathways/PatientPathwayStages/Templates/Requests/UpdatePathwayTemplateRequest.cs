@@ -5,8 +5,8 @@ public sealed class UpdatePathwayTemplateRequest
 {
     public string? Name { get; set; }
 
-    /// <summary>Moves it to another specialty (not an archived one). Only pathways created afterwards are in the new one.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>Moves it to another team (not an archived one). Only pathways created afterwards are in the new one.</summary>
+    public Guid? TeamId { get; set; }
 
     /// <summary>
     /// Its retention class: Standard, Oncology, Maternity or MentalHealth. Unlike the other fields, a longer class also

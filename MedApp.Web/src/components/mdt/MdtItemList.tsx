@@ -32,10 +32,10 @@ type Asking = {item: MdtItem; kind: 'outcome' | 'defer' | 'withdraw'};
 
 /** Where an item stands, in words: its meeting, or that its meeting was cancelled. */
 export function mdtMeetingWords(item: MdtItem): string {
-  if (item.meetingStartUtc) return `${item.specialtyName ?? ''} MDT, ${formatDateTime(item.meetingStartUtc)}`;
+  if (item.meetingStartUtc) return `${item.teamName ?? ''} MDT, ${formatDateTime(item.meetingStartUtc)}`;
   if (item.meetingCancelledStartUtc)
     return `Meeting cancelled (${formatDateTime(item.meetingCancelledStartUtc)})${item.status === 'Listed' || item.status === 'Deferred' ? ': list again' : ''}`;
-  return `${item.specialtyName ?? ''} MDT`;
+  return `${item.teamName ?? ''} MDT`;
 }
 
 /**

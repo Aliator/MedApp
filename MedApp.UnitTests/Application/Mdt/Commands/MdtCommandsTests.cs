@@ -11,7 +11,7 @@ using MedApp.Application.Mdt.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
@@ -28,7 +28,7 @@ namespace MedApp.UnitTests.Application.Mdt.Commands;
 public abstract class MdtCommandTestBase
 {
     protected Mock<IMdtItemRepository> Repository { get; private set; } = null!;
-    protected Mock<ISpecialtyRepository> Specialties { get; private set; } = null!;
+    protected Mock<ITeamRepository> Teams { get; private set; } = null!;
     protected List<PatientPathwayAuditEntry> Audit { get; } = [];
     protected FixedTimeProvider Clock { get; } = new(Now);
     protected CancellationToken Token { get; } = new CancellationTokenSource().Token;
@@ -42,8 +42,8 @@ public abstract class MdtCommandTestBase
             .Setup(r => r.SaveAsync(It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
             .Callback((PatientPathwayAuditEntry entry, CancellationToken _) => Audit.Add(entry))
             .Returns(Task.CompletedTask);
-        Specialties = new Mock<ISpecialtyRepository>();
-        Specialties.Setup(s => s.GetAsync(Specialty.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Specialty);
+        Teams = new Mock<ITeamRepository>();
+        Teams.Setup(s => s.GetAsync(Team.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Team);
     }
 
     protected void Given(MdtItem item)
@@ -82,13 +82,13 @@ public sealed class ListForMdtHandlerTests : MdtCommandTestBase
                 item.Patient = _pathway.Patient;
                 item.Pathway = _pathway;
                 item.Meeting = _meeting;
-                item.Specialty = Specialty;
+                item.Team = Team;
                 Repository.Setup(r => r.GetAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
             })
             .Returns(Task.CompletedTask);
     }
 
-    private ListForMdtHandler Handler() => new(Repository.Object, _pathways.Object, Specialties.Object, Clock);
+    private ListForMdtHandler Handler() => new(Repository.Object, _pathways.Object, Teams.Object, Clock);
 
     private ListForMdtCommand Command(Guid? meetingId = null) => new(_pathway.Id, meetingId ?? _meeting.Id, $"  {Question}  ", Nurse);
 
@@ -99,7 +99,7 @@ public sealed class ListForMdtHandlerTests : MdtCommandTestBase
 
         _added!.Status.Should().Be(MdtItemStatus.Listed);
         _added.Question.Should().Be(Question);
-        _added.SpecialtyId.Should().Be(Specialty.Id);
+        _added.TeamId.Should().Be(Team.Id);
         _added.Version.Should().Be(1);
         response.Question.Should().Be(Question);
         response.MeetingId.Should().Be(_meeting.Id);
@@ -233,7 +233,7 @@ public sealed class WithdrawMdtItemHandlerTests : MdtCommandTestBase
 [TestFixture]
 public sealed class DeferMdtItemHandlerTests : MdtCommandTestBase
 {
-    private DeferMdtItemHandler Handler() => new(Repository.Object, Specialties.Object, Clock);
+    private DeferMdtItemHandler Handler() => new(Repository.Object, Teams.Object, Clock);
 
     [Test]
     public async Task Handle_ToALaterMdt_DefersItAndAuditsBothMeetings()

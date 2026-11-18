@@ -21,13 +21,13 @@ public sealed class LetterTemplate
 
     public Guid Id { get; init; }
 
-    /// <summary>Unique within its specialty (or among the templates for every specialty), ignoring case.</summary>
+    /// <summary>Unique within its team (or among the templates for every team), ignoring case.</summary>
     public string Name { get; set; } = string.Empty;
 
     public LetterKind Kind { get; set; }
 
-    /// <summary>The specialty whose letters it's for, or null for every specialty.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>The team whose letters it's for, or null for every team.</summary>
+    public Guid? TeamId { get; set; }
 
     /// <summary>
     /// Plain lines at the top of the first page: the centre's name, address and phone. Merge fields are filled; no

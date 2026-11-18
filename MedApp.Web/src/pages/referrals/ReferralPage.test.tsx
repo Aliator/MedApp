@@ -13,7 +13,7 @@ import {
   userWithRoles,
   withAnnouncements,
 } from '../../test/render';
-import {DERMATOLOGY_ID, REFERRAL_ID, REFERRAL_PATIENT_ID, SPECIALTIES, testReferral, testReferralSummary} from '../../test/referrals';
+import {DERMATOLOGY_ID, REFERRAL_ID, REFERRAL_PATIENT_ID, TEAMS, testReferral, testReferralSummary} from '../../test/referrals';
 import {ReferralPage, triageWords} from './ReferralPage';
 
 const REFERRAL = `GET /api/referrals/${REFERRAL_ID}`;
@@ -32,7 +32,7 @@ function renderPage(
       json({
         items: [
           testReferralSummary({id: REFERRAL_ID}),
-          testReferralSummary({id: 'other-referral', status: 'Withdrawn', specialtyName: 'Urology', receivedOn: '2026-10-01'}),
+          testReferralSummary({id: 'other-referral', status: 'Withdrawn', teamName: 'Urology', receivedOn: '2026-10-01'}),
         ],
         totalCount: 2,
       }),
@@ -59,7 +59,7 @@ describe('ReferralPage', () => {
     expect(screen.getByText('2 Nov 2026, 10:00 by k.ashford')).toBeInTheDocument();
     expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: /Add files/})).toBeInTheDocument();
-    expect(screen.getByText(/Only a member of its specialty who can triage referrals/)).toBeInTheDocument();
+    expect(screen.getByText(/Only a member of its team who can triage referrals/)).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Accept'})).not.toBeInTheDocument();
     const history = within(screen.getByRole('list', {name: 'History'}));
     expect(history.getByText('Registered by k.ashford')).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe('ReferralPage', () => {
     await user.click(screen.getByRole('heading', {name: 'Letter'}));
     await waitFor(() => expect(screen.queryByText('No letter attached yet.')).not.toBeInTheDocument());
     await user.click(screen.getByRole('heading', {name: 'Triage'}));
-    await waitFor(() => expect(screen.queryByText(/Only a member of its specialty/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Only a member of its team/)).not.toBeInTheDocument());
     expect(await screen.findByRole('list', {name: 'Other referrals'})).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: "This patient's other referrals"}));
     await waitFor(() => expect(screen.queryByRole('list', {name: 'Other referrals'})).not.toBeInTheDocument());
@@ -260,7 +260,7 @@ describe('ReferralPage triage', () => {
   const clinician = userWithRoles('d.clinician', 'Clinician');
   const triager = testReferral({canTriage: true});
   const pathwayId = '00000042-0000-0000-0000-0000000000aa';
-  const templates = [{id: 't-derm', name: 'Skin check', isArchived: false, specialtyId: DERMATOLOGY_ID, stages: [{stageOrder: 1, name: 'Review'}]}];
+  const templates = [{id: 't-derm', name: 'Skin check', isArchived: false, teamId: DERMATOLOGY_ID, stages: [{stageOrder: 1, name: 'Review'}]}];
 
   it("shows why someone can't triage it, in the API's words, with no actions", async () => {
     renderPage(testReferral({canTriage: false, whyCantTriage: 'Only a member of Dermatology can triage this referral.'}), {}, false, clinician);
@@ -357,7 +357,7 @@ describe('ReferralPage triage', () => {
   it('cancels each triage decision without sending anything', async () => {
     const {user, fetch} = renderPage(
       triager,
-      {'GET /api/pathways/patient-pathway-stage/templates': () => json(templates), 'GET /api/specialties': () => json(SPECIALTIES)},
+      {'GET /api/pathways/patient-pathway-stage/templates': () => json(templates), 'GET /api/teams': () => json(TEAMS)},
       false,
       clinician,
     );
@@ -371,20 +371,20 @@ describe('ReferralPage triage', () => {
     expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(false);
   });
 
-  it('redirects it to another specialty, announcing where', async () => {
+  it('redirects it to another team, announcing where', async () => {
     withAnnouncements();
-    const moved = testReferral({specialtyId: SPECIALTIES[1].id, specialtyName: 'Urology', canTriage: false, redirectDetail: 'Synthetic: a urology problem.'});
+    const moved = testReferral({teamId: TEAMS[1].id, teamName: 'Urology', canTriage: false, redirectDetail: 'Synthetic: a urology problem.'});
     const {user} = renderPage(
       triager,
-      {'GET /api/specialties': () => json(SPECIALTIES), [`POST /api/referrals/${REFERRAL_ID}/redirect`]: () => json(moved)},
+      {'GET /api/teams': () => json(TEAMS), [`POST /api/referrals/${REFERRAL_ID}/redirect`]: () => json(moved)},
       false,
       clinician,
     );
 
     await user.click(await screen.findByRole('button', {name: 'Redirect'}));
     const dialog = within(await waitFor(() => openDialog()!));
-    await user.click(dialog.getByRole('radio', {name: /Another specialty here/}));
-    await user.click(dialog.getByRole('combobox', {name: /Specialty/}));
+    await user.click(dialog.getByRole('radio', {name: /Another clinic here/}));
+    await user.click(dialog.getByRole('combobox', {name: /Clinic/}));
     await user.click(await screen.findByRole('option', {name: 'Urology'}));
     await user.type(dialog.getByRole('textbox', {name: /Why/}), 'Synthetic: a urology problem.');
     await user.click(dialog.getByRole('button', {name: 'Continue'}));
@@ -392,7 +392,7 @@ describe('ReferralPage triage', () => {
 
     await expectAnnounced('Referral redirected to Urology');
     expect(await screen.findByRole('heading', {name: 'Referral to Urology', level: 1})).toBeInTheDocument();
-    expect(screen.getByText('Redirected from another specialty')).toBeInTheDocument();
+    expect(screen.getByText('Redirected from another team')).toBeInTheDocument();
     expect(screen.getByText('Synthetic: a urology problem.')).toBeInTheDocument();
   });
 
@@ -407,7 +407,7 @@ describe('ReferralPage triage', () => {
         decidedByUsername: 'd.clinician',
         pathwayId,
         history: [
-          {id: 'e1', action: 'SpecialtyChanged', atUtc: '2026-11-03T10:00:00Z', username: 'u.clinician', previousSpecialtyName: 'Urology', specialtyName: 'Dermatology'},
+          {id: 'e1', action: 'TeamChanged', atUtc: '2026-11-03T10:00:00Z', username: 'u.clinician', previousTeamName: 'Urology', teamName: 'Dermatology'},
           {id: 'e2', action: 'Accepted', atUtc: '2026-11-04T09:00:00Z', username: 'd.clinician', templateName: 'Skin check', priority: 'High', pathwayId},
         ],
         redirectDetail: 'Synthetic: a skin problem.',
@@ -420,7 +420,7 @@ describe('ReferralPage triage', () => {
     expect(screen.getByText('Redirected from Urology')).toBeInTheDocument();
     const history = within(screen.getByRole('list', {name: 'History'}));
     expect(history.getByText('Redirected by u.clinician')).toBeInTheDocument();
-    expect(history.getByText('Specialty Urology → Dermatology')).toBeInTheDocument();
+    expect(history.getByText('Team Urology → Dermatology')).toBeInTheDocument();
     expect(history.getByText('Accepted by d.clinician')).toBeInTheDocument();
     expect(history.getByText('Skin check, High priority')).toBeInTheDocument();
   });

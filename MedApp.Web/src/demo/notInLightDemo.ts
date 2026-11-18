@@ -46,7 +46,7 @@ export const notInLightDemo: Record<string, string> = {
   'POST /api/letter-templates/preview': 'No PDFs in the light demo: a template’s preview is a PDF the server renders.',
   'POST /api/consent-records/{id}/scan': 'No files in the light demo: a consent form’s scan is an uploaded file.',
 
-  // Setup and admin: practices, sites, rooms, hours, clinics, specialties, roles, users, monitoring, logs, jobs, privacy.
+  // Setup and admin: practices, sites, rooms, hours, clinics, teams, roles, users, monitoring, logs, jobs, privacy.
   'POST /api/auth/users': 'The demo clinic’s people are fixed: no new account can sign in (no real sign-in or passwords).',
   'DELETE /api/auth/users/{username}': 'The demo clinic’s people are fixed: accounts aren’t deleted.',
   'PUT /api/auth/users/{username}/update-password': 'No passwords in the light demo.',

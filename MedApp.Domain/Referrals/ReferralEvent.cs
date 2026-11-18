@@ -3,7 +3,7 @@ namespace MedApp.Domain.Referrals;
 /// <summary>
 /// One change to a referral: who did what, and when. Written in the same save as the change. Like the pathway audit
 /// log and appointments' history, it has no foreign keys, so it outlives the accounts and pathway it names. Its
-/// <see cref="Details"/> hold structured values only (statuses, enums, specialty IDs and names, dates, the names of the
+/// <see cref="Details"/> hold structured values only (statuses, enums, team IDs and names, dates, the names of the
 /// fields changed), never free text: the reason, the referrer and the details given live only on the referral.
 /// </summary>
 public sealed class ReferralEvent

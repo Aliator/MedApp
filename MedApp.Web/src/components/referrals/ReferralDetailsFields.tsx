@@ -6,7 +6,7 @@ import {useQuery} from '@tanstack/react-query';
 import {fieldStatus, type ValidationErrors} from '../../api/errors';
 import {MAX_REASON, REFERRAL_PRIORITIES, type ReferralDetailsInput} from '../../api/referrals';
 import {practiceChoices, practiceLabel, practicesQuery} from '../../api/practices';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
 import {BLANK_DESCRIPTION} from '../forms/fieldSpace';
@@ -14,7 +14,7 @@ import {FormSection} from '../forms/FormSection';
 
 /** The fields shown, whose errors show on them (so the page's banner leaves them out). */
 export const REFERRAL_DETAILS_FIELDS: (keyof ReferralDetailsInput)[] = [
-  'specialtyId',
+  'teamId',
   'receivedOn',
   'practiceId',
   'referrerPractice',
@@ -39,7 +39,7 @@ export const NO_DIRECTORY_PRACTICE = 'none';
 
 /** A new referral's details: received today, Medium priority asked for, the rest blank. */
 export const emptyReferralDetails = (today: string = ukToday()): ReferralDetailsInput => ({
-  specialtyId: '',
+  teamId: '',
   receivedOn: today,
   practiceId: '',
   referrerPractice: '',
@@ -56,15 +56,15 @@ export interface ReferralDetailsFieldsProps {
   errors?: ValidationErrors | null;
   isDisabled?: boolean;
   /**
-   * A specialty to keep offering though it's archived (an edit of a referral to it): archived ones can't be newly
+   * A team to keep offering though it's archived (an edit of a referral to it): archived ones can't be newly
    * chosen, but a referral already to one keeps it.
    */
-  currentSpecialty?: {id: string; name: string};
+  currentTeam?: {id: string; name: string};
 }
 
 /**
  * A referral's details, as typed from the referrer's letter, shared by Register Referral and Edit Details: the
- * specialty asked for (not archived), when it was received (a UK date: not in the future, at most a year back), the
+ * team asked for (not archived), when it was received (a UK date: not in the future, at most a year back), the
  * referring practice, clinician and the practice's ODS code, the priority the referrer asked for, and the reason for
  * referral. The server checks them all; its 400 shows on the fields.
  *
@@ -72,12 +72,12 @@ export interface ReferralDetailsFieldsProps {
  * already has, even if archived since): choosing one fills the practice and ODS code fields, which stay editable, as
  * the letter's own words are kept as typed. Choosing "None" leaves them as they are.
  */
-export function ReferralDetailsFields({value, onChange, errors, isDisabled = false, currentSpecialty}: ReferralDetailsFieldsProps) {
+export function ReferralDetailsFields({value, onChange, errors, isDisabled = false, currentTeam}: ReferralDetailsFieldsProps) {
   const set = <K extends keyof ReferralDetailsInput>(key: K, next: ReferralDetailsInput[K]) => onChange({...value, [key]: next});
-  const specialties = useQuery(specialtiesQuery(false));
-  const options = (specialties.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}));
-  if (currentSpecialty && !options.some((o) => o.value === currentSpecialty.id))
-    options.push({value: currentSpecialty.id, label: `${currentSpecialty.name} (archived)`});
+  const teams = useQuery(teamsQuery(false));
+  const options = (teams.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''}));
+  if (currentTeam && !options.some((o) => o.value === currentTeam.id))
+    options.push({value: currentTeam.id, label: `${currentTeam.name} (archived)`});
   const today = ukToday();
   // Archived ones too, so a referral that already has one archived since still shows it.
   const practices = useQuery(practicesQuery(true));
@@ -98,14 +98,14 @@ export function ReferralDetailsFields({value, onChange, errors, isDisabled = fal
     <>
       <FormSection title="Referral">
         <AnchoredSelector
-          label="Specialty"
-          placeholder={specialties.isPending ? 'Loading specialties...' : 'Choose the specialty asked for'}
+          label="Clinic"
+          placeholder={teams.isPending ? 'Loading teams...' : 'Choose the team asked for'}
           options={options}
-          value={value.specialtyId || undefined}
-          onChange={(v: string) => set('specialtyId', v)}
+          value={value.teamId || undefined}
+          onChange={(v: string) => set('teamId', v)}
           isRequired
           isDisabled={isDisabled}
-          status={fieldStatus(errors, 'specialtyId')}
+          status={fieldStatus(errors, 'teamId')}
         />
         <DateInput
           label="Received on"

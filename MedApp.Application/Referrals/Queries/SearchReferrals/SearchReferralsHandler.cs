@@ -3,7 +3,7 @@ using MedApp.Application.Common.Paging;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Referrals.Responses;
 using MedApp.Domain.Activity;
@@ -17,16 +17,16 @@ namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 /// </summary>
 public sealed class SearchReferralsHandler(
     IReferralRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     IActivityLog activityLog,
     TimeProvider timeProvider)
     : IRequestHandler<SearchReferralsQuery, PagedResponse<ReferralSummaryResponse>>
 {
     public async Task<PagedResponse<ReferralSummaryResponse>> Handle(SearchReferralsQuery request, CancellationToken cancellationToken)
     {
-        var specialtyIds = await SpecialtiesToShowAsync(request, cancellationToken);
+        var teamIds = await TeamsToShowAsync(request, cancellationToken);
         var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
-        var result = await repository.SearchAsync(request, specialtyIds, today, cancellationToken);
+        var result = await repository.SearchAsync(request, teamIds, today, cancellationToken);
 
         // A search for a patient (by name) is recorded as which filters were used and how many matched, as patient
         // search is: never the term, which could itself be a patient's details.
@@ -44,16 +44,16 @@ public sealed class SearchReferralsHandler(
     }
 
     /// <summary>
-    /// The specialties to keep: those asked for, and with "mine" only those of them the viewer belongs to (all the
-    /// viewer's when none are asked for); null for every specialty (nothing asked, or "mine" from someone in none).
+    /// The teams to keep: those asked for, and with "mine" only those of them the viewer belongs to (all the
+    /// viewer's when none are asked for); null for every team (nothing asked, or "mine" from someone in none).
     /// </summary>
-    private async Task<IReadOnlyCollection<Guid>?> SpecialtiesToShowAsync(SearchReferralsQuery request, CancellationToken ct)
+    private async Task<IReadOnlyCollection<Guid>?> TeamsToShowAsync(SearchReferralsQuery request, CancellationToken ct)
     {
-        IReadOnlyCollection<Guid>? asked = request.SpecialtyIds is { Count: > 0 } ids ? ids.ToHashSet() : null;
+        IReadOnlyCollection<Guid>? asked = request.TeamIds is { Count: > 0 } ids ? ids.ToHashSet() : null;
         if (!request.Mine)
             return asked;
 
-        var mine = (await specialties.GetForUserAsync(request.ViewerId, ct)).Select(s => s.Id).ToHashSet();
+        var mine = (await teams.GetForUserAsync(request.ViewerId, ct)).Select(s => s.Id).ToHashSet();
         if (mine.Count == 0)
             return asked;
 

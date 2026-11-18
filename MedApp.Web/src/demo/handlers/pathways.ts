@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {specialtyName, templateStages} from '../seed';
+import {teamName, templateStages} from '../seed';
 import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
 import {endOfUkDay, nowUtc, today} from '../time';
@@ -145,7 +145,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     patient: pathwayPatient(pathway.patientId),
     templateId: pathway.templateId,
     templateName: pathway.templateName,
-    specialtyId: pathway.specialtyId,
+    teamId: pathway.teamId,
     referral: referral ? pathwayReferralResponse(referral) : undefined,
     title: pathway.title,
     dueDate: pathway.dueDate,
@@ -312,7 +312,7 @@ export function createPathway(input: {
     patientId: input.patientId,
     templateId: template.id!,
     templateName: template.name!,
-    specialtyId: template.specialtyId!,
+    teamId: template.teamId!,
     referralId: input.referralId ?? null,
     title: input.title?.trim() || template.name!,
     dueDate: due,
@@ -360,7 +360,7 @@ export function registerPathways() {
     const viewer = me();
     const statuses = list(query, 'Statuses');
     const priorities = [...list(query, 'Priorities'), ...list(query, 'Priority')];
-    const specialtyIds = list(query, 'SpecialtyIds');
+    const teamIds = list(query, 'TeamIds');
     const stageDefinitionIds = list(query, 'StageDefinitionIds');
     const includeClosed = flag(query, 'IncludeClosed') === true || statuses.some((s) => ['Completed', 'Cancelled', 'Archived'].includes(s));
     const started = flag(query, 'Started');
@@ -370,7 +370,7 @@ export function registerPathways() {
         (includeClosed || isOpen(p)) &&
         (statuses.length === 0 || statuses.includes(p.status)) &&
         (priorities.length === 0 || priorities.includes(p.priority)) &&
-        (specialtyIds.length === 0 || specialtyIds.includes(p.specialtyId)) &&
+        (teamIds.length === 0 || teamIds.includes(p.teamId)) &&
         (stageDefinitionIds.length === 0 || stageDefinitionIds.includes(currentStage(p)?.stageDefinitionId ?? '')) &&
         (!query.get('PatientId') || p.patientId === query.get('PatientId')) &&
         (!query.get('TemplateId') || p.templateId === query.get('TemplateId')) &&
@@ -707,17 +707,17 @@ export function registerPathways() {
 
   registerSetupOfPathways();
 
-  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('SpecialtyId')));
+  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('TeamId')));
 }
 
 /**
  * Insights: this week's counts come from the demo's pathways; the history (last week, stage times, throughput) is
  * made up, deterministically, so the charts have something to show. The full version reads it from the audit log.
  */
-function insights(weeks: number, templateId: string | null, specialtyId: string | null): Schemas['PathwayInsightsResponse'] {
+function insights(weeks: number, templateId: string | null, teamId: string | null): Schemas['PathwayInsightsResponse'] {
   me();
   const pathways = db().pathways.filter(
-    (p) => (!templateId || p.templateId === templateId) && (!specialtyId || p.specialtyId === specialtyId),
+    (p) => (!templateId || p.templateId === templateId) && (!teamId || p.teamId === teamId),
   );
   const open = pathways.filter(isOpen);
   const inProgress = pathways.filter((p) => p.status === 'InProgress');
@@ -731,7 +731,7 @@ function insights(weeks: number, templateId: string | null, specialtyId: string 
   return {
     weeks,
     templateId,
-    specialtyId,
+    teamId,
     from: new Date(monday.getTime() - (weeks - 1) * 7 * 86400_000).toISOString().slice(0, 10),
     to: today(),
     open: {current: open.length, lastWeek: open.length + 1},
@@ -743,7 +743,7 @@ function insights(weeks: number, templateId: string | null, specialtyId: string 
       .map((priority) => ({priority, count: overdue.filter((p) => p.priority === priority).length}))
       .filter((row) => row.count > 0),
     stageTimes: db()
-      .templates.filter((t) => (!templateId || t.id === templateId) && (!specialtyId || t.specialtyId === specialtyId))
+      .templates.filter((t) => (!templateId || t.id === templateId) && (!teamId || t.teamId === teamId))
       .map((template, t) => ({
         templateId: template.id,
         templateName: template.name,
@@ -916,8 +916,8 @@ function registerSetupOfPathways() {
     if (!name) return invalid({name: ['Give the template a name.']});
     if (db().templates.some((t) => t.id !== template.id && t.name?.toLowerCase() === name.toLowerCase()))
       return problem(409, 'A template with this name already exists.');
-    const specialtyId = body.specialtyId || template.specialtyId;
-    if (!specialtyId || !db().specialties.some((s) => s.id === specialtyId)) return invalid({specialtyId: ['Choose a specialty.']});
+    const teamId = body.teamId || template.teamId;
+    if (!teamId || !db().teams.some((s) => s.id === teamId)) return invalid({teamId: ['Choose a team.']});
     const ids = body.stageDefinitionIdsInOrder ?? template.stageDefinitionIdsInOrder ?? [];
     const sameList = JSON.stringify(ids) === JSON.stringify(template.stageDefinitionIdsInOrder ?? []);
     // Options left out with the same stage list keep the stored ones; with a new list, every stage is plain.
@@ -930,8 +930,8 @@ function registerSetupOfPathways() {
     if (why) return why;
     Object.assign(template, {
       name,
-      specialtyId,
-      specialtyName: specialtyName(specialtyId) ?? db().specialties.find((s) => s.id === specialtyId)?.name ?? null,
+      teamId,
+      teamName: teamName(teamId) ?? db().teams.find((s) => s.id === teamId)?.name ?? null,
       retentionClass: body.retentionClass || template.retentionClass || 'Adult',
       clockStopStageOrder: clockStop ?? null,
       stageDefinitionIdsInOrder: ids,

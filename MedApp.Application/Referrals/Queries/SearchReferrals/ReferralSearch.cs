@@ -12,7 +12,7 @@ public static class ReferralSearch
 {
     public const string SortByReceivedOn = "receivedOn";
     public const string SortByPatient = "patient";
-    public const string SortBySpecialty = "specialty";
+    public const string SortByTeam = "team";
     public const string SortByPriority = "priority";
     public const string SortByRegistered = "registered";
 
@@ -26,7 +26,7 @@ public static class ReferralSearch
     public const string SortByReviewOn = "reviewOn";
 
     public static readonly IReadOnlyList<string> SortColumns =
-        [SortByReceivedOn, SortByPatient, SortBySpecialty, SortByPriority, SortByRegistered, SortByDaysWaited, SortByTargetOn, SortByReviewOn];
+        [SortByReceivedOn, SortByPatient, SortByTeam, SortByPriority, SortByRegistered, SortByDaysWaited, SortByTargetOn, SortByReviewOn];
 
     public static string StatusNames => string.Join(", ", Enum.GetNames<ReferralStatus>());
 
@@ -53,8 +53,8 @@ public static class ReferralSearch
             used.Add("patientId");
         if (query.Statuses is { Count: > 0 })
             used.Add("statuses");
-        if (query.SpecialtyIds is { Count: > 0 })
-            used.Add("specialtyIds");
+        if (query.TeamIds is { Count: > 0 })
+            used.Add("teamIds");
         if (query.Mine)
             used.Add("mine");
         if (query.BreachedOnly)
@@ -67,11 +67,11 @@ public static class ReferralSearch
     }
 
     /// <summary>
-    /// Referrals matching every filter given. <paramref name="specialtyIds"/> is the specialties to keep (from the query,
+    /// Referrals matching every filter given. <paramref name="teamIds"/> is the teams to keep (from the query,
     /// or the viewer's own for "mine"), or null for every one. The clock's filters count to <paramref name="today"/> (UK).
     /// </summary>
     public static IQueryable<Referral> Filter(
-        this IQueryable<Referral> referrals, SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, DateOnly today = default)
+        this IQueryable<Referral> referrals, SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today = default)
     {
         // The same rules as WaitingClock's, in a form EF can translate.
         if (query.BreachedOnly)
@@ -98,10 +98,10 @@ public static class ReferralSearch
         if (statuses.Count > 0)
             referrals = referrals.Where(r => statuses.Contains(r.Status));
 
-        if (specialtyIds is not null)
+        if (teamIds is not null)
         {
-            var ids = specialtyIds.Distinct().ToList();
-            referrals = referrals.Where(r => ids.Contains(r.SpecialtyId));
+            var ids = teamIds.Distinct().ToList();
+            referrals = referrals.Where(r => ids.Contains(r.TeamId));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -114,7 +114,7 @@ public static class ReferralSearch
     }
 
     /// <summary>
-    /// Sorts by the date received (the default, oldest first, so the longest wait is at the top), patient, specialty,
+    /// Sorts by the date received (the default, oldest first, so the longest wait is at the top), patient, team,
     /// requested priority, when it was registered, days waited on the clock (to <paramref name="today"/>), the clock's
     /// target date, or the open pause's review date (clocks not paused last). Ties are broken by the date received,
     /// when it was registered, then ID, so paging never shows a row twice or skips one. Every order is by dates or
@@ -151,8 +151,8 @@ public static class ReferralSearch
                 .OrderByDescending(r => r.Patient.LastName.ToLower())
                 .ThenByDescending(r => r.Patient.FirstName.ToLower())
                 .ThenBy(r => r.ReceivedOn),
-            (SortBySpecialty, true) => referrals.OrderBy(r => r.Specialty.Name.ToLower()).ThenBy(r => r.ReceivedOn),
-            (SortBySpecialty, false) => referrals.OrderByDescending(r => r.Specialty.Name.ToLower()).ThenBy(r => r.ReceivedOn),
+            (SortByTeam, true) => referrals.OrderBy(r => r.Team.Name.ToLower()).ThenBy(r => r.ReceivedOn),
+            (SortByTeam, false) => referrals.OrderByDescending(r => r.Team.Name.ToLower()).ThenBy(r => r.ReceivedOn),
             (SortByPriority, true) => referrals.OrderBy(r => r.RequestedPriority).ThenBy(r => r.ReceivedOn),
             (SortByPriority, false) => referrals.OrderByDescending(r => r.RequestedPriority).ThenBy(r => r.ReceivedOn),
             (SortByRegistered, true) => referrals.OrderBy(r => r.RegisteredAtUtc),

@@ -37,10 +37,10 @@ public sealed class PathwaySearchSqlTests
     }
 
     [Test]
-    public void Filter_Specialties_TranslatesToAnInList()
+    public void Filter_Teams_TranslatesToAnInList()
     {
-        var query = CreateSearchQuery() with { SpecialtyIds = [SpecialtyId, Guid.NewGuid()] };
+        var query = CreateSearchQuery() with { TeamIds = [TeamId, Guid.NewGuid()] };
 
-        _context.PatientPathways.Filter(query, Now).ToQueryString().Should().Contain("[SpecialtyId] IN (");
+        _context.PatientPathways.Filter(query, Now).ToQueryString().Should().Contain("[TeamId] IN (");
     }
 }

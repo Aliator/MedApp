@@ -8,7 +8,7 @@ public sealed class EditReferralValidator : AbstractValidator<EditReferralComman
     public EditReferralValidator(TimeProvider timeProvider)
     {
         RuleFor(x => x.ReferralId).NotEmpty().WithMessage("Referral id is required.");
-        RuleFor(x => x.SpecialtyId).SpecialtyId();
+        RuleFor(x => x.TeamId).TeamId();
         RuleFor(x => x.ReceivedOn).ReceivedOn(timeProvider);
         // With a practice from the directory, an empty practice takes its name.
         When(x => x.PracticeId is null || !string.IsNullOrWhiteSpace(x.ReferrerPractice),

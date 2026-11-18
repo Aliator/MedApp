@@ -60,7 +60,7 @@ function meetingResponse(meeting: Meeting): Meeting {
   return {
     ...meeting,
     isMdt: meeting.isMdt ?? false,
-    specialtyId: meeting.specialtyId ?? null,
+    teamId: meeting.teamId ?? null,
     canEdit: meeting.organiserUserId === viewer.id && (meeting.endUtc ?? '') > nowUtc(),
     myReply: mine?.reply ?? null,
     canReply: mine !== undefined && (meeting.endUtc ?? '') > nowUtc(),
@@ -225,7 +225,7 @@ function meetingInput(body: Partial<Schemas['MeetingRequest']>) {
   const errors: Record<string, string[]> = {};
   if (!body.title?.trim()) errors.title = ['Give the meeting a title.'];
   if (!body.startUtc || !body.endUtc || body.endUtc <= body.startUtc) errors.endUtc = ['The meeting must end after it starts.'];
-  if (body.isMdt && !db().specialties.some((s) => s.id === body.specialtyId)) errors.specialtyId = ['Choose the MDT’s specialty.'];
+  if (body.isMdt && !db().teams.some((s) => s.id === body.teamId)) errors.teamId = ['Choose the MDT’s team.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
   return {title: body.title!.trim(), notes: body.notes?.trim() || null, startUtc: body.startUtc!, endUtc: body.endUtc!};
 }
@@ -402,7 +402,7 @@ export function registerCalendar() {
       createdAtUtc: now,
       lastUpdated: now,
       isMdt: body.isMdt ?? false,
-      specialtyId: body.isMdt ? (body.specialtyId ?? null) : null,
+      teamId: body.isMdt ? (body.teamId ?? null) : null,
     };
     db().meetings.push(meeting);
     for (const attendee of meeting.attendees ?? [])
@@ -423,7 +423,7 @@ export function registerCalendar() {
       return problem(409, 'Someone else changed this meeting meanwhile. Look at it again before changing it.');
     // `isMdt` left out of a change keeps it.
     const isMdt = body.isMdt ?? meeting.isMdt ?? false;
-    const input = meetingInput({...body, isMdt, specialtyId: body.specialtyId ?? meeting.specialtyId});
+    const input = meetingInput({...body, isMdt, teamId: body.teamId ?? meeting.teamId});
     const attendeeIds = (body.attendeeUserIds ?? []).filter((id) => id !== viewer.id && personById(id));
     Object.assign(meeting, input, {
       date: ukDateOf(input.startUtc),
@@ -431,7 +431,7 @@ export function registerCalendar() {
         (userId) => meeting.attendees?.find((a) => a.userId === userId) ?? {userId, username: usernameOf(userId), reply: 'NoReply', repliedAtUtc: null},
       ),
       isMdt,
-      specialtyId: isMdt ? (body.specialtyId ?? meeting.specialtyId ?? null) : null,
+      teamId: isMdt ? (body.teamId ?? meeting.teamId ?? null) : null,
       lastUpdated: nowUtc(),
     });
     return meetingResponse(meeting);

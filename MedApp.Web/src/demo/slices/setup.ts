@@ -2,14 +2,14 @@ import type {Schemas} from '../../api/client';
 import {PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
 import {ADMIN, PEOPLE, STAFF} from '../accounts';
-import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, SPECIALTIES, STAGES, TEMPLATES, USERS} from '../ids';
+import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, STAGES, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
 import {daysFrom, today, ukTime} from '../time';
 
 /**
  * The light demo's state for setup and admin: practices, sites and rooms with their hours, activity types, closed days,
- * calendar templates, clinic sessions and patterns, staff working hours, specialty memberships, roles, monitoring
+ * calendar templates, clinic sessions and patterns, staff working hours, team memberships, roles, monitoring
  * rules, the activity log, scheduled jobs, the security settings and the retention review. Fixed IDs are kinds 0xf0
  * to 0xf8 (`ids.ts`). Everything is synthetic: invented practices and sites, `ZZ` postcodes, Ofcom's drama numbers.
  */
@@ -148,7 +148,7 @@ export interface DemoClinicPattern {
   id: string;
   staffUserId: string;
   roomId: string;
-  specialtyId: string;
+  teamId: string;
   dayOfWeek: string;
   starts: string;
   ends: string;
@@ -163,7 +163,7 @@ export interface DemoClinicSession {
   id: string;
   staffUserId: string;
   roomId: string;
-  specialtyId: string;
+  teamId: string;
   patternId: string | null;
   date: string;
   startUtc: string;
@@ -227,7 +227,7 @@ export interface SetupSlice {
   usedTemplateIds: string[];
   clinicPatterns: DemoClinicPattern[];
   clinicSessions: DemoClinicSession[];
-  /** Each person's specialties, by user ID. */
+  /** Each person's teams, by user ID. */
   memberships: Record<string, string[]>;
   roles: DemoRole[];
   monitoringRules: DemoMonitoringRule[];
@@ -331,11 +331,11 @@ function seedPractices(state: BaseState, created: string): SetupSlice['practices
 
 function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
   const thisMonday = weekStart(today());
-  const pattern = (patternId: string, staffUserId: string, roomId: string, specialtyId: string, starts: string, ends: string, slotMinutes: number) => ({
+  const pattern = (patternId: string, staffUserId: string, roomId: string, teamId: string, starts: string, ends: string, slotMinutes: number) => ({
     id: patternId,
     staffUserId,
     roomId,
-    specialtyId,
+    teamId,
     dayOfWeek: 'Tuesday',
     starts,
     ends,
@@ -346,8 +346,8 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
     lastUpdated: ago(30),
   });
   const clinicPatterns: DemoClinicPattern[] = [
-    pattern(CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, SPECIALTIES.dermatology, clock(9), clock(12), 20),
-    pattern(CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, SPECIALTIES.diabetes, clock(13, 30), clock(15, 30), 15),
+    pattern(CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, clock(9), clock(12), 20),
+    pattern(CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, TEAMS.diabetes, clock(13, 30), clock(15, 30), 15),
   ];
   // The sessions the patterns made for this week and the next two, and a one-off session.
   const session = (
@@ -355,7 +355,7 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
     patternId: string | null,
     staffUserId: string,
     roomId: string,
-    specialtyId: string,
+    teamId: string,
     date: string,
     from: [number, number],
     to: [number, number],
@@ -364,7 +364,7 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
     id: id(0xf3, n),
     staffUserId,
     roomId,
-    specialtyId,
+    teamId,
     patternId,
     date,
     startUtc: ukTime(date, ...from),
@@ -380,12 +380,12 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
   for (const week of [0, 1, 2]) {
     const tuesday = addDays(thisMonday, week * 7 + 1);
     clinicSessions.push(
-      session(101 + week, CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, SPECIALTIES.dermatology, tuesday, [9, 0], [12, 0], 20),
-      session(201 + week, CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, SPECIALTIES.diabetes, tuesday, [13, 30], [15, 30], 15),
+      session(101 + week, CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, tuesday, [9, 0], [12, 0], 20),
+      session(201 + week, CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, TEAMS.diabetes, tuesday, [13, 30], [15, 30], 15),
     );
   }
   clinicSessions.push(
-    session(301, null, USERS.hallworth, ROOMS.procedureRoom, SPECIALTIES.dermatology, addDays(thisMonday, 10), [13, 30], [16, 30], 30),
+    session(301, null, USERS.hallworth, ROOMS.procedureRoom, TEAMS.dermatology, addDays(thisMonday, 10), [13, 30], [16, 30], 30),
   );
   return {clinicPatterns, clinicSessions};
 }
@@ -419,7 +419,7 @@ function seedActivityLog(): DemoActivityEntry[] {
   add(ago(2, 16, 30), 'PatientViewed', ADMIN.id, {patientId: PATIENTS.graceAbernethy});
   add(ago(1, 9, 5), 'SignInFailed', USERS.whitlock, {details: JSON.stringify({reason: 'InvalidCredentials'})});
   add(ago(1, 9, 6), 'SignedIn', USERS.whitlock);
-  add(ago(1, 10, 15), 'StaffSpecialtiesChanged', ADMIN.id, {targetUsername: 't.hallworth', details: JSON.stringify({from: [], to: ['Dermatology']})});
+  add(ago(1, 10, 15), 'TeamMembershipChanged', ADMIN.id, {targetUsername: 't.hallworth', details: JSON.stringify({from: [], to: ['Dermatology']})});
   add(ago(1, 15, 20), 'PatientViewed', STAFF.id, {patientId: PATIENTS.harrietQuill});
   add(ago(1, 15, 22), 'PathwayViewed', STAFF.id, {patientId: PATIENTS.harrietQuill, pathwayId: PATHWAYS.consentToRecord});
   add(ago(0, 8, 30), 'SignedIn', STAFF.id);
@@ -560,7 +560,7 @@ export function seedSetup(state: BaseState): SetupSlice {
     templateExceptions: [],
     usedTemplateIds: [DAY_TEMPLATES.adminEarlyTriage, WEEK_TEMPLATES.adminUsualWeek],
     ...seedClinics(),
-    memberships: Object.fromEntries(PEOPLE.map((person) => [person.id, [...person.specialtyIds]])),
+    memberships: Object.fromEntries(PEOPLE.map((person) => [person.id, [...person.teamIds]])),
     roles: ROLE_SPECS.map(([key, name, description, permissions]) => ({
       id: ROLES[key],
       name,
@@ -606,7 +606,7 @@ export function seedSetup(state: BaseState): SetupSlice {
         templateId: null,
         stageDefinitionId: null,
         thresholdDays: 2,
-        specialtyId: SPECIALTIES.dermatology,
+        teamId: TEAMS.dermatology,
         isEnabled: true,
         createdAtUtc: ago(10),
         updatedAtUtc: ago(10),

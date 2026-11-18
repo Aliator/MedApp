@@ -214,7 +214,7 @@ public sealed class PathwayChangeClockTests
         {
             Id = Guid.NewGuid(),
             Name = TemplateName,
-            SpecialtyId = SpecialtyId,
+            TeamId = TeamId,
             Maps =
             [
                 new PathwayTemplateMap { StageOrder = 1, StageDefinition = new PatientPathwayStageDefinition { Name = "One" } },

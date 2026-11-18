@@ -7,21 +7,21 @@ namespace MedApp.Application.Monitoring.ServiceAlerts;
 
 /// <summary>
 /// A service alert's notification (decision 135): one per rule and run, e.g. "3 Dermatology referrals have waited more
-/// than 2 days for triage." A fixed title; the message holds a count, days, and names admins chose (the specialty, and
+/// than 2 days for triage." A fixed title; the message holds a count, days, and names admins chose (the team, and
 /// for results the responsible clinician's username). Never a patient, a clinical value or free text. Its
-/// <see cref="Notification.SubjectId"/> is the rule's specialty, so the web app opens the list filtered to it.
+/// <see cref="Notification.SubjectId"/> is the rule's team, so the web app opens the list filtered to it.
 /// </summary>
 public static class ServiceAlertNotifications
 {
     public static Notification Create(
-        MonitoringRule rule, int count, string? specialtyName, string? responsibleUsername, DateTime nowUtc) => new()
+        MonitoringRule rule, int count, string? teamName, string? responsibleUsername, DateTime nowUtc) => new()
     {
         Id = Guid.NewGuid(),
         UserId = rule.OwnerUserId,
         Kind = KindOf(rule.Event),
         Title = TitleOf(rule.Event),
-        Message = MessageOf(rule.Event, count, rule.ThresholdDays ?? 0, specialtyName, responsibleUsername),
-        SubjectId = rule.SpecialtyId,
+        Message = MessageOf(rule.Event, count, rule.ThresholdDays ?? 0, teamName, responsibleUsername),
+        SubjectId = rule.TeamId,
         CreatedAtUtc = nowUtc
     };
 
@@ -49,13 +49,13 @@ public static class ServiceAlertNotifications
     };
 
     /// <summary>What the alert found, e.g. "3 Dermatology referrals have waited more than 2 days for triage."</summary>
-    public static string MessageOf(MonitoringEvent monitoringEvent, int count, int days, string? specialtyName, string? responsibleUsername)
+    public static string MessageOf(MonitoringEvent monitoringEvent, int count, int days, string? teamName, string? responsibleUsername)
     {
         var plural = count != 1;
-        var specialty = string.IsNullOrWhiteSpace(specialtyName) ? string.Empty : $"{specialtyName} ";
+        var team = string.IsNullOrWhiteSpace(teamName) ? string.Empty : $"{teamName} ";
         var have = plural ? "have" : "has";
         var are = plural ? "are" : "is";
-        string Things(string one, string many) => $"{count} {specialty}{(plural ? many : one)}";
+        string Things(string one, string many) => $"{count} {team}{(plural ? many : one)}";
         var moreThan = $"more than {Days(days)}";
 
         var message = monitoringEvent switch
@@ -76,8 +76,8 @@ public static class ServiceAlertNotifications
                 ? $"{Things("referral", "referrals")} {have} passed {(plural ? "their" : "its")} waiting-time target."
                 : $"{Things("referral", "referrals")} {are} within {Days(days)} of {(plural ? "their" : "its")} waiting-time target, or past it.",
             MonitoringEvent.PauseReviewPassed => days == 0
-                ? $"{count} paused {specialty}{(plural ? "referrals are" : "referral is")} past {(plural ? "their" : "its")} review date."
-                : $"{count} paused {specialty}{(plural ? "referrals are" : "referral is")} {moreThan} past {(plural ? "their" : "its")} review date.",
+                ? $"{count} paused {team}{(plural ? "referrals are" : "referral is")} past {(plural ? "their" : "its")} review date."
+                : $"{count} paused {team}{(plural ? "referrals are" : "referral is")} {moreThan} past {(plural ? "their" : "its")} review date.",
             _ => throw new ArgumentOutOfRangeException(nameof(monitoringEvent), monitoringEvent, "Not a service alert.")
         };
 

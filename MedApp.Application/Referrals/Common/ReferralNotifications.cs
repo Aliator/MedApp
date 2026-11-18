@@ -7,7 +7,7 @@ namespace MedApp.Application.Referrals.Common;
 /// <summary>
 /// What whoever registered a referral is told when it's triaged (<see cref="NotificationKind.ReferralTriaged"/>), so
 /// the booking team can tell the referrer. A fixed title, and a message from the triager's username, the outcome and
-/// the specialty (an admin-written name) only: never the patient, the reason, the detail or where it was sent.
+/// the team (an admin-written name) only: never the patient, the reason, the detail or where it was sent.
 /// </summary>
 public static class ReferralNotifications
 {
@@ -15,11 +15,11 @@ public static class ReferralNotifications
 
     /// <summary>
     /// The notification for the referral's registrant about the triage <paramref name="actor"/> just made, or null when
-    /// they triaged it themselves (they know already). <paramref name="previousSpecialtyName"/> is the specialty it was
+    /// they triaged it themselves (they know already). <paramref name="previousTeamName"/> is the team it was
     /// in before a redirection to another one here.
     /// </summary>
     public static Notification? Triaged(
-        Referral referral, PathwayActor actor, DateTime nowUtc, string? previousSpecialtyName = null)
+        Referral referral, PathwayActor actor, DateTime nowUtc, string? previousTeamName = null)
     {
         if (referral.RegisteredByUserId == actor.UserId)
             return null;
@@ -30,24 +30,24 @@ public static class ReferralNotifications
             UserId = referral.RegisteredByUserId,
             Kind = NotificationKind.ReferralTriaged,
             Title = TriagedTitle,
-            Message = Message(referral, actor.Username, previousSpecialtyName),
+            Message = Message(referral, actor.Username, previousTeamName),
             ReferralId = referral.Id,
             CreatedAtUtc = nowUtc
         };
     }
 
     /// <summary>"k.ashford accepted a Dermatology referral.", or for a move here, "... redirected a Dermatology referral to Urology."</summary>
-    public static string Message(Referral referral, string username, string? previousSpecialtyName = null)
+    public static string Message(Referral referral, string username, string? previousTeamName = null)
     {
-        var specialty = referral.Specialty?.Name ?? "specialty";
+        var team = referral.Team?.Name ?? "team";
         return referral.Status switch
         {
-            ReferralStatus.Accepted => $"{username} accepted {Article(specialty)} {specialty} referral.",
-            ReferralStatus.Rejected => $"{username} rejected {Article(specialty)} {specialty} referral.",
-            ReferralStatus.RedirectedElsewhere => $"{username} redirected {Article(specialty)} {specialty} referral elsewhere.",
-            _ when previousSpecialtyName is not null =>
-                $"{username} redirected {Article(previousSpecialtyName)} {previousSpecialtyName} referral to {specialty}.",
-            _ => $"{username} triaged {Article(specialty)} {specialty} referral."
+            ReferralStatus.Accepted => $"{username} accepted {Article(team)} {team} referral.",
+            ReferralStatus.Rejected => $"{username} rejected {Article(team)} {team} referral.",
+            ReferralStatus.RedirectedElsewhere => $"{username} redirected {Article(team)} {team} referral elsewhere.",
+            _ when previousTeamName is not null =>
+                $"{username} redirected {Article(previousTeamName)} {previousTeamName} referral to {team}.",
+            _ => $"{username} triaged {Article(team)} {team} referral."
         };
     }
 

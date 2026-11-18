@@ -61,7 +61,7 @@ public sealed class ClinicPatternRulesTests
         {
             StaffUserId = Guid.Empty,
             RoomId = Guid.Empty,
-            SpecialtyId = Guid.Empty,
+            TeamId = Guid.Empty,
             DayOfWeek = "Someday",
             Starts = new TimeOnly(5, 0),
             SlotMinutes = 7,
@@ -71,7 +71,7 @@ public sealed class ClinicPatternRulesTests
 
         result.ShouldHaveValidationErrorFor("StaffUserId");
         result.ShouldHaveValidationErrorFor("RoomId");
-        result.ShouldHaveValidationErrorFor("SpecialtyId");
+        result.ShouldHaveValidationErrorFor("TeamId");
         result.ShouldHaveValidationErrorFor("DayOfWeek").WithErrorMessage(HoursValidation.DayOfWeekMessage);
         result.ShouldHaveValidationErrorFor("Starts").WithErrorMessage(WorkingHours.OutsideBounds);
         result.ShouldHaveValidationErrorFor("SlotMinutes").WithErrorMessage(ClinicRules.SlotLength);
@@ -85,5 +85,5 @@ public sealed class ClinicPatternRulesTests
             .ShouldHaveValidationErrorFor("SlotMinutes").WithErrorMessage(ClinicRules.SlotsDontDivide);
 
     private static CreateClinicPatternCommand Command() => new(
-        StaffUserId, Guid.NewGuid(), SpecialtyId, "Monday", new TimeOnly(9, 0), new TimeOnly(12, 0), 20, 1, Today, null, AdminActor);
+        StaffUserId, Guid.NewGuid(), TeamId, "Monday", new TimeOnly(9, 0), new TimeOnly(12, 0), 20, 1, Today, null, AdminActor);
 }

@@ -146,8 +146,8 @@ function ruleResponse(rule: DemoMonitoringRule): Schemas['MonitoringRuleResponse
     templateName: state.templates.find((t) => t.id === rule.templateId)?.name ?? null,
     stageName: state.stageDefinitions.find((d) => d.id === rule.stageDefinitionId)?.name ?? null,
     thresholdDays: rule.thresholdDays ?? null,
-    specialtyId: rule.specialtyId ?? null,
-    specialtyName: state.specialties.find((s) => s.id === rule.specialtyId)?.name ?? null,
+    teamId: rule.teamId ?? null,
+    teamName: state.teams.find((s) => s.id === rule.teamId)?.name ?? null,
   };
 }
 
@@ -165,7 +165,7 @@ function ruleInput(body: Partial<Schemas['SaveMonitoringRuleRequest']>) {
   if (isAlert && body.event !== 'ResultNotSignedOff' && body.subjectUserId)
     errors.subjectUserId = ['A service alert is about the service, not one person (except results, for the responsible clinician).'];
   if (body.event === 'ReferralNotTriaged' && body.templateId) errors.templateId = ['A referral awaiting triage has no template yet.'];
-  if (body.specialtyId && !db().specialties.some((s) => s.id === body.specialtyId)) errors.specialtyId = ['Choose a specialty.'];
+  if (body.teamId && !db().teams.some((s) => s.id === body.teamId)) errors.teamId = ['Choose a team.'];
   if (body.event === 'StageUnlocked' && body.subjectUserId && !personById(body.subjectUserId)?.permissions.includes('UnlockStages'))
     errors.subjectUserId = ['Only someone who can unlock stages can unlock one.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
@@ -177,7 +177,7 @@ function ruleInput(body: Partial<Schemas['SaveMonitoringRuleRequest']>) {
     templateId: body.templateId || null,
     stageDefinitionId: hasStage ? body.stageDefinitionId || null : null,
     thresholdDays: isAlert ? (days ?? null) : null,
-    specialtyId: body.specialtyId || null,
+    teamId: body.teamId || null,
     isEnabled: body.isEnabled ?? true,
   };
 }

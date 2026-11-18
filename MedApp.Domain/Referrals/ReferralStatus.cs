@@ -3,7 +3,7 @@ namespace MedApp.Domain.Referrals;
 /// <summary>Where a referral is. Stored as its number, so never renumber these.</summary>
 public enum ReferralStatus
 {
-    /// <summary>Registered, waiting for a clinician of its specialty to triage it. Open, as <see cref="InformationRequested"/> is.</summary>
+    /// <summary>Registered, waiting for a clinician of its team to triage it. Open, as <see cref="InformationRequested"/> is.</summary>
     AwaitingTriage = 0,
 
     /// <summary>Accepted into a pathway (<see cref="Referral.PathwayId"/>).</summary>

@@ -92,23 +92,23 @@ public sealed class DemoReferenceDataTests
     }
 
     /// <summary>
-    /// Each specialty's waiting-time targets are ones the app accepts (1 to 365 days), shorter for higher priorities;
+    /// Each team's waiting-time targets are ones the app accepts (1 to 365 days), shorter for higher priorities;
     /// the new service, which nobody belongs to, isn't one of the centre's original five.
     /// </summary>
     [Test]
-    public void Specialties_TargetsAreValid_AndTheNewServiceHasNoMembers()
+    public void Teams_TargetsAreValid_AndTheNewServiceHasNoMembers()
     {
-        foreach (var name in DemoSpecialties.Names.Append(DemoSpecialties.NewService))
+        foreach (var name in DemoTeams.Names.Append(DemoTeams.NewService))
         {
-            var (urgent, high, medium, low) = DemoSpecialties.Targets(name);
+            var (urgent, high, medium, low) = DemoTeams.Targets(name);
             new[] { urgent, high, medium, low }.Should().OnlyContain(days => days >= 1 && days <= 365, name);
             urgent.Should().BeLessThanOrEqualTo(high);
             high.Should().BeLessThanOrEqualTo(medium);
             medium.Should().BeLessThanOrEqualTo(low);
         }
 
-        DemoSpecialties.Names.Should().NotContain(DemoSpecialties.NewService);
-        Enum.GetValues<StaffKind>().Should().OnlyContain(kind => !DemoSpecialties.For(kind).Contains(DemoSpecialties.NewService));
+        DemoTeams.Names.Should().NotContain(DemoTeams.NewService);
+        Enum.GetValues<StaffKind>().Should().OnlyContain(kind => !DemoTeams.For(kind).Contains(DemoTeams.NewService));
     }
 
     /// <summary>What staff "type" on referrals fits the app's limits, and the practices are distinct invented names.</summary>
@@ -126,9 +126,9 @@ public sealed class DemoReferenceDataTests
                 ReferralTexts.RejectionDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(Referral.MaxDetailLength);
             foreach (var reason in Enum.GetValues<ClockPauseReason>())
                 ReferralTexts.PauseDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(ReferralClockPause.MaxDetailLength);
-            foreach (var specialty in DemoSpecialties.Names)
+            foreach (var team in DemoTeams.Names)
             {
-                var (elsewhere, detail) = ReferralTexts.Elsewhere(specialty, random);
+                var (elsewhere, detail) = ReferralTexts.Elsewhere(team, random);
                 elsewhere.Length.Should().BeLessThanOrEqualTo(Referral.MaxRedirectedToLength);
                 detail.Length.Should().BeInRange(1, Referral.MaxDetailLength);
             }

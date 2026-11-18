@@ -2,7 +2,7 @@ namespace MedApp.Contracts.Letters.Requests;
 
 /// <summary>
 /// Starts a letter (a draft) from a template, about one of a patient's pathways or referrals (exactly one of the two).
-/// The template must be the pathway's or referral's specialty's, or for every specialty, and not archived; from a
+/// The template must be the pathway's or referral's team's, or for every team, and not archived; from a
 /// referral, it must be a referral response or a request for more information. It copies the template's text, and
 /// starts with the patient's registered practice and the patient as recipients.
 /// </summary>

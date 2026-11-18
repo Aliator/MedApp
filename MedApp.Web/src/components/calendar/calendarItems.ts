@@ -70,13 +70,13 @@ export const sessionKey = (id: string | undefined) => `session-${id}`;
 export const SESSION_COLOUR: TokenColor = 'purple';
 
 /**
- * A clinic session on a calendar: its specialty, room and how full it is ("Synthetic dermatology", "Room 2 · 4 of 9
+ * A clinic session on a calendar: its team, room and how full it is ("Synthetic dermatology", "Room 2 · 4 of 9
  * free"). It opens the session, with its slots; it's never dragged (it's moved, if at all, from its own dialog).
  */
 export function sessionItem(session: ClinicSession): CalendarGridItem {
   const start = session.startUtc ?? '';
   const end = session.endUtc ?? '';
-  const specialty = session.specialtyName ?? 'Clinic';
+  const team = session.teamName ?? 'Clinic';
   const sub = `${session.roomName ?? ''} · ${slotsWords(session)}`;
   return {
     key: sessionKey(session.id),
@@ -85,9 +85,9 @@ export function sessionItem(session: ClinicSession): CalendarGridItem {
     startUtc: start,
     endUtc: end,
     colour: SESSION_COLOUR,
-    label: specialty,
+    label: team,
     sublabel: sub,
-    description: `${specialty} clinic session, ${session.roomName ?? ''}, ${formatTimeRange(start, end)}, ${slotsWords(session)}`,
+    description: `${team} clinic session, ${session.roomName ?? ''}, ${formatTimeRange(start, end)}, ${slotsWords(session)}`,
   };
 }
 

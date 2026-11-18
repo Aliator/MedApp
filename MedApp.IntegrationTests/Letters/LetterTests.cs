@@ -14,7 +14,7 @@ using MedApp.Contracts.Practices.Requests;
 using MedApp.Contracts.Practices.Responses;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -322,13 +322,13 @@ public sealed class LetterTests : IntegrationTest
     public async Task Referral_AskForMoreInformation_WaitsInItsOwnView_ThenInformationReceivedPutsItBack()
     {
         var booking = await CreateStaffAsync("Booking");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/specialties", new SetUserSpecialtiesRequest([Specialty.GeneralId])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([Team.GeneralId])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         var patient = await CreatePatientAsync(_admin);
         var referral = await (await booking.Client.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
             {
                 PatientId = patient.Id,
-                SpecialtyId = Specialty.GeneralId,
+                TeamId = Team.GeneralId,
                 ReceivedOn = UkToday.AddDays(-2),
                 ReferrerPractice = "Synthetic Lane Surgery",
                 RequestedPriority = "Medium",

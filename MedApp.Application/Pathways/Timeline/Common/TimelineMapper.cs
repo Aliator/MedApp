@@ -29,7 +29,7 @@ public static class TimelineMapper
     /// <summary>The fields of a referral's edit whose values everyone sees (structured: never free text).</summary>
     private static readonly HashSet<string> ReferralValueFields =
     [
-        Referrals.Common.ReferralChange.SpecialtyField,
+        Referrals.Common.ReferralChange.TeamField,
         Referrals.Common.ReferralChange.ReceivedOnField,
         Referrals.Common.ReferralChange.RequestedPriorityField
     ];
@@ -183,11 +183,11 @@ public static class TimelineMapper
                 Result(response, entry.Action, details, isAdmin ? row.Result : null);
                 break;
 
-            // MDT items: the specialty (an admin-written name), the meetings' times and who was present, for everyone.
+            // MDT items: the team (an admin-written name), the meetings' times and who was present, for everyone.
             // The question and the outcome are never in the details, so neither is ever here (decision 70).
             case MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn:
                 response.MdtItemId = Guid.TryParse(Text(details, "mdtItemId"), out var mdtItemId) ? mdtItemId : null;
-                response.SpecialtyName = Text(details, "specialty");
+                response.TeamName = Text(details, "specialty");
                 response.MeetingStartUtc = Time(details, "meetingStartUtc");
                 response.PreviousMeetingStartUtc = Time(details, "fromMeetingStartUtc");
                 response.PresentUsernames = details.TryGetValue("present", out var present) && present.ValueKind == JsonValueKind.Array
@@ -462,9 +462,9 @@ public static class TimelineMapper
 
     /// <summary>
     /// One referral history entry: its action is "Referral" and what happened (e.g. ReferralRegistered), with its
-    /// specialty, the priority asked for, the status after it, and for an edit each field changed, with values for the
-    /// structured ones only (the specialty, date received and priority); for triage, the outcome, the template and
-    /// priority chosen, the pathway, the rejection reason by name and the specialty redirected from. The free text the
+    /// team, the priority asked for, the status after it, and for an edit each field changed, with values for the
+    /// structured ones only (the team, date received and priority); for triage, the outcome, the template and
+    /// priority chosen, the pathway, the rejection reason by name and the team redirected from. The free text the
     /// referral holds (its reason, referring practice, the detail given when it was triaged or closed, and where it was
     /// redirected elsewhere) is left out unless <paramref name="isAdmin"/>, and even then the history keeps no old text,
     /// so an edit's free-text fields come by name only.
@@ -481,7 +481,7 @@ public static class TimelineMapper
             AtUtc = entry.AtUtc,
             Username = entry.Username,
             ReferralId = entry.ReferralId,
-            SpecialtyName = details.SpecialtyName,
+            TeamName = details.TeamName,
             ReferrerPractice = isAdmin ? row.ReferrerPractice : null,
         };
 
@@ -534,8 +534,8 @@ public static class TimelineMapper
                 response.Reason = isAdmin ? row.DecisionDetail : null;
                 break;
 
-            case Domain.Referrals.ReferralEventAction.SpecialtyChanged:
-                response.PreviousSpecialtyName = details.PreviousSpecialtyName;
+            case Domain.Referrals.ReferralEventAction.TeamChanged:
+                response.PreviousTeamName = details.PreviousTeamName;
                 // The referral keeps the latest redirection's detail only.
                 response.Reason = isAdmin ? row.RedirectDetail : null;
                 break;
@@ -576,7 +576,7 @@ public static class TimelineMapper
     public static PatientTimelineReferralResponse ToReferralResponse(Domain.Referrals.Referral referral) => new()
     {
         ReferralId = referral.Id,
-        SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+        TeamName = referral.Team?.Name ?? string.Empty,
         ReceivedOn = referral.ReceivedOn,
         RequestedPriority = referral.RequestedPriority.ToString(),
     };

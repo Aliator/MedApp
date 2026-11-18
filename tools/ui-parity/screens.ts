@@ -264,7 +264,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'clinics-new-session-dialog',
-    title: 'New Clinic Session: clinician, day, start and end in their working day, slot length, room and specialty (not saved)',
+    title: 'New Clinic Session: clinician, day, start and end in their working day, slot length, room and team (not saved)',
     path: '/calendar/clinics',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New Session' }).click();
@@ -283,7 +283,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'clinic-pattern-dialog',
-    title: 'New Clinic Pattern: clinician, day and times, slots, how often, from and until, room and specialty (not saved)',
+    title: 'New Clinic Pattern: clinician, day and times, slots, how often, from and until, room and team (not saved)',
     path: '/calendar/clinics/patterns',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New Pattern' }).click();
@@ -458,8 +458,8 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathways-stage-reached',
-    title: 'Pathways waiting for histology: the Stage reached and Specialty filters ("Waiting for histology")',
-    path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.specialtyId ? `&specialty=${d.specialtyId}` : ''}`,
+    title: 'Pathways waiting for histology: the Stage reached and Team filters ("Waiting for histology")',
+    path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.teamId ? `&team=${d.teamId}` : ''}`,
   },
   { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
@@ -500,11 +500,11 @@ export const screens: Screen[] = [
   {
     name: 'referral-accept',
     title:
-      "Accepting a referral: the patient, the specialty's templates by name, an empty priority beside the one asked for (only opened, never confirmed; the page alone if the account can't triage it)",
+      "Accepting a referral: the patient, the team's templates by name, an empty priority beside the one asked for (only opened, never confirmed; the page alone if the account can't triage it)",
     path: '/referrals',
     prepare: async (page) => {
       await openFirstReferral(page);
-      // Only a member of the referral's specialty with Triage referrals sees Accept; the admin role doesn't have it.
+      // Only a member of the referral's team with Triage referrals sees Accept; the admin role doesn't have it.
       const accept = page.getByRole('button', { name: 'Accept', exact: true });
       if (await accept.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
         await accept.click();
@@ -798,13 +798,13 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'users-specialties',
-    title: "Edit specialties dialog: the active specialties, and archived ones the user has, theirs ticked (not saved)",
+    name: 'users-teams',
+    title: "Edit teams dialog: the active teams, and archived ones the user has, theirs ticked (not saved)",
     path: '/admin/users',
     prepare: async (page) => {
-      await rowAction(page, /edit specialties/i).click();
+      await rowAction(page, /edit teams/i).click();
       await waitVisible(page, DIALOG);
-      await page.getByRole('dialog').getByText('Loading specialties...').waitFor({ state: 'detached' });
+      await page.getByRole('dialog').getByText('Loading teams...').waitFor({ state: 'detached' });
       await settle(page);
     },
   },
@@ -878,13 +878,13 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },
+  { name: 'teams', title: 'Teams (admin): what templates belong to and staff work in, with what uses each', path: '/admin/teams' },
   {
-    name: 'specialty-dialog',
-    title: 'Edit specialty dialog, with its waiting-time targets (not saved)',
-    path: '/admin/specialties',
+    name: 'team-dialog',
+    title: 'Edit team dialog, with its waiting-time targets (not saved)',
+    path: '/admin/teams',
     prepare: async (page) => {
-      await rowAction(page, /edit specialty/i).click();
+      await rowAction(page, /edit team/i).click();
       await waitVisible(page, DIALOG);
     },
   },
@@ -921,7 +921,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'letter-templates-list',
-    title: "Letter templates (admin), archived ones shown too: every specialty's first, then by specialty",
+    title: "Letter templates (admin), archived ones shown too: every team's first, then by team",
     path: '/admin/letter-templates?status=any',
   },
   {
@@ -1047,9 +1047,9 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'admin-insights-specialty',
-    title: "Insights on one specialty: its pathways only, and only its templates to choose from",
-    path: (d) => `/admin/insights${d.specialtyId ? `?specialty=${d.specialtyId}` : ''}`,
+    name: 'admin-insights-team',
+    title: "Insights on one team: its pathways only, and only its templates to choose from",
+    path: (d) => `/admin/insights${d.teamId ? `?team=${d.teamId}` : ''}`,
     prepare: async (page) => {
       await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
       await settle(page);

@@ -19,9 +19,9 @@ public static class MonitoringTestConstants
 
     public const string BloodsStage = "Bloods";
 
-    public static readonly Guid RuleSpecialtyId = Guid.Parse("0000000c-0000-0000-0000-000000000005");
+    public static readonly Guid RuleTeamId = Guid.Parse("0000000c-0000-0000-0000-000000000005");
 
-    public const string RuleSpecialtyName = "Dermatology";
+    public const string RuleTeamName = "Dermatology";
 
     /// <summary>A switched-on rule, with no conditions unless given.</summary>
     public static MonitoringRule CreateRule(
@@ -34,7 +34,7 @@ public static class MonitoringTestConstants
         bool isEnabled = true,
         Guid? id = null,
         int? thresholdDays = null,
-        Guid? specialtyId = null) => new()
+        Guid? teamId = null) => new()
     {
         Id = id ?? Guid.NewGuid(),
         OwnerUserId = ownerId ?? OwnerId,
@@ -44,7 +44,7 @@ public static class MonitoringTestConstants
         TemplateId = templateId,
         StageDefinitionId = stageDefinitionId,
         ThresholdDays = thresholdDays,
-        SpecialtyId = specialtyId,
+        TeamId = teamId,
         IsEnabled = isEnabled,
         CreatedAtUtc = CreatedAtUtc,
         UpdatedAtUtc = CreatedAtUtc,

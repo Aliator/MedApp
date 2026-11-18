@@ -124,7 +124,7 @@ public sealed class DemoCalendarsTests
             Templates = new Dictionary<PathwayKind, PathwayTemplate>(),
             Definitions = new Dictionary<string, PatientPathwayStageDefinition>(),
             Rules = [],
-            Specialties = new Dictionary<Guid, MedApp.Domain.Specialties.Specialty>(),
+            Teams = new Dictionary<Guid, MedApp.Domain.Teams.Team>(),
         };
         var patients = Enumerable.Range(0, 5).Select(i => new PatientSeed
         {

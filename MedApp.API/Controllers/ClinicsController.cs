@@ -17,7 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Clinic sessions and patterns (centre plan decisions 123 to 127): a clinician's time in a room for a specialty, cut
+/// Clinic sessions and patterns (centre plan decisions 123 to 127): a clinician's time in a room for a team, cut
 /// into slots that appointments are booked into, and the patterns that make them when someone asks. Anyone signed in
 /// reads sessions; holders of ManageClinics add, change and cancel them and keep the patterns.
 /// </summary>
@@ -38,7 +38,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
             request.StaffUserId,
             request.SiteId,
             request.RoomId,
-            request.SpecialtyId,
+            request.TeamId,
             request.IncludeCancelled,
             request.WithFreeSlots,
             User.ToCalendarActor()), ct));
@@ -73,7 +73,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
         var session = await mediator.Send(new CreateClinicSessionCommand(
             request.StaffUserId,
             request.RoomId,
-            request.SpecialtyId,
+            request.TeamId,
             request.StartUtc,
             request.EndUtc,
             request.SlotMinutes,
@@ -83,8 +83,8 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Changes a session's room, specialty, time or slot length, from the version read (<c>expectedLastUpdated</c>, a 409
-    /// if it changed since). With appointments booked into it, only the room (if free) and the specialty can change.
+    /// Changes a session's room, team, time or slot length, from the version read (<c>expectedLastUpdated</c>, a 409
+    /// if it changed since). With appointments booked into it, only the room (if free) and the team can change.
     /// </summary>
     [HttpPut("sessions/{id:guid}")]
     [ProducesResponseType(typeof(ClinicSessionResponse), StatusCodes.Status200OK)]
@@ -96,7 +96,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new UpdateClinicSessionCommand(
             id,
             request.RoomId,
-            request.SpecialtyId,
+            request.TeamId,
             request.StartUtc,
             request.EndUtc,
             request.SlotMinutes,
@@ -142,7 +142,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
         var pattern = await mediator.Send(new CreateClinicPatternCommand(
             request.StaffUserId,
             request.RoomId,
-            request.SpecialtyId,
+            request.TeamId,
             request.DayOfWeek,
             request.Starts,
             request.Ends,
@@ -167,7 +167,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
             id,
             request.StaffUserId,
             request.RoomId,
-            request.SpecialtyId,
+            request.TeamId,
             request.DayOfWeek,
             request.Starts,
             request.Ends,

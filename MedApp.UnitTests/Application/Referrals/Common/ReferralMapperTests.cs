@@ -15,13 +15,13 @@ public sealed class ReferralMapperTests
     {
         var referral = CreateReferral(version: 2);
         var change = new ReferralChange(referral, Registrar, NowUtc);
-        change.Register(referral.Specialty);
+        change.Register(referral.Team);
 
         var response = ReferralMapper.ToResponse(referral, change.Events, letterCount: 1, Registrar);
 
         response.Patient!.Id.Should().Be(referral.PatientId);
         response.PatientFlags.Should().NotBeNull();
-        response.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        response.TeamName.Should().Be(TeamsTestConstants.TeamName);
         response.Reason.Should().Be(Reason);
         response.ReferrerPractice.Should().Be(Practice);
         response.RequestedPriority.Should().Be("High");
@@ -35,7 +35,7 @@ public sealed class ReferralMapperTests
         response.CanTriage.Should().BeFalse();
         response.WhyCantTriage.Should().Be(ReferralWorkflow.NoTriagePermissionMessage);
         response.History.Single().Action.Should().Be("Registered");
-        response.History.Single().SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        response.History.Single().TeamName.Should().Be(TeamsTestConstants.TeamName);
         response.History.Single().RequestedPriority.Should().Be("High");
     }
 
@@ -83,7 +83,7 @@ public sealed class ReferralMapperTests
     }
 
     [Test]
-    public void ToResponse_ATriagerInItsSpecialty_CanTriage()
+    public void ToResponse_ATriagerInItsTeam_CanTriage()
     {
         var response = ReferralMapper.ToResponse(CreateReferral(), [], 0, Triager, viewerIsMember: true);
 
@@ -92,12 +92,12 @@ public sealed class ReferralMapperTests
     }
 
     [Test]
-    public void ToResponse_ATriagerOutsideItsSpecialty_IsToldWhoCan()
+    public void ToResponse_ATriagerOutsideItsTeam_IsToldWhoCan()
     {
         var response = ReferralMapper.ToResponse(CreateReferral(), [], 0, Triager, viewerIsMember: false);
 
         response.CanTriage.Should().BeFalse();
-        response.WhyCantTriage.Should().Be(ReferralWorkflow.NotInSpecialtyMessage(SpecialtiesTestConstants.SpecialtyName));
+        response.WhyCantTriage.Should().Be(ReferralWorkflow.NotInTeamMessage(TeamsTestConstants.TeamName));
     }
 
     [Test]
@@ -149,7 +149,7 @@ public sealed class ReferralMapperTests
     }
 
     [Test]
-    public void ToPathwayReferral_GivesItsIdDateAndSpecialty()
+    public void ToPathwayReferral_GivesItsIdDateAndTeam()
     {
         var referral = CreateReferral();
 
@@ -157,7 +157,7 @@ public sealed class ReferralMapperTests
 
         response.Id.Should().Be(referral.Id);
         response.ReceivedOn.Should().Be(ReceivedOn);
-        response.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        response.TeamName.Should().Be(TeamsTestConstants.TeamName);
         response.Version.Should().Be(referral.Version);
         response.Clock!.DaysWaited.Should().Be(8);
     }
@@ -176,22 +176,22 @@ public sealed class ReferralMapperTests
         entry.Priority.Should().Be("Urgent");
         entry.TemplateName.Should().Be("Synthetic template");
         entry.PathwayId.Should().Be(pathwayId);
-        entry.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        entry.TeamName.Should().Be(TeamsTestConstants.TeamName);
     }
 
     [Test]
-    public void EventDetails_SpecialtyChanged_GivesBothSpecialties()
+    public void EventDetails_TeamChanged_GivesBothTeams()
     {
         var referral = CreateReferral();
-        var urology = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
+        var urology = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName);
         var change = new ReferralChange(referral, Triager, NowUtc);
-        change.RedirectToSpecialty(urology, Canary);
+        change.RedirectToTeam(urology, Canary);
 
         var entry = ReferralMapper.ToResponse(change.Events.Single());
 
-        entry.Action.Should().Be("SpecialtyChanged");
-        entry.SpecialtyName.Should().Be(SpecialtiesTestConstants.OtherSpecialtyName);
-        entry.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        entry.Action.Should().Be("TeamChanged");
+        entry.TeamName.Should().Be(TeamsTestConstants.OtherTeamName);
+        entry.PreviousTeamName.Should().Be(TeamsTestConstants.TeamName);
         change.Events.Single().Details.Should().NotContain(Canary);
     }
 
@@ -208,7 +208,7 @@ public sealed class ReferralMapperTests
         summary.DaysSinceReceived.Should().Be(2);
         summary.HasLetter.Should().BeFalse();
         summary.PatientName.Should().Be($"{closed.Patient.FirstName} {closed.Patient.LastName}");
-        summary.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        summary.TeamName.Should().Be(TeamsTestConstants.TeamName);
         summary.ReferrerPractice.Should().Be(Practice);
         summary.Status.Should().Be("Withdrawn");
     }
@@ -286,17 +286,17 @@ public sealed class ReferralSearchTests
         new(1, 10, sort, ascending, statuses, null, false, patientId, search, Registrar.UserId);
 
     [Test]
-    public void Filter_ByStatusPatientSpecialtyAndName()
+    public void Filter_ByStatusPatientTeamAndName()
     {
         var awaiting = CreateReferral();
         var withdrawn = CreateReferral(status: ReferralStatus.Withdrawn);
-        var other = CreateReferral(specialty: SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName));
+        var other = CreateReferral(team: TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName));
         other.Patient.FirstName = "Zelda";
         var all = new[] { awaiting, withdrawn, other }.AsQueryable();
 
         all.Filter(Query(["AwaitingTriage"]), null).Should().BeEquivalentTo([awaiting, other]);
         all.Filter(Query(patientId: withdrawn.PatientId), null).Should().Equal(withdrawn);
-        all.Filter(Query(), [other.SpecialtyId]).Should().Equal(other);
+        all.Filter(Query(), [other.TeamId]).Should().Equal(other);
         all.Filter(Query(search: "zeld"), null).Should().Equal(other);
     }
 

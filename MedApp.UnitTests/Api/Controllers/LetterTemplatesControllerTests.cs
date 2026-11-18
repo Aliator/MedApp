@@ -96,7 +96,7 @@ public sealed class LetterTemplatesControllerTests
         var mediator = new RecordingMediator(_ => template);
         var request = new CreateLetterTemplateRequest
         {
-            Name = TemplateName, Kind = "ClinicLetter", SpecialtyId = OtherId, Letterhead = Letterhead,
+            Name = TemplateName, Kind = "ClinicLetter", TeamId = OtherId, Letterhead = Letterhead,
             BodySkeleton = BodySkeleton, Closing = Closing
         };
 

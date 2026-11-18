@@ -61,12 +61,12 @@ describe('RetentionReviewPage', () => {
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1`]);
   });
 
-  it('shows a specialty class that set the period, and no longer warns that classes are missing', async () => {
+  it('shows a team class that set the period, and no longer warns that classes are missing', async () => {
     renderList({}, pageOf([{...items[0], retentionClass: 'MentalHealth'}], 1));
 
     const row = (await screen.findByRole('link', {name: 'Tamsin Rowcroft'})).closest('tr')!;
     expect(within(row).getByText('Mental health')).toBeInTheDocument();
-    expect(screen.queryByText(/Specialty retention periods not applied/)).toBeNull();
+    expect(screen.queryByText(/Team retention periods not applied/)).toBeNull();
   });
 
   it('lists records being kept too, from its switch, and asks for them', async () => {

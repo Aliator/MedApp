@@ -1,8 +1,8 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
@@ -11,7 +11,7 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Cr
 
 public sealed class CreatePathwayTemplateHandler(
     IPatientPathwayStagesRepository repository,
-    ISpecialtyRepository specialties)
+    ITeamRepository teams)
     : IRequestHandler<CreatePathwayTemplateCommand, PathwayTemplateResponse>
 {
     public async Task<PathwayTemplateResponse> Handle(
@@ -25,17 +25,17 @@ public sealed class CreatePathwayTemplateHandler(
         var definitions = await TemplateStages.CheckAsync(
             repository, request.StageDefinitionIdsInOrder, new HashSet<Guid>(), cancellationToken);
 
-        // An archived specialty can't be chosen (409); one that doesn't exist is a 404.
-        var specialty = (await SpecialtyRules.CheckChosenAsync(
-            specialties, [request.SpecialtyId], new HashSet<Guid>(), cancellationToken))[request.SpecialtyId];
+        // An archived team can't be chosen (409); one that doesn't exist is a 404.
+        var team = (await TeamRules.CheckChosenAsync(
+            teams, [request.TeamId], new HashSet<Guid>(), cancellationToken))[request.TeamId];
 
         var templateId = Guid.NewGuid();
         var template = new PathwayTemplate
         {
             Id = templateId,
             Name = name,
-            SpecialtyId = specialty.Id,
-            Specialty = specialty,
+            TeamId = team.Id,
+            Team = team,
             RetentionClass = request.RetentionClass is null
                 ? RetentionClass.Standard
                 : PathwayEnums.Parse<RetentionClass>(request.RetentionClass),

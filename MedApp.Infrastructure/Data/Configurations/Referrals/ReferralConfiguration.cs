@@ -51,16 +51,16 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
         builder.Property(x => x.RowVersion)
             .IsRowVersion();
 
-        // A patient with referrals can't be deleted (DeletePatientHandler), and a specialty with any is archived, not
+        // A patient with referrals can't be deleted (DeletePatientHandler), and a team with any is archived, not
         // deleted: the foreign keys refuse too, should either race the check.
         builder.HasOne(x => x.Patient)
             .WithMany()
             .HasForeignKey(x => x.PatientId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Specialty)
+        builder.HasOne(x => x.Team)
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // The pathway it was accepted into. Deleting that pathway clears this in the same save
@@ -83,8 +83,8 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
 
         builder.Property(x => x.StopReason);
 
-        // The inbox: a status's referrals in a specialty, longest wait first; and a patient's referrals.
-        builder.HasIndex(x => new { x.Status, x.SpecialtyId, x.WaitStartOn });
+        // The inbox: a status's referrals in a team, longest wait first; and a patient's referrals.
+        builder.HasIndex(x => new { x.Status, x.TeamId, x.WaitStartOn });
         builder.HasIndex(x => x.PatientId);
 
         // The Paused clocks view, by review date.

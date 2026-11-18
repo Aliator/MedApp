@@ -20,12 +20,12 @@ public static class ClinicPatternRules
 
     public const string AlreadyStarted = "That date's session would already have started.";
 
-    /// <summary>The field rules for a pattern's command (its shape; rooms, specialties and people are checked in the handler).</summary>
+    /// <summary>The field rules for a pattern's command (its shape; rooms, teams and people are checked in the handler).</summary>
     public static void Rules<T>(
         this AbstractValidator<T> validator,
         Func<T, Guid> staffUserId,
         Func<T, Guid> roomId,
-        Func<T, Guid> specialtyId,
+        Func<T, Guid> teamId,
         Func<T, string?> dayOfWeek,
         Func<T, TimeOnly> starts,
         Func<T, TimeOnly> ends,
@@ -36,7 +36,7 @@ public static class ClinicPatternRules
     {
         validator.RuleFor(x => staffUserId(x)).NotEmpty().WithMessage("Clinician is required.").OverridePropertyName("StaffUserId");
         validator.RuleFor(x => roomId(x)).NotEmpty().WithMessage("Room is required.").OverridePropertyName("RoomId");
-        validator.RuleFor(x => specialtyId(x)).NotEmpty().WithMessage("Specialty is required.").OverridePropertyName("SpecialtyId");
+        validator.RuleFor(x => teamId(x)).NotEmpty().WithMessage("Team is required.").OverridePropertyName("TeamId");
         validator.RuleFor(x => dayOfWeek(x))
             .Must(HoursValidation.IsDay)
             .WithMessage(HoursValidation.DayOfWeekMessage)

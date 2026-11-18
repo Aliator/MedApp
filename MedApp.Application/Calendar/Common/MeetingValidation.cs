@@ -12,13 +12,13 @@ public interface IMeetingCommand
     IReadOnlyList<Guid> AttendeeUserIds { get; }
 
     /// <summary>
-    /// Whether it's a specialty's MDT (multidisciplinary team meeting), which pathways can be listed for; null leaves a
+    /// Whether it's a team's MDT (multidisciplinary team meeting), which pathways can be listed for; null leaves a
     /// meeting as it is (so a page from before MDTs can't turn one into an ordinary meeting), and adds an ordinary one.
     /// </summary>
     bool? IsMdt { get; }
 
-    /// <summary>The MDT's specialty: required when <see cref="IsMdt"/>, ignored otherwise.</summary>
-    Guid? SpecialtyId { get; }
+    /// <summary>The MDT's team: required when <see cref="IsMdt"/>, ignored otherwise.</summary>
+    Guid? TeamId { get; }
 }
 
 /// <summary>
@@ -53,11 +53,11 @@ public abstract class MeetingValidation<T> : AbstractValidator<T> where T : IMee
             .Must(ids => ids.All(id => id != Guid.Empty))
             .WithMessage("Attendee ids must not be empty.");
 
-        RuleFor(x => x.SpecialtyId)
+        RuleFor(x => x.TeamId)
             .Must(id => id is not null && id != Guid.Empty)
             .When(x => x.IsMdt == true)
-            .WithMessage(MdtNeedsSpecialty);
+            .WithMessage(MdtNeedsTeam);
     }
 
-    public const string MdtNeedsSpecialty = "Choose the specialty whose MDT it is.";
+    public const string MdtNeedsTeam = "Choose the team whose MDT it is.";
 }

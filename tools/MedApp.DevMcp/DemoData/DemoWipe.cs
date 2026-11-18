@@ -1,5 +1,5 @@
 ﻿using MedApp.Domain.Sites;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
@@ -34,7 +34,7 @@ public static class DemoWipe
             await db.Database.CreateExecutionStrategy().ExecuteAsync(async cancellationToken =>
             {
                 await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-                // Children before parents: referral → patient/specialty/pathway, appointment → patient/pathway/stage,
+                // Children before parents: referral → patient/team/pathway, appointment → patient/pathway/stage,
                 // pathway → patient and stage/map → definition don't cascade; nor do calendar blocks and templates →
                 // activity type and day template.
                 // Letters first: they name patients, pathways, referrals and templates (recipients go with them).
@@ -59,10 +59,10 @@ public static class DemoWipe
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 // Clinic sessions (after the appointments booked into them), then the patterns that made them; both
-                // name rooms and specialties, which go below.
+                // name rooms and teams, which go below.
                 await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
                 await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
-                // MDT items (who was present cascades) before the meetings, pathways and specialties they name.
+                // MDT items (who was present cascades) before the meetings, pathways and teams they name.
                 await db.MdtItems.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
@@ -104,13 +104,13 @@ public static class DemoWipe
                 await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
-                // Letter templates point at specialties, so they go first.
+                // Letter templates point at teams, so they go first.
                 await db.LetterTemplates.ExecuteDeleteAsync(cancellationToken);
-                // Every specialty but General (which the migrations seeded), back as it was; memberships go first.
-                await db.StaffSpecialties.ExecuteDeleteAsync(cancellationToken);
-                await db.Specialties.Where(s => s.Id != Specialty.GeneralId).ExecuteDeleteAsync(cancellationToken);
-                await db.Specialties.Where(s => s.Id == Specialty.GeneralId).ExecuteUpdateAsync(u => u
-                    .SetProperty(s => s.Name, Specialty.GeneralName)
+                // Every team but General (which the migrations seeded), back as it was; memberships go first.
+                await db.TeamMemberships.ExecuteDeleteAsync(cancellationToken);
+                await db.Teams.Where(s => s.Id != Team.GeneralId).ExecuteDeleteAsync(cancellationToken);
+                await db.Teams.Where(s => s.Id == Team.GeneralId).ExecuteUpdateAsync(u => u
+                    .SetProperty(s => s.Name, Team.GeneralName)
                     .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);

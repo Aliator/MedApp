@@ -5,8 +5,8 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Insights.Common;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
-using MedApp.Domain.Specialties;
+using MedApp.Application.Teams.Repositories;
+using MedApp.Domain.Teams;
 using MedApp.Contracts.Pathways.Insights.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
@@ -24,7 +24,7 @@ public sealed class GetPathwayInsightsHandlerTests
     private Mock<IPathwayInsightsRepository> _repository = null!;
     private Mock<IPatientPathwayStagesRepository> _stages = null!;
     private Mock<IIdentityReadService> _identity = null!;
-    private Mock<ISpecialtyRepository> _specialties = null!;
+    private Mock<ITeamRepository> _teams = null!;
 
     private static readonly InsightsScope TemplateScope = new(TemplateId);
 
@@ -35,7 +35,7 @@ public sealed class GetPathwayInsightsHandlerTests
         _repository = new Mock<IPathwayInsightsRepository>();
         _stages = new Mock<IPatientPathwayStagesRepository>();
         _identity = new Mock<IIdentityReadService>();
-        _specialties = new Mock<ISpecialtyRepository>();
+        _teams = new Mock<ITeamRepository>();
 
         _repository.Setup(r => r.GetStatusCountsAsync(It.IsAny<InsightsScope>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _repository.Setup(r => r.GetStatusCountsAtAsync(It.IsAny<InsightsScope>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
@@ -53,13 +53,13 @@ public sealed class GetPathwayInsightsHandlerTests
                 (IReadOnlyDictionary<Guid, string>)Usernames.Where(kv => ids.Contains(kv.Key)).ToDictionary());
         _stages.Setup(s => s.GetPathwayTemplateByIdAsync(TemplateId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateTemplate());
-        _specialties.Setup(s => s.GetAsync(SpecialtyId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Specialty { Id = SpecialtyId, Name = "Dermatology" });
+        _teams.Setup(s => s.GetAsync(TeamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Team { Id = TeamId, Name = "Dermatology" });
 
         _fixture.Inject(_repository.Object);
         _fixture.Inject(_stages.Object);
         _fixture.Inject(_identity.Object);
-        _fixture.Inject(_specialties.Object);
+        _fixture.Inject(_teams.Object);
         _fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
     }
 
@@ -138,21 +138,21 @@ public sealed class GetPathwayInsightsHandlerTests
     }
 
     [Test]
-    public async Task Handle_Specialty_PassesCancellationTokenToItsLookUp()
+    public async Task Handle_Team_PassesCancellationTokenToItsLookUp()
     {
         using var cts = new CancellationTokenSource();
 
-        await Handle(new GetPathwayInsightsQuery(4, null, SpecialtyId), cts.Token);
+        await Handle(new GetPathwayInsightsQuery(4, null, TeamId), cts.Token);
 
-        _specialties.Verify(s => s.GetAsync(SpecialtyId, cts.Token));
+        _teams.Verify(s => s.GetAsync(TeamId, cts.Token));
     }
 
     [Test]
-    public async Task Handle_Specialty_AsksForEachTotalInItAndSaysSo()
+    public async Task Handle_Team_AsksForEachTotalInItAndSaysSo()
     {
-        var response = await Handle(new GetPathwayInsightsQuery(4, TemplateId, SpecialtyId));
+        var response = await Handle(new GetPathwayInsightsQuery(4, TemplateId, TeamId));
 
-        var scope = new InsightsScope(TemplateId, SpecialtyId);
+        var scope = new InsightsScope(TemplateId, TeamId);
         _repository.Verify(r => r.GetStatusCountsAsync(scope, Now, It.IsAny<CancellationToken>()));
         _repository.Verify(r => r.GetStatusCountsAtAsync(scope, Now.AddDays(-7), It.IsAny<CancellationToken>()));
         _repository.Verify(r => r.CountCompletionsAsync(scope, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -161,18 +161,18 @@ public sealed class GetPathwayInsightsHandlerTests
         _repository.Verify(r => r.CountCreationsByHourAsync(scope, It.IsAny<DateTime>(), Now, It.IsAny<CancellationToken>()));
         _repository.Verify(r => r.CountCompletionsByHourAsync(scope, It.IsAny<DateTime>(), Now, It.IsAny<CancellationToken>()));
         _repository.Verify(r => r.GetStageDurationsAsync(scope, It.IsAny<DateTime>(), Now, It.IsAny<CancellationToken>()));
-        response.SpecialtyId.Should().Be(SpecialtyId);
+        response.TeamId.Should().Be(TeamId);
         response.TemplateId.Should().Be(TemplateId);
     }
 
     [Test]
-    public async Task Handle_UnknownSpecialty_ThrowsNotFound()
+    public async Task Handle_UnknownTeam_ThrowsNotFound()
     {
         var unknown = Guid.NewGuid();
 
         var act = () => Handle(new GetPathwayInsightsQuery(4, null, unknown));
 
-        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Specialty '{unknown}' was not found.");
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Team '{unknown}' was not found.");
         _repository.VerifyNoOtherCalls();
     }
 }

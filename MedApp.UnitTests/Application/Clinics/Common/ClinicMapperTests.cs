@@ -13,7 +13,7 @@ namespace MedApp.UnitTests.Application.Clinics.Common;
 public sealed class ClinicMapperTests
 {
     [Test]
-    public void ToResponse_MapsEveryFieldWithItsRoomSiteAndSpecialty()
+    public void ToResponse_MapsEveryFieldWithItsRoomSiteAndTeam()
     {
         var session = CreateSession();
 
@@ -28,8 +28,8 @@ public sealed class ClinicMapperTests
             RoomName = SitesTestConstants.RoomName,
             SiteId = SitesTestConstants.SiteId,
             SiteName = SitesTestConstants.SiteName,
-            SpecialtyId,
-            SpecialtyName,
+            TeamId,
+            TeamName,
             Date = NextMonday,
             StartUtc = At(NextMonday, 9),
             EndUtc = At(NextMonday, 12),
@@ -125,7 +125,7 @@ public sealed class ClinicMapperTests
             StaffUsername,
             RoomName = SitesTestConstants.RoomName,
             SiteName = SitesTestConstants.SiteName,
-            SpecialtyName,
+            TeamName,
             DayOfWeek = "Monday",
             Starts = new TimeOnly(9, 0),
             Ends = new TimeOnly(12, 0),

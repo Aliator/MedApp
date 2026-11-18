@@ -9,11 +9,11 @@ public sealed class LetterTemplateResponse
     /// <summary>What letters from it are for, by name (<c>ClinicLetter</c>, <c>DischargeSummary</c>, ...).</summary>
     public string Kind { get; set; } = string.Empty;
 
-    /// <summary>The specialty it's for, or null for every specialty.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>The team it's for, or null for every team.</summary>
+    public Guid? TeamId { get; set; }
 
-    /// <summary>That specialty's name, or null for every specialty.</summary>
-    public string? SpecialtyName { get; set; }
+    /// <summary>That team's name, or null for every team.</summary>
+    public string? TeamName { get; set; }
 
     public string Letterhead { get; set; } = string.Empty;
     public string BodySkeleton { get; set; } = string.Empty;

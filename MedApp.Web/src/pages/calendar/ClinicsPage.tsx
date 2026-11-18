@@ -49,7 +49,7 @@ export interface ClinicsPageProps {
 
 /**
  * Clinics (`/calendar/clinics`, centre plan decisions 123 to 127): a week's clinic sessions by day, then time and room,
- * each with its clinician, specialty and how full it is; narrowed to one site if chosen. Opening one shows its slots,
+ * each with its clinician, team and how full it is; narrowed to one site if chosen. Opening one shows its slots,
  * and who is booked into each, where a free slot can be booked. Holders of ManageClinics add sessions (New Session),
  * change or cancel them from their dialog, and keep the clinic patterns (Clinic Patterns). The week and site are in the
  * address, so a week is a link.
@@ -100,7 +100,7 @@ export function ClinicsPage({search, onSearchChange}: ClinicsPageProps) {
       ),
     },
     {key: 'clinician', header: 'Clinician', width: proportional(1, {minWidth: 130}), renderCell: (s) => <Text type="body">{s.staffUsername}</Text>},
-    {key: 'specialty', header: 'Specialty', width: proportional(1, {minWidth: 140}), renderCell: (s) => <Text type="body">{s.specialtyName}</Text>},
+    {key: 'team', header: 'Team', width: proportional(1, {minWidth: 140}), renderCell: (s) => <Text type="body">{s.teamName}</Text>},
     {
       key: 'slots',
       header: 'Slots',
@@ -119,7 +119,7 @@ export function ClinicsPage({search, onSearchChange}: ClinicsPageProps) {
       width: pixel(100),
       renderCell: (s) => (
         <Button
-          label={`Open the ${s.specialtyName} session, ${formatShortDay(s.date ?? '')} ${formatTimeRange(s.startUtc ?? '', s.endUtc ?? '')}, ${s.roomName}`}
+          label={`Open the ${s.teamName} session, ${formatShortDay(s.date ?? '')} ${formatTimeRange(s.startUtc ?? '', s.endUtc ?? '')}, ${s.roomName}`}
           variant="secondary"
           size="sm"
           onClick={() => open(s.id)}>

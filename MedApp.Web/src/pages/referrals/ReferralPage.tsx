@@ -49,7 +49,7 @@ const TRIAGED = ['Accepted', 'Rejected', 'RedirectedElsewhere'];
 
 /**
  * What the Triage section says: that it's been triaged, or closed without triage; for a triager, what they can do; for
- * anyone else, the API's reason they can't (`whyCantTriage`: not a member of the specialty, or without the permission).
+ * anyone else, the API's reason they can't (`whyCantTriage`: not a member of the team, or without the permission).
  */
 export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canTriage' | 'whyCantTriage'>): string {
   if (!referral.isOpen) {
@@ -62,7 +62,7 @@ export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canT
     return referral.status === 'InformationRequested'
       ? 'More information has been asked of the referrer. Record it when it arrives; meanwhile you can still accept, reject or redirect it.'
       : 'Read the referral and its letter, then decide: accept it into a pathway, reject it, or redirect it.';
-  return referral.whyCantTriage?.trim() || 'Only a member of its specialty who can triage referrals can accept, reject or redirect it.';
+  return referral.whyCantTriage?.trim() || 'Only a member of its team who can triage referrals can accept, reject or redirect it.';
 }
 
 const ANNOUNCED: Record<ReferralClosing, string> = {withdraw: 'Referral withdrawn', enteredInError: 'Referral marked entered in error'};
@@ -71,14 +71,14 @@ const ANNOUNCED: Record<ReferralClosing, string> = {withdraw: 'Referral withdraw
 type Triage = 'accept' | 'reject' | 'redirect' | ReferralInformationStep;
 
 /**
- * One referral (`/referrals/$id`): the patient's banner, then its details as typed from the letter (the specialty, when
+ * One referral (`/referrals/$id`): the patient's banner, then its details as typed from the letter (the team, when
  * it was received, the referrer and the reason), what became of it, the letter (attached here: "No letter attached
  * yet" until it is), triage and its history in words. While it awaits triage, Edit Details, and in the More menu
  * Withdraw and Entered in Error, each asking for a detail with the patient shown, as the API's flags (`canEdit`,
  * `canClose`) allow. A change someone made meanwhile is a 409, shown in the API's words with Reload.
  *
  * **Triage** (decisions 18 to 25): for whoever can triage it (`canTriage`: TriageReferrals, and a member of its
- * specialty), Accept, Reject and Redirect, each a form then Check and Confirm with the patient shown (hazard H-41).
+ * team), Accept, Reject and Redirect, each a form then Check and Confirm with the patient shown (hazard H-41).
  * Nothing is suggested: the clinician decides and the app records. Anyone else is told why they can't
  * (`whyCantTriage`). Accepting opens the new pathway's page.
  *
@@ -153,7 +153,7 @@ export function ReferralPage({id}: {id: string}) {
 
   return (
     <Page
-      title={referral ? `Referral to ${referral.specialtyName}` : 'Referral'}
+      title={referral ? `Referral to ${referral.teamName}` : 'Referral'}
       backHref="/referrals"
       backLabel="Back to referrals"
       isLoading={isPending}
@@ -231,7 +231,7 @@ export function ReferralPage({id}: {id: string}) {
                 referral={referral}
                 onCancel={() => setTriage(null)}
                 onRedirected={(redirected) => {
-                  announce(redirected.isOpen ? `Referral redirected to ${redirected.specialtyName}` : 'Referral redirected elsewhere');
+                  announce(redirected.isOpen ? `Referral redirected to ${redirected.teamName}` : 'Referral redirected elsewhere');
                   setTriage(null);
                 }}
               />
@@ -268,7 +268,7 @@ export function ReferralPage({id}: {id: string}) {
   }
 
   /**
-   * The waiting-time clock (decisions 27 to 38): the wait against the specialty's target, the target date, Breached,
+   * The waiting-time clock (decisions 27 to 38): the wait against the team's target, the target date, Breached,
    * Paused (with its review date) or Stopped and why, and every pause. Pausing and resuming are on its pathway's page,
    * where the pathway's target date moves with them.
    */
@@ -340,7 +340,7 @@ export function ReferralPage({id}: {id: string}) {
       onToggle: () => toggle('letters'),
       children: (
         <Section variant="transparent" padding={6}>
-          <LettersAbout about={{referralId: referral.id ?? id}} specialtyId={referral.specialtyId} patient={referral.patient} isLocked={isLocked} />
+          <LettersAbout about={{referralId: referral.id ?? id}} teamId={referral.teamId} patient={referral.patient} isLocked={isLocked} />
         </Section>
       ),
     };
@@ -395,7 +395,7 @@ export function ReferralPage({id}: {id: string}) {
             patientId={referral.patientId ?? ''}
             canRegister={false}
             exceptReferralId={referral.id ?? id}
-            sameSpecialtyId={referral.specialtyId}
+            sameTeamId={referral.teamId}
           />
         </Section>
       ),
@@ -450,7 +450,7 @@ const latest = (referral: Referral, action: string): ReferralEvent | undefined =
 function ReferralDetails({referral}: {referral: Referral}) {
   const isDecided = Boolean(referral.decidedAtUtc);
   const accepted = referral.status === 'Accepted' ? latest(referral, 'Accepted') : undefined;
-  const redirectedFrom = latest(referral, 'SpecialtyChanged')?.previousSpecialtyName;
+  const redirectedFrom = latest(referral, 'TeamChanged')?.previousTeamName;
   return (
     <VStack gap={6} hAlign="stretch">
       <MetadataList columns={2} label={{position: 'top'}}>
@@ -460,7 +460,7 @@ function ReferralDetails({referral}: {referral: Referral}) {
         <MetadataListItem label="Priority asked for">
           <PriorityToken priority={referral.requestedPriority ?? ''} />
         </MetadataListItem>
-        <MetadataListItem label="Specialty">{shown(referral.specialtyName)}</MetadataListItem>
+        <MetadataListItem label="Team">{shown(referral.teamName)}</MetadataListItem>
         <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
         {/* "(from the directory)" when staff chose it from the GP practice directory, not only typed it. */}
         <MetadataListItem label="Practice">
@@ -484,7 +484,7 @@ function ReferralDetails({referral}: {referral: Referral}) {
       {referral.redirectDetail?.trim() && (
         <VStack gap={1} hAlign="stretch">
           <Text type="body" weight="semibold">
-            {`Redirected from ${redirectedFrom ?? 'another specialty'}`}
+            {`Redirected from ${redirectedFrom ?? 'another team'}`}
           </Text>
           <Text type="body" style={PRESERVE_LINES}>
             {referral.redirectDetail}

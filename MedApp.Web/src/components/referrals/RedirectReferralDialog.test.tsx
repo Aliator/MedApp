@@ -1,17 +1,17 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {isDisabled, json, mockApi, openDialog, renderWithApp, userWithRoles} from '../../test/render';
-import {REFERRAL_ID, SPECIALTIES, testReferral, UROLOGY_ID} from '../../test/referrals';
+import {REFERRAL_ID, TEAMS, testReferral, UROLOGY_ID} from '../../test/referrals';
 import {RedirectReferralDialog} from './RedirectReferralDialog';
 
 const REDIRECT = `POST /api/referrals/${REFERRAL_ID}/redirect`;
 const clinician = userWithRoles('d.clinician', 'Clinician');
 const CARDIOLOGY = {id: 'cardio', name: 'cardiology', isArchived: false, version: 1};
 const ARCHIVED = {id: 'old', name: 'Old clinic', isArchived: true, version: 1};
-const redirected = testReferral({specialtyId: UROLOGY_ID, specialtyName: 'Urology'});
+const redirected = testReferral({teamId: UROLOGY_ID, teamName: 'Urology'});
 
 function render(handlers: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
-    'GET /api/specialties': () => json([...SPECIALTIES, CARDIOLOGY, ARCHIVED]),
+    'GET /api/teams': () => json([...TEAMS, CARDIOLOGY, ARCHIVED]),
     [REDIRECT]: () => json(redirected),
     [`GET /api/referrals/${REFERRAL_ID}`]: () => json(testReferral()),
     ...handlers,
@@ -29,30 +29,30 @@ const dialog = () => within(openDialog()!);
 const posted = async (fetch: ReturnType<typeof mockApi>) => (fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!).json();
 
 describe('RedirectReferralDialog', () => {
-  it('starts with nowhere chosen, and offers the other specialties in use, by name', async () => {
+  it('starts with nowhere chosen, and offers the other teams in use, by name', async () => {
     const {user} = render();
 
     expect(await screen.findByRole('heading', {name: 'Redirect Referral'})).toBeInTheDocument();
     expect(dialog().getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
-    expect(dialog().getByRole('radio', {name: /Another specialty here/})).not.toBeChecked();
+    expect(dialog().getByRole('radio', {name: /Another clinic here/})).not.toBeChecked();
     expect(dialog().getByRole('radio', {name: /Elsewhere/})).not.toBeChecked();
-    expect(dialog().queryByRole('combobox', {name: /Specialty/})).not.toBeInTheDocument();
+    expect(dialog().queryByRole('combobox', {name: /Clinic/})).not.toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Continue'}))).toBe(true);
 
-    await user.click(dialog().getByRole('radio', {name: /Another specialty here/}));
-    const specialty = dialog().getByRole('combobox', {name: /Specialty/});
-    expect(specialty).toHaveTextContent('Choose a specialty');
-    await waitFor(() => expect(isDisabled(specialty)).toBe(false));
-    await user.click(specialty);
+    await user.click(dialog().getByRole('radio', {name: /Another clinic here/}));
+    const team = dialog().getByRole('combobox', {name: /Clinic/});
+    expect(team).toHaveTextContent('Choose a team');
+    await waitFor(() => expect(isDisabled(team)).toBe(false));
+    await user.click(team);
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['cardiology', 'Urology']);
   });
 
-  it('redirects to another specialty here after checking, with why', async () => {
+  it('redirects to another team here after checking, with why', async () => {
     const {user, fetch, onRedirected} = render();
 
     await screen.findByRole('heading', {name: 'Redirect Referral'});
-    await user.click(dialog().getByRole('radio', {name: /Another specialty here/}));
-    await user.click(dialog().getByRole('combobox', {name: /Specialty/}));
+    await user.click(dialog().getByRole('radio', {name: /Another clinic here/}));
+    await user.click(dialog().getByRole('combobox', {name: /Clinic/}));
     await user.click(await screen.findByRole('option', {name: 'Urology'}));
     expect(isDisabled(dialog().getByRole('button', {name: 'Continue'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /Why/}), 'Synthetic: a urology problem.');
@@ -65,7 +65,7 @@ describe('RedirectReferralDialog', () => {
     await user.click(dialog().getByRole('button', {name: 'Redirect Referral'}));
 
     await waitFor(() => expect(onRedirected).toHaveBeenCalledWith(redirected));
-    expect(await posted(fetch)).toEqual({specialtyId: UROLOGY_ID, elsewhere: null, detail: 'Synthetic: a urology problem.', expectedVersion: 2});
+    expect(await posted(fetch)).toEqual({teamId: UROLOGY_ID, elsewhere: null, detail: 'Synthetic: a urology problem.', expectedVersion: 2});
   }, 15_000);
 
   it('redirects elsewhere, closing it', async () => {
@@ -85,7 +85,7 @@ describe('RedirectReferralDialog', () => {
     await user.click(dialog().getByRole('button', {name: 'Continue'}));
     await user.click(await dialog().findByRole('button', {name: 'Redirect Referral'}));
     await waitFor(async () =>
-      expect(await posted(fetch)).toEqual({specialtyId: null, elsewhere: 'Synthetic Community Service', detail: 'Seen closer to home.', expectedVersion: 2}),
+      expect(await posted(fetch)).toEqual({teamId: null, elsewhere: 'Synthetic Community Service', detail: 'Seen closer to home.', expectedVersion: 2}),
     );
   }, 15_000);
 
@@ -111,12 +111,12 @@ describe('RedirectReferralDialog', () => {
     expect(await dialog().findByText('Someone changed this referral meanwhile.')).toBeInTheDocument();
   }, 15_000);
 
-  it('says when there is no other specialty, and cancels', async () => {
-    const {user, onCancel} = render({'GET /api/specialties': () => json([SPECIALTIES[0]])});
+  it('says when there is no other team, and cancels', async () => {
+    const {user, onCancel} = render({'GET /api/teams': () => json([TEAMS[0]])});
 
     await screen.findByRole('heading', {name: 'Redirect Referral'});
-    await user.click(dialog().getByRole('radio', {name: /Another specialty here/}));
-    expect(await dialog().findByText("There's no other specialty here to redirect it to.")).toBeInTheDocument();
+    await user.click(dialog().getByRole('radio', {name: /Another clinic here/}));
+    expect(await dialog().findByText("There's no other clinic here to redirect it to.")).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     expect(onCancel).toHaveBeenCalled();
   });

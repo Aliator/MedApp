@@ -62,7 +62,7 @@ public sealed class LetterRecords(
     public Task<Domain.Pathways.PatientPathways.PatientPathway?> GetPathwayAsync(Guid id, CancellationToken ct) =>
         pathways.GetByIdAsync(id, ct);
 
-    /// <summary>A referral to write a letter about, with its patient and specialty, read-only.</summary>
+    /// <summary>A referral to write a letter about, with its patient and team, read-only.</summary>
     public Task<Referral?> GetReferralAsync(Guid id, CancellationToken ct) => referrals.GetByIdAsync(id, ct);
 
     /// <summary>A letter with its patient and its pathway or referral; tracked for changes when <paramref name="forUpdate"/>. 404 if there's none.</summary>

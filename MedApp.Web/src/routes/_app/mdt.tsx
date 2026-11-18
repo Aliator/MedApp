@@ -7,7 +7,7 @@ import {parseMdtSearch} from '../../pages/mdt/mdtSearch';
 export const Route = createFileRoute('/_app/mdt')({
   beforeLoad: requirePermission('ViewPatients'),
   validateSearch: parseMdtSearch,
-  loaderDeps: ({search}) => ({specialty: search.specialty}),
+  loaderDeps: ({search}) => ({team: search.team}),
   loader: ({context, deps}) => preloadMdtPage(context.queryClient, deps),
   component: function MdtRoute() {
     const navigate = Route.useNavigate();

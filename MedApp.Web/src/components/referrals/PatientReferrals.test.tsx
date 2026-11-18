@@ -9,8 +9,8 @@ describe('PatientReferrals', () => {
       'GET /api/referrals/search': () =>
         json({
           items: [
-            testReferralSummary({id: 'closed', status: 'Withdrawn', specialtyName: 'Urology'}),
-            testReferralSummary({id: 'open', specialtyName: 'Dermatology'}),
+            testReferralSummary({id: 'closed', status: 'Withdrawn', teamName: 'Urology'}),
+            testReferralSummary({id: 'open', teamName: 'Dermatology'}),
           ],
           totalCount: 23,
         }),
@@ -36,17 +36,17 @@ describe('PatientReferrals', () => {
       'GET /api/referrals/search': () =>
         json({
           items: [
-            testReferralSummary({id: 'this-one', specialtyName: 'Dermatology'}),
-            testReferralSummary({id: 'other', status: 'Rejected', specialtyId: UROLOGY_ID, specialtyName: 'Urology'}),
+            testReferralSummary({id: 'this-one', teamName: 'Dermatology'}),
+            testReferralSummary({id: 'other', status: 'Rejected', teamId: UROLOGY_ID, teamName: 'Urology'}),
           ],
           totalCount: 2,
         }),
     });
-    renderWithApp(<PatientReferrals patientId={REFERRAL_PATIENT_ID} canRegister={false} exceptReferralId="this-one" sameSpecialtyId={UROLOGY_ID} />, {user: staffUser});
+    renderWithApp(<PatientReferrals patientId={REFERRAL_PATIENT_ID} canRegister={false} exceptReferralId="this-one" sameTeamId={UROLOGY_ID} />, {user: staffUser});
 
     const links = await screen.findAllByRole('link', {name: /^Referral to/});
     expect(links.map((link) => link.textContent)).toEqual(['Referral to Urology']);
-    expect(screen.getByText('Same specialty')).toBeInTheDocument();
+    expect(screen.getByText('Same clinic')).toBeInTheDocument();
     expect(screen.queryByText(/older referral/)).not.toBeInTheDocument();
   });
 

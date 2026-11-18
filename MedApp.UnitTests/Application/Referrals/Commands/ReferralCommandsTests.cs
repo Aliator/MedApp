@@ -9,10 +9,10 @@ using MedApp.Application.Referrals.Commands.RegisterReferral;
 using MedApp.Application.Referrals.Commands.WithdrawReferral;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -25,14 +25,14 @@ public abstract class ReferralCommandTestBase
 {
     protected Mock<IReferralRepository> Repository { get; private set; } = null!;
     protected Mock<IPatientRepository> Patients { get; private set; } = null!;
-    protected Mock<ISpecialtyRepository> Specialties { get; set; } = null!;
+    protected Mock<ITeamRepository> Teams { get; set; } = null!;
     protected Mock<IPracticeRepository> Practices { get; set; } = null!;
     protected MedApp.Domain.Practices.Practice DirectoryPractice { get; private set; } = null!;
     protected FixedTimeProvider Clock { get; } = new(NowUtc);
     protected List<Referral> Added { get; } = [];
     protected List<ReferralEvent> Saved { get; } = [];
     protected List<CancellationToken> Tokens { get; } = [];
-    protected Specialty Specialty { get; private set; } = null!;
+    protected Team Team { get; private set; } = null!;
     protected Patient Patient { get; private set; } = null!;
     protected CancellationTokenSource Cts { get; private set; } = null!;
 
@@ -43,9 +43,9 @@ public abstract class ReferralCommandTestBase
         Added.Clear();
         Saved.Clear();
         Tokens.Clear();
-        Specialty = SpecialtiesTestConstants.CreateSpecialty();
+        Team = TeamsTestConstants.CreateTeam();
         Patient = PatientsTestConstants.CreateValidPatient();
-        Specialties = SpecialtiesTestConstants.RepositoryWith(Specialty);
+        Teams = TeamsTestConstants.RepositoryWith(Team);
         DirectoryPractice = PracticesTestConstants.CreatePractice();
         Practices = PracticesTestConstants.RepositoryWith(DirectoryPractice);
         Patients = new Mock<IPatientRepository>();
@@ -81,7 +81,7 @@ public abstract class ReferralCommandTestBase
 
     protected Referral GivenReferral(ReferralStatus status = ReferralStatus.AwaitingTriage, int version = 3)
     {
-        var referral = CreateReferral(Patient, Specialty, status, version);
+        var referral = CreateReferral(Patient, Team, status, version);
         Repository.Setup(r => r.GetForUpdateAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(referral);
         return referral;
     }
@@ -90,10 +90,10 @@ public abstract class ReferralCommandTestBase
 [TestFixture]
 public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
 {
-    private RegisterReferralHandler Handler => new(Repository.Object, Patients.Object, Specialties.Object, Practices.Object, Clock);
+    private RegisterReferralHandler Handler => new(Repository.Object, Patients.Object, Teams.Object, Practices.Object, Clock);
 
     private RegisterReferralCommand Command(bool confirm = false, string? ods = " z99 999 ") => new(
-        Patient.Id, Specialty.Id, ReceivedOn, $"  {Practice} ", " ", ods, "high", $" {Reason} ", confirm, Registrar);
+        Patient.Id, Team.Id, ReceivedOn, $"  {Practice} ", " ", ods, "high", $" {Reason} ", confirm, Registrar);
 
     [Test]
     public async Task Handle_Valid_AddsItAwaitingTriageWithItsRegisteredEntry()
@@ -114,14 +114,14 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
         Tokens.Should().Equal(Cts.Token);
         response.Id.Should().Be(referral.Id);
         response.Patient!.Id.Should().Be(Patient.Id);
-        response.SpecialtyName.Should().Be(Specialty.Name);
+        response.TeamName.Should().Be(Team.Name);
         response.History.Should().HaveCount(1);
     }
 
     [Test]
-    public async Task Handle_ByAClinicianOfItsSpecialty_SaysTheyCanTriageIt()
+    public async Task Handle_ByAClinicianOfItsTeam_SaysTheyCanTriageIt()
     {
-        Repository.Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, Specialty.Id, Cts.Token)).ReturnsAsync(true);
+        Repository.Setup(r => r.IsTeamMemberAsync(Triager.UserId, Team.Id, Cts.Token)).ReturnsAsync(true);
 
         var response = await Handler.Handle(Command() with { Actor = Triager }, Cts.Token);
 
@@ -155,18 +155,18 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
     }
 
     [Test]
-    public async Task Handle_ArchivedSpecialty_IsAConflict()
+    public async Task Handle_ArchivedTeam_IsAConflict()
     {
-        Specialty.IsArchived = true;
+        Team.IsArchived = true;
         var act = () => Handler.Handle(Command(), Cts.Token);
         await act.Should().ThrowAsync<ConflictException>();
     }
 
     [Test]
-    public async Task Handle_OpenReferralToTheSameSpecialty_AsksForConfirmation()
+    public async Task Handle_OpenReferralToTheSameTeam_AsksForConfirmation()
     {
-        var open = CreateReferral(Patient, Specialty);
-        Repository.Setup(r => r.GetOpenForPatientAsync(Patient.Id, Specialty.Id, Cts.Token)).ReturnsAsync([open]);
+        var open = CreateReferral(Patient, Team);
+        Repository.Setup(r => r.GetOpenForPatientAsync(Patient.Id, Team.Id, Cts.Token)).ReturnsAsync([open]);
 
         var act = () => Handler.Handle(Command(), Cts.Token);
 
@@ -188,17 +188,17 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
 [TestFixture]
 public sealed class EditReferralHandlerTests : ReferralCommandTestBase
 {
-    private EditReferralHandler Handler => new(Repository.Object, Specialties.Object, Practices.Object, Clock);
+    private EditReferralHandler Handler => new(Repository.Object, Teams.Object, Practices.Object, Clock);
 
-    private static EditReferralCommand Command(Referral referral, Guid specialtyId, int version = 3, string reason = Canary) => new(
-        referral.Id, specialtyId, referral.ReceivedOn, Practice, Clinician, OdsCode, "High", reason, version, Registrar);
+    private static EditReferralCommand Command(Referral referral, Guid teamId, int version = 3, string reason = Canary) => new(
+        referral.Id, teamId, referral.ReceivedOn, Practice, Clinician, OdsCode, "High", reason, version, Registrar);
 
     [Test]
     public async Task Handle_Changed_SavesTheEditWithItsEntry()
     {
         var referral = GivenReferral();
 
-        var response = await Handler.Handle(Command(referral, Specialty.Id), Cts.Token);
+        var response = await Handler.Handle(Command(referral, Team.Id), Cts.Token);
 
         referral.Reason.Should().Be(Canary);
         referral.Version.Should().Be(4);
@@ -213,30 +213,30 @@ public sealed class EditReferralHandlerTests : ReferralCommandTestBase
     {
         var referral = GivenReferral();
 
-        await Handler.Handle(Command(referral, Specialty.Id, reason: Reason), Cts.Token);
+        await Handler.Handle(Command(referral, Team.Id, reason: Reason), Cts.Token);
 
         Repository.Verify(r => r.SaveAsync(It.IsAny<IEnumerable<ReferralEvent>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public async Task Handle_ToAnotherSpecialty_ChecksItAndShowsIt()
+    public async Task Handle_ToAnotherTeam_ChecksItAndShowsIt()
     {
         var referral = GivenReferral();
-        var other = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
-        Specialties = SpecialtiesTestConstants.RepositoryWith(Specialty, other);
+        var other = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName);
+        Teams = TeamsTestConstants.RepositoryWith(Team, other);
 
         var response = await Handler.Handle(Command(referral, other.Id, reason: Reason), Cts.Token);
 
-        response.SpecialtyName.Should().Be(other.Name);
-        referral.SpecialtyId.Should().Be(other.Id);
+        response.TeamName.Should().Be(other.Name);
+        referral.TeamId.Should().Be(other.Id);
     }
 
     [Test]
-    public async Task Handle_ToAnArchivedSpecialty_IsAConflict()
+    public async Task Handle_ToAnArchivedTeam_IsAConflict()
     {
         var referral = GivenReferral();
-        var archived = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName, isArchived: true);
-        Specialties = SpecialtiesTestConstants.RepositoryWith(Specialty, archived);
+        var archived = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName, isArchived: true);
+        Teams = TeamsTestConstants.RepositoryWith(Team, archived);
 
         var act = () => Handler.Handle(Command(referral, archived.Id), Cts.Token);
 
@@ -247,7 +247,7 @@ public sealed class EditReferralHandlerTests : ReferralCommandTestBase
     public async Task Handle_StaleVersion_IsAConflict()
     {
         var referral = GivenReferral(version: 4);
-        var act = () => Handler.Handle(Command(referral, Specialty.Id, version: 3), Cts.Token);
+        var act = () => Handler.Handle(Command(referral, Team.Id, version: 3), Cts.Token);
         await act.Should().ThrowAsync<ConflictException>().WithMessage(ReferralWorkflow.ChangedMeanwhileMessage);
     }
 
@@ -259,7 +259,7 @@ public sealed class EditReferralHandlerTests : ReferralCommandTestBase
         if (restricted)
             Patient.RestrictedAtUtc = NowUtc;
 
-        var act = () => Handler.Handle(Command(referral, Specialty.Id), Cts.Token);
+        var act = () => Handler.Handle(Command(referral, Team.Id), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>();
         Saved.Should().BeEmpty();
@@ -268,7 +268,7 @@ public sealed class EditReferralHandlerTests : ReferralCommandTestBase
     [Test]
     public async Task Handle_Unknown_IsNotFound()
     {
-        var act = () => Handler.Handle(Command(CreateReferral(), Specialty.Id), Cts.Token);
+        var act = () => Handler.Handle(Command(CreateReferral(), Team.Id), Cts.Token);
         await act.Should().ThrowAsync<NotFoundException>();
     }
 }
@@ -380,7 +380,7 @@ public sealed class ReferralValidatorsTests
         validator.Validate(Register(priority: "3")).IsValid.Should().BeFalse();
         validator.Validate(Register(reason: "")).IsValid.Should().BeFalse();
         validator.Validate(Register(reason: new string('a', Referral.MaxReasonLength + 1))).IsValid.Should().BeFalse();
-        validator.Validate(Register() with { PatientId = Guid.Empty, SpecialtyId = Guid.Empty }).Errors.Should().HaveCount(2);
+        validator.Validate(Register() with { PatientId = Guid.Empty, TeamId = Guid.Empty }).Errors.Should().HaveCount(2);
     }
 
     [Test]

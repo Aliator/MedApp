@@ -4,7 +4,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -20,7 +20,7 @@ public interface IMonitoringRuleInput
     Guid? StageDefinitionId { get; }
     bool IsEnabled { get; }
     int? ThresholdDays { get; }
-    Guid? SpecialtyId { get; }
+    Guid? TeamId { get; }
 }
 
 /// <summary>The checks every rule passes, for adding one and for editing one.</summary>
@@ -56,9 +56,9 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
             .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasStage(e))
             .WithMessage("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked, a visit not booked or a specimen overdue.");
 
-        RuleFor(x => x.SpecialtyId)
+        RuleFor(x => x.TeamId)
             .NotEqual(Guid.Empty)
-            .WithMessage("Choose a specialty, or any.");
+            .WithMessage("Choose a team, or any.");
 
         RuleFor(x => x.ThresholdDays)
             .NotNull()
@@ -124,7 +124,7 @@ public static class MonitoringRuleInput
     /// <summary>
     /// Checks what the input newly names: every person, template and stage it names (all of them for a new rule; for an
     /// edit, only those that differ from the stored rule's, so a rule may keep naming something since deleted) must
-    /// exist, archived or not, and so must a specialty (404 otherwise). And a person named for "Stage unlocked" must hold
+    /// exist, archived or not, and so must a team (404 otherwise). And a person named for "Stage unlocked" must hold
     /// <see cref="Permission.UnlockStages"/>, as only they unlock (400 otherwise; checked again whenever the person or
     /// the event changes, as roles do).
     /// </summary>
@@ -134,7 +134,7 @@ public static class MonitoringRuleInput
         IIdentityReadService identityReadService,
         IPermissionHolders permissionHolders,
         IPatientPathwayStagesRepository stagesRepository,
-        ISpecialtyRepository specialtyRepository,
+        ITeamRepository teamRepository,
         CancellationToken cancellationToken)
     {
         Guid? Newly(Guid? id, Guid? stored) => existing is not null && id == stored ? null : id;
@@ -162,9 +162,9 @@ public static class MonitoringRuleInput
             && await stagesRepository.GetStageDefinitionByIdAsync(stageId, cancellationToken) is null)
             throw new NotFoundException($"Stage '{stageId}' was not found.");
 
-        if (Newly(input.SpecialtyId, existing?.SpecialtyId) is { } specialtyId
-            && await specialtyRepository.GetAsync(specialtyId, cancellationToken) is null)
-            throw new NotFoundException($"Specialty '{specialtyId}' was not found.");
+        if (Newly(input.TeamId, existing?.TeamId) is { } teamId
+            && await teamRepository.GetAsync(teamId, cancellationToken) is null)
+            throw new NotFoundException($"Team '{teamId}' was not found.");
     }
 
     private static async Task CheckCanUnlockAsync(Guid userId, IPermissionHolders permissionHolders, CancellationToken cancellationToken)
@@ -183,7 +183,7 @@ public static class MonitoringRuleInput
         rule.TemplateId = input.TemplateId;
         rule.StageDefinitionId = input.StageDefinitionId;
         rule.ThresholdDays = input.ThresholdDays;
-        rule.SpecialtyId = input.SpecialtyId;
+        rule.TeamId = input.TeamId;
         rule.IsEnabled = input.IsEnabled;
         rule.UpdatedAtUtc = nowUtc;
     }
