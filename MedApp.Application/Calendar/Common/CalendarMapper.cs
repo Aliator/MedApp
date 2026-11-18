@@ -1,4 +1,3 @@
-using System.Globalization;
 using MedApp.Application.Appointments.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Appointments;
@@ -22,6 +21,7 @@ public static class CalendarMapper
     /// <param name="defaultWeek">The person's default week template row valid today, with its week template.</param>
     /// <param name="usernames">The usernames the appointments and meetings name (<see cref="UserIds"/>).</param>
     /// <param name="viewer">The signed-in user: admins can change meetings, and attendees reply to theirs. None: neither.</param>
+    /// <param name="window">The grid shown on each day (a team's, shared by everyone in it); by default, this calendar's own.</param>
     public static CalendarResponse ToResponse(
         CalendarData data,
         string staffUsername,
@@ -30,8 +30,10 @@ public static class CalendarMapper
         DateOnly today,
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
-        CalendarActor? viewer = null)
+        CalendarActor? viewer = null,
+        GridWindow? window = null)
     {
+        window ??= GridWindow.Of([data]);
         var appointments = data.Appointments
             .Where(a => AppointmentWorkflow.IsOnCalendar(a.Status) && a.StartUtc is not null && a.EndUtc is not null)
             .OrderBy(a => a.StartUtc)
@@ -48,13 +50,13 @@ public static class CalendarMapper
             StaffUsername = staffUsername,
             From = data.From,
             To = data.To,
-            WorkingDayStart = WorkingHours.Start.ToString("HH:mm", CultureInfo.InvariantCulture),
-            WorkingDayEnd = WorkingHours.End.ToString("HH:mm", CultureInfo.InvariantCulture),
+            WorkingDayStart = WorkingHours.Describe(window.Start),
+            WorkingDayEnd = WorkingHours.Describe(window.End),
             SlotMinutes = WorkingHours.SlotMinutes,
             CanEdit = canEdit,
             DefaultWeekTemplateId = defaultWeek?.WeekTemplateId,
             DefaultWeekTemplateName = defaultWeek?.WeekTemplate?.Name,
-            Days = CalendarProjection.Days(data, today).Select(ToResponse).ToList(),
+            Days = CalendarProjection.Days(data, today, window).Select(ToResponse).ToList(),
             Blocks = stored.Concat(projected).OrderBy(b => b.StartUtc).ThenBy(b => b.EndUtc).ToList(),
             Appointments = appointments.Select(a => AppointmentMapper.ToResponse(a, usernames, nowUtc)).ToList(),
             Meetings = data.Meetings
@@ -85,6 +87,10 @@ public static class CalendarMapper
         IsToday = day.IsToday,
         WorkStartUtc = day.WorkStartUtc,
         WorkEndUtc = day.WorkEndUtc,
+        HasHours = day.HasHours,
+        SiteId = day.SiteId,
+        GridStartUtc = day.GridStartUtc,
+        GridEndUtc = day.GridEndUtc,
         DayTemplateId = day.DayTemplateId,
         DayTemplateName = day.DayTemplateName,
         IsDayTemplateOverridden = day.IsDayTemplateOverridden

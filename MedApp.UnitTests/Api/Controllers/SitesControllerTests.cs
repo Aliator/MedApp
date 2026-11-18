@@ -1,3 +1,5 @@
+using MedApp.Application.Sites.Queries.GetSiteHours;
+using MedApp.Application.Sites.Commands.SetSiteHours;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -32,6 +34,7 @@ public sealed class SitesControllerTests
         nameof(SitesController.ArchiveSite),
         nameof(SitesController.RestoreSite),
         nameof(SitesController.DeleteSite),
+        nameof(SitesController.SetSiteHours),
         nameof(SitesController.CreateRoom),
         nameof(SitesController.UpdateRoom),
         nameof(SitesController.ArchiveRoom),
@@ -84,6 +87,27 @@ public sealed class SitesControllerTests
         Postcode = Postcode,
         Phone = Phone
     };
+
+    // Hours
+
+    [Test]
+    public async Task GetSiteHours_ReturnsThem() =>
+        await ExpectOk(_fixture.Create<SiteHoursResponse>(), new GetSiteHoursQuery(SiteId), c => c.GetSiteHours(SiteId, _cts.Token));
+
+    [Test]
+    public async Task SetSiteHours_SendsEachDay()
+    {
+        var response = _fixture.Create<SiteHoursResponse>();
+        var mediator = new RecordingMediator(_ => response);
+        var day = new SiteHoursDayRequest { DayOfWeek = "Tuesday", Opens = new TimeOnly(8, 0), Closes = new TimeOnly(20, 0) };
+
+        var result = await Controller(mediator).SetSiteHours(SiteId, new SiteHoursRequest { Days = [day] }, _cts.Token);
+
+        mediator.Request.Should().BeEquivalentTo(
+            new SetSiteHoursCommand(SiteId, [new SiteHoursDay("Tuesday", new TimeOnly(8, 0), new TimeOnly(20, 0))]));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
+    }
 
     // Sites
 
@@ -217,7 +241,8 @@ public sealed class SitesControllerTests
     public async Task Reading_AnyStaff()
     {
         var anyStaff = ControllerAuthorisation.Actions<SitesController>().Except(AdminOnly).ToList();
-        anyStaff.Should().BeEquivalentTo(nameof(SitesController.GetSites), nameof(SitesController.GetSite), nameof(SitesController.GetRooms));
+        anyStaff.Should().BeEquivalentTo(nameof(SitesController.GetSites), nameof(SitesController.GetSite), nameof(SitesController.GetRooms),
+            nameof(SitesController.GetSiteHours));
 
         foreach (var action in anyStaff)
         {

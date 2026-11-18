@@ -12,10 +12,10 @@ public sealed class BookingTimesTests
     private static readonly WorkingDays WorkingDays = InMemoryClosedDays.WorkingDays(CreateClosedDay());
 
     private static Task<string?> WhyNot(DateTime start, DateTime end, DateTime now) =>
-        BookingTimes.WhyNotAsync(WorkingDays, start, end, now, CancellationToken.None);
+        BookingTimes.WhyNotAsync(WorkingDays, StaffUserId, start, end, now, CancellationToken.None);
 
     private static Task<string?> WhyNotRecorded(DateTime start, DateTime end, DateTime now) =>
-        Task.FromResult(BookingTimes.WhyNotRecorded(start, end, now));
+        BookingTimes.WhyNotRecordedAsync(WorkingDays, StaffUserId, start, end, now, CancellationToken.None);
 
     [Test]
     public async Task WhyNot_FutureWorkingTime_IsNull()
@@ -50,7 +50,7 @@ public sealed class BookingTimesTests
     [Test]
     public async Task WhyNot_Weekend_SaysSo()
     {
-        (await WhyNot(At(NextSaturday, 10), At(NextSaturday, 11), Now)).Should().Be(WorkingHours.Weekend);
+        (await WhyNot(At(NextSaturday, 10), At(NextSaturday, 11), Now)).Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]
@@ -119,7 +119,7 @@ public sealed class BookingTimesTests
     {
         var saturday = Today.AddDays(-2);
 
-        (await WhyNotRecorded(At(saturday, 10), At(saturday, 11), Now)).Should().Be(WorkingHours.Weekend);
+        (await WhyNotRecorded(At(saturday, 10), At(saturday, 11), Now)).Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]

@@ -33,7 +33,7 @@ public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppoint
                 var command = context.InstanceToValidate;
                 if (command.IsBooking
                     && await BookingTimes.WhyNotAsync(
-                        workingDays, start!.Value, command.EndUtc!.Value, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
+                        workingDays, command.StaffUserId!.Value, start!.Value, command.EndUtc!.Value, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
                     context.AddFailure(why);
             });
 

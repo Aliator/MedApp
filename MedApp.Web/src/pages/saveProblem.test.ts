@@ -53,6 +53,7 @@ describe('saveProblem', () => {
 
   it('names specialties, in the plural too', () => {
     expect(saveProblem(new ApiError(403), 'save', 'specialty').message).toBe('You do not have permission to change specialties.');
+    expect(saveProblem(new ApiError(403), 'save', 'working hours').message).toBe('You do not have permission to change working hours.');
     expect(saveProblem(new ApiError(404), 'archive', 'specialty').message).toBe('Specialty not found. It may have been deleted.');
   });
 

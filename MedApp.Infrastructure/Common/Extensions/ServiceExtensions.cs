@@ -208,6 +208,7 @@ public static class ServiceExtensions
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<IClosedDayRepository, ClosedDayRepository>();
         services.AddScoped<ISiteRepository, SiteRepository>();
+        services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();

@@ -18,8 +18,8 @@ export const ROLE_PERMISSIONS = {
   Nurse: ['UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles'],
   Booking: [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar',
-    'AttachFiles',
+    'ManageClinics', 'AttachFiles',
   ],
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles'],
-  Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ViewInsights', 'ManageMonitoring'],
+  Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ManageClinics', 'ViewInsights', 'ManageMonitoring'],
 } satisfies Record<string, Permission[]>;

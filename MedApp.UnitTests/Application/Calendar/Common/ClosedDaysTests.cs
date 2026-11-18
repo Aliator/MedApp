@@ -80,11 +80,13 @@ public sealed class ClosedDaysTests
     }
 
     [Test]
-    public void WhyNotWorkingDay_SaysWeekendOrClosedDayOrNothing()
+    public void WhyNotWorking_OnTheDefault_SaysWeekendOrClosedDayOrNothing()
     {
-        WorkingHours.WhyNotWorkingDay(NextSaturday, Closed).Should().Be(WorkingHours.Weekend);
-        WorkingHours.WhyNotWorkingDay(ClosedWednesday, Closed).Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
-        WorkingHours.WhyNotWorkingDay(NextMonday, Closed).Should().BeNull();
+        string? Why(DateOnly date) => WorkingTimeSet.None.For(StaffUserId, date, Closed).WhyNotWorking();
+
+        Why(NextSaturday).Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
+        Why(ClosedWednesday).Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        Why(NextMonday).Should().BeNull();
     }
 
     [Test]
@@ -108,26 +110,41 @@ public sealed class ClosedDaysTests
         var repository = new Mock<IClosedDayRepository>();
         repository.Setup(r => r.GetAsync(ClosedWednesday, ClosedWednesday, It.IsAny<CancellationToken>()))
             .ReturnsAsync([CreateClosedDay()]);
-        var workingDays = new WorkingDays(repository.Object);
+        var workingDays = new WorkingDays(repository.Object, new InMemoryWorkingHours());
         using var cts = new CancellationTokenSource();
 
         (await workingDays.WhyOutsideAsync(At(ClosedWednesday, 10), At(ClosedWednesday, 11), cts.Token))
             .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
-        (await workingDays.WhyNotWorkingDayAsync(ClosedWednesday, cts.Token))
+        (await workingDays.WhyNotWorkingDayAsync(StaffUserId, ClosedWednesday, cts.Token))
             .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
 
         repository.Verify(r => r.GetAsync(ClosedWednesday, ClosedWednesday, cts.Token), Times.Exactly(2));
     }
 
     [Test]
-    public async Task WorkingDays_ABadTimeOrAWeekend_NeedsNoLookup()
+    public async Task WorkingDays_ABadTime_NeedsNoLookup()
     {
         var repository = new Mock<IClosedDayRepository>(MockBehavior.Strict);
-        var workingDays = new WorkingDays(repository.Object);
+        var hours = new Mock<IWorkingHoursRepository>(MockBehavior.Strict);
+        var workingDays = new WorkingDays(repository.Object, hours.Object);
 
-        (await workingDays.WhyOutsideAsync(At(NextMonday, 7), At(NextMonday, 9), CancellationToken.None))
+        (await workingDays.WhyOutsideAsync(At(NextMonday, 5), At(NextMonday, 9), CancellationToken.None))
+            .Should().Be(WorkingHours.OutsideBounds);
+        (await workingDays.WhyOutsideAsync(StaffUserId, At(NextMonday, 10, 2), At(NextMonday, 11), CancellationToken.None))
+            .Should().Be(WorkingHours.NotOnBoundary);
+    }
+
+    [Test]
+    public async Task WorkingDays_ForAPerson_UsesTheirHours()
+    {
+        var workingDays = InMemoryClosedDays.WorkingDays(CreateClosedDay());
+
+        (await workingDays.WhyOutsideAsync(StaffUserId, At(NextMonday, 7), At(NextMonday, 9), CancellationToken.None))
             .Should().Be(WorkingHours.OutsideWorkingDay);
-        (await workingDays.WhyNotWorkingDayAsync(NextSaturday, CancellationToken.None)).Should().Be(WorkingHours.Weekend);
+        (await workingDays.WhyNotWorkingDayAsync(StaffUserId, NextSaturday, CancellationToken.None))
+            .Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
+        (await workingDays.WhyOutsideAsync(At(NextSaturday, 10), At(NextSaturday, 11), CancellationToken.None))
+            .Should().BeNull("without a person, only what's nobody's counts: someone may work Saturdays");
     }
 
     [Test]
@@ -136,7 +153,7 @@ public sealed class ClosedDaysTests
         var workingDays = InMemoryClosedDays.WorkingDays(CreateClosedDay());
 
         (await workingDays.WhyOutsideAsync(At(NextMonday, 10), At(NextMonday, 11), CancellationToken.None)).Should().BeNull();
-        (await workingDays.WhyNotWorkingDayAsync(NextMonday, CancellationToken.None)).Should().BeNull();
+        (await workingDays.WhyNotWorkingDayAsync(StaffUserId, NextMonday, CancellationToken.None)).Should().BeNull();
     }
 
     private sealed record Timed(DateTime StartUtc, DateTime EndUtc, DateOnly Date);
@@ -145,8 +162,8 @@ public sealed class ClosedDaysTests
     {
         public TimedValidator(WorkingDays workingDays)
         {
-            RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
-            RuleFor(x => x.Date).WorkingDay(workingDays);
+            RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, _ => StaffUserId, workingDays);
+            RuleFor(x => x.Date).WorkingDay(_ => StaffUserId, workingDays);
         }
     }
 
@@ -160,7 +177,7 @@ public sealed class ClosedDaysTests
             .Errors.Select(e => e.ErrorMessage).Should().Equal(
                 WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName), WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
         validator.ValidateNow(new Timed(At(NextSaturday, 10), At(NextSaturday, 11), NextSaturday))
-            .Errors.Select(e => e.ErrorMessage).Should().Equal(WorkingHours.Weekend, WorkingHours.Weekend);
+            .Errors.Select(e => e.ErrorMessage).Should().Equal(WorkingHours.NotWorking(DayOfWeek.Saturday), WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]
