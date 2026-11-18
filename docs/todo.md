@@ -192,3 +192,5 @@ What that branch left, so the app would work exactly as before (`docs/security/a
   - **What MedApp provides:** the build and the hosting, using the existing image, Helm chart and Azure setup for each company. Decide between a deployment for each company and many companies in one (multi-tenancy, roadmap step 8).
   - **Today's medical app** becomes one ready-made pack among others.
   - **What it needs first:** multi-tenancy, so each company's data stays separate inside one deployment.
+
+Scratch line for the CI proof, never merged.
