@@ -53,7 +53,7 @@ describe('the light demo handlers', () => {
     expect((await call('POST', status, {status: 'InProgress'})).body.status).toBe('InProgress');
   });
 
-  it('accepts a referral into a new pathway, once, and only for a member of its specialty', async () => {
+  it('accepts a referral into a new pathway, once, and only for a member of its team', async () => {
     startLightDemo(STAFF);
     const gynae = await call('POST', `/api/referrals/${REFERRALS.ruthGynaecology}/accept`, {
       templateId: TEMPLATES.postMenopausalBleeding,
@@ -127,12 +127,12 @@ describe('the light demo handlers', () => {
     expect(next.items[0].id).not.toBe(first.items[0].id);
   });
 
-  it('lists my work, and counts referrals awaiting triage in my specialties', async () => {
+  it('lists my work, and counts referrals awaiting triage in my teams', async () => {
     startLightDemo(STAFF);
     const mine = (await call('GET', '/api/pathways/patient-pathways/search?AssignedToMe=true&PageSize=50')).body;
     expect(mine.items.length).toBeGreaterThan(0);
     expect(mine.items.every((p: {assignees: string[]}) => p.assignees.includes(STAFF.username))).toBe(true);
-    expect((await call('GET', '/api/referrals/awaiting-triage/count')).body).toEqual({count: 2, inYourSpecialties: true});
+    expect((await call('GET', '/api/referrals/awaiting-triage/count')).body).toEqual({count: 2, inYourTeams: true});
   });
 
   it('keeps each account’s notepad and settings apart', async () => {
@@ -203,14 +203,14 @@ describe('the light demo handlers', () => {
     expect(made.status).toBe(201);
     const badBranch = await call('POST', '/api/pathways/patient-pathway-stage/templates', {
       name: 'Phone pathway',
-      specialtyId: definitions.length && db().specialties[0].id,
+      teamId: definitions.length && db().teams[0].id,
       stageDefinitionIdsInOrder: [made.body.id, histology.id],
       stageOptions: [{choosesBranch: true}, {}],
     });
     expect(badBranch.status).toBe(400);
     const template = await call('POST', '/api/pathways/patient-pathway-stage/templates', {
       name: 'Phone pathway',
-      specialtyId: db().specialties[0].id,
+      teamId: db().teams[0].id,
       stageDefinitionIdsInOrder: [made.body.id, histology.id],
     });
     expect(template.status).toBe(201);

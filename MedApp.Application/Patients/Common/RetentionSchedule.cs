@@ -4,7 +4,7 @@ using MedApp.Domain.Pathways.PatientPathways;
 namespace MedApp.Application.Patients.Common;
 
 /// <summary>
-/// What set a record's minimum period: the adult or child rule, or one of its pathways' specialty classes
+/// What set a record's minimum period: the adult or child rule, or one of its pathways' team classes
 /// (<see cref="RetentionClass"/>) when that's longer. Not stored.
 /// </summary>
 public enum RetentionBasis
@@ -110,7 +110,7 @@ public static class RetentionSchedule
 
     /// <summary>
     /// The shortest any record is kept after the conclusion of treatment, in years, so only patients whose last change
-    /// is at least that old need checking. A child's period is shortest just before an age boundary. A specialty class
+    /// is at least that old need checking. A child's period is shortest just before an age boundary. A team class
     /// only ever lengthens a record's period, so it doesn't change this.
     /// </summary>
     public static int ShortestYears(RetentionOptions options) =>

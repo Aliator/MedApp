@@ -7,7 +7,7 @@ namespace MedApp.Application.Mdt.Common;
 /// <summary>
 /// What a pathway's assignees are told when an MDT's outcome is recorded on it
 /// (<see cref="NotificationKind.MdtOutcomeRecorded"/>), so someone acts on it (hazard H-58). A fixed title, and a message
-/// from the recorder's username and the specialty (an admin-written name): never the outcome, the question or the
+/// from the recorder's username and the team (an admin-written name): never the outcome, the question or the
 /// patient. Whoever recorded it isn't told.
 /// </summary>
 public static class MdtNotifications
@@ -25,13 +25,13 @@ public static class MdtNotifications
                 UserId = userId,
                 Kind = NotificationKind.MdtOutcomeRecorded,
                 Title = OutcomeTitle,
-                Message = Message(actor.Username, item.Specialty?.Name),
+                Message = Message(actor.Username, item.Team?.Name),
                 PathwayId = item.PathwayId,
                 CreatedAtUtc = nowUtc
             })
             .ToList();
 
     /// <summary>"k.ashford recorded the Dermatology MDT's outcome on a pathway you're assigned to."</summary>
-    public static string Message(string username, string? specialty) =>
-        $"{username} recorded the {(string.IsNullOrEmpty(specialty) ? "team" : specialty)} MDT's outcome on a pathway you're assigned to.";
+    public static string Message(string username, string? team) =>
+        $"{username} recorded the {(string.IsNullOrEmpty(team) ? "team" : team)} MDT's outcome on a pathway you're assigned to.";
 }

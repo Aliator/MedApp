@@ -132,25 +132,25 @@ describe('route guards', () => {
     await waitFor(async () => expect(await views()).toContain('ToSend'));
   });
 
-  it('sends someone without ManageSetup away from Specialties, without asking for them', async () => {
-    const fetch = mockApi({'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
-    const {router} = renderApp({path: '/admin/specialties', user: staffUser});
+  it('sends someone without ManageSetup away from Teams, without asking for them', async () => {
+    const fetch = mockApi({'GET /api/teams': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
+    const {router} = renderApp({path: '/admin/teams', user: staffUser});
     await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
-    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('specialties'))).toBe(false);
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('teams'))).toBe(false);
   });
 
-  it('lets an admin into Specialties', async () => {
-    mockApi({'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
-    renderApp({path: '/admin/specialties', user: adminUser});
+  it('lets an admin into Teams', async () => {
+    mockApi({'GET /api/teams': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
+    renderApp({path: '/admin/teams', user: adminUser});
 
-    expect(await screen.findByRole('heading', {name: 'Specialties', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Teams', level: 1})).toBeInTheDocument();
     expect(await screen.findByText('Dermatology')).toBeInTheDocument();
   });
 
   it.each(['/admin/letter-templates', '/admin/letter-templates/new', '/admin/letter-templates/l1'])(
     'sends someone without ManageSetup away from %s, without asking for letter templates',
     async (path) => {
-      const fetch = mockApi({'GET /api/letter-templates*': () => json([]), 'GET /api/specialties': () => json([])});
+      const fetch = mockApi({'GET /api/letter-templates*': () => json([]), 'GET /api/teams': () => json([])});
       const {router} = renderApp({path, user: staffUser});
       await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
       expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('letter-templates'))).toBe(false);

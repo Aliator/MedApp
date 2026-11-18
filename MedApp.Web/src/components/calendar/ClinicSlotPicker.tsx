@@ -4,7 +4,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {ToggleButton} from '@astryxdesign/core/ToggleButton';
 import {useQuery} from '@tanstack/react-query';
 import {sessionsQuery, slotsWords, type ClinicSession} from '../../api/clinics';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {addMinutes, formatShortDay, sameMoment} from '../../utils/calendarSlots';
 import {formatTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
@@ -37,8 +37,8 @@ export interface ClinicSlotPickerProps {
   /** UK dates, `yyyy-mm-dd`, of the sessions to list. */
   from: string;
   to: string;
-  /** The appointment's specialty (its pathway's), when it has one: only its sessions are listed. */
-  specialtyId?: string;
+  /** The appointment's team (its pathway's), when it has one: only its sessions are listed. */
+  teamId?: string;
   chosen?: ClinicSlotChoice;
   onChoose: (slot: ClinicSlotChoice) => void;
 }
@@ -46,13 +46,13 @@ export interface ClinicSlotPickerProps {
 /**
  * Booking into a clinic session (centre plan decision 124): the sessions with free slots between two dates, by date,
  * each with its clinician, room and how full it is ("Tue 3, k.ashford, Room 2, 4 of 12 free"), and its free slots as
- * buttons. Only the specialty's sessions when the appointment has one (its pathway's). Names no patient: the list holds only counts and
+ * buttons. Only the team's sessions when the appointment has one (its pathway's). Names no patient: the list holds only counts and
  * free times.
  */
-export function ClinicSlotPicker({from, to, specialtyId, chosen, onChoose}: ClinicSlotPickerProps) {
-  const sessions = useQuery(sessionsQuery({from, to, specialtyId, withFreeSlots: true}));
-  const specialties = useQuery({...specialtiesQuery(true), enabled: specialtyId !== undefined});
-  const specialtyName = specialties.data?.find((s) => s.id === specialtyId)?.name;
+export function ClinicSlotPicker({from, to, teamId, chosen, onChoose}: ClinicSlotPickerProps) {
+  const sessions = useQuery(sessionsQuery({from, to, teamId, withFreeSlots: true}));
+  const teams = useQuery({...teamsQuery(true), enabled: teamId !== undefined});
+  const teamName = teams.data?.find((s) => s.id === teamId)?.name;
 
   if (sessions.isError) return <AlertMessage message="The clinic sessions could not be loaded. Please try again." />;
   if (!sessions.data)
@@ -65,8 +65,8 @@ export function ClinicSlotPicker({from, to, specialtyId, chosen, onChoose}: Clin
   if (sessions.data.length === 0)
     return (
       <Text type="body" color="secondary">
-        {specialtyName
-          ? `No ${specialtyName} clinic sessions have a free slot in these weeks.`
+        {teamName
+          ? `No ${teamName} clinic sessions have a free slot in these weeks.`
           : 'No clinic sessions have a free slot in these weeks.'}
       </Text>
     );
@@ -78,9 +78,9 @@ export function ClinicSlotPicker({from, to, specialtyId, chosen, onChoose}: Clin
           <Text type="label" weight="semibold">
             {sessionHeading(session)}
           </Text>
-          {specialtyId === undefined && (
+          {teamId === undefined && (
             <Text type="supporting" color="secondary">
-              {session.specialtyName}
+              {session.teamName}
             </Text>
           )}
           <HStack gap={1.5} wrap="wrap">

@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {STAFF_ME, testCalendar, ukTime} from '../../test/calendar';
-import {ROOM, SPECIALTY, testSession} from '../../test/clinics';
+import {ROOM, TEAM, testSession} from '../../test/clinics';
 import {expectAnnounced, isDisabled, json, managerUser, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
 import {SessionFormDialog, type SessionFormDialogProps} from './SessionFormDialog';
 
@@ -11,7 +11,7 @@ function renderDialog(props: Partial<SessionFormDialogProps> = {}, handlers: Par
   const fetch = mockApi({
     'GET /api/calendar/staff': () => json([{userId: STAFF_ME.userId, username: STAFF_ME.username}]),
     'GET /api/rooms': () => json([ROOM]),
-    'GET /api/specialties': () => json([SPECIALTY]),
+    'GET /api/teams': () => json([TEAM]),
     'GET /api/calendar': () => json(testCalendar({from: DAY, dayCount: 1, today: '2026-11-23'})),
     ...handlers,
   });
@@ -44,7 +44,7 @@ describe('SessionFormDialog', {timeout: 30_000}, () => {
     await choose(user, /End/, '12:00');
     expect(dialog().getByText('9 slots')).toBeInTheDocument();
     await choose(user, /Room/, 'Room 2 (Main site)');
-    await choose(user, /Specialty/, SPECIALTY.name);
+    await choose(user, /Team/, TEAM.name);
     await user.click(dialog().getByRole('button', {name: 'Save'}));
 
     await expectAnnounced('Clinic session added');
@@ -52,7 +52,7 @@ describe('SessionFormDialog', {timeout: 30_000}, () => {
     expect(await bodyOf(fetch, 'POST')).toEqual({
       staffUserId: STAFF_ME.userId,
       roomId: ROOM.id,
-      specialtyId: SPECIALTY.id,
+      teamId: TEAM.id,
       startUtc: ukTime(DAY, '09:00').replace('Z', '.000Z'),
       endUtc: ukTime(DAY, '12:00').replace('Z', '.000Z'),
       slotMinutes: 20,
@@ -80,7 +80,7 @@ describe('SessionFormDialog', {timeout: 30_000}, () => {
     expect(await screen.findByRole('heading', {name: 'Edit Clinic Session'})).toBeInTheDocument();
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Room/})).toHaveTextContent('Room 2 (Main site)'));
     expect(isDisabled(dialog().getByRole('combobox', {name: /Clinician/}))).toBe(true);
-    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Specialty/})).toHaveTextContent(SPECIALTY.name));
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Team/})).toHaveTextContent(TEAM.name));
     await user.click(dialog().getByRole('button', {name: 'Save'}));
 
     expect(await dialog().findByText('This clinic session has appointments booked into it.')).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('SessionFormDialog', {timeout: 30_000}, () => {
     await choose(user, /End/, '12:00');
     await choose(user, /Slot length/, '30 minutes');
     await choose(user, /Room/, 'Room 2 (Main site)');
-    await choose(user, /Specialty/, SPECIALTY.name);
+    await choose(user, /Team/, TEAM.name);
     await user.click(dialog().getByRole('button', {name: 'Save'}));
     expect(await dialog().findAllByText('The session must divide into whole slots.')).not.toHaveLength(0);
   });

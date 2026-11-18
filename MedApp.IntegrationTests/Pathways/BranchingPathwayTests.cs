@@ -9,8 +9,8 @@ using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Specialties.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Contracts.Teams.Responses;
+using MedApp.Domain.Teams;
 using MedApp.IntegrationTests.Common;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -49,7 +49,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
         var response = await _admin.PostAsJsonAsync(TemplatesUrl, new CreatePathwayTemplateRequest
         {
             Name = UniqueName("Branching"),
-            SpecialtyId = Specialty.GeneralId,
+            TeamId = Team.GeneralId,
             StageDefinitionIdsInOrder = ids,
             StageOptions =
             [
@@ -106,7 +106,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
         var response = await _admin.PostAsJsonAsync(TemplatesUrl, new CreatePathwayTemplateRequest
         {
             Name = UniqueName("Branching"),
-            SpecialtyId = Specialty.GeneralId,
+            TeamId = Team.GeneralId,
             StageDefinitionIdsInOrder = [first.Id, second.Id, third.Id],
             StageOptions = [new() { ChoosesBranch = true }, new() { Branch = "Benign" }, new()],
         });

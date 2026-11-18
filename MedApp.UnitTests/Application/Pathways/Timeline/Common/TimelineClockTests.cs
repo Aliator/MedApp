@@ -30,7 +30,7 @@ public sealed class TimelineClockTests
     {
         var referral = CreateReferral(status: ReferralStatus.Accepted);
         var change = new ReferralChange(referral, Registrar, NowUtc);
-        change.ReTarget(referral.Specialty, MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority.Urgent);
+        change.ReTarget(referral.Team, MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority.Urgent);
         var pause = change.PauseClock(ClockPauseReason.Other, Canary, Today.AddDays(10));
         change.ResumeClock(pause);
         change.PauseClock(ClockPauseReason.PatientUnavailable, null, Today.AddDays(20));
@@ -99,7 +99,7 @@ public sealed class TimelineClockTests
     {
         var (referral, events, _) = ClockEvents();
         var registered = new ReferralChange(referral, Registrar, NowUtc.AddDays(-8));
-        registered.Register(referral.Specialty);
+        registered.Register(referral.Team);
         registered.Withdraw(Detail);
         var all = events.Concat(registered.Events.Where(e => e.Action != ReferralEventAction.ClockStopped)).ToList();
         var query = new GetPatientTimelineQuery(referral.PatientId, null, 20, kind is null ? null : [kind], null, FullView: false);

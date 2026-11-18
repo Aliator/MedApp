@@ -24,9 +24,9 @@ namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 /// differs from the priority asked for's). Then the person assigned (if any) and whoever registered the referral are
 /// told, and the monitor runs.
 /// <para>
-/// 403 without <c>TriageReferrals</c> or membership of the referral's specialty, or to assign someone without
+/// 403 without <c>TriageReferrals</c> or membership of the referral's team, or to assign someone without
 /// <c>AssignPathways</c>; 409 once it's been triaged (naming who and how), on a restricted or anonymised record, if it
-/// changed since the caller's version, or for an archived or empty template; 400 for a template of another specialty.
+/// changed since the caller's version, or for an archived or empty template; 400 for a template of another team.
 /// </para>
 /// </summary>
 public sealed class AcceptReferralHandler(
@@ -53,12 +53,12 @@ public sealed class AcceptReferralHandler(
         var template = await stagesRepository.GetPathwayTemplateByIdAsync(request.TemplateId, cancellationToken)
                        ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");
 
-        // Only the referral's specialty's templates: another's means redirecting it first.
-        if (template.SpecialtyId != referral.SpecialtyId)
+        // Only the referral's team's templates: another's means redirecting it first.
+        if (template.TeamId != referral.TeamId)
             throw new ValidationException([
                 new ValidationFailure(
                     nameof(AcceptReferralCommand.TemplateId),
-                    ReferralWorkflow.TemplateNotInSpecialtyMessage(template.Name, referral.Specialty?.Name ?? "the referral's specialty"))
+                    ReferralWorkflow.TemplateNotInTeamMessage(template.Name, referral.Team?.Name ?? "the referral's team"))
             ]);
         if (template.IsArchived)
             throw new ConflictException($"The '{template.Name}' template is archived, so it can't be used for new pathways.");
@@ -69,10 +69,10 @@ public sealed class AcceptReferralHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var priority = PathwayEnums.Parse<PatientPathwayPriority>(request.Priority);
-        // The clock's target for the priority chosen, from the referral's specialty's table: the pathway's target date.
+        // The clock's target for the priority chosen, from the referral's team's table: the pathway's target date.
         var referralChange = new ReferralChange(referral, actor, now);
         // Awaiting triage, its clock runs (no pauses yet), so the wait counts from the day it was received.
-        var dueDate = referral.WaitStartOn.AddDays(WaitingClock.TargetDaysFor(referral.Specialty, priority));
+        var dueDate = referral.WaitStartOn.AddDays(WaitingClock.TargetDaysFor(referral.Team, priority));
 
         var pathway = PathwayCreation.FromTemplate(template, referral.PatientId, request.Title, dueDate, priority, now);
 
@@ -82,7 +82,7 @@ public sealed class AcceptReferralHandler(
             change.Assign(chosen.UserId, chosen.Username);
 
         referralChange.Accept(pathway.Id, template.Name, priority);
-        referralChange.ReTarget(referral.Specialty, priority);
+        referralChange.ReTarget(referral.Team, priority);
 
         // One save: the referral, its history entry, the new pathway and everything its creation recorded.
         referrals.AddEvents(referralChange.Events);

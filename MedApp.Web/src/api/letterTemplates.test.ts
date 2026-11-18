@@ -7,7 +7,7 @@ import {
   LETTER_KIND_LABELS,
   letterKindLabel,
   letterTemplateInput,
-  letterTemplateSpecialty,
+  letterTemplateTeam,
   type LetterTemplate,
 } from './letterTemplates';
 
@@ -31,21 +31,21 @@ describe('letter templates', () => {
     expect(letterKindLabel(null)).toBe('');
   });
 
-  it("names a template's specialty, or every specialty", () => {
-    expect(letterTemplateSpecialty({specialtyId: 'sp1', specialtyName: 'Dermatology'})).toBe('Dermatology');
-    expect(letterTemplateSpecialty({specialtyId: 'sp1'})).toBe('Unknown specialty');
-    expect(letterTemplateSpecialty({specialtyId: null})).toBe('All specialties');
+  it("names a template's team, or every team", () => {
+    expect(letterTemplateTeam({teamId: 'sp1', teamName: 'Dermatology'})).toBe('Dermatology');
+    expect(letterTemplateTeam({teamId: 'sp1'})).toBe('Unknown team');
+    expect(letterTemplateTeam({teamId: null})).toBe('All teams');
   });
 
-  it("sorts as the API does: every specialty's first, then by specialty, then by name", () => {
+  it("sorts as the API does: every team's first, then by team, then by name", () => {
     const templates: LetterTemplate[] = [
-      {name: 'b', specialtyId: 'u', specialtyName: 'Urology'},
-      {name: 'a', specialtyId: 'u', specialtyName: 'Urology'},
-      {name: 'z', specialtyId: 'd', specialtyName: 'dermatology'},
+      {name: 'b', teamId: 'u', teamName: 'Urology'},
+      {name: 'a', teamId: 'u', teamName: 'Urology'},
+      {name: 'z', teamId: 'd', teamName: 'dermatology'},
       {name: 'y'},
-      {specialtyId: 'x'},
+      {teamId: 'x'},
     ];
-    expect([...templates].sort(compareLetterTemplates).map((t) => `${t.specialtyName ?? '-'}/${t.name ?? '-'}`)).toEqual([
+    expect([...templates].sort(compareLetterTemplates).map((t) => `${t.teamName ?? '-'}/${t.name ?? '-'}`)).toEqual([
       '-/y',
       '-/-',
       'dermatology/z',
@@ -56,10 +56,10 @@ describe('letter templates', () => {
 
   it('starts the form from a template, or empty for a new one', () => {
     expect(letterTemplateInput(null)).toBe(EMPTY_LETTER_TEMPLATE);
-    expect(letterTemplateInput({name: 'Letter', kind: 'Other', specialtyId: 'sp1', letterhead: 'Head', bodySkeleton: '## Plan', closing: 'Bye'})).toEqual({
+    expect(letterTemplateInput({name: 'Letter', kind: 'Other', teamId: 'sp1', letterhead: 'Head', bodySkeleton: '## Plan', closing: 'Bye'})).toEqual({
       name: 'Letter',
       kind: 'Other',
-      specialtyId: 'sp1',
+      teamId: 'sp1',
       letterhead: 'Head',
       bodySkeleton: '## Plan',
       closing: 'Bye',

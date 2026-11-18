@@ -5434,7 +5434,7 @@ export interface paths {
                     StaffUserId?: string;
                     SiteId?: string;
                     RoomId?: string;
-                    SpecialtyId?: string;
+                    TeamId?: string;
                     IncludeCancelled?: boolean;
                     WithFreeSlots?: boolean;
                 };
@@ -10222,7 +10222,7 @@ export interface paths {
                 query?: {
                     Weeks?: number;
                     TemplateId?: string;
-                    SpecialtyId?: string;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11265,7 +11265,7 @@ export interface paths {
                     PatientName?: string;
                     PatientId?: string;
                     TemplateId?: string;
-                    SpecialtyIds?: string[];
+                    TeamIds?: string[];
                     StageDefinitionIds?: string[];
                     Statuses?: string[];
                     Priority?: string;
@@ -13617,7 +13617,7 @@ export interface paths {
                     Sort?: string;
                     Ascending?: boolean;
                     Statuses?: string[];
-                    SpecialtyIds?: string[];
+                    TeamIds?: string[];
                     Mine?: boolean;
                     PatientId?: string;
                     Search?: string;
@@ -14582,7 +14582,7 @@ export interface paths {
                     Page?: number;
                     PageSize?: number;
                     View?: string;
-                    SpecialtyId?: string;
+                    TeamId?: string;
                     PathwayId?: string;
                     PatientId?: string;
                     Search?: string;
@@ -16619,7 +16619,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/users/{username}/specialties": {
+    "/api/auth/users/{username}/teams": {
         parameters: {
             query?: never;
             header?: never;
@@ -16643,9 +16643,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
-                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
-                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/plain": components["schemas"]["TeamMembershipResponse"][];
+                        "application/json": components["schemas"]["TeamMembershipResponse"][];
+                        "text/json": components["schemas"]["TeamMembershipResponse"][];
                     };
                 };
                 /** @description Not Found */
@@ -16672,9 +16672,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["SetUserSpecialtiesRequest"];
-                    "text/json": components["schemas"]["SetUserSpecialtiesRequest"];
-                    "application/*+json": components["schemas"]["SetUserSpecialtiesRequest"];
+                    "application/json": components["schemas"]["SetUserTeamsRequest"];
+                    "text/json": components["schemas"]["SetUserTeamsRequest"];
+                    "application/*+json": components["schemas"]["SetUserTeamsRequest"];
                 };
             };
             responses: {
@@ -16684,9 +16684,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
-                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
-                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/plain": components["schemas"]["TeamMembershipResponse"][];
+                        "application/json": components["schemas"]["TeamMembershipResponse"][];
+                        "text/json": components["schemas"]["TeamMembershipResponse"][];
                     };
                 };
                 /** @description Bad Request */
@@ -16731,7 +16731,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/me/specialties": {
+    "/api/auth/me/teams": {
         parameters: {
             query?: never;
             header?: never;
@@ -16753,9 +16753,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
-                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
-                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/plain": components["schemas"]["TeamMembershipResponse"][];
+                        "application/json": components["schemas"]["TeamMembershipResponse"][];
+                        "text/json": components["schemas"]["TeamMembershipResponse"][];
                     };
                 };
             };
@@ -16768,7 +16768,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/specialties": {
+    "/api/teams": {
         parameters: {
             query?: never;
             header?: never;
@@ -16792,9 +16792,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"][];
-                        "application/json": components["schemas"]["SpecialtyResponse"][];
-                        "text/json": components["schemas"]["SpecialtyResponse"][];
+                        "text/plain": components["schemas"]["TeamResponse"][];
+                        "application/json": components["schemas"]["TeamResponse"][];
+                        "text/json": components["schemas"]["TeamResponse"][];
                     };
                 };
             };
@@ -16809,9 +16809,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["CreateSpecialtyRequest"];
-                    "text/json": components["schemas"]["CreateSpecialtyRequest"];
-                    "application/*+json": components["schemas"]["CreateSpecialtyRequest"];
+                    "application/json": components["schemas"]["CreateTeamRequest"];
+                    "text/json": components["schemas"]["CreateTeamRequest"];
+                    "application/*+json": components["schemas"]["CreateTeamRequest"];
                 };
             };
             responses: {
@@ -16821,9 +16821,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"];
-                        "application/json": components["schemas"]["SpecialtyResponse"];
-                        "text/json": components["schemas"]["SpecialtyResponse"];
+                        "text/plain": components["schemas"]["TeamResponse"];
+                        "application/json": components["schemas"]["TeamResponse"];
+                        "text/json": components["schemas"]["TeamResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -16856,7 +16856,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/specialties/{id}": {
+    "/api/teams/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -16880,9 +16880,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"];
-                        "application/json": components["schemas"]["SpecialtyResponse"];
-                        "text/json": components["schemas"]["SpecialtyResponse"];
+                        "text/plain": components["schemas"]["TeamResponse"];
+                        "application/json": components["schemas"]["TeamResponse"];
+                        "text/json": components["schemas"]["TeamResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -16909,9 +16909,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["UpdateSpecialtyRequest"];
-                    "text/json": components["schemas"]["UpdateSpecialtyRequest"];
-                    "application/*+json": components["schemas"]["UpdateSpecialtyRequest"];
+                    "application/json": components["schemas"]["UpdateTeamRequest"];
+                    "text/json": components["schemas"]["UpdateTeamRequest"];
+                    "application/*+json": components["schemas"]["UpdateTeamRequest"];
                 };
             };
             responses: {
@@ -16921,9 +16921,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"];
-                        "application/json": components["schemas"]["SpecialtyResponse"];
-                        "text/json": components["schemas"]["SpecialtyResponse"];
+                        "text/plain": components["schemas"]["TeamResponse"];
+                        "application/json": components["schemas"]["TeamResponse"];
+                        "text/json": components["schemas"]["TeamResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -17009,7 +17009,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/specialties/{id}/archive": {
+    "/api/teams/{id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -17029,9 +17029,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["SpecialtyVersionRequest"];
-                    "text/json": components["schemas"]["SpecialtyVersionRequest"];
-                    "application/*+json": components["schemas"]["SpecialtyVersionRequest"];
+                    "application/json": components["schemas"]["TeamVersionRequest"];
+                    "text/json": components["schemas"]["TeamVersionRequest"];
+                    "application/*+json": components["schemas"]["TeamVersionRequest"];
                 };
             };
             responses: {
@@ -17041,9 +17041,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"];
-                        "application/json": components["schemas"]["SpecialtyResponse"];
-                        "text/json": components["schemas"]["SpecialtyResponse"];
+                        "text/plain": components["schemas"]["TeamResponse"];
+                        "application/json": components["schemas"]["TeamResponse"];
+                        "text/json": components["schemas"]["TeamResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -17076,7 +17076,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/specialties/{id}/restore": {
+    "/api/teams/{id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -17096,9 +17096,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["SpecialtyVersionRequest"];
-                    "text/json": components["schemas"]["SpecialtyVersionRequest"];
-                    "application/*+json": components["schemas"]["SpecialtyVersionRequest"];
+                    "application/json": components["schemas"]["TeamVersionRequest"];
+                    "text/json": components["schemas"]["TeamVersionRequest"];
+                    "application/*+json": components["schemas"]["TeamVersionRequest"];
                 };
             };
             responses: {
@@ -17108,9 +17108,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["SpecialtyResponse"];
-                        "application/json": components["schemas"]["SpecialtyResponse"];
-                        "text/json": components["schemas"]["SpecialtyResponse"];
+                        "text/plain": components["schemas"]["TeamResponse"];
+                        "application/json": components["schemas"]["TeamResponse"];
+                        "text/json": components["schemas"]["TeamResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -19004,7 +19004,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    specialtyId?: string;
+                    teamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -19093,7 +19093,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    specialtyId?: string;
+                    teamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -19819,7 +19819,7 @@ export interface components {
             /** Format: uuid */
             roomId?: string;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             dayOfWeek?: string | null;
             /** Format: time */
             starts?: string;
@@ -19849,8 +19849,8 @@ export interface components {
             siteId?: string;
             siteName?: string | null;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             dayOfWeek?: string | null;
             /** Format: time */
             starts?: string;
@@ -19879,7 +19879,7 @@ export interface components {
             /** Format: uuid */
             roomId?: string;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             /** Format: date-time */
             startUtc?: string;
             /** Format: date-time */
@@ -19900,8 +19900,8 @@ export interface components {
             siteId?: string;
             siteName?: string | null;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             /** Format: uuid */
             patternId?: string | null;
             /** Format: date */
@@ -20101,7 +20101,7 @@ export interface components {
             name?: string | null;
             kind?: string | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             letterhead?: string | null;
             bodySkeleton?: string | null;
             closing?: string | null;
@@ -20109,7 +20109,7 @@ export interface components {
         CreatePathwayTemplateRequest: {
             name?: string | null;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             retentionClass?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
@@ -20179,7 +20179,7 @@ export interface components {
             created?: components["schemas"]["ClinicSessionResponse"][] | null;
             skipped?: components["schemas"]["SkippedSessionResponse"][] | null;
         };
-        CreateSpecialtyRequest: {
+        CreateTeamRequest: {
             name?: string | null;
             /** Format: int32 */
             targetDaysUrgent?: number | null;
@@ -20389,7 +20389,7 @@ export interface components {
         };
         EditReferralRequest: {
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             /** Format: date */
             receivedOn?: string;
             /** Format: uuid */
@@ -20789,7 +20789,7 @@ export interface components {
         ExportedReferralResponse: {
             /** Format: uuid */
             id?: string;
-            specialtyName?: string | null;
+            teamName?: string | null;
             /** Format: date */
             receivedOn?: string;
             referrerPractice?: string | null;
@@ -21241,8 +21241,8 @@ export interface components {
             name?: string | null;
             kind?: string | null;
             /** Format: uuid */
-            specialtyId?: string | null;
-            specialtyName?: string | null;
+            teamId?: string | null;
+            teamName?: string | null;
             letterhead?: string | null;
             bodySkeleton?: string | null;
             closing?: string | null;
@@ -21322,7 +21322,7 @@ export interface components {
             expectedLastUpdated?: string | null;
             isMdt?: boolean | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
         };
         MeetingResponse: {
             /** Format: uuid */
@@ -21349,7 +21349,7 @@ export interface components {
             lastUpdated?: string;
             isMdt?: boolean;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
         };
         MonitoringRuleResponse: {
             /** Format: uuid */
@@ -21368,8 +21368,8 @@ export interface components {
             /** Format: int32 */
             thresholdDays?: number | null;
             /** Format: uuid */
-            specialtyId?: string | null;
-            specialtyName?: string | null;
+            teamId?: string | null;
+            teamName?: string | null;
             isEnabled?: boolean;
             /** Format: date-time */
             createdAtUtc?: string;
@@ -21472,7 +21472,7 @@ export interface components {
             /** Format: uuid */
             templateId?: string | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             /** Format: date */
             from?: string;
             /** Format: date */
@@ -21503,7 +21503,7 @@ export interface components {
             id?: string;
             /** Format: date */
             receivedOn?: string;
-            specialtyName?: string | null;
+            teamName?: string | null;
             /** Format: int32 */
             version?: number;
             clock?: components["schemas"]["WaitingClockResponse"];
@@ -21517,8 +21517,8 @@ export interface components {
             name?: string | null;
             isArchived?: boolean;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             retentionClass?: string | null;
             /** Format: int32 */
             pathwayCount?: number;
@@ -21700,7 +21700,7 @@ export interface components {
             templateId?: string | null;
             templateName?: string | null;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             referral?: components["schemas"]["PathwayReferralResponse"];
             title?: string | null;
             /** Format: date */
@@ -21932,9 +21932,9 @@ export interface components {
             fileName?: string | null;
             /** Format: uuid */
             referralId?: string | null;
-            specialtyName?: string | null;
+            teamName?: string | null;
             referrerPractice?: string | null;
-            previousSpecialtyName?: string | null;
+            previousTeamName?: string | null;
             rejectionReason?: string | null;
             redirectedTo?: string | null;
             pauseReason?: string | null;
@@ -22004,7 +22004,7 @@ export interface components {
         PatientTimelineReferralResponse: {
             /** Format: uuid */
             referralId?: string;
-            specialtyName?: string | null;
+            teamName?: string | null;
             /** Format: date */
             receivedOn?: string;
             requestedPriority?: string | null;
@@ -22191,7 +22191,7 @@ export interface components {
         };
         RedirectReferralRequest: {
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             elsewhere?: string | null;
             detail?: string | null;
             /** Format: int32 */
@@ -22200,7 +22200,7 @@ export interface components {
         ReferralCountResponse: {
             /** Format: int32 */
             count?: number;
-            inYourSpecialties?: boolean;
+            inYourTeams?: boolean;
         };
         ReferralEventResponse: {
             /** Format: uuid */
@@ -22210,8 +22210,8 @@ export interface components {
             atUtc?: string;
             username?: string | null;
             toStatus?: string | null;
-            specialtyName?: string | null;
-            previousSpecialtyName?: string | null;
+            teamName?: string | null;
+            previousTeamName?: string | null;
             requestedPriority?: string | null;
             priority?: string | null;
             templateName?: string | null;
@@ -22239,8 +22239,8 @@ export interface components {
             patient?: components["schemas"]["PathwayPatientResponse"];
             patientFlags?: components["schemas"]["PatientFlagsResponse"];
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             /** Format: date */
             receivedOn?: string;
             /** Format: uuid */
@@ -22292,8 +22292,8 @@ export interface components {
             /** Format: date */
             patientDateOfBirth?: string;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             /** Format: date */
             receivedOn?: string;
             /** Format: int32 */
@@ -22332,7 +22332,7 @@ export interface components {
             /** Format: uuid */
             patientId?: string;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             /** Format: date */
             receivedOn?: string;
             /** Format: uuid */
@@ -22558,7 +22558,7 @@ export interface components {
             /** Format: int32 */
             thresholdDays?: number | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             isEnabled?: boolean;
         };
         SaveNotepadRequest: {
@@ -22627,8 +22627,8 @@ export interface components {
         SetUserRolesRequest: {
             roles?: string[] | null;
         };
-        SetUserSpecialtiesRequest: {
-            specialtyIds?: string[] | null;
+        SetUserTeamsRequest: {
+            teamIds?: string[] | null;
         };
         SignOffResultRequest: {
             action?: string | null;
@@ -22697,7 +22697,7 @@ export interface components {
             date?: string;
             reason?: string | null;
         };
-        SpecialtyResponse: {
+        TeamResponse: {
             /** Format: uuid */
             id?: string;
             name?: string | null;
@@ -22730,7 +22730,7 @@ export interface components {
             /** Format: date-time */
             lastUpdated?: string;
         };
-        SpecialtyVersionRequest: {
+        TeamVersionRequest: {
             /** Format: int32 */
             expectedVersion?: number;
         };
@@ -22928,7 +22928,7 @@ export interface components {
             weekTemplateId?: string | null;
             weekTemplateName?: string | null;
         };
-        StaffSpecialtyResponse: {
+        TeamMembershipResponse: {
             /** Format: uuid */
             id?: string;
             name?: string | null;
@@ -23032,7 +23032,7 @@ export interface components {
             /** Format: uuid */
             roomId?: string;
             /** Format: uuid */
-            specialtyId?: string;
+            teamId?: string;
             /** Format: date-time */
             startUtc?: string;
             /** Format: date-time */
@@ -23055,7 +23055,7 @@ export interface components {
             name?: string | null;
             kind?: string | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             letterhead?: string | null;
             bodySkeleton?: string | null;
             closing?: string | null;
@@ -23071,7 +23071,7 @@ export interface components {
         UpdatePathwayTemplateRequest: {
             name?: string | null;
             /** Format: uuid */
-            specialtyId?: string | null;
+            teamId?: string | null;
             retentionClass?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
@@ -23130,7 +23130,7 @@ export interface components {
         UpdateRoomRequest: {
             name?: string | null;
         };
-        UpdateSpecialtyRequest: {
+        UpdateTeamRequest: {
             name?: string | null;
             /** Format: int32 */
             expectedVersion?: number;
@@ -23285,7 +23285,7 @@ export interface components {
             /** Format: uuid */
             pathwayId?: string;
             pathwayTitle?: string | null;
-            specialty?: string | null;
+            team?: string | null;
             status?: string | null;
             question?: string | null;
             /** Format: date-time */
@@ -23320,8 +23320,8 @@ export interface components {
             pathwayId?: string;
             pathwayTitle?: string | null;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             /** Format: uuid */
             meetingId?: string | null;
             meetingTitle?: string | null;
@@ -23361,8 +23361,8 @@ export interface components {
             /** Format: date-time */
             endUtc?: string;
             /** Format: uuid */
-            specialtyId?: string;
-            specialtyName?: string | null;
+            teamId?: string;
+            teamName?: string | null;
             /** Format: int32 */
             openItemCount?: number;
             /** Format: int32 */

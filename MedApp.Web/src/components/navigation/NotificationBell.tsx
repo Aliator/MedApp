@@ -23,23 +23,23 @@ const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'Lette
 const RESULT_KINDS = new Set(['ResultReady', 'ResultReassigned', 'ResultSignedOffByOther']);
 
 /**
- * The service alerts' lists: each alert opens the list it counts, narrowed to the rule's specialty (its `subjectId`)
+ * The service alerts' lists: each alert opens the list it counts, narrowed to the rule's team (its `subjectId`)
  * where the list takes one.
  */
-const SERVICE_ALERT_LISTS: Record<string, {path: string; specialty: boolean}> = {
-  MonitoredReferralNotTriaged: {path: '/referrals?', specialty: true},
-  MonitoredResultNotSignedOff: {path: '/results?view=Awaiting&', specialty: true},
-  MonitoredVisitNotBooked: {path: '/calendar/requires-appointment?', specialty: false},
-  MonitoredSpecimenOverdue: {path: '/lab?view=Overdue&', specialty: false},
-  MonitoredWaitBreached: {path: '/referrals?view=waiting&', specialty: true},
-  MonitoredPauseReviewPassed: {path: '/referrals?view=paused&', specialty: true},
+const SERVICE_ALERT_LISTS: Record<string, {path: string; team: boolean}> = {
+  MonitoredReferralNotTriaged: {path: '/referrals?', team: true},
+  MonitoredResultNotSignedOff: {path: '/results?view=Awaiting&', team: true},
+  MonitoredVisitNotBooked: {path: '/calendar/requires-appointment?', team: false},
+  MonitoredSpecimenOverdue: {path: '/lab?view=Overdue&', team: false},
+  MonitoredWaitBreached: {path: '/referrals?view=waiting&', team: true},
+  MonitoredPauseReviewPassed: {path: '/referrals?view=paused&', team: true},
 };
 
-/** A service alert's link: its list, with the specialty when it has one and the list takes it. */
+/** A service alert's link: its list, with the team when it has one and the list takes it. */
 function serviceAlertHref(notification: AppNotification) {
   const list = SERVICE_ALERT_LISTS[notification.kind ?? ''];
   if (!list) return undefined;
-  const href = list.specialty && notification.subjectId ? `${list.path}specialty=${notification.subjectId}` : list.path;
+  const href = list.team && notification.subjectId ? `${list.path}team=${notification.subjectId}` : list.path;
   return href.replace(/[?&]$/, '');
 }
 

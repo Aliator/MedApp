@@ -33,6 +33,23 @@ MedApp was built around "procedures". In November 2026 they became **pathways**,
 
 A referral's clock (`WaitingClock`, `docs/agents/referrals.md`) shows as the **wait**, "Day 84 of 126" (days waited of the target); **Breached** once it's past its target date; **Paused** (with its review date, flagged once past); and **Stopped**. The **clock-stop stage** is the template's stage whose finishing stops it (`StopsClock`). While the clock runs or is paused, a pathway's target date comes from it ("from the waiting-time clock").
 
+## The multi-clinic centre's words
+
+From `docs/multi-clinic-plan.md` (decision 181). Planned: each word arrives with the PR that builds it.
+
+- **Team:** a clinic or the lab. Was a **specialty** (renamed in code by MC2; stored detail keys keep `specialty`). Screens say "team" looking inward: your team, the team calendar, the team worklist.
+- **Clinic:** a team that sees patients (Dermatology). Screens say "clinic" when sending outward: "Refer to Dermatology", "a pathway in Dermatology".
+- **The lab:** the centre's in-house laboratory team. It serves every clinic and a nearby hospital.
+- **Centre:** the whole organisation; never "company".
+- **Relay:** a pathway passing work between a clinic and the lab, like a baton: the team that owns a stage works it, then hands back. **Handover** is the pass; **pick up** is the receiving team taking it.
+- **Fork:** where a pathway splits into parallel routes. **Join:** a stage that waits until every route into it is finished or skipped.
+- **Branch** (added): a route added to a running pathway from its template's list, when new information arrives.
+- **Sample:** what screens call a specimen. The code keeps `Specimen` (FHIR's word).
+- **Lab case:** the lab's record of the work on a request: the test, its steps, the report and its clock.
+- **Hospital request:** the hospital asking the lab to examine a sample, shaped on FHIR UK Core's `ServiceRequest-Lab`.
+- **Clock** (a lab case's): its deadline, the lab's own limit or the hospital's date, whichever is sooner; at risk, then breached. Not the referral's waiting-time clock above.
+- **Admin, staff, clinic admin:** the account types. Admins read everything and change nothing clinical; staff do clinical work in their team; a clinic admin is staff with small extras for their own team.
+
 ## Where "procedure" stays
 
 - **In its medical sense:** something done to a patient. A stage named "Procedure", "minor procedures", "pre-procedure check", SNOMED CT's concept 71388002 (Procedure), and the kinds of procedure in the demo data (`ProcedureKind`).
@@ -51,6 +68,10 @@ Stored numbers never changed (statuses, audit actions, notification kinds, monit
 | Notifications already sent | Left as they were: they keep the words people were shown |
 | Account settings: `medapp.proceduresStartOnMine`, the start page's value `procedures`, saved searches under `procedures` and `patientProcedures` | Kept: the keys aren't shown to anyone |
 | Account settings: pinned pathways, under `procedures` in `medapp.pins` | Read from the old key until the pins are next saved, which writes them under `pathways` |
+| **Specialties to teams (MC2):** tables, columns, keys and indexes (`Specialties`, `StaffSpecialties`, every `SpecialtyId`) | Renamed in place by `RenamedSpecialtiesToTeams`; every row kept |
+| A referral history's details (`specialtyId`, `specialtyName`, `previousSpecialtyId`, `previousSpecialtyName`, the edited field `specialty`, a target's cause `specialty`) and an MDT audit entry's `specialty` | Kept: still written and read under these keys |
+| `ActivityAction` 42 | Member renamed `TeamMembershipChanged`; the number kept |
+| Saved searches with a `specialty` filter or a sort by `Specialty` | Kept in settings; read as `team` and `Team` |
 
 ## Old addresses and saved searches
 
@@ -61,5 +82,6 @@ The web app still answers the addresses pages had before, and sends them on (`Me
 | `/procedures`, `/procedures/new`, `/procedures/{id}`, `/procedures/{id}/edit` | `/pathways/…` |
 | `/patients/{id}/procedures` | `/patients/{id}/pathways` |
 | `/admin/templates`, `/admin/templates/new`, `/admin/templates/{id}` | `/admin/pathway-templates/…` |
+| `/admin/specialties` | `/admin/teams` |
 
-A bookmark or saved search that sorts by the old Procedure column, filters the activity log by `ProcedureViewed`, or opens the audit log with `procedureId`, is read as its name now. The API has no aliases: `api/procedures/…` is gone, and `api/pathways/…` replaced it.
+A bookmark or saved search that sorts by the old Procedure column, filters the activity log by `ProcedureViewed`, or opens the audit log with `procedureId`, is read as its name now. So is one with a `specialty` filter, a sort by Specialty or the `StaffSpecialtiesChanged` action. The API has no aliases: `api/procedures/…` is gone, and `api/pathways/…` replaced it. Likewise `api/specialties` is gone (`api/teams`), with `api/auth/users/{u}/teams` and `api/auth/me/teams`.

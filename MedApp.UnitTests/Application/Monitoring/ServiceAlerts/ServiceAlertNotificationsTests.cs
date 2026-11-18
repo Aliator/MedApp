@@ -12,11 +12,11 @@ public sealed class ServiceAlertNotificationsTests
     private static readonly DateTime Now = new(2026, 6, 10, 12, 0, 0, DateTimeKind.Utc);
 
     [Test]
-    public void Create_ReferralNotTriaged_GivesTheCountSpecialtyAndDays_AndLinksTheSpecialty()
+    public void Create_ReferralNotTriaged_GivesTheCountTeamAndDays_AndLinksTheTeam()
     {
-        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, specialtyId: RuleSpecialtyId);
+        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, teamId: RuleTeamId);
 
-        var notification = ServiceAlertNotifications.Create(rule, 3, RuleSpecialtyName, null, Now);
+        var notification = ServiceAlertNotifications.Create(rule, 3, RuleTeamName, null, Now);
 
         notification.Should().BeEquivalentTo(new
         {
@@ -24,7 +24,7 @@ public sealed class ServiceAlertNotificationsTests
             Kind = NotificationKind.MonitoredReferralNotTriaged,
             Title = "Referrals awaiting triage",
             Message = "3 Dermatology referrals have waited more than 2 days for triage.",
-            SubjectId = (Guid?)RuleSpecialtyId,
+            SubjectId = (Guid?)RuleTeamId,
             PathwayId = (Guid?)null,
             CreatedAtUtc = Now,
         });

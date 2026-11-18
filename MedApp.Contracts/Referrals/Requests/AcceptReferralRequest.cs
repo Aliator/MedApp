@@ -7,7 +7,7 @@ namespace MedApp.Contracts.Referrals.Requests;
 /// </summary>
 public sealed class AcceptReferralRequest
 {
-    /// <summary>The pathway template, one of the referral's specialty's (not archived).</summary>
+    /// <summary>The pathway template, one of the referral's team's (not archived).</summary>
     public Guid TemplateId { get; set; }
 
     /// <summary>The pathway's priority, chosen by the triager: Low, Medium, High or Urgent.</summary>

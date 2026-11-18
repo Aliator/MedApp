@@ -1,11 +1,11 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
-import {specialtyKeys} from './specialties';
+import {teamKeys} from './teams';
 
 /**
  * Letter templates (docs/centre-phases-3-5-plan.md, decision 99): the letterhead, body and closing a letter starts
- * from, for one specialty or every specialty, each for a kind of letter. Their text may hold merge fields
+ * from, for one team or every team, each for a kind of letter. Their text may hold merge fields
  * (`{{patient.name}}`), which copy identity and administrative details only. Anyone can read them; holders of
  * ManageSetup keep them. One no letter has been written from can be deleted (`canBeDeleted`); the rest are archived,
  * as letters keep their text.
@@ -30,18 +30,18 @@ export const LETTER_KIND_LABELS: Record<LetterKind, string> = {
 /** A kind in words; one this copy of the app doesn't know yet as the API named it. */
 export const letterKindLabel = (kind: string | null | undefined) => LETTER_KIND_LABELS[kind as LetterKind] ?? kind ?? '';
 
-/** The specialty a template is for, in words: its name, or "All specialties" for one for every specialty. */
-export const letterTemplateSpecialty = (template: Pick<LetterTemplate, 'specialtyId' | 'specialtyName'>) =>
-  template.specialtyId ? (template.specialtyName ?? 'Unknown specialty') : 'All specialties';
+/** The team a template is for, in words: its name, or "All teams" for one for every team. */
+export const letterTemplateTeam = (template: Pick<LetterTemplate, 'teamId' | 'teamName'>) =>
+  template.teamId ? (template.teamName ?? 'Unknown team') : 'All teams';
 
 /**
- * The API's order: templates for every specialty first, then by specialty name, then by name. For sorting a list after
+ * The API's order: templates for every team first, then by team name, then by name. For sorting a list after
  * filtering it.
  */
 export function compareLetterTemplates(a: LetterTemplate, b: LetterTemplate): number {
   const byName = (x: string | null | undefined, y: string | null | undefined) => (x ?? '').localeCompare(y ?? '', undefined, {sensitivity: 'base'});
-  const forAll = (t: LetterTemplate) => (t.specialtyId ? 1 : 0);
-  return forAll(a) - forAll(b) || byName(a.specialtyName, b.specialtyName) || byName(a.name, b.name);
+  const forAll = (t: LetterTemplate) => (t.teamId ? 1 : 0);
+  return forAll(a) - forAll(b) || byName(a.teamName, b.teamName) || byName(a.name, b.name);
 }
 
 /** Every letter template query is under ['letter-templates'], so one change refreshes them all. */
@@ -75,18 +75,18 @@ export const letterMergeFieldsQuery = queryOptions({
   staleTime: Infinity,
 });
 
-/** A template's details as the editor holds them. `specialtyId` is null for every specialty. */
+/** A template's details as the editor holds them. `teamId` is null for every team. */
 export interface LetterTemplateInput {
   name: string;
   kind: LetterKind;
-  specialtyId: string | null;
+  teamId: string | null;
   letterhead: string;
   bodySkeleton: string;
   closing: string;
 }
 
 /** A new template's details, as the editor starts. */
-export const EMPTY_LETTER_TEMPLATE: LetterTemplateInput = {name: '', kind: 'ClinicLetter', specialtyId: null, letterhead: '', bodySkeleton: '', closing: ''};
+export const EMPTY_LETTER_TEMPLATE: LetterTemplateInput = {name: '', kind: 'ClinicLetter', teamId: null, letterhead: '', bodySkeleton: '', closing: ''};
 
 /** A saved template's details as the editor starts with them. */
 export function letterTemplateInput(template: LetterTemplate | null): LetterTemplateInput {
@@ -94,7 +94,7 @@ export function letterTemplateInput(template: LetterTemplate | null): LetterTemp
   return {
     name: template.name ?? '',
     kind: (template.kind as LetterKind | null | undefined) ?? 'ClinicLetter',
-    specialtyId: template.specialtyId ?? null,
+    teamId: template.teamId ?? null,
     letterhead: template.letterhead ?? '',
     bodySkeleton: template.bodySkeleton ?? '',
     closing: template.closing ?? '',
@@ -102,7 +102,7 @@ export function letterTemplateInput(template: LetterTemplate | null): LetterTemp
 }
 
 /**
- * What a change refreshes: the templates, and the specialties (each counts its letter templates). After a 409 (the
+ * What a change refreshes: the templates, and the teams (each counts its letter templates). After a 409 (the
  * name is taken, or someone changed it meanwhile) they're read again too, so the page shows what's there now, with its
  * new version.
  */
@@ -111,7 +111,7 @@ function useRefreshLetterTemplates() {
   const onSuccess = async () => {
     await Promise.all([
       queryClient.invalidateQueries({queryKey: letterTemplateKeys.all}),
-      queryClient.invalidateQueries({queryKey: specialtyKeys.all}),
+      queryClient.invalidateQueries({queryKey: teamKeys.all}),
     ]);
   };
   const onError = (error: unknown) => (error instanceof ApiError && error.status === 409 ? onSuccess() : undefined);
@@ -120,8 +120,8 @@ function useRefreshLetterTemplates() {
 
 /**
  * Adds a template (no `id`) or replaces one's details from the version the person saw (`expectedVersion`), returning
- * it. The API's 400 names `Name`, `Kind`, `SpecialtyId`, `Letterhead`, `BodySkeleton` or `Closing` (an unknown merge
- * field is one, on the text holding it); a name taken in that specialty, an archived specialty or a change made
+ * it. The API's 400 names `Name`, `Kind`, `TeamId`, `Letterhead`, `BodySkeleton` or `Closing` (an unknown merge
+ * field is one, on the text holding it); a name taken in that team, an archived team or a change made
  * meanwhile is a 409.
  */
 export function useSaveLetterTemplate() {

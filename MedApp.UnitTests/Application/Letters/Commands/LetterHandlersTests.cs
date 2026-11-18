@@ -46,7 +46,7 @@ public sealed class LetterHandlersTests : LetterHandlerTestBase
     [Test]
     public async Task Create_FromAPathway_CopiesTheTemplate_StartsWithThePracticeAndPatient_AndAuditsTheDraft()
     {
-        var template = CreateTemplate(specialtyId: Pathway.SpecialtyId, kind: LetterKind.DischargeSummary);
+        var template = CreateTemplate(teamId: Pathway.TeamId, kind: LetterKind.DischargeSummary);
         GivenTemplate(template);
 
         var response = await Fixture.Create<CreateLetterHandler>().Handle(
@@ -76,7 +76,7 @@ public sealed class LetterHandlersTests : LetterHandlerTestBase
         Patient.UnlistedPracticeAddressLines = PracticesTestConstants.UnlistedLine;
         Patient.UnlistedPracticePostcode = PracticesTestConstants.UnlistedPostcode;
         Patient.UnlistedPracticePhone = PracticesTestConstants.UnlistedPhone;
-        var template = CreateTemplate(specialtyId: Pathway.SpecialtyId);
+        var template = CreateTemplate(teamId: Pathway.TeamId);
         GivenTemplate(template);
 
         await Fixture.Create<CreateLetterHandler>().Handle(new CreateLetterCommand(template.Id, Pathway.Id, null, Author), _cts.Token);
@@ -125,14 +125,14 @@ public sealed class LetterHandlersTests : LetterHandlerTestBase
     }
 
     [Test]
-    public async Task Create_AnotherSpecialtysTemplate_IsRefused()
+    public async Task Create_AnotherTeamsTemplate_IsRefused()
     {
-        var template = CreateTemplate(specialtyId: Guid.NewGuid());
+        var template = CreateTemplate(teamId: Guid.NewGuid());
         GivenTemplate(template);
 
         var act = () => Fixture.Create<CreateLetterHandler>().Handle(new CreateLetterCommand(template.Id, Pathway.Id, null, Author), _cts.Token);
 
-        await act.Should().ThrowAsync<ValidationException>().WithMessage("*another specialty*");
+        await act.Should().ThrowAsync<ValidationException>().WithMessage("*another team*");
     }
 
     [Test]

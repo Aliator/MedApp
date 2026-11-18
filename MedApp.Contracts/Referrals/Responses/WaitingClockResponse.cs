@@ -1,7 +1,7 @@
 namespace MedApp.Contracts.Referrals.Responses;
 
 /// <summary>
-/// A referral's waiting-time clock, in whole UK days: dates staff entered and the specialty's own target for the
+/// A referral's waiting-time clock, in whole UK days: dates staff entered and the team's own target for the
 /// priority a clinician set. Administrative, like Overdue: never ranked by anything clinical.
 /// </summary>
 public sealed class WaitingClockResponse

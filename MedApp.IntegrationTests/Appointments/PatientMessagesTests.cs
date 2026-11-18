@@ -191,7 +191,7 @@ public sealed class PatientMessagesTests : IntegrationTest
         {
             StaffUserId = _staff.UserId,
             RoomId = room.Id,
-            SpecialtyId = MedApp.Domain.Specialties.Specialty.GeneralId,
+            TeamId = MedApp.Domain.Teams.Team.GeneralId,
             StartUtc = UkAt(date, 9),
             EndUtc = UkAt(date, 10),
             SlotMinutes = 30,

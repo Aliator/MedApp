@@ -95,7 +95,7 @@ describe('PathwayPage', () => {
   });
 
   it("lists the pathway's letters, and says what a stage that needs one waits for", async () => {
-    const needsLetter = {...pathway, specialtyId: 'sp1', stages: [pathway.stages[0], {...pathway.stages[1], needsLetterKind: 'DischargeSummary'}]};
+    const needsLetter = {...pathway, teamId: 'sp1', stages: [pathway.stages[0], {...pathway.stages[1], needsLetterKind: 'DischargeSummary'}]};
     const fetch = mockApi({
       [`GET /api/pathways/patient-pathways/${id}`]: () => json(needsLetter),
       'GET /api/letters/search': () =>
@@ -536,7 +536,7 @@ describe('PathwayPage: working on it', () => {
   });
 
   it('links to the referral it was accepted from, and keeps the link when a change comes back without it', async () => {
-    const referral = {id: 'referral-1', receivedOn: '2026-11-02', specialtyName: 'Dermatology'};
+    const referral = {id: 'referral-1', receivedOn: '2026-11-02', teamName: 'Dermatology'};
     const notStarted = working({stages: [working().stages[0], {...working().stages[1], state: 'NotStarted'}]});
     let reads = 0;
     const fetch = mockApi({
@@ -567,7 +567,7 @@ describe('PathwayPage: working on it', () => {
     const referral = {
       id: 'referral-1',
       receivedOn: '2026-11-02',
-      specialtyName: 'Dermatology',
+      teamName: 'Dermatology',
       version: 3,
       clock: {state: 'Running', targetDays: 28, daysWaited: 30, isBreached: true, targetOn: '2026-11-30', waitStartOn: '2026-11-02'},
       pauses: [],

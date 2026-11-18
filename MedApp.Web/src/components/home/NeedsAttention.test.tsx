@@ -7,7 +7,7 @@ import {attentionLines, NeedsAttention} from './NeedsAttention';
 const COUNTS = {
   'GET /api/results/count': () => json({awaitingMine: 4}),
   'GET /api/letters/count': () => json({toApprove: 2, toSend: 1}),
-  'GET /api/referrals/awaiting-triage/count': () => json({count: 3, inYourSpecialties: true}),
+  'GET /api/referrals/awaiting-triage/count': () => json({count: 3, inYourTeams: true}),
 };
 
 /** Someone with exactly these permissions. */
@@ -27,7 +27,7 @@ describe('NeedsAttention', () => {
     expect(await list.findByRole('link', {name: '4 results awaiting your sign-off'})).toHaveAttribute('href', '/results');
     expect(list.getByRole('link', {name: '2 letters to approve'})).toHaveAttribute('href', '/letters');
     expect(list.getByRole('link', {name: '1 letter to send'})).toHaveAttribute('href', '/letters');
-    expect(list.getByRole('link', {name: '3 referrals awaiting triage in your specialties'})).toHaveAttribute('href', '/referrals');
+    expect(list.getByRole('link', {name: '3 referrals awaiting triage in your teams'})).toHaveAttribute('href', '/referrals');
     expect(screen.getByRole('heading', {name: 'Needs your attention'})).toBeInTheDocument();
   });
 
@@ -35,7 +35,7 @@ describe('NeedsAttention', () => {
     const fetch = mockApi({
       'GET /api/results/count': () => json({awaitingMine: 0}),
       'GET /api/letters/count': () => json({toApprove: 0, toSend: 0}),
-      'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourSpecialties: false}),
+      'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourTeams: false}),
     });
     renderWithApp(<NeedsAttention />, {user: EVERY_LINE});
 
@@ -67,8 +67,8 @@ describe('NeedsAttention', () => {
 });
 
 describe('attentionLines', () => {
-  it('says one in the singular, and the triage count without "in your specialties" for someone in none', () => {
-    const lines = attentionLines({resultsAwaitingMine: 1, referralsAwaitingTriage: 1, inYourSpecialties: false});
+  it('says one in the singular, and the triage count without "in your teams" for someone in none', () => {
+    const lines = attentionLines({resultsAwaitingMine: 1, referralsAwaitingTriage: 1, inYourTeams: false});
     expect(lines.map((line) => `${line.count} ${line.words(line.count)}`)).toEqual([
       '1 result awaiting your sign-off',
       '1 referral awaiting triage',

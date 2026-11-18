@@ -66,7 +66,7 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
         var template = await mediator.Send(new CreateLetterTemplateCommand(
             request.Name,
             request.Kind,
-            request.SpecialtyId,
+            request.TeamId,
             request.Letterhead,
             request.BodySkeleton,
             request.Closing), ct);
@@ -87,7 +87,7 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
             id,
             request.Name,
             request.Kind,
-            request.SpecialtyId,
+            request.TeamId,
             request.Letterhead,
             request.BodySkeleton,
             request.Closing,

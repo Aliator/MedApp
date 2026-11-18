@@ -23,12 +23,12 @@ public sealed class ClinicRepository(MedAppDbContext context) : IClinicRepositor
     private IQueryable<ClinicSession> Sessions(bool tracked) =>
         (tracked ? context.ClinicSessions : context.ClinicSessions.AsNoTracking())
             .Include(s => s.Room).ThenInclude(r => r.Site)
-            .Include(s => s.Specialty);
+            .Include(s => s.Team);
 
     private IQueryable<ClinicPattern> Patterns(bool tracked) =>
         (tracked ? context.ClinicPatterns : context.ClinicPatterns.AsNoTracking())
             .Include(p => p.Room).ThenInclude(r => r.Site)
-            .Include(p => p.Specialty);
+            .Include(p => p.Team);
 
     public async Task<ClinicSession?> GetSessionAsync(Guid id, CancellationToken ct) =>
         await Sessions(false).FirstOrDefaultAsync(s => s.Id == id, ct);
@@ -47,8 +47,8 @@ public sealed class ClinicRepository(MedAppDbContext context) : IClinicRepositor
             query = query.Where(s => s.RoomId == room);
         if (filter.SiteId is { } site)
             query = query.Where(s => s.Room.SiteId == site);
-        if (filter.SpecialtyId is { } specialty)
-            query = query.Where(s => s.SpecialtyId == specialty);
+        if (filter.TeamId is { } team)
+            query = query.Where(s => s.TeamId == team);
 
         return await query
             .OrderBy(s => s.StartUtc)

@@ -3,21 +3,21 @@ import type {PathwayInsights} from '../api/insights';
 /** Synthetic data for Insights' tests. */
 export const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
 export const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
-export const SPECIALTY_ID = '0000005a-0000-0000-0000-0000000000aa';
-export const OTHER_SPECIALTY_ID = '0000005a-0000-0000-0000-0000000000bb';
+export const TEAM_ID = '0000005a-0000-0000-0000-0000000000aa';
+export const OTHER_TEAM_ID = '0000005a-0000-0000-0000-0000000000bb';
 
-export const specialties = [
-  {id: OTHER_SPECIALTY_ID, name: 'Allergy', isArchived: true},
-  {id: SPECIALTY_ID, name: 'Biomechanics', isArchived: false},
+export const teams = [
+  {id: OTHER_TEAM_ID, name: 'Allergy', isArchived: true},
+  {id: TEAM_ID, name: 'Biomechanics', isArchived: false},
 ];
 
 export const templates = [
-  {id: TEMPLATE_ID, name: 'Knee review', isArchived: false, specialtyId: SPECIALTY_ID, pathwayCount: 4, stages: [], stageDefinitionIdsInOrder: []},
+  {id: TEMPLATE_ID, name: 'Knee review', isArchived: false, teamId: TEAM_ID, pathwayCount: 4, stages: [], stageDefinitionIdsInOrder: []},
   {
     id: '0000000e-0000-0000-0000-000000000002',
     name: 'Allergy check',
     isArchived: true,
-    specialtyId: OTHER_SPECIALTY_ID,
+    teamId: OTHER_TEAM_ID,
     pathwayCount: 1,
     stages: [],
     stageDefinitionIdsInOrder: [],

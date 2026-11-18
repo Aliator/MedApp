@@ -28,8 +28,8 @@ public sealed class CentreSetup
     public required Guid SkinConsentFormId { get; init; }
     public required Guid GynaecologyConsentFormId { get; init; }
 
-    /// <summary>Letter templates by specialty name and kind.</summary>
-    public required IReadOnlyDictionary<(string Specialty, LetterKind Kind), Guid> LetterTemplates { get; init; }
+    /// <summary>Letter templates by team name and kind.</summary>
+    public required IReadOnlyDictionary<(string Team, LetterKind Kind), Guid> LetterTemplates { get; init; }
 
     public int SitesWithHours { get; init; }
     public int StaffWithHours { get; init; }
@@ -44,7 +44,7 @@ public sealed class CentreSetup
 /// exists), phone numbers from Ofcom's drama range (01632 960xxx), no ODS codes.</item>
 /// <item>The main site's details, an invented outreach clinic, their rooms and opening hours: a Tuesday evening clinic
 /// until 20:00 at the main site, and Saturday biomechanics mornings at the outreach clinic.</item>
-/// <item>Consent forms (invented names, marked demo) and letter templates for each specialty: a clinic letter, a
+/// <item>Consent forms (invented names, marked demo) and letter templates for each team: a clinic letter, a
 /// discharge summary, a referral response and a request for information. Made when the lab, results and letters went
 /// live (<see cref="DemoTimeline.LabAndLettersFromUtc"/>).</item>
 /// <item>Working hours for the part-time and visiting staff, from then: the visiting consultants on their days here, the
@@ -123,16 +123,16 @@ public static class DemoCentreSetup
         var skinForm = await Send(new CreateConsentFormCommand(SkinConsentForm, "v1 (demo)"));
         var gynaeForm = await Send(new CreateConsentFormCommand(GynaecologyConsentForm, "v1 (demo)"));
 
-        var specialties = await services.Run(sp => Task.FromResult(sp.GetRequiredService<Infrastructure.Data.MedAppDbContext>()
-            .Specialties.Select(s => new { s.Id, s.Name }).ToList()));
+        var teams = await services.Run(sp => Task.FromResult(sp.GetRequiredService<Infrastructure.Data.MedAppDbContext>()
+            .Teams.Select(s => new { s.Id, s.Name }).ToList()));
         var templates = new Dictionary<(string, LetterKind), Guid>();
-        foreach (var name in DemoSpecialties.Names)
+        foreach (var name in DemoTeams.Names)
         {
-            var specialtyId = specialties.Single(s => s.Name == name).Id;
+            var teamId = teams.Single(s => s.Name == name).Id;
             foreach (var kind in LetterKindsSeeded)
             {
                 var template = await Send(new CreateLetterTemplateCommand(
-                    $"{name}: {KindName(kind)}", kind.ToString(), specialtyId, Letterhead, BodySkeleton(kind), Closing));
+                    $"{name}: {KindName(kind)}", kind.ToString(), teamId, Letterhead, BodySkeleton(kind), Closing));
                 templates[(name, kind)] = template.Id;
             }
         }
@@ -175,7 +175,7 @@ public static class DemoCentreSetup
         ]),
     ];
 
-    /// <summary>The kinds of letter each specialty has a template for.</summary>
+    /// <summary>The kinds of letter each team has a template for.</summary>
     public static readonly LetterKind[] LetterKindsSeeded =
         [LetterKind.ClinicLetter, LetterKind.DischargeSummary, LetterKind.ReferralResponse, LetterKind.InformationRequest];
 

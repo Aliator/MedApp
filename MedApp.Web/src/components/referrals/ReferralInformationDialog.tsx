@@ -37,7 +37,7 @@ export interface ReferralInformationDialogProps {
 /**
  * Asking the referrer for more information (an Awaiting triage referral becomes Information requested) or recording
  * that it came (back to Awaiting triage), decision 106. Like every triage step it shows the patient as `PatientBanner`
- * does (compact: the dialog covers the page's), the specialty and when it was received, before anything is sent, so the
+ * does (compact: the dialog covers the page's), the team and when it was received, before anything is sent, so the
  * wrong referral isn't changed (hazard H-41). A refusal (a 403, or a 409: changed meanwhile, the record restricted)
  * stays in the dialog in the API's words, and the referral is read again. Mount it only while open.
  */
@@ -65,7 +65,7 @@ export function ReferralInformationDialog({step, referral, onCancel, onDone}: Re
       <VStack gap={4} hAlign="stretch">
         {referral.patient && <PatientBanner patient={referral.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Specialty">{referral.specialtyName}</MetadataListItem>
+          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>

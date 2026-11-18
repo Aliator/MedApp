@@ -2,7 +2,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Mdt.Responses;
 using MedApp.Domain.Mdt;
 using MediatR;
@@ -11,7 +11,7 @@ namespace MedApp.Application.Mdt.Commands.DeferMdtItem;
 
 public sealed class DeferMdtItemHandler(
     IMdtItemRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<DeferMdtItemCommand, MdtItemResponse>
 {
@@ -34,7 +34,7 @@ public sealed class DeferMdtItemHandler(
 
         var fromMeetingId = item.MeetingId;
         var fromStart = item.Meeting?.StartUtc ?? item.MeetingCancelledStartUtc;
-        var specialty = await specialties.GetAsync(meeting.SpecialtyId!.Value, cancellationToken);
+        var team = await teams.GetAsync(meeting.TeamId!.Value, cancellationToken);
 
         // Deferred by the team when it was on a meeting; listed again, as it was, when its meeting was cancelled.
         if (fromMeetingId is not null)
@@ -43,11 +43,11 @@ public sealed class DeferMdtItemHandler(
         item.Meeting = meeting;
         item.MeetingId = meeting.Id;
         item.MeetingCancelledStartUtc = null;
-        item.SpecialtyId = meeting.SpecialtyId.Value;
+        item.TeamId = meeting.TeamId.Value;
         item.Version++;
 
         await repository.SaveAsync(
-            MdtAudit.Deferred(item, specialty?.Name ?? string.Empty, fromMeetingId, fromStart, meeting, request.Actor, now),
+            MdtAudit.Deferred(item, team?.Name ?? string.Empty, fromMeetingId, fromStart, meeting, request.Actor, now),
             cancellationToken);
 
         var saved = await repository.GetAsync(item.Id, cancellationToken)

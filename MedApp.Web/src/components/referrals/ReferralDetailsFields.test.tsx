@@ -2,16 +2,16 @@ import {screen, waitFor} from '@testing-library/react';
 import {useState} from 'react';
 import type {ReferralDetailsInput} from '../../api/referrals';
 import {json, mockApi, renderWithApp, staffUser} from '../../test/render';
-import {DERMATOLOGY_ID, SPECIALTIES} from '../../test/referrals';
+import {DERMATOLOGY_ID, TEAMS} from '../../test/referrals';
 import {aYearBefore, emptyReferralDetails, ReferralDetailsFields, ukToday} from './ReferralDetailsFields';
 
 function Harness({
   onChange,
-  currentSpecialty,
+  currentTeam,
   practiceId = '',
 }: {
   onChange: (value: ReferralDetailsInput) => void;
-  currentSpecialty?: {id: string; name: string};
+  currentTeam?: {id: string; name: string};
   practiceId?: string;
 }) {
   const [value, setValue] = useState(() => ({...emptyReferralDetails('2026-11-18'), practiceId}));
@@ -22,7 +22,7 @@ function Harness({
         setValue(next);
         onChange(next);
       }}
-      currentSpecialty={currentSpecialty}
+      currentTeam={currentTeam}
       errors={{title: 'Invalid', fields: {reason: ['Reason is required.']}, general: []}}
     />
   );
@@ -37,14 +37,14 @@ describe('ReferralDetailsFields', () => {
     expect(emptyReferralDetails('2026-11-18')).toMatchObject({receivedOn: '2026-11-18', requestedPriority: 'Medium'});
   });
 
-  it('offers the active specialties, then the fields from the letter, with the API\'s errors on them', async () => {
-    mockApi({'GET /api/specialties': () => json(SPECIALTIES)});
+  it('offers the active teams, then the fields from the letter, with the API\'s errors on them', async () => {
+    mockApi({'GET /api/teams': () => json(TEAMS)});
     const onChange = vi.fn();
     const {user} = renderWithApp(<Harness onChange={onChange} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('combobox', {name: /Specialty/}));
+    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
     await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({specialtyId: DERMATOLOGY_ID}));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({teamId: DERMATOLOGY_ID}));
 
     await user.type(screen.getByRole('textbox', {name: /Practice/}), 'Synthetic Surgery');
     await user.type(screen.getByRole('textbox', {name: /Clinician/}), 'Dr Test');
@@ -53,7 +53,7 @@ describe('ReferralDetailsFields', () => {
     await user.click(screen.getByRole('combobox', {name: /Priority asked for/}));
     await user.click(await screen.findByRole('option', {name: 'Urgent'}));
     expect(onChange).toHaveBeenLastCalledWith({
-      specialtyId: DERMATOLOGY_ID,
+      teamId: DERMATOLOGY_ID,
       receivedOn: '2026-11-18',
       practiceId: '',
       referrerPractice: 'Synthetic Surgery',
@@ -70,11 +70,11 @@ describe('ReferralDetailsFields', () => {
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({receivedOn: '2026-11-03'}));
   });
 
-  it('keeps offering an archived specialty a referral is already to', async () => {
-    mockApi({'GET /api/specialties': () => json(SPECIALTIES)});
-    const {user} = renderWithApp(<Harness onChange={vi.fn()} currentSpecialty={{id: 'old', name: 'Old clinic'}} />, {user: staffUser});
+  it('keeps offering an archived team a referral is already to', async () => {
+    mockApi({'GET /api/teams': () => json(TEAMS)});
+    const {user} = renderWithApp(<Harness onChange={vi.fn()} currentTeam={{id: 'old', name: 'Old clinic'}} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('combobox', {name: /Specialty/}));
+    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
     expect(await screen.findByRole('option', {name: 'Old clinic (archived)'})).toBeInTheDocument();
   });
 });
@@ -87,7 +87,7 @@ describe('ReferralDetailsFields: the practice from the directory', () => {
   ];
 
   it('offers the practices not archived, by name, and fills the practice and ODS code from the one chosen', async () => {
-    const fetch = mockApi({'GET /api/specialties': () => json(SPECIALTIES), 'GET /api/practices': () => json(PRACTICES)});
+    const fetch = mockApi({'GET /api/teams': () => json(TEAMS), 'GET /api/practices': () => json(PRACTICES)});
     const onChange = vi.fn();
     const {user} = renderWithApp(<Harness onChange={onChange} />, {user: staffUser});
 
@@ -108,7 +108,7 @@ describe('ReferralDetailsFields: the practice from the directory', () => {
   });
 
   it('keeps offering an archived practice a referral already has, marked archived', async () => {
-    mockApi({'GET /api/specialties': () => json(SPECIALTIES), 'GET /api/practices': () => json(PRACTICES)});
+    mockApi({'GET /api/teams': () => json(TEAMS), 'GET /api/practices': () => json(PRACTICES)});
     const {user} = renderWithApp(<Harness onChange={vi.fn()} practiceId="p-old" />, {user: staffUser});
 
     const picker = await screen.findByRole('combobox', {name: /Practice from the directory/});

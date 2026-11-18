@@ -27,7 +27,7 @@ export interface TriageDialogProps {
   isProcessing: boolean;
   /** What the check step says the decision does. */
   outcome: string;
-  /** The choices, as rows of the check step's list (`MetadataListItem`s), after the specialty and received date. */
+  /** The choices, as rows of the check step's list (`MetadataListItem`s), after the team and received date. */
   summary: ReactNode;
   /** A 400's errors: the ones not on a field of the form are listed here (`fields` are shown on their fields). */
   errors?: ValidationErrors | null;
@@ -44,7 +44,7 @@ export interface TriageDialogProps {
 
 /**
  * The frame of every triage decision (accept, reject, redirect): a form step, then "Check and Confirm", which shows
- * the patient exactly as `PatientBanner` does (compact: the dialog covers the page's), the referral's specialty and
+ * the patient exactly as `PatientBanner` does (compact: the dialog covers the page's), the referral's team and
  * received date, and every choice made, before anything is sent (hazard H-41). Back returns to the form with the
  * choices kept; Confirm sends. The patient and the referral show on the form step too, so the triager knows which
  * referral they're deciding from the start.
@@ -101,7 +101,7 @@ export function TriageDialog({
           </Text>
         )}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Specialty">{referral.specialtyName}</MetadataListItem>
+          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           {isChecking && summary}
         </MetadataList>

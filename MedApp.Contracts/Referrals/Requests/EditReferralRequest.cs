@@ -3,7 +3,7 @@ namespace MedApp.Contracts.Referrals.Requests;
 /// <summary>A referral's details, corrected while it awaits triage. Every field is replaced.</summary>
 public sealed class EditReferralRequest
 {
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
     public DateOnly ReceivedOn { get; set; }
 

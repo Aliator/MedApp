@@ -11,7 +11,7 @@ const later = mdtMeeting({id: '00000000-0000-4000-8000-0000000000a2', startUtc: 
 describe('MdtPage', () => {
   it("shows the next MDT's list, with each patient, and items whose meeting was cancelled", async () => {
     const fetch = mockApi({
-      'GET /api/specialties': () => json([{id: mdtMeeting().specialtyId, name: 'Dermatology'}]),
+      'GET /api/teams': () => json([{id: mdtMeeting().teamId, name: 'Dermatology'}]),
       'GET /api/mdt/meetings': () => json([later, mdtMeeting()]),
       [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), items: [mdtItem()]}),
       'GET /api/mdt/awaiting-meeting': () =>
@@ -28,7 +28,7 @@ describe('MdtPage', () => {
 
   it('prints the list', async () => {
     mockApi({
-      'GET /api/specialties': () => json([]),
+      'GET /api/teams': () => json([]),
       'GET /api/mdt/meetings': () => json([mdtMeeting()]),
       [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), items: []}),
       'GET /api/mdt/awaiting-meeting': () => json([]),
@@ -55,39 +55,39 @@ describe('shownMeeting', () => {
 
 describe('parseMdtSearch', () => {
   it('keeps IDs and drops anything else', () => {
-    expect(parseMdtSearch({specialty: mdtMeeting().specialtyId, meeting: 'nonsense'})).toEqual({specialty: mdtMeeting().specialtyId});
+    expect(parseMdtSearch({team: mdtMeeting().teamId, meeting: 'nonsense'})).toEqual({team: mdtMeeting().teamId});
   });
 });
 
 describe('MdtPage, choosing and failing', () => {
-  const specialtyId = mdtMeeting().specialtyId!;
+  const teamId = mdtMeeting().teamId!;
 
-  it('puts the specialty and the meeting chosen in the address, and every specialty back', async () => {
+  it('puts the team and the meeting chosen in the address, and every team back', async () => {
     mockApi({
-      'GET /api/specialties': () => json([{id: specialtyId, name: 'Dermatology'}]),
+      'GET /api/teams': () => json([{id: teamId, name: 'Dermatology'}]),
       'GET /api/mdt/meetings': () => json([mdtMeeting(), later]),
       [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), items: []}),
       'GET /api/mdt/awaiting-meeting': () => json([]),
     });
     const onSearchChange = vi.fn();
-    const {user} = renderWithApp(<MdtPage search={{specialty: specialtyId}} onSearchChange={onSearchChange} />, {user: staffUser});
+    const {user} = renderWithApp(<MdtPage search={{team: teamId}} onSearchChange={onSearchChange} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('combobox', {name: 'Specialty'}));
-    await user.click(await screen.findByRole('option', {name: 'Every specialty'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: undefined, meeting: undefined});
+    await user.click(await screen.findByRole('combobox', {name: 'Team'}));
+    await user.click(await screen.findByRole('option', {name: 'Every team'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({team: undefined, meeting: undefined});
 
-    await user.click(screen.getByRole('combobox', {name: 'Specialty'}));
+    await user.click(screen.getByRole('combobox', {name: 'Team'}));
     await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: specialtyId, meeting: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({team: teamId, meeting: undefined});
 
     await user.click(screen.getByRole('combobox', {name: 'Meeting'}));
     await user.click(await screen.findByRole('option', {name: meetingLabel(later)}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: specialtyId, meeting: later.id});
+    expect(onSearchChange).toHaveBeenLastCalledWith({team: teamId, meeting: later.id});
   });
 
   it('says when there is no MDT, or the MDTs could not be loaded', async () => {
     mockApi({
-      'GET /api/specialties': () => json([]),
+      'GET /api/teams': () => json([]),
       'GET /api/mdt/meetings': () => json({title: 'Synthetic failure.', status: 500}, 500),
       'GET /api/mdt/awaiting-meeting': () => json([]),
     });
@@ -99,7 +99,7 @@ describe('MdtPage, choosing and failing', () => {
 
   it("says when a meeting's list could not be loaded", async () => {
     mockApi({
-      'GET /api/specialties': () => json([]),
+      'GET /api/teams': () => json([]),
       'GET /api/mdt/meetings': () => json([mdtMeeting()]),
       [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({title: 'Synthetic list failure.', status: 500}, 500),
       'GET /api/mdt/awaiting-meeting': () => json([]),
@@ -109,8 +109,8 @@ describe('MdtPage, choosing and failing', () => {
     expect(await screen.findByText(/Synthetic list failure|The list could not be loaded/)).toBeInTheDocument();
   });
 
-  it('preloads the specialties and the MDTs', async () => {
-    mockApi({'GET /api/specialties': () => json([]), 'GET /api/mdt/meetings': () => json([])});
+  it('preloads the teams and the MDTs', async () => {
+    mockApi({'GET /api/teams': () => json([]), 'GET /api/mdt/meetings': () => json([])});
     const queryClient = new QueryClient();
     const spy = vi.spyOn(queryClient, 'prefetchQuery');
     await preloadMdtPage(queryClient, {});

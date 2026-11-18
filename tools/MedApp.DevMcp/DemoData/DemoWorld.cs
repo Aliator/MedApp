@@ -11,7 +11,7 @@ using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.DevMcp.DemoData;
 
@@ -41,10 +41,10 @@ public sealed class DemoWorld
     public required IReadOnlyDictionary<string, PatientPathwayStageDefinition> Definitions { get; init; }
     public required IReadOnlyList<RuleState> Rules { get; init; }
 
-    /// <summary>The specialties as stored (with their waiting-time targets), by ID.</summary>
-    public required IReadOnlyDictionary<Guid, Specialty> Specialties { get; init; }
+    /// <summary>The teams as stored (with their waiting-time targets), by ID.</summary>
+    public required IReadOnlyDictionary<Guid, Team> Teams { get; init; }
 
-    public Specialty Specialty(string name) => Specialties.Values.Single(s => s.Name == name);
+    public Team Team(string name) => Teams.Values.Single(s => s.Name == name);
 
     public ScheduleAllocator Allocator => Calendars.Allocator;
 

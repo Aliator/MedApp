@@ -2,7 +2,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Insights.Common;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Pathways.Insights.Responses;
 using MediatR;
 
@@ -15,7 +15,7 @@ namespace MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 public sealed class GetPathwayInsightsHandler(
     IPathwayInsightsRepository repository,
     IPatientPathwayStagesRepository stagesRepository,
-    ISpecialtyRepository specialtyRepository,
+    ITeamRepository teamRepository,
     IIdentityReadService identityReadService,
     TimeProvider timeProvider)
     : IRequestHandler<GetPathwayInsightsQuery, PathwayInsightsResponse>
@@ -24,10 +24,10 @@ public sealed class GetPathwayInsightsHandler(
     {
         if (request.TemplateId is { } templateId && await stagesRepository.GetPathwayTemplateByIdAsync(templateId, cancellationToken) is null)
             throw new NotFoundException($"Template '{templateId}' was not found.");
-        if (request.SpecialtyId is { } specialtyId && await specialtyRepository.GetAsync(specialtyId, cancellationToken) is null)
-            throw new NotFoundException($"Specialty '{specialtyId}' was not found.");
+        if (request.TeamId is { } teamId && await teamRepository.GetAsync(teamId, cancellationToken) is null)
+            throw new NotFoundException($"Team '{teamId}' was not found.");
 
-        var scope = new InsightsScope(request.TemplateId, request.SpecialtyId);
+        var scope = new InsightsScope(request.TemplateId, request.TeamId);
 
         var period = InsightsPeriod.For(timeProvider.GetUtcNow().UtcDateTime, request.Weeks);
         var now = period.NowUtc;

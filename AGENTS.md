@@ -17,8 +17,8 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Area | Read `docs/agents/…` before changing | Never miss |
 |---|---|---|
 | Pathways, templates, stages, notes, the MDT list | `pathways.md` | Change a pathway only through `PathwayChange`, loaded with `GetForUpdateOrThrowAsync`, so it's audited. Audit details hold a note's ID and version, never its text. Only a note's author edits it; only admins delete one (soft). |
-| Specialties, template and pathway specialties, staff memberships | `specialties.md` | Specialties are labels: they decide nothing clinical and limit nobody's reading. One in use is archived, never deleted; every change carries `expectedVersion`. |
-| Referrals, their history and letters, the waiting-time clock | `referrals.md` | Change a referral only through `ReferralChange`, which saves its `ReferralEvent`s in the same save; the history holds no free text. Every read is logged (`ReferralViewed`, `PatientListed`). A restricted or anonymised record refuses changes, but withdrawing and entered in error stay allowed while restricted. Triage needs `TriageReferrals` and membership of the referral's specialty; never prefill or suggest an outcome, template or priority. |
+| Teams, template and pathway teams, staff memberships | `teams.md` | Teams are labels: they decide nothing clinical and limit nobody's reading. One in use is archived, never deleted; every change carries `expectedVersion`. |
+| Referrals, their history and letters, the waiting-time clock | `referrals.md` | Change a referral only through `ReferralChange`, which saves its `ReferralEvent`s in the same save; the history holds no free text. Every read is logged (`ReferralViewed`, `PatientListed`). A restricted or anonymised record refuses changes, but withdrawing and entered in error stay allowed while restricted. Triage needs `TriageReferrals` and membership of the referral's team; never prefill or suggest an outcome, template or priority. |
 | Letter templates, merge fields, the PDF engine, letters | `letters.md` | Merge fields copy identity and administrative data only, never a clinical value; the body is the author's. Change a letter only through `LetterChange`; send by secure email only through `ILetterTransport` (a declared relay, allowed domains, never a patient). PDFsharp and MigraDoc stay on 6.2.x (MIT; 6.5 is AGPL). |
 | Results sign-off, the results list, the results gates | `results.md` | Change a result only through `ResultChange` (audit details never hold its title or any detail); MedApp never reads, interprets or flags a result, and suggests no action. A result's report can't be deleted on its own; entered in error sends a specimen back to Received. |
 | Specimens, the lab's worklist, specimen types and labs | `specimens.md` | Change a specimen only through `SpecimenChange` (audit details never hold its site, notes or any detail); its number stays out of URLs (`POST api/specimens/find`); MedApp never reads or interprets a report. A specimen's report can't be deleted on its own. |
@@ -89,10 +89,10 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one. Kubernetes (`deploy/kind/up.sh`), Argo CD and Azure: `docs/agents/deploy.md`. After changing the chart run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: a PR's CI runs a light tier by default, `main` gets the full suite after each merge, and what that finds is fixed afterwards ([CI](#ci)). Locally and in CI, run only what checks your change:
+**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: PR and `main` CI run builds, lint and type checks only (the light tier, under 2 minutes; the owner, 18 November 2026); the unit and web suites run by hand at each phase's end (`gh workflow run main.yml -f tier=phase`), and the full suite at each stage's end (`-f tier=full`). What they find is fixed then ([CI](#ci)).
 - **Which CI tier:**
   - **A small fix** (as [Effort](#effort-for-each-stage-of-a-change) defines small): label the PR `ci:none`, and CI builds and tests nothing.
-  - **A UI change:** the default light tier (lint, type check, the changed files' own Vitest tests), plus the screenshots below, looked at locally.
+  - **A UI change:** the default light tier (lint and type check; no tests), plus the screenshots below, looked at locally.
   - **A minor backend change:** the default light tier (the solution's build and the unit tests).
   - **Integration and E2E tests are for major changes, and the owner decides.** Before running them, locally or with the `ci:full` label, ask the owner and say why (a migration, SQL translation, sign-in, sessions or permissions, a race, the image or server rendering). Don't run them unasked.
 - **Use Release** (`-c Release`): a Debug build of either test project rebuilds `medapp-dev` into the folder the running tool has locked (see `docs/agents/dev-mcp.md`).
@@ -110,7 +110,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `Specimen`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `ClinicSession`, `ClinicPattern`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `Specimen`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `ClinicSession`, `ClinicPattern`, `Appointment`, `UserSession`, `Team`, `Referral`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -169,7 +169,7 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where:** the area's `Common/` folder, named `<Thing>Mapper`, with `ToResponse(entity)` plus overloads for what the entity lacks (e.g. `ToResponse(definition, usage)`, or `ToResponseAsync(...)` to look up usernames).
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`, `RoleMapper` (roles and the permission catalogue), `PracticeMapper` (with `ToSummary`), `StaffDetailsMapper`, `LetterTemplateMapper` (with merge fields), `SpecimenMapper` (specimens, types and labs), `ResultMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `TeamMapper`, `ReferralMapper`, `RoleMapper` (roles and the permission catalogue), `PracticeMapper` (with `ToSummary`), `StaffDetailsMapper`, `LetterTemplateMapper` (with merge fields), `SpecimenMapper` (specimens, types and labs), `ResultMapper`
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `MdtMapper` (MDT items and MDTs), `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
   - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours), `ClinicMapper` (clinic sessions and patterns), `PatientMessageMapper` (texts and emails to patients)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`
@@ -241,9 +241,9 @@ Docker, memory, the dev server, server-side rendering and the production image: 
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and in full on `main` after every merge and nightly. Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
-- **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` always runs everything, `deploy/` runs `helm`, and image inputs run `image`.
-- **`main`'s full run gates nothing** (Publish deploys alongside it). A failure opens or updates the issue "Full suite failing on main".
+`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and on pushes to `main` (builds, lint and type checks only); the `phase` and `full` runs are started by hand (`workflow_dispatch`). Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
+- **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` gets both sides' light checks, `deploy/` runs `helm`, and image inputs run `image`.
+- **`main` runs the light tier; `phase` and `full` runs are dispatched by hand** and gate nothing (Publish deploys alongside). A failure opens or updates the issue "Full suite failing on main".
 - **The six required checks** (`web`, `helm`, `unit-tests`, `image`, `integration-tests`, `e2e`) mean "what the tier asked for passed".
 - **Never put a file that a build or test reads under `docs/`:** a docs-only push skips every job.
 - **New code comes with tests.** Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.

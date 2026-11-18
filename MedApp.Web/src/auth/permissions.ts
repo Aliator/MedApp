@@ -77,7 +77,7 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   EditPatients: {group: 'Patients', description: 'Add and edit patients, and look them up in the demographics service.'},
   DeletePatients: {group: 'Patients', description: 'Delete a patient who has nothing attached.'},
   RegisterReferrals: {group: 'Referrals', description: 'Register, edit and withdraw referrals, and mark them entered in error.'},
-  TriageReferrals: {group: 'Referrals', description: 'Accept, reject or redirect referrals in your specialties.'},
+  TriageReferrals: {group: 'Referrals', description: 'Accept, reject or redirect referrals in your teams.'},
   CreatePathways: {group: 'Pathways', description: 'Start a pathway for a patient.'},
   WorkPathways: {
     group: 'Pathways',
@@ -125,7 +125,7 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   ManageMonitoring: {group: 'Oversight', description: 'Set up your own monitoring rules.'},
   ManageSetup: {
     group: 'Setup',
-    description: 'Manage the stage library, pathway templates, specialties, activity types and closed days.',
+    description: 'Manage the stage library, pathway templates, teams, activity types and closed days.',
   },
   ManageUsers: {
     group: 'AdministratorOnly',

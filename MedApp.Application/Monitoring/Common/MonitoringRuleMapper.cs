@@ -20,8 +20,8 @@ public static class MonitoringRuleMapper
         rule.StageDefinitionId,
         NameOf(rule.StageDefinitionId, names.StageNames),
         rule.ThresholdDays,
-        rule.SpecialtyId,
-        NameOf(rule.SpecialtyId, names.SpecialtyNames),
+        rule.TeamId,
+        NameOf(rule.TeamId, names.TeamNames),
         rule.IsEnabled,
         rule.CreatedAtUtc,
         rule.UpdatedAtUtc);

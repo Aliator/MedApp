@@ -3,7 +3,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.ReferralsTestConstants;
 
@@ -46,17 +46,17 @@ public sealed class WaitingClockTests
     [TestCase(PatientPathwayPriority.Medium, 126)]
     [TestCase(PatientPathwayPriority.Low, 126)]
     public void TargetDaysFor_TheDefaults(PatientPathwayPriority priority, int days) =>
-        WaitingClock.TargetDaysFor(new Specialty(), priority).Should().Be(days);
+        WaitingClock.TargetDaysFor(new Team(), priority).Should().Be(days);
 
     [Test]
-    public void TargetDaysFor_ReadsTheSpecialtysOwnTable()
+    public void TargetDaysFor_ReadsTheTeamsOwnTable()
     {
-        var specialty = new Specialty { TargetDaysUrgent = 7, TargetDaysHigh = 21, TargetDaysMedium = 84, TargetDaysLow = 180 };
+        var team = new Team { TargetDaysUrgent = 7, TargetDaysHigh = 21, TargetDaysMedium = 84, TargetDaysLow = 180 };
 
-        WaitingClock.TargetDaysFor(specialty, PatientPathwayPriority.Urgent).Should().Be(7);
-        WaitingClock.TargetDaysFor(specialty, PatientPathwayPriority.High).Should().Be(21);
-        WaitingClock.TargetDaysFor(specialty, PatientPathwayPriority.Medium).Should().Be(84);
-        WaitingClock.TargetDaysFor(specialty, PatientPathwayPriority.Low).Should().Be(180);
+        WaitingClock.TargetDaysFor(team, PatientPathwayPriority.Urgent).Should().Be(7);
+        WaitingClock.TargetDaysFor(team, PatientPathwayPriority.High).Should().Be(21);
+        WaitingClock.TargetDaysFor(team, PatientPathwayPriority.Medium).Should().Be(84);
+        WaitingClock.TargetDaysFor(team, PatientPathwayPriority.Low).Should().Be(180);
     }
 
     [Test]
@@ -227,7 +227,7 @@ public sealed class WaitingClockTests
         change.StopClock(ClockStopReason.StopStageFinished);
 
         change.StopClock(ClockStopReason.PathwayDischarged);
-        change.ReTarget(referral.Specialty, PatientPathwayPriority.Urgent).Should().BeFalse();
+        change.ReTarget(referral.Team, PatientPathwayPriority.Urgent).Should().BeFalse();
 
         change.Events.Should().ContainSingle();
         referral.StopReason.Should().Be(ClockStopReason.StopStageFinished);
@@ -243,8 +243,8 @@ public sealed class WaitingClockTests
         var referral = Accepted();
         var change = new ReferralChange(referral, Registrar, NowUtc);
 
-        change.ReTarget(referral.Specialty, PatientPathwayPriority.High).Should().BeFalse("High is 28 days already");
-        change.ReTarget(referral.Specialty, PatientPathwayPriority.Low).Should().BeTrue();
+        change.ReTarget(referral.Team, PatientPathwayPriority.High).Should().BeFalse("High is 28 days already");
+        change.ReTarget(referral.Team, PatientPathwayPriority.Low).Should().BeTrue();
 
         referral.TargetDays.Should().Be(126);
         referral.TargetOn.Should().Be(ReceivedOn.AddDays(126));
@@ -254,17 +254,17 @@ public sealed class WaitingClockTests
     }
 
     [Test]
-    public void RedirectToAnotherSpecialty_ReReadsTheTargetFromItsTableFromTheSameDay()
+    public void RedirectToAnotherTeam_ReReadsTheTargetFromItsTableFromTheSameDay()
     {
         var referral = CreateReferral();
-        var urology = new Specialty { Id = Guid.NewGuid(), Name = SpecialtiesTestConstants.OtherSpecialtyName, TargetDaysHigh = 42 };
+        var urology = new Team { Id = Guid.NewGuid(), Name = TeamsTestConstants.OtherTeamName, TargetDaysHigh = 42 };
         var change = new ReferralChange(referral, Triager, NowUtc);
 
-        change.RedirectToSpecialty(urology, Detail);
+        change.RedirectToTeam(urology, Detail);
 
         referral.TargetDays.Should().Be(42);
         referral.WaitStartOn.Should().Be(ReceivedOn);
-        change.Events.Select(e => e.Action).Should().Equal(ReferralEventAction.SpecialtyChanged, ReferralEventAction.TargetChanged);
+        change.Events.Select(e => e.Action).Should().Equal(ReferralEventAction.TeamChanged, ReferralEventAction.TargetChanged);
         WaitingClock.State(referral).Should().Be(WaitingClock.Running);
     }
 
@@ -275,7 +275,7 @@ public sealed class WaitingClockTests
         referral.RequestedPriority = PatientPathwayPriority.Urgent;
         var change = new ReferralChange(referral, Registrar, NowUtc);
 
-        change.Register(referral.Specialty);
+        change.Register(referral.Team);
 
         referral.TargetDays.Should().Be(14);
         referral.TargetOn.Should().Be(ReceivedOn.AddDays(14));
@@ -289,8 +289,8 @@ public sealed class WaitingClockTests
         var change = new ReferralChange(referral, Registrar, NowUtc);
 
         change.EditDetails(
-            new ReferralDetails(referral.SpecialtyId, ReceivedOn.AddDays(-4), Practice, Clinician, OdsCode, PatientPathwayPriority.High, Reason),
-            referral.Specialty, referral.Specialty);
+            new ReferralDetails(referral.TeamId, ReceivedOn.AddDays(-4), Practice, Clinician, OdsCode, PatientPathwayPriority.High, Reason),
+            referral.Team, referral.Team);
 
         referral.WaitStartOn.Should().Be(ReceivedOn.AddDays(-4));
         referral.TargetOn.Should().Be(TargetOn.AddDays(-4));

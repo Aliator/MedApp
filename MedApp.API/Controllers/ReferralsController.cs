@@ -23,12 +23,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Referrals: requests from referrers (GP practices) for the centre to see a patient in a specialty, registered from
+/// Referrals: requests from referrers (GP practices) for the centre to see a patient in a team, registered from
 /// the letter by holders of RegisterReferrals and read by anyone who can see patients. Every change is recorded in the
 /// referral's history, in the same save; every change carries the version the caller saw (<c>expectedVersion</c>).
 /// A restricted or anonymised record's referrals can't be registered or edited (409); they can still be withdrawn or
 /// marked entered in error. Triage (accept, reject, redirect) needs TriageReferrals and membership of the referral's
-/// specialty.
+/// team.
 /// </summary>
 [ApiController]
 [Route("api/referrals")]
@@ -37,7 +37,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
     /// Registers a referral for a patient already in MedApp. A 400 if the patient has an open referral to the same
-    /// specialty, unless <c>confirmPossibleDuplicate</c>.
+    /// team, unless <c>confirmPossibleDuplicate</c>.
     /// </summary>
     [HttpPost]
     [RequirePermission(Permission.RegisterReferrals)]
@@ -49,7 +49,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
     {
         var referral = await mediator.Send(new RegisterReferralCommand(
             request.PatientId,
-            request.SpecialtyId,
+            request.TeamId,
             request.ReceivedOn,
             request.ReferrerPractice,
             request.ReferrerClinician,
@@ -75,7 +75,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.Sort,
             request.Ascending,
             request.Statuses,
-            request.SpecialtyIds,
+            request.TeamIds,
             request.Mine,
             request.PatientId,
             request.Search,
@@ -85,7 +85,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.ClockStopped), ct));
 
     /// <summary>
-    /// How many referrals await triage in the caller's specialties (every specialty's, if they belong to none), for the
+    /// How many referrals await triage in the caller's teams (every team's, if they belong to none), for the
     /// side nav. A count only: it names no patients, so it records nothing.
     /// </summary>
     [HttpGet("awaiting-triage/count")]
@@ -112,7 +112,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> EditReferral(Guid id, [FromBody] EditReferralRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EditReferralCommand(
             id,
-            request.SpecialtyId,
+            request.TeamId,
             request.ReceivedOn,
             request.ReferrerPractice,
             request.ReferrerClinician,
@@ -124,8 +124,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.PracticeId), ct));
 
     /// <summary>
-    /// Triage: accepts a referral awaiting triage into a new pathway, from a template of its specialty, with the
-    /// priority the triager chose; its target date is the waiting-time clock's. Needs membership of its specialty too
+    /// Triage: accepts a referral awaiting triage into a new pathway, from a template of its team, with the
+    /// priority the triager chose; its target date is the waiting-time clock's. Needs membership of its team too
     /// (403). 201, with the pathway.
     /// </summary>
     [HttpPost("{id:guid}/accept")]
@@ -163,7 +163,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             id, request.Reason, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>
-    /// Triage: redirects a referral awaiting triage, with a detail: to another specialty here (it stays awaiting triage)
+    /// Triage: redirects a referral awaiting triage, with a detail: to another team here (it stays awaiting triage)
     /// or elsewhere (it closes).
     /// </summary>
     [HttpPost("{id:guid}/redirect")]
@@ -175,7 +175,7 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RedirectReferral(Guid id, [FromBody] RedirectReferralRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RedirectReferralCommand(
-            id, request.SpecialtyId, request.Elsewhere, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
+            id, request.TeamId, request.Elsewhere, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>
     /// Triage: asks the referrer for more information. The referral stays open, in the Information requested view, with

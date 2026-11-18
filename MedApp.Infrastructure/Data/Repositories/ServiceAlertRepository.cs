@@ -44,10 +44,10 @@ public sealed class ServiceAlertRepository(MedAppDbContext context) : IServiceAl
         }
     }
 
-    public async Task<IReadOnlyDictionary<Guid, string>> GetSpecialtyNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<Guid, string>> GetTeamNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
     {
         var list = ids.Distinct().ToList();
-        return await context.Specialties
+        return await context.Teams
             .AsNoTracking()
             .Where(s => list.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id, s => s.Name, cancellationToken);

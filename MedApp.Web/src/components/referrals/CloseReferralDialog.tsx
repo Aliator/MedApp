@@ -46,7 +46,7 @@ export interface CloseReferralDialogProps {
 
 /**
  * Withdrawing a referral, or marking it entered in error: what it means, the patient as `PatientBanner` shows them
- * (compact: the dialog covers the page's), the specialty and when it was received, so the wrong referral isn't closed
+ * (compact: the dialog covers the page's), the team and when it was received, so the wrong referral isn't closed
  * (hazard H-41), and the detail (required, 500 characters). Mount it afresh for each opening (a `key`), so the detail
  * starts empty.
  */
@@ -69,7 +69,7 @@ export function CloseReferralDialog({closing, referral, isProcessing, errors, me
       <VStack gap={4} hAlign="stretch">
         {referral.patient && <PatientBanner patient={referral.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Specialty">{referral.specialtyName}</MetadataListItem>
+          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>

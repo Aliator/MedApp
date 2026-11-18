@@ -1,5 +1,5 @@
 using MedApp.Domain.Letters;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -7,8 +7,8 @@ namespace MedApp.Infrastructure.Data.Configurations.Letters;
 
 public sealed class LetterTemplateConfiguration : IEntityTypeConfiguration<LetterTemplate>
 {
-    /// <summary>The unique index on (specialty, name), named as EF names it.</summary>
-    public const string NameIndex = "IX_LetterTemplates_SpecialtyId_Name";
+    /// <summary>The unique index on (team, name), named as EF names it.</summary>
+    public const string NameIndex = "IX_LetterTemplates_TeamId_Name";
 
     public void Configure(EntityTypeBuilder<LetterTemplate> builder)
     {
@@ -23,16 +23,16 @@ public sealed class LetterTemplateConfiguration : IEntityTypeConfiguration<Lette
         // Stored by number (LetterKind is never renumbered).
         builder.Property(x => x.Kind).IsRequired();
 
-        // A specialty in use is archived, never deleted (SpecialtyUsage counts letter templates).
-        builder.HasOne<Specialty>()
+        // A team in use is archived, never deleted (TeamUsage counts letter templates).
+        builder.HasOne<Team>()
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Names are unique within a specialty, ignoring case (the column's collation). SQL Server's unique index treats
-        // nulls as equal, so this also keeps the names of the templates for every specialty unique (no filter, which EF
+        // Names are unique within a team, ignoring case (the column's collation). SQL Server's unique index treats
+        // nulls as equal, so this also keeps the names of the templates for every team unique (no filter, which EF
         // would otherwise add for a nullable column).
-        builder.HasIndex(x => new { x.SpecialtyId, x.Name })
+        builder.HasIndex(x => new { x.TeamId, x.Name })
             .IsUnique()
             .HasFilter(null)
             .HasDatabaseName(NameIndex);

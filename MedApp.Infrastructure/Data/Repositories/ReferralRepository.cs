@@ -39,8 +39,8 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
 
     public void AddEvents(IEnumerable<ReferralEvent> events) => context.ReferralEvents.AddRange(events);
 
-    public async Task<bool> IsSpecialtyMemberAsync(Guid userId, Guid specialtyId, CancellationToken ct) =>
-        await context.StaffSpecialties.AnyAsync(m => m.UserId == userId && m.SpecialtyId == specialtyId, ct);
+    public async Task<bool> IsTeamMemberAsync(Guid userId, Guid teamId, CancellationToken ct) =>
+        await context.TeamMemberships.AnyAsync(m => m.UserId == userId && m.TeamId == teamId, ct);
 
     public async Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct) =>
         await WithDetails(context.Referrals.AsNoTracking())
@@ -78,13 +78,13 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     public async Task<int> CountLettersAsync(Guid referralId, CancellationToken ct) =>
         await context.Attachments.CountAsync(a => a.ReferralId == referralId && a.DeletedAtUtc == null, ct);
 
-    public async Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid specialtyId, CancellationToken ct)
+    public async Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid teamId, CancellationToken ct)
     {
         var closed = PathwayWorkflow.ClosedStatuses.ToList();
         return await context.Referrals
             .AsNoTracking()
             .Where(r => r.PatientId == patientId
-                        && r.SpecialtyId == specialtyId
+                        && r.TeamId == teamId
                         && (r.Status == ReferralStatus.AwaitingTriage
                             || r.Status == ReferralStatus.InformationRequested
                             || (r.Status == ReferralStatus.Accepted
@@ -95,9 +95,9 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     }
 
     public async Task<PagedResult<ReferralRow>> SearchAsync(
-        SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, DateOnly today, CancellationToken ct)
+        SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today, CancellationToken ct)
     {
-        var filtered = context.Referrals.AsNoTracking().Filter(query, specialtyIds, today);
+        var filtered = context.Referrals.AsNoTracking().Filter(query, teamIds, today);
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
@@ -108,7 +108,7 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
             {
                 Referral = r,
                 r.Patient,
-                r.Specialty,
+                r.Team,
                 HasLetter = context.Attachments.Any(a => a.ReferralId == r.Id && a.DeletedAtUtc == null)
             })
             .ToListAsync(ct);
@@ -117,20 +117,20 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
             .Select(x =>
             {
                 x.Referral.Patient = x.Patient;
-                x.Referral.Specialty = x.Specialty;
+                x.Referral.Team = x.Team;
                 return new ReferralRow(x.Referral, x.HasLetter);
             })
             .ToList();
         return new PagedResult<ReferralRow>(rows, totalCount);
     }
 
-    public async Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? specialtyIds, CancellationToken ct)
+    public async Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? teamIds, CancellationToken ct)
     {
         var awaiting = context.Referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage);
-        if (specialtyIds is not null)
+        if (teamIds is not null)
         {
-            var ids = specialtyIds.ToList();
-            awaiting = awaiting.Where(r => ids.Contains(r.SpecialtyId));
+            var ids = teamIds.ToList();
+            awaiting = awaiting.Where(r => ids.Contains(r.TeamId));
         }
 
         return await awaiting.CountAsync(ct);
@@ -139,7 +139,7 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     public async Task<IReadOnlyList<Referral>> GetAwaitingTriageForPatientAsync(Guid patientId, CancellationToken ct) =>
         await context.Referrals
             .AsNoTracking()
-            .Include(r => r.Specialty)
+            .Include(r => r.Team)
             // Open: awaiting triage, or waiting for more information.
             .Where(r => r.PatientId == patientId
                         && (r.Status == ReferralStatus.AwaitingTriage || r.Status == ReferralStatus.InformationRequested))
@@ -154,6 +154,6 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     private static IQueryable<Referral> WithDetails(IQueryable<Referral> referrals) =>
         referrals
             .Include(r => r.Patient)
-            .Include(r => r.Specialty)
+            .Include(r => r.Team)
             .Include(r => r.Pauses);
 }

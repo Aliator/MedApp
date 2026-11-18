@@ -20,7 +20,7 @@ export type SaveSubject =
   | 'week template'
   | 'site'
   | 'room'
-  | 'specialty'
+  | 'team'
   | 'referral'
   | 'working hours'
   | 'opening hours'

@@ -7,7 +7,7 @@ namespace MedApp.Application.Letters.Commands.CreateLetterTemplate;
 public sealed record CreateLetterTemplateCommand(
     string Name,
     string Kind,
-    Guid? SpecialtyId,
+    Guid? TeamId,
     string Letterhead,
     string BodySkeleton,
     string Closing) : IRequest<LetterTemplateResponse>;

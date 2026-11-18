@@ -1,14 +1,14 @@
 namespace MedApp.Contracts.Referrals.Requests;
 
 /// <summary>
-/// A triager redirecting a referral awaiting triage: either to another specialty here (<see cref="SpecialtyId"/>: it
-/// stays awaiting triage, in that specialty's inbox) or elsewhere (<see cref="Elsewhere"/>: another provider, which
+/// A triager redirecting a referral awaiting triage: either to another team here (<see cref="TeamId"/>: it
+/// stays awaiting triage, in that team's inbox) or elsewhere (<see cref="Elsewhere"/>: another provider, which
 /// closes it). Exactly one of the two.
 /// </summary>
 public sealed class RedirectReferralRequest
 {
-    /// <summary>Another specialty here, not archived.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>Another team here, not archived.</summary>
+    public Guid? TeamId { get; set; }
 
     /// <summary>Where else it was sent (another provider; 200 characters).</summary>
     public string? Elsewhere { get; set; }

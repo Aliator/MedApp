@@ -1,3 +1,4 @@
+import {searchNow} from '../../app/beforePathways';
 import {RESULT_VIEWS, type ResultView} from '../../api/results';
 
 /** A view of the Results page: one of its views, or All (its view filter removed), newest report first. */
@@ -8,15 +9,15 @@ export const RESULT_SORTS = ['patient', 'title', 'pathway', 'reported', 'status'
 export type ResultSortColumn = (typeof RESULT_SORTS)[number];
 
 /**
- * The Results page's address: its view, the specialty it's narrowed to, the patient's name searched for, the page and
+ * The Results page's address: its view, the team it's narrowed to, the patient's name searched for, the page and
  * the sort. With no view, it opens on Awaiting my sign-off for holders of SignOffResults (the clinicians who sign
  * results off) and Awaiting sign-off (everyone's) for everyone else, so the Results item's own link has no search at
  * all.
  */
 export interface ResultsSearch {
   view?: ResultsView;
-  /** A specialty's ID. */
-  specialty?: string;
+  /** A team's ID. */
+  team?: string;
   /** The patient's name contains this. */
   patient?: string;
   page?: number;
@@ -29,15 +30,16 @@ const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
 
 /** The search from the address bar, dropping anything that isn't valid, so a bad link shows the default view. */
-export function parseResultsSearch(raw: Record<string, unknown>): ResultsSearch {
+export function parseResultsSearch(saved: Record<string, unknown>): ResultsSearch {
+  const raw = searchNow(saved);
   const view = text(raw.view)?.toLowerCase();
   const page = Number(text(raw.page));
-  const specialty = text(raw.specialty);
+  const team = text(raw.team);
   const sort = text(raw.sort)?.toLowerCase();
   const asc = text(raw.asc)?.toLowerCase();
   const search: ResultsSearch = {
     view: view === 'all' ? 'All' : RESULT_VIEWS.find((v) => v.value.toLowerCase() === view)?.value,
-    specialty: specialty && GUID.test(specialty) ? specialty.toLowerCase() : undefined,
+    team: team && GUID.test(team) ? team.toLowerCase() : undefined,
     patient: text(raw.patient),
     page: Number.isInteger(page) && page > 1 ? page : undefined,
     sort: RESULT_SORTS.find((s) => s === sort),

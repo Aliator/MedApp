@@ -37,8 +37,8 @@ public sealed class SaveMonitoringRuleRequest
     /// </summary>
     public int? ThresholdDays { get; set; }
 
-    /// <summary>Only work of this specialty (the referral's or the pathway's); null for any.</summary>
-    public Guid? SpecialtyId { get; set; }
+    /// <summary>Only work of this team (the referral's or the pathway's); null for any.</summary>
+    public Guid? TeamId { get; set; }
 
     public bool IsEnabled { get; set; } = true;
 }

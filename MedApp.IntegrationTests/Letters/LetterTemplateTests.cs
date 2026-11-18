@@ -3,15 +3,15 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using MedApp.Contracts.Letters.Requests;
 using MedApp.Contracts.Letters.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
 using MedApp.IntegrationTests.Common;
 
 namespace MedApp.IntegrationTests.Letters;
 
 /// <summary>
-/// Letter templates and the PDF engine, through the API against SQL Server: the unique name per specialty (every
-/// specialty's too, which a nullable column's unique index must not leave out), versions, archiving, the specialty's
+/// Letter templates and the PDF engine, through the API against SQL Server: the unique name per team (every
+/// team's too, which a nullable column's unique index must not leave out), versions, archiving, the team's
 /// foreign key and usage count, who may change them, and a preview rendered by PDFsharp in the API's own process (on
 /// Linux in CI, with the bundled font).
 /// </summary>
@@ -25,31 +25,31 @@ public sealed class LetterTemplateTests : IntegrationTest
     [SetUp]
     public async Task SignInAsync() => _admin = await SignInAsAdminAsync();
 
-    private static CreateLetterTemplateRequest Request(string name, Guid? specialtyId = null) => new()
+    private static CreateLetterTemplateRequest Request(string name, Guid? teamId = null) => new()
     {
         Name = name,
         Kind = "ClinicLetter",
-        SpecialtyId = specialtyId,
+        TeamId = teamId,
         Letterhead = "Synthetic Specialist Centre\n{{site.name}}",
         BodySkeleton = "Dear Doctor,\n\n## Diagnosis\n\n## Plan\n\nRe: {{patient.name}}",
         Closing = "Yours sincerely,\n\n{{author.name}}"
     };
 
-    private async Task<SpecialtyResponse> CreateSpecialtyAsync() =>
-        await (await _admin.PostAsJsonAsync("/api/specialties", new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+    private async Task<TeamResponse> CreateTeamAsync() =>
+        await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
 
     [Test]
     public async Task Templates_AreAddedEditedArchivedAndRestored_WithTheirMergeFields()
     {
-        var specialty = await CreateSpecialtyAsync();
+        var team = await CreateTeamAsync();
         var name = UniqueName("Clinic letter");
 
-        var created = await (await _admin.PostAsJsonAsync(Templates, Request(name, specialty.Id)))
+        var created = await (await _admin.PostAsJsonAsync(Templates, Request(name, team.Id)))
             .ReadAsAsync<LetterTemplateResponse>(HttpStatusCode.Created);
         created.Should().BeEquivalentTo(new
         {
-            Name = name, Kind = "ClinicLetter", SpecialtyId = specialty.Id, SpecialtyName = specialty.Name, Version = 1,
+            Name = name, Kind = "ClinicLetter", TeamId = team.Id, TeamName = team.Name, Version = 1,
             IsArchived = false
         });
         created.MergeFields.Should().Equal("site.name", "patient.name", "author.name");
@@ -60,7 +60,7 @@ public sealed class LetterTemplateTests : IntegrationTest
                 ExpectedVersion = 1
             }))
             .ReadAsAsync<LetterTemplateResponse>();
-        updated.Should().BeEquivalentTo(new { Kind = "DischargeSummary", SpecialtyId = (Guid?)null, Version = 2 });
+        updated.Should().BeEquivalentTo(new { Kind = "DischargeSummary", TeamId = (Guid?)null, Version = 2 });
 
         // A page loaded before that edit can't overwrite it.
         (await _admin.PostAsJsonAsync($"{Templates}/{created.Id}/archive", new LetterTemplateVersionRequest { ExpectedVersion = 1 }))
@@ -86,32 +86,32 @@ public sealed class LetterTemplateTests : IntegrationTest
     }
 
     [Test]
-    public async Task Names_AreUniqueWithinASpecialty_AndAmongThoseForEverySpecialty_IgnoringCase()
+    public async Task Names_AreUniqueWithinATeam_AndAmongThoseForEveryTeam_IgnoringCase()
     {
-        var specialty = await CreateSpecialtyAsync();
+        var team = await CreateTeamAsync();
         var name = UniqueName("Discharge summary");
 
         await (await _admin.PostAsJsonAsync(Templates, Request(name))).ShouldHaveStatusAsync(HttpStatusCode.Created);
         await (await _admin.PostAsJsonAsync(Templates, Request(name.ToUpperInvariant())))
             .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        await (await _admin.PostAsJsonAsync(Templates, Request(name, specialty.Id))).ShouldHaveStatusAsync(HttpStatusCode.Created);
-        await (await _admin.PostAsJsonAsync(Templates, Request(name, specialty.Id))).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await _admin.PostAsJsonAsync(Templates, Request(name, team.Id))).ShouldHaveStatusAsync(HttpStatusCode.Created);
+        await (await _admin.PostAsJsonAsync(Templates, Request(name, team.Id))).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
     [Test]
-    public async Task ASpecialtyWithATemplate_CountsIt_AndCantBeDeleted()
+    public async Task ATeamWithATemplate_CountsIt_AndCantBeDeleted()
     {
-        var specialty = await CreateSpecialtyAsync();
-        await (await _admin.PostAsJsonAsync(Templates, Request(UniqueName("Letter"), specialty.Id)))
+        var team = await CreateTeamAsync();
+        await (await _admin.PostAsJsonAsync(Templates, Request(UniqueName("Letter"), team.Id)))
             .ShouldHaveStatusAsync(HttpStatusCode.Created);
 
-        var read = await (await _admin.GetAsync($"/api/specialties/{specialty.Id}")).ReadAsAsync<SpecialtyResponse>();
+        var read = await (await _admin.GetAsync($"/api/teams/{team.Id}")).ReadAsAsync<TeamResponse>();
         read.Should().BeEquivalentTo(new { LetterTemplateCount = 1, CanBeDeleted = false });
-        (await _admin.DeleteAsync($"/api/specialties/{specialty.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await _admin.DeleteAsync($"/api/teams/{team.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Test]
-    public async Task UnknownMergeFields_AndAnUnknownSpecialty_AreRefused()
+    public async Task UnknownMergeFields_AndAnUnknownTeam_AreRefused()
     {
         var badField = Request(UniqueName("Letter"));
         badField.BodySkeleton = "Dear {{patient.nme}}";

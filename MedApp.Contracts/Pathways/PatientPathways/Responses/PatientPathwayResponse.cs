@@ -15,8 +15,8 @@ public sealed class PatientPathwayResponse
     public Guid? TemplateId { get; set; }
     public string TemplateName { get; set; } = string.Empty;
 
-    /// <summary>The specialty it's in: its template's when it was created.</summary>
-    public Guid SpecialtyId { get; set; }
+    /// <summary>The team it's in: its template's when it was created.</summary>
+    public Guid TeamId { get; set; }
 
     /// <summary>
     /// The referral it was accepted from, if any. Only the pathway's own page (its GET by ID) and accepting a referral

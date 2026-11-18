@@ -26,9 +26,9 @@ public sealed class PathwayInsightsControllerTests
 
         var result = await new PathwayInsightsController(mediator)
             .WithRequest(SignedIn("Admin"))
-            .GetPathwayInsights(new GetPathwayInsightsRequest { Weeks = 26, TemplateId = TemplateId, SpecialtyId = PathwaysTestConstants.SpecialtyId }, cts.Token);
+            .GetPathwayInsights(new GetPathwayInsightsRequest { Weeks = 26, TemplateId = TemplateId, TeamId = PathwaysTestConstants.TeamId }, cts.Token);
 
-        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId, PathwaysTestConstants.SpecialtyId));
+        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId, PathwaysTestConstants.TeamId));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(insights);
     }
@@ -40,7 +40,7 @@ public sealed class PathwayInsightsControllerTests
 
         request.Weeks.Should().Be(GetPathwayInsightsQuery.DefaultWeeks);
         request.TemplateId.Should().BeNull();
-        request.SpecialtyId.Should().BeNull();
+        request.TeamId.Should().BeNull();
     }
 
     [Test]

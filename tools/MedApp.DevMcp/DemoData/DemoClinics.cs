@@ -15,7 +15,7 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// Clinic sessions (<c>docs/centre-phases-3-5-plan.md</c>, section 3.4), through the app's commands: the service
-/// manager sets up a weekly pattern for each specialty's clinic three weeks ago; the booking coordinator makes their
+/// manager sets up a weekly pattern for each team's clinic three weeks ago; the booking coordinator makes their
 /// sessions for the next eight weeks through Create sessions (which places each through <c>SessionPlacement</c>, so a
 /// date whose time is already taken on the clinician's calendar, or the room's, is skipped, saying why); then books
 /// reviews into some of the coming slots, and cancels one session that had bookings, leaving its call list. The
@@ -23,15 +23,15 @@ namespace MedApp.DevMcp.DemoData;
 /// </summary>
 public static class DemoClinics
 {
-    /// <summary>Each specialty's weekly clinic: who, where, when and its slots.</summary>
-    public static readonly IReadOnlyList<(string Username, string Specialty, string Room, DayOfWeek Day, TimeOnly Starts, TimeOnly Ends, int Slot)> Patterns =
+    /// <summary>Each team's weekly clinic: who, where, when and its slots.</summary>
+    public static readonly IReadOnlyList<(string Username, string Team, string Room, DayOfWeek Day, TimeOnly Starts, TimeOnly Ends, int Slot)> Patterns =
     [
-        (DemoStaff.DermatologistUsername, DemoSpecialties.Dermatology, "Clinic room 1", DayOfWeek.Monday, new(9, 0), new(12, 0), 20),
-        (DemoStaff.SkinGpUsername, DemoSpecialties.Dermatology, "Clinic room 2", DayOfWeek.Wednesday, new(13, 40), new(16, 40), 20),
-        (DemoStaff.GynaecologistUsername, DemoSpecialties.Gynaecology, "Clinic room 3", DayOfWeek.Tuesday, new(9, 0), new(12, 0), 30),
-        (DemoStaff.UrologistUsername, DemoSpecialties.Urology, "Clinic room 3", DayOfWeek.Wednesday, new(13, 30), new(16, 30), 30),
-        (DemoStaff.DiabetesNurseUsername, DemoSpecialties.Diabetes, "Clinic room 1", DayOfWeek.Thursday, new(8, 30), new(12, 30), 30),
-        (DemoStaff.PodiatristUsername, DemoSpecialties.Biomechanics, "Gait lab", DayOfWeek.Thursday, new(9, 0), new(12, 0), 45),
+        (DemoStaff.DermatologistUsername, DemoTeams.Dermatology, "Clinic room 1", DayOfWeek.Monday, new(9, 0), new(12, 0), 20),
+        (DemoStaff.SkinGpUsername, DemoTeams.Dermatology, "Clinic room 2", DayOfWeek.Wednesday, new(13, 40), new(16, 40), 20),
+        (DemoStaff.GynaecologistUsername, DemoTeams.Gynaecology, "Clinic room 3", DayOfWeek.Tuesday, new(9, 0), new(12, 0), 30),
+        (DemoStaff.UrologistUsername, DemoTeams.Urology, "Clinic room 3", DayOfWeek.Wednesday, new(13, 30), new(16, 30), 30),
+        (DemoStaff.DiabetesNurseUsername, DemoTeams.Diabetes, "Clinic room 1", DayOfWeek.Thursday, new(8, 30), new(12, 30), 30),
+        (DemoStaff.PodiatristUsername, DemoTeams.Biomechanics, "Gait lab", DayOfWeek.Thursday, new(9, 0), new(12, 0), 45),
     ];
 
     public static async Task<(object Counts, object Tour)> CreateAsync(SeedServices services, DemoWorld world, IReadOnlyList<PatientSeed> patients, CancellationToken ct)
@@ -53,11 +53,11 @@ public static class DemoClinics
         // The patterns, three weeks ago.
         var setUpAt = DemoTimeline.WorkingMoment(now.AddDays(-21), 10, 0);
         var patternIds = new List<Guid>();
-        foreach (var (username, specialty, room, day, starts, ends, slot) in Patterns)
+        foreach (var (username, team, room, day, starts, ends, slot) in Patterns)
         {
             var roomId = world.Setup.Rooms.Single(r => r.Key.EndsWith($": {room}", StringComparison.Ordinal)).Value;
             var pattern = await Send(setUpAt, manager, new CreateClinicPatternCommand(world.Member(username).Id, roomId,
-                world.Specialty(specialty).Id, day.ToString(), starts, ends, slot, 1, UkTime.DateOf(setUpAt), null, Calendar(manager, setUpAt)));
+                world.Team(team).Id, day.ToString(), starts, ends, slot, 1, UkTime.DateOf(setUpAt), null, Calendar(manager, setUpAt)));
             patternIds.Add(pattern.Id);
             setUpAt = setUpAt.AddMinutes(4);
         }

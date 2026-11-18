@@ -137,7 +137,7 @@ export function choiceValues(value: string | undefined, options: readonly string
 }
 
 /**
- * A choice filter of IDs (specialties, stages): one ID, or a comma list ("is any of"), in lower case. Not "not any
+ * A choice filter of IDs (teams, stages): one ID, or a comma list ("is any of"), in lower case. Not "not any
  * of": the API takes the IDs wanted, and the full list isn't known when the URL is read. Anything else is dropped.
  */
 export function parseIdChoice(value: unknown): string | undefined {
@@ -178,8 +178,8 @@ export interface TasksSearch {
   /** A choice: one, a comma list, or `!` and a comma list (see `parseChoice`). */
   status?: string;
   priority?: string;
-  /** Specialty IDs: an ID choice (see `parseIdChoice`). */
-  specialty?: string;
+  /** Team IDs: an ID choice (see `parseIdChoice`). */
+  team?: string;
   /** The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). */
   stage?: string;
   overdue?: boolean;
@@ -201,7 +201,7 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
     progress: oneOf(raw.progress, ['started', 'any'] as const),
     status: parseChoice(raw.status, OPEN_PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
-    specialty: parseIdChoice(raw.specialty),
+    team: parseIdChoice(raw.team),
     stage: parseIdChoice(raw.stage),
     overdue: bool(raw.overdue) ? true : undefined,
     breached: bool(raw.breached) ? true : undefined,
@@ -213,7 +213,7 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
 /** Filters beyond the progress (which always applies, Not started by default). */
 export const hasTaskFilters = (s: TasksSearch) =>
   Boolean(
-    s.title || s.template || s.patient || s.status || s.priority || s.specialty || s.stage || s.overdue || s.breached || s.dueFrom || s.dueTo,
+    s.title || s.template || s.patient || s.status || s.priority || s.team || s.stage || s.overdue || s.breached || s.dueFrom || s.dueTo,
   );
 
 // Pathways --------------------------------------------------------------------------------------------
@@ -245,8 +245,8 @@ export interface PathwaysListSearch {
   status?: string;
   /** A choice (see `parseChoice`). */
   priority?: string;
-  /** Specialty IDs (the pathways' own): an ID choice (see `parseIdChoice`), e.g. from Insights on a specialty. */
-  specialty?: string;
+  /** Team IDs (the pathways' own): an ID choice (see `parseIdChoice`), e.g. from Insights on a team. */
+  team?: string;
   /**
    * The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). Pathways whose current stage is
    * from one of them, not discharged, cancelled or archived ("Waiting for histology").
@@ -304,7 +304,7 @@ export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysLis
     patient: text(raw.patient),
     status: parseChoice(raw.status, PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
-    specialty: parseIdChoice(raw.specialty),
+    team: parseIdChoice(raw.team),
     stage: parseIdChoice(raw.stage),
     overdue: flag(raw.overdue),
     breached: flag(raw.breached),
@@ -324,7 +324,7 @@ export const hasPathwayFilters = (s: PathwaysListSearch) =>
       s.patient ||
       s.status ||
       s.priority ||
-      s.specialty ||
+      s.team ||
       s.stage ||
       s.overdue ||
       s.breached ||
@@ -444,18 +444,19 @@ export const INSIGHTS_WEEKS = [4, 12, 26] as const;
 export type InsightsWeeks = (typeof INSIGHTS_WEEKS)[number];
 export const DEFAULT_INSIGHTS_WEEKS: InsightsWeeks = 12;
 
-/** Insights' filters: the period (12 weeks unless the URL says otherwise), a specialty and a template (their IDs). */
+/** Insights' filters: the period (12 weeks unless the URL says otherwise), a team and a template (their IDs). */
 export interface InsightsSearch {
   weeks?: InsightsWeeks;
-  specialty?: string;
+  team?: string;
   template?: string;
 }
 
-export function parseInsightsSearch(raw: Record<string, unknown>): InsightsSearch {
+export function parseInsightsSearch(saved: Record<string, unknown>): InsightsSearch {
+  const raw = searchNow(saved);
   const weeks = INSIGHTS_WEEKS.find((w) => w === Number(text(raw.weeks)));
   return compact({
     weeks: weeks === DEFAULT_INSIGHTS_WEEKS ? undefined : weeks,
-    specialty: guid(raw.specialty),
+    team: guid(raw.team),
     template: guid(raw.template),
   });
 }

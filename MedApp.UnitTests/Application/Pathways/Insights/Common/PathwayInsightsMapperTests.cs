@@ -15,7 +15,7 @@ public sealed class PathwayInsightsMapperTests
     private static readonly Dictionary<Guid, string> NoUsernames = [];
 
     private static PathwayInsightsResponse Map(InsightsData data, IReadOnlyDictionary<Guid, string>? usernames = null) =>
-        PathwayInsightsMapper.ToResponse(data, Period, new InsightsScope(TemplateId, SpecialtyId), usernames ?? NoUsernames);
+        PathwayInsightsMapper.ToResponse(data, Period, new InsightsScope(TemplateId, TeamId), usernames ?? NoUsernames);
 
     [Test]
     public void ToResponse_Period_GivesTheWeeksAndTheirDates()
@@ -24,7 +24,7 @@ public sealed class PathwayInsightsMapperTests
 
         response.Weeks.Should().Be(3);
         response.TemplateId.Should().Be(TemplateId);
-        response.SpecialtyId.Should().Be(SpecialtyId);
+        response.TeamId.Should().Be(TeamId);
         response.From.Should().Be(ThisMonday.AddDays(-14));
         response.To.Should().Be(Today);
     }

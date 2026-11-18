@@ -7,7 +7,7 @@ import {pathwayKeys, pathwayQuery, type Pathway} from './pathways';
 import type {paths} from './schema';
 
 /**
- * Referrals: requests from a referrer (usually a GP practice) for the centre to see one patient in one specialty,
+ * Referrals: requests from a referrer (usually a GP practice) for the centre to see one patient in one team,
  * registered by staff from the letter (docs/centre-phase2-plan.md, decisions 8 to 17). A referral waits for triage
  * (Awaiting triage, or Information requested while the triager waits for more from the referrer: the open statuses);
  * before then it can be edited, withdrawn or marked entered in error. Every
@@ -19,7 +19,7 @@ export type ReferralSummary = Schemas['ReferralSummaryResponse'];
 export type ReferralEvent = Schemas['ReferralEventResponse'];
 export type ReferralPage = Schemas['ReferralSummaryResponsePagedResponse'];
 export type ReferralSearch = NonNullable<paths['/api/referrals/search']['get']['parameters']['query']>;
-/** A referral's waiting-time clock (decisions 27 to 38): whole UK days, against the specialty's target for the priority. */
+/** A referral's waiting-time clock (decisions 27 to 38): whole UK days, against the team's target for the priority. */
 export type WaitingClock = Schemas['WaitingClockResponse'];
 /** One pause of a waiting-time clock: why, its review date, and who paused and resumed it. */
 export type ClockPause = Schemas['ClockPauseResponse'];
@@ -125,7 +125,7 @@ export function referralSearchQuery(search: ReferralSearch) {
   });
 }
 
-/** How many referrals await triage in the caller's specialties (every one's, if they have none): the side nav's count. */
+/** How many referrals await triage in the caller's teams (every one's, if they have none): the side nav's count. */
 export const awaitingTriageCountQuery = queryOptions({
   queryKey: referralKeys.count,
   queryFn: () => unwrap(api.GET('/api/referrals/awaiting-triage/count')),
@@ -162,7 +162,7 @@ async function refreshReferrals(queryClient: QueryClient, referral?: Referral) {
 
 /** What staff type from the letter: the same for registering and editing. Dates are YYYY-MM-DD. */
 export interface ReferralDetailsInput {
-  specialtyId: string;
+  teamId: string;
   receivedOn: string;
   /** The referring practice chosen from the directory, or '' for none (the practice typed from the letter only). */
   practiceId: string;
@@ -180,7 +180,7 @@ export interface ReferralDetailsInput {
 export function toReferralRequest(input: ReferralDetailsInput) {
   const optional = (value: string) => (value.trim() ? value.trim() : null);
   return {
-    specialtyId: input.specialtyId || undefined,
+    teamId: input.teamId || undefined,
     receivedOn: input.receivedOn || undefined,
     practiceId: input.practiceId || null,
     referrerPractice: input.referrerPractice.trim(),
@@ -193,7 +193,7 @@ export function toReferralRequest(input: ReferralDetailsInput) {
 
 /** A referral's details, as the form starts editing them. */
 export const referralInput = (referral: Referral): ReferralDetailsInput => ({
-  specialtyId: referral.specialtyId ?? '',
+  teamId: referral.teamId ?? '',
   receivedOn: referral.receivedOn ?? '',
   practiceId: referral.practiceId ?? '',
   referrerPractice: referral.referrerPractice ?? '',
@@ -203,12 +203,12 @@ export const referralInput = (referral: Referral): ReferralDetailsInput => ({
   reason: referral.reason ?? '',
 });
 
-/** The 400's key when the patient already has an open referral to the specialty (`confirmPossibleDuplicate` unset). */
+/** The 400's key when the patient already has an open referral to the team (`confirmPossibleDuplicate` unset). */
 export const POSSIBLE_DUPLICATE_FIELD = 'confirmPossibleDuplicate';
 
 /**
  * Registers a referral (`POST api/referrals`) for a patient already in MedApp, returning it. A possible duplicate (an
- * open referral to the same specialty) is a 400 on `confirmPossibleDuplicate` unless it's confirmed; a restricted or
+ * open referral to the same team) is a 400 on `confirmPossibleDuplicate` unless it's confirmed; a restricted or
  * anonymised record is a 409 whose title says to give the letter to an admin.
  */
 export function useRegisterReferral() {
@@ -256,7 +256,7 @@ export interface AcceptReferralInput {
   templateId: string;
   /**
    * Low, Medium, High or Urgent, as the triager chose it (never the referrer's, unless they chose the same). The
-   * pathway's target date comes from the waiting-time clock, for this priority's target in the specialty.
+   * pathway's target date comes from the waiting-time clock, for this priority's target in the team.
    */
   priority: string;
   /** Blank takes the template's name. */
@@ -275,8 +275,8 @@ export interface RejectReferralInput {
   expectedVersion: number;
 }
 
-/** Redirecting a referral: to another specialty here, or elsewhere (another provider), with why. */
-export type RedirectReferralInput = ({specialtyId: string; elsewhere?: undefined} | {elsewhere: string; specialtyId?: undefined}) & {
+/** Redirecting a referral: to another team here, or elsewhere (another provider), with why. */
+export type RedirectReferralInput = ({teamId: string; elsewhere?: undefined} | {elsewhere: string; teamId?: undefined}) & {
   detail: string;
   expectedVersion: number;
 };
@@ -292,7 +292,7 @@ function useRereadOnConflict(id: string) {
 
 /**
  * Accepts a referral into a new pathway (`POST api/referrals/{id}/accept`, TriageReferrals and the referral's
- * specialty), from the version the page showed, returning the new pathway. The referral, every referral list and
+ * team), from the version the page showed, returning the new pathway. The referral, every referral list and
  * count, the timelines and the pathway lists then refresh; the new pathway is cached, so its page opens at once.
  */
 export function useAcceptReferral(id: string) {
@@ -336,17 +336,17 @@ export function useRejectReferral(id: string) {
 }
 
 /**
- * Redirects a referral (`POST api/referrals/{id}/redirect`), from the version the page showed: to another specialty
- * here (it stays awaiting triage, in that specialty's inbox) or elsewhere (it's closed as redirected elsewhere).
+ * Redirects a referral (`POST api/referrals/{id}/redirect`), from the version the page showed: to another team
+ * here (it stays awaiting triage, in that team's inbox) or elsewhere (it's closed as redirected elsewhere).
  */
 export function useRedirectReferral(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({specialtyId, elsewhere, detail, expectedVersion}: RedirectReferralInput) =>
+    mutationFn: ({teamId, elsewhere, detail, expectedVersion}: RedirectReferralInput) =>
       unwrap(
         api.POST('/api/referrals/{id}/redirect', {
           params: {path: {id}},
-          body: {specialtyId: specialtyId || null, elsewhere: blankAsNull(elsewhere), detail: detail.trim(), expectedVersion},
+          body: {teamId: teamId || null, elsewhere: blankAsNull(elsewhere), detail: detail.trim(), expectedVersion},
         }),
       ),
     onSuccess: (referral) => refreshReferrals(queryClient, referral),
@@ -357,7 +357,7 @@ export function useRedirectReferral(id: string) {
 /**
  * Asking the referrer for more information (`POST api/referrals/{id}/ask-for-information`: an Awaiting triage referral
  * becomes Information requested, still open), and recording that it came (`.../information-received`: back to Awaiting
- * triage). Both need TriageReferrals and the referral's specialty, and carry the version the page showed.
+ * triage). Both need TriageReferrals and the referral's team, and carry the version the page showed.
  */
 export function useReferralInformationActions(id: string) {
   const queryClient = useQueryClient();
@@ -380,7 +380,7 @@ export function useReferralInformationActions(id: string) {
 
 /** The names of the fields a details edit changed, in words. */
 const FIELD_WORDS: Record<string, string> = {
-  specialty: 'specialty',
+  specialty: 'team',
   receivedOn: 'received date',
   referrerPractice: 'practice',
   directoryPractice: 'practice from the directory',
@@ -397,8 +397,8 @@ export const referralFieldWords = (field: string) => FIELD_WORDS[field] ?? field
  * One entry of a referral's history, in words: "Registered by k.ashford", "Details edited by k.ashford: reason,
  * received date", "Withdrawn by k.ashford", "Marked entered in error by k.ashford"; triage's "Accepted by d.clinician"
  * (the template and the priority chosen), "Rejected by d.clinician" (the reason in words), "Redirected by d.clinician"
- * (to another specialty here) and "Redirected elsewhere by d.clinician"; "More information asked for by d.clinician"
- * and "Information received, recorded by k.ashford". With its specialty where it names one
+ * (to another team here) and "Redirected elsewhere by d.clinician"; "More information asked for by d.clinician"
+ * and "Information received, recorded by k.ashford". With its team where it names one
  * (registered to it, or moved to it). Never free text: the history holds none.
  */
 export function referralEventWords(event: ReferralEvent): {title: string; detail: string} {
@@ -408,7 +408,7 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
       return {
         title: `Registered by ${by}`,
         detail: [
-          event.specialtyName ? `To ${event.specialtyName}` : null,
+          event.teamName ? `To ${event.teamName}` : null,
           event.requestedPriority ? `${event.requestedPriority} priority asked for` : null,
         ]
           .filter(Boolean)
@@ -417,13 +417,13 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
     case 'DetailsEdited': {
       const fields = (event.changedFields ?? []).map(referralFieldWords);
       const moved =
-        event.specialtyName && event.previousSpecialtyName ? `Specialty ${event.previousSpecialtyName} → ${event.specialtyName}` : null;
+        event.teamName && event.previousTeamName ? `Team ${event.previousTeamName} → ${event.teamName}` : null;
       return {title: `Details edited by ${by}${fields.length ? `: ${fields.join(', ')}` : ''}`, detail: moved ?? ''};
     }
-    case 'SpecialtyChanged':
+    case 'TeamChanged':
       return {
         title: `Redirected by ${by}`,
-        detail: event.specialtyName ? `Specialty ${event.previousSpecialtyName ?? 'unknown'} → ${event.specialtyName}` : '',
+        detail: event.teamName ? `Team ${event.previousTeamName ?? 'unknown'} → ${event.teamName}` : '',
       };
     case 'Accepted':
       return {

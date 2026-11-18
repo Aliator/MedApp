@@ -7,9 +7,9 @@ import {ReferralsListPage} from './ReferralsListPage';
 import type {ReferralsListSearch} from './referralsSearch';
 
 const SEARCH = 'GET /api/referrals/search';
-const SPECIALTIES = 'GET /api/specialties';
+const TEAMS = 'GET /api/teams';
 const SKIN_ID = '0000005a-0000-0000-0000-0000000000aa';
-/** The list's own searches, leaving out what it asks for its filters' choices (specialties). */
+/** The list's own searches, leaving out what it asks for its filters' choices (teams). */
 const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 
 function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = false, user = staffUser}: {body?: unknown; status?: number; isNarrow?: boolean; user?: CurrentUser} = {}) {
@@ -20,13 +20,13 @@ function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = 
           pageOf(
             [
               testReferralSummary({id: 'r1', hasLetter: true}),
-              testReferralSummary({id: 'r2', patientName: 'Sam Test', patientNhsNumber: null, specialtyName: 'Urology', requestedPriority: 'Low'}),
+              testReferralSummary({id: 'r2', patientName: 'Sam Test', patientNhsNumber: null, teamName: 'Urology', requestedPriority: 'Low'}),
             ],
             12,
           ),
         status,
       ),
-    [SPECIALTIES]: () => json([{id: SKIN_ID, name: 'Dermatology', isArchived: false}]),
+    [TEAMS]: () => json([{id: SKIN_ID, name: 'Dermatology', isArchived: false}]),
   });
   const onSearchChange = vi.fn();
   const page = <ReferralsListPage search={search} onSearchChange={onSearchChange} />;
@@ -166,14 +166,14 @@ describe('ReferralsListPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'paused'}));
   });
 
-  it('filters by specialty, named in the search, and counts what matches', async () => {
-    const {fetch} = renderList({specialty: SKIN_ID});
+  it('filters by team, named in the search, and counts what matches', async () => {
+    const {fetch} = renderList({team: SKIN_ID});
 
     expect(await screen.findByText('12 matching referrals')).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([
-      `${SEARCH}?Page=1&PageSize=10&Sort=daysWaited&Ascending=false&Statuses=AwaitingTriage&SpecialtyIds=${SKIN_ID}`,
+      `${SEARCH}?Page=1&PageSize=10&Sort=daysWaited&Ascending=false&Statuses=AwaitingTriage&TeamIds=${SKIN_ID}`,
     ]);
-    await waitFor(() => expect(searchBar()).toHaveTextContent(/Specialty: is\s*Dermatology/));
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Team: is\s*Dermatology/));
   });
 
   it('switches views from the favourites, keeping the inbox out of the URL', async () => {
@@ -200,8 +200,8 @@ describe('ReferralsListPage', () => {
     const {user, onSearchChange} = renderList({page: 2});
     await screen.findByText('Freya Ahmed');
 
-    await user.click(screen.getByRole('button', {name: /Specialty/}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, sort: 'Specialty', asc: true});
+    await user.click(screen.getByRole('button', {name: /Team/}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, sort: 'Team', asc: true});
     await user.click(screen.getByRole('button', {name: /previous page/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
   });

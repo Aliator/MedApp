@@ -35,7 +35,7 @@ export interface RegisterReferralPageProps {
   onPatientChange: (patientId: string | undefined) => void;
 }
 
-/** Whether a 400 is only the server's possible duplicate (an open referral to the same specialty), to confirm. */
+/** Whether a 400 is only the server's possible duplicate (an open referral to the same team), to confirm. */
 const isOnlyDuplicate = (errors: ValidationErrors) =>
   (errors.fields[POSSIBLE_DUPLICATE_FIELD]?.length ?? 0) > 0 &&
   Object.keys(errors.fields).every((field) => field === POSSIBLE_DUPLICATE_FIELD) &&
@@ -44,7 +44,7 @@ const isOnlyDuplicate = (errors: ValidationErrors) =>
 /**
  * Register Referral (decision 11): first the patient, found by NHS number or name (someone not in MedApp yet is added
  * first, and comes back chosen), shown as `PatientBanner` once chosen; then the details from the letter. The patient's
- * referrals still awaiting triage show above the details, those to the same specialty flagged. If the server finds a
+ * referrals still awaiting triage show above the details, those to the same team flagged. If the server finds a
  * possible duplicate it says so, and registering it anyway is confirmed ("This is a different referral"). A restricted
  * or anonymised record is refused with the API's words (give the letter to an admin, hazard H-40). Then on to the
  * referral's page, where its letter is attached.
@@ -99,7 +99,7 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
     );
   }
 
-  const sameSpecialty = openReferrals.filter((r) => details.specialtyId && r.specialtyId === details.specialtyId);
+  const sameTeam = openReferrals.filter((r) => details.teamId && r.teamId === details.teamId);
 
   return (
     <Page
@@ -136,7 +136,7 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
           isProcessing={register.isPending}
           onConfirm={() => save(true)}
           onCancel={() => setDuplicate(null)}>
-          {sameSpecialty.length > 0 && <ReferralList referrals={sameSpecialty} label="Open referrals to the same specialty" />}
+          {sameTeam.length > 0 && <ReferralList referrals={sameTeam} label="Open referrals to the same clinic" />}
         </ConfirmDialog>
       }>
       {patient.data && (
@@ -145,11 +145,11 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
             <FormSection title="Already awaiting triage" useGrid={false}>
               <VStack gap={3} hAlign="stretch">
                 <Text type="body">
-                  {sameSpecialty.length > 0
-                    ? 'This patient already has a referral to this specialty awaiting triage. Check it isn’t the same one.'
+                  {sameTeam.length > 0
+                    ? 'This patient already has a referral to this team awaiting triage. Check it isn’t the same one.'
                     : 'This patient already has referrals awaiting triage.'}
                 </Text>
-                <ReferralList referrals={openReferrals} label="Referrals awaiting triage" sameSpecialtyId={details.specialtyId || undefined} />
+                <ReferralList referrals={openReferrals} label="Referrals awaiting triage" sameTeamId={details.teamId || undefined} />
               </VStack>
             </FormSection>
           )}

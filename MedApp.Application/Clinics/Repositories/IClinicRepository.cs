@@ -6,18 +6,18 @@ namespace MedApp.Application.Clinics.Repositories;
 
 /// <summary>
 /// Clinic sessions and patterns (centre plan decisions 123 to 127). Sessions are loaded with their room (and its site)
-/// and specialty. Changes that put a session on a calendar run inside <c>ICalendarLock</c>, holding the clinician's and
+/// and team. Changes that put a session on a calendar run inside <c>ICalendarLock</c>, holding the clinician's and
 /// the room's locks, whose transaction these share.
 /// </summary>
 public interface IClinicRepository
 {
-    /// <summary>A session with its room, site and specialty, read-only.</summary>
+    /// <summary>A session with its room, site and team, read-only.</summary>
     Task<ClinicSession?> GetSessionAsync(Guid id, CancellationToken ct);
 
-    /// <summary>A session with its room, site and specialty, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
+    /// <summary>A session with its room, site and team, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
     Task<ClinicSession?> GetSessionForUpdateAsync(Guid id, CancellationToken ct);
 
-    /// <summary>Sessions starting on the filter's dates, by start then room's name, with their rooms, sites and specialties.</summary>
+    /// <summary>Sessions starting on the filter's dates, by start then room's name, with their rooms, sites and teams.</summary>
     Task<IReadOnlyList<ClinicSession>> SearchSessionsAsync(ClinicSessionFilter filter, CancellationToken ct);
 
     /// <summary>The start of every appointment on the calendar (Booked, Attended or Did not attend) in each of these sessions.</summary>
@@ -54,10 +54,10 @@ public interface IClinicRepository
     /// <summary>The dates a pattern has made sessions on (in any status) from <paramref name="from"/> to <paramref name="to"/>.</summary>
     Task<IReadOnlySet<DateOnly>> GetPatternDatesAsync(Guid patternId, DateOnly from, DateOnly to, CancellationToken ct);
 
-    /// <summary>Every pattern, with its room, site and specialty, read-only.</summary>
+    /// <summary>Every pattern, with its room, site and team, read-only.</summary>
     Task<IReadOnlyList<ClinicPattern>> GetPatternsAsync(CancellationToken ct);
 
-    /// <summary>A pattern with its room, site and specialty, read-only.</summary>
+    /// <summary>A pattern with its room, site and team, read-only.</summary>
     Task<ClinicPattern?> GetPatternAsync(Guid id, CancellationToken ct);
 
     /// <summary>A pattern, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>

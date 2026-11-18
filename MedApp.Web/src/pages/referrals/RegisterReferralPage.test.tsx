@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {expectAnnounced, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
-import {DERMATOLOGY_ID, REFERRAL_PATIENT, REFERRAL_PATIENT_ID, SPECIALTIES, testReferral, testReferralSummary} from '../../test/referrals';
+import {DERMATOLOGY_ID, REFERRAL_PATIENT, REFERRAL_PATIENT_ID, TEAMS, testReferral, testReferralSummary} from '../../test/referrals';
 import {RegisterReferralPage} from './RegisterReferralPage';
 
 const PATIENT = `GET /api/patients/${REFERRAL_PATIENT_ID}`;
@@ -10,7 +10,7 @@ const RESTRICTED = "This patient's record is restricted, so a referral can't be 
 function renderPage(patientId: string | null = REFERRAL_PATIENT_ID, handlers: Record<string, (request: Request) => Response | Promise<Response>> = {}) {
   const fetch = mockApi({
     [PATIENT]: () => json(REFERRAL_PATIENT),
-    'GET /api/specialties': () => json(SPECIALTIES),
+    'GET /api/teams': () => json(TEAMS),
     'GET /api/referrals/search': () => json(pageOf([])),
     'POST /api/referrals': () => json(testReferral({id: 'new-referral'}), 201),
     ...handlers,
@@ -22,7 +22,7 @@ function renderPage(patientId: string | null = REFERRAL_PATIENT_ID, handlers: Re
 
 /** Fills the required details from the letter. */
 async function fillDetails(user: ReturnType<typeof renderPage>['user']) {
-  await user.click(await screen.findByRole('combobox', {name: /Specialty/}));
+  await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
   await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
   await user.type(screen.getByRole('textbox', {name: /Practice/}), 'Synthetic Street Surgery');
   await user.type(screen.getByRole('textbox', {name: /Reason/}), 'A rash');
@@ -62,7 +62,7 @@ describe('RegisterReferralPage', () => {
       {
         patientId: REFERRAL_PATIENT_ID,
         confirmPossibleDuplicate: false,
-        specialtyId: DERMATOLOGY_ID,
+        teamId: DERMATOLOGY_ID,
         receivedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         practiceId: null,
         referrerPractice: 'Synthetic Street Surgery',
@@ -75,7 +75,7 @@ describe('RegisterReferralPage', () => {
     await expectAnnounced('Referral registered');
   });
 
-  it("shows the patient's open referrals, flagging the same specialty; a possible duplicate is confirmed as a different referral", async () => {
+  it("shows the patient's open referrals, flagging the same clinic; a possible duplicate is confirmed as a different referral", async () => {
     let attempt = 0;
     const {user, fetch, router} = renderPage(REFERRAL_PATIENT_ID, {
       'GET /api/referrals/search': () => json(pageOf([testReferralSummary({id: 'open-1'})])),
@@ -87,13 +87,13 @@ describe('RegisterReferralPage', () => {
 
     expect(await screen.findByText('This patient already has referrals awaiting triage.')).toBeInTheDocument();
     await fillDetails(user);
-    expect(screen.getByText(/already has a referral to this specialty awaiting triage/)).toBeInTheDocument();
-    expect(screen.getByText('Same specialty')).toBeInTheDocument();
+    expect(screen.getByText(/already has a referral to this team awaiting triage/)).toBeInTheDocument();
+    expect(screen.getByText('Same clinic')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Register Referral'}));
 
     const dialog = within((await screen.findByRole('heading', {name: 'Possible Duplicate'})).closest('dialog')!);
     expect(dialog.getByText(DUPLICATE)).toBeInTheDocument();
-    expect(dialog.getByRole('list', {name: 'Open referrals to the same specialty'})).toBeInTheDocument();
+    expect(dialog.getByRole('list', {name: 'Open referrals to the same clinic'})).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'This Is a Different Referral'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/second'));

@@ -17,9 +17,9 @@ public sealed class ClinicSessionResponse
 
     public string SiteName { get; set; } = string.Empty;
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
-    public string SpecialtyName { get; set; } = string.Empty;
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>The pattern that made it, if any.</summary>
     public Guid? PatternId { get; set; }

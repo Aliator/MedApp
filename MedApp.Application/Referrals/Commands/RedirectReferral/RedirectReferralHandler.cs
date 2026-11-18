@@ -4,23 +4,23 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Referrals.Responses;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using MediatR;
 
 namespace MedApp.Application.Referrals.Commands.RedirectReferral;
 
 /// <summary>
-/// Redirects a referral (403 without <c>TriageReferrals</c> or membership of its specialty; 409 once triaged, on a
-/// restricted or anonymised record, or if it changed since the caller's version). To another specialty here, it stays
-/// awaiting triage (a <c>SpecialtyChanged</c> entry; 404 for an unknown specialty, 409 for an archived one, 400 for
+/// Redirects a referral (403 without <c>TriageReferrals</c> or membership of its team; 409 once triaged, on a
+/// restricted or anonymised record, or if it changed since the caller's version). To another team here, it stays
+/// awaiting triage (a <c>TeamChanged</c> entry; 404 for an unknown team, 409 for an archived one, 400 for
 /// its own); elsewhere, it closes (<c>RedirectedElsewhere</c>). Recorded in its history in the same save; whoever
 /// registered it is told.
 /// </summary>
 public sealed class RedirectReferralHandler(
     IReferralRepository repository,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     INotificationSender notificationSender,
     TimeProvider timeProvider)
     : IRequestHandler<RedirectReferralCommand, ReferralResponse>
@@ -33,20 +33,20 @@ public sealed class RedirectReferralHandler(
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new ReferralChange(referral, request.Actor, now);
         var detail = request.Detail.Trim();
-        var previousSpecialtyName = referral.Specialty?.Name;
-        Specialty? target = null;
+        var previousTeamName = referral.Team?.Name;
+        Team? target = null;
 
-        if (request.SpecialtyId is { } specialtyId)
+        if (request.TeamId is { } teamId)
         {
-            if (specialtyId == referral.SpecialtyId)
+            if (teamId == referral.TeamId)
                 throw new ValidationException([
-                    new ValidationFailure(nameof(RedirectReferralCommand.SpecialtyId), ReferralWorkflow.SameSpecialtyMessage)
+                    new ValidationFailure(nameof(RedirectReferralCommand.TeamId), ReferralWorkflow.SameTeamMessage)
                 ]);
-            target = await specialties.GetAsync(specialtyId, cancellationToken)
-                     ?? throw new NotFoundException($"Specialty '{specialtyId}' was not found.");
+            target = await teams.GetAsync(teamId, cancellationToken)
+                     ?? throw new NotFoundException($"Team '{teamId}' was not found.");
             if (target.IsArchived)
-                throw new ConflictException(ReferralWorkflow.ArchivedSpecialtyMessage(target.Name));
-            change.RedirectToSpecialty(target, detail);
+                throw new ConflictException(ReferralWorkflow.ArchivedTeamMessage(target.Name));
+            change.RedirectToTeam(target, detail);
         }
         else
             change.RedirectElsewhere(request.Elsewhere!.Trim(), detail);
@@ -61,12 +61,12 @@ public sealed class RedirectReferralHandler(
             throw await repository.TriageConflictAsync(referral.Id, cancellationToken);
         }
 
-        // Saved by its ID; shown now with the specialty read for it.
+        // Saved by its ID; shown now with the team read for it.
         if (target is not null)
-            referral.Specialty = target;
+            referral.Team = target;
 
         var notification = ReferralNotifications.Triaged(
-            referral, request.Actor, now, target is null ? null : previousSpecialtyName);
+            referral, request.Actor, now, target is null ? null : previousTeamName);
         if (notification is not null)
             await notificationSender.SendAsync(notification, cancellationToken);
 

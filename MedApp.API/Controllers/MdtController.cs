@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// The MDT list (<c>docs/centre-phases-3-5-plan.md</c>, decisions 141 to 144): pathways put forward for a specialty's
+/// The MDT list (<c>docs/centre-phases-3-5-plan.md</c>, decisions 141 to 144): pathways put forward for a team's
 /// multidisciplinary team meeting (a calendar meeting marked as its MDT), with the question for the team and, once
 /// discussed, the outcome as a person wrote it. Anyone who sees patients reads the lists (each read logged); holders of
 /// WorkPathways list, defer and withdraw; holders of RecordMdtOutcomes record the outcome. MedApp never suggests one.
@@ -26,12 +26,12 @@ namespace MedApp.API.Controllers;
 [Tags("MDT")]
 public sealed class MdtController(IMediator mediator) : ControllerBase
 {
-    /// <summary>The MDTs from 60 days ago to 180 days ahead, in one specialty or all, by start. Names no patient.</summary>
+    /// <summary>The MDTs from 60 days ago to 180 days ahead, in one team or all, by start. Names no patient.</summary>
     [HttpGet("meetings")]
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(IReadOnlyList<MdtMeetingResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMeetings([FromQuery] Guid? specialtyId, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetMdtMeetingsQuery(specialtyId), ct));
+    public async Task<IActionResult> GetMeetings([FromQuery] Guid? teamId, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMdtMeetingsQuery(teamId), ct));
 
     /// <summary>One MDT's list, in the order items were listed. Records PatientListed for each patient on it.</summary>
     [HttpGet("meetings/{meetingId:guid}/items")]
@@ -41,12 +41,12 @@ public sealed class MdtController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetMeetingList(Guid meetingId, CancellationToken ct) =>
         Ok(await mediator.Send(new GetMdtMeetingListQuery(meetingId, User.ToPathwayActor()), ct));
 
-    /// <summary>Open items whose MDT was cancelled, to list again, in one specialty or all. Records PatientListed for each.</summary>
+    /// <summary>Open items whose MDT was cancelled, to list again, in one team or all. Records PatientListed for each.</summary>
     [HttpGet("awaiting-meeting")]
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(IReadOnlyList<MdtItemResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAwaitingMeeting([FromQuery] Guid? specialtyId, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetMdtItemsAwaitingMeetingQuery(specialtyId, User.ToPathwayActor()), ct));
+    public async Task<IActionResult> GetAwaitingMeeting([FromQuery] Guid? teamId, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMdtItemsAwaitingMeetingQuery(teamId, User.ToPathwayActor()), ct));
 
     /// <summary>A pathway's MDT items, newest listed first. Records PathwayViewed.</summary>
     [HttpGet("pathways/{pathwayId:guid}/items")]

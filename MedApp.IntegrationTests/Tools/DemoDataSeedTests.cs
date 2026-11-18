@@ -573,7 +573,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     /// Every referral keeps the app's rules: received on or before the day it was registered (and not over a year
     /// before), registered while its patient existed, decided after it was registered and before now, its history in
     /// order from its registration, and every triage decision (accept, reject, redirect) by someone who holds Triage
-    /// referrals and belongs to the specialty it was in then. An accepted one's pathway names it.
+    /// referrals and belongs to the team it was in then. An accepted one's pathway names it.
     /// </summary>
     [Test]
     public async Task Referrals_AreRegisteredAndTriagedByTheRules_AndNothingHappensAfterNow()
@@ -582,14 +582,14 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             await db.Referrals.AsNoTracking().ToListAsync(),
             await db.ReferralEvents.AsNoTracking().ToListAsync(),
             await db.Patients.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.CreatedAt),
-            await db.StaffSpecialties.AsNoTracking().Select(s => new { s.UserId, s.SpecialtyId }).ToListAsync(),
+            await db.TeamMemberships.AsNoTracking().Select(s => new { s.UserId, s.TeamId }).ToListAsync(),
             await db.UserRoles.Join(db.RolePermissions, ur => ur.RoleId, rp => rp.RoleId, (ur, rp) => new { ur.UserId, rp.Permission })
                 .Where(x => x.Permission == nameof(Permission.TriageReferrals)).Select(x => x.UserId).Distinct().ToListAsync(),
             await db.PatientPathwayAuditEntries.AsNoTracking().Where(a => a.Action == PatientPathwayAuditAction.Created)
                 .ToDictionaryAsync(a => a.PatientPathwayId, a => a.Details)));
 
         referrals.Should().HaveCountGreaterThan(400);
-        var membership = members.Select(m => (m.UserId, m.SpecialtyId)).ToHashSet();
+        var membership = members.Select(m => (m.UserId, m.TeamId)).ToHashSet();
         var history = events.ToLookup(e => e.ReferralId);
         foreach (var referral in referrals)
         {
@@ -609,13 +609,13 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
                 created[pathwayId].Should().Contain(referral.Id.ToString(), "the pathway's Created entry names the referral it was accepted from");
         }
 
-        // Triage decisions, by a triager of the specialty it was in: the one it was moved from, for a redirection here.
+        // Triage decisions, by a triager of the team it was in: the one it was moved from, for a redirection here.
         foreach (var decision in events.Where(e => e.Action is ReferralEventAction.Accepted or ReferralEventAction.Rejected
-                                                       or ReferralEventAction.RedirectedElsewhere or ReferralEventAction.SpecialtyChanged))
+                                                       or ReferralEventAction.RedirectedElsewhere or ReferralEventAction.TeamChanged))
         {
             using var details = JsonDocument.Parse(decision.Details);
-            var specialty = details.RootElement.GetProperty(decision.Action == ReferralEventAction.SpecialtyChanged ? "previousSpecialtyId" : "specialtyId").GetGuid();
-            membership.Should().Contain((decision.UserId!.Value, specialty), $"{decision.Username} triaged a referral in their own specialty");
+            var team = details.RootElement.GetProperty(decision.Action == ReferralEventAction.TeamChanged ? "previousSpecialtyId" : "specialtyId").GetGuid();
+            membership.Should().Contain((decision.UserId!.Value, team), $"{decision.Username} triaged a referral in their own team");
             triagers.Should().Contain(decision.UserId!.Value, $"{decision.Username} holds Triage referrals");
         }
     }
@@ -680,8 +680,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// The referral story's cases: an inbox now in every specialty, some past their target, one moved here and one
-    /// specialty nobody can triage; every rejection reason, redirections both ways, withdrawals and one entered in error;
+    /// The referral story's cases: an inbox now in every team, some past their target, one moved here and one
+    /// team nobody can triage; every rejection reason, redirections both ways, withdrawals and one entered in error;
     /// about ten paused clocks (one past its review date); breaches open and stopped; pathways made without a referral;
     /// one clock-stop stage on every template; and the registrant told of triage decisions, without patient details.
     /// </summary>
@@ -690,11 +690,11 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     {
         var today = UkTime.DateOf(Now);
         var (referrals, events, triagers, members, notifications, patients, stopMaps, unreferred) = await Query(async db => (
-            await db.Referrals.AsNoTracking().Include(r => r.Specialty).Include(r => r.Pauses).ToListAsync(),
+            await db.Referrals.AsNoTracking().Include(r => r.Team).Include(r => r.Pauses).ToListAsync(),
             await db.ReferralEvents.AsNoTracking().ToListAsync(),
             await db.UserRoles.Join(db.RolePermissions, ur => ur.RoleId, rp => rp.RoleId, (ur, rp) => new { ur.UserId, rp.Permission })
                 .Where(x => x.Permission == nameof(Permission.TriageReferrals)).Select(x => x.UserId).Distinct().ToListAsync(),
-            await db.StaffSpecialties.AsNoTracking().Select(s => new { s.UserId, s.SpecialtyId }).ToListAsync(),
+            await db.TeamMemberships.AsNoTracking().Select(s => new { s.UserId, s.TeamId }).ToListAsync(),
             await db.Notifications.AsNoTracking().Where(n => n.Kind == NotificationKind.ReferralTriaged).ToListAsync(),
             await db.Patients.AsNoTracking().Select(p => new { p.FirstName, p.LastName }).ToListAsync(),
             await db.PathwayTemplates.AsNoTracking().Select(t => t.Maps.Count(m => m.StopsClock)).ToListAsync(),
@@ -702,13 +702,13 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
         var awaiting = referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage).ToList();
         awaiting.Should().HaveCountGreaterThanOrEqualTo(15);
-        awaiting.Select(r => r.SpecialtyId).Distinct().Should().HaveCountGreaterThanOrEqualTo(6, "every specialty has referrals waiting");
+        awaiting.Select(r => r.TeamId).Distinct().Should().HaveCountGreaterThanOrEqualTo(6, "every team has referrals waiting");
         awaiting.Count(r => WaitingClock.IsBreached(r, today)).Should().BeGreaterThanOrEqualTo(2, "a few are past their target");
-        var canTriage = members.Where(m => triagers.Contains(m.UserId)).Select(m => m.SpecialtyId).ToHashSet();
-        awaiting.Where(r => !canTriage.Contains(r.SpecialtyId)).Select(r => r.Specialty.Name).Distinct()
-            .Should().Equal([DemoSpecialties.NewService], "only the new service has referrals nobody can triage");
-        awaiting.Should().Contain(r => events.Any(e => e.ReferralId == r.Id && e.Action == ReferralEventAction.SpecialtyChanged),
-            "one was moved here from another specialty and still awaits triage");
+        var canTriage = members.Where(m => triagers.Contains(m.UserId)).Select(m => m.TeamId).ToHashSet();
+        awaiting.Where(r => !canTriage.Contains(r.TeamId)).Select(r => r.Team.Name).Distinct()
+            .Should().Equal([DemoTeams.NewService], "only the new service has referrals nobody can triage");
+        awaiting.Should().Contain(r => events.Any(e => e.ReferralId == r.Id && e.Action == ReferralEventAction.TeamChanged),
+            "one was moved here from another team and still awaits triage");
 
         referrals.Where(r => r.Status == ReferralStatus.Rejected).Select(r => r.RejectionReason!.Value).Distinct()
             .Should().BeEquivalentTo(Enum.GetValues<ReferralRejectionReason>(), "every rejection reason is used");
@@ -716,7 +716,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         referrals.Should().Contain(r => r.Status == ReferralStatus.RedirectedElsewhere && r.RedirectedTo != null);
         referrals.Should().Contain(r => r.Status == ReferralStatus.Withdrawn);
         referrals.Count(r => r.Status == ReferralStatus.EnteredInError).Should().Be(1);
-        events.Count(e => e.Action == ReferralEventAction.SpecialtyChanged).Should().BeGreaterThanOrEqualTo(3);
+        events.Count(e => e.Action == ReferralEventAction.TeamChanged).Should().BeGreaterThanOrEqualTo(3);
 
         var accepted = referrals.Where(r => r.Status == ReferralStatus.Accepted).ToList();
         accepted.Count(WaitingClock.IsPaused).Should().BeInRange(6, 14, "about ten clocks are paused now");
@@ -738,13 +738,13 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         }
     }
 
-    /// <summary>The referrals the summary's tour names are each there: the specialty, the patient and the date received.</summary>
+    /// <summary>The referrals the summary's tour names are each there: the team, the patient and the date received.</summary>
     [Test]
     public async Task Summary_NamesReferralsThatExist()
     {
         var referrals = await Query(db => db.Referrals.AsNoTracking()
-            .Select(r => new { Specialty = r.Specialty.Name, r.Patient.FirstName, r.Patient.LastName, r.ReceivedOn, r.Status }).ToListAsync());
-        var named = referrals.Select(r => $"{r.Specialty} referral for {r.FirstName} {r.LastName}, received {r.ReceivedOn.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)}")
+            .Select(r => new { Team = r.Team.Name, r.Patient.FirstName, r.Patient.LastName, r.ReceivedOn, r.Status }).ToListAsync());
+        var named = referrals.Select(r => $"{r.Team} referral for {r.FirstName} {r.LastName}, received {r.ReceivedOn.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)}")
             .ToHashSet();
 
         var tour = JsonSerializer.SerializeToElement(Summary["tour"]).GetProperty("referrals");

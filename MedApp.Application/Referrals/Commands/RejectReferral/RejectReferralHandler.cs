@@ -10,7 +10,7 @@ using MediatR;
 namespace MedApp.Application.Referrals.Commands.RejectReferral;
 
 /// <summary>
-/// Rejects a referral (403 without <c>TriageReferrals</c> or membership of its specialty; 409 once triaged, on a
+/// Rejects a referral (403 without <c>TriageReferrals</c> or membership of its team; 409 once triaged, on a
 /// restricted or anonymised record, or if it changed since the caller's version), recorded in its history in the same
 /// save. Whoever registered it is told.
 /// </summary>

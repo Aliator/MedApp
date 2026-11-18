@@ -208,7 +208,7 @@ public static class PatientExportMapper
                     Id = i.Id,
                     PathwayId = i.PathwayId,
                     PathwayTitle = i.Pathway?.Title ?? string.Empty,
-                    Specialty = i.Specialty?.Name ?? string.Empty,
+                    Team = i.Team?.Name ?? string.Empty,
                     Status = i.Status.ToString(),
                     Question = i.Question,
                     MeetingStartUtc = i.Meeting?.StartUtc,
@@ -290,7 +290,7 @@ public static class PatientExportMapper
                 .Select(r => new ExportedReferralResponse
                 {
                     Id = r.Id,
-                    SpecialtyName = r.Specialty?.Name ?? string.Empty,
+                    TeamName = r.Team?.Name ?? string.Empty,
                     ReceivedOn = r.ReceivedOn,
                     ReferrerPractice = r.ReferrerPractice,
                     ReferrerClinician = r.ReferrerClinician,

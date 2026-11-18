@@ -15,11 +15,11 @@ public sealed class LetterTemplateValidatorsTests
     private static CreateLetterTemplateCommand Create(
         string name = TemplateName,
         string kind = "ClinicLetter",
-        Guid? specialtyId = null,
+        Guid? teamId = null,
         string letterhead = Letterhead,
         string body = BodySkeleton,
         string closing = Closing) =>
-        new(name, kind, specialtyId, letterhead, body, closing);
+        new(name, kind, teamId, letterhead, body, closing);
 
     private static CreateLetterTemplateValidator CreateValidator(params string[] missing) =>
         new(RendererMissing(missing).Object);
@@ -53,9 +53,9 @@ public sealed class LetterTemplateValidatorsTests
         CreateValidator().Validate(Create(kind: "dischargesummary")).IsValid.Should().BeTrue();
 
     [Test]
-    public void Create_EmptySpecialtyId_Fails() =>
-        CreateValidator().Validate(Create(specialtyId: Guid.Empty))
-            .Errors.Should().ContainSingle(e => e.PropertyName == "SpecialtyId");
+    public void Create_EmptyTeamId_Fails() =>
+        CreateValidator().Validate(Create(teamId: Guid.Empty))
+            .Errors.Should().ContainSingle(e => e.PropertyName == "TeamId");
 
     [Test]
     public void Create_TextsTooLong_Fail()
@@ -117,7 +117,7 @@ public sealed class LetterTemplateValidatorsTests
         new UpdateLetterTemplateValidator(RendererMissing().Object)
             .Validate(new UpdateLetterTemplateCommand(Guid.Empty, "{{x}}", "Nope", Guid.Empty, "{{x}}", "", "", 0))
             .Errors.Select(e => e.PropertyName)
-            .Should().BeEquivalentTo("TemplateId", "Kind", "SpecialtyId", "Letterhead", "ExpectedVersion");
+            .Should().BeEquivalentTo("TemplateId", "Kind", "TeamId", "Letterhead", "ExpectedVersion");
 
     [Test]
     public void Preview_ChecksTheTextAndAnOptionalName()

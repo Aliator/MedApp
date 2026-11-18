@@ -5,7 +5,7 @@ import {STAFF_ME, ukTime} from './calendar';
 /** Synthetic clinic sessions and patterns for tests, shaped like the API's responses. */
 
 export const ROOM = {id: 'room-2', name: 'Room 2', siteId: 'site-main', siteName: 'Main site', isArchived: false, canBeDeleted: false};
-export const SPECIALTY = {id: 'specialty-derm', name: 'Synthetic dermatology', isArchived: false};
+export const TEAM = {id: 'team-derm', name: 'Synthetic dermatology', isArchived: false};
 
 /** A Planned session on `date`, 09:00 to 12:00 UK time by default, in 20-minute slots, with `booked` slots taken. */
 export function testSession({
@@ -29,8 +29,8 @@ export function testSession({
     roomName: ROOM.name,
     siteId: ROOM.siteId,
     siteName: ROOM.siteName,
-    specialtyId: SPECIALTY.id,
-    specialtyName: SPECIALTY.name,
+    teamId: TEAM.id,
+    teamName: TEAM.name,
     patternId: null,
     date,
     startUtc,
@@ -79,8 +79,8 @@ export function testPattern(overrides: Partial<ClinicPattern> = {}): ClinicPatte
     roomName: ROOM.name,
     siteId: ROOM.siteId,
     siteName: ROOM.siteName,
-    specialtyId: SPECIALTY.id,
-    specialtyName: SPECIALTY.name,
+    teamId: TEAM.id,
+    teamName: TEAM.name,
     dayOfWeek: 'Tuesday',
     starts: '09:00:00',
     ends: '12:00:00',

@@ -421,7 +421,7 @@ describe('PatientExportPage', () => {
       referrals: [
         {
           id: referralId,
-          specialtyName: 'Dermatology',
+          teamName: 'Dermatology',
           receivedOn: '2026-11-02',
           referrerPractice: 'Synthetic Street Surgery',
           referrerClinician: 'Dr Test',
@@ -449,11 +449,11 @@ describe('PatientExportPage', () => {
             {pausedOn: '2026-11-10', pausedBy: 'k.ashford', reason: 'PatientChoseToWait', reviewOn: '2026-11-30', resumedOn: null},
           ],
         },
-        {id: 'b', specialtyName: 'Urology', receivedOn: null, referrerPractice: '', requestedPriority: 'Low', reason: null, status: 'AwaitingTriage', registeredBy: 'k.ashford'},
+        {id: 'b', teamName: 'Urology', receivedOn: null, referrerPractice: '', requestedPriority: 'Low', reason: null, status: 'AwaitingTriage', registeredBy: 'k.ashford'},
       ],
       referralHistory: [
         {atUtc: '2026-11-02T10:00:00Z', action: 'Registered', username: 'k.ashford', referralId, details: '{"specialtyName":"Dermatology","requestedPriority":"High"}'},
-        {atUtc: '2026-11-03T10:00:00Z', action: 'SpecialtyChanged', username: 'k.ashford', referralId: 'unknown', details: '{}'},
+        {atUtc: '2026-11-03T10:00:00Z', action: 'TeamChanged', username: 'k.ashford', referralId: 'unknown', details: '{}'},
       ],
       attachments: [
         {id: 'letter', attachedTo: 'Referral', referralId, fileName: 'letter.pdf', typeName: 'PDF', contentType: 'application/pdf', sizeBytes: 10, uploadedBy: 'k.ashford', uploadedAtUtc: '2026-11-02T11:00:00Z', scanStatus: 'NotScanned', sha256: 'x'},
@@ -472,8 +472,8 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('Another provider')).toBeInTheDocument();
     expect(screen.getByText('Not yet')).toBeInTheDocument();
     expect(screen.getByText(/Referral registered by k\.ashford/)).toBeInTheDocument();
-    expect(screen.getByText('The referral to Dermatology received 2 November 2026 · Specialty: Dermatology, Priority asked for: High')).toBeInTheDocument();
-    expect(screen.getByText(/Referral: SpecialtyChanged by k\.ashford/)).toBeInTheDocument();
+    expect(screen.getByText('The referral to Dermatology received 2 November 2026 · Team: Dermatology, Priority asked for: High')).toBeInTheDocument();
+    expect(screen.getByText(/Referral: TeamChanged by k\.ashford/)).toBeInTheDocument();
     expect(screen.getByText(/Attached to the referral to Dermatology received 2 November 2026\./)).toBeInTheDocument();
     expect(screen.getByText(/Attached to a referral\./)).toBeInTheDocument();
 
@@ -652,7 +652,7 @@ describe('PatientExportPage', () => {
         {
           pathwayId: 'proc-1',
           pathwayTitle: 'Skin lesion',
-          specialty: 'Dermatology',
+          team: 'Dermatology',
           status: 'Discussed',
           question: 'Synthetic question.',
           meetingStartUtc: '2026-11-12T13:00:00Z',
@@ -1009,9 +1009,9 @@ describe('appointment history in words', () => {
   it('words referral history and names referrals', () => {
     expect(referralChangeLabel('EnteredInError')).toBe('Referral marked entered in error');
     expect(referralChangeLabel(null)).toBe('Referral: ');
-    expect(referralName({specialtyName: 'Urology', receivedOn: undefined})).toBe('the referral to Urology');
+    expect(referralName({teamName: 'Urology', receivedOn: undefined})).toBe('the referral to Urology');
     expect(describeReferralChange('{"changedFields":["reason","receivedOn",3],"specialtyName":"Urology","previousSpecialtyName":"Dermatology","toStatus":"Withdrawn"}')).toBe(
-      'Specialty: Urology, was Dermatology, Changed: reason, received date, Now withdrawn',
+      'Team: Urology, was Dermatology, Changed: reason, received date, Now withdrawn',
     );
     expect(describeReferralChange('not json')).toBe('');
     expect(referralChangeLabel('ClockPaused')).toBe('Waiting-time clock paused');

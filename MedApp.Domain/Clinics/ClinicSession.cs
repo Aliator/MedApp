@@ -1,10 +1,10 @@
 using MedApp.Domain.Sites;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Domain.Clinics;
 
 /// <summary>
-/// A block of a clinician's time in a room for a specialty, cut into slots of <see cref="SlotMinutes"/> (centre plan
+/// A block of a clinician's time in a room for a team, cut into slots of <see cref="SlotMinutes"/> (centre plan
 /// decision 123): busy time on their calendar for blocks and meetings, and where appointments go, one patient per slot.
 /// A room holds one session at a time. Made one at a time, or by a <see cref="ClinicPattern"/> when someone asks.
 /// Cancelled rather than deleted; its details are about staff, never patients.
@@ -19,8 +19,8 @@ public sealed class ClinicSession
     public Guid RoomId { get; set; }
     public Room Room { get; set; } = null!;
 
-    public Guid SpecialtyId { get; set; }
-    public Specialty Specialty { get; set; } = null!;
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
 
     /// <summary>The pattern that made it, if any: a pattern makes at most one session on a date.</summary>
     public Guid? PatternId { get; init; }

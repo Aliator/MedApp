@@ -5,7 +5,7 @@ namespace MedApp.Application.Pathways.Repositories;
 /// <summary>
 /// Totals over pathways and their audit log for the admins' insights, each aggregated in SQL by the matching
 /// query in <see cref="PathwayInsightsQueries"/>. Read-only. The <see cref="InsightsScope"/> limits each to one
-/// template's or one specialty's pathways, or both; <see cref="InsightsScope.Everything"/> means every pathway.
+/// template's or one team's pathways, or both; <see cref="InsightsScope.Everything"/> means every pathway.
 /// </summary>
 public interface IPathwayInsightsRepository
 {

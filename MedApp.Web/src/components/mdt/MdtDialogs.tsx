@@ -36,7 +36,7 @@ function useDialogProblem(fields: readonly string[], fallback: string) {
 
 /** An MDT as a choice: "Dermatology MDT: Thu 3 Dec 2026, 13:00". */
 export const meetingLabel = (meeting: MdtMeeting) =>
-  `${meeting.specialtyName ?? ''} ${meeting.title ? `(${meeting.title})` : 'MDT'}: ${formatDateTime(meeting.startUtc ?? '')}`;
+  `${meeting.teamName ?? ''} ${meeting.title ? `(${meeting.title})` : 'MDT'}: ${formatDateTime(meeting.startUtc ?? '')}`;
 
 const tooLong = (max: number) => ({type: 'error' as const, message: `At most ${max} characters.`});
 
@@ -90,7 +90,7 @@ export function ListForMdtDialog({patient, pathwayTitle, meetings, isLoadingMeet
         options={options}
       />
       {!isLoadingMeetings && options.length === 0 && (
-        <Text type="body" color="secondary">No MDTs are arranged yet. Whoever arranges meetings marks one as a specialty's MDT.</Text>
+        <Text type="body" color="secondary">No MDTs are arranged yet. Whoever arranges meetings marks one as a team's MDT.</Text>
       )}
       <TextArea
         label="Question for the team"

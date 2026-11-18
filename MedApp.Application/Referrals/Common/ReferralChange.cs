@@ -1,7 +1,7 @@
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using static MedApp.Domain.Referrals.ReferralStatus;
 
 namespace MedApp.Application.Referrals.Common;
@@ -12,7 +12,7 @@ namespace MedApp.Application.Referrals.Common;
 /// <see cref="Referral.Version"/> on once per change and stamps <see cref="Referral.LastUpdated"/>. Handlers check
 /// that a change is allowed first (<see cref="ReferralWorkflow"/>); this only applies it.
 /// <para>
-/// Entries hold structured values only (statuses, the priority, the specialty's ID and name, dates, and the names of
+/// Entries hold structured values only (statuses, the priority, the team's ID and name, dates, and the names of
 /// the fields an edit changed), <b>never free text</b>: the reason, the referrer and the detail given live only on
 /// the referral (DPIA risk 27).
 /// </para>
@@ -20,7 +20,7 @@ namespace MedApp.Application.Referrals.Common;
 public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTime nowUtc)
 {
     /// <summary>The fields an edit names when it changes them, as the history and the timeline show them.</summary>
-    public const string SpecialtyField = "specialty";
+    public const string TeamField = "specialty";
     public const string ReceivedOnField = "receivedOn";
     public const string ReferrerPracticeField = "referrerPractice";
     public const string ReferrerClinicianField = "referrerClinician";
@@ -30,7 +30,7 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
 
     /// <summary>Why a clock's target was re-read (<see cref="ReferralEventAction.TargetChanged"/>'s <c>cause</c>).</summary>
     public const string TargetCausePriority = "priority";
-    public const string TargetCauseSpecialty = "specialty";
+    public const string TargetCauseTeam = "specialty";
 
     /// <summary>The practice chosen from the directory (by its ID; the typed practice is <see cref="ReferrerPracticeField"/>).</summary>
     public const string DirectoryPracticeField = "directoryPractice";
@@ -47,18 +47,18 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     public DateOnly Today { get; } = DueDates.ToUkDate(nowUtc);
 
     /// <summary>
-    /// Records a new referral (its <see cref="Referral.Version"/> is 1), with the specialty and priority asked for, and
-    /// starts its waiting-time clock on the day it was received, with the specialty's target for that priority.
+    /// Records a new referral (its <see cref="Referral.Version"/> is 1), with the team and priority asked for, and
+    /// starts its waiting-time clock on the day it was received, with the team's target for that priority.
     /// </summary>
-    public void Register(Specialty specialty)
+    public void Register(Team team)
     {
         referral.Version = 0;
-        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority));
+        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(team, referral.RequestedPriority));
         Record(ReferralEventAction.Registered, new
         {
             status = referral.Status.ToString(),
-            specialtyId = specialty.Id,
-            specialtyName = specialty.Name,
+            specialtyId = team.Id,
+            specialtyName = team.Name,
             receivedOn = referral.ReceivedOn.ToString("yyyy-MM-dd"),
             requestedPriority = referral.RequestedPriority.ToString(),
             targetDays = referral.TargetDays,
@@ -67,28 +67,28 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     }
 
     /// <summary>
-    /// Replaces the referral's details, recording which fields changed and, for structured ones (the specialty, the
+    /// Replaces the referral's details, recording which fields changed and, for structured ones (the team, the
     /// date received and the priority), their values before and after; free text only by name. Nothing is recorded if
-    /// nothing changed. <paramref name="specialty"/> is the one <paramref name="details"/> names, and
-    /// <paramref name="previousSpecialty"/> the referral's before.
+    /// nothing changed. <paramref name="team"/> is the one <paramref name="details"/> names, and
+    /// <paramref name="previousTeam"/> the referral's before.
     /// </summary>
-    public bool EditDetails(ReferralDetails details, Specialty specialty, Specialty? previousSpecialty)
+    public bool EditDetails(ReferralDetails details, Team team, Team? previousTeam)
     {
         var fields = new List<string>();
         var changes = new Dictionary<string, object>();
 
-        if (referral.SpecialtyId != details.SpecialtyId)
+        if (referral.TeamId != details.TeamId)
         {
-            fields.Add(SpecialtyField);
-            changes[SpecialtyField] = new
+            fields.Add(TeamField);
+            changes[TeamField] = new
             {
-                fromId = referral.SpecialtyId,
-                from = previousSpecialty?.Name,
-                toId = specialty.Id,
-                to = specialty.Name
+                fromId = referral.TeamId,
+                from = previousTeam?.Name,
+                toId = team.Id,
+                to = team.Name
             };
-            // The ID only: the handler, which read the specialty without tracking, shows it after saving.
-            referral.SpecialtyId = details.SpecialtyId;
+            // The ID only: the handler, which read the team without tracking, shows it after saving.
+            referral.TeamId = details.TeamId;
         }
 
         if (referral.ReceivedOn != details.ReceivedOn)
@@ -150,12 +150,12 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
 
         Record(ReferralEventAction.DetailsEdited, new { fields, changes });
 
-        // A correction of what registration copied the target from (the specialty or the priority asked for) re-reads
+        // A correction of what registration copied the target from (the team or the priority asked for) re-reads
         // it; a corrected date received moves the dates it counts from.
-        if (fields.Contains(SpecialtyField) || fields.Contains(RequestedPriorityField))
+        if (fields.Contains(TeamField) || fields.Contains(RequestedPriorityField))
             ChangeTarget(
-                WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority),
-                fields.Contains(SpecialtyField) ? TargetCauseSpecialty : TargetCausePriority);
+                WaitingClock.TargetDaysFor(team, referral.RequestedPriority),
+                fields.Contains(TeamField) ? TargetCauseTeam : TargetCausePriority);
         if (fields.Contains(ReceivedOnField))
             WaitingClock.Recalculate(referral);
         return true;
@@ -163,7 +163,7 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
 
     /// <summary>
     /// Accepts it into <paramref name="pathway"/>, a new pathway made from <paramref name="templateName"/> with the
-    /// triager's <paramref name="priority"/>, saved with it. The history records the specialty, the template, the
+    /// triager's <paramref name="priority"/>, saved with it. The history records the team, the template, the
     /// priority chosen and the one asked for, and the pathway; never free text. Its clock keeps running; re-read its
     /// target for the priority chosen first (<see cref="ReTarget"/>), as the pathway's target date is the clock's
     /// <see cref="Referral.TargetOn"/>.
@@ -177,8 +177,8 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         {
             from = previous.ToString(),
             to = Accepted.ToString(),
-            specialtyId = referral.SpecialtyId,
-            specialtyName = referral.Specialty?.Name,
+            specialtyId = referral.TeamId,
+            specialtyName = referral.Team?.Name,
             templateName,
             priority = priority.ToString(),
             requestedPriority = referral.RequestedPriority.ToString(),
@@ -197,8 +197,8 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         {
             from = previous.ToString(),
             to = Rejected.ToString(),
-            specialtyId = referral.SpecialtyId,
-            specialtyName = referral.Specialty?.Name,
+            specialtyId = referral.TeamId,
+            specialtyName = referral.Team?.Name,
             rejectionReason = reason.ToString()
         });
         StopClock(ClockStopReason.Rejected);
@@ -218,33 +218,33 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         {
             from = previous.ToString(),
             to = RedirectedElsewhere.ToString(),
-            specialtyId = referral.SpecialtyId,
-            specialtyName = referral.Specialty?.Name
+            specialtyId = referral.TeamId,
+            specialtyName = referral.Team?.Name
         });
         StopClock(ClockStopReason.RedirectedElsewhere);
     }
 
     /// <summary>
-    /// Redirects it to another specialty here: it stays awaiting triage, in <paramref name="specialty"/>'s inbox, from
+    /// Redirects it to another team here: it stays awaiting triage, in <paramref name="team"/>'s inbox, from
     /// the same date received. The detail is kept on the referral (<see cref="Referral.RedirectDetail"/>); the history
-    /// records the specialties before and after. Its clock keeps running from the same day, with the target re-read
-    /// from the new specialty's table.
+    /// records the teams before and after. Its clock keeps running from the same day, with the target re-read
+    /// from the new team's table.
     /// </summary>
-    public void RedirectToSpecialty(Specialty specialty, string detail)
+    public void RedirectToTeam(Team team, string detail)
     {
-        var previousId = referral.SpecialtyId;
-        var previousName = referral.Specialty?.Name;
-        // The ID only, as an edit does: the handler, which read the specialty without tracking, shows it after saving.
-        referral.SpecialtyId = specialty.Id;
+        var previousId = referral.TeamId;
+        var previousName = referral.Team?.Name;
+        // The ID only, as an edit does: the handler, which read the team without tracking, shows it after saving.
+        referral.TeamId = team.Id;
         referral.RedirectDetail = detail;
-        Record(ReferralEventAction.SpecialtyChanged, new
+        Record(ReferralEventAction.TeamChanged, new
         {
-            specialtyId = specialty.Id,
-            specialtyName = specialty.Name,
+            specialtyId = team.Id,
+            specialtyName = team.Name,
             previousSpecialtyId = previousId,
             previousSpecialtyName = previousName
         });
-        ChangeTarget(WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority), TargetCauseSpecialty);
+        ChangeTarget(WaitingClock.TargetDaysFor(team, referral.RequestedPriority), TargetCauseTeam);
     }
 
     /// <summary>
@@ -283,12 +283,12 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     }
 
     /// <summary>
-    /// Re-reads the clock's target for <paramref name="priority"/> from <paramref name="specialty"/>'s table (a
+    /// Re-reads the clock's target for <paramref name="priority"/> from <paramref name="team"/>'s table (a
     /// <see cref="ReferralEventAction.TargetChanged"/> entry, if the days differ): when the triager chooses the priority,
     /// and when a running or paused clock's pathway changes priority. Nothing once the clock has stopped.
     /// </summary>
-    public bool ReTarget(Specialty specialty, PatientPathwayPriority priority) =>
-        ChangeTarget(WaitingClock.TargetDaysFor(specialty, priority), TargetCausePriority);
+    public bool ReTarget(Team team, PatientPathwayPriority priority) =>
+        ChangeTarget(WaitingClock.TargetDaysFor(team, priority), TargetCausePriority);
 
     /// <summary>Sets the clock's target in days, recording the old and new (nothing if unchanged or stopped).</summary>
     private bool ChangeTarget(int targetDays, string cause)

@@ -63,7 +63,7 @@ describe('describeRule', () => {
     ['WaitBreached', 0, 'Notify me when the waiting-time target of a referral in Dermatology has passed'],
     ['PauseReviewPassed', 0, 'Notify me when the review date of a paused clock on a referral in Dermatology has passed'],
   ])('reads the service alert %s (%i days)', (event, thresholdDays, expected) => {
-    const rule = {event, thresholdDays, specialtyId: 's1', specialtyName: 'Dermatology'};
+    const rule = {event, thresholdDays, teamId: 's1', teamName: 'Dermatology'};
     expect(text(rule)).toBe(expected);
     expect(strong(rule)).toContain('Dermatology');
   });
@@ -77,7 +77,7 @@ describe('describeRule', () => {
     );
   });
 
-  it('names a specialty on a change too', () => {
-    expect(text({event: 'PathwayCreated', specialtyId: 's1', specialtyName: 'Podiatry'})).toBe('Notify me when anyone creates a pathway in Podiatry');
+  it('names a team on a change too', () => {
+    expect(text({event: 'PathwayCreated', teamId: 's1', teamName: 'Podiatry'})).toBe('Notify me when anyone creates a pathway in Podiatry');
   });
 });

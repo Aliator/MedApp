@@ -11,7 +11,7 @@ namespace MedApp.Application.Clinics.Common;
 public static class ClinicMapper
 {
     /// <summary>
-    /// A session (loaded with its room, the room's site and its specialty), with its slots counted from the starts of
+    /// A session (loaded with its room, the room's site and its team), with its slots counted from the starts of
     /// the appointments booked into it. The caller can change it when they manage clinics (<paramref name="canManage"/>),
     /// it's Planned and its day isn't past.
     /// </summary>
@@ -30,8 +30,8 @@ public static class ClinicMapper
             RoomName = session.Room?.Name ?? string.Empty,
             SiteId = session.Room?.SiteId ?? Guid.Empty,
             SiteName = session.Room?.Site?.Name ?? string.Empty,
-            SpecialtyId = session.SpecialtyId,
-            SpecialtyName = session.Specialty?.Name ?? string.Empty,
+            TeamId = session.TeamId,
+            TeamName = session.Team?.Name ?? string.Empty,
             PatternId = session.PatternId,
             Date = session.Date,
             StartUtc = session.StartUtc,
@@ -96,7 +96,7 @@ public static class ClinicMapper
         StartUtc = appointment.StartUtc ?? default
     };
 
-    /// <summary>A pattern (loaded with its room, the room's site and its specialty); it has ended once its until date is past.</summary>
+    /// <summary>A pattern (loaded with its room, the room's site and its team); it has ended once its until date is past.</summary>
     public static ClinicPatternResponse ToResponse(ClinicPattern pattern, string staffUsername, DateOnly today) => new()
     {
         Id = pattern.Id,
@@ -106,8 +106,8 @@ public static class ClinicMapper
         RoomName = pattern.Room?.Name ?? string.Empty,
         SiteId = pattern.Room?.SiteId ?? Guid.Empty,
         SiteName = pattern.Room?.Site?.Name ?? string.Empty,
-        SpecialtyId = pattern.SpecialtyId,
-        SpecialtyName = pattern.Specialty?.Name ?? string.Empty,
+        TeamId = pattern.TeamId,
+        TeamName = pattern.Team?.Name ?? string.Empty,
         DayOfWeek = pattern.DayOfWeek.ToString(),
         Starts = pattern.Starts,
         Ends = pattern.Ends,

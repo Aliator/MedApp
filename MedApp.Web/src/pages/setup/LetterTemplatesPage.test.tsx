@@ -6,10 +6,10 @@ import {LetterTemplatesPage, letterTemplateSummary} from './LetterTemplatesPage'
 const BASE = '/api/letter-templates';
 
 const templates = [
-  {id: 'l1', name: 'Skin clinic letter', kind: 'ClinicLetter', specialtyId: 'sp1', specialtyName: 'Dermatology', isArchived: false, version: 3},
-  {id: 'l2', name: 'Discharge', kind: 'DischargeSummary', specialtyId: null, specialtyName: null, isArchived: false, version: 1},
-  {id: 'l3', name: 'Acne follow-up', kind: 'AppointmentLetter', specialtyId: 'sp1', specialtyName: 'Dermatology', isArchived: false, version: 2},
-  {id: 'l4', name: 'Old referral reply', kind: 'ReferralResponse', specialtyId: 'sp2', specialtyName: 'Urology', isArchived: true, version: 5},
+  {id: 'l1', name: 'Skin clinic letter', kind: 'ClinicLetter', teamId: 'sp1', teamName: 'Dermatology', isArchived: false, version: 3},
+  {id: 'l2', name: 'Discharge', kind: 'DischargeSummary', teamId: null, teamName: null, isArchived: false, version: 1},
+  {id: 'l3', name: 'Acne follow-up', kind: 'AppointmentLetter', teamId: 'sp1', teamName: 'Dermatology', isArchived: false, version: 2},
+  {id: 'l4', name: 'Old referral reply', kind: 'ReferralResponse', teamId: 'sp2', teamName: 'Urology', isArchived: true, version: 5},
 ];
 
 function renderPage(search: SetupListSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
@@ -22,14 +22,14 @@ const rowOf = async (name: string) => (await screen.findByText(name)).closest('t
 const sent = (fetch: ReturnType<typeof mockApi>, method: string) => fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === method);
 
 describe('letterTemplateSummary', () => {
-  it("gives a template's kind and specialty, or every specialty", () => {
+  it("gives a template's kind and team, or every team", () => {
     expect(letterTemplateSummary(templates[0])).toBe('Clinic letter · Dermatology');
-    expect(letterTemplateSummary(templates[1])).toBe('Discharge summary · All specialties');
+    expect(letterTemplateSummary(templates[1])).toBe('Discharge summary · All teams');
   });
 });
 
 describe('LetterTemplatesPage', () => {
-  it("lists the active ones, every specialty's first, then by specialty and name, reading archived ones too", async () => {
+  it("lists the active ones, every team's first, then by team and name, reading archived ones too", async () => {
     const {fetch} = renderPage();
 
     const discharge = await rowOf('Discharge');
@@ -38,11 +38,11 @@ describe('LetterTemplatesPage', () => {
       .slice(1)
       .map((r) => within(r).getAllByRole('cell')[0].textContent);
     expect(names).toEqual([
-      'DischargeDischarge summary · All specialties',
+      'DischargeDischarge summary · All teams',
       'Acne follow-upAppointment letter · Dermatology',
       'Skin clinic letterClinic letter · Dermatology',
     ]);
-    expect(within(discharge).getByText('All specialties')).toBeInTheDocument();
+    expect(within(discharge).getByText('All teams')).toBeInTheDocument();
     expect(within(discharge).getByText('Active')).toBeInTheDocument();
     expect(within(discharge).getByRole('link', {name: 'Edit letter template'})).toHaveAttribute('href', '/admin/letter-templates/l2');
     expect(screen.queryByText('Old referral reply')).not.toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('LetterTemplatesPage', () => {
 
     await user.click(row.getByRole('button', {name: 'Delete letter template'}));
     let dialog = within(openDialog()!);
-    expect(dialog.getByText('Discharge summary · All specialties')).toBeInTheDocument();
+    expect(dialog.getByText('Discharge summary · All teams')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 

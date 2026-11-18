@@ -1,5 +1,5 @@
 import {PERMISSIONS, type Permission} from '../auth/permissions';
-import {SPECIALTIES, USERS} from './ids';
+import {TEAMS, USERS} from './ids';
 
 /** Someone in the demo clinic (names from the full demo data, `tools/MedApp.DevMcp/DemoData/DemoStaff.cs`). */
 export interface DemoPerson {
@@ -9,7 +9,7 @@ export interface DemoPerson {
   jobTitle: string;
   roles: string[];
   permissions: Permission[];
-  specialtyIds: string[];
+  teamIds: string[];
 }
 
 /** What the Clinician role allows (the API's `StandardRoles.Clinician`). */
@@ -42,7 +42,7 @@ export const ADMIN: DemoPerson = {
   jobTitle: 'Clinical lead, consultant physician (diabetes)',
   roles: ['Admin', 'Clinician'],
   permissions: [...PERMISSIONS],
-  specialtyIds: [SPECIALTIES.diabetes, SPECIALTIES.dermatology],
+  teamIds: [TEAMS.diabetes, TEAMS.dermatology],
 };
 
 /** The staff account a visitor can be: a Clinician, not an admin. */
@@ -53,7 +53,7 @@ export const STAFF: DemoPerson = {
   jobTitle: 'Consultant dermatologist',
   roles: ['Clinician'],
   permissions: CLINICIAN,
-  specialtyIds: [SPECIALTIES.dermatology],
+  teamIds: [TEAMS.dermatology],
 };
 
 /** The two accounts the login page offers. */
@@ -68,7 +68,7 @@ const OTHERS: DemoPerson[] = [
     jobTitle: 'Service manager',
     roles: ['Manager'],
     permissions: ['UseApp', 'ViewPatients', 'ViewInsights', 'ArrangeMeetings'],
-    specialtyIds: [],
+    teamIds: [],
   },
   {
     id: USERS.sandiford,
@@ -77,7 +77,7 @@ const OTHERS: DemoPerson[] = [
     jobTitle: 'Clinical nurse specialist: skin cancer',
     roles: ['Nurse'],
     permissions: ['UseApp', 'ViewPatients', 'WorkPathways', 'BookAppointments'],
-    specialtyIds: [SPECIALTIES.dermatology],
+    teamIds: [TEAMS.dermatology],
   },
   {
     id: USERS.marsh,
@@ -86,7 +86,7 @@ const OTHERS: DemoPerson[] = [
     jobTitle: 'Booking coordinator',
     roles: ['Booking'],
     permissions: ['UseApp', 'ViewPatients', 'BookAppointments', 'RegisterReferrals'],
-    specialtyIds: [],
+    teamIds: [],
   },
   {
     id: USERS.hallworth,
@@ -95,7 +95,7 @@ const OTHERS: DemoPerson[] = [
     jobTitle: 'GP with a special interest in skin',
     roles: ['Clinician'],
     permissions: CLINICIAN,
-    specialtyIds: [SPECIALTIES.dermatology],
+    teamIds: [TEAMS.dermatology],
   },
 ];
 

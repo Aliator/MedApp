@@ -9,8 +9,8 @@ using MedApp.Application.Practices.Common;
 using MedApp.Application.Practices.Repositories;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
-using MedApp.Application.Specialties.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Referrals.Responses;
 using MedApp.Domain.Referrals;
 using MediatR;
@@ -19,7 +19,7 @@ namespace MedApp.Application.Referrals.Commands.RegisterReferral;
 
 /// <summary>
 /// Registers a referral. In order: the patient exists (404) and their record can change (409, saying to give the letter
-/// to an admin: hazard H-40); the specialty exists (404) and isn't archived (409); unless confirmed, the patient has no
+/// to an admin: hazard H-40); the team exists (404) and isn't archived (409); unless confirmed, the patient has no
 /// open referral to it (a 400 saying when those were received: hazard H-44). A practice from the directory must exist
 /// (404) and not be archived (409); an empty typed practice or ODS code takes the directory's. The referral and its Registered entry are
 /// saved together; the change is recorded in its history, not the activity log, so it isn't written twice.
@@ -27,7 +27,7 @@ namespace MedApp.Application.Referrals.Commands.RegisterReferral;
 public sealed class RegisterReferralHandler(
     IReferralRepository repository,
     IPatientRepository patients,
-    ISpecialtyRepository specialties,
+    ITeamRepository teams,
     IPracticeRepository practices,
     TimeProvider timeProvider)
     : IRequestHandler<RegisterReferralCommand, ReferralResponse>
@@ -42,18 +42,18 @@ public sealed class RegisterReferralHandler(
         if (PatientRules.IsRestricted(patient))
             throw new ConflictException(ReferralWorkflow.RestrictedRegisterMessage);
 
-        var chosen = await SpecialtyRules.CheckChosenAsync(
-            specialties, [request.SpecialtyId], new HashSet<Guid>(), cancellationToken);
-        var specialty = chosen[request.SpecialtyId];
+        var chosen = await TeamRules.CheckChosenAsync(
+            teams, [request.TeamId], new HashSet<Guid>(), cancellationToken);
+        var team = chosen[request.TeamId];
 
         if (!request.ConfirmPossibleDuplicate)
         {
-            var open = await repository.GetOpenForPatientAsync(patient.Id, specialty.Id, cancellationToken);
+            var open = await repository.GetOpenForPatientAsync(patient.Id, team.Id, cancellationToken);
             if (open.Count > 0)
                 throw new ValidationException([
                     new ValidationFailure(
                         nameof(request.ConfirmPossibleDuplicate),
-                        ReferralWorkflow.PossibleDuplicateMessage(specialty.Name, open))
+                        ReferralWorkflow.PossibleDuplicateMessage(team.Name, open))
                 ]);
         }
 
@@ -62,7 +62,7 @@ public sealed class RegisterReferralHandler(
             : null;
 
         var details = ReferralDetails.From(
-            specialty.Id,
+            team.Id,
             request.ReceivedOn,
             ReferralPractices.TypedOrDirectoryName(request.ReferrerPractice, practice),
             request.ReferrerClinician,
@@ -76,7 +76,7 @@ public sealed class RegisterReferralHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
-            SpecialtyId = specialty.Id,
+            TeamId = team.Id,
             ReceivedOn = details.ReceivedOn,
             ReferrerPractice = details.ReferrerPractice,
             ReferrerClinician = details.ReferrerClinician,
@@ -92,17 +92,17 @@ public sealed class RegisterReferralHandler(
         };
 
         var change = new ReferralChange(referral, request.Actor, now);
-        change.Register(specialty);
+        change.Register(team);
         await repository.AddAsync(referral, change.Events, cancellationToken);
 
-        // Only now: the patient and specialty were read without tracking, so saving the referral with them attached
+        // Only now: the patient and team were read without tracking, so saving the referral with them attached
         // would try to add them again.
         referral.Patient = patient;
-        referral.Specialty = specialty;
+        referral.Team = team;
 
-        // The registrant may triage it too, if they're a clinician of its specialty.
+        // The registrant may triage it too, if they're a clinician of its team.
         var isMember = request.Actor.Has(Permission.TriageReferrals)
-                       && await repository.IsSpecialtyMemberAsync(request.Actor.UserId, referral.SpecialtyId, cancellationToken);
+                       && await repository.IsTeamMemberAsync(request.Actor.UserId, referral.TeamId, cancellationToken);
         return ReferralMapper.ToResponse(
             referral, change.Events, letterCount: 0, request.Actor, isMember, DueDates.ToUkDate(now));
     }

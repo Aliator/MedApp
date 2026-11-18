@@ -15,7 +15,7 @@ public sealed class ServiceAlertCandidatesTests
 {
     private static readonly DateTime Now = new(2026, 6, 10, 12, 0, 0, DateTimeKind.Utc);
     private static readonly DateOnly Today = new(2026, 6, 10);
-    private static readonly Guid OtherSpecialtyId = Guid.Parse("0000000c-0000-0000-0000-0000000000f1");
+    private static readonly Guid OtherTeamId = Guid.Parse("0000000c-0000-0000-0000-0000000000f1");
 
     private List<Referral> _referrals = null!;
     private List<ReferralClockPause> _pauses = null!;
@@ -44,10 +44,10 @@ public sealed class ServiceAlertCandidatesTests
                 _specimens.AsQueryable(), _stages.AsQueryable(), _sent.AsQueryable()),
             rule, Now, Today).ToList();
 
-    private static PatientPathway Pathway(Guid? specialtyId = null, PatientPathwayPriority priority = PatientPathwayPriority.Medium) => new()
+    private static PatientPathway Pathway(Guid? teamId = null, PatientPathwayPriority priority = PatientPathwayPriority.Medium) => new()
     {
         Id = Guid.NewGuid(),
-        SpecialtyId = specialtyId ?? RuleSpecialtyId,
+        TeamId = teamId ?? RuleTeamId,
         Priority = priority,
         TemplateId = TemplateId,
     };
@@ -55,7 +55,7 @@ public sealed class ServiceAlertCandidatesTests
     private Referral AddReferral(
         ReferralStatus status = ReferralStatus.AwaitingTriage,
         int receivedDaysAgo = 3,
-        Guid? specialtyId = null,
+        Guid? teamId = null,
         DateOnly? targetOn = null,
         DateOnly? pausedSince = null,
         DateOnly? stoppedOn = null)
@@ -64,7 +64,7 @@ public sealed class ServiceAlertCandidatesTests
         {
             Id = Guid.NewGuid(),
             Status = status,
-            SpecialtyId = specialtyId ?? RuleSpecialtyId,
+            TeamId = teamId ?? RuleTeamId,
             ReceivedOn = Today.AddDays(-receivedDaysAgo),
             RequestedPriority = PatientPathwayPriority.Medium,
             TargetOn = targetOn ?? Today.AddDays(30),
@@ -82,9 +82,9 @@ public sealed class ServiceAlertCandidatesTests
         AddReferral(receivedDaysAgo: 2);
         AddReferral(status: ReferralStatus.InformationRequested, receivedDaysAgo: 10);
         AddReferral(status: ReferralStatus.Accepted, receivedDaysAgo: 10);
-        AddReferral(receivedDaysAgo: 10, specialtyId: OtherSpecialtyId);
+        AddReferral(receivedDaysAgo: 10, teamId: OtherTeamId);
 
-        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, specialtyId: RuleSpecialtyId);
+        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, teamId: RuleTeamId);
 
         Find(rule).Should().Equal(old.Id);
     }
@@ -114,7 +114,7 @@ public sealed class ServiceAlertCandidatesTests
         _results.Add(new Result { Id = Guid.NewGuid(), Status = ResultStatus.AwaitingSignOff, ReportedAtUtc = Now.AddDays(-1), ResponsibleUserId = OwnerId });
         _results.Add(new Result { Id = Guid.NewGuid(), Status = ResultStatus.AwaitingSignOff, ReportedAtUtc = Now.AddDays(-9), ResponsibleUserId = OtherOwnerId });
 
-        var rule = CreateRule(MonitoringEvent.ResultNotSignedOff, subjectUserId: OwnerId, thresholdDays: 2, specialtyId: RuleSpecialtyId);
+        var rule = CreateRule(MonitoringEvent.ResultNotSignedOff, subjectUserId: OwnerId, thresholdDays: 2, teamId: RuleTeamId);
 
         Find(rule).Should().Equal(waiting.Id);
     }

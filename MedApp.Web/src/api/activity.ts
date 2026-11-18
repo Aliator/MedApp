@@ -51,7 +51,7 @@ export const ACTIVITY_ACTIONS = [
   'TwoFactorRequirementChanged',
   'EmailCodesEnabled',
   'EmailCodesDisabled',
-  'StaffSpecialtiesChanged',
+  'TeamMembershipChanged',
   'ReferralViewed',
   'RoleChanged',
   'StaffDetailsChanged',
@@ -103,7 +103,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   TwoFactorRequirementChanged: 'Two-factor requirement changed',
   EmailCodesEnabled: 'Codes by email turned on',
   EmailCodesDisabled: 'Codes by email turned off',
-  StaffSpecialtiesChanged: 'Specialties changed',
+  TeamMembershipChanged: 'Teams changed',
   ReferralViewed: 'Referral viewed',
   RoleChanged: 'Role changed',
   StaffDetailsChanged: 'Staff details changed',
@@ -155,7 +155,7 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'TwoFactorRequirementChanged',
   'EmailCodesEnabled',
   'EmailCodesDisabled',
-  'StaffSpecialtiesChanged',
+  'TeamMembershipChanged',
   'RoleChanged',
   'StaffDetailsChanged',
 ];
@@ -307,8 +307,8 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       if (d.added) return `Added ${String(d.added)}`;
       if (d.removed) return `Removed ${String(d.removed)}`;
       return `${roles(d.from)} → ${roles(d.to)}`;
-    // By name, as they were then (a specialty renamed since keeps its old name here).
-    case 'StaffSpecialtiesChanged':
+    // By name, as they were then (a team renamed since keeps its old name here).
+    case 'TeamMembershipChanged':
       return `${roles(d.from)} → ${roles(d.to)}`;
     // Role and permission names only: a description's words are never recorded.
     case 'RoleCreated':

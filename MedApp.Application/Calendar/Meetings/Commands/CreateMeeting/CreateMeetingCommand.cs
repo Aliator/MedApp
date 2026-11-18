@@ -16,5 +16,5 @@ public sealed record CreateMeetingCommand(
     IReadOnlyList<Guid> AttendeeUserIds,
     CalendarActor Actor,
     bool? IsMdt = null,
-    Guid? SpecialtyId = null)
+    Guid? TeamId = null)
     : IRequest<MeetingResponse>, IMeetingCommand;

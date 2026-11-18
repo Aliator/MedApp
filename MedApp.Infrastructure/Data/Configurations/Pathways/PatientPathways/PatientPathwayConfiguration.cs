@@ -1,5 +1,5 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Specialties;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -46,20 +46,20 @@ public sealed class PatientPathwayConfiguration : IEntityTypeConfiguration<Patie
             .HasForeignKey(x => x.TemplateId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // The template's specialty, copied when the pathway was created. The database's default is General, so an
-        // API copy from before specialties can still create a pathway during a rollout. Specialties in use are
+        // The template's team, copied when the pathway was created. The database's default is General, so an
+        // API copy from before teams can still create a pathway during a rollout. Teams in use are
         // archived, never deleted.
         // Stored by number; Standard (the adult or child rule) for everything made before classes, and from an API copy
         // that doesn't know them.
         builder.Property(x => x.RetentionClass)
             .HasDefaultValue(RetentionClass.Standard);
 
-        builder.Property(x => x.SpecialtyId)
-            .HasDefaultValue(Specialty.GeneralId);
+        builder.Property(x => x.TeamId)
+            .HasDefaultValue(Team.GeneralId);
 
-        builder.HasOne<Specialty>()
+        builder.HasOne<Team>()
             .WithMany()
-            .HasForeignKey(x => x.SpecialtyId)
+            .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.CreatedAt)

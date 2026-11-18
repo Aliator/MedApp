@@ -8,7 +8,7 @@ namespace MedApp.Application.Clinics.Commands.CreateClinicPattern;
 public sealed record CreateClinicPatternCommand(
     Guid StaffUserId,
     Guid RoomId,
-    Guid SpecialtyId,
+    Guid TeamId,
     string DayOfWeek,
     TimeOnly Starts,
     TimeOnly Ends,

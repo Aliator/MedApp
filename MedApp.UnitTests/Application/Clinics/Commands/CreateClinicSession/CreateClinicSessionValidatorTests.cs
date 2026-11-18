@@ -28,7 +28,7 @@ public sealed class CreateClinicSessionValidatorTests
     }
 
     private static CreateClinicSessionCommand Command() =>
-        new(StaffUserId, Guid.NewGuid(), SpecialtyId, At(NextMonday, 9), At(NextMonday, 12), 20, AdminActor);
+        new(StaffUserId, Guid.NewGuid(), TeamId, At(NextMonday, 9), At(NextMonday, 12), 20, AdminActor);
 
     [Test]
     public async Task Validate_FutureSessionInsideTheWorkingDay_Passes() =>
@@ -37,11 +37,11 @@ public sealed class CreateClinicSessionValidatorTests
     [Test]
     public async Task Validate_MissingIds_Refused()
     {
-        var result = await _validator.TestValidateAsync(Command() with { StaffUserId = Guid.Empty, RoomId = Guid.Empty, SpecialtyId = Guid.Empty });
+        var result = await _validator.TestValidateAsync(Command() with { StaffUserId = Guid.Empty, RoomId = Guid.Empty, TeamId = Guid.Empty });
 
         result.ShouldHaveValidationErrorFor(x => x.StaffUserId);
         result.ShouldHaveValidationErrorFor(x => x.RoomId);
-        result.ShouldHaveValidationErrorFor(x => x.SpecialtyId);
+        result.ShouldHaveValidationErrorFor(x => x.TeamId);
     }
 
     [Test]

@@ -7,16 +7,16 @@ namespace MedApp.Application.Letters.Common;
 public static class LetterTemplateMapper
 {
     /// <summary>
-    /// A template, with its specialty's name (null for every specialty) and whether it can be deleted (no letter has
+    /// A template, with its team's name (null for every team) and whether it can be deleted (no letter has
     /// been written from it).
     /// </summary>
-    public static LetterTemplateResponse ToResponse(LetterTemplate template, string? specialtyName, bool canBeDeleted = false) => new()
+    public static LetterTemplateResponse ToResponse(LetterTemplate template, string? teamName, bool canBeDeleted = false) => new()
     {
         Id = template.Id,
         Name = template.Name,
         Kind = template.Kind.ToString(),
-        SpecialtyId = template.SpecialtyId,
-        SpecialtyName = template.SpecialtyId is null ? null : specialtyName,
+        TeamId = template.TeamId,
+        TeamName = template.TeamId is null ? null : teamName,
         Letterhead = template.Letterhead,
         BodySkeleton = template.BodySkeleton,
         Closing = template.Closing,

@@ -14,14 +14,14 @@ public static class LetterTemplateRules
     public const string InUseMessage =
         "Letters have been written from this template, so it can't be deleted. Archive it instead.";
 
-    public static string NameTakenMessage(string name, string? specialtyName) =>
-        specialtyName is null
-            ? $"A letter template for every specialty is already called '{name}'."
-            : $"A {specialtyName} letter template is already called '{name}'.";
+    public static string NameTakenMessage(string name, string? teamName) =>
+        teamName is null
+            ? $"A letter template for every team is already called '{name}'."
+            : $"A {teamName} letter template is already called '{name}'.";
 
     /// <summary>The same, found when saving (another was saved meanwhile).</summary>
     public static string NameTakenMessage(string name) =>
-        $"Another letter template for the same specialty is already called '{name}'.";
+        $"Another letter template for the same team is already called '{name}'.";
 
     public static async Task<LetterTemplate> GetOrThrowAsync(
         this ILetterTemplateRepository repository, Guid id, CancellationToken ct) =>

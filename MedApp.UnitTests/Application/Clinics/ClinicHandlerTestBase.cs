@@ -6,7 +6,7 @@ using MedApp.Application.Clinics.Common;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Clinics;
 using MedApp.Domain.Notifications;
@@ -21,7 +21,7 @@ namespace MedApp.UnitTests.Application.Clinics;
 /// <summary>
 /// Shared setup for clinic handler tests: a mocked clinic repository whose rooms are free (<see cref="RoomDays"/>, keyed
 /// by room) and which records what it adds and saves; empty calendars (the default working week) unless a test gives one
-/// (<see cref="Calendar"/>); the synthetic specialty; the calendar staff; a calendar lock that runs the work at once and
+/// (<see cref="Calendar"/>); the synthetic team; the calendar staff; a calendar lock that runs the work at once and
 /// records it; recorded notifications and activity; and a clock fixed at <see cref="CalendarTestConstants.Now"/>.
 /// </summary>
 public abstract class ClinicHandlerTestBase
@@ -102,7 +102,7 @@ public abstract class ClinicHandlerTestBase
         Fixture.Inject(Calendars.Object);
         Fixture.Inject(identity.Object);
         Fixture.Inject(notifications.Object);
-        Fixture.Inject<ISpecialtyRepository>(SpecialtiesTestConstants.RepositoryWith(Specialty()).Object);
+        Fixture.Inject<ITeamRepository>(TeamsTestConstants.RepositoryWith(Team()).Object);
         Fixture.Inject<ICalendarLock>(Lock);
         Fixture.Inject<IActivityLog>(Activity);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));

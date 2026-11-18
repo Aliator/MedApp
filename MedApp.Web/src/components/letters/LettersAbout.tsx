@@ -19,7 +19,7 @@ import {WriteLetterDialog, type LetterAbout} from './WriteLetterDialog';
 
 export interface LettersAboutProps {
   about: LetterAbout;
-  specialtyId: string | null | undefined;
+  teamId: string | null | undefined;
   patient?: BannerPatient | null;
   /** Letters can't be started now (the record is restricted or anonymised, or the referral or pathway is closed). */
   isLocked?: boolean;
@@ -30,7 +30,7 @@ export interface LettersAboutProps {
  * author and when it last changed, linking to its page; and, for holders of WriteLetters while it isn't locked,
  * **Write Letter**, which opens `WriteLetterDialog` and then the new draft's page.
  */
-export function LettersAbout({about, specialtyId, patient, isLocked = false}: LettersAboutProps) {
+export function LettersAbout({about, teamId, patient, isLocked = false}: LettersAboutProps) {
   const canWrite = useCan('WriteLetters') && !isLocked;
   const {data, isPending, isError} = useQuery(lettersAboutQuery(about));
   const [isWriting, setIsWriting] = useState(false);
@@ -88,7 +88,7 @@ export function LettersAbout({about, specialtyId, patient, isLocked = false}: Le
       {isWriting && (
         <WriteLetterDialog
           about={about}
-          specialtyId={specialtyId}
+          teamId={teamId}
           patient={patient}
           onCancel={() => setIsWriting(false)}
           onCreated={(letter) => {

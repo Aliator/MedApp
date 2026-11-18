@@ -43,9 +43,9 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     public async Task<PatientPathway?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientPathways)
             .Include(x => x.Notes)
-            // The referral it was accepted from, with its specialty's targets and its pauses: a change may move its
+            // The referral it was accepted from, with its team's targets and its pauses: a change may move its
             // waiting-time clock, saved in the same save (PathwayChange).
-            .Include(x => x.Referral!).ThenInclude(r => r.Specialty)
+            .Include(x => x.Referral!).ThenInclude(r => r.Team)
             .Include(x => x.Referral!).ThenInclude(r => r.Pauses)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);

@@ -17,7 +17,7 @@ import {useAnnounce} from '../../app/announcements';
 import {ApiError, fieldStatus} from '../../api/errors';
 import type {PathwayTemplate} from '../../api/pathways';
 import {stageDefinitionsQuery, templateQuery, useSaveTemplate, type StageDefinition} from '../../api/pathwaySetup';
-import {specialtiesQuery, type Specialty} from '../../api/specialties';
+import {teamsQuery, type Team} from '../../api/teams';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
@@ -49,11 +49,11 @@ export interface StageRow extends StageOptionsInput {
 
 const BACK = '/admin/pathway-templates';
 
-/** The specialties a template can be given: the active ones (the route preloads them). */
-export const templateSpecialtiesQuery = specialtiesQuery(false);
+/** The teams a template can be given: the active ones (the route preloads them). */
+export const templateTeamsQuery = teamsQuery(false);
 
-/** Shown on Specialty when a new template is created without one (the API says the same, as the last word). */
-export const SPECIALTY_REQUIRED = 'Choose the specialty this template belongs to.';
+/** Shown on Team when a new template is created without one (the API says the same, as the last word). */
+export const TEAM_REQUIRED = 'Choose the team this template belongs to.';
 
 /**
  * The retention classes a template can have (decision 139): how long its patients' records are kept before they're
@@ -66,21 +66,21 @@ export const RETENTION_CLASS_CHOICES = [
   {value: 'MentalHealth', label: 'Mental health'},
 ];
 
-/** No specialty: what the API sends for a template without one. */
+/** No team: what the API sends for a template without one. */
 const NO_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
- * The specialties a template can have: the active ones, by name, and the one it has now if that's archived (it may
+ * The teams a template can have: the active ones, by name, and the one it has now if that's archived (it may
  * keep it, but no other template can be given it), marked so.
  */
-export function specialtyChoices(active: readonly Specialty[], template: PathwayTemplate | null) {
+export function teamChoices(active: readonly Team[], template: PathwayTemplate | null) {
   const choices = active
     .filter((s) => !s.isArchived)
     .map((s) => ({value: s.id ?? '', label: s.name ?? ''}))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, {sensitivity: 'base'}));
-  const current = template?.specialtyId;
+  const current = template?.teamId;
   if (current && current !== NO_ID && !choices.some((c) => c.value === current)) {
-    choices.unshift({value: current, label: `${template?.specialtyName ?? 'Unknown specialty'} (archived)`});
+    choices.unshift({value: current, label: `${template?.teamName ?? 'Unknown team'} (archived)`});
   }
   return choices;
 }
@@ -142,18 +142,18 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
   const navigate = useNavigate();
   const template = useQuery({...templateQuery(id ?? ''), enabled: id !== undefined});
   const definitions = useQuery(stageDefinitionsQuery);
-  const specialties = useQuery(templateSpecialtiesQuery);
+  const teams = useQuery(templateTeamsQuery);
   const isMissing = template.error instanceof ApiError && template.error.status === 404;
 
   useEffect(() => {
     if (isMissing) void navigate({to: BACK, replace: true});
   }, [isMissing, navigate]);
 
-  const isLoading = definitions.isPending || specialties.isPending || (id !== undefined && template.isPending) || isMissing;
-  if (!isLoading && definitions.data && specialties.data && (id === undefined || template.data)) {
-    return <TemplateEditor template={template.data ?? null} definitions={definitions.data} specialties={specialties.data} />;
+  const isLoading = definitions.isPending || teams.isPending || (id !== undefined && template.isPending) || isMissing;
+  if (!isLoading && definitions.data && teams.data && (id === undefined || template.data)) {
+    return <TemplateEditor template={template.data ?? null} definitions={definitions.data} teams={teams.data} />;
   }
-  const failed = definitions.isError || specialties.isError || (template.isError && !isMissing);
+  const failed = definitions.isError || teams.isError || (template.isError && !isMissing);
   return (
     <Page
       title={id ? 'Edit Pathway Template' : 'New Pathway Template'}
@@ -167,7 +167,7 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
 }
 
 /**
- * The template editor (decision 17): its name, the specialty it belongs to, and its stages in order. Stages are added from the active stage
+ * The template editor (decision 17): its name, the team it belongs to, and its stages in order. Stages are added from the active stage
  * definitions (a definition may be added more than once), dragged into order (or moved with the keyboard from
  * each row's handle) and removed. Each stage can be made optional or a branch point, and a stage after a branch point
  * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
@@ -179,21 +179,21 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
 function TemplateEditor({
   template,
   definitions,
-  specialties,
+  teams,
 }: {
   template: PathwayTemplate | null;
   definitions: StageDefinition[];
-  specialties: Specialty[];
+  teams: Team[];
 }) {
   const navigate = useNavigate();
   const isNarrow = useIsNarrow();
   const save = useSaveTemplate();
   const announce = useAnnounce();
   const [name, setName] = useState(template?.name ?? '');
-  const choices = useMemo(() => specialtyChoices(specialties, template), [specialties, template]);
-  const startingSpecialty = template?.specialtyId && template.specialtyId !== NO_ID ? template.specialtyId : '';
-  const [specialtyId, setSpecialtyId] = useState(startingSpecialty);
-  const [isSpecialtyMissing, setIsSpecialtyMissing] = useState(false);
+  const choices = useMemo(() => teamChoices(teams, template), [teams, template]);
+  const startingTeam = template?.teamId && template.teamId !== NO_ID ? template.teamId : '';
+  const [teamId, setTeamId] = useState(startingTeam);
+  const [isTeamMissing, setIsTeamMissing] = useState(false);
   const startingClass = template?.retentionClass ?? 'Standard';
   const [retentionClass, setRetentionClass] = useState(startingClass);
   const [stages, setStages] = useState<StageRow[]>(() => templateRows(template));
@@ -244,7 +244,7 @@ function TemplateEditor({
         // Only when a stage has an option: a template without any saves exactly as before.
         ...(stageOptions ? {stageOptions} : {}),
         // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
-        ...(specialtyId && specialtyId !== startingSpecialty ? {specialtyId} : {}),
+        ...(teamId && teamId !== startingTeam ? {teamId} : {}),
         // Only when it changed: a saved template's class also changes its existing pathways'.
         ...(retentionClass !== startingClass ? {retentionClass} : {}),
       },
@@ -260,20 +260,20 @@ function TemplateEditor({
       },
     );
 
-  const specialtyField = (
+  const teamField = (
     <AnchoredSelector
-      label="Specialty"
-      description="Which specialty its pathways belong to."
-      placeholder="Choose a specialty"
+      label="Team"
+      description="Which team its pathways belong to."
+      placeholder="Choose a team"
       options={choices}
-      value={specialtyId || undefined}
+      value={teamId || undefined}
       onChange={(value: string) => {
-        setSpecialtyId(value);
-        setIsSpecialtyMissing(false);
+        setTeamId(value);
+        setIsTeamMissing(false);
       }}
       isRequired
       isDisabled={save.isPending}
-      status={isSpecialtyMissing ? {type: 'error', message: SPECIALTY_REQUIRED} : fieldStatus(problem.validation, 'specialtyId')}
+      status={isTeamMissing ? {type: 'error', message: TEAM_REQUIRED} : fieldStatus(problem.validation, 'teamId')}
     />
   );
 
@@ -310,7 +310,7 @@ function TemplateEditor({
   const details = (
     <>
       {nameField}
-      {specialtyField}
+      {teamField}
       {retentionField}
     </>
   );
@@ -399,9 +399,9 @@ function TemplateEditor({
       saveText={template ? 'Save' : 'Create Template'}
       onSave={() => {
         setProblem(NO_PROBLEM);
-        // A new template needs a specialty: say so on the field rather than ask to confirm one that can't be saved.
-        if (!specialtyId) {
-          setIsSpecialtyMissing(true);
+        // A new template needs a team: say so on the field rather than ask to confirm one that can't be saved.
+        if (!teamId) {
+          setIsTeamMissing(true);
           return;
         }
         setIsConfirming(true);
@@ -437,7 +437,7 @@ function TemplateEditor({
       message={
         problem.validation ? (
           // The name's errors show on it; the stages' (e.g. none chosen) show here.
-          <ValidationAlert errors={problem.validation} fields={['name', 'specialtyId', 'clockStopStageOrder']} />
+          <ValidationAlert errors={problem.validation} fields={['name', 'teamId', 'clockStopStageOrder']} />
         ) : (
           problem.message && <AlertMessage message={problem.message} />
         )
@@ -460,7 +460,7 @@ function TemplateEditor({
           onCancel={() => setIsConfirming(false)}>
           <MetadataList>
             <MetadataListItem label="Template">{name.trim() || 'No name'}</MetadataListItem>
-            <MetadataListItem label="Specialty">{choices.find((c) => c.value === specialtyId)?.label ?? 'None'}</MetadataListItem>
+            <MetadataListItem label="Team">{choices.find((c) => c.value === teamId)?.label ?? 'None'}</MetadataListItem>
             <MetadataListItem label="Stages">
               {stages.length ? stages.map((s, i) => `${i + 1}. ${byId.get(s.definitionId)?.name}${optionWords(s)}`).join(', ') : 'None'}
             </MetadataListItem>

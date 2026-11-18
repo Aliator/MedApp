@@ -37,8 +37,8 @@ public sealed class ServiceAlertsJobTests
             .ReturnsAsync(() => _enabled);
         _rules.Setup(r => r.GetOwnersWhoCanMonitorAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<Guid> { OwnerId });
-        _alerts.Setup(a => a.GetSpecialtyNamesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<Guid, string> { [RuleSpecialtyId] = RuleSpecialtyName });
+        _alerts.Setup(a => a.GetTeamNamesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, string> { [RuleTeamId] = RuleTeamName });
 
         _job = new ServiceAlertsJob(_rules.Object, _alerts.Object, _identity.Object, _publisher.Object, NullLogger<ServiceAlertsJob>.Instance);
     }
@@ -54,7 +54,7 @@ public sealed class ServiceAlertsJobTests
     [Test]
     public async Task RunAsync_RuleFindsItems_RecordsThemWithOneNotification_AndPushesIt()
     {
-        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, specialtyId: RuleSpecialtyId);
+        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, teamId: RuleTeamId);
         _enabled.Add(rule);
         var items = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
         _alerts.Setup(a => a.FindNewAsync(rule, Now, new DateOnly(2026, 6, 10), It.IsAny<CancellationToken>())).ReturnsAsync(items);

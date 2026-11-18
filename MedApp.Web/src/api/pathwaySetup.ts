@@ -41,13 +41,13 @@ export interface StageDefinitionInput {
 
 /**
  * A template's fields: its name, its stages in order (a definition may appear more than once), the stage that stops the
- * waiting-time clock, and the specialty it belongs to, which a new template needs and a save sends only when it
+ * waiting-time clock, and the team it belongs to, which a new template needs and a save sends only when it
  * changes (left out, it stays as it is).
  */
 export interface TemplateInput {
   name: string;
   stageDefinitionIdsInOrder: string[];
-  specialtyId?: string;
+  teamId?: string;
   /**
    * How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth. A longer
    * class raises the pathways already made from it; a shorter one never lowers them.

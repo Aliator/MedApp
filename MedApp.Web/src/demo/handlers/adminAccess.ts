@@ -10,7 +10,7 @@ import {can, contains, me, paged, requirePermission} from './common';
 import {logActivity} from './adminLogs';
 
 /**
- * Users, roles, permissions, specialty memberships and the security settings. The clinic's people are fixed
+ * Users, roles, permissions, team memberships and the security settings. The clinic's people are fixed
  * (`accounts.ts`'s `PEOPLE`): no account is made or deleted, and nobody's roles, name or password change, so their
  * permissions stay what the two demo accounts were made with. Roles nobody holds can be made, changed, archived and
  * deleted; a role someone holds can be archived, not changed. Memberships change, and the activity log records it.
@@ -93,11 +93,11 @@ function roleInput(body: {name?: string | null; description?: string | null; per
   return {name, description: body.description?.trim() ?? '', permissions: PERMISSIONS.filter((p) => permissions.includes(p))};
 }
 
-/** The specialties someone belongs to, as the API answers them. */
-function membershipsOf(userId: string): Schemas['StaffSpecialtyResponse'][] {
+/** The teams someone belongs to, as the API answers them. */
+function membershipsOf(userId: string): Schemas['TeamMembershipResponse'][] {
   const ids = db().memberships[userId] ?? [];
   return db()
-    .specialties.filter((s) => ids.includes(s.id ?? ''))
+    .teams.filter((s) => ids.includes(s.id ?? ''))
     .map((s) => ({id: s.id, name: s.name, isArchived: s.isArchived}))
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 }
@@ -158,27 +158,27 @@ export function registerAdminAccess() {
     return undefined;
   });
 
-  on('get', '/api/auth/users/{username}/specialties', ({params}) => {
+  on('get', '/api/auth/users/{username}/teams', ({params}) => {
     requirePermission('ManageUsers');
     return membershipsOf(findPerson(params.username).id);
   });
-  on('put', '/api/auth/users/{username}/specialties', ({params, body}) => {
+  on('put', '/api/auth/users/{username}/teams', ({params, body}) => {
     requirePermission('ManageUsers');
     const person = findPerson(params.username);
     const state = db();
-    const ids = [...new Set(body.specialtyIds ?? [])];
+    const ids = [...new Set(body.teamIds ?? [])];
     const before = state.memberships[person.id] ?? [];
-    for (const specialtyId of ids) {
-      const specialty = state.specialties.find((s) => s.id === specialtyId);
-      if (!specialty) return notFound('The specialty');
+    for (const teamId of ids) {
+      const team = state.teams.find((s) => s.id === teamId);
+      if (!team) return notFound('The team');
       // An archived one can't be newly given; one they already have stays.
-      if (specialty.isArchived && !before.includes(specialtyId))
-        return problem(409, `The '${specialty.name}' specialty is archived, so it can't be given to anyone new.`);
+      if (team.isArchived && !before.includes(teamId))
+        return problem(409, `The '${team.name}' team is archived, so it can't be given to anyone new.`);
     }
     const same = ids.length === before.length && ids.every((s) => before.includes(s));
     if (!same) {
-      const names = (list: string[]) => list.map((s) => state.specialties.find((x) => x.id === s)?.name ?? '').sort();
-      logActivity('StaffSpecialtiesChanged', {targetUsername: person.username, details: JSON.stringify({from: names(before), to: names(ids)})});
+      const names = (list: string[]) => list.map((s) => state.teams.find((x) => x.id === s)?.name ?? '').sort();
+      logActivity('TeamMembershipChanged', {targetUsername: person.username, details: JSON.stringify({from: names(before), to: names(ids)})});
       state.memberships[person.id] = ids;
     }
     return membershipsOf(person.id);

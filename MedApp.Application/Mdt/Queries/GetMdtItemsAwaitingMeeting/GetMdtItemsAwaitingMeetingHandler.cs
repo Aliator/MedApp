@@ -15,7 +15,7 @@ public sealed class GetMdtItemsAwaitingMeetingHandler(
 {
     public async Task<IReadOnlyList<MdtItemResponse>> Handle(GetMdtItemsAwaitingMeetingQuery request, CancellationToken cancellationToken)
     {
-        var items = await repository.GetAwaitingMeetingAsync(request.SpecialtyId, cancellationToken);
+        var items = await repository.GetAwaitingMeetingAsync(request.TeamId, cancellationToken);
         await activityLog.RecordViewsAsync(ActivityAction.PatientListed, items.Select(i => i.PatientId).Distinct(), cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

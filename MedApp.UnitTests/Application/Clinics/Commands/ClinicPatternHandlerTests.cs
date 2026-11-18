@@ -40,7 +40,7 @@ public sealed class ClinicPatternHandlerTests : ClinicHandlerTestBase
         Clinics.Setup(r => r.AddPatternAsync(It.IsAny<ClinicPattern>(), Token)).Callback((ClinicPattern p, CancellationToken _) => added = p);
 
         var response = await Fixture.Create<CreateClinicPatternHandler>().Handle(
-            new CreateClinicPatternCommand(StaffUserId, SitesTestConstants.RoomId, SpecialtyId, "Tuesday", new TimeOnly(13, 0), new TimeOnly(17, 0), 30, 2, NextMonday, null, AdminActor),
+            new CreateClinicPatternCommand(StaffUserId, SitesTestConstants.RoomId, TeamId, "Tuesday", new TimeOnly(13, 0), new TimeOnly(17, 0), 30, 2, NextMonday, null, AdminActor),
             Token);
 
         added.Should().NotBeNull();
@@ -57,7 +57,7 @@ public sealed class ClinicPatternHandlerTests : ClinicHandlerTestBase
         RoomDays[SitesTestConstants.RoomId] = CreateRoomDay(room: Room(isArchived: true));
 
         var act = () => Fixture.Create<CreateClinicPatternHandler>().Handle(
-            new CreateClinicPatternCommand(StaffUserId, SitesTestConstants.RoomId, SpecialtyId, "Monday", new TimeOnly(9, 0), new TimeOnly(12, 0), 20, 1, Today, null, AdminActor),
+            new CreateClinicPatternCommand(StaffUserId, SitesTestConstants.RoomId, TeamId, "Monday", new TimeOnly(9, 0), new TimeOnly(12, 0), 20, 1, Today, null, AdminActor),
             Token);
 
         await act.Should().ThrowAsync<ConflictException>();
@@ -85,7 +85,7 @@ public sealed class ClinicPatternHandlerTests : ClinicHandlerTestBase
     }
 
     private static UpdateClinicPatternCommand UpdateCommand(DateTime expected) => new(
-        PatternId, StaffUserId, SitesTestConstants.RoomId, SpecialtyId, "Monday", new TimeOnly(10, 0), new TimeOnly(12, 0), 20, 1, Today,
+        PatternId, StaffUserId, SitesTestConstants.RoomId, TeamId, "Monday", new TimeOnly(10, 0), new TimeOnly(12, 0), 20, 1, Today,
         NextMonday.AddDays(28), expected, AdminActor);
 
     [Test]

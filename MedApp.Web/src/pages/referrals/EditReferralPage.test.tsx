@@ -1,7 +1,7 @@
 import {screen, waitFor} from '@testing-library/react';
 import type {Referral} from '../../api/referrals';
 import {expectAnnounced, findAlert, json, mockApi, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
-import {DERMATOLOGY_ID, REFERRAL_ID, SPECIALTIES, testReferral} from '../../test/referrals';
+import {DERMATOLOGY_ID, REFERRAL_ID, TEAMS, testReferral} from '../../test/referrals';
 import {EditReferralPage} from './EditReferralPage';
 
 const REFERRAL = `GET /api/referrals/${REFERRAL_ID}`;
@@ -11,7 +11,7 @@ const CHANGED = 'Someone changed this referral meanwhile.';
 const PRACTICES = [{id: 'p-test', name: 'Testbrook Surgery', odsCode: 'ZZZ123', isArchived: false}];
 
 function renderPage(read: () => Response = () => json(testReferral()), save: (request: Request) => Response | Promise<Response> = () => json(testReferral())) {
-  const fetch = mockApi({[REFERRAL]: read, 'GET /api/specialties': () => json(SPECIALTIES), 'GET /api/practices': () => json(PRACTICES), [SAVE]: save});
+  const fetch = mockApi({[REFERRAL]: read, 'GET /api/teams': () => json(TEAMS), 'GET /api/practices': () => json(PRACTICES), [SAVE]: save});
   const result = renderWithApp(<EditReferralPage id={REFERRAL_ID} />, {user: staffUser});
   return {...result, fetch};
 }
@@ -39,7 +39,7 @@ describe('EditReferralPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${REFERRAL_ID}`));
     expect(await bodies(fetch)).toEqual([
       {
-        specialtyId: DERMATOLOGY_ID,
+        teamId: DERMATOLOGY_ID,
         receivedOn: '2026-11-02',
         practiceId: null,
         referrerPractice: 'Another Surgery',

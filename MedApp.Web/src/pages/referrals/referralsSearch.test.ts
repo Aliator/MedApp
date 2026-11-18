@@ -14,10 +14,10 @@ describe('parseReferralsSearch', () => {
     expect(parseReferralsSearch({view: 'everything', page: 'x'})).toEqual({});
   });
 
-  it('reads specialties as IDs, dropping anything else', () => {
+  it('reads teams as IDs, dropping anything else', () => {
     const id = '0000005A-0000-0000-0000-0000000000AA';
-    expect(parseReferralsSearch({specialty: `${id},Dermatology`})).toEqual({specialty: id.toLowerCase()});
-    expect(parseReferralsSearch({specialty: 'Dermatology'})).toEqual({});
+    expect(parseReferralsSearch({team: `${id},Dermatology`})).toEqual({team: id.toLowerCase()});
+    expect(parseReferralsSearch({team: 'Dermatology'})).toEqual({});
   });
 });
 

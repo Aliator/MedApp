@@ -75,10 +75,10 @@ describe('the Read Me tour', () => {
     expect(state.mdtItems.some((i) => i.meetingId === meetingId && i.status === 'Listed')).toBe(true);
   });
 
-  it('has the staff member triage in her own specialty, and the admin see Insights', () => {
+  it('has the staff member triage in her own team, and the admin see Insights', () => {
     const state = seed();
     const referral = state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!;
-    expect(STAFF.specialtyIds).toContain(referral.specialtyId);
+    expect(STAFF.teamIds).toContain(referral.teamId);
     expect(ADMIN.permissions).toContain('ViewInsights');
     expect(STAFF.permissions).not.toContain('ViewInsights');
   });

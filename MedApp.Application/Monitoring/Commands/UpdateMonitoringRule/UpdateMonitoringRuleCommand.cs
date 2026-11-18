@@ -18,4 +18,4 @@ public sealed record UpdateMonitoringRuleCommand(
     Guid? StageDefinitionId,
     bool IsEnabled,
     int? ThresholdDays = null,
-    Guid? SpecialtyId = null) : IRequest<MonitoringRuleResponse>, IMonitoringRuleInput;
+    Guid? TeamId = null) : IRequest<MonitoringRuleResponse>, IMonitoringRuleInput;

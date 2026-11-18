@@ -2,7 +2,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Pathways.Repositories;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Monitoring.Responses;
 using MediatR;
 
@@ -12,13 +12,13 @@ public sealed class GetMyMonitoringRulesHandler(
     IMonitoringRuleRepository repository,
     IIdentityReadService identityReadService,
     IPatientPathwayStagesRepository stagesRepository,
-    ISpecialtyRepository specialtyRepository)
+    ITeamRepository teamRepository)
     : IRequestHandler<GetMyMonitoringRulesQuery, IReadOnlyList<MonitoringRuleResponse>>
 {
     public async Task<IReadOnlyList<MonitoringRuleResponse>> Handle(GetMyMonitoringRulesQuery request, CancellationToken cancellationToken)
     {
         var rules = await repository.GetForOwnerAsync(request.OwnerUserId, cancellationToken);
-        var names = await MonitoringRuleNames.LoadAsync(rules, identityReadService, stagesRepository, specialtyRepository, cancellationToken);
+        var names = await MonitoringRuleNames.LoadAsync(rules, identityReadService, stagesRepository, teamRepository, cancellationToken);
         return MonitoringRuleMapper.ToResponse(rules, names);
     }
 }

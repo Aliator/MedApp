@@ -22,7 +22,7 @@ namespace MedApp.DevMcp.DemoData;
 /// the stage. Nothing is saved here: the results are kept until the replay is accepted.
 /// <para>
 /// A pathway from a referral starts with it: registered by the booking coordinator (<see cref="DemoReferrals"/>), now
-/// and then moved here from another specialty, then accepted by a clinician of its specialty, who creates the pathway
+/// and then moved here from another team, then accepted by a clinician of its team, who creates the pathway
 /// as AcceptReferralHandler does, with its target date from the referral's waiting-time clock. From then on the
 /// pathway's changes carry the clock (<see cref="PathwayChange"/> stops it when the clock-stop stage is finished, or the
 /// pathway is discharged or cancelled, and moves the target date with a pause or a new priority); its lead pauses it
@@ -86,9 +86,9 @@ public sealed partial class PathwayReplay
         var template = world.Templates[plan.PathwayKind];
         _templateName = template.Name;
         // From a referral, the clock's target: the wait counts from the day it was received (no pauses before triage),
-        // to the specialty's target for the priority the triager chose. Otherwise a target date set by hand.
+        // to the team's target for the priority the triager chose. Otherwise a target date set by hand.
         _dueDate = plan.FromReferral
-            ? plan.ReceivedOn.AddDays(WaitingClock.TargetDaysFor(world.Specialties[template.SpecialtyId], plan.ChosenPriority))
+            ? plan.ReceivedOn.AddDays(WaitingClock.TargetDaysFor(world.Teams[template.TeamId], plan.ChosenPriority))
             : plan.PlannedDueDate;
         // A copy of the template's stages, made as CreatePatientPathwayHandler (or AcceptReferralHandler) makes it.
         _pathway = PathwayCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.ChosenPriority, plan.CreatedUtc);
@@ -198,15 +198,15 @@ public sealed partial class PathwayReplay
 
     /// <summary>
     /// Its referral's story up to triage, then the acceptance that creates it: registered by the booking coordinator;
-    /// now and then moved here first by a triager of the specialty it came under; accepted by a clinician of this
-    /// specialty (the lead, usually), who creates the pathway (its Created entry names the referral) with the priority
+    /// now and then moved here first by a triager of the team it came under; accepted by a clinician of this
+    /// team (the lead, usually), who creates the pathway (its Created entry names the referral) with the priority
     /// they chose and the clock's target date, as AcceptReferralHandler does, in one change. The coordinator is told.
     /// </summary>
     private void Accept(DateTime created, string? firstNote)
     {
         var world = _world;
-        var specialty = world.Specialties[world.Templates[_plan.PathwayKind].SpecialtyId];
-        var registeredUnder = _plan.RedirectedFrom is { } from ? world.Specialty(from) : specialty;
+        var team = world.Teams[world.Templates[_plan.PathwayKind].TeamId];
+        var registeredUnder = _plan.RedirectedFrom is { } from ? world.Team(from) : team;
         var coordinator = world.Coordinator;
 
         var (referral, registered) = DemoReferrals.Register(_pathway.PatientId, registeredUnder, _plan.ReceivedOn, _plan.RequestedPriority,
@@ -220,17 +220,17 @@ public sealed partial class PathwayReplay
             var mover = DemoReferrals.Triager(world, previous, _plan.RedirectedUtc)
                         ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {previous} referrals.");
             var move = DemoReferrals.Triage(referral, mover, _plan.RedirectedUtc);
-            move.RedirectToSpecialty(specialty, ReferralTexts.RedirectDetail(previous, specialty.Name));
-            referral.Specialty = specialty;
+            move.RedirectToTeam(team, ReferralTexts.RedirectDetail(previous, team.Name));
+            referral.Team = team;
             Triaged(move, mover, _plan.RedirectedUtc, previous);
         }
 
-        var triager = DemoReferrals.Triager(world, specialty.Name, created, _lead)
-                      ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {specialty.Name} referrals.");
+        var triager = DemoReferrals.Triager(world, team.Name, created, _lead)
+                      ?? throw new InvalidOperationException($"Seeding went wrong: nobody could triage {team.Name} referrals.");
         var accept = DemoReferrals.Triage(referral, triager, created);
         Change(triager, created, change => PathwayCreation.Record(change, _templateName, _dueDate, firstNote, referral.Id));
         accept.Accept(_pathway.Id, _templateName, _plan.ChosenPriority);
-        accept.ReTarget(specialty, _plan.ChosenPriority);
+        accept.ReTarget(team, _plan.ChosenPriority);
         if (WaitingClock.PathwayTargetOn(referral) != _dueDate)
             throw new InvalidOperationException("Seeding went wrong: the pathway's target date isn't its clock's.");
         Triaged(accept, triager, created);
@@ -240,11 +240,11 @@ public sealed partial class PathwayReplay
     }
 
     /// <summary>A triage decision's history entries, the triager's look at the referral, and the coordinator's notification.</summary>
-    private void Triaged(ReferralChange change, StaffMember triager, DateTime at, string? previousSpecialty = null)
+    private void Triaged(ReferralChange change, StaffMember triager, DateTime at, string? previousTeam = null)
     {
         _referralEvents.AddRange(change.Events);
         _touches.Add(new Touch(triager.Id, at, _pathway.PatientId, null, change.Referral.Id));
-        if (DemoReferrals.Told(_world, change.Referral, triager, at, previousSpecialty) is { } told)
+        if (DemoReferrals.Told(_world, change.Referral, triager, at, previousTeam) is { } told)
             _notifications.Add(told);
     }
 

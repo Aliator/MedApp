@@ -203,11 +203,11 @@ public sealed class MonitoringRuleMatcherTests
     }
 
     [Test]
-    public void Matches_ThatSpecialty_Matches_AnotherDoesNot()
+    public void Matches_ThatTeam_Matches_AnotherDoesNot()
     {
-        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, specialtyId: _pathway.SpecialtyId), StaffFinishedConsultation, _pathway)
+        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, teamId: _pathway.TeamId), StaffFinishedConsultation, _pathway)
             .Should().BeTrue();
-        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, specialtyId: Guid.NewGuid()), StaffFinishedConsultation, _pathway)
+        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, teamId: Guid.NewGuid()), StaffFinishedConsultation, _pathway)
             .Should().BeFalse();
     }
 }

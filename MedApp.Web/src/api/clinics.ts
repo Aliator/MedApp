@@ -4,7 +4,7 @@ import {calendarKeys} from './calendar';
 import {api, unwrap, type Schemas} from './client';
 
 /**
- * Clinic sessions (docs/centre-phases-3-5-plan.md, decisions 123 to 127): a clinician's time in a room for a specialty,
+ * Clinic sessions (docs/centre-phases-3-5-plan.md, decisions 123 to 127): a clinician's time in a room for a team,
  * cut into slots that appointments are booked into, one patient each. Anyone reads them; holders of ManageClinics add,
  * change and cancel them, and keep the clinic patterns that make them when asked (Create sessions). A session is busy
  * time on its clinician's calendar, and a room holds one session at a time.
@@ -33,7 +33,7 @@ export interface SessionsFilter {
   staffUserId?: string;
   siteId?: string;
   roomId?: string;
-  specialtyId?: string;
+  teamId?: string;
   includeCancelled?: boolean;
   /** Only sessions with a slot free and not yet started (for booking). */
   withFreeSlots?: boolean;
@@ -61,7 +61,7 @@ export function sessionsQuery(filter: SessionsFilter) {
               StaffUserId: filter.staffUserId,
               SiteId: filter.siteId,
               RoomId: filter.roomId,
-              SpecialtyId: filter.specialtyId,
+              TeamId: filter.teamId,
               IncludeCancelled: filter.includeCancelled,
               WithFreeSlots: filter.withFreeSlots,
             },
@@ -99,7 +99,7 @@ function useRefreshClinics() {
 
 /**
  * Adds a session (no `id`) or changes one (with `id` and the `expectedLastUpdated` read). A clash on the clinician's
- * calendar or in the room is a 409 naming it; with bookings, only the room and specialty can change (409 otherwise).
+ * calendar or in the room is a 409 naming it; with bookings, only the room and team can change (409 otherwise).
  */
 export function useSaveSession() {
   const onSuccess = useRefreshClinics();

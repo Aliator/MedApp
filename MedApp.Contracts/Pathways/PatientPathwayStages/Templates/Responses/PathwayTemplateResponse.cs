@@ -6,9 +6,9 @@ public sealed class PathwayTemplateResponse
     public string Name { get; set; } = string.Empty;
     public bool IsArchived { get; set; }
 
-    /// <summary>The specialty it belongs to.</summary>
-    public Guid SpecialtyId { get; set; }
-    public string SpecialtyName { get; set; } = string.Empty;
+    /// <summary>The team it belongs to.</summary>
+    public Guid TeamId { get; set; }
+    public string TeamName { get; set; } = string.Empty;
 
     /// <summary>How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth.</summary>
     public string RetentionClass { get; set; } = "Standard";

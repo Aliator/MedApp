@@ -4,7 +4,7 @@ import {CARDIOLOGY_ID, RESULT_ID, RESULT_PATHWAY_ID, testResultSummary} from '..
 import type {ResultsSearch} from './resultsSearch';
 import {ResultsPage} from './ResultsPage';
 
-const SPECIALTIES = [
+const TEAMS = [
   {id: CARDIOLOGY_ID, name: 'Cardiology', isArchived: false},
   {id: '00000061-0000-0000-0000-000000000009', name: 'Old clinic', isArchived: true},
 ];
@@ -13,7 +13,7 @@ function renderPage(search: ResultsSearch = {}, user = seniorClinicianUser, item
   const onSearchChange = vi.fn();
   const fetch = mockApi({
     'GET /api/results/search': () => json({items, page: 1, pageSize: 10, totalCount: items.length, totalPages: 1}),
-    'GET /api/specialties': () => json(SPECIALTIES),
+    'GET /api/teams': () => json(TEAMS),
   });
   const result = renderWithApp(<ResultsPage search={search} onSearchChange={onSearchChange} />, {user});
   return {...result, fetch, onSearchChange};
@@ -41,13 +41,13 @@ describe('ResultsPage', () => {
     expect(calls(fetch)).toContain('GET /api/results/search?View=AwaitingMine&Page=1&PageSize=10');
   });
 
-  it("opens on everyone's for those who don't sign off, without a tab of their own, and keeps a view and specialty from the address", async () => {
-    const {fetch} = renderPage({specialty: CARDIOLOGY_ID}, nurseUser);
+  it("opens on everyone's for those who don't sign off, without a tab of their own, and keeps a view and team from the address", async () => {
+    const {fetch} = renderPage({team: CARDIOLOGY_ID}, nurseUser);
 
     expect(await screen.findByRole('tab', {name: 'Awaiting sign-off (everyone)'})).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tab', {name: 'Awaiting my sign-off'})).not.toBeInTheDocument();
     expect(await screen.findByText('Awaiting sign-off (everyone): 2 results in Cardiology')).toBeInTheDocument();
-    expect(calls(fetch)).toContain(`GET /api/results/search?View=Awaiting&SpecialtyId=${CARDIOLOGY_ID}&Page=1&PageSize=10`);
+    expect(calls(fetch)).toContain(`GET /api/results/search?View=Awaiting&TeamId=${CARDIOLOGY_ID}&Page=1&PageSize=10`);
   });
 
   it('shows who signed off, when and what they did in Signed off', async () => {
@@ -60,16 +60,16 @@ describe('ResultsPage', () => {
     expect(screen.getByText('dr.synthetic, 6 Nov 2026, 09:30')).toBeInTheDocument();
   });
 
-  it('changes the view from its tabs, and the specialty from the picker beside the title, in the address', async () => {
-    const {user, onSearchChange} = renderPage({specialty: CARDIOLOGY_ID, page: 2});
+  it('changes the view from its tabs, and the team from the picker beside the title, in the address', async () => {
+    const {user, onSearchChange} = renderPage({team: CARDIOLOGY_ID, page: 2});
 
     await pickFavourite(user, 'Needs a clinician');
-    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'NeedsClinician', specialty: CARDIOLOGY_ID, patient: undefined, sort: undefined, asc: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'NeedsClinician', team: CARDIOLOGY_ID, patient: undefined, sort: undefined, asc: undefined});
 
-    await user.click(screen.getByRole('combobox', {name: /^Specialty/}));
+    await user.click(screen.getByRole('combobox', {name: /^Team/}));
     expect(screen.queryByRole('option', {name: 'Old clinic'})).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('option', {name: 'All specialties'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, specialty: undefined});
+    await user.click(await screen.findByRole('option', {name: 'All teams'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, team: undefined});
   });
 
   it('asks for the patient searched for, every result once the view is removed, and the column sorted by', async () => {
@@ -111,7 +111,7 @@ describe('ResultsPage, paging', () => {
     const onSearchChange = vi.fn();
     mockApi({
       'GET /api/results/search': () => json({items, page: 2, pageSize: 10, totalCount: 25, totalPages: 3}),
-      'GET /api/specialties': () => json(SPECIALTIES),
+      'GET /api/teams': () => json(TEAMS),
     });
     const {user} = renderWithApp(<ResultsPage search={{page: 2}} onSearchChange={onSearchChange} />, {user: seniorClinicianUser});
 

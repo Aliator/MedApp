@@ -3,7 +3,7 @@ import {requirePermission} from '../../../auth/auth';
 import {preload} from '../../../api/preload';
 import {patientQuery} from '../../../api/patients';
 import {patientOpenReferralsQuery} from '../../../api/referrals';
-import {specialtiesQuery} from '../../../api/specialties';
+import {teamsQuery} from '../../../api/teams';
 import {RegisterReferralPage} from '../../../pages/referrals/RegisterReferralPage';
 
 /** `?patientId=`: the patient the referral is for, once found (or from their page, or after adding them). */
@@ -16,7 +16,7 @@ export const Route = createFileRoute('/_app/referrals/new')({
   loader: ({context, deps}) =>
     preload(
       context.queryClient,
-      specialtiesQuery(false),
+      teamsQuery(false),
       ...(deps.patientId ? [patientQuery(deps.patientId), patientOpenReferralsQuery(deps.patientId)] : []),
     ),
   component: function RegisterReferralRoute() {

@@ -12,7 +12,7 @@ import {AppIcon} from '../shared/icons';
 /**
  * A referral's waiting-time clock, the same way everywhere it shows (decision 38): "Day 84 of 126", with Breached
  * (in the error style, like Overdue), Paused (with its review date, flagged once that has passed: hazard H-42) and
- * Stopped. Administrative: whole UK days against the specialty's target for the priority, never ranked by anything
+ * Stopped. Administrative: whole UK days against the team's target for the priority, never ranked by anything
  * clinical, and never sent anywhere. `WaitCell` is a table's Wait column, `WaitingClockDetails` a page's account of
  * it, and `ClockPauseList` its pauses.
  */

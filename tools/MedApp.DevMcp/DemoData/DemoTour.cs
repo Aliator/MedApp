@@ -20,7 +20,7 @@ namespace MedApp.DevMcp.DemoData;
 /// Records to open when showing the app (see <c>docs/demo-data.md</c>): the names and titles depend on the day the
 /// seed runs, so the summary lists them. Patients are named as "First Last", which no other patient shares (see
 /// <see cref="DemoPatients"/>), so searching for the name finds the one record; pathways as "Title, for First Last";
-/// referrals as "Specialty referral for First Last, received 3 November 2026" (a patient can have two to one specialty).
+/// referrals as "Team referral for First Last, received 3 November 2026" (a patient can have two to one team).
 /// </summary>
 public static class DemoTour
 {
@@ -116,7 +116,7 @@ public static class DemoTour
                 .Select(a => Of(a.PathwayId)).OfType<string>(),
             letters = letters.Where(l => l.Key != "informationRequestDraft").ToDictionary(l => l.Key, l => Of(l.Value)),
             informationRequestDraftedOn = referralLetter is null ? null
-                : $"{world.Specialties[referralLetter.SpecialtyId].Name} referral for {names[referralLetter.PatientId]}",
+                : $"{world.Teams[referralLetter.TeamId].Name} referral for {names[referralLetter.PatientId]}",
             clinics,
         };
     }
@@ -130,9 +130,9 @@ public static class DemoTour
         IReadOnlyDictionary<Guid, string> names, IReadOnlyDictionary<Guid, PatientPathway> pathways)
     {
         var today = world.Timeline.Today;
-        var specialty = world.Specialties.ToDictionary(s => s.Key, s => s.Value.Name);
+        var team = world.Teams.ToDictionary(s => s.Key, s => s.Value.Name);
         var events = world.ReferralEvents.ToLookup(e => e.ReferralId);
-        string Referral(Referral r) => $"{specialty[r.SpecialtyId]} referral for {names[r.PatientId]}, received {r.ReceivedOn.ToString("d MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)}";
+        string Referral(Referral r) => $"{team[r.TeamId]} referral for {names[r.PatientId]}, received {r.ReceivedOn.ToString("d MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)}";
         string Pathway(PatientPathway p) => $"{p.Title}, for {names[p.PatientId]}";
         IEnumerable<string> Pathways(Func<Referral, bool> where, int take = 3) =>
             world.Referrals.Where(r => r.PathwayId is { } id && pathways.ContainsKey(id) && where(r))
@@ -141,7 +141,7 @@ public static class DemoTour
             world.Referrals.Where(r => r.Status == status).OrderByDescending(r => r.DecidedAtUtc).Take(take).Select(Referral);
 
         var awaiting = world.Referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage).ToList();
-        var newService = world.Specialty(DemoSpecialties.NewService);
+        var newService = world.Team(DemoTeams.NewService);
         var duplicate = stories.FirstOrDefault(s => s is { Duplicate: true, Outcome: StoryOutcome.AwaitingTriage })?.Referral;
         var duplicateRejected = stories.FirstOrDefault(s => s is { Duplicate: true, Outcome: StoryOutcome.Rejected })?.Referral;
         var wrongPatient = stories.FirstOrDefault(s => s.Outcome == StoryOutcome.EnteredInError)?.Referral;
@@ -150,11 +150,11 @@ public static class DemoTour
         {
             awaitingTriage = awaiting.Count,
             awaitingTriageBreached = awaiting.Where(r => WaitingClock.IsBreached(r, today)).OrderBy(r => r.ReceivedOn).Select(Referral),
-            nobodyCanTriage = new { specialty = newService.Name, referrals = awaiting.Where(r => r.SpecialtyId == newService.Id).Select(Referral) },
-            redirectedHereAwaitingTriage = awaiting.Where(r => events[r.Id].Any(e => e.Action == ReferralEventAction.SpecialtyChanged)).Select(Referral),
+            nobodyCanTriage = new { team = newService.Name, referrals = awaiting.Where(r => r.TeamId == newService.Id).Select(Referral) },
+            redirectedHereAwaitingTriage = awaiting.Where(r => events[r.Id].Any(e => e.Action == ReferralEventAction.TeamChanged)).Select(Referral),
             duplicateAwaitingTriage = duplicate is null ? null : Referral(duplicate),
-            registerAgainToSeeTheDuplicateWarning = duplicate is null ? null : $"{names[duplicate.PatientId]}, in {specialty[duplicate.SpecialtyId]}",
-            acceptedAfterBeingRedirected = Pathways(r => events[r.Id].Any(e => e.Action == ReferralEventAction.SpecialtyChanged)),
+            registerAgainToSeeTheDuplicateWarning = duplicate is null ? null : $"{names[duplicate.PatientId]}, in {team[duplicate.TeamId]}",
+            acceptedAfterBeingRedirected = Pathways(r => events[r.Id].Any(e => e.Action == ReferralEventAction.TeamChanged)),
             raisedToUrgentAtTriage = Pathways(r => r.RequestedPriority != PatientPathwayPriority.Urgent
                                                    && pathways[r.PathwayId!.Value].Priority == PatientPathwayPriority.Urgent
                                                    && plans.Any(p => p.PathwayId == r.PathwayId && p.RaisePriority)),

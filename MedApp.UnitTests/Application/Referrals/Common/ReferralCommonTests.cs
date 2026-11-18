@@ -13,12 +13,12 @@ namespace MedApp.UnitTests.Application.Referrals.Common;
 public sealed class ReferralChangeTests
 {
     [Test]
-    public void Register_RecordsTheSpecialtyAndPriorityAndStartsAtVersionOne()
+    public void Register_RecordsTheTeamAndPriorityAndStartsAtVersionOne()
     {
         var referral = CreateReferral(version: 0);
         var change = new ReferralChange(referral, Registrar, NowUtc);
 
-        change.Register(referral.Specialty);
+        change.Register(referral.Team);
 
         referral.Version.Should().Be(1);
         var entry = change.Events.Single();
@@ -27,7 +27,7 @@ public sealed class ReferralChangeTests
         entry.Username.Should().Be(Registrar.Username);
         entry.AtUtc.Should().Be(NowUtc);
         entry.PatientId.Should().Be(referral.PatientId);
-        entry.Details.Should().Contain(referral.Specialty.Name).And.Contain("High").And.Contain("2026-11-10");
+        entry.Details.Should().Contain(referral.Team.Name).And.Contain("High").And.Contain("2026-11-10");
         entry.Details.Should().NotContain(Reason).And.NotContain(Practice).And.NotContain(Clinician);
     }
 
@@ -35,31 +35,31 @@ public sealed class ReferralChangeTests
     public void EditDetails_NamesFreeTextFieldsWithoutValuesAndGivesStructuredOnes()
     {
         var referral = CreateReferral(version: 4);
-        var newSpecialty = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
+        var newTeam = TeamsTestConstants.CreateTeam(TeamsTestConstants.OtherTeamName);
         var change = new ReferralChange(referral, Registrar, NowUtc);
         var details = new ReferralDetails(
-            newSpecialty.Id, ReceivedOn.AddDays(-1), OtherPractice, null, null, PatientPathwayPriority.Urgent, Canary);
+            newTeam.Id, ReceivedOn.AddDays(-1), OtherPractice, null, null, PatientPathwayPriority.Urgent, Canary);
 
-        var changed = change.EditDetails(details, newSpecialty, referral.Specialty);
+        var changed = change.EditDetails(details, newTeam, referral.Team);
 
         changed.Should().BeTrue();
         referral.Version.Should().Be(5);
-        referral.SpecialtyId.Should().Be(newSpecialty.Id);
+        referral.TeamId.Should().Be(newTeam.Id);
         referral.Reason.Should().Be(Canary);
         referral.ReferrerOdsCode.Should().BeNull();
         change.Events.Select(e => e.Action).Should().Equal(ReferralEventAction.DetailsEdited, ReferralEventAction.TargetChanged);
         var parsed = ReferralEventDetails.Parse(change.Events[0].Details);
         parsed.ChangedFields.Should().BeEquivalentTo(
             "specialty", "receivedOn", "requestedPriority", "referrerPractice", "referrerClinician", "referrerOdsCode", "reason");
-        parsed.SpecialtyName.Should().Be(newSpecialty.Name);
-        parsed.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        parsed.TeamName.Should().Be(newTeam.Name);
+        parsed.PreviousTeamName.Should().Be(TeamsTestConstants.TeamName);
         parsed.Changes["requestedPriority"].Should().Be(("High", "Urgent"));
         change.Events.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary).And.NotContain(OtherPractice).And.NotContain(Practice));
 
-        // The corrected specialty and priority re-read the clock's target, counting from the corrected date received.
-        referral.TargetDays.Should().Be(newSpecialty.TargetDaysUrgent);
+        // The corrected team and priority re-read the clock's target, counting from the corrected date received.
+        referral.TargetDays.Should().Be(newTeam.TargetDaysUrgent);
         referral.WaitStartOn.Should().Be(ReceivedOn.AddDays(-1));
-        referral.TargetOn.Should().Be(ReceivedOn.AddDays(-1 + newSpecialty.TargetDaysUrgent));
+        referral.TargetOn.Should().Be(ReceivedOn.AddDays(-1 + newTeam.TargetDaysUrgent));
         var target = ReferralEventDetails.Parse(change.Events[1].Details);
         target.PreviousTargetDays.Should().Be(28);
         target.TargetDays.Should().Be(14);
@@ -71,9 +71,9 @@ public sealed class ReferralChangeTests
         var referral = CreateReferral(version: 2);
         var change = new ReferralChange(referral, Registrar, NowUtc);
         var same = new ReferralDetails(
-            referral.SpecialtyId, referral.ReceivedOn, Practice, Clinician, OdsCode, PatientPathwayPriority.High, Reason);
+            referral.TeamId, referral.ReceivedOn, Practice, Clinician, OdsCode, PatientPathwayPriority.High, Reason);
 
-        change.EditDetails(same, referral.Specialty, referral.Specialty).Should().BeFalse();
+        change.EditDetails(same, referral.Team, referral.Team).Should().BeFalse();
 
         change.HasChanges.Should().BeFalse();
         referral.Version.Should().Be(2);

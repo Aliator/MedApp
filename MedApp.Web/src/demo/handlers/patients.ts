@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {usernameOf} from '../accounts';
 import {invalid, notFound, on} from '../api/http';
 import {newId} from '../ids';
-import {specialtyName} from '../seed';
+import {teamName} from '../seed';
 import {db} from '../store';
 import {logActivity} from './adminLogs';
 import {contains, int, list, me, paged, requirePermission, sorted} from './common';
@@ -88,9 +88,9 @@ export function timelineOf(patientId: string): Entry[] {
         atUtc: event.atUtc!,
         username: event.username,
         referralId: r.id,
-        specialtyName: event.specialtyName ?? specialtyName(r.specialtyId),
+        teamName: event.teamName ?? teamName(r.teamId),
         referrerPractice: r.referrerPractice,
-        previousSpecialtyName: event.previousSpecialtyName,
+        previousTeamName: event.previousTeamName,
         rejectionReason: event.rejectionReason,
         templateName: event.templateName,
         pathwayId: event.pathwayId,
@@ -243,7 +243,7 @@ export function registerPatients() {
       pathways: pathways.map((p) => ({id: p.id, title: p.title, isDeleted: false, createdOn: p.createdAt.slice(0, 10), deletedOn: null})),
       awaitingReferrals: state.referrals
         .filter((r) => r.patientId === params.id && r.status === 'AwaitingTriage')
-        .map((r) => ({referralId: r.id, specialtyName: specialtyName(r.specialtyId), receivedOn: r.receivedOn, requestedPriority: r.requestedPriority})),
+        .map((r) => ({referralId: r.id, teamName: teamName(r.teamId), receivedOn: r.receivedOn, requestedPriority: r.requestedPriority})),
     };
   });
 

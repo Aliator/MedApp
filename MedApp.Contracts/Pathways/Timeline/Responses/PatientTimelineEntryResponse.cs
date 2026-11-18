@@ -129,16 +129,16 @@ public sealed class PatientTimelineEntryResponse
     public Guid? ReferralId { get; set; }
 
     /// <summary>
-    /// A referral entry: its specialty (the one asked for when registered; the new one when an edit moved it), an
+    /// A referral entry: its team (the one asked for when registered; the new one when an edit moved it), an
     /// admin-written name.
     /// </summary>
-    public string? SpecialtyName { get; set; }
+    public string? TeamName { get; set; }
 
     /// <summary>A referral entry: the referring practice. Admins only (it's free text).</summary>
     public string? ReferrerPractice { get; set; }
 
-    /// <summary>ReferralSpecialtyChanged: the specialty it was redirected from.</summary>
-    public string? PreviousSpecialtyName { get; set; }
+    /// <summary>ReferralTeamChanged: the team it was redirected from.</summary>
+    public string? PreviousTeamName { get; set; }
 
     /// <summary>ReferralRejected: why, a fixed choice by name (NotOfferedHere, DoesNotMeetCriteria, ...).</summary>
     public string? RejectionReason { get; set; }

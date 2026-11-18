@@ -1,6 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, STAFF} from '../accounts';
-import {PATHWAYS, PATIENTS, REFERRALS, SPECIALTIES, TEMPLATES} from '../ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATES} from '../ids';
 import {LAB_IDS, SPECIMEN_TYPES, LABORATORIES, RESULTS} from '../slices/lab';
 import {db} from '../store';
 import {daysFrom, today} from '../time';
@@ -119,7 +119,7 @@ describe('the light demo’s lab, results and referrals', () => {
     startLightDemo(STAFF);
     const details = {
       patientId: PATIENTS.aishaKhoury,
-      specialtyId: SPECIALTIES.dermatology,
+      teamId: TEAMS.dermatology,
       receivedOn: today(),
       referrerPractice: 'Example Lane Surgery (synthetic)',
       requestedPriority: 'High',

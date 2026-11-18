@@ -1,7 +1,7 @@
 namespace MedApp.Contracts.Clinics.Requests;
 
 /// <summary>
-/// A clinic that repeats: a clinician, a room, a specialty, a day of the week, UK clock times, a slot length, every 1 to
+/// A clinic that repeats: a clinician, a room, a team, a day of the week, UK clock times, a slot length, every 1 to
 /// 4 weeks, from a date and optionally until one. Sessions are made from it only when someone asks (Create sessions).
 /// </summary>
 public sealed class ClinicPatternRequest
@@ -10,7 +10,7 @@ public sealed class ClinicPatternRequest
 
     public Guid RoomId { get; set; }
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
     /// <summary>"Monday" to "Sunday".</summary>
     public string DayOfWeek { get; set; } = string.Empty;

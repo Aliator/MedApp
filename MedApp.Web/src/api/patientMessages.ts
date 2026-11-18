@@ -6,7 +6,7 @@ import {appointmentKeys} from './appointments';
  * Texts and emails to patients about their appointments (centre plan decisions 128 to 133): reminders, and messages
  * when staff move or cancel a booking, or a patient misses one. Each is a stored row, with what was sent, where, and
  * what became of it; one that couldn't go is kept too, with why. Messages never say why the appointment is: no
- * specialty, clinician, pathway or note.
+ * team, clinician, pathway or note.
  */
 export type PatientMessage = Schemas['PatientMessageResponse'];
 export type PatientMessagingStatus = Schemas['PatientMessagingStatusResponse'];

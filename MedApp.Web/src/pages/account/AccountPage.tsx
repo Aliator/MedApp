@@ -14,7 +14,7 @@ import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSetti
 import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
 import {sortRoles} from '../../auth/roles';
-import {mySpecialtiesQuery, specialtyNames} from '../../api/specialties';
+import {myTeamsQuery, teamNames} from '../../api/teams';
 import {useCurrentUser} from '../../auth/auth';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page} from '../../components/pages/Page';
@@ -25,16 +25,16 @@ import {ViewSection} from '../../components/views/ViewSection';
 import {NotificationSettings} from './NotificationSettings';
 import {StaffDetailsCard} from './StaffDetailsCard';
 
-/** The signed-in user's specialties, read only: an admin sets them on the Users page. */
-function MySpecialties() {
-  const {data, isPending, isError} = useQuery(mySpecialtiesQuery);
+/** The signed-in user's teams, read only: an admin sets them on the Users page. */
+function MyTeams() {
+  const {data, isPending, isError} = useQuery(myTeamsQuery);
   if (isPending) return 'Loading...';
-  if (isError) return 'Your specialties could not be loaded.';
-  return specialtyNames(data, 'None yet. An admin sets them on the Users page.');
+  if (isError) return 'Your teams could not be loaded.';
+  return teamNames(data, 'None yet. An admin sets them on the Users page.');
 }
 
 /**
- * The signed-in user's Account Settings, as cards: the account (who they are, their specialties, and pages of their own for the email
+ * The signed-in user's Account Settings, as cards: the account (who they are, their teams, and pages of their own for the email
  * address, security (two-factor authentication) and Change Password); their full name and job title for letters
  * (`StaffDetailsCard`, kept on the server); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
@@ -89,8 +89,8 @@ export function AccountPage() {
             <MetadataListItem label={me.roles.length === 1 ? 'Role' : 'Roles'}>
               {me.roles.length > 0 ? sortRoles(me.roles).join(', ') : 'No role'}
             </MetadataListItem>
-            <MetadataListItem label="Your specialties">
-              <MySpecialties />
+            <MetadataListItem label="Your teams">
+              <MyTeams />
             </MetadataListItem>
           </ViewSection>
         </ViewCard>

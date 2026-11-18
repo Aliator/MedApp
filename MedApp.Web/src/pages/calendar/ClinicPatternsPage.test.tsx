@@ -17,7 +17,7 @@ describe('ClinicPatternsPage', {timeout: 30_000}, () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T10:00:00Z')});
   });
 
-  it('lists each pattern with when, how often, who, where and the specialty', async () => {
+  it('lists each pattern with when, how often, who, where and the team', async () => {
     renderPage([testPattern(), testPattern({id: 'pattern-2', everyWeeks: 2, untilDate: '2026-11-01', hasEnded: true})]);
 
     expect(await screen.findByRole('heading', {name: 'Clinic Patterns', level: 1})).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('ClinicPatternsPage', {timeout: 30_000}, () => {
     const {user} = renderPage([testPattern()], {
       'GET /api/calendar/staff': () => json([]),
       'GET /api/rooms': () => json([]),
-      'GET /api/specialties': () => json([]),
+      'GET /api/teams': () => json([]),
       [`POST ${PATTERNS}/pattern-1/create-sessions`]: () => json({title: 'Clinic pattern not found.'}, 404),
     });
 

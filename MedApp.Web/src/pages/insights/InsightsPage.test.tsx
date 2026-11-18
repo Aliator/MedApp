@@ -1,27 +1,27 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {adminUser, calls, json, mockApi, renderWithApp} from '../../test/render';
-import {insights, OTHER_SPECIALTY_ID, specialties, SPECIALTY_ID, STAFF_ID, TEMPLATE_ID, templates} from '../../test/insights';
+import {insights, OTHER_TEAM_ID, teams, TEAM_ID, STAFF_ID, TEMPLATE_ID, templates} from '../../test/insights';
 import type {InsightsSearch} from '../listSearch';
 import {InsightsPage} from './InsightsPage';
 import {givenWidth} from '../../test/layout';
 
 const INSIGHTS = '/api/pathways/insights';
 const TEMPLATES = '/api/pathways/patient-pathway-stage/templates';
-const SPECIALTIES = '/api/specialties';
+const TEAMS = '/api/teams';
 
-/** Answers with `body`, for the template and specialty asked for (as the API says which its numbers are for). */
+/** Answers with `body`, for the template and team asked for (as the API says which its numbers are for). */
 function renderInsights(search: InsightsSearch = {}, body: unknown = insights, status = 200) {
   const fetch = mockApi({
     [`GET ${INSIGHTS}`]: (request) => {
       const query = new URL(request.url).searchParams;
       return json(
-        status === 200 ? {...(body as object), templateId: query.get('TemplateId'), specialtyId: query.get('SpecialtyId')} : body,
+        status === 200 ? {...(body as object), templateId: query.get('TemplateId'), teamId: query.get('TeamId')} : body,
         status,
       );
     },
     [`GET ${TEMPLATES}`]: () => json(templates),
-    [`GET ${SPECIALTIES}`]: () => json(specialties),
+    [`GET ${TEAMS}`]: () => json(teams),
   });
   const onSearchChange = vi.fn();
   return {fetch, onSearchChange, ...renderWithApp(<InsightsPage search={search} onSearchChange={onSearchChange} />, {user: adminUser})};
@@ -174,33 +174,33 @@ describe('InsightsPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({weeks: 26, template: undefined});
   });
 
-  it('on a specialty, asks for its insights, names it, links to its pathways and offers only its templates', async () => {
-    const {fetch, user} = renderInsights({specialty: SPECIALTY_ID});
+  it('on a team, asks for its insights, names it, links to its pathways and offers only its templates', async () => {
+    const {fetch, user} = renderInsights({team: TEAM_ID});
 
     expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Biomechanics, all templates')).toBeInTheDocument();
-    expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12&SpecialtyId=${SPECIALTY_ID}`);
-    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', `/pathways?overdue=true&mine=false&specialty=${SPECIALTY_ID}`);
+    expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12&TeamId=${TEAM_ID}`);
+    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', `/pathways?overdue=true&mine=false&team=${TEAM_ID}`);
 
     await user.click(screen.getByRole('combobox', {name: /Template/}));
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All templates', 'Knee review']);
   });
 
-  it("chooses a specialty (archived ones too), keeping the template only if it's the specialty's", async () => {
+  it("chooses a team (archived ones too), keeping the template only if it's the team's", async () => {
     const {user, onSearchChange} = renderInsights({template: TEMPLATE_ID});
 
     await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review');
-    await user.click(screen.getByRole('combobox', {name: /Specialty/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All specialties', 'Allergy (archived)', 'Biomechanics']);
+    await user.click(screen.getByRole('combobox', {name: /Team/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Allergy (archived)', 'Biomechanics']);
     await user.click(screen.getByRole('option', {name: 'Biomechanics'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, specialty: SPECIALTY_ID});
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, team: TEAM_ID});
 
-    await user.click(screen.getByRole('combobox', {name: /Specialty/}));
+    await user.click(screen.getByRole('combobox', {name: /Team/}));
     await user.click(screen.getByRole('option', {name: 'Allergy (archived)'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: undefined, specialty: OTHER_SPECIALTY_ID});
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: undefined, team: OTHER_TEAM_ID});
 
-    await user.click(screen.getByRole('combobox', {name: /Specialty/}));
-    await user.click(screen.getByRole('option', {name: 'All specialties'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, specialty: undefined});
+    await user.click(screen.getByRole('combobox', {name: /Team/}));
+    await user.click(screen.getByRole('option', {name: 'All teams'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, team: undefined});
   });
 
   it("gives each template's stages a chart of their own when there are several", async () => {

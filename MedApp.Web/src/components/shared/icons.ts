@@ -282,8 +282,8 @@ export const AppIcon = {
   /** Suggested meeting times. */
   Suggestion: remix(RiLightbulbLine),
   ActivityTypes: remix(RiPriceTag3Line),
-  /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
-  Specialties: remix(RiHospitalLine),
+  /** Teams (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
+  Teams: remix(RiHospitalLine),
   /** Letter templates (admin): the letterhead, body and closing letters start from. */
   LetterTemplates: remix(RiDraftLine),
   /** Roles and Permissions (admin): what each role lets the people who hold it do. */
@@ -294,7 +294,7 @@ export const AppIcon = {
   Sites: remix(RiBuilding2Line),
   /** A site's rooms. */
   Rooms: remix(RiDoorOpenLine),
-  /** Clinic sessions: a clinician's time in a room for a specialty, cut into slots. */
+  /** Clinic sessions: a clinician's time in a room for a team, cut into slots. */
   Clinics: remix(RiCalendarEventLine),
   /** Clinic patterns: clinics that repeat, which make sessions when asked. */
   ClinicPatterns: remix(RiRepeatLine),
@@ -323,7 +323,7 @@ export const AppIcon = {
   Practices: remix(RiFirstAidKitLine),
   /** A member of staff's full name and job title, as they go on letters. */
   StaffDetails: remix(RiIdCardLine),
-  /** Referrals: requests to see a patient in a specialty, waiting for triage (the inbox). */
+  /** Referrals: requests to see a patient in a team, waiting for triage (the inbox). */
   Referrals: remix(RiInboxLine),
   /** Withdrawing a referral (the referrer or the patient withdrew it). */
   Withdraw: remix(RiArrowGoBackLine),
@@ -355,7 +355,7 @@ export const AppIcon = {
   SpecimenReceived: remix(RiMicroscopeLine),
   /** Finding a specimen by its number, typed or scanned from its label. */
   Scan: remix(RiQrScanLine),
-  /** The MDT list: pathways put forward for a specialty's multidisciplinary team meeting, and the team's outcomes. */
+  /** The MDT list: pathways put forward for a team's multidisciplinary team meeting, and the team's outcomes. */
   Mdt: remix(RiDiscussLine),
   /** Printing a page (the MDT list). */
   Print: remix(RiPrinterLine),

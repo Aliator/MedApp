@@ -7,4 +7,4 @@ import {DEFAULT_INSIGHTS_WEEKS, type InsightsSearch} from '../listSearch';
  * that loads with the page, for admins who open it.
  */
 export const insightsPageQuery = (search: InsightsSearch) =>
-  insightsQuery({weeks: search.weeks ?? DEFAULT_INSIGHTS_WEEKS, templateId: search.template, specialtyId: search.specialty});
+  insightsQuery({weeks: search.weeks ?? DEFAULT_INSIGHTS_WEEKS, templateId: search.template, teamId: search.team});

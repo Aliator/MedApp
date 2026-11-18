@@ -95,7 +95,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
         var sessions = await context.ClinicSessions
             .AsNoTracking()
             .Include(c => c.Room).ThenInclude(r => r.Site)
-            .Include(c => c.Specialty)
+            .Include(c => c.Team)
             .Where(c => ids.Contains(c.StaffUserId)
                         && c.Status == ClinicSessionStatus.Planned
                         && c.StartUtc < beforeUtc

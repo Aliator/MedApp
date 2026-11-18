@@ -255,35 +255,35 @@ public sealed class PathwayInsightsQueriesTests
     }
 
     [Test]
-    public void InScope_Pathways_KeepsOnlyThatSpecialtysAndBothWhenBothGiven()
+    public void InScope_Pathways_KeepsOnlyThatTeamsAndBothWhenBothGiven()
     {
-        var specialty = Guid.NewGuid();
+        var team = Guid.NewGuid();
         var inBoth = CreatePathway();
         inBoth.TemplateId = TemplateId;
-        inBoth.SpecialtyId = specialty;
-        var specialtyOnly = CreatePathway();
-        specialtyOnly.SpecialtyId = specialty;
+        inBoth.TeamId = team;
+        var teamOnly = CreatePathway();
+        teamOnly.TeamId = team;
         var templateOnly = CreatePathway();
         templateOnly.TemplateId = TemplateId;
-        var pathways = new[] { inBoth, specialtyOnly, templateOnly }.AsQueryable();
+        var pathways = new[] { inBoth, teamOnly, templateOnly }.AsQueryable();
 
-        pathways.InScope(new InsightsScope(SpecialtyId: specialty)).Should().Equal(inBoth, specialtyOnly);
-        pathways.InScope(new InsightsScope(TemplateId, specialty)).Should().Equal(inBoth);
+        pathways.InScope(new InsightsScope(TeamId: team)).Should().Equal(inBoth, teamOnly);
+        pathways.InScope(new InsightsScope(TemplateId, team)).Should().Equal(inBoth);
     }
 
     [Test]
-    public void InScope_AuditEntries_KeepsOnlyThoseOfTheSpecialtysExistingPathways()
+    public void InScope_AuditEntries_KeepsOnlyThoseOfTheTeamsExistingPathways()
     {
-        var specialty = Guid.NewGuid();
+        var team = Guid.NewGuid();
         var mine = CreatePathway();
-        mine.SpecialtyId = specialty;
+        mine.TeamId = team;
         var other = CreatePathway();
         var deleted = CreatePathway();
-        deleted.SpecialtyId = specialty;
+        deleted.TeamId = team;
         var audit = new[] { Created(mine, Moment), Created(other, Moment), Created(deleted, Moment) }.AsQueryable();
         var pathways = new[] { mine, other }.AsQueryable();
 
-        audit.InScope(pathways, new InsightsScope(SpecialtyId: specialty)).Select(e => e.PatientPathwayId).Should().Equal(mine.Id);
+        audit.InScope(pathways, new InsightsScope(TeamId: team)).Select(e => e.PatientPathwayId).Should().Equal(mine.Id);
     }
 
     // Overdue ------------------------------------------------------------------------------------------------

@@ -57,7 +57,7 @@ public static class DataRequestReviewItems
 
         foreach (var referral in export.Referrals)
             items.Add(Item(DataRequestItemKind.Referral, referral.Id, referral.RegisteredAtUtc,
-                $"Referral to {referral.SpecialtyName} from {referral.ReferrerPractice}", referral.Reason,
+                $"Referral to {referral.TeamName} from {referral.ReferrerPractice}", referral.Reason,
                 referral.RegisteredBy, false, null));
 
         // After a review, what it withheld; before one, what starts withheld.

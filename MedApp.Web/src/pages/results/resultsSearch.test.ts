@@ -1,12 +1,12 @@
 import {parseResultsSearch, resultsSortOf, resultsViewOf, resultViewsFor} from './resultsSearch';
 
-const SPECIALTY = '00000061-0000-0000-0000-000000000008';
+const TEAM = '00000061-0000-0000-0000-000000000008';
 
 describe('parseResultsSearch', () => {
-  it('reads the view, specialty and page, whatever their case', () => {
-    expect(parseResultsSearch({view: 'needsclinician', specialty: SPECIALTY.toUpperCase(), page: '3'})).toEqual({
+  it('reads the view, team and page, whatever their case', () => {
+    expect(parseResultsSearch({view: 'needsclinician', team: TEAM.toUpperCase(), page: '3'})).toEqual({
       view: 'NeedsClinician',
-      specialty: SPECIALTY,
+      team: TEAM,
       page: 3,
     });
     expect(parseResultsSearch({view: 'SignedOff'})).toEqual({view: 'SignedOff'});
@@ -18,8 +18,8 @@ describe('parseResultsSearch', () => {
   });
 
   it('drops anything that is not valid', () => {
-    expect(parseResultsSearch({view: 'Everything', specialty: 'cardiology', page: '1', sort: 'content', asc: 'maybe'})).toEqual({});
-    expect(parseResultsSearch({page: 'two', specialty: 42})).toEqual({});
+    expect(parseResultsSearch({view: 'Everything', team: 'cardiology', page: '1', sort: 'content', asc: 'maybe'})).toEqual({});
+    expect(parseResultsSearch({page: 'two', team: 42})).toEqual({});
   });
 });
 

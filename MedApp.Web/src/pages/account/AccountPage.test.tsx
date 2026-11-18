@@ -26,26 +26,26 @@ describe('AccountPage', () => {
     expect(await screen.findByText('No role')).toBeInTheDocument();
   });
 
-  it('shows your specialties, read only', async () => {
-    mockApi({'GET /api/auth/me/specialties': () => json([{id: 's1', name: 'Dermatology'}, {id: 's2', name: 'Urology', isArchived: true}])});
+  it('shows your teams, read only', async () => {
+    mockApi({'GET /api/auth/me/teams': () => json([{id: 's1', name: 'Dermatology'}, {id: 's2', name: 'Urology', isArchived: true}])});
     renderWithApp(<AccountPage />, {user: staffUser});
 
     expect(await screen.findByText('Dermatology, Urology')).toBeInTheDocument();
-    expect(screen.getByText('Your specialties')).toBeInTheDocument();
+    expect(screen.getByText('Your teams')).toBeInTheDocument();
   });
 
-  it('says when you have no specialties yet, and who sets them', async () => {
-    mockApi({'GET /api/auth/me/specialties': () => json([])});
+  it('says when you have no teams yet, and who sets them', async () => {
+    mockApi({'GET /api/auth/me/teams': () => json([])});
     renderWithApp(<AccountPage />, {user: staffUser});
 
     expect(await screen.findByText('None yet. An admin sets them on the Users page.')).toBeInTheDocument();
   });
 
-  it('says when your specialties could not be loaded', async () => {
-    mockApi({'GET /api/auth/me/specialties': () => json({title: 'Server error'}, 500)});
+  it('says when your teams could not be loaded', async () => {
+    mockApi({'GET /api/auth/me/teams': () => json({title: 'Server error'}, 500)});
     renderWithApp(<AccountPage />, {user: staffUser});
 
-    expect(await screen.findByText('Your specialties could not be loaded.')).toBeInTheDocument();
+    expect(await screen.findByText('Your teams could not be loaded.')).toBeInTheDocument();
   });
 
   it('switches between dark and light mode and remembers the choice', async () => {

@@ -1,7 +1,7 @@
 namespace MedApp.Contracts.Clinics.Requests;
 
 /// <summary>
-/// A new clinic session: a clinician's time in a room for a specialty, cut into slots. It must be in the future, on one
+/// A new clinic session: a clinician's time in a room for a team, cut into slots. It must be in the future, on one
 /// of the clinician's working days, inside their hours and the room's site's opening hours, and clash with nothing on
 /// their calendar or in the room.
 /// </summary>
@@ -11,7 +11,7 @@ public sealed class ClinicSessionRequest
 
     public Guid RoomId { get; set; }
 
-    public Guid SpecialtyId { get; set; }
+    public Guid TeamId { get; set; }
 
     public DateTime StartUtc { get; set; }
 

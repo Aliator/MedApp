@@ -5,8 +5,8 @@ public sealed class RegisterReferralRequest
 {
     public Guid PatientId { get; set; }
 
-    /// <summary>The specialty asked for (not archived).</summary>
-    public Guid SpecialtyId { get; set; }
+    /// <summary>The team asked for (not archived).</summary>
+    public Guid TeamId { get; set; }
 
     /// <summary>When it arrived (a UK date): not in the future, at most a year back.</summary>
     public DateOnly ReceivedOn { get; set; }
@@ -33,7 +33,7 @@ public sealed class RegisterReferralRequest
     public string Reason { get; set; } = string.Empty;
 
     /// <summary>
-    /// The patient already has an open referral to this specialty, and this is a different one. Without it, that's a
+    /// The patient already has an open referral to this team, and this is a different one. Without it, that's a
     /// 400 that says when the open ones were received.
     /// </summary>
     public bool ConfirmPossibleDuplicate { get; set; }

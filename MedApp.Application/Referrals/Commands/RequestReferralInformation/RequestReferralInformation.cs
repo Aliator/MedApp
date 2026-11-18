@@ -29,7 +29,7 @@ public sealed class SetReferralInformationRequestedValidator : AbstractValidator
 
 /// <summary>
 /// Asks the referrer for more information, or records that it came (decision 106): the same checks as triage (403
-/// without <c>TriageReferrals</c> or membership of its specialty; 409 once it's closed, on a restricted or anonymised
+/// without <c>TriageReferrals</c> or membership of its team; 409 once it's closed, on a restricted or anonymised
 /// record, or if it changed since the caller's version), then 409 if it's already waiting (asking) or isn't (receiving).
 /// Asking keeps it open in the inbox's Information requested view, its clock still running (decision 106: the
 /// centre's own wait counts); receiving puts it back awaiting triage. The letter asking is written from the referral's

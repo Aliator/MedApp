@@ -15,6 +15,6 @@ public interface IServiceAlertRepository
     /// </summary>
     Task RecordAsync(Guid ruleId, IReadOnlyCollection<Guid> subjectIds, Notification notification, DateTime nowUtc, CancellationToken cancellationToken);
 
-    /// <summary>The names of these specialties, archived or not; one that no longer exists is left out.</summary>
-    Task<IReadOnlyDictionary<Guid, string>> GetSpecialtyNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+    /// <summary>The names of these teams, archived or not; one that no longer exists is left out.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetTeamNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 }

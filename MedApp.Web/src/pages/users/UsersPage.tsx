@@ -38,7 +38,7 @@ import {DataTable, type DataTableColumn} from '../../components/tables/DataTable
 import {TableActions} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
 import {StaffDetailsDialog} from './StaffDetailsDialog';
-import {UserSpecialtiesDialog} from './UserSpecialtiesDialog';
+import {UserTeamsDialog} from './UserTeamsDialog';
 import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 
@@ -57,7 +57,7 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 type DialogState =
   | {kind: 'create'}
   | {
-      kind: 'roles' | 'specialties' | 'details' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete';
+      kind: 'roles' | 'teams' | 'details' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete';
       username: string;
       roles: string[];
       email: string | null;
@@ -118,7 +118,7 @@ export interface UsersPageProps {
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
  * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
  * asked for only when the server can send email), edit their roles (every role that isn't archived, with its description, theirs ticked), reset passwords,
- * set the specialties each works in (`UserSpecialtiesDialog`) and the full name and job title that go on their letters
+ * set the teams each works in (`UserTeamsDialog`) and the full name and job title that go on their letters
  * (`StaffDetailsDialog`; shown under each username), reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
  * have ends), remove a user's email address (so reset links can't go to an address that isn't theirs any more) and
  * delete users (confirmed with the admin's own password). Each user's email address shows, one waiting to be confirmed
@@ -256,8 +256,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <TableActions
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
-              // Unlike roles, admins may set their own: specialties don't change what anyone can do.
-              {label: 'Edit specialties', icon: AppIcon.Specialties, onClick: () => open({kind: 'specialties', ...target})},
+              // Unlike roles, admins may set their own: teams don't change what anyone can do.
+              {label: 'Edit teams', icon: AppIcon.Teams, onClick: () => open({kind: 'teams', ...target})},
               // Their own too: a name and job title don't change what anyone can do.
               ...(canManageUsers ? [{label: 'Edit details', icon: AppIcon.StaffDetails, onClick: () => open({kind: 'details', ...target})}] : []),
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
@@ -395,8 +395,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
 
           <StaffDetailsDialog target={dialog?.kind === 'details' ? dialog : null} onClose={close} onSaved={setNotice} />
 
-          <UserSpecialtiesDialog
-            isOpen={dialog?.kind === 'specialties'}
+          <UserTeamsDialog
+            isOpen={dialog?.kind === 'teams'}
             username={target?.username ?? ''}
             onClose={close}
             onSaved={setNotice}

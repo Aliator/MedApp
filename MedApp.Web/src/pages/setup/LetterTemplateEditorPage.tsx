@@ -25,7 +25,7 @@ import {
   type LetterTemplate,
   type LetterTemplateInput,
 } from '../../api/letterTemplates';
-import {specialtiesQuery, type Specialty} from '../../api/specialties';
+import {teamsQuery, type Team} from '../../api/teams';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
@@ -40,14 +40,14 @@ import {letterTemplateHref} from './LetterTemplatesPage';
 const BACK = '/admin/letter-templates';
 const BACK_LABEL = 'Back to letter templates';
 
-/** The specialties a template can newly be given: those not archived (the route preloads them). */
-export const letterTemplateSpecialtiesQuery = specialtiesQuery(false);
+/** The teams a template can newly be given: those not archived (the route preloads them). */
+export const letterTemplateTeamsQuery = teamsQuery(false);
 
-/** The Specialty picker's value for a template for every specialty (the API's null). */
-export const EVERY_SPECIALTY = 'every';
+/** The Team picker's value for a template for every team (the API's null). */
+export const EVERY_TEAM = 'every';
 
 /** The fields the API's 400 can name, each shown on its own field. */
-const FIELDS = ['name', 'kind', 'specialtyId', 'letterhead', 'bodySkeleton', 'closing'];
+const FIELDS = ['name', 'kind', 'teamId', 'letterhead', 'bodySkeleton', 'closing'];
 
 /** The most each text may be (the API refuses longer: 400). Shown as a counter on the field. */
 const MAX_PLAIN = 1000;
@@ -56,19 +56,19 @@ const MAX_BODY = 20000;
 const KIND_OPTIONS = (Object.entries(LETTER_KIND_LABELS) as [LetterKind, string][]).map(([value, label]) => ({value, label}));
 
 /**
- * What the Specialty picker offers: All specialties, then those not archived, by name, and the template's own if it's
+ * What the Team picker offers: All teams, then those not archived, by name, and the template's own if it's
  * archived since (it may keep it, but nothing can newly be given it), marked so.
  */
-export function letterSpecialtyChoices(active: readonly Specialty[], template: LetterTemplate | null) {
+export function letterTeamChoices(active: readonly Team[], template: LetterTemplate | null) {
   const choices = active
     .filter((s) => !s.isArchived)
     .map((s) => ({value: s.id ?? '', label: s.name ?? ''}))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, {sensitivity: 'base'}));
-  const current = template?.specialtyId;
+  const current = template?.teamId;
   if (current && !choices.some((c) => c.value === current)) {
-    choices.unshift({value: current, label: `${template?.specialtyName ?? 'Unknown specialty'} (archived)`});
+    choices.unshift({value: current, label: `${template?.teamName ?? 'Unknown team'} (archived)`});
   }
-  return [{value: EVERY_SPECIALTY, label: 'All specialties'}, ...choices];
+  return [{value: EVERY_TEAM, label: 'All teams'}, ...choices];
 }
 
 /** What a failed preview shows: a 400's messages on the fields, otherwise one message. */
@@ -80,23 +80,23 @@ export function previewProblem(error: unknown): SaveProblem {
 }
 
 /**
- * A new letter template (no `id`), or one to edit. This part loads the template and the specialties; an unknown
+ * A new letter template (no `id`), or one to edit. This part loads the template and the teams; an unknown
  * template goes back to the list. The editor mounts once they're here, so it starts from the template.
  */
 export function LetterTemplateEditorPage({id}: {id?: string}) {
   const navigate = useNavigate();
   const template = useQuery({...letterTemplateQuery(id ?? ''), enabled: id !== undefined});
-  const specialties = useQuery(letterTemplateSpecialtiesQuery);
+  const teams = useQuery(letterTemplateTeamsQuery);
   const isMissing = template.error instanceof ApiError && template.error.status === 404;
 
   useEffect(() => {
     if (isMissing) void navigate({to: BACK, replace: true});
   }, [isMissing, navigate]);
 
-  if (specialties.data && (id === undefined || template.data)) {
-    return <LetterTemplateEditor key={template.data?.id ?? 'new'} template={template.data ?? null} specialties={specialties.data} />;
+  if (teams.data && (id === undefined || template.data)) {
+    return <LetterTemplateEditor key={template.data?.id ?? 'new'} template={template.data ?? null} teams={teams.data} />;
   }
-  const failed = specialties.isError || (template.isError && !isMissing);
+  const failed = teams.isError || (template.isError && !isMissing);
   return (
     <Page
       title={id ? 'Edit Letter Template' : 'New Letter Template'}
@@ -110,14 +110,14 @@ export function LetterTemplateEditorPage({id}: {id?: string}) {
 }
 
 /**
- * The letter template editor (decision 99): its name, kind and specialty (or every specialty), and its text: the
+ * The letter template editor (decision 99): its name, kind and team (or every team), and its text: the
  * letterhead, the body skeleton in Markdown with the headings its author fills in, and the closing, each of which may
  * hold merge fields, listed beside it. **Download Preview (PDF)** sends the text as it is now, saved or not, and the
  * API fills it with made-up details, marking every page as a preview. Saving a change sends the version this page
  * started from, so another admin's change made meanwhile is refused (409) with the API's words, and the template is
  * read again. A new template, once created, opens on its own page.
  */
-function LetterTemplateEditor({template, specialties}: {template: LetterTemplate | null; specialties: Specialty[]}) {
+function LetterTemplateEditor({template, teams}: {template: LetterTemplate | null; teams: Team[]}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNarrow = useIsNarrow();
@@ -128,7 +128,7 @@ function LetterTemplateEditor({template, specialties}: {template: LetterTemplate
   const [input, setInput] = useState<LetterTemplateInput>(() => letterTemplateInput(template));
   const [largePrint, setLargePrint] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const choices = useMemo(() => letterSpecialtyChoices(specialties, template), [specialties, template]);
+  const choices = useMemo(() => letterTeamChoices(teams, template), [teams, template]);
   const isBusy = save.isPending || preview.isPending;
   const backToList = () => void navigate({to: BACK});
   const set = <K extends keyof LetterTemplateInput>(key: K) => (value: LetterTemplateInput[K]) => setInput((current) => ({...current, [key]: value}));
@@ -182,14 +182,14 @@ function LetterTemplateEditor({template, specialties}: {template: LetterTemplate
         status={fieldStatus(problem.validation, 'kind')}
       />
       <AnchoredSelector
-        label="Specialty"
-        description="Whose letters it's offered for: one specialty's, or every specialty's."
+        label="Team"
+        description="Whose letters it's offered for: one team's, or every team's."
         options={choices}
-        value={input.specialtyId ?? EVERY_SPECIALTY}
-        onChange={(value: string) => set('specialtyId')(value === EVERY_SPECIALTY ? null : value)}
+        value={input.teamId ?? EVERY_TEAM}
+        onChange={(value: string) => set('teamId')(value === EVERY_TEAM ? null : value)}
         isRequired
         isDisabled={isBusy}
-        status={fieldStatus(problem.validation, 'specialtyId')}
+        status={fieldStatus(problem.validation, 'teamId')}
       />
     </>
   );

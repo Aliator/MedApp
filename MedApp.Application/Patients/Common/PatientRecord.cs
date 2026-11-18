@@ -68,7 +68,7 @@ public sealed record PatientRecord
     /// </summary>
     public required IReadOnlyList<Attachment> Attachments { get; init; }
 
-    /// <summary>The patient's referrals, in any status, oldest received first, with their specialties.</summary>
+    /// <summary>The patient's referrals, in any status, oldest received first, with their teams.</summary>
     public required IReadOnlyList<Referral> Referrals { get; init; }
 
     /// <summary>Every change to the patient's referrals, oldest first.</summary>
@@ -93,7 +93,7 @@ public sealed record PatientRecord
     public IReadOnlyList<Domain.Results.Result> Results { get; init; } = [];
 
     /// <summary>
-    /// The patient's MDT items, oldest listed first, with their specialty, meeting and who was present (items of a
+    /// The patient's MDT items, oldest listed first, with their team, meeting and who was present (items of a
     /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).
     /// </summary>
     public required IReadOnlyList<MdtItem> MdtItems { get; init; }

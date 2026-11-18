@@ -4,7 +4,7 @@ using MedApp.Application.Clinics.Common;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Clinics.Responses;
 using MedApp.Domain.Clinics;
 using MediatR;
@@ -14,7 +14,7 @@ namespace MedApp.Application.Clinics.Commands.CreateClinicSession;
 public sealed class CreateClinicSessionHandler(
     IClinicRepository repository,
     ICalendarRepository calendarRepository,
-    ISpecialtyRepository specialtyRepository,
+    ITeamRepository teamRepository,
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
     TimeProvider timeProvider)
@@ -23,7 +23,7 @@ public sealed class CreateClinicSessionHandler(
     public async Task<ClinicSessionResponse> Handle(CreateClinicSessionCommand request, CancellationToken cancellationToken)
     {
         var staffUsername = await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId, cancellationToken);
-        await ClinicChoices.CheckSpecialtyAsync(specialtyRepository, request.SpecialtyId, null, cancellationToken);
+        await ClinicChoices.CheckTeamAsync(teamRepository, request.TeamId, null, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var start = UkTime.Utc(request.StartUtc);
         var end = UkTime.Utc(request.EndUtc);
@@ -33,7 +33,7 @@ public sealed class CreateClinicSessionHandler(
             Id = Guid.NewGuid(),
             StaffUserId = request.StaffUserId,
             RoomId = request.RoomId,
-            SpecialtyId = request.SpecialtyId,
+            TeamId = request.TeamId,
             Date = UkTime.DateOf(start),
             StartUtc = start,
             EndUtc = end,

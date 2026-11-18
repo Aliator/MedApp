@@ -8,15 +8,15 @@ using MedApp.Contracts.Pathways.Insights.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
-using MedApp.Contracts.Specialties.Requests;
-using MedApp.Contracts.Specialties.Responses;
+using MedApp.Contracts.Teams.Requests;
+using MedApp.Contracts.Teams.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MedApp.IntegrationTests.Pathways;
 
 /// <summary>
-/// The pathway list's specialty and stage reached filters, and Insights' specialty, on SQL Server: the stage reached
+/// The pathway list's team and stage reached filters, and Insights' team, on SQL Server: the stage reached
 /// is a correlated, ordered subquery, which only a real database runs (the unit tests run the same LINQ in memory and
 /// check its SQL's shape).
 /// </summary>
@@ -54,41 +54,41 @@ public sealed class PathwayFiltersTests : IntegrationTest
     }
 
     [Test]
-    public async Task Search_Specialties_FindsPathwaysInAnyOfThem()
+    public async Task Search_Teams_FindsPathwaysInAnyOfThem()
     {
-        var skin = await CreateSpecialtyAsync();
-        var feet = await CreateSpecialtyAsync();
+        var skin = await CreateTeamAsync();
+        var feet = await CreateTeamAsync();
         var patient = await CreatePatientAsync(_admin);
         var inSkin = await CreatePathwayAsync(_admin, patient.Id, (await CreateTemplateInAsync(skin.Id)).Id);
         var inFeet = await CreatePathwayAsync(_admin, patient.Id, (await CreateTemplateInAsync(feet.Id)).Id);
         await CreatePatientWithPathwayAsync(_admin);
 
-        (await SearchAsync($"SpecialtyIds={skin.Id}")).Items.Select(p => p.Id).Should().Equal(inSkin.Id);
-        (await SearchAsync($"SpecialtyIds={skin.Id}&SpecialtyIds={feet.Id}")).Items.Select(p => p.Id)
+        (await SearchAsync($"TeamIds={skin.Id}")).Items.Select(p => p.Id).Should().Equal(inSkin.Id);
+        (await SearchAsync($"TeamIds={skin.Id}&TeamIds={feet.Id}")).Items.Select(p => p.Id)
             .Should().BeEquivalentTo([inSkin.Id, inFeet.Id]);
     }
 
     [Test]
-    public async Task Insights_Specialty_CountsOnlyItsPathwaysInSqlAndChecksIt()
+    public async Task Insights_Team_CountsOnlyItsPathwaysInSqlAndChecksIt()
     {
-        var skin = await CreateSpecialtyAsync();
+        var skin = await CreateTeamAsync();
         var patient = await CreatePatientAsync(_admin);
         var template = await CreateTemplateInAsync(skin.Id);
         await CreatePathwayAsync(_admin, patient.Id, template.Id);
         await CreatePathwayAsync(_admin, patient.Id, template.Id);
         await CreatePatientWithPathwayAsync(_admin);
 
-        var insights = await (await _admin.GetAsync($"/api/pathways/insights?Weeks=4&SpecialtyId={skin.Id}"))
+        var insights = await (await _admin.GetAsync($"/api/pathways/insights?Weeks=4&TeamId={skin.Id}"))
             .ReadAsAsync<PathwayInsightsResponse>();
         var (from, to) = (DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddMinutes(1));
         var created = await RunInScopeAsync(services => services.GetRequiredService<IPathwayInsightsRepository>()
-            .CountCreationsByHourAsync(new InsightsScope(SpecialtyId: skin.Id), from, to, CancellationToken.None));
+            .CountCreationsByHourAsync(new InsightsScope(TeamId: skin.Id), from, to, CancellationToken.None));
 
-        insights.SpecialtyId.Should().Be(skin.Id);
+        insights.TeamId.Should().Be(skin.Id);
         insights.Open.Current.Should().Be(2);
         insights.Throughput[^1].Created.Should().Be(2);
         created.Sum(h => h.Count).Should().Be(2);
-        (await _admin.GetAsync($"/api/pathways/insights?SpecialtyId={Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await _admin.GetAsync($"/api/pathways/insights?TeamId={Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     /// <summary>Finishes the pathway's first <paramref name="stages"/> stages, in order.</summary>
@@ -99,17 +99,17 @@ public sealed class PathwayFiltersTests : IntegrationTest
         return pathway;
     }
 
-    private async Task<SpecialtyResponse> CreateSpecialtyAsync() =>
-        await (await _admin.PostAsJsonAsync("/api/specialties", new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
-            .ReadAsAsync<SpecialtyResponse>(HttpStatusCode.Created);
+    private async Task<TeamResponse> CreateTeamAsync() =>
+        await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
+            .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
 
-    private async Task<PathwayTemplateResponse> CreateTemplateInAsync(Guid specialtyId)
+    private async Task<PathwayTemplateResponse> CreateTemplateInAsync(Guid teamId)
     {
         var stage = await CreateStageDefinitionAsync(_admin);
         return await (await _admin.PostAsJsonAsync("/api/pathways/patient-pathway-stage/templates", new CreatePathwayTemplateRequest
             {
                 Name = UniqueName("Template"),
-                SpecialtyId = specialtyId,
+                TeamId = teamId,
                 StageDefinitionIdsInOrder = [stage.Id],
             }))
             .ReadAsAsync<PathwayTemplateResponse>(HttpStatusCode.Created);

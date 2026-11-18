@@ -19,7 +19,7 @@ describe('HomePage', () => {
     const today = ukToday();
     mockApi({
       'GET /api/calendar': () => json(testCalendar({from: today, dayCount: 1, today})),
-      'GET /api/referrals/awaiting-triage/count': () => json({count: 2, inYourSpecialties: false}),
+      'GET /api/referrals/awaiting-triage/count': () => json({count: 2, inYourTeams: false}),
     });
     renderWithApp(<HomePage />, {user: {...staffUser, permissions: [...staffUser.permissions, 'TriageReferrals']}});
 

@@ -19,7 +19,7 @@ export const USERS = {
   hallworth: id(0xd0, 6),
 } as const;
 
-export const SPECIALTIES = {
+export const TEAMS = {
   dermatology: id(0xd1, 1),
   gynaecology: id(0xd1, 2),
   urology: id(0xd1, 3),
@@ -151,7 +151,7 @@ export const MORE_APPOINTMENTS = {
 } as const;
 
 /** Every record ID in the seed, by kind (the tour's test checks its links against these). */
-export const ALL_IDS = {USERS, SPECIALTIES, TEMPLATES, STAGES, PATIENTS, PATHWAYS, REFERRALS, APPOINTMENTS, MEETINGS} as const;
+export const ALL_IDS = {USERS, TEAMS, TEMPLATES, STAGES, PATIENTS, PATHWAYS, REFERRALS, APPOINTMENTS, MEETINGS} as const;
 
 /** A new record's ID, for what a visitor makes. */
 export const newId = () =>

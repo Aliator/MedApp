@@ -38,7 +38,7 @@ public sealed record CalendarData(
     public IReadOnlyList<Meeting> Meetings { get; init; } = [];
 
     /// <summary>
-    /// The person's Planned clinic sessions in the range, each with its room and specialty: busy time for blocks,
+    /// The person's Planned clinic sessions in the range, each with its room and team: busy time for blocks,
     /// meetings and appointments outside them, and where appointments into their slots go (centre plan decision 123).
     /// </summary>
     public IReadOnlyList<ClinicSession> Sessions { get; init; } = [];

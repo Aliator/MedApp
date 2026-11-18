@@ -218,8 +218,8 @@ export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange,
 type ExportedReferral = NonNullable<PatientExport['referrals']>[number];
 
 /** A referral in words: "the referral to Dermatology received 3 November 2026". */
-export const referralName = (referral: Pick<ExportedReferral, 'specialtyName' | 'receivedOn'>) =>
-  `the referral to ${referral.specialtyName}${referral.receivedOn ? ` received ${formatDate(referral.receivedOn)}` : ''}`;
+export const referralName = (referral: Pick<ExportedReferral, 'teamName' | 'receivedOn'>) =>
+  `the referral to ${referral.teamName}${referral.receivedOn ? ` received ${formatDate(referral.receivedOn)}` : ''}`;
 
 const capitalised = (words: string) => words.charAt(0).toUpperCase() + words.slice(1);
 
@@ -241,8 +241,8 @@ const count = (value: unknown) => (typeof value === 'number' ? value : null);
 const days = (value: number) => `${value} ${value === 1 ? 'day' : 'days'}`;
 
 /**
- * What a referral history entry's details say, in words: the specialty and priority it was registered with, the
- * fields an edit changed (with the specialty it moved from), the status it moved to, or what the waiting-time clock
+ * What a referral history entry's details say, in words: the team and priority it was registered with, the
+ * fields an edit changed (with the team it moved from), the status it moved to, or what the waiting-time clock
  * did (a pause's reason and review date, the days a pause lasted, why it stopped and how long it had waited, a target
  * changed). The details hold structured values only: the reason and the details given are on the referral itself, above.
  */
@@ -255,7 +255,7 @@ export function describeReferralChange(details: string | null | undefined): stri
   const daysWaited = count(d.daysWaited);
   const targetDays = count(d.targetDays);
   return [
-    text(d.specialtyName) ? `Specialty: ${text(d.specialtyName)}` : null,
+    text(d.specialtyName) ? `Team: ${text(d.specialtyName)}` : null,
     text(d.previousSpecialtyName) ? `was ${text(d.previousSpecialtyName)}` : null,
     text(d.requestedPriority) ? `Priority asked for: ${text(d.requestedPriority)}` : null,
     fields.length ? `Changed: ${fields.map(referralFieldWords).join(', ')}` : null,
@@ -471,7 +471,7 @@ function ExportContent({data}: {data: PatientExport}) {
   const consents = data.consentRecords ?? [];
   // The patient's own data requests: who asked, the identity check, the due date, the review and how each ended.
   const dataRequests = data.dataRequests ?? [];
-  // Each referral by its specialty and when it was received, for its letters and its history.
+  // Each referral by its team and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
   const pathwayTitles = new Map(pathways.map((pathway) => [pathway.id, pathway.title ?? '']));
@@ -601,7 +601,7 @@ function ExportContent({data}: {data: PatientExport}) {
             <VStack gap={6} hAlign="stretch">
               {referrals.map((referral) => (
                 <VStack key={referral.id} gap={3} hAlign="stretch">
-                  <Heading level={3}>{`Referral to ${referral.specialtyName}`}</Heading>
+                  <Heading level={3}>{`Referral to ${referral.teamName}`}</Heading>
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{referralStatusLabel(referral.status)}</MetadataListItem>
                     <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
@@ -617,7 +617,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     {referral.redirectedTo && <MetadataListItem label="Redirected To">{referral.redirectedTo}</MetadataListItem>}
                     {referral.decisionDetail && <MetadataListItem label="Detail">{referral.decisionDetail}</MetadataListItem>}
                     {referral.redirectDetail && (
-                      <MetadataListItem label="Redirected From Another Specialty">{referral.redirectDetail}</MetadataListItem>
+                      <MetadataListItem label="Redirected From Another Team">{referral.redirectDetail}</MetadataListItem>
                     )}
                     {referral.pathwayId && (
                       <MetadataListItem label="Accepted Into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
@@ -969,7 +969,7 @@ function ExportContent({data}: {data: PatientExport}) {
                 <ListItem
                   key={i}
                   align="first-line"
-                  label={<Text type="body">{`${when(item.listedAtUtc)}: listed for the ${item.specialty} MDT by ${item.listedBy}`}</Text>}
+                  label={<Text type="body">{`${when(item.listedAtUtc)}: listed for the ${item.team} MDT by ${item.listedBy}`}</Text>}
                   description={
                     <VStack gap={1}>
                       <Text type="supporting" color="secondary">

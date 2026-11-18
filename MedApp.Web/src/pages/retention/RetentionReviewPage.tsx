@@ -32,7 +32,7 @@ export function retentionListQuery(search: RetentionListSearch, pageSize: number
   return retentionReviewQuery({Page: search.page ?? 1, PageSize: pageSize, IncludeKept: search.kept ? true : undefined});
 }
 
-/** What set each record's period: the adult or child rule, or its pathways' longer specialty class. */
+/** What set each record's period: the adult or child rule, or its pathways' longer team class. */
 const CLASS_LABELS: Record<string, string> = {
   Adult: 'Adult',
   Child: 'Child',
@@ -44,7 +44,7 @@ const CLASS_LABELS: Record<string, string> = {
 /**
  * The retention review list (admin): patients whose records are past their minimum retention period (from the
  * schedule: adults 8 years after their care ended, children until their 25th birthday, or 26th if they were 17, or
- * longer when one of their pathways' templates has a specialty class: oncology, maternity or mental health), the
+ * longer when one of their pathways' templates has a team class: oncology, maternity or mental health), the
  * longest overdue first. Nothing is ever deleted automatically: for each, an admin reviews the record, keeps it with a
  * reason until a later review, or anonymises it. Records being kept can be listed too.
  */

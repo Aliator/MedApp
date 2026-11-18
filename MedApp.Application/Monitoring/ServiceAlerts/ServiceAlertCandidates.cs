@@ -23,7 +23,7 @@ namespace MedApp.Application.Monitoring.ServiceAlerts;
 /// <item><b>PauseReviewPassed:</b> an open pause whose review date passed more than N days ago (0: passed); reported per
 /// pause, so a clock paused again is reported again.</item>
 /// </list>
-/// The specialty is the referral's, else the pathway's; the priority the pathway's (a referral without one: its
+/// The team is the referral's, else the pathway's; the priority the pathway's (a referral without one: its
 /// requested priority); the template the pathway's. A condition about a pathway leaves out what has none.
 /// </summary>
 public static class ServiceAlertCandidates
@@ -50,8 +50,8 @@ public static class ServiceAlertCandidates
     private static IQueryable<Guid> ReferralsNotTriaged(ServiceAlertSources sources, MonitoringRule rule, DateOnly receivedBefore)
     {
         var referrals = sources.Referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage && r.ReceivedOn < receivedBefore);
-        if (rule.SpecialtyId is { } specialtyId)
-            referrals = referrals.Where(r => r.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            referrals = referrals.Where(r => r.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             referrals = referrals.Where(r => r.RequestedPriority >= priority);
         return referrals.Select(r => r.Id);
@@ -63,8 +63,8 @@ public static class ServiceAlertCandidates
             (r.Status == ResultStatus.AwaitingSignOff || r.Status == ResultStatus.Seen) && r.ReportedAtUtc < reportedBefore);
         if (rule.SubjectUserId is { } userId)
             results = results.Where(r => r.ResponsibleUserId == userId);
-        if (rule.SpecialtyId is { } specialtyId)
-            results = results.Where(r => r.Pathway != null && r.Pathway.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            results = results.Where(r => r.Pathway != null && r.Pathway.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             results = results.Where(r => r.Pathway != null && r.Pathway.Priority >= priority);
         if (rule.TemplateId is { } templateId)
@@ -75,8 +75,8 @@ public static class ServiceAlertCandidates
     private static IQueryable<Guid> VisitsNotBooked(ServiceAlertSources sources, MonitoringRule rule, DateTime requestedBefore)
     {
         var visits = sources.Appointments.Where(a => a.Status == AppointmentStatus.Requested && a.CreatedAtUtc < requestedBefore);
-        if (rule.SpecialtyId is { } specialtyId)
-            visits = visits.Where(a => a.Pathway != null && a.Pathway.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            visits = visits.Where(a => a.Pathway != null && a.Pathway.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             visits = visits.Where(a => a.Pathway != null && a.Pathway.Priority >= priority);
         if (rule.TemplateId is { } templateId)
@@ -91,8 +91,8 @@ public static class ServiceAlertCandidates
         var specimens = sources.Specimens.Where(s =>
             (s.Status == SpecimenStatus.Taken || s.Status == SpecimenStatus.Sent || s.Status == SpecimenStatus.Received)
             && s.TakenAtUtc.AddDays(s.SpecimenType.ExpectedTurnaroundDays + days) < nowUtc);
-        if (rule.SpecialtyId is { } specialtyId)
-            specimens = specimens.Where(s => s.Pathway.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            specimens = specimens.Where(s => s.Pathway.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             specimens = specimens.Where(s => s.Pathway.Priority >= priority);
         if (rule.TemplateId is { } templateId)
@@ -113,8 +113,8 @@ public static class ServiceAlertCandidates
             && r.StoppedOn == null
             && r.PausedSinceOn == null
             && r.TargetOn < targetBefore);
-        if (rule.SpecialtyId is { } specialtyId)
-            referrals = referrals.Where(r => r.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            referrals = referrals.Where(r => r.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             referrals = referrals.Where(r => (r.Pathway != null ? r.Pathway.Priority : r.RequestedPriority) >= priority);
         if (rule.TemplateId is { } templateId)
@@ -129,8 +129,8 @@ public static class ServiceAlertCandidates
             && p.ReviewOn < reviewBefore
             && p.Referral.StoppedOn == null
             && p.Referral.PausedSinceOn != null);
-        if (rule.SpecialtyId is { } specialtyId)
-            pauses = pauses.Where(p => p.Referral.SpecialtyId == specialtyId);
+        if (rule.TeamId is { } teamId)
+            pauses = pauses.Where(p => p.Referral.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
             pauses = pauses.Where(p => (p.Referral.Pathway != null ? p.Referral.Pathway.Priority : p.Referral.RequestedPriority) >= priority);
         if (rule.TemplateId is { } templateId)

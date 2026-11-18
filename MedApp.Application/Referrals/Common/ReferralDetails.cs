@@ -9,7 +9,7 @@ namespace MedApp.Application.Referrals.Common;
 /// directory (<paramref name="PracticeId"/>) is optional, beside the practice as typed.
 /// </summary>
 public sealed record ReferralDetails(
-    Guid SpecialtyId,
+    Guid TeamId,
     DateOnly ReceivedOn,
     string ReferrerPractice,
     string? ReferrerClinician,
@@ -20,7 +20,7 @@ public sealed record ReferralDetails(
 {
     /// <summary>The details as typed, tidied. The validator has checked the priority is a priority's name.</summary>
     public static ReferralDetails From(
-        Guid specialtyId,
+        Guid teamId,
         DateOnly receivedOn,
         string referrerPractice,
         string? referrerClinician,
@@ -28,7 +28,7 @@ public sealed record ReferralDetails(
         string requestedPriority,
         string reason,
         Guid? practiceId = null) => new(
-        specialtyId,
+        teamId,
         receivedOn,
         referrerPractice.Trim(),
         string.IsNullOrWhiteSpace(referrerClinician) ? null : referrerClinician.Trim(),

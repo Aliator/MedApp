@@ -30,7 +30,7 @@ import {
   type MonitoringRuleInput,
 } from '../../api/monitoring';
 import {allTemplatesQuery, stageDefinitionsQuery} from '../../api/pathwaySetup';
-import {specialtiesQuery} from '../../api/specialties';
+import {teamsQuery} from '../../api/teams';
 import {useAnnounce} from '../../app/announcements';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
@@ -57,7 +57,7 @@ const EMPTY: MonitoringRuleInput = {
   templateId: null,
   stageDefinitionId: null,
   thresholdDays: null,
-  specialtyId: null,
+  teamId: null,
   isEnabled: true,
 };
 
@@ -65,7 +65,7 @@ const EMPTY: MonitoringRuleInput = {
 const DEFAULT_THRESHOLD_DAYS = 2;
 
 /** The fields shown, whose errors show on them (so the banner leaves them out). */
-const FIELDS = ['subjectUserId', 'event', 'minimumPriority', 'templateId', 'stageDefinitionId', 'thresholdDays', 'specialtyId'];
+const FIELDS = ['subjectUserId', 'event', 'minimumPriority', 'templateId', 'stageDefinitionId', 'thresholdDays', 'teamId'];
 
 const fromAny = (value: string) => (value === ANY ? null : value);
 const sameId = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
@@ -103,7 +103,7 @@ export function MonitoringPage() {
   const unlockers = useQuery(monitoringUnlockersQuery);
   const templates = useQuery(allTemplatesQuery);
   const stages = useQuery(stageDefinitionsQuery);
-  const specialties = useQuery(specialtiesQuery(true));
+  const teams = useQuery(teamsQuery(true));
   const save = useSaveMonitoringRule();
   const setEnabled = useSetMonitoringRuleEnabled();
   const remove = useDeleteMonitoringRule();
@@ -192,7 +192,7 @@ export function MonitoringPage() {
     id ? (people.data?.find((u) => sameId(u.userId, id))?.username ?? (sameId(editing?.subjectUserId, id) ? editing?.subjectUsername : null) ?? null) : null;
   const templateName = (id: string | null) => (id ? (templates.data?.find((t) => sameId(t.id, id))?.name ?? null) : null);
   const stageName = (id: string | null) => (id ? (stages.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
-  const specialtyName = (id: string | null) => (id ? (specialties.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
+  const teamName = (id: string | null) => (id ? (teams.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
 
   // The options, each with "any" first. Archived templates and stages are offered too (old pathways still have
   // them), and a rule's own choice stays offered even when it's no longer in a list.
@@ -231,13 +231,13 @@ export function MonitoringPage() {
     form.stageDefinitionId,
     'Deleted stage',
   );
-  const specialtyOptions = withChosen(
+  const teamOptions = withChosen(
     [
-      {value: ANY, label: 'Any specialty'},
-      ...(specialties.data ?? []).map((d) => ({value: d.id?.toLowerCase() ?? '', label: d.isArchived ? `${d.name} (archived)` : (d.name ?? '')})),
+      {value: ANY, label: 'Any team'},
+      ...(teams.data ?? []).map((d) => ({value: d.id?.toLowerCase() ?? '', label: d.isArchived ? `${d.name} (archived)` : (d.name ?? '')})),
     ],
-    form.specialtyId,
-    'Deleted specialty',
+    form.teamId,
+    'Deleted team',
   );
   const priorityOptions = [{value: ANY, label: 'Any priority'}, ...MINIMUM_PRIORITIES.map((p) => ({value: p.value, label: p.label}))];
 
@@ -252,8 +252,8 @@ export function MonitoringPage() {
     stageDefinitionId: hasStage(form.event) ? form.stageDefinitionId : null,
     stageName: stageName(form.stageDefinitionId),
     thresholdDays: alerting ? form.thresholdDays : null,
-    specialtyId: form.specialtyId,
-    specialtyName: specialtyName(form.specialtyId),
+    teamId: form.teamId,
+    teamName: teamName(form.teamId),
   };
 
   const columns: DataTableColumn<RuleRow>[] = [
@@ -394,11 +394,11 @@ export function MonitoringPage() {
                 />
               )}
               <AnchoredSelector
-                label="Specialty"
-                options={specialtyOptions}
-                value={form.specialtyId?.toLowerCase() ?? ANY}
-                onChange={(value: string) => set('specialtyId', fromAny(value))}
-                status={fieldStatus(problem.validation, 'specialtyId')}
+                label="Team"
+                options={teamOptions}
+                value={form.teamId?.toLowerCase() ?? ANY}
+                onChange={(value: string) => set('teamId', fromAny(value))}
+                status={fieldStatus(problem.validation, 'teamId')}
               />
               <Switch label="On" description="A rule that's off is kept, but tells you nothing." value={form.isEnabled} onChange={(v) => set('isEnabled', v)} />
               <VStack gap={1} aria-live="polite">
