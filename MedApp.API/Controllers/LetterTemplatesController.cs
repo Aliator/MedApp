@@ -3,6 +3,7 @@ using MedApp.API.Common.Authentication;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Letters.Commands.CreateLetterTemplate;
+using MedApp.Application.Letters.Commands.DeleteLetterTemplate;
 using MedApp.Application.Letters.Commands.SetLetterTemplateArchived;
 using MedApp.Application.Letters.Commands.UpdateLetterTemplate;
 using MedApp.Application.Letters.Queries.GetLetterMergeFields;
@@ -19,7 +20,7 @@ namespace MedApp.API.Controllers;
 /// <summary>
 /// Letter templates (decision 99 of docs/centre-phases-3-5-plan.md): what letters start from. Everyone signed in reads
 /// them (UseApp), as letter writers will choose one; holders of ManageSetup keep them. Every change carries the version
-/// the caller saw (<c>expectedVersion</c>): 409 if someone has changed it since. They're archived, never deleted.
+/// the caller saw (<c>expectedVersion</c>): 409 if someone has changed it since. One a letter was written from is archived, never deleted; an unused one can be deleted.
 /// Templates hold no patient data, so reading them records nothing in the activity log.
 /// </summary>
 [ApiController]
@@ -110,6 +111,18 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
     public async Task<IActionResult> RestoreLetterTemplate(
         Guid id, [FromBody] LetterTemplateVersionRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetLetterTemplateArchivedCommand(id, false, request.ExpectedVersion), ct));
+
+    /// <summary>Deletes a template no letter was written from (409 for one that has letters: archive it instead).</summary>
+    [HttpDelete("{id:guid}")]
+    [RequirePermission(Permission.ManageSetup)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteLetterTemplate(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new DeleteLetterTemplateCommand(id), ct);
+        return NoContent();
+    }
 
     /// <summary>
     /// A template's text, saved or not, as a PDF filled with made-up details and marked as a preview on every page. Sent

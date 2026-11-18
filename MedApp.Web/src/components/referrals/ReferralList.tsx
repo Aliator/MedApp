@@ -3,7 +3,7 @@ import {Link} from '@astryxdesign/core/Link';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
-import {waitWords, type ReferralSummary} from '../../api/referrals';
+import {isOpenReferralStatus, waitWords, type ReferralSummary} from '../../api/referrals';
 import {formatShortDate} from '../../utils/dates';
 import {PriorityToken} from '../pathways/PathwayCells';
 import {daysAgoWords, ReferralStatusToken} from './ReferralCells';
@@ -26,7 +26,7 @@ export function ReferralList({referrals, label, sameSpecialtyId}: ReferralListPr
   return (
     <List edge="flush" density="compact" hasDividers aria-label={label}>
       {referrals.map((referral) => {
-        const isOpen = referral.status === 'AwaitingTriage';
+        const isOpen = isOpenReferralStatus(referral.status);
         const isSame = sameSpecialtyId !== undefined && referral.specialtyId === sameSpecialtyId;
         return (
           <ListItem

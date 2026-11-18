@@ -1,4 +1,4 @@
-﻿namespace MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Requests;
+namespace MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Requests;
 
 public sealed class CreatePatientPathwayStageDefinitionRequest
 {
@@ -13,4 +13,10 @@ public sealed class CreatePatientPathwayStageDefinitionRequest
     public string? SnomedTerm { get; set; }
     /// <summary>Whether the stage involves a visit: None (the default), Suggested or Required.</summary>
     public string VisitRequirement { get; set; } = "None";
+
+    /// <summary>
+    /// The kind of letter the stage needs before it can be finished (<c>DischargeSummary</c>, ...), or null (or
+    /// <c>None</c>) for none.
+    /// </summary>
+    public string? NeedsLetterKind { get; set; }
 }

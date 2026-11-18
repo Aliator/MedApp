@@ -25,6 +25,9 @@ public sealed class LetterTemplateResponse
     /// <summary>Archived: it can't be chosen for new letters.</summary>
     public bool IsArchived { get; set; }
 
+    /// <summary>No letter has been written from it, so it can be deleted (otherwise only archived).</summary>
+    public bool CanBeDeleted { get; set; }
+
     /// <summary>Pass back as <c>expectedVersion</c> with a change.</summary>
     public int Version { get; set; }
 

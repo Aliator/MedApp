@@ -81,9 +81,9 @@
 | [H-45](#h-45-a-specimen-is-lost-or-its-report-never-comes-back) | A specimen is lost, or its report never comes back | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 13; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-46](#h-46-a-result-is-never-seen-or-acted-on) | A result is never seen or acted on | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-47](#h-47-a-report-is-attached-to-the-wrong-patient-or-specimen) | A report is attached to the wrong patient or specimen | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 13 and 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16: built) | Open, draft for the CSO |
+| [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16: built) | Open, draft for the CSO |
+| [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16: built) | Open, draft for the CSO |
 | [H-51](#h-51-a-branch-is-chosen-or-a-stage-skipped-in-error) | A branch is chosen, or a stage skipped, in error | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built** (PR 20, `feature/branching-pathways`: the confirmation, none pre-selected, reasons, reinstating, the audit, the template checks) | Open, draft for the CSO |
 | [H-52](#h-52-a-patient-is-booked-when-nobody-or-no-room-is-available-or-a-cancelled-clinics-patients-arent-told) | A patient is booked when nobody, or no room, is available, or a cancelled clinic's patients aren't told | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 21 to 23 and 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-53](#h-53-a-reminder-reaches-the-wrong-person-or-says-too-much) | A reminder reaches the wrong person or says too much | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, with the feature (PR 26; built, to verify) | Open, draft for the CSO |
@@ -1903,7 +1903,12 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Follow-up the letter asks of the GP doesn't happen; a breach of confidentiality. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 16; the planned ones below, in place):
+- Recipients with their addresses on the letter's page, and again in the approval confirmation (with the patient banner) and the secure email confirmation (naming the address): the web app's Letter page.
+- The practice from the directory (`LetterRecords.RecipientsAsync`), a new letter starting with the patient's registered practice and the patient (`CreateLetterHandler.StartingRecipients`).
+- Names and addresses copied from the record again at approval (`LetterRecords.RefreshRecipientsAsync`); a recipient with no address, or a practice gone from the directory, stops approval.
+- Secure email only to an allowed domain, through a declared relay, never to a patient (`LetterWorkflow.WhyNoSecureEmail`).
+- Withdraw (approver or `CorrectRecords`, with a reason) and Write a correction (`WithdrawLetterHandler`, `WriteLetterCorrectionHandler`); the PDF stays on file.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
@@ -1938,7 +1943,11 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A delayed treatment or follow-up. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 16; the planned ones below, in place):
+- The To send view and the side navigation's count (`LetterSearch`, `GET api/letters/count`); Awaiting my approval and Returned to me views; the approver told when a letter is submitted, the author when it's approved or returned (`LetterNotifications`).
+- The `NeedsLetterKind` gate on a stage definition, copied onto the pathway's stage (`StageGates.WhyLetterMissing`, `FinishPathwayStageHandler`).
+- Secure email sent synchronously, marked Sent only when the relay accepts it; a refusal recorded as Failed and shown at once (`SendLetterHandler`).
+- A restricted record's letters refused with a message to ask an admin (`LetterWorkflow.RestrictedMessage`).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
@@ -1972,7 +1981,10 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Treatment changed for the wrong patient, or on wrong advice; a breach of confidentiality. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PRs 15 and 16; the planned ones below, in place):
+- Merge fields from the letter's own patient and record only (`LetterRecords.MergeValuesAsync`); approval refused naming any field without a value (`LetterRendering.MissingMessage`), and refused for characters the font can't print.
+- The patient's identifiers and "Page n of m" on every page (`PdfSharpLetterRenderer`); previews marked "Draft, not approved" on every page (`PreviewLetterHandler`).
+- Approval freezes the letter; only its approved PDF is sent by secure email, and that PDF can't be deleted on its own (`DeleteAttachmentHandler`).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
@@ -2489,3 +2501,4 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 | 0.19 | 18 November 2026 | Referrals built (branch `feature/referrals`, Phase 2's PR 5): H-40's built controls (the inbox, oldest received first, with its count in the side navigation; no closing without a named person's action and a detail; the restricted and anonymised messages telling staff to give the letter to an admin; archiving a specialty refused while referrals await triage; correcting the specialty by editing), and a note that referrals mustn't be used with patients before triage is built; H-41's (the patient banner on the referral pages and the closing confirmations, the letter beside the referral or "No letter attached yet.", two changes at once refused); H-44's (the duplicate check and its confirmation, entered in error, the patient's Referrals card); H-01's cause marked built. Still planned: triage, its confirmations and the `Duplicate` rejection reason (PR 6), the Specialties page's warning when nobody can triage (PR 6), the clock's days waited and breach badge (PR 7), and the DCB0160 duties. No draft estimate changed | AI coding agent, for review |
 | 0.20 | 18 November 2026 | Triage built (branch `feature/triage`, Phase 2's PR 6): H-40's controls now include triage with the registrant told of every outcome (`ReferralTriaged`), the Specialties page's warning when no member can triage a specialty, and the referral page saying why someone can't triage; "nobody can triage yet" removed. H-41's planned triage controls are built (the banner, specialty and template in every confirmation; only the specialty's templates, refused otherwise; nothing prefilled; the permission and membership checked on the server; who decided recorded, with the pathway's Created entry naming the referral; two decisions at once refused, the second told who; the patient's other referrals beside the decision). H-44's Duplicate rejection reason is built. No draft estimate changed | AI coding agent, for review |
 | 0.21 | 18 November 2026 | Patient reminders and the Did not attend view built (branch `feature/patient-reminders`, Phase 4's PR 26): H-53's, H-54's and H-55's planned controls recorded as existing ones, with their code names, for the CSO to verify (fixed wording with no clinical words, the patient's chosen channels, each message checked again just before sending to the contact then on the record, the stored copy and its delivery status, "No reminder" shown, retries then a visible failure, the job runner's watch; the Did not attend view, which keeps Rebook and Clinician to review listed until a later appointment exists, the recorded follow-up, and no automatic discharge); new causes (a sender or site name that names the service; the view seen only by those who open it), and H-55's "follow-up recorded but not done" now names Rebook and Clinician to review; H-30 and H-36 gain the reminders and "Tell the patient" as built controls, and H-36's cause "MedApp doesn't contact patients" now says it does only when turned on; H-52's cancelled session can text or email its patients. No draft estimate changed | AI coding agent, for review |
+| 0.22 | 18 November 2026 | Letters built (PR 16): H-48 to H-50 list their existing controls; the risk estimates stay drafts for the CSO | AI coding agent, for the CSO |

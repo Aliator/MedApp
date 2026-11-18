@@ -128,6 +128,7 @@ public static class PathwayMapper
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
+                    NeedsLetterKind = s.NeedsLetterKind?.ToString(),
                     IsOptional = s.IsOptional,
                     ChoosesBranch = s.ChoosesBranch,
                     Branch = s.Branch,

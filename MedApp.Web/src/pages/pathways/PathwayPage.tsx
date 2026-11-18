@@ -52,6 +52,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
+import {LettersAbout} from '../../components/letters/LettersAbout';
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {formatDate, formatDateTime} from '../../utils/dates';
@@ -208,6 +209,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     notes: true,
     currentStage: true,
     files: !isNarrow,
+    letters: !isNarrow,
     stages: false,
     patientInfo: true,
     assignedStaff: !isNarrow,
@@ -956,6 +958,29 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * The pathway's letters (decision 108), each linking to its page, and Write Letter for holders of WriteLetters while
+   * the record can change and the pathway isn't cancelled or archived.
+   */
+  function lettersSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'letters',
+      title: 'Letters',
+      isOpen: open.letters,
+      onToggle: () => toggle('letters'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <LettersAbout
+            about={{pathwayId: pathway.id ?? ''}}
+            specialtyId={pathway.specialtyId}
+            patient={pathway.patient}
+            isLocked={Boolean(pathway.readOnlyReason) || !(pathway.canEditDetails ?? false)}
+          />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage and Files, each
    * folding and sharing the left card, and all the stages on the right.
    */
@@ -970,6 +995,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               notesSection(pathway),
               currentStageSection(pathway),
               filesSection(pathway),
+              lettersSection(pathway),
             ]}
             footerActions={footer(pathway)}
           />
@@ -997,6 +1023,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           notesSection(pathway),
           currentStageSection(pathway),
           filesSection(pathway),
+          lettersSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},
         ]}
       />

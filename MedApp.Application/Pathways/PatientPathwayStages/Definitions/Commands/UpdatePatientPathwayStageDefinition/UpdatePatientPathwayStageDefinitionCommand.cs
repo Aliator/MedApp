@@ -12,5 +12,7 @@ public sealed record UpdatePatientPathwayStageDefinitionCommand(
     // The code and term change together: null leaves both, an empty code removes both.
     string? SnomedCode = null,
     string? SnomedTerm = null,
-    string? VisitRequirement = null)
+    string? VisitRequirement = null,
+    // A letter kind's name, "None" to remove it, or null to leave it as it is.
+    string? NeedsLetterKind = null)
     : IRequest<PatientPathwayStageDefinitionResponse>;

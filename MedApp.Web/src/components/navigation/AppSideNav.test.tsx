@@ -117,8 +117,9 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then the GP practice directory, then Patients.
-    expect(names.indexOf('/practices')).toBe(names.indexOf('/referrals') + 1);
+    // Then Letters, the GP practice directory, then Patients.
+    expect(names.indexOf('/letters')).toBe(names.indexOf('/referrals') + 1);
+    expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/patients')).toBe(names.indexOf('/practices') + 1);
   });
 
@@ -141,6 +142,30 @@ describe('AppSideNav', () => {
     mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
+  });
+
+  it('has Letters for someone who can view patients, with how many to approve and to send', async () => {
+    mockApi({'GET /api/letters/count': () => json({toApprove: 2, toSend: 3})});
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/letters'});
+    const letters = await screen.findByRole('link', {name: 'Letters, 2 to approve, 3 to send'});
+    expect(letters).toHaveAttribute('href', '/letters');
+    expect(letters).toHaveAttribute('aria-current', 'page');
+    expect(letters).toHaveTextContent('5');
+    unmount();
+
+    mockApi({'GET /api/letters/count': () => json({toApprove: 0, toSend: 0})});
+    const none = renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Letters'})).toBeInTheDocument();
+    none.unmount();
+
+    mockApi({'GET /api/letters/count': () => json({toApprove: 60, toSend: 60})});
+    const many = renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Letters, 60 to approve, 60 to send'})).toHaveTextContent('99+');
+    many.unmount();
+
+    renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Letters/})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {

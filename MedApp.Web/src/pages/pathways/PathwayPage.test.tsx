@@ -49,6 +49,20 @@ describe('PathwayPage', () => {
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
   });
 
+  it("lists the pathway's letters, and says what a stage that needs one waits for", async () => {
+    const needsLetter = {...pathway, specialtyId: 'sp1', stages: [pathway.stages[0], {...pathway.stages[1], needsLetterKind: 'DischargeSummary'}]};
+    const fetch = mockApi({
+      [`GET /api/pathways/patient-pathways/${id}`]: () => json(needsLetter),
+      'GET /api/letters/search': () =>
+        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Discharge', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
+    });
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    expect(await screen.findByRole('link', {name: 'Discharge summary: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(screen.getAllByText('Needs a discharge summary, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
+    expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
+  });
+
   it('opens a request to delete a note from the address for an admin, and closes it', async () => {
     const requestId = '0000000d-0000-0000-0000-000000000001';
     const fetch = mockApi({

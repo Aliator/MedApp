@@ -49,23 +49,34 @@ export interface LetterTemplatesPageProps {
  * Letter templates (decision 99): the letterhead, body and closing letters start from, each for a kind of letter and
  * a specialty or every specialty. Templates for every specialty come first, then by specialty and name. Each is added
  * and edited on its own page; one no longer wanted is archived (letters made from it keep it, but it isn't offered for
- * new ones) and can be restored. They're never deleted. Archiving and restoring send the version shown, so a change
- * made meanwhile is refused (409) with the API's words, and the list is read again.
+ * new ones) and can be restored; one no letter has been written from (`canBeDeleted`) can be deleted instead, after
+ * asking. Archiving and restoring send the version shown, so a change made meanwhile is refused (409) with the API's
+ * words, and the list is read again.
  */
 export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPageProps) {
   const {data = [], isPending, isError} = useQuery(letterTemplatesPageQuery);
   const actions = useLetterTemplateActions();
   const announce = useAnnounce();
   const [archiving, setArchiving] = useState<LetterTemplate | null>(null);
+  const [deleting, setDeleting] = useState<LetterTemplate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize, compareLetterTemplates);
   const versionOf = (template: LetterTemplate) => ({id: template.id ?? '', expectedVersion: template.version ?? 0});
-  const failed = (action: 'archive' | 'restore') => (e: unknown) => {
+  const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
     setError(saveProblem(e, action, 'letter template').message);
     setArchiving(null);
+    setDeleting(null);
   };
+  const remove = (template: LetterTemplate) =>
+    actions.remove.mutate(template.id ?? '', {
+      onSuccess: () => {
+        announce(`${template.name} deleted`);
+        setDeleting(null);
+      },
+      onError: failed('delete'),
+    });
 
   const archive = (template: LetterTemplate) =>
     actions.archive.mutate(versionOf(template), {
@@ -99,21 +110,39 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
       key: 'actions',
       header: 'Actions',
       align: 'end',
-      width: pixel(96),
+      width: pixel(128),
+      // A template no letter has used is deleted; the rest are archived (and restored), as letters keep their text.
       renderCell: (t) => (
         <TableActions
           actions={[
             {label: 'Edit letter template', icon: AppIcon.Edit, href: letterTemplateHref(t.id ?? '')},
-            t.isArchived
-              ? {label: 'Restore letter template', icon: AppIcon.Restore, onClick: () => restore(t)}
-              : {
-                  label: 'Archive letter template',
-                  icon: AppIcon.Archive,
-                  onClick: () => {
-                    setError(null);
-                    setArchiving(t);
+            ...(t.isArchived
+              ? [{label: 'Restore letter template', icon: AppIcon.Restore, onClick: () => restore(t)}]
+              : t.canBeDeleted
+                ? []
+                : [
+                    {
+                      label: 'Archive letter template',
+                      icon: AppIcon.Archive,
+                      onClick: () => {
+                        setError(null);
+                        setArchiving(t);
+                      },
+                    },
+                  ]),
+            ...(t.canBeDeleted
+              ? [
+                  {
+                    label: 'Delete letter template',
+                    icon: AppIcon.Delete,
+                    isDestructive: true,
+                    onClick: () => {
+                      setError(null);
+                      setDeleting(t);
+                    },
                   },
-                },
+                ]
+              : []),
           ]}
         />
       ),
@@ -133,23 +162,42 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
       }
       actions={addButton}
       dialogs={
-        <ConfirmDialog
-          isOpen={archiving !== null}
-          title="Archive Letter Template"
-          message="It won't be offered for new letters. Letters already written from it keep it, and it can be restored."
-          icon={AppIcon.Archive}
-          intent="warning"
-          confirmText="Archive"
-          isProcessing={actions.archive.isPending}
-          onConfirm={() => archiving && archive(archiving)}
-          onCancel={() => setArchiving(null)}>
-          {archiving && (
-            <MetadataList>
-              <MetadataListItem label="Template">{archiving.name}</MetadataListItem>
-              <MetadataListItem label="For">{letterTemplateSummary(archiving)}</MetadataListItem>
-            </MetadataList>
-          )}
-        </ConfirmDialog>
+        <>
+          <ConfirmDialog
+            isOpen={deleting !== null}
+            title="Delete Letter Template"
+            message="No letter has been written from it. This can't be undone."
+            icon={AppIcon.Delete}
+            isDanger
+            confirmText="Delete"
+            isProcessing={actions.remove.isPending}
+            onConfirm={() => deleting && remove(deleting)}
+            onCancel={() => setDeleting(null)}>
+            {deleting && (
+              <MetadataList>
+                <MetadataListItem label="Template">{deleting.name}</MetadataListItem>
+                <MetadataListItem label="For">{letterTemplateSummary(deleting)}</MetadataListItem>
+              </MetadataList>
+            )}
+          </ConfirmDialog>
+          <ConfirmDialog
+            isOpen={archiving !== null}
+            title="Archive Letter Template"
+            message="It won't be offered for new letters. Letters already written from it keep it, and it can be restored."
+            icon={AppIcon.Archive}
+            intent="warning"
+            confirmText="Archive"
+            isProcessing={actions.archive.isPending}
+            onConfirm={() => archiving && archive(archiving)}
+            onCancel={() => setArchiving(null)}>
+            {archiving && (
+              <MetadataList>
+                <MetadataListItem label="Template">{archiving.name}</MetadataListItem>
+                <MetadataListItem label="For">{letterTemplateSummary(archiving)}</MetadataListItem>
+              </MetadataList>
+            )}
+          </ConfirmDialog>
+        </>
       }>
       {!isPending && !isError && data.length === 0 ? (
         <EmptyState

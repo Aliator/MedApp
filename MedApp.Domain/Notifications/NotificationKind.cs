@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Notifications;
+namespace MedApp.Domain.Notifications;
 
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
@@ -92,6 +92,18 @@ public enum NotificationKind
     ReferralTriaged = 23,
 
     /// <summary>
+    /// A letter was submitted to the user to approve (decision 102). A fixed title ("Letter to approve"); the author's
+    /// username and the letter's kind. Its <see cref="Notification.SubjectId"/> is the letter.
+    /// </summary>
+    LetterAwaitingApproval = 29,
+
+    /// <summary>Someone else approved the user's letter. A fixed title ("Letter approved"); the letter is the subject.</summary>
+    LetterApproved = 30,
+
+    /// <summary>The approver returned the user's letter with a comment (never in the notification). A fixed title ("Letter returned").</summary>
+    LetterReturned = 31,
+
+    /// <summary>
     /// Monitoring: someone finished a stage whose visit is Required without its visit. 32 to 37 are kept for the
     /// service alerts' monitoring kinds (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
@@ -104,8 +116,8 @@ public enum NotificationKind
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 38 are
-    /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 28 and 32 to 38
+    /// are taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40
 }
