@@ -205,25 +205,8 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
-  it('with a half view open, clicking a nav item opens its page on its own, once chosen', async () => {
-    // Off by default; this is the setting turned on (Account Settings).
-    localStorage.setItem('medapp.navClosesHalfView', 'true');
+  it('with a half view open, clicking a nav item opens it on the left, keeping the half view', async () => {
     emptyApi();
-    sessionStorage.setItem('medapp.halfView', '/admin/audit');
-    const {user, router} = renderApp({path: '/patients', user: adminUser});
-
-    await heading('Audit Log');
-    await user.click(await railCategoryPage(user, 'Pathway Setup', 'Pathway Templates'));
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
-    await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
-    expect(screen.queryByRole('heading', {name: 'Audit Log', level: 1})).not.toBeInTheDocument();
-    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
-  });
-
-  it('with the setting off, clicking a nav item opens it on the left, keeping the half view', async () => {
-    emptyApi();
-    localStorage.setItem('medapp.navClosesHalfView', 'false');
     sessionStorage.setItem('medapp.halfView', '/admin/audit');
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
@@ -263,6 +246,67 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await user.click(await rowMenuItem(user, 'Pathway Templates', 'Open on the left'));
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users');
+  });
+
+  it('Shift-click on a nav item opens it in the half view, and with one open, in place of its page', async () => {
+    emptyApi();
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    await user.keyboard('{Shift>}');
+    await user.click(screen.getAllByRole('link', {name: 'My Worklist'})[0]);
+    await user.keyboard('{/Shift}');
+
+    expect(await within(screen.getByLabelText('Right half')).findByRole('heading', {level: 1}, {timeout: 15000})).toBeInTheDocument();
+    expect(sessionStorage.getItem('medapp.halfView')).toBe('/tasks');
+    expect(router.state.location.pathname).toBe('/patients');
+
+    // The folded nav's Calendar icon is a link too.
+    await user.keyboard('{Shift>}');
+    await user.click(screen.getAllByRole('link', {name: 'Calendar'})[0]);
+    await user.keyboard('{/Shift}');
+    await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/calendar'));
+    expect(router.state.location.pathname).toBe('/patients');
+  });
+
+  it('Ctrl-click on a nav item opens it on the left, moving the page there to the right', async () => {
+    emptyApi();
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    await user.keyboard('{Control>}');
+    await user.click(screen.getAllByRole('link', {name: 'Calendar'})[0]);
+    await user.keyboard('{/Control}');
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar'));
+    expect(within(screen.getByLabelText('Right half')).getByRole('heading', {name: 'Patients', level: 1})).toBeInTheDocument();
+    expect(sessionStorage.getItem('medapp.halfView')).toBe('/patients');
+
+    // With a half view open: the clicked page on the left, the left's page in place of the right's.
+    await user.keyboard('{Control>}');
+    await user.click(screen.getAllByRole('link', {name: 'My Worklist'})[0]);
+    await user.keyboard('{/Control}');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'));
+    await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/calendar'));
+    expect(screen.getByLabelText('Right half')).toBeInTheDocument();
+  });
+
+  it('Shift-click on the Notepad toggle opens the notepad in the half view, not docked', async () => {
+    mockFetch((request) => {
+      const {pathname} = new URL(request.url);
+      if (pathname === '/api/me/notepad') return json({text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30});
+      return json(/\/(templates|definitions|roles|specialties|practices)$/.test(pathname) ? [] : pageOf([]));
+    });
+    const {user} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    await user.keyboard('{Shift>}');
+    await user.click(screen.getByRole('button', {name: 'Notepad'}));
+    await user.keyboard('{/Shift}');
+
+    expect(await within(screen.getByLabelText('Right half')).findByRole('region', {name: 'Notepad'}, {timeout: 15000})).toBeInTheDocument();
+    expect(sessionStorage.getItem('medapp.halfView')).toBe('/notepad');
+    expect(localStorage.getItem('medapp.notepadOpen')).not.toBe('true');
   });
 
   it('keeps the half view open across a reload', async () => {

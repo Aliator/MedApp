@@ -12,8 +12,8 @@ export interface TourStep {
   steps: string[];
   /** The account the step needs (it switches to it first), or undefined for either. */
   account?: string;
-  /** The page to open: a path in the app, with its query. */
-  path: string;
+  /** The page to open: a path in the app, with its query; none stays on the Read Me. */
+  path?: string;
   /** A page to open beside it, in half view. */
   halfView?: string;
   /** Opens the notepad beside the page. */
@@ -30,13 +30,13 @@ export const TOUR: TourStep[] = [
     key: 'half-view',
     title: 'Two pages side by side',
     steps: [
-      'Opens a patient on the left and their pathway on the right, in half view.',
-      'Each half scrolls on its own. Close either half to go back to one page.',
-      'Any page in the side nav opens in half view from its menu (the … beside it).',
+      'Opens the home page. In the side nav, rest the pointer on Patients and open its menu (the … at the end of the row), then choose Open in half view.',
+      'Patients opens on the right, beside the home page. Close it with the close button (×) at the top of the Patients half.',
+      'Now Shift-click Patients in the side nav: it opens in the half view again. Shift-click works on any link or button that opens a page.',
+      'Ctrl-click (⌘-click on a Mac) does the opposite: the page opens on the left, and the one there moves to the right.',
     ],
-    path: `/patients/${PATIENTS.ellisVarden}`,
-    halfView: `/pathways/${PATHWAYS.biopsyToBook}`,
-    buttonLabel: 'Open a pathway beside its patient',
+    path: '/',
+    buttonLabel: 'Start on the home page',
   },
   {
     key: 'meeting',
@@ -210,10 +210,10 @@ export const TOUR: TourStep[] = [
     key: 'notepad',
     title: 'The notepad',
     steps: [
-      'Opens your notepad beside the page. It stays open as you move around the app.',
+      'Opens your notepad beside this page. It stays open as you move around the app.',
       'Jot anything down: it saves as you type. Each account has its own.',
+      'Shift-click Notepad in the side nav to open it in the half view on the right instead.',
     ],
-    path: '/',
     opensNotepad: true,
     buttonLabel: 'Open the notepad',
   },

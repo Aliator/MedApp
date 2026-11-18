@@ -26,7 +26,7 @@ const COLLECTIONS = {
 } as const;
 
 describe('the Read Me tour', () => {
-  const links = TOUR.flatMap((step) => [step.path, ...(step.halfView ? [step.halfView] : [])]);
+  const links = TOUR.flatMap((step) => [...(step.path ? [step.path] : []), ...(step.halfView ? [step.halfView] : [])]);
 
   it('opens only pages in the route tree', () => {
     const patterns = routePatterns();
@@ -68,7 +68,7 @@ describe('the Read Me tour', () => {
   it('opens this morning’s MDT, at an item still to discuss', () => {
     const state = seed();
     const mdt = TOUR.find((step) => step.key === 'mdt')!;
-    const meetingId = new URLSearchParams(mdt.path.split('?')[1]).get('meeting');
+    const meetingId = new URLSearchParams(mdt.path!.split('?')[1]).get('meeting');
     expect(state.meetings.find((m) => m.id === meetingId)?.isMdt).toBe(true);
     expect(state.mdtItems.some((i) => i.meetingId === meetingId && i.status === 'Listed')).toBe(true);
   });

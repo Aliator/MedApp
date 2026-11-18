@@ -26,17 +26,10 @@ export const START_PAGES = [
 export type StartPage = (typeof START_PAGES)[number]['value'];
 type StartPath = (typeof START_PAGES)[number]['path'];
 
-const CLOSES_HALF_VIEW_KEY = defineSetting('medapp.navClosesHalfView');
 const FLYOUT_DELAY_KEY = defineSetting('medapp.navFlyoutDelay');
 const START_PAGE_KEY = defineSetting('medapp.startPage');
 
 interface NavSettingsContextValue {
-  /**
-   * What clicking a side nav item does while a half view is open: true closes the half view and shows the page on
-   * its own; false opens it on the left (the main view), keeping the half view.
-   */
-  closesHalfView: boolean;
-  setClosesHalfView: (closes: boolean) => void;
   flyoutDelay: FlyoutDelay;
   /** The flyout delay in milliseconds. */
   flyoutDelayMs: number;
@@ -60,27 +53,22 @@ export const currentStartPagePath = (): StartPath =>
   START_PAGES.find((option) => option.value === appSettings.get(START_PAGE_KEY))?.path ?? '/';
 
 /**
- * How the side nav behaves (Account Settings), kept in this browser: whether its clicks close an open half view
- * (by default they do), how long its folded icons wait before bringing their rows out (half a second), and the page
- * sign-in opens on (Home).
+ * How the side nav behaves (Account Settings), kept in this browser: how long its folded icons wait before bringing
+ * their rows out (half a second), and the page sign-in opens on (Home). (A nav item always opens its page in the main
+ * view, the left of a half view, and Shift-click opens it in the half view: the owner removed the setting that made it
+ * close the half view instead, 18 November 2026. Its old key, `medapp.navClosesHalfView`, is no longer read.)
  */
 export function NavSettingsProvider({children}: {children: ReactNode}) {
-  const [storedCloses, storeCloses] = useAppSetting(CLOSES_HALF_VIEW_KEY);
   const [storedDelay, storeDelay] = useAppSetting(FLYOUT_DELAY_KEY);
   const [storedStart, storeStart] = useAppSetting(START_PAGE_KEY);
-  // Off unless chosen (the owner's default, 18 November 2026): a nav item opens on the left, keeping the half view.
-  const closesHalfView = storedCloses === 'true';
   const flyoutDelay: FlyoutDelay = FLYOUT_DELAYS.find((option) => option.value === storedDelay)?.value ?? 'standard';
   const startPage: StartPage = START_PAGES.find((option) => option.value === storedStart)?.value ?? 'home';
 
-  const setClosesHalfView = useCallback((closes: boolean) => storeCloses(String(closes)), [storeCloses]);
   const setFlyoutDelay = useCallback((delay: FlyoutDelay) => storeDelay(delay), [storeDelay]);
   const setStartPage = useCallback((page: StartPage) => storeStart(page), [storeStart]);
 
   const value = useMemo(
     () => ({
-      closesHalfView,
-      setClosesHalfView,
       flyoutDelay,
       flyoutDelayMs: delayMs(flyoutDelay),
       setFlyoutDelay,
@@ -88,14 +76,12 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
       startPagePath: startPath(startPage),
       setStartPage,
     }),
-    [closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay, startPage, setStartPage],
+    [flyoutDelay, setFlyoutDelay, startPage, setStartPage],
   );
   return <NavSettingsContext.Provider value={value}>{children}</NavSettingsContext.Provider>;
 }
 
 const DEFAULTS: NavSettingsContextValue = {
-  closesHalfView: false,
-  setClosesHalfView: () => {},
   flyoutDelay: 'standard',
   flyoutDelayMs: delayMs('standard'),
   setFlyoutDelay: () => {},
