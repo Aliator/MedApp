@@ -208,6 +208,62 @@
 
 > "Staff can now accept or decline a meeting. A decline frees that time on their own calendar, and moving the meeting resets everyone's answer, because an answer is about a time. Replies use the same per-person database lock as bookings, so a decline and a booking into the freed time can't race. The trade-off is that the browser kept its own copy of the busy-time rule, which the review caught, and a reply carries no version, so one sent from a stale screen counts for the meeting's new time."
 
+## Follow-up review
+
+**Reviewed:** 18 November 2026, at `d2c9c615` (the fixes `d8c59e28` to `b21aff90`, and this document), against `origin/main` at `1b00eae` (the merge of #115). Checked from the code, not from the "What happened to it" lines.
+
+**Verdict:** every finding's fix holds up in the code, and its tests would fail without it. Nothing new is high or critical. **One new medium:** `main` has moved on (#115 merged), the branch now conflicts with it in ten files, and `main`'s new migration sorts between this PR's two.
+
+### The original findings
+
+- **1 (High), fixed.** `busyTimes` skips a meeting the calendar's owner declined (`MedApp.Web/src/utils/calendarSlots.ts:103`, with `hasDeclined` moved to `src/api/calendar.ts:38`). Every caller passes a calendar from the API, which carries `staffUserId` (`BlockDialog.tsx:124`, `BookAppointmentDialog.tsx:226-229`). The grid leaves faded items out of its taken rows (`CalendarGrid.tsx:326`), and the faded card takes only the end 40% of its share (`:1034`, `:1086-1093`), so the slots beside it can be clicked. The team view fades per member (`calendarItems.ts:165` passes each calendar's `staffUserId`). The new tests in `calendarSlots.test.ts`, `CalendarGrid.test.tsx` and `BookAppointmentDialog.test.tsx` fail on the old code.
+- **2 (Medium), fixed.** The times seen are required (`ReplyToMeetingValidator`) and compared under the replier's lock (`ReplyToMeetingHandler.cs`, `MeetingReplies.cs:62-66`, after the 403 check). `UkTime.Utc` handles a time sent without a `Z` or with an offset. The dialog sends the times it shows (`src/api/calendar.ts:353`), and after a 409 it reads the meeting again (`MeetingDialog.tsx:121`, `:128-134`). `meetingQuery`'s key is under `calendar`, so the refresh after a reply covers it too. Unit, Vitest and integration tests (`MeetingReplyTests.cs:227`) all cover it.
+- **3 (Medium), documented.** The **Rolling back** step is in decision 71 (`docs/calendar-plan.md:150`), the chart README (`deploy/helm/medapp/README.md:104-106`) and `AGENTS.md`. The SQL is right. Old copies show a `MeetingDeclined` (7) notification as kind "7" with no icon, which is harmless.
+- **4 (Low), fixed.** The message names the clash without claiming when it came (`MeetingReplies.NotFreeToAccept`), and an integration test checks the exact text (`MeetingReplyTests.cs:159`).
+- **5 (Low), fixed.** `UpdateMeetingHandler.cs:69-75` checks only those going. On a move, decliners busy at the new time keep their decline. Decliners free then are put back to no reply, which is safe, since they were just checked under their locks (`:106-118`). Their "Meeting moved" says which (`MeetingNotifications.cs:79`). The Change dialog leaves decliners out of availability unless nobody else is going (`MeetingDialog.tsx:348-351`). If everyone has declined, the dialog may still warn about them, but the warning is advisory and saving works. The demo seed resets every reply on a move without that check (`MeetingStory.cs:88`), but it gathers replies only after the last change, so it never has one to keep.
+- **6 (Low), fixed.** `Notification.MeetingId` is set on every meeting notification except a cancellation (`MeetingNotifications.cs:127`). The bell adds `&meeting=` (`NotificationBell.tsx:28`), and the Calendar page opens that meeting even off the calendar shown, or says it's gone (`CalendarPage.tsx:276-277`, `:711-715`). The migration is additive and nullable. `Down` drops only the links. The snapshot is in step with the model (`has-pending-model-changes`: no changes). The ID is not personal data, and the data inventory lists the column.
+- **7 (Low), fixed in part.** The screens and the setup that makes and declines a synthetic meeting are there. Nothing has been captured yet, and the axe audit hasn't run, so the browser check before merging is still to do, as its line says. The headline "all eight are fixed" says more than that.
+- **8 (Low), fixed.** Version 0.8 of the device decision has a "Replies to meetings" paragraph (`intended-purpose-and-device-decision.md:146`) that matches the code: decliners aren't checked, and a move can keep a decline.
+
+**Stored numbers:** `MeetingDeclined = 7` and `MeetingReply` 0 to 2 don't clash with `main`. `main`'s new kinds are 18 to 21 (`NoteDeletionRequested` to `AuthorsNoteDeleted`).
+
+**Checked here:** 166 unit tests (replies, the reply command, changing a meeting, meeting notifications, the notification mapper, clashes), all passing in Release. Six Vitest files (126 tests), all passing.
+
+### New findings
+
+#### 9. Medium: the branch conflicts with `main`, and `main`'s migration lands between this PR's two
+
+- **Confidence:** high for the conflicts and the order. Medium for how much the order matters.
+- **What goes wrong:** #115 merged after the fixes. `git merge-tree HEAD origin/main` reports conflicts in ten files. GitHub can't build the merge ref for a conflicting PR, so CI won't run until the conflicts are resolved. Two parts are easy to get wrong without anything failing:
+  - **Migration order.** `main`'s `20261118025735_AddedNoteDeletion` sorts between `20261118020738_AddedMeetingReplies` and `20261118033641_AddedMeetingIdToNotifications`.
+    - **Out of order on existing databases:** kind's database and the local dev database already have `AddedNoteDeletion`. EF Core applies the older-dated `AddedMeetingReplies` after it without complaint.
+    - **Not linear:** the history is no longer the single linear one `AGENTS.md` (Migrations) asks for.
+    - **A partial rollback:** `database update AddedNoteDeletion` would undo only `AddedMeetingIdToNotifications` and leave the replies' columns in place.
+    - **An incomplete model:** `AddedMeetingIdToNotifications`' designer has no model of `main`'s new tables.
+    - **No test catches it.**
+    - **An analogy:** two people each adding pages to a dated logbook. One page gets slipped in between the other person's two, after some readers have already read past that point.
+  - **`Notification.HasFixedTitle`.** Both sides changed it. The merged version needs `<= MeetingDeclined` and `|| IsNoteDeletion(kind)`. `MeetingNotificationsTests.cs:26` and `NotificationPreferencesTests` would catch a mistake, so this part is safe if the tests run.
+  - **Also conflicting:**
+    - `NotificationResponse`/`NotificationMapper`: both add a nullable positional parameter. Keep both, and keep the mapper's arguments in the same order.
+    - `NotificationBell.hrefOf`: keep `main`'s note-deletion branch and add `&meeting=`.
+    - `schema.d.ts`: regenerate it.
+    - The data inventory's `Notification` row: list both columns.
+    - `AGENTS.md`, `MedApp.Web/AGENTS.md`, `docs/governance/README.md`, `docs/reviews/README.md`.
+- **Evidence:** `git merge-tree --write-tree HEAD origin/main` lists the conflicts. The migration file names are in `MedApp.Infrastructure/Migrations/` on each side. `main`'s `Notification.cs` ends `HasFixedTitle` at `MeetingCancelled`.
+- **The fix:**
+  - **Back up the dev database:** take a `medapp-dev` `save_snapshot`.
+  - **Undo this PR's migrations there:** `dotnet ef database update AddedNotepads`.
+  - **Merge `main`:** resolve the files above.
+  - **Remove and re-add the migrations:** delete this PR's two migrations, put back `main`'s snapshot, and re-add them on top of `AddedNoteDeletion`. The re-added migrations must keep the `Reply` default of 0, so read their `Up`.
+  - **Check:** `has-pending-model-changes` reports nothing, and the history goes `AddedNoteDeletion`, then the replies.
+  - **Rename instead, if you prefer:** rename both migrations to later timestamps and regenerate their designers.
+- **What happened to it:** Not yet.
+
+### Remaining risks after the follow-up
+
+- **Browser check:** finding 7's capture and axe audit are still to do before merging.
+- **Narrow columns:** on a narrow week or team column, the faded card's 40% may show only its start time. That's by the grid's own fitting rules, but nobody has looked at it yet.
+
 ## Detail
 
 ### Finding 1: the shape of the fix
