@@ -1,4 +1,5 @@
-﻿using FluentValidation.AspNetCore;
+using MedApp.Application.Practices.Common;
+using FluentValidation.AspNetCore;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
 using MedApp.API.Fhir;
@@ -68,6 +69,7 @@ public static class ServiceExtensions
         services.AddScoped(ActivityContextFor);
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
         services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
+        services.AddOptions<LettersOptions>().BindConfiguration(LettersOptions.Section);
         // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
         services.AddOptions<NotepadOptions>()
             .BindConfiguration(NotepadOptions.Section)

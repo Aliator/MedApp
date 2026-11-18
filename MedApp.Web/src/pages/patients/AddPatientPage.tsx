@@ -8,6 +8,7 @@ import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {contactProblems} from './PatientContactFields';
 import {EMPTY_PATIENT, PATIENT_FIELDS, PatientFormFields, usePatientLookUp} from './PatientFormFields';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
@@ -74,6 +75,12 @@ export function AddPatientPage({then}: {then?: 'referral'} = {}) {
           // Details a look-up filled for another number than the one now entered aren't saved (usePatientLookUp).
           if (lookUp.hold) {
             setProblem({validation: null, message: lookUp.hold});
+            return;
+          }
+          // A postcode or mobile in the wrong format shows on its field before anything is sent (the API checks too).
+          const contact = contactProblems(form);
+          if (contact) {
+            setProblem({validation: contact, message: null});
             return;
           }
           setProblem(NO_PROBLEM);

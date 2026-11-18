@@ -73,6 +73,12 @@ describe('ReferralPage', () => {
     expect(screen.getByRole('button', {name: 'More'})).toBeInTheDocument();
   });
 
+  it('says when the practice was chosen from the directory', async () => {
+    renderPage(testReferral({practiceId: 'p-test', referrerPractice: 'Testbrook Surgery'}));
+
+    expect(await screen.findByText('Testbrook Surgery (from the directory)')).toBeInTheDocument();
+  });
+
   it('withdraws it after asking why, with the patient shown, from the version on the page', async () => {
     withAnnouncements();
     const {user, fetch} = renderPage(testReferral(), {

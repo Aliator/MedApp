@@ -1,5 +1,6 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap} from './client';
+import {myDetailsQuery, toStaffDetailsRequest} from './account';
 import {ApiError} from './errors';
 
 /**
@@ -142,4 +143,19 @@ export function useRemoveUserEmail() {
   return useUserMutation((username: string) =>
     unwrap(api.DELETE('/api/auth/users/{username}/email', {params: {path: {username}}})),
   );
+}
+
+/**
+ * Replaces a member of staff's full name and job title, as they go on letters (`PUT api/auth/users/{username}/details`,
+ * holders of ManageUsers): blank removes one. A 400 names `fullName` or `jobTitle`; an unknown user is a 404. Refreshes
+ * the Users list, and the signed-in user's own details in case they were the one changed.
+ */
+export function useSetStaffDetails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({username, fullName, jobTitle}: {username: string; fullName: string; jobTitle: string}) =>
+      unwrap(api.PUT('/api/auth/users/{username}/details', {params: {path: {username}}, body: toStaffDetailsRequest({fullName, jobTitle})})),
+    onSuccess: () =>
+      Promise.all([queryClient.invalidateQueries({queryKey: ['users']}), queryClient.invalidateQueries({queryKey: myDetailsQuery.queryKey})]),
+  });
 }

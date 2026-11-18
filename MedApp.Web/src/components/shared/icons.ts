@@ -7,6 +7,8 @@ import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
   RiInboxLine,
+  RiIdCardLine,
+  RiFirstAidKitLine,
   RiAddLine,
   RiAlarmWarningLine,
   RiArchiveLine,
@@ -276,6 +278,10 @@ export const AppIcon = {
   LookUp: remix(RiUserSearchLine),
   // Monitoring (admin): rules for being told what staff do
   Monitoring: remix(RiRadarLine),
+  /** GP practices: the directory of practices patients are registered with and referrals come from. */
+  Practices: remix(RiFirstAidKitLine),
+  /** A member of staff's full name and job title, as they go on letters. */
+  StaffDetails: remix(RiIdCardLine),
   /** Referrals: requests to see a patient in a specialty, waiting for triage (the inbox). */
   Referrals: remix(RiInboxLine),
   /** Withdrawing a referral (the referrer or the patient withdrew it). */

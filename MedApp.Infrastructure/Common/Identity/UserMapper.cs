@@ -10,7 +10,7 @@ public static class UserMapper
 {
     /// <summary>
     /// The account, its roles, its email address (only a confirmed one; an unconfirmed one is pending) and whether it
-    /// uses two-factor authentication.
+    /// uses two-factor authentication, and the full name and job title that go on letters.
     /// </summary>
     public static UserResponse ToResponse(ApplicationUser user, IEnumerable<string> roles) =>
         new(
@@ -19,5 +19,7 @@ public static class UserMapper
             roles.ToList(),
             user.EmailConfirmed && !string.IsNullOrEmpty(user.Email) ? user.Email : null,
             user.PendingEmail,
-            user.TwoFactorEnabled);
+            user.TwoFactorEnabled,
+            user.FullName,
+            user.JobTitle);
 }

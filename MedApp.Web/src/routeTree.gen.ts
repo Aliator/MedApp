@@ -20,6 +20,7 @@ import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
 import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
+import { Route as AppPracticesRouteImport } from './routes/_app/practices'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -121,6 +122,11 @@ const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
 const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
   id: '/no-permission',
   path: '/no-permission',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPracticesRoute = AppPracticesRouteImport.update({
+  id: '/practices',
+  path: '/practices',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -385,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
   '/no-permission': typeof AppNoPermissionRoute
+  '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/email': typeof AppAccountEmailRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
   '/no-permission': typeof AppNoPermissionRoute
+  '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -506,6 +514,7 @@ export interface FileRoutesById {
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
   '/_app/no-permission': typeof AppNoPermissionRoute
+  '/_app/practices': typeof AppPracticesRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -569,6 +578,7 @@ export interface FileRouteTypes {
     | '/set-up-two-factor'
     | '/accessibility'
     | '/no-permission'
+    | '/practices'
     | '/tasks'
     | '/account/colours'
     | '/account/email'
@@ -628,6 +638,7 @@ export interface FileRouteTypes {
     | '/set-up-two-factor'
     | '/accessibility'
     | '/no-permission'
+    | '/practices'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -689,6 +700,7 @@ export interface FileRouteTypes {
     | '/set-up-two-factor'
     | '/_app/accessibility'
     | '/_app/no-permission'
+    | '/_app/practices'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -828,6 +840,13 @@ declare module '@tanstack/react-router' {
       path: '/no-permission'
       fullPath: '/no-permission'
       preLoaderRoute: typeof AppNoPermissionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/practices': {
+      id: '/_app/practices'
+      path: '/practices'
+      fullPath: '/practices'
+      preLoaderRoute: typeof AppPracticesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1172,6 +1191,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
   AppNoPermissionRoute: typeof AppNoPermissionRoute
+  AppPracticesRoute: typeof AppPracticesRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -1226,6 +1246,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
   AppNoPermissionRoute: AppNoPermissionRoute,
+  AppPracticesRoute: AppPracticesRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,

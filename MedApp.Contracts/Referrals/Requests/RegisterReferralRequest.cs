@@ -11,6 +11,12 @@ public sealed class RegisterReferralRequest
     /// <summary>When it arrived (a UK date): not in the future, at most a year back.</summary>
     public DateOnly ReceivedOn { get; set; }
 
+    /// <summary>
+    /// The referring practice in the directory, if chosen (not archived, unless the referral already has it). When given,
+    /// an empty <c>referrerPractice</c> takes the practice's name, and an empty <c>referrerOdsCode</c> its code.
+    /// </summary>
+    public Guid? PracticeId { get; set; }
+
     /// <summary>The referring practice or organisation, as on the letter (200 characters).</summary>
     public string ReferrerPractice { get; set; } = string.Empty;
 

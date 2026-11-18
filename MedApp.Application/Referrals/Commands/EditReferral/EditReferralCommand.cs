@@ -18,5 +18,6 @@ public sealed record EditReferralCommand(
     string RequestedPriority,
     string Reason,
     int ExpectedVersion,
-    PathwayActor Actor)
+    PathwayActor Actor,
+    Guid? PracticeId = null)
     : IRequest<ReferralResponse>;

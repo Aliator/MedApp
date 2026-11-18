@@ -44,7 +44,34 @@ describe('ViewPatientPage', () => {
     expect(screen.getByText(`${ageOn('1976-12-01')} years`)).toBeInTheDocument();
     expect(screen.getByText(id)).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
-    expect(screen.getByText('Not given')).toBeInTheDocument();
+    // The NHS number, mobile, address and GP practice.
+    expect(screen.getAllByText('Not given')).toHaveLength(4);
+  });
+
+  it("shows the patient's mobile and address, and their GP practice from the directory", async () => {
+    mockApi({
+      [`GET /api/patients/${id}`]: () =>
+        json({
+          ...freya,
+          addressLines: ['1 Test Street', 'Testbrook'],
+          postcode: 'ZZ1 1ZZ',
+          mobilePhone: '+447700900123',
+          practiceId: 'p-test',
+          practice: {id: 'p-test', name: 'Testbrook Surgery', odsCode: 'ZZZ123', addressLines: ['2 Surgery Lane'], postcode: 'ZZ2 2ZZ', phone: '01632 960001', isArchived: true},
+        }),
+      ...timeline,
+    });
+    renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
+
+    expect(await screen.findByText('07700 900123')).toBeInTheDocument();
+    expect(screen.getByText('1 Test Street')).toBeInTheDocument();
+    expect(screen.getByText('Testbrook')).toBeInTheDocument();
+    expect(screen.getByText('ZZ1 1ZZ')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'GP Practice'})).toBeInTheDocument();
+    expect(screen.getByText('Testbrook Surgery (archived)')).toBeInTheDocument();
+    expect(screen.getByText('ZZZ123')).toBeInTheDocument();
+    expect(screen.getByText('2 Surgery Lane')).toBeInTheDocument();
+    expect(screen.getByText('01632 960001')).toBeInTheDocument();
   });
 
   it("shows the patient's banner above the details, and their NHS number", async () => {
@@ -286,6 +313,54 @@ describe('AddPatientPage', () => {
     await expectAnnounced('Patient added');
   });
 
+  it('adds the contact details and GP practice chosen, the mobile and postcode checked once each field is left', async () => {
+    const fetch = mockApi({
+      'POST /api/patients': () => json(freya, 201),
+      'GET /api/practices': () =>
+        json([
+          {id: 'p-test', name: 'Testbrook Surgery', odsCode: 'ZZZ123', addressLines: ['2 Surgery Lane'], postcode: 'ZZ2 2ZZ', isArchived: false},
+          {id: 'p-old', name: 'Oldfield Practice', isArchived: true},
+        ]),
+    });
+    const {user} = renderWithApp(<AddPatientPage />, {path: '/patients/add', user: adminUser});
+
+    await user.type(await screen.findByLabelText(/^first name/i), 'Freya');
+    const mobile = screen.getByRole('textbox', {name: /^Mobile/});
+    await user.type(mobile, '01632 960123');
+    expect(mobile).not.toHaveAccessibleDescription(/Enter a UK mobile/);
+    await user.tab();
+    expect(mobile).toHaveAccessibleDescription(/Enter a UK mobile number/);
+    const postcode = screen.getByRole('textbox', {name: /^Postcode/});
+    await user.type(postcode, 'zz1 1z');
+    await user.tab();
+    expect(postcode).toHaveAccessibleDescription(/Enter a UK postcode/);
+
+    // Saving with either wrong sends nothing: both show on their fields.
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    expect(openDialog()).toBeNull();
+
+    await user.clear(mobile);
+    await user.type(mobile, '+44 7700 900123');
+    await user.type(postcode, 'z');
+    await user.type(screen.getByRole('textbox', {name: /^Address line 1/}), '1 Test Street');
+    await user.type(screen.getByRole('textbox', {name: /^Address line 3/}), 'Testbrook');
+    const practice = screen.getByRole('combobox', {name: /^Practice/});
+    await user.click(practice);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['None', 'Testbrook Surgery (ZZZ123)']);
+    await user.click(screen.getByRole('option', {name: 'Testbrook Surgery (ZZZ123)'}));
+    expect(practice).toHaveAccessibleDescription(/2 Surgery Lane, ZZ2 2ZZ/);
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
+    expect(await bodyOf(fetch, 'POST')).toMatchObject({
+      addressLines: ['1 Test Street', 'Testbrook'],
+      postcode: 'zz1 1zz',
+      mobilePhone: '+44 7700 900123',
+      practiceId: 'p-test',
+    });
+  });
+
   it("shows the API's validation errors on the fields and in a summary", async () => {
     mockApi({
       'POST /api/patients': () =>
@@ -426,6 +501,60 @@ describe('EditPatientPage', () => {
     // The NHS number is always sent, "" when there's none, so a removed one is removed.
     expect(await bodyOf(fetch, 'PATCH')).toEqual({...freya, id: undefined, firstName: 'Fran', nhsNumber: ''});
     await expectAnnounced('Patient saved');
+  });
+
+  it('starts from the contact details and practice, and sends only those changed', async () => {
+    const withContact = {
+      ...freya,
+      addressLines: ['1 Test Street'],
+      postcode: 'ZZ1 1ZZ',
+      mobilePhone: '+447700900123',
+      practiceId: 'p-old',
+      practice: {id: 'p-old', name: 'Oldfield Practice', isArchived: true},
+    };
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(withContact),
+      'GET /api/practices': () => json([{id: 'p-test', name: 'Testbrook Surgery', isArchived: false}]),
+      [`PATCH /api/patients/${id}`]: () => json(withContact),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {path: `/patients/${id}/edit`, user: adminUser});
+
+    expect(await screen.findByRole('textbox', {name: /^Mobile/})).toHaveValue('07700 900123');
+    expect(screen.getByRole('textbox', {name: /^Address line 1/})).toHaveValue('1 Test Street');
+    expect(screen.getByRole('textbox', {name: /^Postcode/})).toHaveValue('ZZ1 1ZZ');
+    // Their practice, archived since, is still theirs; nobody can newly choose it.
+    const practice = screen.getByRole('combobox', {name: /^Practice/});
+    await waitFor(() => expect(practice).toHaveTextContent('Oldfield Practice (archived)'));
+
+    // Changing nothing in the contact details sends none of them, so the archived practice isn't sent as newly chosen.
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+    await waitFor(() => expect(calls(fetch)).toContain(`PATCH /api/patients/${id}`));
+    const unchanged = await bodyOf(fetch, 'PATCH');
+    expect(unchanged).not.toHaveProperty('addressLines');
+    expect(unchanged).not.toHaveProperty('postcode');
+    expect(unchanged).not.toHaveProperty('mobilePhone');
+    expect(unchanged).not.toHaveProperty('practiceId');
+  });
+
+  it('removes the practice with the empty ID, and the address and postcode as empty', async () => {
+    const withContact = {...freya, addressLines: ['1 Test Street'], postcode: 'ZZ1 1ZZ', practiceId: 'p-test', practice: {id: 'p-test', name: 'Testbrook Surgery', isArchived: false}};
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(withContact),
+      'GET /api/practices': () => json([{id: 'p-test', name: 'Testbrook Surgery', isArchived: false}]),
+      [`PATCH /api/patients/${id}`]: () => json(freya),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {path: `/patients/${id}/edit`, user: adminUser});
+
+    await user.clear(await screen.findByRole('textbox', {name: /^Address line 1/}));
+    await user.clear(screen.getByRole('textbox', {name: /^Postcode/}));
+    await user.click(screen.getByRole('combobox', {name: /^Practice/}));
+    await user.click(await screen.findByRole('option', {name: 'None'}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`PATCH /api/patients/${id}`));
+    expect(await bodyOf(fetch, 'PATCH')).toMatchObject({addressLines: [], postcode: '', practiceId: '00000000-0000-0000-0000-000000000000'});
   });
 
   it('deletes the patient after confirming, then goes to the list', async () => {
@@ -627,6 +756,34 @@ describe('Patient forms, NHS number', () => {
     const found = /Found: name and date of birth filled in from Offline test data\. Check they're right\./;
     expect(await nhsField()).toHaveAccessibleDescription(found);
     await expectAnnounced(found);
+  });
+
+  it('fills in the address, postcode and mobile too when the service has them', async () => {
+    withAnnouncements();
+    mockApi({
+      ...lookUpAvailable,
+      'POST /api/demographics/lookup': () =>
+        json({
+          nhsNumber: '9990000034',
+          firstName: 'Oriel',
+          lastName: 'Penhallow',
+          dateOfBirth: '1951-03-14',
+          addressLines: ['3 Synthetic Row', 'Testbrook'],
+          postcode: 'ZZ3 3ZZ',
+          mobilePhone: '+447700900999',
+          source: 'Offline test data',
+        }),
+    });
+    const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
+
+    await user.type(await nhsField(), '999 000 0034');
+    await user.click(await screen.findByRole('button', {name: 'Look up'}));
+
+    await waitFor(() => expect(screen.getByRole('textbox', {name: /^Address line 1/})).toHaveValue('3 Synthetic Row'));
+    expect(screen.getByRole('textbox', {name: /^Address line 2/})).toHaveValue('Testbrook');
+    expect(screen.getByRole('textbox', {name: /^Postcode/})).toHaveValue('ZZ3 3ZZ');
+    expect(screen.getByRole('textbox', {name: /^Mobile/})).toHaveValue('07700 900999');
+    await expectAnnounced(/name, date of birth and contact details filled in from Offline test data/);
   });
 
   it('keeps what was typed when the look-up comes back after the number changed', async () => {

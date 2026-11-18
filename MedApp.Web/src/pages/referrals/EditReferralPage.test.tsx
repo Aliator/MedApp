@@ -8,8 +8,10 @@ const REFERRAL = `GET /api/referrals/${REFERRAL_ID}`;
 const SAVE = `PUT /api/referrals/${REFERRAL_ID}`;
 const CHANGED = 'Someone changed this referral meanwhile.';
 
+const PRACTICES = [{id: 'p-test', name: 'Testbrook Surgery', odsCode: 'ZZZ123', isArchived: false}];
+
 function renderPage(read: () => Response = () => json(testReferral()), save: (request: Request) => Response | Promise<Response> = () => json(testReferral())) {
-  const fetch = mockApi({[REFERRAL]: read, 'GET /api/specialties': () => json(SPECIALTIES), [SAVE]: save});
+  const fetch = mockApi({[REFERRAL]: read, 'GET /api/specialties': () => json(SPECIALTIES), 'GET /api/practices': () => json(PRACTICES), [SAVE]: save});
   const result = renderWithApp(<EditReferralPage id={REFERRAL_ID} />, {user: staffUser});
   return {...result, fetch};
 }
@@ -39,6 +41,7 @@ describe('EditReferralPage', () => {
       {
         specialtyId: DERMATOLOGY_ID,
         receivedOn: '2026-11-02',
+        practiceId: null,
         referrerPractice: 'Another Surgery',
         referrerClinician: 'Dr Test',
         referrerOdsCode: 'A12345',
@@ -48,6 +51,16 @@ describe('EditReferralPage', () => {
       },
     ]);
     await expectAnnounced('Referral saved');
+  });
+
+  it('starts with the practice from the directory the referral has, and keeps sending it', async () => {
+    const {user, fetch} = renderPage(() => json(testReferral({practiceId: 'p-test', referrerPractice: 'Testbrook Surgery', referrerOdsCode: 'ZZZ123'})));
+
+    const picker = await screen.findByRole('combobox', {name: /Practice from the directory/});
+    await waitFor(() => expect(picker).toHaveTextContent('Testbrook Surgery (ZZZ123)'));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    await waitFor(async () => expect((await bodies(fetch))[0]).toMatchObject({practiceId: 'p-test', referrerPractice: 'Testbrook Surgery'}));
   });
 
   it("keeps what was typed after a 409, saving from the old version until Reload starts again from what's there now", async () => {

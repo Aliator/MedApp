@@ -26,6 +26,7 @@ import {PanelHeader} from '../../components/views/PanelCard';
 import {sameMoment} from '../../utils/calendarSlots';
 import {formatAppointmentTime, formatDate, formatDateTime} from '../../utils/dates';
 import {formatFileSize} from '../../utils/fileSize';
+import {formatMobile, oneLineAddress} from '../../utils/contactDetails';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
@@ -349,6 +350,11 @@ function ExportContent({data}: {data: PatientExport}) {
           <MetadataListItem label="Date of Birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
           <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
+          <MetadataListItem label="Mobile">{patient?.mobilePhone ? formatMobile(patient.mobilePhone) : '—'}</MetadataListItem>
+          <MetadataListItem label="Address">{oneLineAddress(patient?.addressLines, patient?.postcode) || '—'}</MetadataListItem>
+          <MetadataListItem label="GP Practice">
+            {patient?.practiceName ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}` : '—'}
+          </MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
           <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>
           <MetadataListItem label="Last Changed">{when(patient?.lastUpdated)}</MetadataListItem>

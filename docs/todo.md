@@ -28,6 +28,11 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **After every account is on a starting role:** take the everyday clinical and booking permissions from Admin and archive "All staff (before roles)" (open question 10), as a small change of its own before a real team uses MedApp.
 
 **Phase 3: clinic to lab to result to letter.**
+- **Contact details, practices and staff details are built** (PR 12, `feature/patient-contact-gp`: `docs/agents/privacy.md`). Left from it:
+  - **The reminder channel** (`Patient.ReminderChannel`) is stored, always None: the patient form shows it with reminders (PR 26).
+  - **The offline demographics stub gives no GP practice**, as it knows no ODS codes; the real PDS gives one, to match against the directory when PDS is wired in.
+  - **Demo data** for practices, contact details and staff names comes with Phase 3's demo data (PR 17).
+  - **Looking practices up in the national ODS service** stays for later (plan, section 8): the directory is typed.
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.

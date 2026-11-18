@@ -1,7 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser, userWithRoles} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
@@ -115,7 +115,19 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    expect(names.indexOf('/patients')).toBe(names.indexOf('/referrals') + 1);
+    // Then the GP practice directory, then Patients.
+    expect(names.indexOf('/practices')).toBe(names.indexOf('/referrals') + 1);
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/practices') + 1);
+  });
+
+  it('offers Practices only to someone who can view patients', async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/practices'});
+    expect(await screen.findByRole('link', {name: 'Practices'})).toHaveAttribute('aria-current', 'page');
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Practices'})).not.toBeInTheDocument();
   });
 
   it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {

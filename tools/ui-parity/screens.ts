@@ -627,6 +627,25 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
+  {
+    name: 'users-details',
+    title: "Edit details dialog: a user's full name and job title for letters (not saved)",
+    path: '/admin/users',
+    prepare: async (page) => {
+      await rowAction(page, /edit details/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'practices', title: 'GP practices: the directory of practices patients are registered with and referrals come from', path: '/practices' },
+  {
+    name: 'practice-dialog',
+    title: 'Add Practice dialog: a name, ODS code, address, postcode, phone and secure email (not saved)',
+    path: '/practices',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Practice' }).click();
+      await waitVisible(page, DIALOG);
+      },
+    },
   { name: 'roles', title: 'Roles and Permissions (admin): each role, what it is for, who holds it, Admin first', path: '/admin/roles' },
   {
     name: 'role-edit',
