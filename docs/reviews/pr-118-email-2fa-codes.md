@@ -214,6 +214,101 @@ The PR's browser check found the whole flow working (axe clean) with two things 
 
 "We added a second, weaker two-factor option: a six-digit code by email, stored only as a hash, single-use, ten minutes, with the same attempt limits as the authenticator app. The review found the code handling solid but the edges weak: switching to an app didn't ask for the current code, reset-link requests could use up the email allowance codes depend on, and a resend after five wrong tries sent a dead code. The trade-off we accepted knowingly is that for these accounts the mailbox alone can get in, because the reset link and the code go to the same place."
 
+## Follow-up review
+
+**Commit reviewed:** `c8fe7dd` (the fixes in `e000036` and `8f444c1`, `main` merged in at `9abcf10`, and a test fix), against `main` at `1b00eae` (the merge of #115). **Date:** 18 November 2026.
+
+**Nothing high or critical.** All eight findings are dealt with: seven fixed, one documented as agreed. Five new findings, all low.
+
+**How it was checked:** read the fix commits and the code around them; compared each conflicted file of the last merge with both parents; ran filtered unit tests in Release (the email code service, its handlers, email delivery, sign-in with codes, the code email, two-factor and email handlers): 249 passed. No Docker, browser or full suite.
+
+### The original findings
+
+- **1. Integration tests failing: fixed.** `FakeEmailSender.CodeIn` now captures only the digits. The real bug is fixed too: one cleaning rule, `TwoFactorCodes.Normalise` (`TwoFactorCodes.cs:34-35`), used by `IsAuthenticatorCode` (`:38-42`), `EmailCodes.Normalise`, sign-in (`LoginTwoFactorHandler.cs:113`) and the switch (`EnableTwoFactorHandler.cs:82`).
+  - **The later CI failure:** `TurningOff_AfterFiveWrongCodes_ANewCodeWorks` got a 423, because Identity's own lockout check reads the real clock, so moving the test clock didn't end the lockout. `c8fe7dd` ends it in SQL instead (`EmailCodeTests.cs:306`, a parameterised `FormattableString`, so no injection).
+  - **Does the test still guard finding 4?** Yes. Without the fix it would still fail, now as a 429 ("too soon", since the clock no longer moves on) rather than a dead code.
+- **2. Second factor replaced with a session and the password: fixed.**
+  - The switch needs `CurrentCode` (`EnableTwoFactorHandler.cs:79-88`), checked as any code is, recovery codes allowed.
+  - Moving the address needs `Code` while the method is email (`ChangeMyEmailHandler.cs:50-58`).
+  - Asking for a confirm code needs the password (`SendTwoFactorEmailCodeHandler.cs`), and the hold allows it (`TwoFactorSetupRequired.cs:38`).
+  - The owner and other admins are told of a switch (`EnableTwoFactorHandler.cs:109-115`).
+  - No other path changes the factor with less: removing the address is still refused while it's used for codes, and moving from the app to email is still a 409. New finding 10 is a small side effect.
+- **3. Reset links using up the codes' email allowance: fixed.**
+  - Codes have their own fifth (`EmailBudget.cs:30, 57-62`): links stop at 60 of 100 (6 of 8), codes at 80 (7 of 8). Anonymous reset requests can't reach the codes' share, and nothing anonymous sends notices.
+  - `HasRoomFor` (`EmailQueue.cs:36`) is checked before a code is made (`EmailCodeService.cs:79`).
+  - **Left:** it's a look, not a reservation, so two codes racing for the last place can still have one dropped after it's promised. Rare, logged, and said in `IEmailSender.cs`.
+- **4. A dead code after five wrong tries: fixed.** A code out of tries isn't live (`EmailCode.cs:90`; `EmailCodeRepository.cs:22, 59, 72`), so asking again makes a fresh row, and `AddAsync` deletes the dead one first (`:30-35`). `NotLive` is never counted as a guess (`TwoFactorCodes.cs:76-77`; `LoginTwoFactorHandler.cs:103-107`). That's safe: with no live code, no guess can succeed.
+- **5. Rollback and roll forward mixing up the method: documented, as agreed.** `AGENTS.md` (two-factor) gives the check to run; `docs/todo.md` points to it.
+- **6. Two races when turning codes on: fixed, one narrowed.**
+  - **Two first sends:** a filtered unique index (`EmailCodeConfiguration.cs:37-39`) refuses the second insert, which becomes a 429 (`EmailCodeService.cs:97-98`).
+  - **The migration `MadeEmailCodesOnePerPurpose`:** `Up` deletes only codes outside sign-in (which last minutes) before making the index unique; `Down` puts the plain index back; the snapshot matches the configuration.
+  - **The address:** checked again (`EnableEmailCodesHandler.cs:45-46`), and a turn-on code is bound to the address it went to (`EmailCodes.cs:215-219`). A window of milliseconds remains between that check and the save, which only a removal at that instant could hit. Not worth more.
+- **7. Promising more than is true: fixed.** No code is made or promised when it can't go (finding 3). A sign-in code ends with its challenge (`LoginHandler.cs:80`, `ResendSignInCodeHandler.cs:39`, `EmailCode.ExpiryFor`), and the email rounds down (`EmailTemplates.cs:67`).
+- **8. Documents: fixed.** T-52, ASVS 6.4.3 and `docs/todo.md` record the acceptance; H-10 has the new cause (hazard log 0.15); ASVS lists 6.3.6 under "Beyond Level 2". ASVS 7.5.1 now names the switch and the address, which matches the code.
+- **The merges from `main`: nothing lost.**
+  - In every conflicted file (`docs/reviews/README.md`, `schema.d.ts`, the hazard log, the data inventory, the DPIA, the staff privacy notice), both sides' changes are there, and the line counts add up.
+  - Version numbers continue in order: hazard log 0.14 is #115's, 0.15 this PR's; DPIA 0.11 and 0.12; inventory 0.9 and 0.10; notice 0.4 and 0.5.
+  - Stored numbers don't clash: `ActivityAction` 40 and 41 are new here, and `main` added none; `main`'s `NotificationKind` 18 to 21 aren't touched here.
+
+### 9. Low: the first migration now sorts before one already on `main`
+
+- **Severity:** low. **Confidence:** high that the order is wrong; medium on how EF handles it (it applies migrations missing from the history, whatever their place).
+- **What goes wrong:**
+  - `AddedEmailTwoFactorCodes` (`20261118021716`) sorts before `main`'s `AddedNoteDeletion` (`20261118025735`), which databases on `main` (kind, through Argo CD) may already have. So the history isn't linear any more, against `AGENTS.md` (Migrations).
+  - On deploy it's applied after a later migration, which works.
+  - **The trap is rolling back:** `database update AddedEmailTwoFactorCodes` also reverts `AddedNoteDeletion`, dropping note deletion data; `database update AddedNoteDeletion` (to undo this PR) leaves the codes table and column in place.
+- **Evidence:** `MedApp.Infrastructure/Migrations/20261118021716_AddedEmailTwoFactorCodes.Designer.cs:15` against `20261118025735_AddedNoteDeletion.Designer.cs:15`.
+- **Fix:** before merging, give the PR's two migrations IDs after `AddedNoteDeletion` (rename the files and the `[Migration("…")]` IDs, or remove them and scaffold again on top of `main`), then check `has-pending-model-changes`. They've been applied only to local databases, whose `__EFMigrationsHistory` rows would need the same rename. If that's not worth it, say in the rollback notes which target undoes what.
+- **What happened to it:** Not yet.
+
+### 10. Low: a mistyped current code spends the new app's code
+
+- **Severity:** low (it confuses; it doesn't weaken anything). **Confidence:** high.
+- **What goes wrong:**
+  - Someone switching from codes by email types the app's code right but the emailed code wrong.
+  - The app's code is checked first, and checking it records its time step as used (`TwoFactorService.cs:100-105`); then the emailed code fails.
+  - They correct the emailed code and press the button again within 30 seconds. Now the app's code is refused as a replay, with "Check that your phone's clock is set automatically", which isn't the problem.
+- **Evidence:** `EnableTwoFactorHandler.cs:82-88`.
+- **Fix:** check the app's code without recording it, then the current factor, then record the step in the same transaction as `EnableAsync` (a `MatchesAuthenticatorCodeAsync` beside `VerifyAuthenticatorCodeAsync`). Checking the current factor first instead would be worse: a wrong app code would then spend a recovery code.
+- **What happened to it:** Not yet.
+
+### 11. Low: Email Address and the switch can hide "enter a code"
+
+- **Severity:** low. **Confidence:** high (read).
+- **What goes wrong:**
+  - The code field shows only once the two-factor status has loaded and says email (`EmailPage`'s `usesEmailCodes`; `TwoFactorSetup`'s `switchingFromEmail`).
+  - If that status is still loading, failed, or out of date (codes turned on in another tab), the form goes without a code, and the API answers 400 on `code` (or `currentCode`).
+  - That field is in the list of fields with their own place on the page, so the alert leaves its message out, and there's no field to show it on. The person sees only the alert's general title, not that a code is needed.
+- **Evidence:** `MedApp.Web/src/pages/account/EmailPage.tsx:37, 143`; `MedApp.Web/src/components/account/TwoFactorSetup.tsx:86, 179`; `MedApp.Web/src/components/shared/AlertMessage.tsx:54-58`.
+- **Fix:** leave the code field out of the list while it isn't shown, so its message appears in the alert, and refetch `twoFactorStatusQuery` on that 400:
+
+  ```diff
+  -      <ValidationAlert errors={validation} fields={CHANGE_FIELDS} />
+  +      <ValidationAlert errors={validation} fields={usesEmailCodes ? CHANGE_FIELDS : ['email', 'password']} />
+  ```
+
+  and the same for `currentCode` in `TwoFactorSetup`.
+- **What happened to it:** Not yet.
+
+### 12. Low: during a rolling update, old copies ignore the method
+
+- **Severity:** low (minutes, and only for someone who turns codes on during them). **Confidence:** high (read).
+- **What goes wrong:**
+  - The migrations Job runs before the upgrade (`pre-upgrade`), and old pods (`main`'s image) serve beside new ones for a few minutes. Old code doesn't know `TwoFactorMethod`.
+  - An account that turns codes by email on in that time is asked for an app code by an old pod at sign-in (a recovery code still works).
+  - An old pod also lets the address be changed with the password alone, or removed while it's used for codes: findings 2 and 6, on the old code.
+- **Evidence:** `deploy/helm/medapp/templates/migrations-job.yaml:14`; `main`'s `ChangeMyEmailHandler`, `RemoveMyEmailHandler` and `LoginHandler` have no method checks.
+- **Fix:** none needed in code. Add a line to the rollout notes: don't turn on codes by email until the rollout has finished; afterwards, look for accounts using codes by email with no confirmed address.
+- **What happened to it:** Not yet.
+
+### 13. Low: `AGENTS.md` doesn't list the new sign-in failure reason
+
+- **Severity:** low. **Confidence:** high.
+- **What goes wrong:** a refused sign-in with no live emailed code is logged with `reason: "CodeNotLive"` (`LoginTwoFactorHandler.cs:105`). `AGENTS.md` (two-factor in the activity log) lists every other reason but this one, so someone reading the log, or adding a reason, doesn't know it exists.
+- **Evidence:** `AGENTS.md:452`.
+- **Fix:** add `` `CodeNotLive` (no emailed code that could work: none sent, or used meanwhile; not counted) `` to the list.
+- **What happened to it:** Not yet.
+
 ## Detail
 
 ### The probes
