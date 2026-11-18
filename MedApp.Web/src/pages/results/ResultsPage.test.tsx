@@ -78,3 +78,20 @@ describe('ResultsPage', () => {
     expect(await screen.findByText('Every result awaiting sign-off has a clinician')).toBeInTheDocument();
   });
 });
+
+describe('ResultsPage, paging', () => {
+  it('puts the next page in the address, and the first page as none', {timeout: 20_000}, async () => {
+    const items = [testResultSummary()];
+    const onSearchChange = vi.fn();
+    mockApi({
+      'GET /api/results/search': () => json({items, page: 2, pageSize: 10, totalCount: 25, totalPages: 3}),
+      'GET /api/specialties': () => json(SPECIALTIES),
+    });
+    const {user} = renderWithApp(<ResultsPage search={{page: 2}} onSearchChange={onSearchChange} />, {user: seniorClinicianUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Go to next page'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: 3});
+    await user.click(screen.getByRole('button', {name: 'Go to previous page'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
+  });
+});

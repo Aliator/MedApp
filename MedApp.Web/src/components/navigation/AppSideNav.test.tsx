@@ -122,13 +122,14 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then Results, Letters, the GP practice directory, the MDT list, Data Requests (ManagePrivacy), then Patients.
+    // Then Results, Letters, the GP practice directory, the MDT list, then Patients (Data Requests, between the MDT list
+    // and Patients, is only for holders of ManagePrivacy, which this user isn't).
     expect(names.indexOf('/results')).toBe(names.indexOf('/referrals') + 1);
     expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
     expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
-    expect(names.indexOf('/data-requests')).toBe(names.indexOf('/mdt') + 1);
-    expect(names.indexOf('/patients')).toBe(names.indexOf('/data-requests') + 1);
+    expect(names).not.toContain('/data-requests');
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
   });
 
   it('offers Practices only to someone who can view patients', async () => {

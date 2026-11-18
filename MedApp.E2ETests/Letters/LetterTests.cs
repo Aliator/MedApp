@@ -16,7 +16,8 @@ public sealed class LetterTests : E2ETest
     [Test]
     public async Task Letter_IsWrittenFromATemplate_Approved_AndRecordedAsPosted()
     {
-        var (template, _) = await CreateTemplateAsync(2);
+        // Its pathway stays (cancelled), so its template and stages are archived after, not deleted.
+        var (template, _) = await CreateTemplateForAKeptPathwayAsync(2);
         var patient = await Api.CreatePatientAsync("Grace", E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
         var pathway = await Api.CreatePathwayAsync(patient.Id, template.Id, E2EData.UniqueName("Pathway"), UkToday.AddDays(14));
         // A pathway with a letter can't be deleted (it's clinical correspondence): it stays, cancelled, with its
