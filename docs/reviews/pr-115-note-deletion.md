@@ -131,7 +131,7 @@
   - Read only the columns that existed at that migration, by projecting: `.Select(n => new { n.Id, n.PatientProcedureId, n.AuthorUserId, n.Text, n.CreatedAtUtc, n.LastEditedAtUtc, n.Version })` before `ToListAsync`/`ToDictionaryAsync` (the assertions already compare those properties), or with raw SQL.
   - Add a line to `AGENTS.md`'s Migrations section: a migration test reads with a projection or SQL, never whole entities, because a later migration can add columns to the same table.
 - **Status:** open.
-- **What happened to it:** fixed in `e829813f`. `ProcedureNotesMigrationTests` reads notes and versions through projections of the columns that exist at `AddedProcedureNotes` (`NoteAtMigration`, `VersionAtMigration`) and the old column with `Select(p => p.LegacyNotes)`; the other migration tests already read at the latest migration. `AGENTS.md`'s Migrations section has the rule (`d185315c`). Not run locally (Docker); the two failing CI tests read exactly these queries.
+- **What happened to it:** fixed in `e829813f`. `ProcedureNotesMigrationTests` reads notes and versions through projections of the columns that exist at `AddedProcedureNotes` (`NoteAtMigration`, `VersionAtMigration`) and the old column with `Select(p => p.LegacyNotes)`; `AGENTS.md`'s Migrations section has the rule. (This line first said the other migration tests already read at the latest migration; `TemplateOwnershipMigrationTests` didn't, and was fixed in `efb464e4`: see finding 14.) (`d185315c`). Not run locally (Docker); the two failing CI tests read exactly these queries.
 
 ### 3. Deleting, or deciding, doesn't say which version the admin saw: a note edited meanwhile is deleted unseen
 
@@ -275,6 +275,88 @@
 - **Rolling the migration back** drops the requests and un-deletes every note; documented, with "restore from a backup" as the way out.
 - **The branch is behind `main` by #112;** it merges cleanly now, but this file's row in `docs/reviews/README.md` sits beside #112's, so expect a one-line conflict there.
 
+## Follow-up review of the fixes
+
+**Checked:** 18 November 2026, by a reviewer who read the fixes against the findings above, not the author's notes alone.
+
+**Commits checked:** `e829813f` (API, tests, the regenerated migration), `d185315c` (docs), `40aeac9b` (web) and `bdb6d18b` (this review), with `dafe268e` (the merge of `main`) read only for conflicts. `main` has nothing newer than the merge.
+
+**Result: nothing high or critical remains, and nothing new is high or critical.** All twelve fixes hold. Three new low findings (13 to 15), all small.
+
+### What was run
+
+- **Unit tests** (Release, filtered): note deletion, notes, the export handler and mapper, the anonymiser, the monitoring convention, the timeline canary and mapper, the controllers, notifications and the patient record: **445 passed**. Then everything under `Api`, `Appointments`, `Attachments`, `Notifications`, `Patients` and `DemoActivityParity`, because `ToProcedureActor` changed for every controller: **1,650 passed**.
+- **Builds** (Release): `tools/MedApp.DevMcp`, `MedApp.UnitTests` and `MedApp.IntegrationTests`, with no warnings or errors.
+- **`has-pending-model-changes`:** "No changes have been made to the model since the last migration", so the regenerated migration and the snapshot agree.
+- **Vitest** on the eight changed web test files: **153 passed**. `npm run typecheck` and ESLint on the changed files: clean.
+- **Not run:** Docker, the integration or E2E suites, the AppHost or a browser. The integration tests (including the two fixed migration tests) run in CI on `bdb6d18b`; that run was still going when this was written.
+
+### Each fix, checked
+
+- **1. The export:** `PatientRecord` is now a `sealed record`, and `NoteVersions`, `NoteDeletionRequests` and `Attachments` are `required`, like the other lists. The handler copies it with `record with { Activity = [...] }`, which copies every other list, so nothing can be dropped. Every place that builds a record (the repository, the unit test helpers) compiles, so every list is set. **True.**
+- **2. The migration tests:** both failing tests now read projections of exactly the columns that existed at `AddedProcedureNotes` (checked against that migration), and the old column with `Select(p => p.LegacyNotes)`. **True**, but the sentence "the other migration tests already read at the latest migration" isn't: see finding 14.
+- **3. The version:**
+  - Deleting needs `expectedVersion` (a missing one is 0, a 400), and so does deciding to delete (`NotNull`, then above 0). Both handlers refuse a note whose version has moved on with a 409.
+  - Both dialogs send the version they showed. After a 409, the request is read again, so the admin sees the new text.
+  - **Keeping needs no version, and that's safe:** keeping changes nothing. The note stays on screen for everyone, the requester hears "Note kept" and can ask again. The worst case is an admin keeping a note they read in an older form, which leaves the record as it is.
+  - **True.**
+- **4. The author told:** `AuthorsNoteDeleted = 21` is inside `IsNoteDeletion`, so `HasFixedTitle` covers it. Its title is fixed, and its message holds only the admin's username.
+  - **Who's told:** the author, after a direct delete or an approved request.
+  - **Who isn't:** an admin who deletes their own note; a note with no known author; an author who asked for the deletion themselves (they get kind 19 instead, so one notification, not two).
+  - **True.**
+- **5. The reason as a choice:**
+  - `NoteDeletionReason` (0 to 3) is stored as a number. It's parsed by name only, never by number (`ProcedureEnums.TryParse` refuses digits and undefined values). The detail is 500 characters at most, and Other needs one.
+  - The audit entry holds `deletionReason` (the name) and `detail`. `detail` is now one of the anonymiser's free-text keys, and nothing else in the audit or activity details uses that key.
+  - The export flags a note deleted as `WrongPatient`, and the export page shows a red "Another patient's details: check before release" beside it.
+  - **True.**
+- **6. Old pods anonymising:** the chart's README and `docs/todo.md` say it. **True.**
+- **7. No list of waiting requests:** still a to-do. **True.**
+- **8. The flags:** `ProcedureActor.IsAdmin` comes only from the session's role (`User.IsInRole("Admin")`), never from the request body. It's used only for the `Can...` flags in responses:
+  - No handler uses it to allow or refuse anything. The two admin rules that existed before (the visit bypass, deleting files) still take their own `IsAdmin` from the controller.
+  - Every place that builds a procedure's response passes it: the nine commands that return the procedure, its GET, adding and editing a note, and asking for a deletion.
+  - Nothing compares two actors or writes one into an audit entry, so the extra field changes no stored data.
+  - **True.**
+- **9. The patient and the link:** the Delete confirmation shows the compact `PatientBanner`. `?deletionRequest=` for another procedure's request replaces the address with that procedure's page. **True.**
+- **10. The conventions:** the monitoring convention now finds every procedure command handler that takes the repository, and the decide handler's delete path is in it, with its token test. **True.**
+- **11. The old notes column:** `DeleteNote` clears `PatientProcedures.Notes` only when the note is the procedure's oldest (deleted notes counted), and the audit entry says so. Nothing writes that column any more, and the page reads it only when there are no notes at all. **True.**
+- **12. Names and the browser:** each note's buttons are named for their note, starting with their visible words. The hand-edited `schema.d.ts` matches the new contracts field for field. Parity screenshots, the axe audit and regenerating the schema are still not done, as the line says. **True.**
+- **The regenerated migration:** reads correctly.
+  - **Up:** five nullable columns on `PatientProcedureNotes` (`DeletionReason` is now an `int`, beside the new `DeletionDetail`), one on `Notifications`, and the table with `Reason` as an `int` and an optional `Detail`.
+  - **Indexes:** the same three as before, including the filtered unique index on waiting requests.
+  - **Down:** drops all of it, in an order that works.
+  - **Data:** none moved, so nothing can be lost.
+- **The governance and hazard documents** match the code, except for the DPIA row in finding 13.
+
+### 13. One DPIA row still calls the deletion reasons free text, and the staff notice leaves out the author's notification
+
+- **Severity:** low. **Confidence:** high.
+- **What could go wrong:** a reader of the DPIA's controls table (a DPO, an auditor) reads that both reasons are "free text, 500 characters at most", and that the only notifications are about requests. Neither is true any more: the reason is a fixed choice with an optional detail, and authors are told when their note is deleted. The staff privacy notice's list of notifications doesn't mention that one either. Its list says "for example", so it isn't wrong, only incomplete.
+- **Evidence:** `docs/governance/dpia.md:199` (the "Deleting notes" control row); `docs/governance/privacy-notice-staff-template.md:28`. The other DPIA rows (`:211`, `:235`) and the data inventory are already up to date.
+- **Fix:** in `dpia.md:199`, say "the reason is a fixed choice; its optional detail is free text, 500 characters at most", and add "Your note was deleted" to the notifications. In the staff notice, add "and if an admin deletes a note you wrote, you're told".
+- **What happened to it:** fixed in `78ef49f1`. The DPIA's "Deleting notes" row now says the reason is a fixed choice with an optional detail (free text, 500 characters, required for "other"), and lists "Your note was deleted" with the other notifications; the staff privacy notice says an author is told when an admin deletes their note (by the admin's username, never the reason), unless they asked for it.
+
+### 14. Another migration test still reads whole entities, which the new rule forbids
+
+- **Severity:** low (it passes today). **Confidence:** high.
+- **What could go wrong:** finding 2's fix says "the other migration tests already read at the latest migration". `TemplateOwnershipMigrationTests` doesn't. Several of its tests migrate only to `MadeCalendarTemplatesPersonal`, then read whole `WeekTemplates`, `DayTemplates`, `StaffWeekTemplates`, `CalendarDayOverrides` and `CalendarBlockExceptions` rows. They pass only because no later migration has added a column to those tables. The first migration that does (an archived flag on day templates, say) breaks them with "Invalid column name", exactly as finding 2 did, on a PR that never touched them.
+- **Evidence:** `MedApp.IntegrationTests/Migrations/TemplateOwnershipMigrationTests.cs:95-99`, `:134`, `:137`; the rule in `AGENTS.md:385`.
+- **Fix:** project those reads onto the columns that exist at that step, as `ProcedureNotesMigrationTests` now does. Or correct the sentence in finding 2 and add a to-do.
+- **What happened to it:** fixed in `efb464e4`. `TemplateOwnershipMigrationTests`' read of the templates, their days and blocks, default weeks, the day override and the block exceptions now selects only the columns it checks, all of which exist at `MadeCalendarTemplatesPersonal`; its other reads were already counts or single columns. Finding 2's line is corrected. Built in Release; not run locally (Docker).
+
+### 15. Deciding through the API with a blank detail and no reason drops the requester's detail
+
+- **Severity:** low (the web app can't do it). **Confidence:** high.
+- **What could go wrong:** another client sends `{deleteNote: true, expectedVersion, detail: ""}` with no reason. The handler keeps the requester's reason, but takes the blank detail as "none" rather than "left out", so the requester's detail is lost. If their reason was Other, the deletion is stored as Other with no detail, which the validators otherwise never allow. The web app always sends a reason, and won't send Other without a detail.
+- **Evidence:** `MedApp.Application/Procedures/NoteDeletionRequests/Commands/DecideNoteDeletionRequest/DecideNoteDeletionRequestHandler.cs:51` (`request.Detail is null ? ... : CleanDetail(...)`); `DecideNoteDeletionRequestValidator.cs` (Other needs a detail only when the reason is given).
+- **Fix:** with no reason, use the requester's detail unless a non-blank one is given (`string.IsNullOrWhiteSpace(request.Detail) ? deletionRequest.Detail : ...`), with a test.
+- **What happened to it:** fixed in `efb464e4`. With no reason, the handler keeps the admin's detail only when it isn't blank, and the requester's otherwise (`CleanDetail(request.Detail) ?? deletionRequest.Detail`), so a requester's Other never loses its detail; Other given by the admin with a blank detail was already refused by the validator. Tests: `Handle_DeleteNoteWithNoReasonAndABlankDetail_KeepsTheRequestersDetail` (blank and spaces; it fails without the fix) and `Validate_DeletingAsOtherWithABlankDetail_IsInvalid`.
+
+### Still to watch
+
+- **The migration's ID changed** (`20261117221814` to `20261118025735`). Any database that ran the old one (a throwaway database from the browser check, say) has an ID in its history that no longer exists, and the new one fails there ("column names must be unique"). Drop that database, or restore a snapshot. CI makes fresh databases, and nothing deployed has either.
+- **`ProcedureActor.IsAdmin` defaults to false.** A new handler that forgets to pass it gives an admin Request Deletion instead of Delete. That's the safe way round, but `ProcedureNoteMapperTests` won't catch it; the integration test `Flags_SayWhatTheSignedInUserCanDo` covers only the procedure's GET.
+- **CI on `bdb6d18b`:** check the integration tests pass before merging. They're the only check of the two fixed migration tests, `DeleteAndDecide_NoteEditedSinceTheAdminOpenedIt_Are409AndKeepIt` and the export in `RequestThenDelete_EndToEnd`.
+
 ## Say it like this
 
 "Admins can now delete a note from a procedure, and staff can ask them to, but deleting only hides the note: it's kept with who removed it and why, so the clinical record never loses anything. The main choice was a second pair of eyes instead of letting authors delete their own notes; the trade-off is that a wrong note stays visible until an admin decides, and the deleted text, even another patient's, stays on that record until it's anonymised."
@@ -332,3 +414,8 @@ And in `PatientRecord.cs`, so the compiler refuses a copy that forgets one:
 - Delete, the GET and the decision are `[Authorize(Roles = "Admin")]`; the request is the Staff policy. `AuthorisationTests` covers the three admin-only routes.
 - The note is always looked up inside the procedure named in the path, and a decision derives the procedure and note from the request, so neither route can reach another procedure's note by ID.
 - Staff never receive a reason: not in the note response, the timeline (`TimelineMapper` sets `Reason` and `From` only for admins, and `TimelineStaffCanaryTests` now includes `NoteDeleted`), or the notifications. The one thing staff learn about someone else's request is the "already asked" 409, which names who asked and when.
+
+### The `web` job's coverage on `bdb6d18b`
+
+- **What failed:** statements were 98.94% against the 99% threshold in `MedApp.Web/vite.config.ts` (the branch added code that its tests didn't reach).
+- **What happened to it:** fixed in `8b7ed55f`, with tests of behaviour: cancelling a deletion sends nothing; closing a request opened from a note; the decision's 400 shown on the reason and detail; saving an edit with Ctrl+S (and nothing while unchanged); folding the notes and opening them again; a note's version in the audit log. `npm run coverage` locally: **statements 99.06% (7,970 of 8,045)**, branches 93.32%, functions 99.32%, lines 99.57%, before the last test was added (it can only raise it). On this machine, under the coverage run's load, one or two unrelated slow tests (Insights' lazily loaded charts in `routeGuards.test.tsx` and `entry-server.test.tsx`) time out at random; each passes on its own, and all 2,099 passed in the first full run.
