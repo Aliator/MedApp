@@ -38,6 +38,11 @@ public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientComm
         RuleFor(x => x.Postcode).Postcode();
         RuleFor(x => x.MobilePhone).MobilePhone();
         RuleFor(x => x.ReminderChannel).ReminderChannelName();
+        RuleFor(x => x.UnlistedPractice).UnlistedPractice();
+        RuleFor(x => x.UnlistedPractice)
+            .Null()
+            .When(x => x.PracticeId is { } id && id != Guid.Empty)
+            .WithMessage(UnlistedPractices.BothMessage);
 
         RuleFor(x => x)
             .Must(x =>
@@ -50,7 +55,8 @@ public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientComm
                 x.Postcode is not null ||
                 x.MobilePhone is not null ||
                 x.ReminderChannel is not null ||
-                x.PracticeId.HasValue)
+                x.PracticeId.HasValue ||
+                x.UnlistedPractice is not null)
             .WithMessage("At least one field must be provided.");
     }
 }

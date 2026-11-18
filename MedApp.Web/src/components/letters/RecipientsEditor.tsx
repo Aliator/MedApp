@@ -11,6 +11,7 @@ import {useQuery} from '@tanstack/react-query';
 import {
   emptyRecipient,
   MAX_RECIPIENTS,
+  PATIENTS_UNLISTED_PRACTICE,
   RECIPIENT_KINDS,
   recipientKindWords,
   type RecipientInput,
@@ -19,6 +20,9 @@ import {
 import {practiceChoices, practiceLabel, practicesQuery} from '../../api/practices';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
 import {AppIcon} from '../shared/icons';
+
+/** The GP practice choice for the patient's own practice that isn't in the directory. */
+export const UNLISTED_PRACTICE_LABEL = "The patient's practice (not in the directory)";
 
 /** "Addressed to" for the first recipient, "Copy" for the rest. */
 export const recipientRole = (index: number) => (index === 0 ? 'Addressed to' : 'Copy');
@@ -33,7 +37,8 @@ export interface RecipientsEditorProps {
 
 /**
  * A draft's recipients, in order (decision 101): the first is the one it's addressed to, the rest get copies. Each can
- * be moved up or down, or removed, and Add Recipient adds a GP practice (chosen from the directory), the patient, the
+ * be moved up or down, or removed, and Add Recipient adds a GP practice (chosen from the directory, or the patient's own
+ * practice that isn't listed, filled from their record), the patient, the
  * referrer (for a letter about a referral) or someone else (a name and address typed, with an optional secure email
  * address). At most ten. Nothing is saved until the letter is; the API checks each recipient, and its words show in the
  * page's message.
@@ -99,7 +104,10 @@ export function RecipientsEditor({recipients, onChange, hasReferral, isDisabled 
               </HStack>
               <RecipientFields
                 recipient={recipient}
-                practices={practiceChoices(practices.data ?? [], recipient.practiceId).map((p) => ({value: p.id ?? '', label: practiceLabel(p)}))}
+                practices={[
+                  ...practiceChoices(practices.data ?? [], recipient.practiceId).map((p) => ({value: p.id ?? '', label: practiceLabel(p)})),
+                  {value: PATIENTS_UNLISTED_PRACTICE, label: UNLISTED_PRACTICE_LABEL},
+                ]}
                 isPracticesLoading={practices.isPending}
                 isDisabled={isDisabled}
                 onChange={(change) => update(index, change)}

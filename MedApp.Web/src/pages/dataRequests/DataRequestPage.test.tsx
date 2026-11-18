@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, renderWithApp, seniorClinicianUser, withAnnouncements} from '../../test/render';
+import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
 import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, DATA_REQUEST_PATIENT_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
 import type {DataRequest} from '../../api/dataRequests';
 import type {CurrentUser} from '../../auth/auth';
@@ -87,20 +87,19 @@ describe('DataRequestPage', () => {
   });
 
   it("shows why the pack couldn't be made in the API's words", async () => {
-    const {user} = render(readyDataRequest(), {[`GET ${BASE}/pack`]: () => json({title: 'A clinician must review the record first.'}, 409)});
+    const {user} = render(readyDataRequest(), {[`GET ${BASE}/pack`]: () => json({title: 'Review the record first.'}, 409)});
 
     await user.click(await screen.findByRole('button', {name: 'Download Pack'}));
-    expect(await findAlert('A clinician must review the record first.')).toBeInTheDocument();
+    expect(await findAlert('Review the record first.')).toBeInTheDocument();
   });
 
-  it('offers a clinician only the review, which lists the items to withhold', async () => {
-    const {user} = render(testDataRequest({canManage: false, canReview: true, packBlockedReason: null}), {
+  it('offers the review only as the response allows (an admin, while it is open), listing the items to withhold', async () => {
+    const {user} = render(testDataRequest({canReview: true}), {
       [`GET ${BASE}/review-items`]: () => json(testReviewItems()),
-    }, seniorClinicianUser);
+    });
 
     await user.click(await screen.findByRole('button', {name: 'Review'}));
-    expect(screen.queryByRole('button', {name: 'Record Identity Check'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'More'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Record Identity Check'})).toBeInTheDocument();
     const dialog = within(await dialogOpen());
     expect(await dialog.findByRole('checkbox', {name: 'Withhold this note'})).toBeChecked();
   });

@@ -561,6 +561,7 @@ public static class PatientExportMapper
         ReminderChannel = patient.ReminderChannel.ToString(),
         PracticeName = practice?.Id == patient.PracticeId ? practice?.Name : null,
         PracticeOdsCode = practice?.Id == patient.PracticeId ? practice?.OdsCode : null,
+        UnlistedPractice = UnlistedPractices.ToResponse(patient),
         CreatedAt = patient.CreatedAt,
         LastUpdated = patient.LastUpdated,
         RestrictedAtUtc = patient.RestrictedAtUtc,

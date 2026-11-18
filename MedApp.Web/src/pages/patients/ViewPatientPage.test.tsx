@@ -61,6 +61,19 @@ describe('ViewPatientPage, referrals', () => {
   });
 });
 
+describe('ViewPatientPage, GP practice', () => {
+  it('shows a practice that is not in the directory, with its address and phone', async () => {
+    renderPage({
+      ...oriel,
+      unlistedPractice: {name: 'Nowhereville Health Centre', addressLines: ['2 Pretend Road'], postcode: 'ZZ9 9ZZ', phone: '01632 960111'},
+    });
+
+    expect(await screen.findByText('Nowhereville Health Centre (not in the directory)')).toBeInTheDocument();
+    expect(screen.getByText('2 Pretend Road')).toBeInTheDocument();
+    expect(screen.getByText('01632 960111')).toBeInTheDocument();
+  });
+});
+
 describe('ViewPatientPage, privacy', () => {
   it('shows staff no Privacy menu and no access report, and never asks for one', async () => {
     const {fetch} = renderPage(oriel, staffUser);

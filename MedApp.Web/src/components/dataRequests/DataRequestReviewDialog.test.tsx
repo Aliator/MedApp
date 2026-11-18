@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {isDisabled, json, mockApi, openDialog, renderWithApp, seniorClinicianUser} from '../../test/render';
+import {isDisabled, json, mockApi, openDialog, renderWithApp, adminUser} from '../../test/render';
 import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, FILE_ID, NOTE_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
 import {DataRequestReviewDialog, startingChoices, withheldOf} from './DataRequestReviewDialog';
 
@@ -19,7 +19,7 @@ function render(handlers: Parameters<typeof mockApi>[0] = {}, onDone = vi.fn()) 
     fetch,
     onDone,
     ...renderWithApp(<DataRequestReviewDialog request={request} patient={DATA_REQUEST_PATIENT} onCancel={vi.fn()} onDone={onDone} />, {
-      user: seniorClinicianUser,
+      user: adminUser,
     }),
   };
 }

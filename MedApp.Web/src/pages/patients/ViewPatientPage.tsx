@@ -312,6 +312,14 @@ function PatientDetails({patient}: {patient: Patient}) {
             </MetadataListItem>
             {patient.practice.phone && <MetadataListItem label="Phone">{patient.practice.phone}</MetadataListItem>}
           </>
+        ) : patient.unlistedPractice ? (
+          <>
+            <MetadataListItem label="Practice">{`${patient.unlistedPractice.name ?? ''} (not in the directory)`}</MetadataListItem>
+            <MetadataListItem label="Address">
+              <AddressLines lines={patient.unlistedPractice.addressLines} postcode={patient.unlistedPractice.postcode} />
+            </MetadataListItem>
+            {patient.unlistedPractice.phone && <MetadataListItem label="Phone">{patient.unlistedPractice.phone}</MetadataListItem>}
+          </>
         ) : (
           <MetadataListItem label="Practice">Not given</MetadataListItem>
         )}

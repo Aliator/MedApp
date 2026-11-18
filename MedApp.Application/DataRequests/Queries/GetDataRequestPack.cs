@@ -54,6 +54,7 @@ public sealed class GetDataRequestPackHandler(
 
     public async Task<DataRequestPack> Handle(GetDataRequestPackQuery request, CancellationToken cancellationToken)
     {
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var dataRequest = await repository.GetAsync(request.DataRequestId, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{request.DataRequestId}' was not found.");
         if (DataRequestRules.WhyNoPack(dataRequest) is { } why)

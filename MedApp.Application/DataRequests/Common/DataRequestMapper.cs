@@ -50,7 +50,7 @@ public static class DataRequestMapper
             Version = request.Version,
             IsOverdue = DataRequestRules.IsOverdue(request, today),
             CanManage = manages && canChange,
-            CanReview = actor.Has(Permission.SignOffResults) && canChange,
+            CanReview = manages && canChange,
             CanMakePack = manages && whyNoPack is null,
             PackBlockedReason = manages && canChange ? whyNoPack : null
         };

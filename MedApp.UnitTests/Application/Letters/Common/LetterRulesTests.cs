@@ -243,7 +243,9 @@ public sealed class LetterRulesTests : LetterHandlerTestBase
         validator.Validate(Command() with { ExpectedVersion = 0 }).IsValid.Should().BeFalse();
 
         validator.Validate(Command(new LetterRecipientCommandItem("Nobody", null, null, null, null, null))).IsValid.Should().BeFalse();
-        validator.Validate(Command(new LetterRecipientCommandItem("GpPractice", null, null, null, null, null)))
+        // No practice ID is the patient's own practice outside the directory (checked against the patient); the empty ID isn't.
+        validator.Validate(Command(new LetterRecipientCommandItem("GpPractice", null, null, null, null, null))).IsValid.Should().BeTrue();
+        validator.Validate(Command(new LetterRecipientCommandItem("GpPractice", Guid.Empty, null, null, null, null)))
             .Errors.Should().ContainSingle(e => e.ErrorMessage.Contains("directory"));
         validator.Validate(Command(new LetterRecipientCommandItem("Other", null, null, null, null, null))).Errors.Should().HaveCount(2);
         validator.Validate(Command(new LetterRecipientCommandItem("Other", null, "A Person", "1\n2\n3\n4", "nope", "x@example.com")))

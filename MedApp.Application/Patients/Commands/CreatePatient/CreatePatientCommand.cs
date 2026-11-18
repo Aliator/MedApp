@@ -1,3 +1,4 @@
+using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Patients.Responses;
 using MediatR;
 
@@ -14,5 +15,7 @@ public sealed record CreatePatientCommand(
     string? MobilePhone = null,
     Guid? PracticeId = null,
     // None, Text, Email or TextAndEmail; null is None.
-    string? ReminderChannel = null
+    string? ReminderChannel = null,
+    // A GP practice not in the directory, held on this patient only; not with PracticeId.
+    UnlistedPracticeInput? UnlistedPractice = null
 ) : IRequest<PatientResponse>;

@@ -20104,6 +20104,7 @@ export interface components {
             /** Format: uuid */
             practiceId?: string | null;
             reminderChannel?: string | null;
+            unlistedPractice?: components["schemas"]["UnlistedPracticeRequest"];
         };
         CreatePracticeRequest: {
             name?: string | null;
@@ -20710,6 +20711,7 @@ export interface components {
             reminderChannel?: string | null;
             practiceName?: string | null;
             practiceOdsCode?: string | null;
+            unlistedPractice?: components["schemas"]["UnlistedPracticeResponse"];
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -21807,6 +21809,7 @@ export interface components {
             /** Format: uuid */
             practiceId?: string | null;
             practice?: components["schemas"]["PracticeSummaryResponse"];
+            unlistedPractice?: components["schemas"]["UnlistedPracticeResponse"];
             isRestricted?: boolean;
             restrictionReason?: string | null;
             /** Format: date-time */
@@ -22938,6 +22941,18 @@ export interface components {
             canUseEmailCodes?: boolean;
             emailCodesUnavailableReason?: string | null;
         };
+        UnlistedPracticeRequest: {
+            name?: string | null;
+            addressLines?: string[] | null;
+            postcode?: string | null;
+            phone?: string | null;
+        };
+        UnlistedPracticeResponse: {
+            name?: string | null;
+            addressLines?: string[] | null;
+            postcode?: string | null;
+            phone?: string | null;
+        };
         UpdateActivityTypeRequest: {
             name?: string | null;
             colour?: string | null;
@@ -23035,6 +23050,7 @@ export interface components {
             /** Format: uuid */
             practiceId?: string | null;
             reminderChannel?: string | null;
+            unlistedPractice?: components["schemas"]["UnlistedPracticeRequest"];
         };
         UpdatePracticeRequest: {
             name?: string | null;

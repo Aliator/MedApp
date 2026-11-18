@@ -5,6 +5,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Letters.Responses;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Referrals;
@@ -97,7 +98,8 @@ public sealed class CreateLetterHandler(
 
     /// <summary>
     /// Who a new letter starts addressed to (decision 101): from a referral, the referrer, and the patient for a reply;
-    /// from a pathway, the patient's registered practice (if they have one) and the patient.
+    /// from a pathway, the patient's registered practice (if they have one, from the directory or held on the patient
+    /// when it isn't listed) and the patient.
     /// </summary>
     public static IReadOnlyList<LetterRecipientInput> StartingRecipients(LetterRecord record)
     {
@@ -107,8 +109,10 @@ public sealed class CreateLetterHandler(
                 ? [new LetterRecipientInput(LetterRecipientKind.Referrer, null, null, null, null, null), patient]
                 : [new LetterRecipientInput(LetterRecipientKind.Referrer, null, null, null, null, null)];
 
-        return record.Patient.PracticeId is { } practiceId
-            ? [new LetterRecipientInput(LetterRecipientKind.GpPractice, practiceId, null, null, null, null), patient]
+        if (record.Patient.PracticeId is { } practiceId)
+            return [new LetterRecipientInput(LetterRecipientKind.GpPractice, practiceId, null, null, null, null), patient];
+        return UnlistedPractices.Has(record.Patient)
+            ? [new LetterRecipientInput(LetterRecipientKind.GpPractice, null, null, null, null, null), patient]
             : [patient];
     }
 

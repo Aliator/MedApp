@@ -48,6 +48,7 @@ public sealed class RecordIdentityCheckHandler(
 {
     public async Task<DataRequestResponse> Handle(RecordIdentityCheckCommand request, CancellationToken cancellationToken)
     {
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var dataRequest = await repository.GetForUpdateAsync(request.DataRequestId, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{request.DataRequestId}' was not found.");
         DataRequestRules.EnsureCanChange(dataRequest, request.ExpectedVersion);

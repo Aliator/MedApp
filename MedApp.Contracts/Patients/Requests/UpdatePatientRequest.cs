@@ -31,6 +31,13 @@ public sealed class UpdatePatientRequest
     /// </summary>
     public Guid? PracticeId { get; set; }
 
+    /// <summary>
+    /// Their GP practice when it isn't in the directory ("Not listed here"), held on this patient only. Left out (null),
+    /// unchanged; given, it replaces any directory practice. Not with a <see cref="PracticeId"/> other than the empty ID
+    /// (which removes both).
+    /// </summary>
+    public UnlistedPracticeRequest? UnlistedPractice { get; set; }
+
     /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail. Left out (null), unchanged.</summary>
     public string? ReminderChannel { get; set; }
 }

@@ -5,7 +5,9 @@ import {AppProviders} from '../app/AppProviders';
 import {calls, json, mockApi} from '../test/render';
 import {approvedLetter, LETTER_ID, LETTER_PATHWAY_ID, patientRecipient, practiceRecipient, testLetter} from '../test/letters';
 import {ApiError} from './errors';
+import {NO_PRACTICE_ID} from './practices';
 import {
+  PATIENTS_UNLISTED_PRACTICE,
   dispatchMethodWords,
   dispatchStatusWords,
   emptyRecipient,
@@ -93,7 +95,10 @@ describe('letter words', () => {
 describe('recipients', () => {
   it('sends only what each kind takes', () => {
     expect(toRecipientRequest(recipientInput(practiceRecipient()))).toEqual({kind: 'GpPractice', practiceId: practiceRecipient().practiceId});
-    expect(toRecipientRequest(emptyRecipient('GpPractice'))).toEqual({kind: 'GpPractice', practiceId: null});
+    // None chosen goes as the empty ID (the API asks for one from the directory); the patient's unlisted one, as none.
+    expect(toRecipientRequest(emptyRecipient('GpPractice'))).toEqual({kind: 'GpPractice', practiceId: NO_PRACTICE_ID});
+    expect(toRecipientRequest({...emptyRecipient('GpPractice'), practiceId: PATIENTS_UNLISTED_PRACTICE})).toEqual({kind: 'GpPractice', practiceId: null});
+    expect(recipientInput({...practiceRecipient(), practiceId: null}).practiceId).toBe(PATIENTS_UNLISTED_PRACTICE);
     expect(toRecipientRequest(recipientInput(patientRecipient()))).toEqual({kind: 'Patient'});
     expect(toRecipientRequest({...emptyRecipient('Referrer'), practiceId: 'p'})).toEqual({kind: 'Referrer'});
     expect(toRecipientRequest({...emptyRecipient('Referrer'), addressLines: ' 1 Street ', postcode: ''})).toEqual({

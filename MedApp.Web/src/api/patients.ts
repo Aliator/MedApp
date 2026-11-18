@@ -24,15 +24,31 @@ export interface PatientInput {
   postcode: string;
   /** Optional: a UK mobile as typed (`07…`, `+44 7…`). Blank means none. */
   mobilePhone: string;
-  /** The GP practice they're registered with, from the directory, or '' for none. */
+  /**
+   * The GP practice they're registered with: its ID in the directory, `UNLISTED_PRACTICE` for one that isn't listed
+   * (its details below), or '' for none.
+   */
   practiceId: string;
+  /** "Not listed here": the practice's name, held on this patient only (never added to the directory). */
+  unlistedPracticeName: string;
+  /** Its address's three lines, as typed; blank ones are left out. */
+  unlistedPracticeAddressLines: [string, string, string];
+  /** Its postcode, as typed. Blank means none. */
+  unlistedPracticePostcode: string;
+  /** Its phone, as typed. Blank means none. */
+  unlistedPracticePhone: string;
   /** How they want appointment messages: None, Text, Email or TextAndEmail (centre plan decision 133). */
   reminderChannel: string;
 }
 
+/** The practice picker's value for a GP practice that isn't in the directory ("Not listed here"). */
+export const UNLISTED_PRACTICE = 'unlisted';
+
 /** A patient's details as the edit form starts with them: the mobile in national form, as people type it. */
 export function patientInput(patient: Patient): PatientInput {
   const lines = patient.addressLines ?? [];
+  const unlisted = patient.unlistedPractice;
+  const unlistedLines = unlisted?.addressLines ?? [];
   return {
     firstName: patient.firstName ?? '',
     lastName: patient.lastName ?? '',
@@ -42,8 +58,22 @@ export function patientInput(patient: Patient): PatientInput {
     addressLines: [lines[0] ?? '', lines[1] ?? '', lines[2] ?? ''],
     postcode: patient.postcode ?? '',
     mobilePhone: patient.mobilePhone ? formatMobile(patient.mobilePhone) : '',
-    practiceId: patient.practiceId ?? '',
+    practiceId: patient.practiceId ?? (unlisted ? UNLISTED_PRACTICE : ''),
+    unlistedPracticeName: unlisted?.name ?? '',
+    unlistedPracticeAddressLines: [unlistedLines[0] ?? '', unlistedLines[1] ?? '', unlistedLines[2] ?? ''],
+    unlistedPracticePostcode: unlisted?.postcode ?? '',
+    unlistedPracticePhone: unlisted?.phone ?? '',
     reminderChannel: patient.reminderChannel ?? 'None',
+  };
+}
+
+/** The unlisted practice's fields, as the API takes them. */
+function unlistedPracticeRequest(input: PatientInput): Schemas['UnlistedPracticeRequest'] {
+  return {
+    name: input.unlistedPracticeName.trim(),
+    addressLines: keptLines(input.unlistedPracticeAddressLines),
+    postcode: input.unlistedPracticePostcode.trim() || null,
+    phone: input.unlistedPracticePhone.trim() || null,
   };
 }
 
@@ -69,12 +99,19 @@ export type PatientRequest = Schemas['CreatePatientRequest'] & Schemas['UpdatePa
  * is), so an archived practice the patient already has is never sent as if newly chosen; a removed one is sent as the
  * API removes it: no address lines (`[]`), an empty postcode or mobile (`""`), and the all-zero practice ID.
  *
+ * A practice that isn't listed (`UNLISTED_PRACTICE`) is sent as `unlistedPractice` (on an update, only when it's newly
+ * chosen or its details changed), never with a practice ID: the API replaces any directory practice with it, and a
+ * directory practice (or the all-zero ID, for none) replaces it.
+ *
  * The reminder choice goes the same way: left out of a new patient when it's "None" (the API's default), and on an
  * update sent only when it changed (left out, the API leaves it as it is).
  */
 export function toPatientRequest(input: PatientInput, mode: 'create' | 'update', saved?: PatientInput): PatientRequest {
   const nhsNumber = normaliseNhsNumber(input.nhsNumber);
-  const {addressLines, postcode, mobilePhone, practiceId, reminderChannel, ...personal} = input;
+  const {addressLines, postcode, mobilePhone, practiceId, reminderChannel} = input;
+  // The unlisted practice's fields go as one object, below.
+  const personal = {firstName: input.firstName, lastName: input.lastName, email: input.email};
+  const isUnlisted = practiceId === UNLISTED_PRACTICE;
   const lines = keptLines(addressLines);
   const isCreate = mode === 'create';
   const changed = (same: (before: PatientInput) => boolean) => isCreate || !saved || !same(saved);
@@ -87,7 +124,12 @@ export function toPatientRequest(input: PatientInput, mode: 'create' | 'update',
       changed((before) => JSON.stringify(keptLines(before.addressLines)) === JSON.stringify(lines)) && (lines.length > 0 || !isCreate) ? lines : undefined,
     postcode: changed((before) => formatPostcode(before.postcode) === formatPostcode(postcode)) ? postcode.trim() || (isCreate ? undefined : '') : undefined,
     mobilePhone: changed((before) => sameText(before.mobilePhone, mobilePhone)) ? mobilePhone.trim() || (isCreate ? undefined : '') : undefined,
-    practiceId: changed((before) => before.practiceId === practiceId) ? practiceId || (isCreate ? undefined : NO_PRACTICE_ID) : undefined,
+    practiceId:
+      !isUnlisted && changed((before) => before.practiceId === practiceId) ? practiceId || (isCreate ? undefined : NO_PRACTICE_ID) : undefined,
+    unlistedPractice:
+      isUnlisted && changed((before) => JSON.stringify(unlistedPracticeRequest(before)) === JSON.stringify(unlistedPracticeRequest(input)) && before.practiceId === UNLISTED_PRACTICE)
+        ? unlistedPracticeRequest(input)
+        : undefined,
     reminderChannel:
       changed((before) => before.reminderChannel === reminderChannel) && !(isCreate && reminderChannel === 'None') ? reminderChannel : undefined,
   };

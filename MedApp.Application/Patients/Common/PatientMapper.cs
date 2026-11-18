@@ -33,6 +33,7 @@ public static class PatientMapper
         ReminderChannel = patient.ReminderChannel.ToString(),
         PracticeId = patient.PracticeId,
         Practice = practice is not null && practice.Id == patient.PracticeId ? PracticeMapper.ToSummary(practice) : null,
+        UnlistedPractice = UnlistedPractices.ToResponse(patient),
         IsRestricted = patient.RestrictedAtUtc is not null,
         RestrictionReason = patient.RestrictionReason,
         RestrictedAtUtc = patient.RestrictedAtUtc,

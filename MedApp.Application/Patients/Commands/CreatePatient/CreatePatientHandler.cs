@@ -16,7 +16,8 @@ namespace MedApp.Application.Patients.Commands.CreatePatient;
 /// <summary>
 /// Adds a patient. Their NHS number is optional, and stored as its ten digits; another patient's is a 409. Their contact
 /// details are optional too: the address's lines, the postcode (normalised), a UK mobile (stored as <c>+447…</c>) and
-/// the GP practice they're registered with, which must exist (404) and not be archived (409).
+/// the GP practice they're registered with, which must exist (404) and not be archived (409), or one that isn't in
+/// the directory (its name, address and phone, held on this patient only).
 /// </summary>
 public sealed class CreatePatientHandler(
     IPatientRepository repository,
@@ -52,6 +53,9 @@ public sealed class CreatePatientHandler(
             CreatedAt = DateTime.UtcNow,
             LastUpdated = DateTime.UtcNow
         };
+
+        if (request.UnlistedPractice is { } unlisted)
+            UnlistedPractices.Set(patient, unlisted);
 
         await repository.AddAsync(patient, activityLog.Entry(ActivityAction.PatientCreated, patient.Id), cancellationToken);
 

@@ -34,6 +34,12 @@ public sealed record PatientResponse(
     /// </summary>
     public PracticeSummaryResponse? Practice { get; init; }
 
+    /// <summary>
+    /// Their GP practice when it isn't in the directory, held on this patient only, or null. A patient has this or
+    /// <see cref="PracticeId"/>, never both.
+    /// </summary>
+    public UnlistedPracticeResponse? UnlistedPractice { get; init; }
+
     /// <summary>An admin has restricted the record (Article 18): nothing about it can be changed until they lift it.</summary>
     public bool IsRestricted { get; init; }
 

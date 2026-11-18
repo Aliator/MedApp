@@ -78,13 +78,14 @@ export function outcomeWords(request: DataRequest): string | null {
 
 /**
  * One data request (`/data-requests/$id`): the patient's banner, then the request (when it was received and who
- * asked), its due date (the first, and any extension with its reason), the identity check, the clinician review (who,
+ * asked), its due date (the first, and any extension with its reason), the identity check, the review (who,
  * when, and what was withheld with why) and how it ended.
  *
- * - **Its actions follow the response's flags only.** For holders of ManagePrivacy while it's open (`canManage`):
- *   Record Identity Check, Extend Due Date (while an extension is left), Record as Sent, Refuse and Withdraw, each from a
- *   dialog showing the patient and sending the version the page showed. For a clinician (`canReview`): Review, which
- *   lists the record's items to withhold under the serious harm test.
+ * - **Its actions follow the response's flags only,** which the API gives only to holders of ManagePrivacy (admins:
+ *   only they deal with data requests). While it's open (`canManage`): Record Identity Check, Extend Due Date (while an
+ *   extension is left), Record as Sent, Refuse and Withdraw, each from a dialog showing the patient and sending the
+ *   version the page showed; and (`canReview`) Review, which lists the record's items to withhold under the serious harm
+ *   test, on an appropriate health professional's opinion taken outside MedApp.
  * - **Download Pack** (`canMakePack`) makes the pack now and saves it; it's never stored. Otherwise the page says why it
  *   can't be made yet (`packBlockedReason`).
  */
