@@ -21,8 +21,15 @@ public sealed class LastAdminGuard(MedAppDbContext context, TimeProvider timePro
 
     public async Task<bool> WouldLeaveNoAdminAsync(Guid userId, CancellationToken ct)
     {
-        if (context.Database.CurrentTransaction is not null && context.Database.IsSqlServer())
+        // Without the change's transaction there's no lock, and two admins could remove each other at once: refuse to
+        // check at all, so a caller can't skip it by mistake.
+        if (context.Database.IsSqlServer())
+        {
+            if (context.Database.CurrentTransaction is null)
+                throw new InvalidOperationException(
+                    "The last-admin check must run inside the change's transaction (IIdentityTransactions.RunAsync).");
             await LockAsync(ct);
+        }
 
         var active = await RolePermissionQueries.ActiveAdmins(context, timeProvider.GetUtcNow()).ToListAsync(ct);
         return active.Contains(userId) && active.Count == 1;

@@ -27,6 +27,7 @@ public sealed class RoleChangeActivityTests
         _fixture = AutoFixtureFactory.Create();
         // Not the last admin, unless a test says so.
         _fixture.Inject(new Mock<ILastAdminGuard>().Object);
+        _fixture.Inject<IIdentityTransactions>(new PassThroughIdentityTransactions());
         _roles = new Mock<IIdentityRoleService>();
         _activity = new RecordingActivityLog();
         _fixture.Inject(_roles.Object);
