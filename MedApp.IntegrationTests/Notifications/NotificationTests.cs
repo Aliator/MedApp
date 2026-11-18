@@ -6,7 +6,7 @@ using MedApp.API.Notifications;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Notifications.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -14,7 +14,7 @@ using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
 namespace MedApp.IntegrationTests.Notifications;
 
-/// <summary>Being assigned a procedure: the stored notification, and its live delivery through the hub.</summary>
+/// <summary>Being assigned a pathway: the stored notification, and its live delivery through the hub.</summary>
 [TestFixture]
 public sealed class NotificationTests : IntegrationTest
 {
@@ -22,18 +22,18 @@ public sealed class NotificationTests : IntegrationTest
 
     private HttpClient _admin = null!;
     private StaffAccount _staff = null!;
-    private PatientProcedureResponse _procedure = null!;
+    private PatientPathwayResponse _pathway = null!;
 
     [SetUp]
-    public async Task CreateProcedureAsync()
+    public async Task CreatePathwayAsync()
     {
         _admin = await SignInAsAdminAsync();
         _staff = await CreateStaffAsync(UserRole);
-        _procedure = await CreatePatientWithProcedureAsync(_admin, stages: 1);
+        _pathway = await CreatePatientWithPathwayAsync(_admin, stages: 1);
     }
 
     [Test]
-    public async Task AssignProcedure_ToSomeoneElse_StoresAnUnreadNotificationForThem()
+    public async Task AssignPathway_ToSomeoneElse_StoresAnUnreadNotificationForThem()
     {
         var assigned = await AssignAsync(_staff.UserId);
 
@@ -43,9 +43,9 @@ public sealed class NotificationTests : IntegrationTest
         mine.UnreadCount.Should().Be(1);
         mine.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            Kind = "ProcedureAssigned",
-            Title = _procedure.Title,
-            ProcedureId = (Guid?)_procedure.Id,
+            Kind = "PathwayAssigned",
+            Title = _pathway.Title,
+            PathwayId = (Guid?)_pathway.Id,
             IsRead = false,
         });
         mine.Items[0].Message.Should().Contain(AdminUsername);
@@ -53,7 +53,7 @@ public sealed class NotificationTests : IntegrationTest
     }
 
     [Test]
-    public async Task AssignProcedure_ToYourself_StoresNoNotification()
+    public async Task AssignPathway_ToYourself_StoresNoNotification()
     {
         var adminId = await GetUserIdAsync(_admin, AdminUsername);
 
@@ -66,8 +66,8 @@ public sealed class NotificationTests : IntegrationTest
     public async Task MarkRead_One_LeavesTheOthersUnread()
     {
         await AssignAsync(_staff.UserId);
-        var second = await CreatePatientWithProcedureAsync(_admin, stages: 1);
-        await (await _admin.PostAsync($"{ProcedureUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var second = await CreatePatientWithPathwayAsync(_admin, stages: 1);
+        await (await _admin.PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var before = await NotificationsOfAsync(_staff.Client);
 
         await (await _staff.Client.PostAsync($"/api/notifications/{before.Items[0].Id}/read", null)).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
@@ -90,7 +90,7 @@ public sealed class NotificationTests : IntegrationTest
     }
 
     [Test]
-    public async Task AssignProcedure_UserHasAPageOpen_PushesTheNotificationThroughTheHub()
+    public async Task AssignPathway_UserHasAPageOpen_PushesTheNotificationThroughTheHub()
     {
         var received = new TaskCompletionSource<NotificationResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var hub = await ConnectToHubAsync(_staff.Username, _staff.Password);
@@ -120,9 +120,9 @@ public sealed class NotificationTests : IntegrationTest
         await hub.DisposeAsync();
     }
 
-    private async Task<PatientProcedureResponse> AssignAsync(Guid userId) =>
-        await (await _admin.PostAsync($"{ProcedureUrl(_procedure.Id)}/assignments/{userId}", null))
-            .ReadAsAsync<PatientProcedureResponse>();
+    private async Task<PatientPathwayResponse> AssignAsync(Guid userId) =>
+        await (await _admin.PostAsync($"{PathwayUrl(_pathway.Id)}/assignments/{userId}", null))
+            .ReadAsAsync<PatientPathwayResponse>();
 
     private static async Task<NotificationsResponse> NotificationsOfAsync(HttpClient client) =>
         await (await client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();

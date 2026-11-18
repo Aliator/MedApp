@@ -69,10 +69,10 @@ public sealed class SearchAppointmentsHandlerTests : AppointmentHandlerTestBase
 
         await Fixture.Create<SearchAppointmentsHandler>().Handle(query, cts.Token);
 
-        var (action, ids, procedureId) = activity.Views.Should().ContainSingle().Subject;
+        var (action, ids, pathwayId) = activity.Views.Should().ContainSingle().Subject;
         action.Should().Be(ActivityAction.PatientListed);
         ids.Should().Equal(first.PatientId, second.PatientId);
-        procedureId.Should().BeNull();
+        pathwayId.Should().BeNull();
         activity.Tokens.Should().Equal(cts.Token);
     }
 }

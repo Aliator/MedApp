@@ -11,7 +11,7 @@ export const NO_PROBLEM: SaveProblem = {validation: null, message: null};
 /** What's being saved, as the messages name it. */
 export type SaveSubject =
   | 'patient'
-  | 'procedure'
+  | 'pathway'
   | 'stage'
   | 'template'
   | 'rule'
@@ -32,7 +32,7 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 
       case 404:
         return {validation: null, message: `${Subject} not found. It may have been deleted.`};
       case 409:
-        // The API says why, e.g. "This patient has 2 procedures, so they can't be deleted."
+        // The API says why, e.g. "This patient has 2 pathways, so they can't be deleted."
         if (error.title) return {validation: null, message: error.title};
         break;
       default:

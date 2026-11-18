@@ -3,7 +3,7 @@ import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, s
 import type {TasksSearch} from '../listSearch';
 import {MyTasksPage, taskQuery} from './MyTasksPage';
 
-const SEARCH = 'GET /api/procedures/patient-procedures/search';
+const SEARCH = 'GET /api/pathways/patient-pathways/search';
 
 const summary = (overrides: Record<string, unknown>) => ({
   id: 'proc-1',
@@ -55,7 +55,7 @@ describe('MyTasksPage', () => {
     const {fetch} = renderTasks();
 
     expect(await screen.findByText('Colonoscopy')).toBeInTheDocument();
-    expect(screen.getByText('1 procedure not started')).toBeInTheDocument();
+    expect(screen.getByText('1 pathway not started')).toBeInTheDocument();
     expect(searchBar()).toHaveTextContent(/Progress: is\s*Not started/);
     // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
     expect(screen.getByRole('button', {name: 'Favourites (showing Not started)'})).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe('MyTasksPage', () => {
 
     const row = (await screen.findByText('Knee replacement')).closest('tr')!;
     expect(within(row).getByText('Consultation')).toBeInTheDocument();
-    expect(screen.getByText('12 procedures started')).toBeInTheDocument();
+    expect(screen.getByText('12 pathways started')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: 'Current stage'})).toBeInTheDocument();
   });
 
@@ -121,7 +121,7 @@ describe('MyTasksPage', () => {
     renderTasks({progress: 'any'});
 
     expect((await screen.findAllByText('Nothing assigned to you')).length).toBeGreaterThan(0);
-    expect(screen.getByText('0 procedures to do')).toBeInTheDocument();
+    expect(screen.getByText('0 pathways to do')).toBeInTheDocument();
     expect(searchBar()).not.toHaveTextContent(/Progress:/);
   });
 
@@ -163,7 +163,7 @@ describe('MyTasksPage', () => {
     renderWithApp(<MyTasksPage search={{}} onSearchChange={() => {}} />, {user: staffUser});
 
     expect(await screen.findByText('Nothing waiting to be started')).toBeInTheDocument();
-    expect(screen.getByRole('heading', {name: 'My Tasks'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'My Worklist'})).toBeInTheDocument();
   });
 
   it('says when the tasks cannot be loaded', async () => {

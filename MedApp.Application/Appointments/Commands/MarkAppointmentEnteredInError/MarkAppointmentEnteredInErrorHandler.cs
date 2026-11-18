@@ -4,18 +4,18 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 
 public sealed class MarkAppointmentEnteredInErrorHandler(
     IAppointmentRepository repository,
-    IPatientProcedureRepository procedureRepository,
+    IPatientPathwayRepository pathwayRepository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     TimeProvider timeProvider)
@@ -61,12 +61,12 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
             await repository.SaveAsync(change.Events, cancellationToken);
         }
 
-        // A finished stage that requires a visit, left without one: only an admin can put it right, so the procedure's
+        // A finished stage that requires a visit, left without one: only an admin can put it right, so the pathway's
         // assignees and the admins are told, not only the person withdrawing it.
-        if (stage.FinishedWithoutVisit is (var procedure, var finished))
+        if (stage.FinishedWithoutVisit is (var pathway, var finished))
         {
             var admins = await identityReadService.GetAdminIdsAsync(cancellationToken);
-            foreach (var notification in AppointmentNotifications.AfterStageVisitWithdrawn(appointment, procedure, finished, admins, request.Actor, now))
+            foreach (var notification in AppointmentNotifications.AfterStageVisitWithdrawn(appointment, pathway, finished, admins, request.Actor, now))
                 await notificationSender.SendAsync(notification, cancellationToken);
         }
 
@@ -81,11 +81,11 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
     /// <summary>What withdrawing a stage's visit does to the stage.</summary>
     /// <param name="Requested">The Requested visit to add (with its history), saved in the same save as the withdrawal.</param>
     /// <param name="Message">What to tell the person withdrawing it about the stage, if anything.</param>
-    /// <param name="FinishedWithoutVisit">The procedure and stage, when a finished stage that requires a visit is left without one.</param>
+    /// <param name="FinishedWithoutVisit">The pathway and stage, when a finished stage that requires a visit is left without one.</param>
     private sealed record StageOutcome(
         (Appointment Appointment, IReadOnlyList<AppointmentEvent> Events)? Requested,
         string? Message,
-        (PatientProcedure Procedure, PatientProcedureStage Stage)? FinishedWithoutVisit);
+        (PatientPathway Pathway, PatientPathwayStage Stage)? FinishedWithoutVisit);
 
     /// <summary>
     /// For a stage's visit, whether to ask for it again (by <see cref="StageVisits.AfterVisitWithdrawn"/>'s rules, and
@@ -94,18 +94,18 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
     private async Task<StageOutcome> AskForTheStagesVisitAgainAsync(
         Appointment withdrawn, MarkAppointmentEnteredInErrorCommand request, DateTime now, CancellationToken ct)
     {
-        if (withdrawn is not { ProcedureId: { } procedureId, StageId: { } stageId })
+        if (withdrawn is not { PathwayId: { } pathwayId, StageId: { } stageId })
             return new StageOutcome(null, null, null);
 
-        var procedure = await procedureRepository.GetByIdAsync(procedureId, ct);
-        var stage = procedure?.Stages.FirstOrDefault(s => s.Id == stageId);
-        if (procedure is null || stage is null)
+        var pathway = await pathwayRepository.GetByIdAsync(pathwayId, ct);
+        var stage = pathway?.Stages.FirstOrDefault(s => s.Id == stageId);
+        if (pathway is null || stage is null)
             return new StageOutcome(null, null, null);
 
         var appointments = await repository.GetForStagesForUpdateAsync([stageId], ct);
         var (again, message, finishedWithoutVisit) =
-            StageVisits.AfterVisitWithdrawn(procedure, stage, appointments.Where(a => a.Id != withdrawn.Id).Append(withdrawn));
-        var finished = finishedWithoutVisit ? (procedure, stage) : ((PatientProcedure, PatientProcedureStage)?)null;
+            StageVisits.AfterVisitWithdrawn(pathway, stage, appointments.Where(a => a.Id != withdrawn.Id).Append(withdrawn));
+        var finished = finishedWithoutVisit ? (pathway, stage) : ((PatientPathway, PatientPathwayStage)?)null;
         if (!again)
             return new StageOutcome(null, message, finished);
 
@@ -116,8 +116,8 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
         var visit = new Appointment
         {
             Id = Guid.NewGuid(),
-            PatientId = procedure.PatientId,
-            ProcedureId = procedure.Id,
+            PatientId = pathway.PatientId,
+            PathwayId = pathway.Id,
             StageId = stage.Id,
             Status = AppointmentStatus.Requested,
             IsAutomatic = true,
@@ -126,7 +126,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
             LastUpdated = now
         };
         // A tick after the withdrawal's own entry, so the history reads in order.
-        var change = new AppointmentChange(visit, request.Actor, now.AddTicks(1), procedureTitle: procedure.Title, stageName: stage.Name);
+        var change = new AppointmentChange(visit, request.Actor, now.AddTicks(1), pathwayTitle: pathway.Title, stageName: stage.Name);
         change.Request(automatic: true);
         visit.LastUpdated = now;
         return new StageOutcome((visit, change.Events), message, finished);

@@ -11,7 +11,7 @@ const id = 'f184a7b8-2585-4437-bcd4-e1700be38287';
 const freya = {id, firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'freya.ahmed18@example.com'};
 /** The patient's timeline: nothing due, and one entry. */
 const timeline = {
-  [`GET /api/patients/${id}/timeline/overview`]: () => json({upcoming: [], openCount: 0, procedures: []}),
+  [`GET /api/patients/${id}/timeline/overview`]: () => json({upcoming: [], openCount: 0, pathways: []}),
   [`GET /api/patients/${id}/timeline`]: () =>
     json({
       items: [
@@ -21,9 +21,9 @@ const timeline = {
           action: 'Created',
           atUtc: '2026-06-15T09:00:00Z',
           username: 'test.staff',
-          procedureId: '00000033-0000-0000-0000-000000000002',
-          procedureTitle: 'Knee assessment',
-          isProcedureDeleted: false,
+          pathwayId: '00000033-0000-0000-0000-000000000002',
+          pathwayTitle: 'Knee assessment',
+          isPathwayDeleted: false,
           changes: [],
         },
       ],
@@ -84,7 +84,7 @@ describe('ViewPatientPage', () => {
     mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
     renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
 
-    expect(await screen.findByText('Procedure created')).toBeInTheDocument();
+    expect(await screen.findByText('Pathway created')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Timeline'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Personal Information'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Hide timeline'})).not.toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('ViewPatientPage', () => {
     mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
     const {user} = renderWithApp(<PatientView id={id} isNarrow />, {user: adminUser});
 
-    expect(await screen.findByText('Procedure created')).toBeInTheDocument();
+    expect(await screen.findByText('Pathway created')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Notes'}));
     await user.click(screen.getByRole('button', {name: 'Hide details'}));
 
@@ -114,7 +114,7 @@ describe('ViewPatientPage: appointments', () => {
   const APPOINTMENTS = '/api/appointments/search';
   // In winter, UK time is UTC.
   const soon = testAppointment({id: 'soon', date: '2026-11-23', start: '10:00', end: '10:30', patientId: id});
-  const later = testAppointment({id: 'later', date: '2026-11-30', start: '09:00', end: '09:30', patientId: id, procedureId: null, procedureTitle: null, stageName: null});
+  const later = testAppointment({id: 'later', date: '2026-11-30', start: '09:00', end: '09:30', patientId: id, pathwayId: null, pathwayTitle: null, stageName: null});
   const waiting = testRequested({id: 'waiting', patientId: id});
   const past = (n: number, status = 'Attended') => testAppointment({id: `past-${n}`, status, date: `2026-10-0${n}`, patientId: id});
 
@@ -183,7 +183,7 @@ describe('ViewPatientPage: appointments', () => {
     renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
 
     expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Procedures'})).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Pathways'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
   });
@@ -218,9 +218,9 @@ describe('ViewPatientPage: files', () => {
           {
             id: '00000033-0000-0000-0000-000000000009',
             patientId: id,
-            attachedTo: 'Procedure',
-            procedureId: '00000033-0000-0000-0000-000000000002',
-            procedureTitle: 'Knee assessment',
+            attachedTo: 'Pathway',
+            pathwayId: '00000033-0000-0000-0000-000000000002',
+            pathwayTitle: 'Knee assessment',
             fileName: 'referral.pdf',
             contentType: 'application/pdf',
             typeName: 'PDF',
@@ -247,7 +247,7 @@ describe('ViewPatientPage: files', () => {
     expect(screen.getByRole('heading', {name: 'Files'})).toBeInTheDocument();
     expect(screen.getByText(/^Attached to/)).toHaveTextContent('Attached to Knee assessment');
     expect(screen.getByRole('button', {name: 'Add files'})).toBeInTheDocument();
-    // A procedure's file is deleted from the procedure, where its rules apply.
+    // A pathway's file is deleted from the pathway, where its rules apply.
     expect(screen.queryByRole('button', {name: 'Delete referral.pdf'})).not.toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/attachments?PatientId=${id}`);
   });
@@ -404,7 +404,7 @@ describe('EditPatientPage', () => {
     withAnnouncements();
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([], 0)),
       [`DELETE /api/patients/${id}`]: () => new Response(null, {status: 204}),
     });
     const {user, router} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
@@ -416,22 +416,22 @@ describe('EditPatientPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
     expect(calls(fetch)).toContain(
-      `GET /api/procedures/patient-procedures/search?PatientId=${id}&IncludeClosed=true&PageSize=1`,
+      `GET /api/pathways/patient-pathways/search?PatientId=${id}&IncludeClosed=true&PageSize=1`,
     );
     expect(calls(fetch)).toContain(`DELETE /api/patients/${id}`);
     await expectAnnounced('Patient deleted');
   });
 
-  it('does not offer to delete a patient who has procedures', async () => {
+  it('does not offer to delete a patient who has pathways', async () => {
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([{}], 2)),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([{}], 2)),
     });
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
     await user.click(await screen.findByRole('button', {name: 'Delete Patient'}));
 
-    expect(await within(openDialog()!).findByText("This patient has 2 procedures, so they can't be deleted.")).toBeInTheDocument();
+    expect(await within(openDialog()!).findByText("This patient has 2 pathways, so they can't be deleted.")).toBeInTheDocument();
     expect(isDisabled(within(openDialog()!).getByRole('button', {name: 'Delete Patient'}))).toBe(true);
     expect(calls(fetch)).not.toContain(`DELETE /api/patients/${id}`);
   });
@@ -439,8 +439,8 @@ describe('EditPatientPage', () => {
   it('shows why the API refused to delete the patient', async () => {
     mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
-      [`DELETE /api/patients/${id}`]: () => json({title: "This patient has 1 procedure, so they can't be deleted.", status: 409}, 409),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([], 0)),
+      [`DELETE /api/patients/${id}`]: () => json({title: "This patient has 1 pathway, so they can't be deleted.", status: 409}, 409),
     });
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
@@ -449,7 +449,7 @@ describe('EditPatientPage', () => {
     await waitFor(() => expect(isDisabled(confirm)).toBe(false));
     await user.click(confirm);
 
-    await findAlert("This patient has 1 procedure, so they can't be deleted.");
+    await findAlert("This patient has 1 pathway, so they can't be deleted.");
   });
 
   it('says when the patient was deleted by someone else', async () => {
@@ -482,7 +482,7 @@ describe('EditPatientPage', () => {
   it('makes no change when either confirmation is cancelled', async () => {
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([{}], 1)),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([{}], 1)),
     });
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
@@ -491,7 +491,7 @@ describe('EditPatientPage', () => {
     expect(openDialog()).toBeNull();
 
     await user.click(screen.getByRole('button', {name: 'Delete Patient'}));
-    expect(await within(openDialog()!).findByText("This patient has 1 procedure, so they can't be deleted.")).toBeInTheDocument();
+    expect(await within(openDialog()!).findByText("This patient has 1 pathway, so they can't be deleted.")).toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
     expect(openDialog()).toBeNull();
 
@@ -662,7 +662,7 @@ describe('Patient forms, NHS number', () => {
   it("shows the patient's NHS number when asking to delete them", async () => {
     mockApi({
       [`GET /api/patients/${id}`]: () => json({...freya, nhsNumber: '9990000077'}),
-      'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
+      'GET /api/pathways/patient-pathways/search': () => json(pageOf([], 0)),
     });
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 

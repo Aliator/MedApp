@@ -2,7 +2,7 @@ using FluentAssertions;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.EntityFrameworkCore;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Infrastructure.Data.Conversions;
 

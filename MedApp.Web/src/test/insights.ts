@@ -1,15 +1,15 @@
-import type {ProcedureInsights} from '../api/insights';
+import type {PathwayInsights} from '../api/insights';
 
 /** Synthetic data for Insights' tests. */
 export const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
 export const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
 
 export const templates = [
-  {id: TEMPLATE_ID, name: 'Knee review', isArchived: false, procedureCount: 4, stages: [], stageDefinitionIdsInOrder: []},
-  {id: '0000000e-0000-0000-0000-000000000002', name: 'Allergy check', isArchived: true, procedureCount: 1, stages: [], stageDefinitionIdsInOrder: []},
+  {id: TEMPLATE_ID, name: 'Knee review', isArchived: false, pathwayCount: 4, stages: [], stageDefinitionIdsInOrder: []},
+  {id: '0000000e-0000-0000-0000-000000000002', name: 'Allergy check', isArchived: true, pathwayCount: 1, stages: [], stageDefinitionIdsInOrder: []},
 ];
 
-export const insights: ProcedureInsights = {
+export const insights: PathwayInsights = {
   weeks: 12,
   templateId: null,
   from: '2026-08-31',

@@ -2,9 +2,9 @@ namespace MedApp.Contracts.Patients.Responses;
 
 /// <summary>
 /// Everything MedApp holds about a patient, for a subject access request (Article 15) or portability (Article 20):
-/// their details, procedures with stages, notes and assignments, the history of changes to their procedures, their
+/// their details, pathways with stages, notes and assignments, the history of changes to their pathways, their
 /// appointments and the history of changes to them, who has accessed their record, the notifications about their
-/// procedures and appointments, and the files attached to them (their details only: the files themselves aren't in
+/// pathways and appointments, and the files attached to them (their details only: the files themselves aren't in
 /// the export yet). Staff appear by username only: no account IDs,
 /// network addresses or read times, which are the staff's data, not the patient's. The printable page shows exactly
 /// these fields.
@@ -18,21 +18,21 @@ public sealed class PatientExportResponse
 
     public ExportedPatientResponse Patient { get; set; } = new();
 
-    /// <summary>The patient's procedures, oldest first.</summary>
-    public List<ExportedProcedureResponse> Procedures { get; set; } = [];
+    /// <summary>The patient's pathways, oldest first.</summary>
+    public List<ExportedPathwayResponse> Pathways { get; set; } = [];
 
-    /// <summary>Every change to the patient's procedures, oldest first, including procedures since deleted.</summary>
-    public List<ExportedHistoryEntryResponse> ProcedureHistory { get; set; } = [];
+    /// <summary>Every change to the patient's pathways, oldest first, including pathways since deleted.</summary>
+    public List<ExportedHistoryEntryResponse> PathwayHistory { get; set; } = [];
 
     /// <summary>
-    /// Every version of every note on the patient's procedures (as added, then after each edit), oldest first, including
-    /// those of procedures since deleted.
+    /// Every version of every note on the patient's pathways (as added, then after each edit), oldest first, including
+    /// those of pathways since deleted.
     /// </summary>
     public List<ExportedNoteVersionResponse> NoteHistory { get; set; } = [];
 
     /// <summary>
-    /// Requests from staff to delete notes on the patient's procedures, oldest first, with their reasons and outcomes,
-    /// including those about procedures since deleted.
+    /// Requests from staff to delete notes on the patient's pathways, oldest first, with their reasons and outcomes,
+    /// including those about pathways since deleted.
     /// </summary>
     public List<ExportedNoteDeletionRequestResponse> NoteDeletionRequests { get; set; } = [];
 
@@ -45,11 +45,11 @@ public sealed class PatientExportResponse
     /// <summary>Who viewed, changed or exported the record, oldest first (this export included).</summary>
     public List<ExportedAccessEntryResponse> AccessLog { get; set; } = [];
 
-    /// <summary>Notifications sent to staff about the patient's procedures and appointments.</summary>
+    /// <summary>Notifications sent to staff about the patient's pathways and appointments.</summary>
     public List<ExportedNotificationResponse> Notifications { get; set; } = [];
 
     /// <summary>
-    /// The files attached to the patient, their procedures and stages, oldest first, deleted ones included: their
+    /// The files attached to the patient, their pathways and stages, oldest first, deleted ones included: their
     /// details, not their contents.
     /// </summary>
     public List<ExportedAttachmentResponse> Attachments { get; set; } = [];
@@ -78,8 +78,8 @@ public sealed class ExportedPatientResponse
     public string? RetentionKeptReason { get; set; }
 }
 
-/// <summary>One of the patient's procedures, as the export gives it.</summary>
-public sealed class ExportedProcedureResponse
+/// <summary>One of the patient's pathways, as the export gives it.</summary>
+public sealed class ExportedPathwayResponse
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -94,7 +94,7 @@ public sealed class ExportedProcedureResponse
     public DateTime LastUpdated { get; set; }
 
     /// <summary>Its notes as they are now, oldest first (<see cref="PatientExportResponse.NoteHistory"/> has every version).</summary>
-    public List<ExportedProcedureNoteResponse> Notes { get; set; } = [];
+    public List<ExportedPathwayNoteResponse> Notes { get; set; } = [];
 
     /// <summary>The usernames of the staff assigned to it.</summary>
     public List<string> AssignedTo { get; set; } = [];
@@ -102,8 +102,8 @@ public sealed class ExportedProcedureResponse
     public List<ExportedStageResponse> Stages { get; set; } = [];
 }
 
-/// <summary>One note on a procedure as it is now, as the export gives it: deleted notes too, saying when, by whom and why.</summary>
-public sealed class ExportedProcedureNoteResponse
+/// <summary>One note on a pathway as it is now, as the export gives it: deleted notes too, saying when, by whom and why.</summary>
+public sealed class ExportedPathwayNoteResponse
 {
     public Guid Id { get; set; }
 
@@ -117,7 +117,7 @@ public sealed class ExportedProcedureNoteResponse
     /// <summary>Its latest version: 1 if it was never edited.</summary>
     public int Version { get; set; }
 
-    /// <summary>When an admin deleted it (it's hidden from the procedure page, but kept); null if it isn't deleted.</summary>
+    /// <summary>When an admin deleted it (it's hidden from the pathway page, but kept); null if it isn't deleted.</summary>
     public DateTime? DeletedAtUtc { get; set; }
 
     /// <summary>The admin who deleted it, by username ("Deleted user" once gone); null if it isn't deleted.</summary>
@@ -136,12 +136,12 @@ public sealed class ExportedProcedureNoteResponse
     public bool IsAboutAnotherPatient { get; set; }
 }
 
-/// <summary>A member of staff's request to delete a note on one of the patient's procedures, as the export gives it.</summary>
+/// <summary>A member of staff's request to delete a note on one of the patient's pathways, as the export gives it.</summary>
 public sealed class ExportedNoteDeletionRequestResponse
 {
     public Guid Id { get; set; }
     public Guid NoteId { get; set; }
-    public Guid ProcedureId { get; set; }
+    public Guid PathwayId { get; set; }
 
     /// <summary>Who asked, by the username recorded at the time.</summary>
     public string RequestedBy { get; set; } = string.Empty;
@@ -163,11 +163,11 @@ public sealed class ExportedNoteDeletionRequestResponse
     public DateTime? DecidedAtUtc { get; set; }
 }
 
-/// <summary>One version of one note on a procedure, as the export gives it.</summary>
+/// <summary>One version of one note on a pathway, as the export gives it.</summary>
 public sealed class ExportedNoteVersionResponse
 {
     public Guid NoteId { get; set; }
-    public Guid ProcedureId { get; set; }
+    public Guid PathwayId { get; set; }
 
     /// <summary>1 for the note as added, one more for each edit.</summary>
     public int Version { get; set; }
@@ -180,7 +180,7 @@ public sealed class ExportedNoteVersionResponse
     public DateTime AtUtc { get; set; }
 }
 
-/// <summary>One stage of a procedure, as the export gives it.</summary>
+/// <summary>One stage of a pathway, as the export gives it.</summary>
 public sealed class ExportedStageResponse
 {
     public int Order { get; set; }
@@ -192,14 +192,14 @@ public sealed class ExportedStageResponse
     public string? FinishedBy { get; set; }
 }
 
-/// <summary>One change to one of the patient's procedures, as the export gives it.</summary>
+/// <summary>One change to one of the patient's pathways, as the export gives it.</summary>
 public sealed class ExportedHistoryEntryResponse
 {
     public DateTime AtUtc { get; set; }
     public string Action { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
-    public Guid ProcedureId { get; set; }
-    public string ProcedureTitle { get; set; } = string.Empty;
+    public Guid PathwayId { get; set; }
+    public string PathwayTitle { get; set; } = string.Empty;
     public string? StageName { get; set; }
 
     /// <summary>What changed, as JSON (the page puts it in words).</summary>
@@ -212,7 +212,7 @@ public sealed class ExportedAccessEntryResponse
     public DateTime AtUtc { get; set; }
     public string Action { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
     /// <summary>More about it, as JSON (the page puts it in words).</summary>
     public string Details { get; set; } = "{}";
@@ -223,12 +223,12 @@ public sealed class ExportedAttachmentResponse
 {
     public Guid Id { get; set; }
 
-    /// <summary>What it's attached to: Patient, Procedure or Stage.</summary>
+    /// <summary>What it's attached to: Patient, Pathway or Stage.</summary>
     public string AttachedTo { get; set; } = string.Empty;
 
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
-    /// <summary>The stage's name, for a stage's file whose procedure still exists.</summary>
+    /// <summary>The stage's name, for a stage's file whose pathway still exists.</summary>
     public string? StageName { get; set; }
 
     public string FileName { get; set; } = string.Empty;
@@ -251,7 +251,7 @@ public sealed class ExportedAttachmentResponse
     public string? DeletedBy { get; set; }
 }
 
-/// <summary>A notification about one of the patient's procedures or appointments, and who it was for.</summary>
+/// <summary>A notification about one of the patient's pathways or appointments, and who it was for.</summary>
 public sealed class ExportedNotificationResponse
 {
     public DateTime CreatedAtUtc { get; set; }
@@ -259,7 +259,7 @@ public sealed class ExportedNotificationResponse
     public string Username { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
     public Guid? AppointmentId { get; set; }
 }
 
@@ -268,8 +268,8 @@ public sealed class ExportedAppointmentResponse
 {
     public Guid Id { get; set; }
 
-    /// <summary>The procedure it's for, if any (none once that procedure is deleted).</summary>
-    public Guid? ProcedureId { get; set; }
+    /// <summary>The pathway it's for, if any (none once that pathway is deleted).</summary>
+    public Guid? PathwayId { get; set; }
 
     /// <summary>The stage it's for, by name, if any.</summary>
     public string? StageName { get; set; }
@@ -309,10 +309,10 @@ public sealed class ExportedAppointmentHistoryEntryResponse
     public string Action { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public Guid AppointmentId { get; set; }
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
-    /// <summary>The procedure's title at the time, or empty for an appointment not for a procedure.</summary>
-    public string ProcedureTitle { get; set; } = string.Empty;
+    /// <summary>The pathway's title at the time, or empty for an appointment not for a pathway.</summary>
+    public string PathwayTitle { get; set; } = string.Empty;
 
     public string? StageName { get; set; }
 

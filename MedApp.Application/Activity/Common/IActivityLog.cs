@@ -25,7 +25,7 @@ public interface IActivityLog
         Guid? patientId = null,
         object? details = null,
         string? targetUsername = null,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         ActivityActor? actor = null);
 
     /// <summary>Saves an entry on its own.</summary>
@@ -33,9 +33,9 @@ public interface IActivityLog
 
     /// <summary>
     /// Records that the actor saw these patients (<see cref="ActivityAction.PatientViewed"/>,
-    /// <see cref="ActivityAction.PatientListed"/>, or <see cref="ActivityAction.ProcedureViewed"/> with
-    /// <paramref name="procedureId"/>), one entry each, except where the same view by the same person is already in
+    /// <see cref="ActivityAction.PatientListed"/>, or <see cref="ActivityAction.PathwayViewed"/> with
+    /// <paramref name="pathwayId"/>), one entry each, except where the same view by the same person is already in
     /// the log from the last <see cref="ActivityOptions.ViewWindowMinutes"/> minutes.
     /// </summary>
-    Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? procedureId = null);
+    Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null);
 }

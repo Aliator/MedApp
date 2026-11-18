@@ -42,7 +42,7 @@ export class ApiError extends Error {
   readonly status: number;
   /**
    * The ProblemDetails title the API sent, if any. For a 409 it says why, in words meant for the user
-   * (e.g. "This patient has 2 procedures, so they can't be deleted.").
+   * (e.g. "This patient has 2 pathways, so they can't be deleted.").
    */
   readonly title?: string;
   /** The ProblemDetails `code` the API sent, if any, e.g. `password_change_required` on a 403. */

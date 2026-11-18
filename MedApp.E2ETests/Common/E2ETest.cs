@@ -1,7 +1,7 @@
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
 
@@ -148,7 +148,7 @@ public abstract class E2ETest : PageTest
     }
 
     /// <summary>
-    /// A synthetic patient, deleted after the test, with any procedures made for them (cancelled and deleted first).
+    /// A synthetic patient, deleted after the test, with any pathways made for them (cancelled and deleted first).
     /// A patient who has had an appointment can't be deleted (the app never deletes appointments): their open ones are
     /// cancelled instead, and the patient stays.
     /// </summary>
@@ -163,24 +163,24 @@ public abstract class E2ETest : PageTest
             if (appointments.Count == 0)
                 await Api.DeletePatientAsync(patient.Id);
         });
-        Data.OnCleanUp($"the procedures of {patient.LastName}", async () =>
+        Data.OnCleanUp($"the pathways of {patient.LastName}", async () =>
         {
-            foreach (var procedure in await Api.ProceduresOfPatientAsync(patient.Id))
-                await Api.CancelAndDeleteProcedureAsync(procedure.Id);
+            foreach (var pathway in await Api.PathwaysOfPatientAsync(patient.Id))
+                await Api.CancelAndDeletePathwayAsync(pathway.Id);
         });
         return patient;
     }
 
-    /// <summary>A template of new stages, deleted after the test with its stages (after any procedures made from it).</summary>
-    protected Task<(PatientProcedureStageTemplateResponse Template, IReadOnlyList<PatientProcedureStageDefinitionResponse> Stages)>
+    /// <summary>A template of new stages, deleted after the test with its stages (after any pathways made from it).</summary>
+    protected Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
         CreateTemplateAsync(int stageCount) =>
         CreateTemplateAsync([.. Enumerable.Repeat("None", stageCount)]);
 
     /// <summary>The same, with a stage for each visit requirement given (None, Suggested or Required), in order.</summary>
-    protected async Task<(PatientProcedureStageTemplateResponse Template, IReadOnlyList<PatientProcedureStageDefinitionResponse> Stages)>
+    protected async Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
         CreateTemplateAsync(params string[] visitRequirements)
     {
-        var stages = new List<PatientProcedureStageDefinitionResponse>();
+        var stages = new List<PatientPathwayStageDefinitionResponse>();
         for (var i = 1; i <= visitRequirements.Length; i++)
         {
             var stage = await Api.CreateStageDefinitionAsync(
@@ -194,9 +194,9 @@ public abstract class E2ETest : PageTest
         return (template, stages);
     }
 
-    /// <summary>A procedure for a patient made with <see cref="CreatePatientAsync"/> (so it's deleted with them).</summary>
-    protected Task<PatientProcedureResponse> CreateProcedureAsync(Guid patientId, Guid templateId) =>
-        Api.CreateProcedureAsync(patientId, templateId, E2EData.UniqueName("Procedure"), UkToday.AddDays(7));
+    /// <summary>A pathway for a patient made with <see cref="CreatePatientAsync"/> (so it's deleted with them).</summary>
+    protected Task<PatientPathwayResponse> CreatePathwayAsync(Guid patientId, Guid templateId) =>
+        Api.CreatePathwayAsync(patientId, templateId, E2EData.UniqueName("Pathway"), UkToday.AddDays(7));
 
     /// <summary>
     /// Opens a page and waits until it can be used. Pages are rendered on the server, then taken over by React in the
@@ -232,7 +232,7 @@ public abstract class E2ETest : PageTest
     /// <summary>A date as the app's date fields take it typed: dd/MM/yyyy (en-GB).</summary>
     protected static string Typed(DateOnly date) => date.ToString("dd/MM/yyyy");
 
-    /// <summary>Today in the UK, the day due dates are counted in.</summary>
+    /// <summary>Today in the UK, the day target dates are counted in.</summary>
     protected static DateOnly UkToday =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")));
 

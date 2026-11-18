@@ -8,7 +8,7 @@ import {AppIcon} from '../shared/icons';
 /**
  * Tokens for the calendar and appointments: an appointment's status, an activity type, whether a stage involves a
  * visit, and an attendee's reply to a meeting. Use them wherever these show (the calendar, Requires Appointment, the
- * procedure and patient pages, the setup pages, a meeting), so they look the same everywhere. Like `StatusToken`, they
+ * pathway and patient pages, the setup pages, a meeting), so they look the same everywhere. Like `StatusToken`, they
  * add an icon when "Icons on statuses" is on.
  */
 

@@ -11,7 +11,7 @@ export interface AttachmentsFoldProps extends AttachmentsProps {
 
 /**
  * `Attachments` folded under a "Files" heading, as a stage's instructions fold: for a part of a page that has
- * several, such as each stage of a procedure. The files are fetched only once it's opened, so a page of folded
+ * several, such as each stage of a pathway. The files are fetched only once it's opened, so a page of folded
  * stages asks for none.
  */
 export function AttachmentsFold({isOpen, onOpenChange, ...attachments}: AttachmentsFoldProps) {

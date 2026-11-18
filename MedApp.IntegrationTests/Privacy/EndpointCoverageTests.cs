@@ -3,9 +3,9 @@ using FluentAssertions;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
-using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Requests;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Contracts.Pathways.NoteDeletionRequests.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Requests;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -42,9 +42,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/patients/{id:guid}/export"] = Records("PatientExported"),
         ["api/patients/{id:guid}/timeline"] = Records("PatientViewed"),
         ["api/patients/{id:guid}/timeline/overview"] = Records("PatientViewed"),
-        ["api/procedures/patient-procedures/{id:guid}"] = Records("ProcedureViewed"),
-        ["api/procedures/patient-procedures/search"] = Records("PatientListed"),
-        ["api/procedures/note-deletion-requests/{id:guid}"] = Records("ProcedureViewed"), // PatientViewed once the procedure is deleted
+        ["api/pathways/patient-pathways/{id:guid}"] = Records("PathwayViewed"),
+        ["api/pathways/patient-pathways/search"] = Records("PatientListed"),
+        ["api/pathways/note-deletion-requests/{id:guid}"] = Records("PathwayViewed"), // PatientViewed once the pathway is deleted
         ["api/fhir/Patient/{id}"] = Records("PatientViewed"),
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
@@ -52,17 +52,17 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar; nothing withoutAppointments
         ["api/calendar/team"] = Records("PatientListed"), // each patient with an appointment on any calendar shown
         ["api/attachments"] = Records("AttachmentsViewed"),
-        ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
+        ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the pathway audit log
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
         ["api/patients/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
-        ["api/procedures/patient-procedures/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
+        ["api/pathways/patient-pathways/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
 
         // Admins' own audit reading: the logs themselves.
-        ["api/procedures/audit/search"] = Nothing("the admin-only procedure audit log"),
+        ["api/pathways/audit/search"] = Nothing("the admin-only pathway audit log"),
         ["api/activity/search"] = Nothing("the admin-only activity log itself"),
-        ["api/procedures/insights"] = Nothing("counts, not patient details"),
+        ["api/pathways/insights"] = Nothing("counts, not patient details"),
 
         // The user's own data and accounts: no patient data.
         ["api/notifications"] = Nothing("the user's own notifications"),
@@ -88,10 +88,10 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 
         // Configuration.
-        ["api/procedures/patient-procedure-stage/definitions"] = Nothing("stage definitions: configuration"),
-        ["api/procedures/patient-procedure-stage/definitions/{id:guid}"] = Nothing("stage definitions: configuration"),
-        ["api/procedures/patient-procedure-stage/templates"] = Nothing("templates: configuration"),
-        ["api/procedures/patient-procedure-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
+        ["api/pathways/patient-pathway-stage/definitions"] = Nothing("stage definitions: configuration"),
+        ["api/pathways/patient-pathway-stage/definitions/{id:guid}"] = Nothing("stage definitions: configuration"),
+        ["api/pathways/patient-pathway-stage/templates"] = Nothing("templates: configuration"),
+        ["api/pathways/patient-pathway-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
         ["api/calendar/activity-types"] = Nothing("calendar activity types: configuration"),
         ["api/calendar/activity-types/{id:guid}"] = Nothing("calendar activity types: configuration"),
         ["api/calendar/closed-days"] = Nothing("closed days (bank holidays and the like): configuration"),
@@ -132,8 +132,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
         var adminId = await GetUserIdAsync(admin, AdminUsername);
-        var procedure = await CreatePatientWithProcedureAsync(admin);
-        var patientId = procedure.PatientId;
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+        var patientId = pathway.PatientId;
         // Last changed ten years ago, so it's on the retention review.
         var old = await CreatePatientAsync(admin);
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {old.Id}");
@@ -142,12 +142,12 @@ public sealed class EndpointCoverageTests : IntegrationTest
         // An appointment with the admin, so their calendar names the patient.
         var day = NextWorkingDay();
         var appointment = await BookNewAppointmentAsync(admin, patientId, adminId, UkAt(day, 9));
-        var file = await UploadAttachmentOkAsync(admin, $"procedureId={procedure.Id}", SyntheticPdf, "synthetic.pdf");
+        var file = await UploadAttachmentOkAsync(admin, $"pathwayId={pathway.Id}", SyntheticPdf, "synthetic.pdf");
         // A request to delete a note, whose dialog shows the note and the patient.
-        var note = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes",
-            new AddProcedureNoteRequest { Text = "Synthetic note." })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
-        var requested = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes/{note.Id}/deletion-requests",
-            new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+        var note = await (await admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
+            new AddPathwayNoteRequest { Text = "Synthetic note." })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
+        var requested = await (await admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes/{note.Id}/deletion-requests",
+            new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -158,9 +158,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/patients/{patientId}/export", "PatientExported", patientId),
             ($"/api/patients/{patientId}/timeline", "PatientViewed", patientId),
             ($"/api/patients/{patientId}/timeline/overview", "PatientViewed", patientId),
-            ($"/api/procedures/patient-procedures/{procedure.Id}", "ProcedureViewed", patientId),
-            ("/api/procedures/patient-procedures/search", "PatientListed", patientId),
-            ($"/api/procedures/note-deletion-requests/{requested.DeletionRequestId}", "ProcedureViewed", patientId),
+            ($"/api/pathways/patient-pathways/{pathway.Id}", "PathwayViewed", patientId),
+            ("/api/pathways/patient-pathways/search", "PatientListed", patientId),
+            ($"/api/pathways/note-deletion-requests/{requested.DeletionRequestId}", "PathwayViewed", patientId),
             ($"/api/fhir/Patient/{patientId}", "PatientViewed", patientId),
             ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
@@ -190,16 +190,16 @@ public sealed class EndpointCoverageTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
         var adminId = await GetUserIdAsync(admin, AdminUsername);
-        var procedure = await CreatePatientWithProcedureAsync(admin);
+        var pathway = await CreatePatientWithPathwayAsync(admin);
         var day = NextWorkingDay();
-        await BookNewAppointmentAsync(admin, procedure.PatientId, adminId, UkAt(day, 9));
+        await BookNewAppointmentAsync(admin, pathway.PatientId, adminId, UkAt(day, 9));
         await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
 
         // What Apply Template reads: the days, which name no patients.
         var response = await admin.GetAsync($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&withoutAppointments=true");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().NotContain(procedure.PatientId.ToString());
+        body.Should().NotContain(pathway.PatientId.ToString());
 
         var entries = (await (await admin.GetAsync($"/api/activity/search?PageSize=100&UserId={adminId}&Actions=PatientListed"))
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;

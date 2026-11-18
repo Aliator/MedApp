@@ -1,5 +1,5 @@
 using System.Globalization;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 
 namespace MedApp.Application.Calendar.Common;
 

@@ -48,7 +48,7 @@ describe('DateOfBirthRangeInput', () => {
     expect((await screen.findAllByText('Date of birth')).length).toBeGreaterThan(0);
   });
 
-  it('allows no date after today, unless told any date will do (a due date)', async () => {
+  it('allows no date after today, unless told any date will do (a target date)', async () => {
     const {user, unmount} = renderWithApp(<DateOfBirthRangeInput value={null} onChange={() => {}} />);
     await user.click(await screen.findByRole('button', {name: /select date range/i}));
     expect(isDisabled(await screen.findByRole('button', {name: 'Next month'}))).toBe(true);

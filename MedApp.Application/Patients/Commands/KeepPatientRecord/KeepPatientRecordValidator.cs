@@ -1,6 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using Microsoft.Extensions.Options;
 
 namespace MedApp.Application.Patients.Commands.KeepPatientRecord;

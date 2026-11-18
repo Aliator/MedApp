@@ -1,12 +1,12 @@
 import {act, render, renderHook, screen, waitFor} from '@testing-library/react';
 import {StrictMode, useState, type ReactNode} from 'react';
-import type {Procedure} from '../../api/procedures';
+import type {Pathway} from '../../api/pathways';
 import {HalfViewContext} from '../pages/halfView';
 import {NOTEPAD_OPEN_KEY, NotepadProvider, storeNotepadOpen, useNotepad, useNotepadDocked, useOfferToNotepad} from './NotepadContext';
 
 const wrapper = ({children}: {children: ReactNode}) => <NotepadProvider>{children}</NotepadProvider>;
 
-const procedure = {id: 'p1', title: 'Synthetic knee review'} as Procedure;
+const pathway = {id: 'p1', title: 'Synthetic knee review'} as Pathway;
 
 describe('NotepadProvider', () => {
   afterEach(() => {
@@ -116,9 +116,9 @@ describe('NotepadProvider', () => {
     expect(title).toHaveAttribute('tabindex', '-1');
   });
 
-  it('lists the procedure pages open, the left half before the right, and forgets one when it closes', () => {
+  it('lists the pathway pages open, the left half before the right, and forgets one when it closes', () => {
     // As a page holds it: the same object from render to render (a query's data).
-    const shown = {left: {...procedure, id: 'left'}, right: {...procedure, id: 'right'}};
+    const shown = {left: {...pathway, id: 'left'}, right: {...pathway, id: 'right'}};
     function Page({side}: {side: 'left' | 'right'}) {
       useOfferToNotepad(shown[side]);
       return null;
@@ -139,7 +139,7 @@ describe('NotepadProvider', () => {
       );
     }
     function Listed() {
-      return <p>{useNotepad()!.openProcedures.map((p) => `${p.side}:${p.procedure.id}`).join(',')}</p>;
+      return <p>{useNotepad()!.openPathways.map((p) => `${p.side}:${p.pathway.id}`).join(',')}</p>;
     }
 
     const {rerender} = render(<Halves showLeft />, {wrapper});
@@ -149,8 +149,8 @@ describe('NotepadProvider', () => {
     expect(screen.getByText('right:right')).toBeInTheDocument();
   });
 
-  it('offers nothing outside the notepad, or while the procedure loads', () => {
-    expect(() => renderHook(() => useOfferToNotepad(procedure))).not.toThrow();
+  it('offers nothing outside the notepad, or while the pathway loads', () => {
+    expect(() => renderHook(() => useOfferToNotepad(pathway))).not.toThrow();
     const {result} = renderHook(
       () => {
         useOfferToNotepad(undefined);
@@ -158,7 +158,7 @@ describe('NotepadProvider', () => {
       },
       {wrapper},
     );
-    expect(result.current.openProcedures).toEqual([]);
+    expect(result.current.openPathways).toEqual([]);
   });
 
   it('is docked when open on a wide window, and a sheet (not docked) on a narrow one', () => {
@@ -173,31 +173,31 @@ describe('NotepadProvider', () => {
 describe('NotepadProvider in a half view', () => {
   afterEach(() => localStorage.clear());
 
-  const p2 = {id: 'p2', title: 'Synthetic hip review'} as Procedure;
+  const p2 = {id: 'p2', title: 'Synthetic hip review'} as Pathway;
 
-  function Offering({procedure: offered, side}: {procedure: Procedure; side?: 'left' | 'right'}) {
+  function Offering({pathway: offered, side}: {pathway: Pathway; side?: 'left' | 'right'}) {
     return (
       <HalfViewContext.Provider value={{isHalf: side !== undefined, side}}>
-        <OfferOnly procedure={offered} />
+        <OfferOnly pathway={offered} />
       </HalfViewContext.Provider>
     );
   }
-  function OfferOnly({procedure: offered}: {procedure: Procedure}) {
+  function OfferOnly({pathway: offered}: {pathway: Pathway}) {
     useOfferToNotepad(offered);
     return null;
   }
   function Listed() {
     const notepad = useNotepad()!;
-    return <p data-testid="listed">{notepad.openProcedures.map((open) => open.procedure.id).join(',')}</p>;
+    return <p data-testid="listed">{notepad.openPathways.map((open) => open.pathway.id).join(',')}</p>;
   }
 
-  /** The half view's notepad, inside the signed-in layout's, with that layout's procedure pages offered beside it. */
-  function renderInHalf(onCloseHalf = vi.fn(), offered: Procedure[] = [procedure]) {
+  /** The half view's notepad, inside the signed-in layout's, with that layout's pathway pages offered beside it. */
+  function renderInHalf(onCloseHalf = vi.fn(), offered: Pathway[] = [pathway]) {
     const result = render(
       <StrictMode>
         <NotepadProvider>
           {offered.map((p) => (
-            <Offering key={p.id} procedure={p} side="left" />
+            <Offering key={p.id} pathway={p} side="left" />
           ))}
           <NotepadProvider onCloseHalf={onCloseHalf}>
             <Listed />
@@ -208,14 +208,14 @@ describe('NotepadProvider in a half view', () => {
     return {...result, onCloseHalf};
   }
 
-  it("offers the signed-in layout's procedure pages, as they change", async () => {
+  it("offers the signed-in layout's pathway pages, as they change", async () => {
     const {rerender} = renderInHalf();
     await waitFor(() => expect(screen.getByTestId('listed')).toHaveTextContent('p1'));
 
     rerender(
       <StrictMode>
         <NotepadProvider>
-          <Offering procedure={p2} side="left" />
+          <Offering pathway={p2} side="left" />
           <NotepadProvider onCloseHalf={vi.fn()}>
             <Listed />
           </NotepadProvider>

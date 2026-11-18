@@ -46,7 +46,7 @@ describe('ListSettingsProvider', () => {
       </ListSettingsProvider>,
     );
 
-  it('changes and remembers the page size and where procedure lists start', () => {
+  it('changes and remembers the page size and where pathway lists start', () => {
     renderSettings();
     expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false 15`);
 

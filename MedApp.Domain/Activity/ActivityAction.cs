@@ -33,8 +33,8 @@ public enum ActivityAction
     /// <summary>An admin decided to keep a record past its retention period, with a reason and a date to review it again.</summary>
     RetentionKept = 12,
 
-    /// <summary>Someone opened a procedure's page.</summary>
-    ProcedureViewed = 13,
+    /// <summary>Someone opened a pathway's page.</summary>
+    PathwayViewed = 13,
 
     SignedIn = 14,
 
@@ -66,10 +66,10 @@ public enum ActivityAction
     /// </summary>
     DemographicsLookedUp = 25,
 
-    /// <summary>Someone listed the files attached to a patient, a procedure or a stage (with the procedure, if any).</summary>
+    /// <summary>Someone listed the files attached to a patient, a pathway or a stage (with the pathway, if any).</summary>
     AttachmentsViewed = 26,
 
-    /// <summary>Someone downloaded a file attached to a patient's record (with the procedure, if any).</summary>
+    /// <summary>Someone downloaded a file attached to a patient's record (with the pathway, if any).</summary>
     AttachmentDownloaded = 27,
 
     /// <summary>

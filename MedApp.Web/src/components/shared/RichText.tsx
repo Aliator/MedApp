@@ -5,7 +5,7 @@ import {markdownSoftBreaksPlugin} from '@astryxdesign/core/Markdown/plugins';
 const PLUGINS = [markdownSoftBreaksPlugin];
 
 /**
- * Formatted text written in a `RichTextField` (stage notes and instructions, procedure notes), read-only. It's
+ * Formatted text written in a `RichTextField` (stage notes and instructions, pathway notes), read-only. It's
  * Markdown: bold, italics, lists, quotes and links show formatted; anything that isn't Markdown (notes written
  * before) shows as it was typed, line by line. Raw HTML never runs, and unsafe links show as plain text.
  */

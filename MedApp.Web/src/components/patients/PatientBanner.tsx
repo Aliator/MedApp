@@ -10,7 +10,7 @@ import {formatNhsNumber, spokenNhsNumber} from '../../utils/nhsNumber';
 import {useIsNarrow} from '../pages/Page';
 import {AppIcon} from '../shared/icons';
 
-/** Who the banner is about: a patient (`PatientResponse`) or a procedure's patient (`ProcedurePatientResponse`). */
+/** Who the banner is about: a patient (`PatientResponse`) or a pathway's patient (`PathwayPatientResponse`). */
 export interface BannerPatient {
   firstName?: string | null;
   lastName?: string | null;

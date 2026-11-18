@@ -12,12 +12,12 @@ public sealed class AppointmentResponse
 
     public string PatientName { get; set; } = string.Empty;
 
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
-    public string? ProcedureTitle { get; set; }
+    public string? PathwayTitle { get; set; }
 
-    /// <summary>The procedure's due date (UK), for ordering what requires an appointment.</summary>
-    public DateOnly? ProcedureDueDate { get; set; }
+    /// <summary>The pathway's target date (UK), for ordering what requires an appointment.</summary>
+    public DateOnly? PathwayDueDate { get; set; }
 
     public Guid? StageId { get; set; }
 

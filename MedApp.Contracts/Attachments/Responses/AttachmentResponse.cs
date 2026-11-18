@@ -1,20 +1,20 @@
 namespace MedApp.Contracts.Attachments.Responses;
 
-/// <summary>A file attached to a patient, a procedure or a stage, without its bytes.</summary>
+/// <summary>A file attached to a patient, a pathway or a stage, without its bytes.</summary>
 public sealed class AttachmentResponse
 {
     public Guid Id { get; set; }
 
     public Guid PatientId { get; set; }
 
-    /// <summary>What it's attached to: Patient, Procedure or Stage.</summary>
+    /// <summary>What it's attached to: Patient, Pathway or Stage.</summary>
     public string AttachedTo { get; set; } = string.Empty;
 
-    /// <summary>The procedure it's attached to (a stage's file too); null for the patient's own file.</summary>
-    public Guid? ProcedureId { get; set; }
+    /// <summary>The pathway it's attached to (a stage's file too); null for the patient's own file.</summary>
+    public Guid? PathwayId { get; set; }
 
-    /// <summary>That procedure's title now; null for the patient's own file, or if the procedure has gone.</summary>
-    public string? ProcedureTitle { get; set; }
+    /// <summary>That pathway's title now; null for the patient's own file, or if the pathway has gone.</summary>
+    public string? PathwayTitle { get; set; }
 
     /// <summary>The stage it's attached to, if any.</summary>
     public Guid? StageId { get; set; }

@@ -5,18 +5,18 @@ import {
   parseRetentionSearch,
   hasAuditFilters,
   hasPatientFilters,
-  hasProcedureFilters,
+  hasPathwayFilters,
   hasTaskFilters,
   hasUserFilters,
   parseAuditSearch,
   parseTasksSearch,
   parsePatientsSearch,
-  parseProceduresSearch,
+  parsePathwaysSearch,
   parseSetupSearch,
   parseChoice,
   parseInsightsSearch,
   parseUsersSearch,
-  procedureStatuses,
+  pathwayStatuses,
 } from './listSearch';
 
 describe('parseChoice', () => {
@@ -157,10 +157,10 @@ describe('parseTasksSearch', () => {
   });
 });
 
-describe('parseProceduresSearch', () => {
+describe('parsePathwaysSearch', () => {
   it('reads the page, sort and filters, dropping anything invalid', () => {
     expect(
-      parseProceduresSearch({
+      parsePathwaysSearch({
         page: '2',
         sort: 'status',
         asc: 'false',
@@ -191,34 +191,34 @@ describe('parseProceduresSearch', () => {
   });
 
   it('ignores an unknown status and sort', () => {
-    expect(parseProceduresSearch({status: 'Finished', sort: 'colour'})).toEqual({});
+    expect(parsePathwaysSearch({status: 'Finished', sort: 'colour'})).toEqual({});
   });
 
   it('reads an assignee: an ID, or nobody (none), dropping anything else', () => {
     const userId = '0000000A-0000-0000-0000-000000000001';
-    expect(parseProceduresSearch({assignee: userId})).toEqual({assignee: userId.toLowerCase()});
-    expect(parseProceduresSearch({assignee: 'NONE'})).toEqual({assignee: 'none'});
-    expect(parseProceduresSearch({assignee: 'k.ashford'})).toEqual({});
-    expect(hasProcedureFilters({assignee: 'none'})).toBe(true);
+    expect(parsePathwaysSearch({assignee: userId})).toEqual({assignee: userId.toLowerCase()});
+    expect(parsePathwaysSearch({assignee: 'NONE'})).toEqual({assignee: 'none'});
+    expect(parsePathwaysSearch({assignee: 'k.ashford'})).toEqual({});
+    expect(hasPathwayFilters({assignee: 'none'})).toBe(true);
   });
 
   it('reads a template ID, dropping anything that is not one', () => {
     const templateId = '0000000E-0000-0000-0000-000000000001';
-    expect(parseProceduresSearch({templateId})).toEqual({templateId: templateId.toLowerCase()});
-    expect(parseProceduresSearch({templateId: 'Knee review'})).toEqual({});
-    expect(hasProcedureFilters({templateId: 'x'})).toBe(true);
+    expect(parsePathwaysSearch({templateId})).toEqual({templateId: templateId.toLowerCase()});
+    expect(parsePathwaysSearch({templateId: 'Knee review'})).toEqual({});
+    expect(hasPathwayFilters({templateId: 'x'})).toBe(true);
   });
 
   it('knows when the list is filtered', () => {
-    expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
-    expect(hasProcedureFilters({closed: true})).toBe(true);
+    expect(hasPathwayFilters({page: 3, sort: 'Due'})).toBe(false);
+    expect(hasPathwayFilters({closed: true})).toBe(true);
   });
 
   it('asks for the statuses chosen; for "not any of", the other open ones (or all, with closed ones included)', () => {
-    expect(procedureStatuses({})).toBeUndefined();
-    expect(procedureStatuses({status: 'Blocked,Completed'})).toEqual(['Blocked', 'Completed']);
-    expect(procedureStatuses({status: '!Blocked'})).toEqual(['Unassigned', 'Assigned', 'InProgress', 'InReview']);
-    expect(procedureStatuses({status: '!Blocked', closed: true})).toEqual([
+    expect(pathwayStatuses({})).toBeUndefined();
+    expect(pathwayStatuses({status: 'Blocked,Completed'})).toEqual(['Blocked', 'Completed']);
+    expect(pathwayStatuses({status: '!Blocked'})).toEqual(['Unassigned', 'Assigned', 'InProgress', 'InReview']);
+    expect(pathwayStatuses({status: '!Blocked', closed: true})).toEqual([
       'Unassigned',
       'Assigned',
       'InProgress',
@@ -243,16 +243,16 @@ describe('parseSetupSearch', () => {
 
 describe('parseAuditSearch', () => {
   it('reads the page, order and filters, dropping anything invalid', () => {
-    const procedureId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+    const pathwayId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
     expect(
-      parseAuditSearch({page: '3', asc: 'true', q: ' knee ', action: 'stagefinished,created', procedureId, from: '2026-11-01', to: '2026-11-30'}),
-    ).toEqual({page: 3, asc: true, q: 'knee', action: 'StageFinished,Created', procedureId, from: '2026-11-01', to: '2026-11-30'});
-    expect(parseAuditSearch({action: 'Exploded', procedureId: 'not-a-guid', from: 'yesterday'})).toEqual({});
+      parseAuditSearch({page: '3', asc: 'true', q: ' knee ', action: 'stagefinished,created', pathwayId, from: '2026-11-01', to: '2026-11-30'}),
+    ).toEqual({page: 3, asc: true, q: 'knee', action: 'StageFinished,Created', pathwayId, from: '2026-11-01', to: '2026-11-30'});
+    expect(parseAuditSearch({action: 'Exploded', pathwayId: 'not-a-guid', from: 'yesterday'})).toEqual({});
   });
 
   it('knows when the log is filtered', () => {
     expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
-    expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
+    expect(hasAuditFilters({pathwayId: 'x'})).toBe(true);
   });
 });
 

@@ -154,7 +154,7 @@ public sealed class ScheduleAllocator
     /// <summary>A point to go back to with <see cref="Rollback"/>.</summary>
     public int Checkpoint() => _journal.Count;
 
-    /// <summary>Takes back every reservation made since the checkpoint (a procedure replayed again differently).</summary>
+    /// <summary>Takes back every reservation made since the checkpoint (a pathway replayed again differently).</summary>
     public void Rollback(int checkpoint)
     {
         for (var i = _journal.Count - 1; i >= checkpoint; i--)

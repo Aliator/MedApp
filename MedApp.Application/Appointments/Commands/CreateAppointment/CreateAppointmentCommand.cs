@@ -1,23 +1,23 @@
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.CreateAppointment;
 
 /// <summary>
-/// A new appointment for a patient, optionally for one of their procedures and one of its stages. With a member of
+/// A new appointment for a patient, optionally for one of their pathways and one of its stages. With a member of
 /// staff, a start and an end it's Booked (in the future, inside the working day, clash-free); with none of them it's
 /// Requested, to be booked later.
 /// </summary>
 public sealed record CreateAppointmentCommand(
     Guid PatientId,
-    Guid? ProcedureId,
+    Guid? PathwayId,
     Guid? StageId,
     Guid? StaffUserId,
     DateTime? StartUtc,
     DateTime? EndUtc,
     string? Notes,
-    ProcedureActor Actor)
+    PathwayActor Actor)
     : IRequest<AppointmentResponse>
 {
     /// <summary>A member of staff, a start and an end are all given: it's booked straight away.</summary>

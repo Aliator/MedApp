@@ -22,7 +22,7 @@ public sealed class ActivityEntryResponse
     /// <summary>The patient's name as it is now ("Deleted patient" if they've been deleted).</summary>
     public string? PatientName { get; set; }
 
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
     /// <summary>The account it's about, for account and role changes.</summary>
     public string? TargetUsername { get; set; }

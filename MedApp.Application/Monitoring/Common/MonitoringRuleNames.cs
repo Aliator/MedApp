@@ -1,5 +1,5 @@
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Monitoring;
 
 namespace MedApp.Application.Monitoring.Common;
@@ -17,7 +17,7 @@ public sealed record MonitoringRuleNames(
     public static async Task<MonitoringRuleNames> LoadAsync(
         IReadOnlyCollection<MonitoringRule> rules,
         IIdentityReadService identityReadService,
-        IPatientProcedureStagesRepository stagesRepository,
+        IPatientPathwayStagesRepository stagesRepository,
         CancellationToken cancellationToken)
     {
         var userIds = rules.Select(r => r.SubjectUserId).OfType<Guid>().Distinct().ToList();
@@ -29,7 +29,7 @@ public sealed record MonitoringRuleNames(
             : await identityReadService.GetUsernamesByIdAsync(userIds, cancellationToken);
         var templates = templateIds.Count == 0
             ? new Dictionary<Guid, string>()
-            : await stagesRepository.GetStageTemplateNamesAsync(templateIds, cancellationToken);
+            : await stagesRepository.GetPathwayTemplateNamesAsync(templateIds, cancellationToken);
         var stages = stageIds.Count == 0
             ? new Dictionary<Guid, string>()
             : (await stagesRepository.GetStageDefinitionsByIdAsync(stageIds, cancellationToken)).ToDictionary(d => d.Id, d => d.Name);

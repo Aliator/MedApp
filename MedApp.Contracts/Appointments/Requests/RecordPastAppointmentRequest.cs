@@ -9,10 +9,10 @@ public sealed class RecordPastAppointmentRequest
 {
     public Guid PatientId { get; set; }
 
-    public Guid? ProcedureId { get; set; }
+    public Guid? PathwayId { get; set; }
 
     /// <summary>
-    /// A stage of <see cref="ProcedureId"/>. If the stage has a visit in Requires Appointment, that appointment is the one
+    /// A stage of <see cref="PathwayId"/>. If the stage has a visit in Requires Appointment, that appointment is the one
     /// recorded; one already booked is a 409 (record its outcome, or cancel it, instead).
     /// </summary>
     public Guid? StageId { get; set; }

@@ -24,7 +24,7 @@ import {
   type MonitoringRule,
   type MonitoringRuleInput,
 } from '../../api/monitoring';
-import {allTemplatesQuery, stageDefinitionsQuery} from '../../api/procedureSetup';
+import {allTemplatesQuery, stageDefinitionsQuery} from '../../api/pathwaySetup';
 import {useAnnounce} from '../../app/announcements';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
@@ -77,8 +77,8 @@ function problemOf(error: unknown, action: 'save' | 'add' | 'delete' | 'switch')
 const isAdmin = (roles: readonly string[] | null | undefined) => roles?.some((r) => r.toLowerCase() === 'admin') ?? false;
 
 /**
- * Monitoring (admin): the signed-in admin's rules for being told what staff do to procedures, e.g. "Notify me when
- * **Sam** finishes **Bloods** on a **High or Urgent** priority procedure". When a change matches one of their switched-on
+ * Monitoring (admin): the signed-in admin's rules for being told what staff do to pathways, e.g. "Notify me when
+ * **Sam** finishes **Bloods** on a **High or Urgent** priority pathway". When a change matches one of their switched-on
  * rules, they get a notification in the bell, live. Each admin sees and changes only their own rules.
  *
  * Each rule shows as that sentence, with a switch to turn it off and on, and Edit and Delete. Adding or editing one
@@ -165,7 +165,7 @@ export function MonitoringPage() {
   const templateName = (id: string | null) => (id ? (templates.data?.find((t) => sameId(t.id, id))?.name ?? null) : null);
   const stageName = (id: string | null) => (id ? (stages.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
 
-  // The options, each with "any" first. Archived templates and stages are offered too (old procedures still have
+  // The options, each with "any" first. Archived templates and stages are offered too (old pathways still have
   // them), and a rule's own choice stays offered even when it's no longer in a list.
   const withChosen = (options: {value: string; label: string}[], id: string | null, label: string) =>
     id && !options.some((o) => sameId(o.value, id)) ? [...options, {value: id.toLowerCase(), label}] : options;
@@ -354,7 +354,7 @@ export function MonitoringPage() {
       {!rules.isPending && !rules.isError && data.length === 0 ? (
         <EmptyState
           title="No rules yet"
-          description="Add a rule to be told when a member of staff does something, such as finishing a stage on an urgent procedure."
+          description="Add a rule to be told when a member of staff does something, such as finishing a stage on an urgent pathway."
           icon={<Icon icon={AppIcon.Monitoring} size="lg" />}
           actions={<Button label="Add Your First Rule" variant="primary" onClick={() => openEditor(null)} />}
         />

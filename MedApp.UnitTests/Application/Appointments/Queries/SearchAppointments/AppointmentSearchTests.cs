@@ -11,7 +11,7 @@ public sealed class AppointmentSearchTests
 {
     private Appointment _mondayTen = null!;
     private Appointment _mondayNine = null!;
-    private Appointment _requestedWithProcedure = null!;
+    private Appointment _requestedWithPathway = null!;
     private Appointment _requestedEarlier = null!;
     private Appointment _cancelledFriday = null!;
 
@@ -21,7 +21,7 @@ public sealed class AppointmentSearchTests
         _mondayTen = Make(AppointmentStatus.Booked, At(NextMonday, 10), "Ada", "Zephyr", createdDaysAgo: 3, dueInDays: 10);
         _mondayNine = Make(AppointmentStatus.Booked, At(NextMonday, 9), "Ben", "Young", createdDaysAgo: 1);
         _mondayNine.StaffUserId = OtherStaffUserId;
-        _requestedWithProcedure = Make(AppointmentStatus.Requested, null, "Cara", "Xavier", createdDaysAgo: 2, dueInDays: 5);
+        _requestedWithPathway = Make(AppointmentStatus.Requested, null, "Cara", "Xavier", createdDaysAgo: 2, dueInDays: 5);
         _requestedEarlier = Make(AppointmentStatus.Requested, null, "Dan", "Walsh", createdDaysAgo: 4);
         _cancelledFriday = Make(AppointmentStatus.Cancelled, At(NextFriday, 10), "Eve", "young", createdDaysAgo: 5, dueInDays: 1);
     }
@@ -46,18 +46,18 @@ public sealed class AppointmentSearchTests
 
         if (dueInDays is { } days)
         {
-            var procedure = ProceduresTestConstants.CreateProcedure(patient: patient, dueDateUtc: Now.AddDays(days));
-            appointment.ProcedureId = procedure.Id;
-            appointment.Procedure = procedure;
-            appointment.StageId = procedure.StageAt(1).Id;
-            appointment.Stage = procedure.StageAt(1);
+            var pathway = PathwaysTestConstants.CreatePathway(patient: patient, dueDateUtc: Now.AddDays(days));
+            appointment.PathwayId = pathway.Id;
+            appointment.Pathway = pathway;
+            appointment.StageId = pathway.StageAt(1).Id;
+            appointment.Stage = pathway.StageAt(1);
         }
 
         return appointment;
     }
 
     private IQueryable<Appointment> All() =>
-        new[] { _cancelledFriday, _requestedEarlier, _mondayTen, _requestedWithProcedure, _mondayNine }.AsQueryable();
+        new[] { _cancelledFriday, _requestedEarlier, _mondayTen, _requestedWithPathway, _mondayNine }.AsQueryable();
 
     private static SearchAppointmentsQuery Query() => AppointmentsTestConstants.CreateSearchQuery();
 
@@ -74,10 +74,10 @@ public sealed class AppointmentSearchTests
     }
 
     [Test]
-    public void Filter_ProcedureAndStage_MatchThem()
+    public void Filter_PathwayAndStage_MatchThem()
     {
-        All().Filter(Query() with { ProcedureId = _mondayTen.ProcedureId }).Should().Equal(_mondayTen);
-        All().Filter(Query() with { StageId = _requestedWithProcedure.StageId }).Should().Equal(_requestedWithProcedure);
+        All().Filter(Query() with { PathwayId = _mondayTen.PathwayId }).Should().Equal(_mondayTen);
+        All().Filter(Query() with { StageId = _requestedWithPathway.StageId }).Should().Equal(_requestedWithPathway);
     }
 
     [Test]
@@ -90,7 +90,7 @@ public sealed class AppointmentSearchTests
     public void Filter_Statuses_MatchAnyOfThemIgnoringCase()
     {
         All().Filter(Query() with { Statuses = ["requested", "Cancelled", "Cancelled"] })
-            .Should().BeEquivalentTo([_cancelledFriday, _requestedEarlier, _requestedWithProcedure]);
+            .Should().BeEquivalentTo([_cancelledFriday, _requestedEarlier, _requestedWithPathway]);
     }
 
     [Test]
@@ -146,13 +146,13 @@ public sealed class AppointmentSearchTests
     [Test]
     public void Sort_Default_ByStartWithRequestedLastByWhenAskedFor()
     {
-        All().Sort(null, true).Should().Equal(_mondayNine, _mondayTen, _cancelledFriday, _requestedEarlier, _requestedWithProcedure);
+        All().Sort(null, true).Should().Equal(_mondayNine, _mondayTen, _cancelledFriday, _requestedEarlier, _requestedWithPathway);
     }
 
     [Test]
     public void Sort_StartDescending_StillPutsRequestedLast()
     {
-        All().Sort("START", false).Should().Equal(_cancelledFriday, _mondayTen, _mondayNine, _requestedEarlier, _requestedWithProcedure);
+        All().Sort("START", false).Should().Equal(_cancelledFriday, _mondayTen, _mondayNine, _requestedEarlier, _requestedWithPathway);
     }
 
     [Test]
@@ -165,27 +165,27 @@ public sealed class AppointmentSearchTests
     public void Sort_Requested_ByWhenAskedFor()
     {
         All().Sort(AppointmentSearch.SortByRequested, true)
-            .Should().Equal(_cancelledFriday, _requestedEarlier, _mondayTen, _requestedWithProcedure, _mondayNine);
+            .Should().Equal(_cancelledFriday, _requestedEarlier, _mondayTen, _requestedWithPathway, _mondayNine);
         All().Sort(AppointmentSearch.SortByRequested, false)
-            .Should().Equal(_mondayNine, _requestedWithProcedure, _mondayTen, _requestedEarlier, _cancelledFriday);
+            .Should().Equal(_mondayNine, _requestedWithPathway, _mondayTen, _requestedEarlier, _cancelledFriday);
     }
 
     [Test]
-    public void Sort_DueDate_ByTheProceduresWithNoneLast()
+    public void Sort_DueDate_ByThePathwaysWithNoneLast()
     {
         All().Sort(AppointmentSearch.SortByDueDate, true)
-            .Should().Equal(_cancelledFriday, _requestedWithProcedure, _mondayTen, _requestedEarlier, _mondayNine);
+            .Should().Equal(_cancelledFriday, _requestedWithPathway, _mondayTen, _requestedEarlier, _mondayNine);
         All().Sort(AppointmentSearch.SortByDueDate, false)
-            .Should().Equal(_mondayTen, _requestedWithProcedure, _cancelledFriday, _requestedEarlier, _mondayNine);
+            .Should().Equal(_mondayTen, _requestedWithPathway, _cancelledFriday, _requestedEarlier, _mondayNine);
     }
 
     [Test]
     public void Sort_Patient_ByLastThenFirstNameIgnoringCase()
     {
         All().Sort(AppointmentSearch.SortByPatient, true)
-            .Should().Equal(_requestedEarlier, _requestedWithProcedure, _mondayNine, _cancelledFriday, _mondayTen);
+            .Should().Equal(_requestedEarlier, _requestedWithPathway, _mondayNine, _cancelledFriday, _mondayTen);
         All().Sort(AppointmentSearch.SortByPatient, false)
-            .Should().Equal(_mondayTen, _cancelledFriday, _mondayNine, _requestedWithProcedure, _requestedEarlier);
+            .Should().Equal(_mondayTen, _cancelledFriday, _mondayNine, _requestedWithPathway, _requestedEarlier);
     }
 
     [Test]

@@ -4,8 +4,8 @@ using MedApp.Application.Patients.Commands.AnonymisePatient;
 using MedApp.Application.Patients.Commands.KeepPatientRecord;
 using MedApp.Application.Patients.Commands.SetPatientFlag;
 using MedApp.Application.Patients.Queries.ExportPatient;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.PatientPathways.Commands.DeletePatientPathway;
 using MedApp.Domain.Appointments;
 using MedApp.DevMcp.Tools;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,9 +14,9 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// The records' privacy history and the admins' clear-ups, all through the app's own commands, at their moments:
-/// two restricted records (one with a procedure under way, which staff can still pause), two disputed, one imported
+/// two restricted records (one with a pathway under way, which staff can still pause), two disputed, one imported
 /// record anonymised after its retention review, two kept past their period with a reason, two subject access
-/// exports, two cancelled procedures deleted, and the leaver's account deleted on their last day.
+/// exports, two cancelled pathways deleted, and the leaver's account deleted on their last day.
 /// </summary>
 public static class DemoPrivacy
 {
@@ -27,11 +27,11 @@ public static class DemoPrivacy
         var lead = world.Lead;
         IMediator Mediator(IServiceProvider sp) => sp.GetRequiredService<IMediator>();
 
-        // Cancelled procedures deleted by an admin; their audit stays, shown to admins on the timeline.
-        foreach (var (procedure, at) in world.Deletions)
+        // Cancelled pathways deleted by an admin; their audit stays, shown to admins on the timeline.
+        foreach (var (pathway, at) in world.Deletions)
         {
             services.At(at, lead.ActivityActor);
-            await services.Run(sp => Mediator(sp).Send(new DeletePatientProcedureCommand(procedure.Id, lead.Actor), ct));
+            await services.Run(sp => Mediator(sp).Send(new DeletePatientPathwayCommand(pathway.Id, lead.Actor), ct));
         }
 
         DateTime LastActivity(Guid patientId) =>
@@ -44,9 +44,9 @@ public static class DemoPrivacy
         var active = patients.All.Where(p => p.Role == PatientRole.Active && p.Id != Guid.Empty).ToList();
         var flagged = new List<PatientSeed>();
 
-        // Restricted, with a procedure under way (quiet for a week, nothing booked ahead): staff can still block or cancel it.
+        // Restricted, with a pathway under way (quiet for a week, nothing booked ahead): staff can still block or cancel it.
         var withOpenWork = active.Where(p =>
-                world.Procedures.Any(x => x.PatientId == p.Id && x.Status is Domain.Procedures.PatientProcedures.PatientProcedureStatus.InProgress)
+                world.Pathways.Any(x => x.PatientId == p.Id && x.Status is Domain.Pathways.PatientPathways.PatientPathwayStatus.InProgress)
                 && LastActivity(p.Id) < now.AddDays(-7) && !HasUpcoming(p.Id))
             .OrderBy(_ => random.Next()).FirstOrDefault();
         if (withOpenWork is not null)
@@ -55,7 +55,7 @@ public static class DemoPrivacy
 
         // Restricted, everything closed.
         var closed = active.Except(flagged).Where(p =>
-                world.Procedures.Where(x => x.PatientId == p.Id).All(x => ProcedureWorkflow.IsClosed(x.Status))
+                world.Pathways.Where(x => x.PatientId == p.Id).All(x => PathwayWorkflow.IsClosed(x.Status))
                 && LastActivity(p.Id) < now.AddDays(-40) && !HasUpcoming(p.Id))
             .OrderBy(_ => random.Next()).FirstOrDefault();
         if (closed is not null)
@@ -125,7 +125,7 @@ public static class DemoPrivacy
             retentionKept = kept.Select(p => p.FullName).ToArray(),
             retentionDue = due.Where(p => p != anonymised).Select(p => p.FullName).ToArray(),
             exports,
-            deletedProcedures = world.Deletions.Count,
+            deletedPathways = world.Deletions.Count,
             deletedAccounts = new[] { leaver.Username },
         };
 
@@ -133,7 +133,7 @@ public static class DemoPrivacy
         {
             services.At(at, lead.ActivityActor);
             await services.Run(sp => Guards.Validated(() => Mediator(sp).Send(
-                new SetPatientFlagCommand(patient.Id, flag, true, reason, ConfirmOpenProcedures: true), ct)));
+                new SetPatientFlagCommand(patient.Id, flag, true, reason, ConfirmOpenPathways: true), ct)));
             if (flag == PatientFlag.Restricted)
                 patient.Restricted = true;
             flagged.Add(patient);

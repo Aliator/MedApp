@@ -1,10 +1,10 @@
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Attachments.Common;
 
@@ -12,59 +12,59 @@ namespace MedApp.Application.Attachments.Common;
 public static class AttachmentTargets
 {
     /// <summary>
-    /// The patient, procedure or stage a request names (exactly one, which its validator checks), with the procedure
+    /// The patient, pathway or stage a request names (exactly one, which its validator checks), with the pathway
     /// and stage loaded.
     /// </summary>
     public static async Task<AttachmentTarget> ResolveAsync(
         Guid? patientId,
-        Guid? procedureId,
+        Guid? pathwayId,
         Guid? stageId,
         IPatientRepository patients,
-        IPatientProcedureRepository procedures,
+        IPatientPathwayRepository pathways,
         IAttachmentRepository attachments,
         CancellationToken ct)
     {
         if (stageId is { } stage)
         {
-            var stageProcedureId = await attachments.GetStageProcedureIdAsync(stage, ct)
+            var stagePathwayId = await attachments.GetStagePathwayIdAsync(stage, ct)
                                    ?? throw new NotFoundException($"Stage '{stage}' was not found.");
-            var procedure = await GetProcedureAsync(stageProcedureId, procedures, ct);
-            return new AttachmentTarget(procedure.PatientId, procedure, procedure.GetStageOrThrow(stage));
+            var pathway = await GetPathwayAsync(stagePathwayId, pathways, ct);
+            return new AttachmentTarget(pathway.PatientId, pathway, pathway.GetStageOrThrow(stage));
         }
 
-        if (procedureId is { } procedureIdValue)
+        if (pathwayId is { } pathwayIdValue)
         {
-            var procedure = await GetProcedureAsync(procedureIdValue, procedures, ct);
-            return new AttachmentTarget(procedure.PatientId, procedure, null);
+            var pathway = await GetPathwayAsync(pathwayIdValue, pathways, ct);
+            return new AttachmentTarget(pathway.PatientId, pathway, null);
         }
 
-        var patient = patientId ?? throw new ArgumentException("A patient, procedure or stage is needed.");
+        var patient = patientId ?? throw new ArgumentException("A patient, pathway or stage is needed.");
         var found = await patients.GetByIdAsync(patient, ct) ?? throw new NotFoundException($"Patient '{patient}' was not found.");
         return new AttachmentTarget(patient, null, null) { Patient = found };
     }
 
     /// <summary>
-    /// What an existing attachment is attached to. Its procedure can't be deleted while it has files (a 409), but if
+    /// What an existing attachment is attached to. Its pathway can't be deleted while it has files (a 409), but if
     /// it somehow has been, the target is the patient, so the file can still be dealt with.
     /// </summary>
     public static async Task<AttachmentTarget> OfAsync(
         Attachment attachment,
         IPatientRepository patients,
-        IPatientProcedureRepository procedures,
+        IPatientPathwayRepository pathways,
         CancellationToken ct)
     {
-        var procedure = attachment.ProcedureId is { } procedureId ? await procedures.GetByIdAsync(procedureId, ct) : null;
-        if (procedure is null)
+        var pathway = attachment.PathwayId is { } pathwayId ? await pathways.GetByIdAsync(pathwayId, ct) : null;
+        if (pathway is null)
             return new AttachmentTarget(attachment.PatientId, null, null)
             {
                 Patient = await patients.GetByIdAsync(attachment.PatientId, ct)
             };
 
-        var stage = attachment.StageId is { } stageId ? procedure.Stages.FirstOrDefault(s => s.Id == stageId) : null;
-        return new AttachmentTarget(attachment.PatientId, procedure, stage);
+        var stage = attachment.StageId is { } stageId ? pathway.Stages.FirstOrDefault(s => s.Id == stageId) : null;
+        return new AttachmentTarget(attachment.PatientId, pathway, stage);
     }
 
-    private static async Task<PatientProcedure> GetProcedureAsync(
-        Guid id, IPatientProcedureRepository procedures, CancellationToken ct) =>
-        await procedures.GetByIdAsync(id, ct) ?? throw new NotFoundException($"Procedure '{id}' was not found.");
+    private static async Task<PatientPathway> GetPathwayAsync(
+        Guid id, IPatientPathwayRepository pathways, CancellationToken ct) =>
+        await pathways.GetByIdAsync(id, ct) ?? throw new NotFoundException($"Pathway '{id}' was not found.");
 }

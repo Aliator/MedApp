@@ -2,26 +2,26 @@ import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryC
 import {formatFileSize} from '../utils/fileSize';
 import {api, unwrap, type Schemas} from './client';
 import {allMessages, ApiError, parseValidationErrors, problemTitle} from './errors';
-import {procedureKeys} from './procedures';
+import {pathwayKeys} from './pathways';
 
 export type Attachment = Schemas['AttachmentResponse'];
 export type AttachmentList = Schemas['AttachmentListResponse'];
 
 /**
- * What files are attached to: a patient, one of their procedures, or a stage of one. A patient's list holds
- * everything attached to them anywhere; a procedure's only the files on the procedure itself; a stage's only its own.
+ * What files are attached to: a patient, one of their pathways, or a stage of one. A patient's list holds
+ * everything attached to them anywhere; a pathway's only the files on the pathway itself; a stage's only its own.
  */
-export type AttachmentTarget = {patientId: string} | {procedureId: string} | {stageId: string};
+export type AttachmentTarget = {patientId: string} | {pathwayId: string} | {stageId: string};
 
 /** What a file is attached to, as the API names it (`attachedTo`). */
-export type AttachedTo = 'Patient' | 'Procedure' | 'Stage';
+export type AttachedTo = 'Patient' | 'Pathway' | 'Stage';
 
-/** The `procedureId` (all zeros) of a timeline or audit entry about a patient's own file, which has no procedure. */
-export const NO_PROCEDURE = '00000000-0000-0000-0000-000000000000';
+/** The `pathwayId` (all zeros) of a timeline or audit entry about a patient's own file, which has no pathway. */
+export const NO_PATHWAY = '00000000-0000-0000-0000-000000000000';
 
 /** What a target is, as the API names an attachment's `attachedTo`. */
 export const attachedToOf = (target: AttachmentTarget): AttachedTo =>
-  'patientId' in target ? 'Patient' : 'procedureId' in target ? 'Procedure' : 'Stage';
+  'patientId' in target ? 'Patient' : 'pathwayId' in target ? 'Pathway' : 'Stage';
 
 /** A target as one string, e.g. "Stage:<id>", to tell apart uploads and settings held for several targets. */
 export const attachmentTargetKey = (target: AttachmentTarget) => `${attachedToOf(target)}:${Object.values(target)[0]}`;
@@ -78,10 +78,10 @@ export function checkAttachmentFile(file: {name: string; size: number}, limits: 
   return null;
 }
 
-/** The query string that names a target, as the API takes it: `patientId=…`, `procedureId=…` or `stageId=…`. */
+/** The query string that names a target, as the API takes it: `patientId=…`, `pathwayId=…` or `stageId=…`. */
 function targetParams(target: AttachmentTarget): Record<string, string> {
   if ('patientId' in target) return {patientId: target.patientId};
-  if ('procedureId' in target) return {procedureId: target.procedureId};
+  if ('pathwayId' in target) return {pathwayId: target.pathwayId};
   return {stageId: target.stageId};
 }
 
@@ -103,7 +103,7 @@ export function attachmentsQuery(target: AttachmentTarget, includeDeleted = fals
           params: {
             query: {
               PatientId: params.patientId,
-              ProcedureId: params.procedureId,
+              PathwayId: params.pathwayId,
               StageId: params.stageId,
               ...(includeDeleted ? {IncludeDeleted: true} : {}),
             },
@@ -124,7 +124,7 @@ export const attachmentThumbnailUrl = (id: string) => `/api/attachments/${id}/th
 export async function refreshAfterAttachmentChange(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({queryKey: attachmentKeys.all}),
-    queryClient.invalidateQueries({queryKey: procedureKeys.timelines}),
+    queryClient.invalidateQueries({queryKey: pathwayKeys.timelines}),
   ]);
 }
 

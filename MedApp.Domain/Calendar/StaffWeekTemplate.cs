@@ -8,7 +8,7 @@ public sealed class StaffWeekTemplate : IDatedRow
 {
     public Guid Id { get; init; }
 
-    /// <summary>No foreign key to the users table, as with procedure assignments.</summary>
+    /// <summary>No foreign key to the users table, as with pathway assignments.</summary>
     public Guid StaffUserId { get; set; }
 
     public Guid WeekTemplateId { get; set; }

@@ -2,8 +2,8 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Paging;
-using MedApp.Application.Procedures.Timeline.Common;
-using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
+using MedApp.Application.Pathways.Timeline.Common;
+using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
 using MedApp.Domain.Appointments;
 using MedApp.Infrastructure.Data.Configurations.Appointments;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +12,8 @@ namespace MedApp.Infrastructure.Data.Repositories;
 
 /// <summary>
 /// Appointments. Changes are made to a tracked appointment (<see cref="GetForUpdateAsync"/>) and saved with their
-/// history entries in one <c>SaveChangesAsync</c>. Appointments loaded for a procedure change share the request's
-/// DbContext with <c>PatientProcedureRepository</c>, which saves them with the procedure.
+/// history entries in one <c>SaveChangesAsync</c>. Appointments loaded for a pathway change share the request's
+/// DbContext with <c>PatientPathwayRepository</c>, which saves them with the pathway.
 /// </summary>
 public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmentRepository
 {
@@ -72,9 +72,9 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<Appointment>> GetRequestedForProcedureForUpdateAsync(Guid procedureId, CancellationToken ct) =>
+    public async Task<IReadOnlyList<Appointment>> GetRequestedForPathwayForUpdateAsync(Guid pathwayId, CancellationToken ct) =>
         await context.Appointments
-            .Where(a => a.ProcedureId == procedureId && a.Status == AppointmentStatus.Requested)
+            .Where(a => a.PathwayId == pathwayId && a.Status == AppointmentStatus.Requested)
             .ToListAsync(ct);
 
     public async Task<PagedResult<Appointment>> SearchAsync(SearchAppointmentsQuery query, CancellationToken ct)
@@ -95,7 +95,7 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
 
     public async Task<IReadOnlyList<AppointmentTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct) =>
         await AppointmentTimelineSearch
-            .Page(context.AppointmentEvents.AsNoTracking(), context.PatientProcedures.AsNoTracking(), query)
+            .Page(context.AppointmentEvents.AsNoTracking(), context.PatientPathways.AsNoTracking(), query)
             .ToListAsync(ct);
 
     public async Task<int> CountUpcomingForStaffAsync(Guid staffUserId, DateTime nowUtc, CancellationToken ct) =>
@@ -105,6 +105,6 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
     private static IQueryable<Appointment> WithDetails(IQueryable<Appointment> appointments) =>
         appointments
             .Include(a => a.Patient)
-            .Include(a => a.Procedure)
+            .Include(a => a.Pathway)
             .Include(a => a.Stage);
 }

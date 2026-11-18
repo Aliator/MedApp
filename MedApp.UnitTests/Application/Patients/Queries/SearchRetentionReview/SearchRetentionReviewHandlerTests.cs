@@ -4,7 +4,7 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchRetentionReview;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;

@@ -1,4 +1,4 @@
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 
 namespace MedApp.Application.Activity.Queries.SearchActivity;
@@ -8,7 +8,7 @@ public static class ActivitySearch
 {
     public static string ActionNames => string.Join(", ", Enum.GetNames<ActivityAction>());
 
-    public static bool IsAction(string? value) => ProcedureEnums.TryParse<ActivityAction>(value, out _);
+    public static bool IsAction(string? value) => PathwayEnums.TryParse<ActivityAction>(value, out _);
 
     /// <summary>Entries matching every filter given. <c>From</c> and <c>To</c> are whole UK days, inclusive.</summary>
     public static IQueryable<ActivityEntry> Filter(this IQueryable<ActivityEntry> entries, SearchActivityQuery query)
@@ -20,7 +20,7 @@ public static class ActivitySearch
             entries = entries.Where(e => e.UserId == userId);
 
         var actions = (query.Actions ?? [])
-            .Select(s => ProcedureEnums.TryParse<ActivityAction>(s, out var a) ? a : (ActivityAction?)null)
+            .Select(s => PathwayEnums.TryParse<ActivityAction>(s, out var a) ? a : (ActivityAction?)null)
             .OfType<ActivityAction>()
             .Distinct()
             .ToList();

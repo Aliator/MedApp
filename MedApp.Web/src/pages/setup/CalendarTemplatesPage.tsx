@@ -24,7 +24,7 @@ import {ActivityToken} from '../../components/calendar/CalendarTokens';
 import {StaffPicker} from '../../components/calendar/StaffPicker';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
-import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
+import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';

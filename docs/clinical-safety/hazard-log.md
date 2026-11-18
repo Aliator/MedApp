@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting procedure notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -27,27 +27,28 @@
   - their **status:** **planned** (in `docs/architecture.md`'s roadmap or `docs/todo.md`, with the step) or **proposed** (new, suggested by this log);
   - **when** they're needed: **before first live use**, or **later**;
   - **transferred** if the deploying organisation provides them (`dcb0160-deploying-organisations.md`).
+- **Names of statuses:** this log names a pathway's statuses as the code and the audit log do. Three show on screen under other names (`docs/glossary.md`): in review as "Awaiting review", blocked as "On hold" and completed as "Discharged". Nothing about what they do changed with the names.
 - **Assumption behind every rating:** the deploying organisation identifies patients at the point of care by its own positive identification process, and uses MedApp within its intended purpose (`intended-purpose-and-device-decision.md`). If it doesn't, several ratings go up.
 
 ## Summary
 
 | ID | Hazard | Initial risk | At first live use | Residual risk | Needs a product change? | Status |
 |---|---|---|---|---|---|---|
-| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
+| [H-01](#h-01-the-wrong-patients-pathway-is-worked) | The wrong patient's pathway is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
 | [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
 | [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
-| [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-04](#h-04-an-overdue-pathway-is-missed) | An overdue pathway is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-05](#h-05-a-blocked-pathway-is-forgotten) | A blocked pathway is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
 | [H-06](#h-06-a-stage-is-finished-in-error) | A stage is finished in error | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-07](#h-07-a-stage-is-recorded-as-finished-when-the-work-wasnt-done) | A stage is recorded as finished when the work wasn't done | Major, Low: **3** | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-08](#h-08-a-procedure-is-cancelled-completed-or-archived-in-error) | A procedure is cancelled, completed or archived in error | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-08](#h-08-a-pathway-is-cancelled-completed-or-archived-in-error) | A pathway is cancelled, completed or archived in error | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-09](#h-09-a-member-of-staff-doesnt-learn-of-work-assigned-to-them) | A member of staff doesn't learn of work assigned to them | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
 | [H-10](#h-10-medapp-is-unavailable) | MedApp is unavailable | Major, Medium: **3** | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-11](#h-11-due-dates-dont-mean-what-staff-think) | Due dates don't mean what staff think | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-11](#h-11-due-dates-dont-mean-what-staff-think) | Target dates don't mean what staff think | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-12](#h-12-times-are-shown-an-hour-out) | Times are shown an hour out | Considerable, High: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** (built in PR #62; to verify) | Open |
 | [H-13](#h-13-a-template-or-stage-definition-has-wrong-content) | A template or stage definition has wrong content | Catastrophic, Low: **4** | Catastrophic, Very low: **3** | Catastrophic, Very low: **3** | **Yes, before first live use** | Open |
-| [H-14](#h-14-a-correction-to-a-template-doesnt-reach-procedures-already-under-way) | A correction to a template doesn't reach procedures already under way | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-15](#h-15-two-people-edit-the-same-procedure-at-once) | Two people edit the same procedure at once | Considerable, Medium: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
+| [H-14](#h-14-a-correction-to-a-template-doesnt-reach-pathways-already-under-way) | A correction to a template doesn't reach pathways already under way | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-15](#h-15-two-people-edit-the-same-pathway-at-once) | Two people edit the same pathway at once | Considerable, Medium: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
 | [H-16](#h-16-the-screen-shows-out-of-date-information) | The screen shows out-of-date information | Significant, Medium: **2** | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
 | [H-17](#h-17-stage-instructions-arent-read) | Stage instructions aren't read | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-18](#h-18-a-change-is-recorded-under-the-wrong-persons-name) | A change is recorded under the wrong person's name | Significant, Medium: **2** | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
@@ -55,7 +56,7 @@
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-22](#h-22-care-under-way-is-delayed-because-the-patients-record-is-restricted) | Care under way is delayed because the patient's record is restricted | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later (a local procedure before first live use) | Open |
-| [H-23](#h-23-a-file-is-attached-to-the-wrong-patient-procedure-or-stage) | A file is attached to the wrong patient, procedure or stage | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-23](#h-23-a-file-is-attached-to-the-wrong-patient-pathway-or-stage) | A file is attached to the wrong patient, pathway or stage | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-24](#h-24-a-document-or-result-is-missing-and-nobody-knows) | A document or result is missing, and nobody knows | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-25](#h-25-an-attached-file-carries-malware) | An attached file carries malware | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-26](#h-26-a-file-is-deleted-by-mistake) | A file is deleted by mistake | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
@@ -66,11 +67,11 @@
 | [H-31](#h-31-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
 | [H-32](#h-32-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 | [H-33](#h-33-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-34](#h-34-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-34](#h-34-the-wrong-patient-or-pathway-is-booked) | The wrong patient or pathway is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 | [H-35](#h-35-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
 | [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-procedure) | A note from the notepad is added to the wrong patient's procedure | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
-| [H-38](#h-38-a-procedures-note-is-deleted-wrongly) | A procedure's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
+| [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-pathway) | A note from the notepad is added to the wrong patient's pathway | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
+| [H-38](#h-38-a-pathways-note-is-deleted-wrongly) | A pathway's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
 | [H-39](#h-39-a-visit-is-recorded-after-the-event-that-didnt-happen-or-on-the-wrong-patient) | A visit is recorded after the event that didn't happen, or on the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built (the patient shown, the 30-day limit, who recorded it)** | Open, draft for the CSO |
 | [H-40](#h-40-a-referral-is-lost-or-delayed-before-triage) | A referral is lost or delayed before triage | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built: `docs/centre-phase2-plan.md`) | Open, draft for the CSO |
 | [H-41](#h-41-a-referral-is-triaged-into-the-wrong-pathway-priority-or-patient) | A referral is triaged into the wrong pathway, priority or patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
@@ -88,9 +89,9 @@
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
-**The notepad and several notes per procedure (H-37)** is a draft for the CSO too, written with the feature (branch `feature/procedure-notes`), with a draft estimate in the same way: 3 to start, 2 with its confirmation, which is built.
+**The notepad and several notes per pathway (H-37)** is a draft for the CSO too, written with the feature (branch `feature/procedure-notes`), with a draft estimate in the same way: 3 to start, 2 with its confirmation, which is built.
 
-**Deleting procedure notes (H-38)** is a draft for the CSO, written with the feature (branch `feature/note-deletion`): admins delete notes (soft, with a reason), and staff ask them to. Draft estimate: 2 to start, as its controls (admins only, a reason, a confirmation showing the patient and the note, the note kept and recoverable) are built with it.
+**Deleting pathway notes (H-38)** is a draft for the CSO, written with the feature (branch `feature/note-deletion`): admins delete notes (soft, with a reason), and staff ask them to. Draft estimate: 2 to start, as its controls (admins only, a reason, a confirmation showing the patient and the note, the note kept and recoverable) are built with it.
 
 **Closed days and appointments recorded after the event (H-39)** (branch `feature/closed-days-walk-ins`): a new draft hazard, H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), estimated at 3 to start and 2 with its built controls; and closed days' and walk-ins' effect on H-31 to H-35's causes and controls. No earlier draft estimate changed.
 
@@ -100,36 +101,36 @@
 
 ---
 
-## H-01: The wrong patient's procedure is worked
+## H-01: The wrong patient's pathway is worked
 
-**Description.** A member of staff opens, and records work on, a procedure that belongs to a different patient from the one in front of them, believing it's the right one.
+**Description.** A member of staff opens, and records work on, a pathway that belongs to a different patient from the one in front of them, believing it's the right one.
 
 **Causes:**
 - Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`). **Since branch `feature/nhs-integrations`,** a patient can have an NHS number, optional and unique, so two records with the same number are refused; but two patients with the same name and date of birth, or one patient recorded twice with the number on only one record, still aren't caught. There's still no local hospital number.
-- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`). Branch `feature/nhs-integrations` adds the patient banner above it (further controls); the title is unchanged.
+- The pathway page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the pathway's title, not the patient's name (`MedApp.Web/src/pages/pathways/PathwayPage.tsx`, `details()`). Branch `feature/nhs-integrations` adds the patient banner above it (further controls); the title is unchanged.
 - **A wrong NHS number** (branch `feature/nhs-integrations`): one mistyped, or the right digits typed on the wrong patient's record. The Modulus 11 check digit catches any single mistyped digit and most swapped pairs, but not a valid number that belongs to someone else. Nothing traces numbers with PDS, so MedApp never confirms that a number is the patient's (the FHIR API says so: "02 Number present but not traced"). The banner then shows a precise-looking identifier that's wrong, and another system reading the patient through the FHIR API could match them to the wrong person.
 - **The demographics lookup** fills a patient's name and date of birth from an NHS number, so a wrong number can fill in another person's details. Today it's off by default, and its only source is an offline stub of four synthetic people; the real PDS isn't connected. Since the review of #69: on Edit Patient it shows who it found beside the record's details and fills only on "Use These Details"; on Add Patient it fills at once; and on either, if the number is changed after a lookup while the filled details are unchanged, the save is refused until the new number is looked up or the details are changed by hand.
-- Task lists and procedure lists show the patient's name only (`MyTasksPage.tsx`, `ProceduresListPage.tsx`). Search matches on part of a name (`ProcedureSearch.Filter`).
-- Two pages can be open side by side (half views), and procedures can be pinned in the side navigation.
+- Task lists and pathway lists show the patient's name only (`MyTasksPage.tsx`, `PathwaysListPage.tsx`). Search matches on part of a name (`PathwaySearch.Filter`).
+- Two pages can be open side by side (half views), and pathways can be pinned in the side navigation.
 - The same causes can put a file on the wrong patient: H-23.
 - **A referral registered on the wrong patient** (planned, `docs/centre-phase2-plan.md`): the referral's patient is chosen by name or NHS number when it's registered, or added from the demographics lookup. Its controls (the patient banner on the referral page and in every triage confirmation, entered in error with a reason) are under H-41.
 
-**Effect.** Notes are written on the wrong patient's procedure, or a stage is finished on it, and the other patient's procedure is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
+**Effect.** Notes are written on the wrong patient's pathway, or a stage is finished on it, and the other patient's pathway is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
 **Possible harm.** A step of care given to or withheld from the wrong patient, for example a pre-procedure check recorded as done for a patient who didn't have it. One patient at a time; Major in the worst credible case (death or permanent incapacity, single patient).
 
 **Existing controls:**
-- New procedures are created from a patient's own page, and the New procedure page says which patient it's for ("For {name}", `NewProcedurePage.tsx`).
+- New pathways are created from a patient's own page, and the New pathway page says which patient it's for ("For {name}", `NewPathwayPage.tsx`).
 - The patients list shows date of birth and age, and View Patient shows the full record (`PatientsListPage.tsx`, `ViewPatientPage.tsx`).
-- A procedure can't be moved to another patient: the update command has no patient field (`UpdatePatientProcedureCommand`).
-- Every change is audited with who and when, so a wrong-patient entry can be found and traced (`ProcedureChange.Audit`).
+- A pathway can't be moved to another patient: the update command has no patient field (`UpdatePatientPathwayCommand`).
+- Every change is audited with who and when, so a wrong-patient entry can be found and traced (`PathwayChange.Audit`).
 - **Transferred:** positive patient identification at the point of care by the organisation's own process.
 
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`): `SURNAME, Forename` in bold, the date of birth with the age, and the NHS number as `XXX XXX XXXX` (or "No NHS number"), with tokens for a restricted, disputed or anonymised record; not foldable, under the page header of the patient's page, Edit Patient, the export page, the patient's procedures, the procedure page, Edit Procedure and New Procedure; it stays in view on every one but the printable export page (the forms scroll inside their cards under it), wraps in a narrow window or half view, is a region named for the patient, upper-cases the surname by CSS so screen readers read it as a name, and gives young children's ages in months, weeks or days. Edit Patient shows it from the saved record, and its save confirmation shows the old and new name, date of birth and NHS number when they change. A test renders every patient and procedure route and checks for it. Not shown: sex or gender, which MedApp doesn't hold yet (`docs/todo.md`). Procedure responses carry the patient, so the procedure pages need no second read to show it. **Before first live use,** to be verified by the CSO. A dialog over the page can hide the banner, so dialogs that change a procedure rely on naming the patient themselves (H-02's confirmations).
-- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
+- **A patient banner** on every pathway page and dialog that changes a pathway: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`): `SURNAME, Forename` in bold, the date of birth with the age, and the NHS number as `XXX XXX XXXX` (or "No NHS number"), with tokens for a restricted, disputed or anonymised record; not foldable, under the page header of the patient's page, Edit Patient, the export page, the patient's pathways, the pathway page, Edit Pathway and New Pathway; it stays in view on every one but the printable export page (the forms scroll inside their cards under it), wraps in a narrow window or half view, is a region named for the patient, upper-cases the surname by CSS so screen readers read it as a name, and gives young children's ages in months, weeks or days. Edit Patient shows it from the saved record, and its save confirmation shows the old and new name, date of birth and NHS number when they change. A test renders every patient and pathway route and checks for it. Not shown: sex or gender, which MedApp doesn't hold yet (`docs/todo.md`). Pathway responses carry the patient, so the pathway pages need no second read to show it. **Before first live use,** to be verified by the CSO. A dialog over the page can hide the banner, so dialogs that change a pathway rely on naming the patient themselves (H-02's confirmations).
+- **Show the date of birth** beside the patient's name in task lists and pathway lists, and put the patient's name in the pathway page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
 - **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design. **Built in part** on branch `feature/nhs-integrations`: the number is optional, checked with its check digit on the server and in the form, unique across the deployment (within an organisation once step 8 adds them), and searchable; an exact duplicate number is refused with a 409. **Still planned** (step 9): a duplicate check on name and date of birth, and merging; later.
 - **Trace NHS numbers with PDS,** so a number is confirmed to be the patient's, and have the lookup show who it found and ask staff to confirm before it fills the form. Protective. The confirmation is **built** on Edit Patient, with the hold on a changed number on both forms (above); Add Patient still fills at once. Tracing is **planned** (step 9, after NHS England's onboarding); before the real PDS is connected, Add Patient should confirm as Edit Patient does.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
@@ -144,11 +145,11 @@
 
 ## H-02: Work is recorded on the wrong record
 
-**Description.** Information meant for one procedure, stage or patient is saved on another: a procedure is created for the wrong patient, notes are typed into the wrong stage or procedure, or the wrong template is chosen.
+**Description.** Information meant for one pathway, stage or patient is saved on another: a pathway is created for the wrong patient, notes are typed into the wrong stage or pathway, or the wrong template is chosen.
 
 **Causes:**
 - The same identification limits as H-01.
-- Half views put two procedures side by side.
+- Half views put two pathways side by side.
 - Files attached to the wrong record are H-23.
 - The notes box always belongs to the current stage, so a note about an earlier stage can only be added to the current one, unless an admin unlocks the earlier stage.
 - Template names can be similar, and the template list is the organisation's own.
@@ -158,17 +159,17 @@
 **Possible harm.** A delayed or wrong step of care for one patient. Considerable.
 
 **Existing controls:**
-- New procedure lists the chosen template's stages before it's created, and fills the title from the template's name (`NewProcedurePage.tsx`; `docs/procedures-ui-plan.md`, phase 4).
-- A procedure created for the wrong patient can be cancelled with a reason and archived, and an admin can then delete it; its audit entries are kept (`ProcedureWorkflow.AllowedStatusChanges`, `CanBeDeleted`; `DeletePatientProcedureHandler`).
-- Notes on a stage can be corrected while it's current, and after an admin unlocks it; every save keeps the old and new text in the audit log (`ProcedureChange.UpdateStageNotes`).
-- A finished stage is locked (`ProcedureChange.FinishStage`), so a wrong entry can't be made on an earlier stage by accident.
+- New pathway lists the chosen template's stages before it's created, and fills the title from the template's name (`NewPathwayPage.tsx`; `docs/pathways-ui-plan.md`, phase 4).
+- A pathway created for the wrong patient can be cancelled with a reason and archived, and an admin can then delete it; its audit entries are kept (`PathwayWorkflow.AllowedStatusChanges`, `CanBeDeleted`; `DeletePatientPathwayHandler`).
+- Notes on a stage can be corrected while it's current, and after an admin unlocks it; every save keeps the old and new text in the audit log (`PathwayChange.UpdateStageNotes`).
+- A finished stage is locked (`PathwayChange.FinishStage`), so a wrong entry can't be made on an earlier stage by accident.
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01. Protective; **built** on branch `feature/nhs-integrations`, on the procedure page, Edit Procedure and New Procedure, and Edit Patient (so a procedure is created under the patient's banner); before first live use, to be verified by the CSO.
-- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
-- **An "entered in error" action** for stage notes and procedures, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
+- **The patient banner** from H-01. Protective; **built** on branch `feature/nhs-integrations`, on the pathway page, Edit Pathway and New Pathway, and Edit Patient (so a pathway is created under the patient's banner); before first live use, to be verified by the CSO.
+- **The pathway and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {pathway} for {patient}?"). The finish confirmation already names the stage (`PathwayPage.tsx`); add the patient. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
+- **An "entered in error" action** for stage notes and pathways, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
 - **Train staff** to correct a wrong entry with a note saying so, never by deleting it. Information; transferred.
 
 **At first live use:** Considerable, Low: **2**. As for H-01, this already assumed the banner, and holds once the CSO has verified it and the confirmations name the patient.
@@ -185,18 +186,18 @@
 
 **Causes:**
 - Any staff member can edit any patient, and the change overwrites the old values (`UpdatePatientHandler`).
-- Any staff member can permanently delete a patient who has no procedures (`DeletePatientHandler`).
+- Any staff member can permanently delete a patient who has no pathways (`DeletePatientHandler`).
 - Since roadmap step 7 (branch `feature/privacy-features`), both are recorded in the activity log, with who, when and which fields changed, but **not the old values** (the log holds no patient details by design), so what a field said before can't be recovered from it.
 
-**Effect.** All of that patient's procedures now show the new, wrong details. An admin can see who changed which fields and when (the activity log, and the patient's access report), but not what they said before. A deleted patient's record is gone.
+**Effect.** All of that patient's pathways now show the new, wrong details. An admin can see who changed which fields and when (the activity log, and the patient's access report), but not what they said before. A deleted patient's record is gone.
 
-**Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. One patient; Considerable.
+**Possible harm.** Wrong-patient errors (H-01) on every pathway of that patient; a patient lost from follow-up. One patient; Considerable.
 
 **Existing controls:**
-- A patient with procedures can't be deleted (409; `DeletePatientHandler`).
-- Procedure audit entries keep the patient's ID, so procedures can still be traced to the patient row.
+- A patient with pathways can't be deleted (409; `DeletePatientHandler`).
+- Pathway audit entries keep the patient's ID, so pathways can still be traced to the patient row.
 - Patient creates, edits (the fields changed) and deletes are recorded in the activity log with the user, time and address, in the same save as the change (`UpdatePatientHandler`, `DeletePatientHandler`, `PatientRepository`; step 7).
-- A restricted record can't be edited or deleted, nor its procedures changed but for blocking or cancelling (`PatientRules`; step 7; its own hazard is H-22), and a disputed one carries a banner on every page about the patient (the patient's page, Edit Patient, their procedures, the procedure page, Edit Procedure, New Procedure and the appointment dialogs). Since branch `feature/warning-banners` it's a label, "Disputed record: <what's disputed>" when the admin's words fit (40 characters) and "Disputed record" otherwise, with what the patient disputes and since when over the page on hover, focus, a click or a tap. So what's disputed (perhaps an identifier staff check, H-01) may now be on demand rather than on screen.
+- A restricted record can't be edited or deleted, nor its pathways changed but for blocking or cancelling (`PatientRules`; step 7; its own hazard is H-22), and a disputed one carries a banner on every page about the patient (the patient's page, Edit Patient, their pathways, the pathway page, Edit Pathway, New Pathway and the appointment dialogs). Since branch `feature/warning-banners` it's a label, "Disputed record: <what's disputed>" when the admin's words fit (40 characters) and "Disputed record" otherwise, with what the patient disputes and since when over the page on hover, focus, a click or a tap. So what's disputed (perhaps an identifier staff check, H-01) may now be on demand rather than on screen.
 - Two saves of the same patient at once can't silently undo each other: the second, made from an older copy, is refused (a row version, step 7).
 
 **Initial risk:** Considerable, Low: **2**.
@@ -214,35 +215,35 @@
 
 ---
 
-## H-04: An overdue procedure is missed
+## H-04: An overdue pathway is missed
 
-**Description.** A procedure passes its due date, and nobody notices in time to act.
+**Description.** A pathway passes its target date, and nobody notices in time to act.
 
 **Causes:**
-- **Nothing tells anyone.** "Overdue" is a badge on lists and on the procedure page (`DueDateCell`, `ProcedureCells.tsx`), computed when the page loads (`ProcedureWorkflow.IsOverdue`). There's no notification, email or escalation for overdue work; the only notification is for being assigned (`docs/todo.md`, "More notifications").
-- **My Tasks opens on work not yet started.** Its default filter is "Not started" (`MyTasksPage.tsx`, `progressOf`), which sends `Started: false`, so every procedure with a started or finished stage is left out, overdue or not (`ProcedureSearch.Filter`). Started work shows only after changing the filter, or through the "Overdue" quick filter.
-- **Unassigned procedures are on nobody's task list.** My Tasks shows only procedures assigned to you (`ProcedureSearch.Filter`, `AssignedToMe`). An unassigned procedure is visible only on the full Procedures list.
-- **Assignment depends on admins:** only admins can assign (`[Authorize(Roles = "Admin")]` on the assignment endpoints), so if no admin is about, new procedures stay unassigned.
+- **Nothing tells anyone.** "Overdue" is a badge on lists and on the pathway page (`DueDateCell`, `PathwayCells.tsx`), computed when the page loads (`PathwayWorkflow.IsOverdue`). There's no notification, email or escalation for overdue work; the only notification is for being assigned (`docs/todo.md`, "More notifications").
+- **My Worklist opens on work not yet started.** Its default filter is "Not started" (`MyTasksPage.tsx`, `progressOf`), which sends `Started: false`, so every pathway with a started or finished stage is left out, overdue or not (`PathwaySearch.Filter`). Started work shows only after changing the filter, or through the "Overdue" quick filter.
+- **Unassigned pathways are on nobody's task list.** My Worklist shows only pathways assigned to you (`PathwaySearch.Filter`, `AssignedToMe`). An unassigned pathway is visible only on the full Pathways list.
+- **Assignment depends on admins:** only admins can assign (`[Authorize(Roles = "Admin")]` on the assignment endpoints), so if no admin is about, new pathways stay unassigned.
 - **The assignee is away:** assignment doesn't stop anyone else working on it, but nothing reassigns it or tells anyone it's waiting. (An assignee whose account is deleted is H-21.)
 - **Pages don't refresh by themselves:** a list left open overnight keeps its old overdue badges (H-16).
 
 **Effect.** A step of care isn't done by the date staff set for it.
 
-**Possible harm.** Delayed care for one patient: a delayed test, review or procedure. Considerable in the worst credible case for the procedures MedApp is meant for; it could be worse for a time-critical one, which is outside the intended purpose.
+**Possible harm.** Delayed care for one patient: a delayed test, review or pathway. Considerable in the worst credible case for the pathways MedApp is meant for; it could be worse for a time-critical one, which is outside the intended purpose.
 
 **Existing controls:**
-- The overdue rule is the same everywhere, in one place (`ProcedureWorkflow.IsOverdue`, and the same rule in SQL for the "overdue only" filter, `ProcedureSearch.Filter`), with tests (`ProcedureWorkflowTests`, `IsOverdue_StatusAndDueDate_OnlyOpenProceduresPastTheirDueDate`).
-- Lists sort by due date, soonest first, by default, and hide closed procedures (`ProcedureSearch.Sort`, `Filter`).
-- The Procedures list has an "overdue only" filter, and its searches can be saved as favourites.
-- My Tasks has an "Overdue" quick filter, which shows started and not-started work, and highlights overdue procedures (`MyTasksPage.tsx`).
-- Due dates can't be set in the past when a procedure is created (`CreatePatientProcedureValidator`).
+- The overdue rule is the same everywhere, in one place (`PathwayWorkflow.IsOverdue`, and the same rule in SQL for the "overdue only" filter, `PathwaySearch.Filter`), with tests (`PathwayWorkflowTests`, `IsOverdue_StatusAndDueDate_OnlyOpenPathwaysPastTheirDueDate`).
+- Lists sort by target date, soonest first, by default, and hide closed pathways (`PathwaySearch.Sort`, `Filter`).
+- The Pathways list has an "overdue only" filter, and its searches can be saved as favourites.
+- My Worklist has an "Overdue" quick filter, which shows started and not-started work, and highlights overdue pathways (`MyTasksPage.tsx`).
+- Target dates can't be set in the past when a pathway is created (`CreatePatientPathwayValidator`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **Overdue notifications** to the assignees, and to admins for unassigned procedures, the day a procedure becomes overdue, through `INotificationSender`. Protective; **planned** (`docs/todo.md`; step 9 adds email); **before first live use** for the in-app notification. The intended purpose already allows workflow reminders about dates staff set (`intended-purpose-and-device-decision.md`); when this is built, update the statements that "nothing alerts anyone" in CS-03 and CS-05 in the same pull request.
-- **A visible count of started and overdue work on My Tasks** beside its filter, or opening My Tasks on all open work, so the list staff are told to work from shows everything assigned to them. Protective; **proposed**; before first live use.
-- **An "unassigned and due soon" view** on the Welcome page or My Tasks for admins, so nothing waits unseen for assignment. Protective; **proposed**; before first live use.
+- **Overdue notifications** to the assignees, and to admins for unassigned pathways, the day a pathway becomes overdue, through `INotificationSender`. Protective; **planned** (`docs/todo.md`; step 9 adds email); **before first live use** for the in-app notification. The intended purpose already allows workflow reminders about dates staff set (`intended-purpose-and-device-decision.md`); when this is built, update the statements that "nothing alerts anyone" in CS-03 and CS-05 in the same pull request.
+- **A visible count of started and overdue work on My Worklist** beside its filter, or opening My Worklist on all open work, so the list staff are told to work from shows everything assigned to them. Protective; **proposed**; before first live use.
+- **An "unassigned and due soon" view** on the Welcome page or My Worklist for admins, so nothing waits unseen for assignment. Protective; **proposed**; before first live use.
 - **A daily digest or escalation to a lead.** Protective; **planned** (step 9); later.
 - **A local process:** who reviews the overdue list, and how often; at least two admins so assignment never waits on one person. Information; transferred.
 
@@ -254,33 +255,33 @@
 
 ---
 
-## H-05: A blocked procedure is forgotten
+## H-05: A blocked pathway is forgotten
 
-**Description.** A procedure is blocked (waiting on something outside MedApp), and stays blocked long after the reason has gone, or past the date it was needed.
+**Description.** A pathway is blocked (waiting on something outside MedApp), and stays blocked long after the reason has gone, or past the date it was needed.
 
 **Causes:**
-- **A blocked procedure is never overdue,** by design: "Blocked procedures are waiting on something else, so never overdue" (`ProcedureWorkflow.IsOverdue`; `docs/procedures-ui-plan.md`, decision 15). Its due date can pass with no badge.
+- **A blocked pathway is never overdue,** by design: "Blocked pathways are waiting on something else, so never overdue" (`PathwayWorkflow.IsOverdue`; `docs/pathways-ui-plan.md`, decision 15). Its target date can pass with no badge.
 - A block has a reason but no review date, and nothing reminds anyone about it.
-- The "overdue only" filter leaves blocked procedures out (`ProcedureSearch.Filter`).
-- **My Tasks opens on "Not started"** (H-04), so a blocked procedure that had a stage started before it was blocked doesn't show there by default.
+- The "overdue only" filter leaves blocked pathways out (`PathwaySearch.Filter`).
+- **My Worklist opens on "Not started"** (H-04), so a blocked pathway that had a stage started before it was blocked doesn't show there by default.
 
-**Effect.** The procedure drops out of everyone's attention, and the patient's care stalls.
+**Effect.** The pathway drops out of everyone's attention, and the patient's care stalls.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
-- Blocking needs a reason, kept in the audit log (`ProcedureWorkflow.RequiresReason`, `ChangePatientProcedureStatusValidator`).
-- Blocked procedures are among My Tasks' statuses (`OPEN_PROCEDURE_STATUSES`, `MedApp.Web/src/pages/listSearch.ts`): they show by default only if no stage was started, and otherwise under the "Started" filter or the "Blocked" quick filter. Their status shows on every list.
-- The procedure page says what status it was blocked from (`ProcedurePage.tsx`).
+- Blocking needs a reason, kept in the audit log (`PathwayWorkflow.RequiresReason`, `ChangePatientPathwayStatusValidator`).
+- Blocked pathways are among My Worklist's statuses (`OPEN_PATHWAY_STATUSES`, `MedApp.Web/src/pages/listSearch.ts`): they show by default only if no stage was started, and otherwise under the "Started" filter or the "Blocked" quick filter. Their status shows on every list.
+- The pathway page says what status it was blocked from (`PathwayPage.tsx`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **Show "past due date" on blocked procedures** (a separate, quieter badge than overdue), and include them in an "overdue or past due" filter. Protective; **proposed**; before first live use.
-- **The count of started work on My Tasks** from H-04. Protective; **proposed**; before first live use.
+- **Show "past target date" on blocked pathways** (a separate, quieter badge than overdue), and include them in an "overdue or past due" filter. Protective; **proposed**; before first live use.
+- **The count of started work on My Worklist** from H-04. Protective; **proposed**; before first live use.
 - **A review date on each block,** asked for when blocking, with a notification when it arrives. Protective; **proposed**; later.
-- **Notify the assignees when a procedure is blocked.** Protective; **planned** (`docs/todo.md`); later.
-- **A local process** for reviewing blocked procedures. Information; transferred.
+- **Notify the assignees when a pathway is blocked.** Protective; **planned** (`docs/todo.md`); later.
+- **A local process** for reviewing blocked pathways. Information; transferred.
 
 **At first live use:** Considerable, Low: **2**.
 
@@ -296,21 +297,21 @@
 
 **Causes:**
 - A slip: Finish Stage is the main button beside Save Notes (`StageWork.tsx`).
-- The wrong procedure (H-01, H-02).
+- The wrong pathway (H-01, H-02).
 
 **Effect:**
-- The stage locks, and the next stage becomes the current one, so the procedure appears to have moved on. Staff picking up the next stage may assume the earlier one was done.
-- Only an admin can unlock it; staff can't. After an unlock, the stage still counts as finished (`IsCompleted` stays true): unlocking reopens its notes, but the record still says it was finished, by whom and when (`ProcedureChange.UnlockStage`). There's no way to mark a stage "not done".
-- **Work carries on past an unlocked stage.** Because the unlocked stage still counts as finished, the current stage doesn't move back to it (`ProcedureWorkflow.CurrentStage` skips finished stages), so later stages can be worked and finished while the earlier one is reopened. For example, the procedure stage can be finished while a consent stage is unlocked for correction, and the record shows consent as finished throughout.
+- The stage locks, and the next stage becomes the current one, so the pathway appears to have moved on. Staff picking up the next stage may assume the earlier one was done.
+- Only an admin can unlock it; staff can't. After an unlock, the stage still counts as finished (`IsCompleted` stays true): unlocking reopens its notes, but the record still says it was finished, by whom and when (`PathwayChange.UnlockStage`). There's no way to mark a stage "not done".
+- **Work carries on past an unlocked stage.** Because the unlocked stage still counts as finished, the current stage doesn't move back to it (`PathwayWorkflow.CurrentStage` skips finished stages), so later stages can be worked and finished while the earlier one is reopened. For example, the pathway stage can be finished while a consent stage is unlocked for correction, and the record shows consent as finished throughout.
 
 **Possible harm.** A step relied on that wasn't done, for one patient. Considerable.
 
 **Existing controls:**
-- Finishing asks for confirmation, naming the stage: "The stage will be locked and the procedure moves on to the next one. An admin can unlock it if it needs correcting." (`ProcedurePage.tsx`, the `finish` dialog).
-- Only the current stage can be finished, and stages are worked strictly in order while none is unlocked, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`; `FinishProcedureStageHandler` returns 409 otherwise). Tested in `ProcedureWorkflowTests` and `FinishProcedureStageHandlerTests`.
-- The finish, any unlock, and a later finish are audited (`ProcedureChange.FinishStage`, `UnlockStage`).
-- An admin can unlock a finished stage while the procedure is open or completed; a completed or in-review procedure goes back to in progress (`ProcedureWorkflow.CanUnlockStage`, `ProcedureChange.UnlockStage`).
-- A procedure can't be completed while any stage is unlocked (`ProcedureWorkflow.AllStagesFinished`; `ChangePatientProcedureStatusHandler`).
+- Finishing asks for confirmation, naming the stage: "The stage will be locked and the pathway moves on to the next one. An admin can unlock it if it needs correcting." (`PathwayPage.tsx`, the `finish` dialog).
+- Only the current stage can be finished, and stages are worked strictly in order while none is unlocked, checked by the API (`PathwayWorkflow.WhyStageCantBeEdited`; `FinishPathwayStageHandler` returns 409 otherwise). Tested in `PathwayWorkflowTests` and `FinishPathwayStageHandlerTests`.
+- The finish, any unlock, and a later finish are audited (`PathwayChange.FinishStage`, `UnlockStage`).
+- An admin can unlock a finished stage while the pathway is open or completed; a completed or in-review pathway goes back to in progress (`PathwayWorkflow.CanUnlockStage`, `PathwayChange.UnlockStage`).
+- A pathway can't be completed while any stage is unlocked (`PathwayWorkflow.AllStagesFinished`; `ChangePatientPathwayStatusHandler`).
 
 **Initial risk:** Considerable, Low: **2**.
 
@@ -333,18 +334,18 @@
 **Description.** A stage is finished in MedApp, deliberately, but the work it stands for wasn't done, or wasn't done fully, and the notes don't say so.
 
 **Causes:**
-- **Finishing needs nothing.** A stage can be finished with empty notes (`FinishProcedureStageValidator` checks only the IDs), and stages have no structured fields to say what was checked.
+- **Finishing needs nothing.** A stage can be finished with empty notes (`FinishPathwayStageValidator` checks only the IDs), and stages have no structured fields to say what was checked.
 - Staff finish stages to keep the list tidy, or to move on to the stage they need.
 - The stage's instructions weren't read (H-17).
 
 **Effect.** Everyone after relies on a record that says the stage was done. For a stage such as consent or a pre-procedure check, the next steps go ahead on that basis.
 
-**Possible harm.** A procedure carried out without a required step, such as a check or consent. One patient; Major in the worst credible case.
+**Possible harm.** A pathway carried out without a required step, such as a check or consent. One patient; Major in the worst credible case.
 
 **Existing controls:**
 - The finish confirmation (H-06).
-- Who finished each stage, and when, is shown on the stage and kept in the audit log (`StageList.tsx`; `ProcedureChange.FinishStage`), so it's accountable.
-- **Since staff calendars, for a stage that involves a visit:** a stage whose definition requires a visit can't be finished until an appointment for it is Attended, unless an admin finishes it with a reason; a suggested visit asks for confirmation (`ProcedureWorkflow.WhyStageNeedsVisit`; `docs/calendar-plan.md`, decisions 24 and 25). How that rule can fail is H-32.
+- Who finished each stage, and when, is shown on the stage and kept in the audit log (`StageList.tsx`; `PathwayChange.FinishStage`), so it's accountable.
+- **Since staff calendars, for a stage that involves a visit:** a stage whose definition requires a visit can't be finished until an appointment for it is Attended, unless an admin finishes it with a reason; a suggested visit asks for confirmation (`PathwayWorkflow.WhyStageNeedsVisit`; `docs/calendar-plan.md`, decisions 24 and 25). How that rule can fail is H-32.
 - **Transferred:** MedApp records the workflow; the clinical record of what was done stays in the organisation's clinical systems, and the professional who does the step is accountable for it.
 
 **Initial risk:** Major, Low: **3**.
@@ -362,32 +363,32 @@
 
 ---
 
-## H-08: A procedure is cancelled, completed or archived in error
+## H-08: A pathway is cancelled, completed or archived in error
 
-**Description.** A procedure's status is changed by mistake, or for the wrong procedure.
+**Description.** A pathway's status is changed by mistake, or for the wrong pathway.
 
 **Causes:**
-- A slip, or the wrong procedure (H-01).
-- Any staff member can block, cancel, complete or archive, whether or not it's assigned to them; the "not assigned to you" question isn't asked for status changes, only their own confirmation (`ProcedurePage.tsx`, the status buttons).
+- A slip, or the wrong pathway (H-01).
+- Any staff member can block, cancel, complete or archive, whether or not it's assigned to them; the "not assigned to you" question isn't asked for status changes, only their own confirmation (`PathwayPage.tsx`, the status buttons).
 
 **Effect:**
-- **Cancelled:** can't be reopened. The only way on is archiving (`ProcedureWorkflow.AllowedStatusChanges`), so the procedure has to be created again, and its earlier stages' work is on the old one.
-- **Archived:** can't be reopened, and is hidden from lists unless asked for (`ProcedureSearch.Filter`).
+- **Cancelled:** can't be reopened. The only way on is archiving (`PathwayWorkflow.AllowedStatusChanges`), so the pathway has to be created again, and its earlier stages' work is on the old one.
+- **Archived:** can't be reopened, and is hidden from lists unless asked for (`PathwaySearch.Filter`).
 - **Completed:** drops off task lists. An admin can bring it back by unlocking a stage.
 
-Each removes the procedure from the open lists, where it would otherwise be seen.
+Each removes the pathway from the open lists, where it would otherwise be seen.
 
 **Possible harm.** Remaining care not given, for one patient. Considerable.
 
 **Existing controls:**
-- Each change asks for confirmation; cancelling is shown as destructive and needs a reason, saying "A cancelled procedure can only be archived after this" (`StatusChangeDialog.tsx`).
-- A procedure can only be completed from in review, once every stage is finished and locked (`ChangePatientProcedureStatusHandler`).
-- Every status change is audited with from, to, reason and whether it was automatic (`ProcedureChange.SetStatus`).
+- Each change asks for confirmation; cancelling is shown as destructive and needs a reason, saying "A cancelled pathway can only be archived after this" (`StatusChangeDialog.tsx`).
+- A pathway can only be completed from in review, once every stage is finished and locked (`ChangePatientPathwayStatusHandler`).
+- Every status change is audited with from, to, reason and whether it was automatic (`PathwayChange.SetStatus`).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Let an admin reopen a cancelled or archived procedure,** with a reason, audited. Design; **proposed**; later.
+- **Let an admin reopen a cancelled or archived pathway,** with a reason, audited. Design; **proposed**; later.
 - **Ask the "not assigned to you" question before status changes too.** Protective; **proposed**; later.
 
 **At first live use:** Considerable, Low: **2**.
@@ -400,15 +401,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-09: A member of staff doesn't learn of work assigned to them
 
-**Description.** A member of staff is assigned a procedure, but doesn't learn of it in time.
+**Description.** A member of staff is assigned a pathway, but doesn't learn of it in time.
 
 **Causes:**
 - **Live delivery is best effort.** A failed push is only logged (`SignalRNotificationPublisher`).
 - **The browser stops reconnecting** after about 42 seconds offline (attempts at 0, 2, 10 and 30 seconds), until the page is reloaded (`MedApp.Web/src/app/LiveNotifications.tsx`, `withAutomaticReconnect()`; `docs/architecture.md`, risk R11).
 - **No email:** notifications are in-app only. Someone who isn't signed in learns of it only at their next sign-in.
-- **My Tasks hides it if it's already under way.** My Tasks opens on "Not started" (H-04), so a procedure handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Tasks sees "Nothing waiting to be started".
-- **Nothing tells someone they've been unassigned,** and nothing tells anyone about a procedure assigned to someone who's away.
-- **The person has switched assignment notifications off** (Account Settings, Notifications; `NotificationPreferences`). Then nothing is stored or pushed, and with My Tasks on its default filter, work handed over part-way through shows nowhere.
+- **My Worklist hides it if it's already under way.** My Worklist opens on "Not started" (H-04), so a pathway handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Worklist sees "Nothing waiting to be started".
+- **Nothing tells someone they've been unassigned,** and nothing tells anyone about a pathway assigned to someone who's away.
+- **The person has switched assignment notifications off** (Account Settings, Notifications; `NotificationPreferences`). Then nothing is stored or pushed, and with My Worklist on its default filter, work handed over part-way through shows nowhere.
 
 **Effect.** Work waits until the person next opens MedApp and finds it, or longer.
 
@@ -416,16 +417,16 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Existing controls:**
 - Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`), **unless the person has switched assignment notifications off**, when none is stored.
-- The switch's own help text says to work from My Tasks with its filter on all open work, so work already under way shows (`NotificationSettings.tsx`).
-- My Tasks lists every open procedure assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
+- The switch's own help text says to work from My Worklist with its filter on all open work, so work already under way shows (`NotificationSettings.tsx`).
+- My Worklist lists every open pathway assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
 - With two copies of the API, notifications reach browsers on either, through the Valkey backplane (`SignalRBackplane`; 8 of 8 delivered in testing, `docs/architecture.md`, section 6.4).
 - When the connection comes back, the list is refreshed (`connection.onreconnected`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **The count of started work on My Tasks,** or opening it on all open work, from H-04. Protective; **proposed**; before first live use.
-- **Information:** tell users that notifications are a convenience, and that My Tasks, with its filter on all open work, is the list to work from. Information; **proposed**; before first live use (it costs nothing); transferred.
+- **The count of started work on My Worklist,** or opening it on all open work, from H-04. Protective; **proposed**; before first live use.
+- **Information:** tell users that notifications are a convenience, and that My Worklist, with its filter on all open work, is the list to work from. Information; **proposed**; before first live use (it costs nothing); transferred.
 - **Keep reconnecting** with backoff for as long as the page is open. Protective; **planned** (step 2); later.
 - **Email** for assignments, with no patient details in the message. Protective; **planned** (step 9); later.
 
@@ -439,7 +440,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-10: MedApp is unavailable
 
-**Description.** MedApp can't be reached, or doesn't work, while procedures are under way.
+**Description.** MedApp can't be reached, or doesn't work, while pathways are under way.
 
 **Causes:**
 - **It's never run in production:** no monitoring, alerting, service level or on-call (`docs/architecture.md`, risk R1, section 10.2).
@@ -451,9 +452,9 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - File storage alone can fail while the rest works: H-28.
 - **A hostile file uploaded as an attachment** (branch `feature/file-attachments`): an image whose header claims a huge size (a 1 MB progressive JPEG claiming 24,000 by 24,000 pixels needs over a gigabyte to decode for its thumbnail), a Word file whose table of contents lists hundreds of thousands of entries, or many such uploads at once, could take an API copy past its memory limit, so that the kernel kills it with every request it was serving. Two such uploads could take both copies down. Controlled since the review of #85 (existing controls).
 
-**Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
+**Effect.** Staff can't see who's assigned to what, which stage a pathway is at, its notes or its target date. Work is done without recording it, or not done.
 
-**Possible harm.** Delayed or missed care for every patient with a procedure under way while it's down; records that don't match what was done afterwards. Severe injury from which recovery is expected, affecting multiple patients: Major.
+**Possible harm.** Delayed or missed care for every patient with a pathway under way while it's down; records that don't match what was done afterwards. Severe injury from which recovery is expected, affecting multiple patients: Major.
 
 **Existing controls:**
 - Two copies of the API in Kubernetes, with a disruption budget and rolling updates that served every request in testing (`docs/architecture.md`, sections 7.4 and 10.1).
@@ -466,7 +467,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Major, Medium: **3**.
 
 **Further controls:**
-- **A printable task list and procedure summary,** so staff can carry on from paper. Design; **planned** (step 6); before first live use.
+- **A printable task list and pathway summary,** so staff can carry on from paper. Design; **planned** (step 6); before first live use.
 - **A downtime procedure** for deploying organisations: what to print and when, how to work on paper, and how to enter the record afterwards. Information; **planned** (step 6, the DCB0160 pack); before first live use; transferred.
 - **Monitoring and alerting,** a published service level, and readiness that checks the database. Protective; **planned** (step 5); before first live use.
 - **A status page,** and telling customers about planned maintenance. Information; **planned** (step 5); later.
@@ -480,16 +481,16 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-11: Due dates don't mean what staff think
+## H-11: Target dates don't mean what staff think
 
-**Description.** The due date is set, shown or understood differently from what the person who set it meant.
+**Description.** The target date is set, shown or understood differently from what the person who set it meant.
 
 **Causes:**
-- **A due date is a whole day,** due by the end of that day, UK time (`DueDates.EndOfDayUtc`). Something needed by 09:00 isn't overdue until after midnight.
-- **Editing allows a past date:** creating a procedure refuses a due date in the past (`CreatePatientProcedureValidator`), but editing doesn't check (`UpdatePatientProcedureValidator`), so a slip in the year makes a procedure overdue at once, or a long way in the future.
-- **The time zone database:** `DueDates` looks up `Europe/London` when it's first used. If the container image had no time zone data, every procedure request would fail; nothing tests this in the image.
+- **A target date is a whole day,** due by the end of that day, UK time (`DueDates.EndOfDayUtc`). Something needed by 09:00 isn't overdue until after midnight.
+- **Editing allows a past date:** creating a pathway refuses a target date in the past (`CreatePatientPathwayValidator`), but editing doesn't check (`UpdatePatientPathwayValidator`), so a slip in the year makes a pathway overdue at once, or a long way in the future.
+- **The time zone database:** `DueDates` looks up `Europe/London` when it's first used. If the container image had no time zone data, every pathway request would fail; nothing tests this in the image.
 - **A browser outside the UK:** the date picker's "today" is the browser's date (`todayIso`, `MedApp.Web/src/utils/dates.ts`), while the API uses the UK date. The API refuses the difference, so this causes an error, not a wrong date.
-- **Priority isn't part of "overdue":** an urgent procedure with a distant due date isn't flagged.
+- **Priority isn't part of "overdue":** an urgent pathway with a distant target date isn't flagged.
 
 **Effect.** Work is treated as on time when it isn't, or the other way round.
 
@@ -497,16 +498,16 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Existing controls:**
 - One rule, in one class, stored as the end of the UK day in UTC, so the day survives the clocks changing (`DueDates`). Tested for summer, winter and both clock-change days (`DueDatesTests`).
-- The API takes and returns a date, not a time (`PatientProcedureResponse.DueDate`), and the web app shows it without converting it (`formatShortDate` uses UTC on a date-only value).
-- Lists sort by due date by default.
+- The API takes and returns a date, not a time (`PatientPathwayResponse.DueDate`), and the web app shows it without converting it (`formatShortDate` uses UTC on a date-only value).
+- Lists sort by target date by default.
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Say what a due date means** on the form ("due by the end of this day, UK time") and in the instructions for use. Information; **proposed**; before first live use (it costs nothing).
-- **Confirm a due date in the past,** or more than a year ahead, when editing. Protective; **proposed**; later.
+- **Say what a target date means** on the form ("due by the end of this day, UK time") and in the instructions for use. Information; **proposed**; before first live use (it costs nothing).
+- **Confirm a target date in the past,** or more than a year ahead, when editing. Protective; **proposed**; later.
 - **A start-up check** that `Europe/London` resolves in the image, and a test in the `image` CI job. Protective; **proposed**; later.
-- **Due dates for each stage, and times of day** if customers need them. Design; **planned** in part (step 9); later.
+- **Target dates for each stage, and times of day** if customers need them. Design; **planned** in part (step 9); later.
 
 **At first live use:** Considerable, Low: **2**.
 
@@ -520,21 +521,21 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **The cause is confirmed, and the defect is fixed by PR #62.** The initial rating below is for `88dc1fa`, before that fix; the fix is recorded as a further control, and the residual rating takes it into account. The CSO verifies it before first live use (see Residual risk).
 
-**Description.** The time a stage was started or finished, a procedure was created or changed, a person was assigned, or an audit entry was made is shown wrongly: an hour early during British Summer Time on a UK browser, and by the browser's offset from UTC elsewhere.
+**Description.** The time a stage was started or finished, a pathway was created or changed, a person was assigned, or an audit entry was made is shown wrongly: an hour early during British Summer Time on a UK browser, and by the browser's offset from UTC elsewhere.
 
 **Causes:**
 - Times are stored in UTC. When EF Core reads them from SQL Server, they come back without a time zone (`DateTimeKind.Unspecified`), and nothing in the code at `88dc1fa` marks them as UTC, so the API's JSON carries them without a `Z`.
 - The web app's `formatDateTime` (`MedApp.Web/src/utils/dates.ts`) passes the string to `new Date()`, which reads a date-time without a zone as the browser's local time, then shows it in UK time. The same file has a `utc()` helper for exactly this case, with the comment "one read from the database may not say so", but only `timeAgo` uses it.
-- It's used for stage started and finished times (`StageList.tsx`), assignment times (`AssigneeList.tsx`), a procedure's created and last updated times (`ProcedurePage.tsx`) and the audit log (`AuditLogPage.tsx`).
+- It's used for stage started and finished times (`StageList.tsx`), assignment times (`AssigneeList.tsx`), a pathway's created and last updated times (`PathwayPage.tsx`) and the audit log (`AuditLogPage.tsx`).
 - The tests only pass times that end in `Z` (`dates.test.ts`), so they didn't catch it.
 - **A trap when checking it:** the server renders the page in Node in UTC, so the server's HTML shows the right time; the browser then re-renders it an hour early. Check the page after it has loaded in a browser during British Summer Time, or the API's JSON for a missing `Z`.
 
-**Effect.** The timeline of every procedure is wrong by an hour for half the year: a stage looks as if it was finished an hour before it was, and the audit log disagrees with other systems' times during an investigation.
+**Effect.** The timeline of every pathway is wrong by an hour for half the year: a stage looks as if it was finished an hour before it was, and the audit log disagrees with other systems' times during an investigation.
 
 **Possible harm.** A clinical decision made on a wrong time, for example about how long ago a step was done; an incident investigation that reaches the wrong conclusion. It affects every patient's record at once, so multiple patients: Considerable.
 
 **Existing controls:**
-- Due dates aren't affected: they're sent as dates and shown without conversion.
+- Target dates aren't affected: they're sent as dates and shown without conversion.
 - Times are stored correctly, so a fix corrects every past entry too.
 
 **Initial risk:** Considerable, High: **3**.
@@ -552,24 +553,24 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-13: A template or stage definition has wrong content
 
-**Description.** An admin creates or edits a template or stage definition with a mistake: a missing stage, stages in the wrong order, or wrong instructions. Procedures created from it carry the mistake.
+**Description.** An admin creates or edits a template or stage definition with a mistake: a missing stage, stages in the wrong order, or wrong instructions. Pathways created from it carry the mistake.
 
 **Causes:**
-- Any admin can create and edit templates and stage definitions, and the change applies at once to new procedures (`UpdatePatientProcedureTemplateHandler`, `UpdatePatientProcedureStageDefinitionHandler`).
+- Any admin can create and edit templates and stage definitions, and the change applies at once to new pathways (`UpdatePathwayTemplateHandler`, `UpdatePatientPathwayStageDefinitionHandler`).
 - **No second check:** there's no approval or clinical review step in MedApp.
-- **No history:** changes to templates and stage definitions aren't audited and have no versions. Nobody can see who changed what, or what a template said when a procedure was created from it, beyond the copy on the procedure itself.
+- **No history:** changes to templates and stage definitions aren't audited and have no versions. Nobody can see who changed what, or what a template said when a pathway was created from it, beyond the copy on the pathway itself.
 - Admin is also the role that manages users, so the people who can edit clinical content aren't necessarily clinicians (`docs/architecture.md`, step 4, splits these roles).
-- **SNOMED CT codes** (branch `feature/nhs-integrations`): a stage definition can carry a SNOMED CT code with a display term the admin types, copied onto procedures' stages. Only the code's format is checked (`SnomedCt`): nothing checks that the concept exists, is active, or means what the term says, so a code and its term can disagree. MedApp does nothing with the code, so today a wrong one only misleads someone reading it; once codes leave MedApp (step 9's FHIR resources for procedures), another system could act on one.
+- **SNOMED CT codes** (branch `feature/nhs-integrations`): a stage definition can carry a SNOMED CT code with a display term the admin types, copied onto pathways' stages. Only the code's format is checked (`SnomedCt`): nothing checks that the concept exists, is active, or means what the term says, so a code and its term can disagree. MedApp does nothing with the code, so today a wrong one only misleads someone reading it; once codes leave MedApp (step 9's FHIR resources for pathways), another system could act on one.
 
-**Effect.** Every procedure created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
+**Effect.** Every pathway created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
 
-**Possible harm.** A required step of care missed for every patient whose procedure comes from that template. Severe injury or permanent incapacity, multiple patients: Catastrophic in the worst credible case.
+**Possible harm.** A required step of care missed for every patient whose pathway comes from that template. Severe injury or permanent incapacity, multiple patients: Catastrophic in the worst credible case.
 
 **Existing controls:**
 - Only admins can change templates and definitions; staff can only read them (`docs/architecture.md`, section 5.7).
-- Templates and definitions in use are archived, not deleted (`SetPatientProcedureTemplateArchivedHandler`; deletion of one in use is a 409).
-- Each procedure keeps its own copy of the stages, with the template's name and ID, so what a procedure was given is preserved (`CreatePatientProcedureHandler`).
-- The Templates page shows how many procedures use each template (`docs/procedures-ui-plan.md`, phase 6).
+- Templates and definitions in use are archived, not deleted (`SetPathwayTemplateArchivedHandler`; deletion of one in use is a 409).
+- Each pathway keeps its own copy of the stages, with the template's name and ID, so what a pathway was given is preserved (`CreatePatientPathwayHandler`).
+- The Templates page shows how many pathways use each template (`docs/pathways-ui-plan.md`, phase 6).
 - **Transferred:** the organisation is responsible for the clinical content of its templates, approved under its own governance.
 
 **Initial risk:** Catastrophic, Low: **4** (mandatory elimination or control).
@@ -578,7 +579,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **An approval step:** a template or stage definition change takes effect only when a second person with a clinical approver role approves it. Protective; **proposed**; **brought forward to before first live use**, because it's the control that lowers the likelihood of a wrong template being used, and a 4 can't be released.
 - **Audit every change** to templates and stage definitions (who, when, old and new). Protective; **proposed**; before first live use.
 - **A local template governance process:** clinical sign-off before a template is used. Information; transferred; before first live use.
-- **Versions:** each template change makes a new version; procedures record the version they came from. Design; **proposed**; later.
+- **Versions:** each template change makes a new version; pathways record the version they came from. Design; **proposed**; later.
 - **A separate role** for template administration. Protective; **planned** (step 4); later.
 - **Check SNOMED CT codes with a terminology server:** that the concept exists and is active, with its preferred term shown beside the admin's. Protective; **planned** (`docs/todo.md`); before codes leave MedApp in the FHIR API.
 
@@ -590,29 +591,29 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-14: A correction to a template doesn't reach procedures already under way
+## H-14: A correction to a template doesn't reach pathways already under way
 
-**Description.** An admin corrects a template or stage definition (for example, an instruction that was wrong or unsafe), but procedures created before the correction keep the old stages and the old text.
+**Description.** An admin corrects a template or stage definition (for example, an instruction that was wrong or unsafe), but pathways created before the correction keep the old stages and the old text.
 
 **Causes:**
-- **Copy on create, by design:** creating a procedure copies each stage's name, description and instructions onto it, so "later edits to the template or definitions don't change this record" (`CreatePatientProcedureHandler`; `docs/procedures-ui-plan.md`, section 3, D). This protects finished work from being rewritten, which is the right default.
-- There's no way to apply a correction to unfinished stages, and nothing shows that a procedure's stages are out of date.
+- **Copy on create, by design:** creating a pathway copies each stage's name, description and instructions onto it, so "later edits to the template or definitions don't change this record" (`CreatePatientPathwayHandler`; `docs/pathways-ui-plan.md`, section 3, D). This protects finished work from being rewritten, which is the right default.
+- There's no way to apply a correction to unfinished stages, and nothing shows that a pathway's stages are out of date.
 
-**Effect.** Staff working those procedures follow the old, wrong instructions, or miss a stage that was added.
+**Effect.** Staff working those pathways follow the old, wrong instructions, or miss a stage that was added.
 
-**Possible harm.** A wrong or missed step for every patient whose procedure was already under way. Severe injury from which recovery is expected, multiple patients: Major.
+**Possible harm.** A wrong or missed step for every patient whose pathway was already under way. Severe injury from which recovery is expected, multiple patients: Major.
 
 **Existing controls:**
-- The procedure shows the template's name as it was (`TemplateName`), and the Templates page shows how many procedures use a template, so admins can find the affected procedures by searching on the template (`ProcedureSearch.Filter`, `TemplateId`).
-- A procedure can be cancelled with a reason and recreated from the corrected template.
+- The pathway shows the template's name as it was (`TemplateName`), and the Templates page shows how many pathways use a template, so admins can find the affected pathways by searching on the template (`PathwaySearch.Filter`, `TemplateId`).
+- A pathway can be cancelled with a reason and recreated from the corrected template.
 
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **List the open procedures when a template or definition in use is edited,** with a link to them, saying that they keep the old stages and need reviewing. Protective; **proposed**; before first live use.
-- **A local process:** when a template is corrected for safety, search for its open procedures and review each. Information; transferred; before first live use.
-- **Flag procedures whose template has changed** since they were created, on the procedure page and in lists, with what changed. Protective; **proposed**; later (depends on versions, H-13).
-- **Let an admin apply a correction to the unfinished stages** of chosen procedures, audited, never to finished ones. Design; **proposed**; later.
+- **List the open pathways when a template or definition in use is edited,** with a link to them, saying that they keep the old stages and need reviewing. Protective; **proposed**; before first live use.
+- **A local process:** when a template is corrected for safety, search for its open pathways and review each. Information; transferred; before first live use.
+- **Flag pathways whose template has changed** since they were created, on the pathway page and in lists, with what changed. Protective; **proposed**; later (depends on versions, H-13).
+- **Let an admin apply a correction to the unfinished stages** of chosen pathways, audited, never to finished ones. Design; **proposed**; later.
 
 **At first live use:** Major, Very low: **2**.
 
@@ -622,33 +623,33 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-15: Two people edit the same procedure at once
+## H-15: Two people edit the same pathway at once
 
-**Description.** Two people change the same procedure, or the same stage, at about the same time, and one person's change silently replaces the other's.
+**Description.** Two people change the same pathway, or the same stage, at about the same time, and one person's change silently replaces the other's.
 
 **Causes:**
 - **No optimistic concurrency:** no entity has a concurrency token, so the last save wins (`docs/architecture.md`, section 8.9 and risk R8).
 - **Stage notes:** two people saving notes on the current stage each replace the whole text. Nobody is warned.
-- **Notes saved at the same moment a stage is finished:** if both requests are handled at once, both pass their checks, and the notes change after the stage is locked. A narrow race, since each request reloads the procedure and checks it (`UpdateProcedureStageNotesHandler`).
-- **Procedure details** (title, notes, due date, priority) behave the same way (`UpdatePatientProcedureHandler`).
-- **Unsaved typing can disappear:** the notes box is reset whenever the saved notes change (`ProcedurePage.tsx`, `key={...stage.notes}`), so if the page reloads the procedure after someone else saved, text typed but not saved is replaced by theirs.
+- **Notes saved at the same moment a stage is finished:** if both requests are handled at once, both pass their checks, and the notes change after the stage is locked. A narrow race, since each request reloads the pathway and checks it (`UpdatePathwayStageNotesHandler`).
+- **Pathway details** (title, notes, target date, priority) behave the same way (`UpdatePatientPathwayHandler`).
+- **Unsaved typing can disappear:** the notes box is reset whenever the saved notes change (`PathwayPage.tsx`, `key={...stage.notes}`), so if the page reloads the pathway after someone else saved, text typed but not saved is replaced by theirs.
 
 **Effect.** Information recorded by one person is no longer on the record, though it is in the audit log; or text typed but not saved is lost.
 
 **Possible harm.** Someone acts on incomplete notes, for one patient. Considerable.
 
 **Existing controls:**
-- Every notes save is audited with the old and new text, so nothing saved is lost for good (`ProcedureChange.UpdateStageNotes`).
-- Stage order, locks and status rules are checked on the server against the saved procedure, so a page that's out of date can't start or finish the wrong stage, or save notes on a locked one (409 from `WhyStageCantBeEdited`).
+- Every notes save is audited with the old and new text, so nothing saved is lost for good (`PathwayChange.UpdateStageNotes`).
+- Stage order, locks and status rules are checked on the server against the saved pathway, so a page that's out of date can't start or finish the wrong stage, or save notes on a locked one (409 from `WhyStageCantBeEdited`).
 - "Unsaved changes" shows beside the notes box (`StageWork.tsx`).
-- The "not assigned to you" question makes it a little less likely that a second person works a procedure that someone else is working. It's asked once per visit, and not of admins (`ProcedurePage.tsx`, `checked`).
+- The "not assigned to you" question makes it a little less likely that a second person works a pathway that someone else is working. It's asked once per visit, and not of admins (`PathwayPage.tsx`, `checked`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **Optimistic concurrency:** a `rowversion` on procedures and stages, and a 409 when someone else has changed it since you loaded it. Protective; **planned** (step 6); **before first live use**.
+- **Optimistic concurrency:** a `rowversion` on pathways and stages, and a 409 when someone else has changed it since you loaded it. Protective; **planned** (step 6); **before first live use**.
 - **Keep the draft on a conflict:** show the other person's text beside yours, never replace unsaved text without asking. Protective; **proposed**; before first live use (with the above).
-- **Show who else has the procedure open.** Protective; **proposed**; later.
+- **Show who else has the pathway open.** Protective; **proposed**; later.
 
 **At first live use:** Considerable, Very low: **2**.
 
@@ -660,27 +661,27 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-16: The screen shows out-of-date information
 
-**Description.** A page shows a procedure as it was when the page loaded, not as it is now.
+**Description.** A page shows a pathway as it was when the page loaded, not as it is now.
 
 **Causes:**
-- Pages don't refresh when the window regains focus (`refetchOnWindowFocus: false`, `MedApp.Web/src/app/queryClient.ts`), and nothing refreshes a procedure page when someone else changes it. Only the user's own changes and an assignment notification refresh it.
+- Pages don't refresh when the window regains focus (`refetchOnWindowFocus: false`, `MedApp.Web/src/app/queryClient.ts`), and nothing refreshes a pathway page when someone else changes it. Only the user's own changes and an assignment notification refresh it.
 - The overdue badge is worked out when the data loads, so a page left open over midnight doesn't show work that has since become overdue.
 - If the server can't render a page, the browser renders it instead from fresh data, so this isn't stale, but it's slower (`SsrPages`).
 
-**Effect.** Someone reads a status, assignee, current stage or notes that have changed, for example a procedure that someone else has cancelled or blocked.
+**Effect.** Someone reads a status, assignee, current stage or notes that have changed, for example a pathway that someone else has cancelled or blocked.
 
-**Possible harm.** A decision made on old information, for one patient. Significant: any change they then try is checked against the saved procedure (H-15).
+**Possible harm.** A decision made on old information, for one patient. Significant: any change they then try is checked against the saved pathway (H-15).
 
 **Existing controls:**
-- The server checks every change against the saved procedure's rules (H-15).
-- The procedure page shows "Last updated" with a time (`ProcedurePage.tsx`; but see H-12).
+- The server checks every change against the saved pathway's rules (H-15).
+- The pathway page shows "Last updated" with a time (`PathwayPage.tsx`; but see H-12).
 - Pages are sent with `Cache-Control: no-store`, so the browser never shows a cached page.
 
 **Initial risk:** Significant, Medium: **2**.
 
 **Further controls:**
-- **Refresh procedure data when the window regains focus,** at least on procedure pages and task lists. Protective; **proposed**; later.
-- **Live updates** to procedure pages and lists when someone else changes them. Protective; **planned** (`docs/procedures-ui-plan.md`, phase 7, "later"); later.
+- **Refresh pathway data when the window regains focus,** at least on pathway pages and task lists. Protective; **proposed**; later.
+- **Live updates** to pathway pages and lists when someone else changes them. Protective; **planned** (`docs/pathways-ui-plan.md`, phase 7, "later"); later.
 
 **At first live use:** Significant, Medium: **2**.
 
@@ -695,7 +696,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Description.** Staff work a stage without reading its instructions.
 
 **Causes:**
-- Each stage's instructions start folded, on the current stage as well as in the list, and open only when clicked (`ProcedurePage.tsx`, `instructionsOpen`).
+- Each stage's instructions start folded, on the current stage as well as in the list, and open only when clicked (`PathwayPage.tsx`, `instructionsOpen`).
 - Familiarity: staff who work the same template often stop opening them.
 
 **Effect.** A step described only in the instructions is missed.
@@ -729,14 +730,14 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No idle timeout:** a session lasts 8 hours from sign-in, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
 - **A session can be extended (since #63):** five minutes before the end, a warning offers "Stay signed in", which extends the session to 8 hours from then, up to 24 hours from sign-in (`UserSession.Extend`). Whoever is at the screen can press it, so an unattended session can now be kept for up to 24 hours instead of 8. The warning is for the fixed limit (WCAG 2.2.1), not an idle timeout. **A change to this hazard's cause, for the clinical safety officer to assess.**
 - **Passwords only for most accounts:** two-factor authentication is available but optional (since `feature/email-2fa`; admins can require it for admin accounts), so a shared or passed-on password is still enough for most (risk S8).
-- **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
+- **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`PathwayMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
 **Effect.** It's unclear who did a step, which matters when someone needs to ask about it or when something went wrong.
 
 **Possible harm.** A question about a patient's care can't be answered quickly; accountability is lost. One patient; Significant.
 
 **Existing controls:**
-- Each change is recorded with the signed-in user's ID and a snapshot of their username (`ProcedureActor`, `ProcedureAudit`).
+- Each change is recorded with the signed-in user's ID and a snapshot of their username (`PathwayActor`, `PathwayAudit`).
 - Sessions are revoked on sign-out, and a session whose user no longer exists is refused, so deleting a user ends their sessions (`SessionService`, `MedApp.Infrastructure/Common/Authentication/SessionService.cs`).
 - Five wrong passwords lock an account for five minutes. Sign-in is also throttled: 5 attempts a minute per username and 30 per address (`LoginThrottling`; `feature/security-baseline`, not yet merged).
 - Ending sessions when the password changes: changing a password ends the user's other sessions, an admin's reset ends all of them, and an admin can sign a user out everywhere, for example when a password may have been shared (`UpdateUserPasswordHandler`, `ResetUserPasswordHandler`, `SetUserRolesHandler`, `SignOutEverywhereHandler`; same branch).
@@ -764,9 +765,9 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Description.** Information about a patient's care is deleted.
 
 **Causes:**
-- **Procedures:** an admin can delete a cancelled or archived procedure, with its stages and assignments (`DeletePatientProcedureHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
-- **Patients:** any staff member can delete a patient without procedures or files (H-03); since step 7, the deletion is recorded in the activity log.
-- **Anonymisation (step 7):** an admin can anonymise a patient's record, which replaces their name, email and every note, procedure title and reason (in the record, its audit trail and notifications) with placeholders, and keeps only the year of birth. It's meant for records past their retention period. Done on the wrong patient, or too early, the clinical content is gone from the live system (backups keep it until they expire). It also renames and deletes the patient's attached files (H-26).
+- **Pathways:** an admin can delete a cancelled or archived pathway, with its stages and assignments (`DeletePatientPathwayHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
+- **Patients:** any staff member can delete a patient without pathways or files (H-03); since step 7, the deletion is recorded in the activity log.
+- **Anonymisation (step 7):** an admin can anonymise a patient's record, which replaces their name, email and every note, pathway title and reason (in the record, its audit trail and notifications) with placeholders, and keeps only the year of birth. It's meant for records past their retention period. Done on the wrong patient, or too early, the clinical content is gone from the live system (backups keep it until they expire). It also renames and deletes the patient's attached files (H-26).
 - **Attached files:** deleted files can't be restored from MedApp: H-26.
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
@@ -774,10 +775,10 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Possible harm.** A later decision made without that history, for one patient. Considerable.
 
 **Existing controls:**
-- Only cancelled or archived procedures can be deleted, only by admins, after a confirmation that names the procedure and patient (`ProcedureWorkflow.CanBeDeleted`; `ProcedurePage.tsx`).
-- The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the procedure (`PatientProcedureAuditEntry`).
-- A patient with procedures can't be deleted.
-- Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's procedures is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
+- Only cancelled or archived pathways can be deleted, only by admins, after a confirmation that names the pathway and patient (`PathwayWorkflow.CanBeDeleted`; `PathwayPage.tsx`).
+- The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the pathway (`PatientPathwayAuditEntry`).
+- A patient with pathways can't be deleted.
+- Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's pathways is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
 - The retention review lists records past the **adult or children** minimum period only, and nothing is deleted automatically (step 7). It doesn't know the longer specialty classes (mental health 20 years, maternity 25, oncology 30), so a specialty record can be listed years before its period ends: the Retention Review page and the anonymise dialog warn about this, the retention schedule tells customers to set `Retention:AdultYears` to the longest class they use until classes exist, and a specialty record listed early is kept (Keep, with the class as the reason).
 
 **Initial risk:** Considerable, Low: **2**.
@@ -804,12 +805,12 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Migrations** are reviewed by hand; a rename scaffolded as drop and create would lose data if missed (`AGENTS.md`, Migrations).
 - **Attached files aren't backed up** beyond 7 days of soft delete on Azure, and they're stored apart from the database (`deploy/azure/README.md`, "Not yet"). A database restored to an earlier point loses the details of files attached since, so they vanish from the record although their contents are still in storage.
 
-**Effect.** Stages finished, notes written and procedures created since the restore point are gone, for every patient, and staff don't know which.
+**Effect.** Stages finished, notes written and pathways created since the restore point are gone, for every patient, and staff don't know which.
 
 **Possible harm.** Steps done twice, or believed done when the record of them is gone. Severe injury from which recovery is expected, multiple patients: Major.
 
 **Existing controls:**
-- Each change and its audit entries are saved in one transaction (`PatientProcedureRepository.SaveAsync`).
+- Each change and its audit entries are saved in one transaction (`PatientPathwayRepository.SaveAsync`).
 - Migrations are reviewed and tested up and down on a throwaway database, never applied at start-up, and a failed migration stops the rollout (`AGENTS.md`; ADR-10).
 
 **Initial risk:** Major, Low: **3**.
@@ -828,31 +829,31 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-21: Work assigned to a deleted account drops off every task list
 
-**Description.** An admin deletes the account of someone who has left, and the procedures assigned to them stay assigned to the deleted account, on nobody's task list.
+**Description.** An admin deletes the account of someone who has left, and the pathways assigned to them stay assigned to the deleted account, on nobody's task list.
 
 **Causes:**
 - **Deleting an account touches nothing else.** `DeleteUserHandler` calls `IdentityUserService.DeleteUserAsync`, which deletes the Identity user only.
-- **Assignments have no link to the user table:** they're keyed on the procedure and the user's ID, with a foreign key to the procedure only (`PatientProcedureAssignmentConfiguration`), so the rows stay.
-- **The status still says Assigned,** because it counts assignments, not live accounts (`ProcedureWorkflow.StatusFromAssignments`). So an "unassigned" view (H-04) wouldn't show it either.
-- **My Tasks matches the signed-in user's ID** (`ProcedureSearch.Filter`, `AssignedToMe`), so no one else's list shows it.
+- **Assignments have no link to the user table:** they're keyed on the pathway and the user's ID, with a foreign key to the pathway only (`PatientPathwayAssignmentConfiguration`), so the rows stay.
+- **The status still says Assigned,** because it counts assignments, not live accounts (`PathwayWorkflow.StatusFromAssignments`). So an "unassigned" view (H-04) wouldn't show it either.
+- **My Worklist matches the signed-in user's ID** (`PathwaySearch.Filter`, `AssignedToMe`), so no one else's list shows it.
 - **Deleting is the only way to remove an account,** and the guidance to customers is to remove leavers promptly.
 
-**Effect.** The leaver's open procedures look looked after, showing "Deleted user" as the assignee, but nobody is working them, and nothing tells anyone.
+**Effect.** The leaver's open pathways look looked after, showing "Deleted user" as the assignee, but nobody is working them, and nothing tells anyone.
 
 **Possible harm.** Delayed care for every patient on the leaver's list. Severe injury from which recovery is expected, multiple patients: Major.
 
 **Existing controls:**
-- The procedure page and lists show the assignee as "Deleted user" (`ProcedureMapper.DeletedUser`), which someone looking at the procedure would notice.
-- Any staff member can still work the procedure, and an admin can unassign the deleted account and assign someone else.
-- Overdue badges still show on the full Procedures list.
+- The pathway page and lists show the assignee as "Deleted user" (`PathwayMapper.DeletedUser`), which someone looking at the pathway would notice.
+- Any staff member can still work the pathway, and an admin can unassign the deleted account and assign someone else.
+- Overdue badges still show on the full Pathways list.
 - Since staff calendars, an account with upcoming Booked appointments can't be deleted until they're moved or cancelled (H-35). Open assignments still aren't checked.
 
 **Initial risk:** Major, Medium: **3**.
 
 **Further controls:**
-- **Refuse to delete an account with open assignments, or require reassignment first:** list the open procedures assigned to the account, and delete it only once they're reassigned. Protective; **proposed**; **before first live use**.
+- **Refuse to delete an account with open assignments, or require reassignment first:** list the open pathways assigned to the account, and delete it only once they're reassigned. Protective; **proposed**; **before first live use**.
 - **Deactivate accounts instead of deleting them,** keeping their assignments visible until reassigned. Design; **planned** (step 4); later.
-- **A leaver process:** reassign a leaver's open procedures, then remove the account. Information; transferred; before first live use.
+- **A leaver process:** reassign a leaver's open pathways, then remove the account. Information; transferred; before first live use.
 
 **At first live use:** Major, Very low: **2**.
 
@@ -864,30 +865,30 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-22: Care under way is delayed because the patient's record is restricted
 
-**Description.** An admin restricts a patient's record (UK GDPR Article 18), for example while the patient contests their recorded details, and the procedures under way for that patient can't be worked on until the restriction is lifted.
+**Description.** An admin restricts a patient's record (UK GDPR Article 18), for example while the patient contests their recorded details, and the pathways under way for that patient can't be worked on until the restriction is lifted.
 
 **Causes:**
-- **Restriction freezes the record and its procedures** (`PatientRules.EnsureCanChange`, applied to every procedure change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
+- **Restriction freezes the record and its pathways** (`PatientRules.EnsureCanChange`, applied to every pathway change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
 - **Its appointments are frozen too** (since staff calendars): none can be booked, rescheduled or given an outcome while the record is restricted (they can only be cancelled), so a visit a stage needs can't be arranged or recorded (H-30).
-- **Files are frozen too** (branch `feature/file-attachments`): nobody, admins included, can attach a file to a restricted record, its procedures or its stages, or delete one, so a new letter or result can't be added while the restriction lasts (H-24), nor a file on the wrong record removed (H-23).
+- **Files are frozen too** (branch `feature/file-attachments`): nobody, admins included, can attach a file to a restricted record, its pathways or its stages, or delete one, so a new letter or result can't be added while the restriction lasts (H-24), nor a file on the wrong record removed (H-23).
 - **A restriction can last weeks** while the contested details are checked, and only an admin can lift it.
-- **The admin restricting may not be the clinician working the procedures,** and may not know what's due.
+- **The admin restricting may not be the clinician working the pathways,** and may not know what's due.
 
-**Effect.** The next stages of a procedure under way (pre-assessment, consent, a follow-up) can't be recorded, and the procedure goes overdue with nothing staff can do but wait for an admin.
+**Effect.** The next stages of a pathway under way (pre-assessment, consent, a follow-up) can't be recorded, and the pathway goes overdue with nothing staff can do but wait for an admin.
 
 **Possible harm.** Delayed care for that patient. Considerable.
 
 **Existing controls (step 7, PR #68):**
-- **The admin must confirm:** restricting a record with procedures under way or open appointments shows how many of each there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`). Since the review of PR #93, open appointments alone ask for it too (decision 49), and if the dialog's counts are out of date the API's own message is shown.
-- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue. Its appointments can still be cancelled, with a reason (`GetForCancelOrThrowAsync`), so a patient isn't left booked for care that's paused.
-- **Everyone sees that the record is restricted, and why on demand** (until branch `feature/warning-banners`, "Everyone sees why": the whole message was on screen). The restricted banner shows a label, "Restricted record: changes paused", with its warning colour and icon, in the header of the patient's page, Edit Patient, the patient's procedures, the procedure page, Edit Procedure and New Procedure, and under the patient in the booking and appointment dialogs. The whole message (what can't be changed, that a procedure can still be blocked or cancelled and an appointment cancelled, the reason and since when) is no longer on screen: it shows over the page when the label is hovered, focused from the keyboard, clicked or tapped. Screen readers get the whole message as the label's description, and as an alert when the banner appears in a page already open (restricting the record, or moving to the page inside the app); on a fresh page load an alert already in the page isn't announced, so they meet it on reaching the label. The procedure page offers only blocking and cancelling; Edit Procedure says why the details can't be edited, and the booking dialog says why nothing can be booked, both on screen. The printable export page shows only the `PatientBanner`'s "Restricted" token, which stays beside the patient's name on every page about the patient. **For the CSO to accept:** moving the reason and the exceptions behind the label is a change to this control.
+- **The admin must confirm:** restricting a record with pathways under way or open appointments shows how many of each there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenPathways`). Since the review of PR #93, open appointments alone ask for it too (decision 49), and if the dialog's counts are out of date the API's own message is shown.
+- **Care can still be paused safely:** a restricted record's pathways can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked pathway is never shown as overdue. Its appointments can still be cancelled, with a reason (`GetForCancelOrThrowAsync`), so a patient isn't left booked for care that's paused.
+- **Everyone sees that the record is restricted, and why on demand** (until branch `feature/warning-banners`, "Everyone sees why": the whole message was on screen). The restricted banner shows a label, "Restricted record: changes paused", with its warning colour and icon, in the header of the patient's page, Edit Patient, the patient's pathways, the pathway page, Edit Pathway and New Pathway, and under the patient in the booking and appointment dialogs. The whole message (what can't be changed, that a pathway can still be blocked or cancelled and an appointment cancelled, the reason and since when) is no longer on screen: it shows over the page when the label is hovered, focused from the keyboard, clicked or tapped. Screen readers get the whole message as the label's description, and as an alert when the banner appears in a page already open (restricting the record, or moving to the page inside the app); on a fresh page load an alert already in the page isn't announced, so they meet it on reaching the label. The pathway page offers only blocking and cancelling; Edit Pathway says why the details can't be edited, and the booking dialog says why nothing can be booked, both on screen. The printable export page shows only the `PatientBanner`'s "Restricted" token, which stays beside the patient's name on every page about the patient. **For the CSO to accept:** moving the reason and the exceptions behind the label is a change to this control.
 - Lifting the restriction is one admin action, recorded with a reason.
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
 - **Let an admin record the patient's consent, or another lawful basis, for treatment to continue** (Article 18(2)), with the restriction then stopping only edits to the contested details. Design; **proposed**; later. A clinical safety decision.
-- **Tell the procedures' assignees** when their patient's record is restricted. Protective; **proposed**; later.
+- **Tell the pathways' assignees** when their patient's record is restricted. Protective; **proposed**; later.
 - **A local procedure for restriction requests:** the admin checks with the clinician responsible for the patient's care before restricting, and agrees how care continues. Information; transferred; before first live use.
 
 **At first live use:** Considerable, Low: **2**.
@@ -898,35 +899,35 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-23: A file is attached to the wrong patient, procedure or stage
+## H-23: A file is attached to the wrong patient, pathway or stage
 
-**Description.** A letter, result, scan or photo is attached to a different patient from the one it's about, or to the wrong procedure or stage of the right patient, and someone reads it as belonging there. The file-level form of H-01 and H-02.
+**Description.** A letter, result, scan or photo is attached to a different patient from the one it's about, or to the wrong pathway or stage of the right patient, and someone reads it as belonging there. The file-level form of H-01 and H-02.
 
 **Causes:**
 - The same identification limits as H-01: the NHS number is optional and isn't traced, and nothing compares the document with the patient.
-- **Nothing asks which patient before a file is sent.** Files are dropped on, or chosen in, an "Add files" area on the patient page, the procedure page and each stage, several at once, and sent straight away (`MedApp.Web/src/components/attachments/Attachments.tsx`). There's no confirmation naming the patient.
-- **Half views** put two patients or procedures side by side, each with its own drop area; dragging a file from the desktop onto the wrong one is easy.
+- **Nothing asks which patient before a file is sent.** Files are dropped on, or chosen in, an "Add files" area on the patient page, the pathway page and each stage, several at once, and sent straight away (`MedApp.Web/src/components/attachments/Attachments.tsx`). There's no confirmation naming the patient.
+- **Half views** put two patients or pathways side by side, each with its own drop area; dragging a file from the desktop onto the wrong one is easy.
 - **The file on the computer doesn't say who it's for:** a scanner or a phone names files by date or number, and choosing several at once can pick up another patient's file from the same folder.
-- **A file can't be moved:** correcting it means deleting it and attaching it again in the right place, and staff can delete only their own files, and only while the stage or procedure can still change; otherwise only an admin can (`DeleteAttachmentHandler`, `WhyFilesCantChange`).
+- **A file can't be moved:** correcting it means deleting it and attaching it again in the right place, and staff can delete only their own files, and only while the stage or pathway can still change; otherwise only an admin can (`DeleteAttachmentHandler`, `WhyFilesCantChange`).
 - **On a restricted or anonymised record nobody can delete a file,** admins included (the restriction guard's 409, `PatientRules`), so a file attached to the wrong patient stays on their record until the restriction is lifted (H-22).
 
 **Effect.** The right record lacks the document and the wrong record has it. A clinician reads another patient's result, letter or image as this patient's, or doesn't find this patient's. It is also a disclosure of the other patient's data ([DPIA](../governance/dpia.md), risk 8).
 
-**Possible harm.** A decision made on another patient's result or image, for example a procedure going ahead on someone else's normal result. One patient; Major in the worst credible case.
+**Possible harm.** A decision made on another patient's result or image, for example a pathway going ahead on someone else's normal result. One patient; Major in the worst credible case.
 
 **Existing controls:**
-- A file is attached to whatever the page shows: the patient page attaches to the patient, a procedure page to the procedure, and a stage's area to that stage. The patient page lists every file of the patient, each saying what it's attached to (`ViewPatientPage.tsx`, `Attachments.tsx`).
+- A file is attached to whatever the page shows: the patient page attaches to the patient, a pathway page to the pathway, and a stage's area to that stage. The patient page lists every file of the patient, each saying what it's attached to (`ViewPatientPage.tsx`, `Attachments.tsx`).
 - Each file shows who attached it and when, and the upload is audited and shown on the patient's timeline as "a file was attached" (`AttachmentAudit`, `TimelineMapper`).
-- **The target is checked again once the upload is staged,** just before it's stored: it still exists, the record isn't restricted or anonymised, and the stage or procedure still takes files (`UploadAttachmentHandler`). That narrows the window in which a record that changed during a slow upload could take the file to milliseconds; closing it fully would need the save to re-read the record in the same transaction.
+- **The target is checked again once the upload is staged,** just before it's stored: it still exists, the record isn't restricted or anonymised, and the stage or pathway still takes files (`UploadAttachmentHandler`). That narrows the window in which a record that changed during a slow upload could take the file to milliseconds; closing it fully would need the save to re-read the record in the same transaction.
 - A wrong file can be deleted at once by whoever attached it, or by an admin, wherever it is; it's then hidden from staff and can't be downloaded, and the deletion is audited (`DeleteAttachmentHandler`).
 - **Transferred:** positive patient identification, and checking the identifiers printed on a document against the patient before acting on it.
 
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01, on every page where files can be attached (the patient page and the procedure page, with each stage's files). Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`), awaiting the CSO's verification; **before first live use**.
-- **Name the patient and the target before sending:** "Attach 3 files to {stage} of {procedure} for {patient name, date of birth}?", including for files dropped in a half view. Protective; **proposed**; **before first live use**.
-- **Move a file** to another patient, procedure or stage (admins, with a reason, audited), so a correction doesn't depend on deleting and attaching again. Design; **proposed**; later.
+- **The patient banner** from H-01, on every page where files can be attached (the patient page and the pathway page, with each stage's files). Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`), awaiting the CSO's verification; **before first live use**.
+- **Name the patient and the target before sending:** "Attach 3 files to {stage} of {pathway} for {patient name, date of birth}?", including for files dropped in a half view. Protective; **proposed**; **before first live use**.
+- **Move a file** to another patient, pathway or stage (admins, with a reason, audited), so a correction doesn't depend on deleting and attaching again. Design; **proposed**; later.
 - **Train staff** to check the patient before attaching, to check a document's own identifiers before acting on it, and to delete and report a file attached in error. Information; transferred.
 
 **At first live use:** Major, Very low: **2**. It assumes the banner, which is built and awaits the CSO's verification, and the confirmation naming the patient, which isn't built.
@@ -945,7 +946,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **An upload fails or is abandoned:** the file is refused (a type that isn't allowed, a name that doesn't match its contents, over 20 MB), storage is unavailable (H-28), or the tab is closed or the page left while files are still being sent. Nothing warns before closing a tab with uploads in progress, and a failed upload's message is shown only to the person who sent it, in that browser, until dismissed (`Attachments.tsx`).
 - **Files have to be downloaded to be read.** There's no preview of PDFs, and no thumbnail for HEIC photos (`docs/todo.md`), so the list gives only a name, a type and a size, and a document's content is easy to miss.
 - **"Not scanned"** on every file (H-25) may put staff off opening a file at all.
-- **Long lists:** a list shows the newest 200 files of a patient, procedure or stage, and says how many there are in all (`AttachmentLimits.MaxListed`).
+- **Long lists:** a list shows the newest 200 files of a patient, pathway or stage, and says how many there are in all (`AttachmentLimits.MaxListed`).
 - A file deleted by mistake (H-26).
 - **A restricted or anonymised record takes no new files** (the restriction guard's 409, admins included), so a letter or result for a patient whose record is restricted can't be attached until the restriction is lifted (H-22).
 
@@ -1014,7 +1015,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Description.** A file that belongs on the record is deleted, by slip or by the wrong person, and staff can no longer open it.
 
 **Causes:**
-- Staff can delete files they attached, and admins any file (`DeleteAttachmentHandler`). Deleting a patient or procedure that has files is refused until the files are deleted (`DeletePatientHandler`, `DeletePatientProcedureHandler`), which invites deleting files in bulk.
+- Staff can delete files they attached, and admins any file (`DeleteAttachmentHandler`). Deleting a patient or pathway that has files is refused until the files are deleted (`DeletePatientHandler`, `DeletePatientPathwayHandler`), which invites deleting files in bulk.
 - **There's no restore.** Deleting is soft: the file's details stay, admins can see it was there ("Show deleted files"), and its contents are kept in storage. But nobody can download or restore a deleted file from MedApp (`DownloadAttachmentHandler`), so getting it back needs the supplier, working in the database and storage by hand.
 - Once a purge job exists (planned, proposed 30 days after deletion), the contents are gone after that window, and after 7 more days of storage soft delete on Azure.
 - Deleting is also how a file on the wrong record is corrected (H-23), so deletions are routine.
@@ -1115,27 +1116,27 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-29: An admin relies on a monitoring rule to follow up clinical work
 
-**Description.** An admin sets a monitoring rule (Administration, Monitoring) to be told when something happens, for example "anyone blocks an Urgent procedure", and relies on it to follow the work up, but isn't told.
+**Description.** An admin sets a monitoring rule (Administration, Monitoring) to be told when something happens, for example "anyone blocks an Urgent pathway", and relies on it to follow the work up, but isn't told.
 
 **Causes:**
-- **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`ProcedureMonitor`).
+- **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`PathwayMonitor`).
 - **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
 - **Only eight actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires.
 - **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
 
-**Effect.** A blocked, cancelled or re-dated Urgent procedure isn't followed up by the person who expected to hear of it.
+**Effect.** A blocked, cancelled or re-dated Urgent pathway isn't followed up by the person who expected to hear of it.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
 - **The intended purpose says it:** monitoring rules are supervision of work, not clinical alerting, and "must not be relied on to make sure anything clinical happens" (`intended-purpose-and-device-decision.md`).
-- **The work is visible anyway:** the procedures list, My Tasks, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated procedure, whatever the rules.
+- **The work is visible anyway:** the pathways list, My Worklist, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated pathway, whatever the rules.
 - The notifications that are sent are stored, so they show at the next page load.
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Information:** in training and the instructions for use, monitoring is described as a supervision aid, never as the way clinical follow-up is assured; follow-up is through the lists, My Tasks and local procedures. Information; **proposed**; before first live use (it costs nothing); transferred.
+- **Information:** in training and the instructions for use, monitoring is described as a supervision aid, never as the way clinical follow-up is assured; follow-up is through the lists, My Worklist and local procedures. Information; **proposed**; before first live use (it costs nothing); transferred.
 - **An outbox,** so a notification can't be lost between the save and the send. Protective; **proposed**; later.
 
 **At first live use:** Considerable, Low: **2**.
@@ -1168,22 +1169,22 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **A restricted record's appointments can't be booked, moved or given an outcome** until an admin lifts the restriction (H-22).
 - **Pages don't refresh by themselves** (H-16), so a list left open doesn't show new requests.
 
-**Effect.** The patient isn't seen when they need to be. For a stage whose visit is required, the procedure can't move past that stage, which shows; for anything else, nothing in MedApp shows that the visit didn't happen.
+**Effect.** The patient isn't seen when they need to be. For a stage whose visit is required, the pathway can't move past that stage, which shows; for anything else, nothing in MedApp shows that the visit didn't happen.
 
 **Possible harm.** Delayed care, such as a missed pre-assessment or follow-up, for one patient. Considerable in the worst credible case.
 
 **Existing controls** (in the design):
 - **MedApp requests the appointment itself** when a stage with a visit becomes current, unless one is already Requested, Booked or Attended (decision 23), recorded in the appointment's history as requested by the app.
-- **The Requires Appointment list** shows every Requested appointment, soonest procedure due date first, each with Book (decision 29). It isn't in the side navigation: it's reached from the Calendar page's **Requires Appointment (N)** link, which shows how many are waiting, so the count is seen by whoever opens the Calendar, but not on other pages.
-- **A required visit holds up the stage:** it can't be finished until an appointment for it is Attended, except by an admin with a reason (decision 24), so a procedure can't quietly move on.
+- **The Requires Appointment list** shows every Requested appointment, soonest pathway target date first, each with Book (decision 29). It isn't in the side navigation: it's reached from the Calendar page's **Requires Appointment (N)** link, which shows how many are waiting, so the count is seen by whoever opens the Calendar, but not on other pages.
+- **A required visit holds up the stage:** it can't be finished until an appointment for it is Attended, except by an admin with a reason (decision 24), so a pathway can't quietly move on.
 - **One open appointment per stage** (decision 18), so a stage's appointment is never lost among duplicates.
-- The procedure's due date and overdue badge still apply to the procedure as a whole (H-04).
+- The pathway's target date and overdue badge still apply to the pathway as a whole (H-04).
 - **Every change is in the appointment's history** (decision 19), and on the patient's timeline (decision 27).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
 **Further controls:**
-- **Flag or notify Requested appointments that have waited too long,** and Did not attend appointments not yet rebooked, to the procedure's assignees, or to admins when it has none. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); **before first live use**.
+- **Flag or notify Requested appointments that have waited too long,** and Did not attend appointments not yet rebooked, to the pathway's assignees, or to admins when it has none. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); **before first live use**.
 - **A visible count of Requires Appointment,** in the side navigation or on Home, so the list isn't only seen by those who open the Calendar. (Since 17 November 2026 the list has no side navigation item at all; the count shows only on the Calendar page's link.) Protective; **proposed**; before first live use.
 - **A local process:** who books from Requires Appointment, how often it's reviewed, and who follows up Did not attend. Information; transferred; before first live use.
 - **Reminders to patients** by email or SMS, which cut missed appointments. Protective; **planned** (`docs/todo.md`); later.
@@ -1242,21 +1243,21 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The admin bypass** (decision 24) is used without checking, or because an admin was asked to "just finish it".
 - **The suggested-visit confirmation** (decision 25) is clicked through. Confirmations people see often stop being read (H-06).
 - **An appointment is marked Attended in error:** the wrong appointment, the wrong patient (H-34), or a correction from Did not attend made wrongly. Attended satisfies the rule.
-- **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each procedure when it's created (decision 22), so a correction doesn't reach procedures already under way (as H-14).
+- **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each pathway when it's created (decision 22), so a correction doesn't reach pathways already under way (as H-14).
 - **Finishing again after an unlock** doesn't ask for a visit again (decision 26).
 - **An Attended appointment linked to the stage counts,** however long before the stage it was.
 - **An appointment recorded after the event as Attended counts too** (decision 77), so recording one in error, or on the wrong stage, lets a Required stage be finished: H-39.
 
-**Effect.** The record says the stage is done, and the procedure moves on, although the visit it depends on didn't happen.
+**Effect.** The record says the stage is done, and the pathway moves on, although the visit it depends on didn't happen.
 
-**Possible harm.** A procedure goes ahead without a step that needed the patient seen, such as a pre-procedure assessment. One patient; Major in the worst credible case, as H-07.
+**Possible harm.** A pathway goes ahead without a step that needed the patient seen, such as a pre-procedure assessment. One patient; Major in the worst credible case, as H-07.
 
 **Existing controls** (in the design):
-- **Required is enforced on the server,** not just the screen (`ProcedureWorkflow.WhyStageNeedsVisit`): staff get a 409 that says to book the visit and mark it Attended (decision 24).
+- **Required is enforced on the server,** not just the screen (`PathwayWorkflow.WhyStageNeedsVisit`): staff get a 409 that says to book the visit and mark it Attended (decision 24).
 - **Only admins can bypass it,** after a confirmation dialog that asks for a reason (decision 24).
 - **Every finish without a visit is recorded:** the `StageFinished` audit entry records `withoutVisit`, the requirement and, for an admin bypass, the reason (decisions 24 and 25). The patient's timeline shows that a stage was finished without a visit (to admins, with the reason; decision 27).
 - **Attended can only be recorded once the appointment's start has passed** (decision 16).
-- **Existing stages and definitions are None** (decision 22), so nothing changes for procedures that were under way before.
+- **Existing stages and definitions are None** (decision 22), so nothing changes for pathways that were under way before.
 - **Transferred:** template governance (H-13) covers which stages need a visit.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
@@ -1265,7 +1266,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **A report of stages finished without a visit,** for admins, from the audit's `withoutVisit`, reviewed on a set schedule. Protective; **proposed**; **before first live use**; the review is transferred.
 - **Name the patient, the stage and the appointment** (or "no attended appointment") in the finish and bypass confirmations. Protective; **proposed**; before first live use.
 - **Ask for a reason when a suggested visit is skipped too,** so skipping is deliberate. Protective; **proposed**; later.
-- **When a definition's visit requirement is changed,** list the open procedures with that stage, as H-14's control does for template corrections. Protective; **proposed**; later.
+- **When a definition's visit requirement is changed,** list the open pathways with that stage, as H-14's control does for template corrections. Protective; **proposed**; later.
 - **Clinical sign-off of which stages need a visit,** as part of template governance. Information; transferred; before first live use.
 
 **At first live use:** Draft: Major, Very low: **2**.
@@ -1318,13 +1319,13 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-34: The wrong patient or procedure is booked
+## H-34: The wrong patient or pathway is booked
 
-**Description.** An appointment is booked for a different patient from the one intended, or linked to the wrong procedure or stage.
+**Description.** An appointment is booked for a different patient from the one intended, or linked to the wrong pathway or stage.
 
 **Causes:**
 - **The same identification limits as H-01:** name, date of birth, email and an optional NHS number that isn't traced; no duplicate check on name and date of birth.
-- **Booking from an empty calendar slot or the New button** asks for the patient (and procedure and stage) to be chosen (decision 30), by name.
+- **Booking from an empty calendar slot or the New button** asks for the patient (and pathway and stage) to be chosen (decision 30), by name.
 - **An appointment's patient can't be changed:** booking and rescheduling change only the time and member of staff (the plan's API, section 4), so a mistake must be cancelled and booked again; until then it looks real.
 
 **Effect.** The wrong patient is called in, and the right one isn't. An Attended recorded on the wrong patient's appointment could satisfy that patient's required visit (H-32).
@@ -1332,7 +1333,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Possible harm.** Delayed care for one patient, or a step done on the basis of a visit that was someone else's. Considerable.
 
 **Existing controls** (in the design):
-- **The patient is filled in when it's known:** booking from the patient page, the procedure page, a stage ("Book visit") or the Requires Appointment list (decision 30), and the app's own requests link to the right stage (decision 23).
+- **The patient is filled in when it's known:** booking from the patient page, the pathway page, a stage ("Book visit") or the Requires Appointment list (decision 30), and the app's own requests link to the right stage (decision 23).
 - **One open appointment per stage** (decision 18): a second booking for a stage is refused, and the refusal points to the one there is.
 - **Every change is in the appointment's history**, so a wrong booking can be traced (decision 19).
 - **Transferred:** positive patient identification at the point of care.
@@ -1370,7 +1371,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **An account with upcoming Booked appointments can't be deleted** until they're moved or cancelled (decision 21), **nor lose every role** (decision 48): both are refused with the same `HasUpcomingAppointments` error, from one check (`WhyCantStopBeingStaffAsync`).
 - **A new block can't overlap an appointment** (decision 6), so leave added as a block forces the appointments to be moved or cancelled first.
 - **Overlaps from template changes are shown, not hidden,** with the appointment on top and the block flagged (decision 6).
-- **Appointments on a day that later closed are shown, flagged** on the Calendar page's grid: the day reads "Closed: Christmas Day" (in the team view's "Everyone free" column too) and each item on it says it's on a closed day (decision 75). Nothing new can be booked there. Lists, the procedure page and Home's day don't mark them.
+- **Appointments on a day that later closed are shown, flagged** on the Calendar page's grid: the day reads "Closed: Christmas Day" (in the team view's "Everyone free" column too) and each item on it says it's on a closed day (decision 75). Nothing new can be booked there. Lists, the pathway page and Home's day don't mark them.
 - **Closing a day says what's already on it, and tells those staff:** the Add Closed Day dialog (and the bank holidays result) shows how many appointments, blocks and meetings are on the day and whose, before saving, and each member of staff with something on it gets a "Day closed" notification naming the day and what they have then, asking them to move or cancel what's still to come and tell the patients (decision 75). Protective; **built** (after the review of #119).
 - **The member of staff is notified** when someone else books an appointment with them, moves one to them or away from them, or cancels one (decision 20), and sees their day's appointments on Home (decision 32).
 
@@ -1398,23 +1399,23 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **MedApp doesn't contact patients.** There are no reminders or confirmations by email or SMS (plan, section 8); telling the patient is the organisation's own process.
 - **Nothing in MedApp asks whether the patient has been told,** when an appointment is cancelled or moved.
 - **Notifications go to staff only:** the member of staff whose appointment changed, and only when someone else changed it (decision 20).
-- **Cancelling a procedure leaves its Booked appointments alone** (decision 26), deliberately, so someone can tell the patient; if no one acts on the list on the procedure page, they stay booked for a procedure that won't go ahead.
+- **Cancelling a pathway leaves its Booked appointments alone** (decision 26), deliberately, so someone can tell the patient; if no one acts on the list on the pathway page, they stay booked for a pathway that won't go ahead.
 
-**Effect.** The patient makes a wasted journey, misses a rescheduled appointment, or is seen for a procedure that has been cancelled.
+**Effect.** The patient makes a wasted journey, misses a rescheduled appointment, or is seen for a pathway that has been cancelled.
 
 **Possible harm.** Delayed care, and distress, for one patient; worse for patients who are frail or travel far. Considerable in the worst credible case.
 
 **Existing controls** (in the design):
 - **The app never cancels a Booked appointment by itself** (decision 26); only a person does, so the person who cancels knows.
 - **A cancellation needs a reason** (decision 16), and every cancellation and reschedule is in the appointment's history with who and when (decision 19).
-- **The procedure page lists a procedure's Booked appointments** (decision 26), so they're visible when it's cancelled.
+- **The pathway page lists a pathway's Booked appointments** (decision 26), so they're visible when it's cancelled.
 - **Transferred:** the organisation's own process for contacting patients about their appointments.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
 **Further controls:**
 - **Ask "has the patient been told?"** when a Booked appointment is cancelled or moved, record the answer, and list the ones not yet told. Protective; **proposed**; before first live use.
-- **A local process** for telling patients of every cancellation and change, and for the Booked appointments of a cancelled procedure. Information; transferred; before first live use.
+- **A local process** for telling patients of every cancellation and change, and for the Booked appointments of a cancelled pathway. Information; transferred; before first live use.
 - **Reminders and confirmations to patients** by email or SMS. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
@@ -1425,36 +1426,36 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-37: A note from the notepad is added to the wrong patient's procedure
+## H-37: A note from the notepad is added to the wrong patient's pathway
 
-**Description.** A member of staff jots something about a patient in their notepad (during a call or a clinic), then uses Add Note to Procedure, and it's added as a note on a different patient's procedure, or on the right patient's wrong procedure.
+**Description.** A member of staff jots something about a patient in their notepad (during a call or a clinic), then uses Add Note to Pathway, and it's added as a note on a different patient's pathway, or on the right patient's wrong pathway.
 
 **Causes:**
-- **The notepad isn't tied to a patient.** It's one per member of staff, open beside every page, so what's in it can be about anyone, and the procedure page open beside it may not be the patient it's about.
-- **Two procedure pages open at once** (a half view), each a possible target.
+- **The notepad isn't tied to a patient.** It's one per member of staff, open beside every page, so what's in it can be about anyone, and the pathway page open beside it may not be the patient it's about.
+- **Two pathway pages open at once** (a half view), each a possible target.
 - **Several patients' jottings in one notepad,** where all of it is added rather than the part about this patient.
 - **A wrong note stays until an admin deletes it:** staff can't delete notes (clinical record integrity); they ask an admin to, with a reason, and until one decides, the note is visible, marked "Deletion requested". Deleting it wrongly is H-38.
 - **The same words in two patients' jottings** ("obs stable", "bloods sent", "call back"): taking the added text out of the notepad could take out the wrong copy, leaving the other patient's line short and this patient's still there, ready to be added again elsewhere. Found in the review of #110: the first build searched the notepad for the selected text and removed the first copy it found.
-- **The notepad in a half view** (`/notepad` beside a page, branch `feature/notepad-window`) offers the procedure page beside it, so the target is the page in the other half, which may not be the patient the jotting is about. (A separate notepad window, which would have offered procedure pages from other windows out of view, was tried on that branch and removed before merging, by the product owner's decision.)
+- **The notepad in a half view** (`/notepad` beside a page, branch `feature/notepad-window`) offers the pathway page beside it, so the target is the page in the other half, which may not be the patient the jotting is about. (A separate notepad window, which would have offered pathway pages from other windows out of view, was tried on that branch and removed before merging, by the product owner's decision.)
 
 **Effect.** A clinical note about one patient sits on another patient's record: the wrong patient may be treated on it, the right one's record misses it, and it's a disclosure.
 
 **Possible harm.** A clinical decision made on someone else's information, or information missed; distress and a breach of confidentiality. Considerable.
 
 **Existing controls:**
-- **A confirmation before anything is added** (`AddToProcedureDialog`), showing the patient as the patient banner does (`SURNAME, Forename`, date of birth and age, NHS number), the procedure's title, and the exact text that will be added. Protective; **built**.
-- **With two procedures open, it asks which,** naming each by its side (Left, Right), title and patient, and nothing is chosen until the member of staff chooses: Add Note stays disabled until then. Protective; **built**.
-- **The notepad in a half view uses the same confirmation** for the procedure page beside it (the signed-in page's, as the docked notepad offers): the patient as the banner shows them, the procedure's title and the text. With no procedure page open, Add Note to Procedure stays disabled. Protective; **built** (`NotepadProvider`, `NotepadPage`).
+- **A confirmation before anything is added** (`AddToPathwayDialog`), showing the patient as the patient banner does (`SURNAME, Forename`, date of birth and age, NHS number), the pathway's title, and the exact text that will be added. Protective; **built**.
+- **With two pathways open, it asks which,** naming each by its side (Left, Right), title and patient, and nothing is chosen until the member of staff chooses: Add Note stays disabled until then. Protective; **built**.
+- **The notepad in a half view uses the same confirmation** for the pathway page beside it (the signed-in page's, as the docked notepad offers): the patient as the banner shows them, the pathway's title and the text. With no pathway page open, Add Note to Pathway stays disabled. Protective; **built** (`NotepadProvider`, `NotepadPage`).
 - **Only the selected text is added when there is a selection,** so one patient's part can be added on its own. It's taken from the editor's own selection, as Markdown, so it keeps its formatting (bold, a whole list item's bullet) and the confirmation shows exactly what will be saved. Protective; **built**.
 - **"Remove it from the notepad" takes out exactly what was selected,** by its position in the editor (the editor deletes that range, as pressing Delete would), never by searching for the same words, so another line with the same text is never touched. It starts ticked, so the text doesn't linger there to be added again elsewhere. **When it can't be done exactly,** it says so rather than guessing: if the editor can't say where the selection is, the option is off and disabled in the confirmation, with the reason shown; if the notepad changed while the note was being added, nothing is taken out, and the pane says so, on the pane and to screen readers, so the member of staff removes it themselves. Protective; **built** (`RichTextField`'s `selection()`, `NotepadPane`; tested with the same words on two lines).
-- **The note is added by the member of staff, with the time, audited** (`NoteAdded`), and shows on the procedure page at once, under the patient banner; its author can edit it. Detective; **built**.
+- **The note is added by the member of staff, with the time, audited** (`NoteAdded`), and shows on the pathway page at once, under the patient banner; its author can edit it. Detective; **built**.
 - ~~**The notepad says it's for jottings, and that anything about a patient belongs in their record.** Information; built.~~ **Removed** on 17 November 2026, by the product owner's decision (branch `feature/notepad-window`), with the notepad's prompt. The confirmation above stays the main control; the staff privacy notice still says what the notepad is for. The draft estimates below rest on the confirmation, not on that text, so they're unchanged; for the CSO to confirm.
 - **Transferred:** staff check the patient before writing in their record, as for any note.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3** (without the confirmation).
 
 **Further controls:**
-- **Delete a note added to the wrong record,** by an admin, with a reason, directly or when a member of staff asks: soft, so it's hidden from the procedure page but kept, with its versions, in the audit, the admins' timeline and the export. Corrective; **built** (`feature/note-deletion`; its own hazard is H-38).
+- **Delete a note added to the wrong record,** by an admin, with a reason, directly or when a member of staff asks: soft, so it's hidden from the pathway page but kept, with its versions, in the audit, the admins' timeline and the export. Corrective; **built** (`feature/note-deletion`; its own hazard is H-38).
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
@@ -1462,19 +1463,19 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Owner:** [CSO]. **Status:** Open, draft for the CSO.
 
-## H-38: A procedure's note is deleted wrongly
+## H-38: A pathway's note is deleted wrongly
 
-**Description.** An admin deletes a note on a procedure that should have stayed: the wrong note (another note on the same procedure, or the right words on the wrong patient's procedure), or a note that was on the right record and is still clinically needed. They delete it directly, or by approving a member of staff's request to delete it.
+**Description.** An admin deletes a note on a pathway that should have stayed: the wrong note (another note on the same pathway, or the right words on the wrong patient's pathway), or a note that was on the right record and is still clinically needed. They delete it directly, or by approving a member of staff's request to delete it.
 
 **Causes:**
 - **A request names the wrong note.** A member of staff asks for a note to be deleted from the note's own row, but picks the wrong row (two similar notes, "bloods sent" twice), and the admin approves it.
 - **The admin opens the wrong request,** or approves without reading the note or the patient, trusting the requester's reason.
 - **A note looks wrong but isn't:** a note that seems to belong to another patient (a relative mentioned by name, a shared surname) is still about this patient.
-- **Deleting directly,** on the procedure page, picks the wrong note's Delete.
+- **Deleting directly,** on the pathway page, picks the wrong note's Delete.
 - **The note changes after the admin reads it:** its author edits it (into the right result, say) after the request was made, or while the admin has the dialog open, and the admin deletes words they never saw.
 - **A note still needed for care** is deleted as "duplicate" or "not relevant", and whoever reads the record next misses it.
 
-**Effect.** A clinical note is hidden from the procedure page, so staff working on the procedure don't see it, and the wrong note may stay where it was.
+**Effect.** A clinical note is hidden from the pathway page, so staff working on the pathway don't see it, and the wrong note may stay where it was.
 
 **Possible harm.** A clinical decision made without information that was in the record (a result, an allergy mentioned in passing, a follow-up agreed with the patient). Considerable.
 
@@ -1482,7 +1483,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Only admins delete notes** (`[Authorize(Roles = "Admin")]` on the delete and decision endpoints). Staff can only ask, and the admin decides. Protective; **built**.
 - **A reason is required,** a fixed choice (wrong patient, written in error, duplicate, other) with an optional detail (required for "other"), for a direct delete and for a request; the admin may keep or change the requester's. Protective; **built**.
 - **Only the version the admin read is deleted:** a deletion carries the note's version the admin saw, and a note edited since is refused (409), so they read it again first. The request's dialog says when the note was edited, and warns when that was after the request was made (the reason may be about other words). Protective; **built** (review of #115).
-- **A confirmation before anything is deleted:** the request's dialog shows the note's text as it reads now, the patient as the patient banner shows them (`SURNAME, Forename`, date of birth and age, NHS number), the procedure's title, who asked, when and why, with **Delete note** and **Keep note**. A direct delete asks for the reason in a confirmation dialog that shows the note and the patient as the banner shows them (as the request's does), so the admin checks the patient even with two procedure pages side by side. Each note's buttons are named for their note ("Delete note by s.nurse, 17 Nov 2026, 10:32"). A request's link opens only on its own procedure's page. Protective; **built**.
+- **A confirmation before anything is deleted:** the request's dialog shows the note's text as it reads now, the patient as the patient banner shows them (`SURNAME, Forename`, date of birth and age, NHS number), the pathway's title, who asked, when and why, with **Delete note** and **Keep note**. A direct delete asks for the reason in a confirmation dialog that shows the note and the patient as the banner shows them (as the request's does), so the admin checks the patient even with two pathway pages side by side. Each note's buttons are named for their note ("Delete note by s.nurse, 17 Nov 2026, 10:32"). A request's link opens only on its own pathway's page. Protective; **built**.
 - **Deleting is soft:** the note is hidden, not erased. Its row and every version are kept, with who deleted it, when and why; the audit log records the deletion (`NoteDeleted`); admins see it on the patient's timeline, with the text it had and the reason; and the patient's export lists it as deleted. So a wrong deletion can be found and its text recovered. Detective; **built**.
 - **The requester is told the outcome** ("Note deleted" or "Note kept"), so a deletion they didn't expect, or a request still waiting, is noticed. Detective; **built**.
 - **The note's author is told** ("Your note was deleted"), whether it was deleted directly or from someone else's request (unless they deleted it, or asked for it, themselves), so a wrong deletion has a second witness who knows what the note said, and a note on the wrong patient can be added to the right one (H-37's corrective control). Detective; **built** (review of #115).
@@ -1506,22 +1507,22 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ## H-39: A visit is recorded after the event that didn't happen, or on the wrong patient
 
-**Description.** Staff record an appointment after the event (a walk-in, or one booked outside MedApp, decision 74), and it's wrong: the patient wasn't seen, or it's recorded on a different patient, procedure or stage, or with the wrong outcome.
+**Description.** Staff record an appointment after the event (a walk-in, or one booked outside MedApp, decision 74), and it's wrong: the patient wasn't seen, or it's recorded on a different patient, pathway or stage, or with the wrong outcome.
 
 **Causes:**
 - **No booking came before it,** so nothing in MedApp shows the visit was expected: it's only as good as the memory or paper it's recorded from.
 - **The patient is chosen by name** in the dialog (opened from the Calendar page's New menu), with the same identification limits as H-01 and H-34.
 - **Recording one for a stage's visit in Requires Appointment** turns that visit into the recorded one (decision 77); an Attended one then satisfies a Required stage (H-32), so the stage can be finished as though the patient had been seen.
 - **Recorded days later,** the details (the time, the member of staff, whether they came) are easier to get wrong.
-- **A visit from before the day the procedure was created, or for a stage not yet reached,** would satisfy that stage: refused (409), so it's recorded without the procedure or for the right stage (decision 74). A visit earlier on the day the procedure was created is allowed, as the procedure is often created after the clinician has seen the patient.
+- **A visit from before the day the pathway was created, or for a stage not yet reached,** would satisfy that stage: refused (409), so it's recorded without the pathway or for the right stage (decision 74). A visit earlier on the day the pathway was created is allowed, as the pathway is often created after the clinician has seen the patient.
 - **Races:** a visit booked for the stage at the same moment as the walk-in (re-checked under the calendar lock, but another person's booking takes their own lock), or the stage becoming current at that moment (a needless Requested visit appears beside the walk-in). Each window is milliseconds and loses nothing; documented in the plan (decision 76).
 
 **Effect.** The record says a patient was seen when they weren't, or another patient's record says so. A Required stage can be finished on the strength of it, and the patient who needed the visit isn't followed up (H-30).
 
-**Possible harm.** A procedure goes ahead without the visit it needed, or care is missed for the patient actually seen, or a disclosure on the wrong record. One patient; Major in the worst credible case, as H-32.
+**Possible harm.** A pathway goes ahead without the visit it needed, or care is missed for the patient actually seen, or a disclosure on the wrong record. One patient; Major in the worst credible case, as H-32.
 
 **Existing controls** (built on `feature/closed-days-walk-ins`):
-- **The patient as the patient banner shows them** (`SURNAME, Forename`, date of birth and age, NHS number) in the dialog once chosen, as for booking (H-34). From a stage's visit, the patient, procedure and stage are filled in and can't be changed. Protective; **built**.
+- **The patient as the patient banner shows them** (`SURNAME, Forename`, date of birth and age, NHS number) in the dialog once chosen, as for booking (H-34). From a stage's visit, the patient, pathway and stage are filled in and can't be changed. Protective; **built**.
 - **The dialog says it's for an appointment that has already happened, and that it's recorded with your name;** the outcome has no default, so Attended or Did not attend is a choice. Protective; **built**.
 - **Only within 30 days, and only once it has started,** on a weekday, inside the working day: the server refuses anything else (400, decision 74). A closed day is allowed, as what happened, happened (a day closed part-way through, or later), and the visit shows flagged on it. Protective; **built**.
 - **Who recorded it, and when,** is in the appointment's history (`RecordedAfterEvent`), on the patient's timeline and on the appointment ("Recorded after the event by …"); the member of staff it's with is notified when someone else recorded it. Detective; **built**.
@@ -1529,7 +1530,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The restriction guard** applies as for any appointment change: a restricted or anonymised record can't gain one (409). Protective; **built**.
 - **The outcome can be corrected** (Attended to Did not attend and back) as for any appointment. Corrective; **built**.
 - **A wrong walk-in can be withdrawn as entered in error** (it didn't happen, or it's on the wrong patient), with a reason, by whoever recorded it within 30 days of it, or by an admin at any time: it leaves the calendar, stops counting as a stage's visit, and stays in the history with the reason (admins see it); if it was a stage's visit, the stage's visit goes back to Requires Appointment when the stage would ask for one (not on a restricted record, which can't gain appointments), or the person is told why not. Corrective; **built** (after the review of #119; admins at any time after its follow-up review).
-- **A finished stage left without its visit is told to the people who can act on it:** when the walk-in withdrawn was the only attended visit of a finished stage that requires one, the procedure's assignees and every admin (not whoever withdrew it) get a "Stage visit withdrawn" notification linked to the procedure, saying which stage and that an admin can unlock it and book the visit, as finishing it again after an unlock doesn't ask for the visit. Without it, only the person withdrawing it was told, in a dialog they could close. Detective; **built** (after the follow-up review of #119). It relies on someone reading the notification: it doesn't mark the stage on the procedure page, which is a further control to consider.
+- **A finished stage left without its visit is told to the people who can act on it:** when the walk-in withdrawn was the only attended visit of a finished stage that requires one, the pathway's assignees and every admin (not whoever withdrew it) get a "Stage visit withdrawn" notification linked to the pathway, saying which stage and that an admin can unlock it and book the visit, as finishing it again after an unlock doesn't ask for the visit. Without it, only the person withdrawing it was told, in a dialog they could close. Detective; **built** (after the follow-up review of #119). It relies on someone reading the notification: it doesn't mark the stage on the pathway page, which is a further control to consider.
 - **The visit's own notes are kept** when a walk-in takes over a stage's waiting visit; the walk-in's notes are added after them, and the dialog shows them first. Protective; **built**.
 - **Transferred:** positive patient identification, and recording visits as they happen.
 
@@ -1553,8 +1554,6 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 - **Referrals:** staff register each referral the centre receives (the patient, the referring practice, when it arrived, the specialty and priority asked for, the letter), and it waits in an inbox.
 - **Triage:** a clinician with the triage permission in that specialty accepts it into a pathway (choosing the template and the priority), rejects it or redirects it, with a reason.
 - **The waiting-time clock:** counts the days since the referral arrived, less pauses staff record, against the organisation's target for the specialty and priority, and shows a breach.
-
-The plan uses the vocabulary of the Pathway rename: a **pathway** is what this log, on `main`, still calls a procedure.
 
 **Ratings:** left for the CSO to assign. Each entry gives a draft estimate as a starting point.
 - **Existing controls:** there are none yet, because nothing here is built. Today the centre handles referrals outside MedApp.
@@ -1734,8 +1733,8 @@ The plan uses the vocabulary of the Pathway rename: a **pathway** is what this l
 
 ## Hazards considered and not logged
 
-- **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
-- **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
+- **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`PathwayWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
+- **Completing a pathway with a stage unfinished or unlocked.** Designed out: `ChangePatientPathwayStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
 - **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`). Booking and the visit rule compute nothing from clinical data either.
 - **Appointments booked in the past, at weekends or outside working hours.** Designed out: the server refuses them (`docs/calendar-plan.md`, decisions 2 and 17). The cost, that a walk-in can't be recorded after the event, is a gap in the record rather than a hazard, and is on `docs/todo.md`.
@@ -1751,19 +1750,19 @@ The plan uses the vocabulary of the Pathway rename: a **pathway** is what this l
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
-| 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Worklist's default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
 | 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |
 | 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
-| 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed | AI coding agent, for review |
+| 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Worklist on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed | AI coding agent, for review |
 | 0.7 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. H-23 has the built patient banner (PR #69) as a control, and the restriction guard and anonymisation (PR #68) are causes in H-22, H-23, H-24 and H-26. After the review of #85: hostile images and archives as a cause of H-10, with their bounds; the upload re-checked after staging (H-23); active content in Word and PDF files refused (H-25); storage failures bounded and a 503 (H-28, its defect fixed); anonymisation's file deletions audited (H-26). No earlier rating changed | AI coding agent, for review |
 | 0.8 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |
 | 0.9 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap. On merging 0.8 (email and two-factor sign-in): no new hazard, so the numbering stands | AI coding agent, for review |
-| 0.10 | 17 November 2026 | Several notes per procedure and the pop-out notepad (branch `feature/procedure-notes`): new draft hazard H-37 (a note added from the notepad to the wrong patient's procedure), with its confirmation as the control. Procedure notes can no longer be deleted or overwritten (each edit is a version, by its author only), which strengthens H-03 and H-15 without changing their ratings. After the review of #110: a new cause of H-37 (the same words in two patients' jottings), and "Remove it from the notepad" described as built: it takes out exactly the selection, by its position, or says it can't. Still a draft (0.10, after 0.9), not an issued version | AI coding agent, for review |
-| 0.11 | 17 November 2026 | The notepad in a half view, and its explanation removed (branch `feature/notepad-window`): the control "The notepad says it's for jottings, and that anything about a patient belongs in their record" removed by the product owner's decision, with the notepad's prompt, leaving the confirmation as H-37's main control (the staff privacy notice still says what the notepad is for); a new cause of H-37, the notepad in a half view offering the procedure page beside it, with the same confirmation as its control (a separate notepad window was removed before merging, by the product owner's decision). No rating changed. Still a draft, not an issued version | AI coding agent, for review |
+| 0.10 | 17 November 2026 | Several notes per pathway and the pop-out notepad (branch `feature/procedure-notes`): new draft hazard H-37 (a note added from the notepad to the wrong patient's pathway), with its confirmation as the control. Pathway notes can no longer be deleted or overwritten (each edit is a version, by its author only), which strengthens H-03 and H-15 without changing their ratings. After the review of #110: a new cause of H-37 (the same words in two patients' jottings), and "Remove it from the notepad" described as built: it takes out exactly the selection, by its position, or says it can't. Still a draft (0.10, after 0.9), not an issued version | AI coding agent, for review |
+| 0.11 | 17 November 2026 | The notepad in a half view, and its explanation removed (branch `feature/notepad-window`): the control "The notepad says it's for jottings, and that anything about a patient belongs in their record" removed by the product owner's decision, with the notepad's prompt, leaving the confirmation as H-37's main control (the staff privacy notice still says what the notepad is for); a new cause of H-37, the notepad in a half view offering the pathway page beside it, with the same confirmation as its control (a separate notepad window was removed before merging, by the product owner's decision). No rating changed. Still a draft, not an issued version | AI coding agent, for review |
 | 0.12 | 17 November 2026 | The Needs booking list renamed Requires Appointment (branch `feature/requires-appointment`, shipped with `feature/notepad-window`) and taken out of the side navigation: H-30 now records, as a cause and in its existing controls, that the list is reached from the Calendar page's "Requires Appointment (N)" link, which shows the count, and its proposed control (a visible count in the side navigation or on Home) stays proposed. No rating changed. Still a draft, not an issued version | AI coding agent, for review |
-| 0.13 | 18 November 2026 | Shorter record banners (branch `feature/warning-banners`): the restricted, disputed and anonymised banners show a label on screen ("Restricted record: changes paused", "Disputed record: <what's disputed>" when it's short, "Anonymised record"), with the whole message over the page on hover, keyboard focus, a click or a tap; screen readers get it as the label's description, and as an alert when it appears. **A change to H-22's control for the CSO to accept:** "Everyone sees why" now means the label on screen and the reason, and what can still be done, on demand (renamed "Everyone sees that the record is restricted, and why on demand"). After the review of #114, the label is also on Edit Procedure and New Procedure, Edit Procedure gives the restriction as its reason, and the booking dialog shows its own refusal again. H-03's disputed banner reworded to match (what's disputed may now be on demand). No rating changed | AI coding agent, for review |
-| 0.14 | 18 November 2026 | Deleting procedure notes (branch `feature/note-deletion`): new draft hazard H-38 (a note deleted wrongly), with its controls (admins only, a reason, a confirmation showing the patient, the procedure and the note, the note kept and in the export and the admins' timeline, the requester told, restricted and anonymised records refused); H-37's "entered in error" further control is now built as admin deletion, and its cause updated. After the review of #115: a new cause (the note edited after the admin read it) with its control (only the version read is deleted), the reason a fixed choice, the author told, and the patient in the direct delete's confirmation. Ratings left for the CSO | AI coding agent, for review |
+| 0.13 | 18 November 2026 | Shorter record banners (branch `feature/warning-banners`): the restricted, disputed and anonymised banners show a label on screen ("Restricted record: changes paused", "Disputed record: <what's disputed>" when it's short, "Anonymised record"), with the whole message over the page on hover, keyboard focus, a click or a tap; screen readers get it as the label's description, and as an alert when it appears. **A change to H-22's control for the CSO to accept:** "Everyone sees why" now means the label on screen and the reason, and what can still be done, on demand (renamed "Everyone sees that the record is restricted, and why on demand"). After the review of #114, the label is also on Edit Pathway and New Pathway, Edit Pathway gives the restriction as its reason, and the booking dialog shows its own refusal again. H-03's disputed banner reworded to match (what's disputed may now be on demand). No rating changed | AI coding agent, for review |
+| 0.14 | 18 November 2026 | Deleting pathway notes (branch `feature/note-deletion`): new draft hazard H-38 (a note deleted wrongly), with its controls (admins only, a reason, a confirmation showing the patient, the pathway and the note, the note kept and in the export and the admins' timeline, the requester told, restricted and anonymised records refused); H-37's "entered in error" further control is now built as admin deletion, and its cause updated. After the review of #115: a new cause (the note edited after the admin read it) with its control (only the version read is deleted), the reason a fixed choice, the author told, and the patient in the direct delete's confirmation. Ratings left for the CSO | AI coding agent, for review |
 | 0.15 | 18 November 2026 | Two-factor codes by email (branch `feature/email-2fa-codes`, after its review): an emailed code that doesn't arrive added to H-10's causes for the CSO, with its controls (codes' own share of the email allowance, no promise of a code that can't be sent, resending, recovery codes and the app) | AI coding agent, for review |
-| 0.16 | 18 November 2026 | Closed days and appointments recorded after the event (branch `feature/closed-days-walk-ins`): new draft hazard H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), with its built controls; closed days and walk-ins added to H-31 (a walk-in may overlap blocked time or a meeting, flagged; never another appointment), H-32 (an Attended walk-in counts as the visit), H-33 (a closed day that's wrong; the working day rule now includes closed days; bank holidays tested against gov.uk), H-34 (the walk-in dialog shows the patient) and H-35 (a day closed after appointments were booked on it: they stay, flagged; listing them when a day closes proposed). No draft estimate changed. Still a draft, not an issued version After the review of #119: H-39 gets entered in error as a corrective control (a wrong walk-in withdrawn with a reason, its stage's visit asked for again), walk-ins on a closed day allowed, the procedure and stage checks, the visit's notes kept, and the races named; H-35's control for a day closed with bookings made true (what's on it shown before closing, and those staff told). No draft estimate changed. After its follow-up review: H-39's entered in error by admins at any time, no visit asked for again on a restricted record, and a new detective control (a finished stage's only visit withdrawn is told to the procedure's assignees and the admins); a visit earlier on the day its procedure was created is allowed. No draft estimate changed | AI coding agent, for review |
-| 0.17 | 18 November 2026 | Referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), before they're built: new draft hazards H-40 (a referral lost or delayed before triage), H-41 (triaged into the wrong pathway, priority or patient), H-42 (a paused clock forgotten), H-43 (a breach unnoticed, or a wrong target) and H-44 (a duplicate referral), each with its planned controls and draft estimates; H-01 gains a referral registered on the wrong patient as a cause. Written in the vocabulary of the Pathway rename (a pathway is this log's procedure). No earlier draft estimate changed | AI coding agent, for review |
+| 0.16 | 18 November 2026 | Closed days and appointments recorded after the event (branch `feature/closed-days-walk-ins`): new draft hazard H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), with its built controls; closed days and walk-ins added to H-31 (a walk-in may overlap blocked time or a meeting, flagged; never another appointment), H-32 (an Attended walk-in counts as the visit), H-33 (a closed day that's wrong; the working day rule now includes closed days; bank holidays tested against gov.uk), H-34 (the walk-in dialog shows the patient) and H-35 (a day closed after appointments were booked on it: they stay, flagged; listing them when a day closes proposed). No draft estimate changed. Still a draft, not an issued version After the review of #119: H-39 gets entered in error as a corrective control (a wrong walk-in withdrawn with a reason, its stage's visit asked for again), walk-ins on a closed day allowed, the pathway and stage checks, the visit's notes kept, and the races named; H-35's control for a day closed with bookings made true (what's on it shown before closing, and those staff told). No draft estimate changed. After its follow-up review: H-39's entered in error by admins at any time, no visit asked for again on a restricted record, and a new detective control (a finished stage's only visit withdrawn is told to the pathway's assignees and the admins); a visit earlier on the day its pathway was created is allowed. No draft estimate changed | AI coding agent, for review |
+| 0.17 | 18 November 2026 | Referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), before they're built: new draft hazards H-40 (a referral lost or delayed before triage), H-41 (triaged into the wrong pathway, priority or patient), H-42 (a paused clock forgotten), H-43 (a breach unnoticed, or a wrong target) and H-44 (a duplicate referral), each with its planned controls and draft estimates; H-01 gains a referral registered on the wrong patient as a cause. No earlier draft estimate changed | AI coding agent, for review |

@@ -8,8 +8,8 @@ using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
@@ -39,15 +39,15 @@ public sealed class PastAppointmentTests : IntegrationTest
     }
 
     /// <summary>
-    /// A procedure created early on the walk-in's day (07:00), so a visit that day isn't before it (a walk-in can't be
-    /// before its procedure was created).
+    /// A pathway created early on the walk-in's day (07:00), so a visit that day isn't before it (a walk-in can't be
+    /// before its pathway was created).
     /// </summary>
-    private async Task<PatientProcedureResponse> CreateProcedureBeforeTheVisitAsync(Guid templateId)
+    private async Task<PatientPathwayResponse> CreatePathwayBeforeTheVisitAsync(Guid templateId)
     {
         Clock.SetUtcNow(UkAt(_day, 7));
         try
         {
-            return await CreateProcedureAsync(_staff.Client, _patient.Id, templateId);
+            return await CreatePathwayAsync(_staff.Client, _patient.Id, templateId);
         }
         finally
         {
@@ -163,7 +163,7 @@ public sealed class PastAppointmentTests : IntegrationTest
     public async Task Record_ForARestrictedPatient_Returns409()
     {
         await (await _admin.PutAsJsonAsync($"/api/patients/{_patient.Id}/restriction",
-                new SetPatientFlagRequest { Set = true, Reason = "Synthetic restriction", ConfirmOpenProcedures = true }))
+                new SetPatientFlagRequest { Set = true, Reason = "Synthetic restriction", ConfirmOpenPathways = true }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10)))
@@ -175,22 +175,22 @@ public sealed class PastAppointmentTests : IntegrationTest
     {
         var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
         var template = await CreateTemplateAsync(_admin, definition.Id);
-        var procedure = await CreateProcedureBeforeTheVisitAsync(template.Id);
-        var stage = procedure.Stages.Single();
-        var requested = (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Single();
+        var pathway = await CreatePathwayBeforeTheVisitAsync(template.Id);
+        var stage = pathway.Stages.Single();
+        var requested = (await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}")).Single();
         requested.Status.Should().Be("Requested");
 
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
-                procedureId: procedure.Id, stageId: stage.Id))
+                pathwayId: pathway.Id, stageId: stage.Id))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
         recorded.Id.Should().Be(requested.Id, "the stage's visit in Requires Appointment is the one recorded");
-        (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Should().ContainSingle()
+        (await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}")).Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new { Status = "Attended", IsRecordedAfterEvent = true });
         (await TimelineAsync(_staff.Client, _patient.Id)).Select(e => (e.Action, e.FromStatus))
             .Should().Equal(("AppointmentRecordedAfterEvent", "Requested"), ("AppointmentRequested", null));
 
-        var finished = await (await FinishStageAsync(_staff.Client, procedure.Id, stage.Id)).ReadAsAsync<PatientProcedureResponse>();
+        var finished = await (await FinishStageAsync(_staff.Client, pathway.Id, stage.Id)).ReadAsAsync<PatientPathwayResponse>();
         finished.Stages.Single().State.Should().Be("Completed");
     }
 
@@ -199,13 +199,13 @@ public sealed class PastAppointmentTests : IntegrationTest
     {
         var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Suggested");
         var template = await CreateTemplateAsync(_admin, definition.Id);
-        var procedure = await CreateProcedureBeforeTheVisitAsync(template.Id);
-        var stage = procedure.Stages.Single();
-        var requested = (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Single();
+        var pathway = await CreatePathwayBeforeTheVisitAsync(template.Id);
+        var stage = pathway.Stages.Single();
+        var requested = (await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}")).Single();
         await (await PostBookAsync(_staff.Client, requested.Id, _staff.UserId, NextBookableStart())).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var response = await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
-            procedureId: procedure.Id, stageId: stage.Id);
+            pathwayId: pathway.Id, stageId: stage.Id);
 
         (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("record its outcome instead");
     }
@@ -271,20 +271,20 @@ public sealed class PastAppointmentTests : IntegrationTest
     {
         var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
         var template = await CreateTemplateAsync(_admin, definition.Id);
-        var procedure = await CreateProcedureBeforeTheVisitAsync(template.Id);
-        var stage = procedure.Stages.Single();
+        var pathway = await CreatePathwayBeforeTheVisitAsync(template.Id);
+        var stage = pathway.Stages.Single();
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
-                procedureId: procedure.Id, stageId: stage.Id))
+                pathwayId: pathway.Id, stageId: stage.Id))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
         var withdrawn = await (await PostEnteredInErrorAsync(_staff.Client, recorded.Id)).ReadAsAsync<EnteredInErrorResponse>();
 
         withdrawn.VisitRequestedAgain.Should().BeTrue();
         withdrawn.StageMessage.Should().Contain("back in Requires Appointment");
-        var appointments = await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}");
+        var appointments = await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}");
         appointments.Select(a => a.Status).Should().BeEquivalentTo(["EnteredInError", "Requested"]);
         // The stage can't be finished on the withdrawn visit.
-        await (await FinishStageAsync(_staff.Client, procedure.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await FinishStageAsync(_staff.Client, pathway.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
     [Test]
@@ -292,14 +292,14 @@ public sealed class PastAppointmentTests : IntegrationTest
     {
         var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
         var template = await CreateTemplateAsync(_admin, definition.Id);
-        var procedure = await CreateProcedureBeforeTheVisitAsync(template.Id);
-        var stage = procedure.Stages.Single();
+        var pathway = await CreatePathwayBeforeTheVisitAsync(template.Id);
+        var stage = pathway.Stages.Single();
         var assignee = await CreateStaffAsync(UserRole);
-        await (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
-                procedureId: procedure.Id, stageId: stage.Id))
+                pathwayId: pathway.Id, stageId: stage.Id))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
-        await (await FinishStageAsync(_staff.Client, procedure.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await FinishStageAsync(_staff.Client, pathway.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var withdrawn = await (await PostEnteredInErrorAsync(_staff.Client, recorded.Id)).ReadAsAsync<EnteredInErrorResponse>();
 
@@ -310,39 +310,39 @@ public sealed class PastAppointmentTests : IntegrationTest
             var notification = (await (await told.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
                 .Items.Should().ContainSingle(n => n.Kind == "StageVisitWithdrawn").Subject;
             notification.Title.Should().Be("Stage visit withdrawn");
-            notification.ProcedureId.Should().Be(procedure.Id);
+            notification.PathwayId.Should().Be(pathway.Id);
             notification.AppointmentId.Should().BeNull();
             notification.Message.Should().StartWith($"{_staff.Username} marked the visit on ")
-                .And.Contain(stage.Name).And.NotContain(_patient.LastName).And.NotContain(procedure.Title).And.NotContain(CancelReason);
+                .And.Contain(stage.Name).And.NotContain(_patient.LastName).And.NotContain(pathway.Title).And.NotContain(CancelReason);
         }
         (await (await _staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
             .Items.Should().NotContain(n => n.Kind == "StageVisitWithdrawn");
     }
 
-    // The procedure and the stage
+    // The pathway and the stage
 
     [Test]
-    public async Task Record_BeforeTheProcedureWasCreated_Returns409()
+    public async Task Record_BeforeThePathwayWasCreated_Returns409()
     {
         var template = await CreateTemplateWithStagesAsync(_admin, 1);
-        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, template.Id);
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, template.Id);
 
-        var response = await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10), procedureId: procedure.Id);
+        var response = await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10), pathwayId: pathway.Id);
 
-        (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This visit was before the day the procedure was created");
+        (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This visit was before the day the pathway was created");
     }
 
     [Test]
     public async Task Record_ForAStageNotReachedYet_Returns409()
     {
-        // The procedure was created on the walk-in's day, before it, so only the stage is wrong.
+        // The pathway was created on the walk-in's day, before it, so only the stage is wrong.
         Clock.SetUtcNow(UkAt(_day, 8));
         var template = await CreateTemplateWithStagesAsync(_admin, 2);
-        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, template.Id);
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, template.Id);
         Clock.Reset();
 
         var response = await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
-            procedureId: procedure.Id, stageId: procedure.Stages[1].Id);
+            pathwayId: pathway.Id, stageId: pathway.Stages[1].Id);
 
         (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("hasn't been reached yet");
     }

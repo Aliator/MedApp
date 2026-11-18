@@ -9,14 +9,14 @@ function renderSettings(handlers: Parameters<typeof mockApi>[0]) {
   return {fetch, ...renderWithApp(<NotificationSettings />, {user: staffUser})};
 }
 
-const assignedSwitch = () => screen.getByRole('switch', {name: /assigned to a procedure/});
+const assignedSwitch = () => screen.getByRole('switch', {name: /assigned to a pathway/});
 
 describe('NotificationSettings', () => {
   it("shows the user's choice, and saves a change on the server", async () => {
     withAnnouncements();
     const {user, fetch} = renderSettings({
-      [`GET ${PREFERENCES}`]: () => json({procedureAssigned: true}),
-      [`PUT ${PREFERENCES}`]: () => json({procedureAssigned: false}),
+      [`GET ${PREFERENCES}`]: () => json({pathwayAssigned: true}),
+      [`PUT ${PREFERENCES}`]: () => json({pathwayAssigned: false}),
     });
 
     await waitFor(() => expect(assignedSwitch()).toBeChecked());
@@ -24,18 +24,18 @@ describe('NotificationSettings', () => {
 
     await waitFor(() => expect(assignedSwitch()).not.toBeChecked());
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
-    expect(await put.json()).toEqual({procedureAssigned: false});
+    expect(await put.json()).toEqual({pathwayAssigned: false});
     await expectAnnounced('Assignment notifications off');
   });
 
-  it('points to My Tasks with its filter on all open work', async () => {
-    renderSettings({[`GET ${PREFERENCES}`]: () => json({procedureAssigned: true})});
+  it('points to My Worklist with its filter on all open work', async () => {
+    renderSettings({[`GET ${PREFERENCES}`]: () => json({pathwayAssigned: true})});
 
-    expect(await screen.findByText(/work from My Tasks, with its filter on all open work/)).toBeInTheDocument();
+    expect(await screen.findByText(/work from My Worklist, with its filter on all open work/)).toBeInTheDocument();
   });
 
   it('shows a choice made before as off', async () => {
-    renderSettings({[`GET ${PREFERENCES}`]: () => json({procedureAssigned: false})});
+    renderSettings({[`GET ${PREFERENCES}`]: () => json({pathwayAssigned: false})});
 
     await waitFor(() => expect(assignedSwitch()).not.toBeChecked());
     expect(assignedSwitch()).toBeEnabled();
@@ -43,7 +43,7 @@ describe('NotificationSettings', () => {
 
   it('says when the choice could not be saved, and keeps what was there', async () => {
     const {user} = renderSettings({
-      [`GET ${PREFERENCES}`]: () => json({procedureAssigned: true}),
+      [`GET ${PREFERENCES}`]: () => json({pathwayAssigned: true}),
       [`PUT ${PREFERENCES}`]: () => json({title: 'Server error'}, 500),
     });
 

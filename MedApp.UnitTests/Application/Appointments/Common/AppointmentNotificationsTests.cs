@@ -2,7 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.AppointmentsTestConstants;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -34,7 +34,7 @@ public sealed class AppointmentNotificationsTests
         notification.Kind.Should().Be(NotificationKind.AppointmentBooked);
         notification.Title.Should().Be("Appointment booked");
         notification.Message.Should().Be("calendar.colleague booked you an appointment on Monday 23 November at 10:00.");
-        notification.ProcedureId.Should().Be(appointment.ProcedureId);
+        notification.PathwayId.Should().Be(appointment.PathwayId);
         notification.AppointmentId.Should().Be(appointment.Id);
         notification.CreatedAtUtc.Should().Be(Now);
         notification.ReadAtUtc.Should().BeNull();
@@ -64,22 +64,22 @@ public sealed class AppointmentNotificationsTests
     [Test]
     public void TitleOf_AnotherKind_Throws()
     {
-        var act = () => AppointmentNotifications.TitleOf(NotificationKind.ProcedureAssigned);
+        var act = () => AppointmentNotifications.TitleOf(NotificationKind.PathwayAssigned);
 
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void AfterBooking_ForAProcedure_IsTitledByTheKindNotTheProcedure()
+    public void AfterBooking_ForAPathway_IsTitledByTheKindNotThePathway()
     {
         var appointment = BookedAt(At(NextMonday, 10));
-        var procedure = LinkToProcedure(appointment);
+        var pathway = LinkToPathway(appointment);
 
         var notification = AppointmentNotifications.AfterBooking(appointment, AppointmentStatus.Requested, null, null, Colleague, Now)
             .Single();
 
         notification.Title.Should().Be("Appointment booked");
-        notification.ProcedureId.Should().Be(procedure.Id);
+        notification.PathwayId.Should().Be(pathway.Id);
     }
 
     [Test]
@@ -181,10 +181,10 @@ public sealed class AppointmentNotificationsTests
     }
 
     [Test]
-    public void AfterBooking_Notifications_NeverHoldThePatientsNameNotesOrProcedureTitle()
+    public void AfterBooking_Notifications_NeverHoldThePatientsNameNotesOrPathwayTitle()
     {
         var appointment = BookedAt(At(NextMonday, 15), OtherStaffUserId);
-        LinkToProcedure(appointment);
+        LinkToPathway(appointment);
 
         var notifications = AppointmentNotifications.AfterBooking(
             appointment, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now);
@@ -193,8 +193,8 @@ public sealed class AppointmentNotificationsTests
         foreach (var notification in notifications)
         {
             notification.Message.Should().NotContain(PatientFirstName).And.NotContain(PatientLastName).And.NotContain(Notes)
-                .And.NotContain(ProcedureTitle);
-            notification.Title.Should().NotContain(PatientFirstName).And.NotContain(Notes).And.NotContain(ProcedureTitle);
+                .And.NotContain(PathwayTitle);
+            notification.Title.Should().NotContain(PatientFirstName).And.NotContain(Notes).And.NotContain(PathwayTitle);
         }
     }
 
@@ -264,7 +264,7 @@ public sealed class AppointmentNotificationsTests
         notification.Title.Should().Be("Appointment recorded");
         notification.Message.Should().Be($"calendar.colleague recorded an appointment you had on Friday 13 November at 10:00, as {words}.");
         notification.AppointmentId.Should().Be(appointment.Id);
-        notification.ProcedureId.Should().Be(appointment.ProcedureId);
+        notification.PathwayId.Should().Be(appointment.PathwayId);
         notification.CreatedAtUtc.Should().Be(Now);
         notification.Message.Should().NotContain(Notes).And.NotContain(PatientLastName);
     }
@@ -281,18 +281,18 @@ public sealed class AppointmentNotificationsTests
         AppointmentNotifications.AfterRecording(BookedAt(At(NextMonday, 10)), Colleague, Now).Should().BeEmpty();
     }
 
-    /// <summary>A walk-in for a finished stage, withdrawn, on a procedure assigned to the member of staff.</summary>
-    private static (Appointment Withdrawn, PatientProcedure Procedure, PatientProcedureStage Stage) WithdrawnFromFinishedStage()
+    /// <summary>A walk-in for a finished stage, withdrawn, on a pathway assigned to the member of staff.</summary>
+    private static (Appointment Withdrawn, PatientPathway Pathway, PatientPathwayStage Stage) WithdrawnFromFinishedStage()
     {
         var withdrawn = Recorded(AppointmentStatus.Attended);
         withdrawn.Status = AppointmentStatus.EnteredInError;
-        var procedure = LinkToProcedure(withdrawn);
-        var stage = procedure.StageAt(1);
+        var pathway = LinkToPathway(withdrawn);
+        var stage = pathway.StageAt(1);
         stage.IsCompleted = true;
         stage.CompletedAtUtc = At(Today.AddDays(-3), 15);
-        procedure.Assignments.Clear();
-        procedure.Assignments.Add(new PatientProcedureAssignment { PatientProcedureId = procedure.Id, UserId = StaffUserId });
-        return (withdrawn, procedure, stage);
+        pathway.Assignments.Clear();
+        pathway.Assignments.Add(new PatientPathwayAssignment { PatientPathwayId = pathway.Id, UserId = StaffUserId });
+        return (withdrawn, pathway, stage);
     }
 
     private static readonly Guid OtherAdmin = Guid.Parse("0000000b-0000-0000-0000-0000000000ad");
@@ -300,10 +300,10 @@ public sealed class AppointmentNotificationsTests
     [Test]
     public void AfterStageVisitWithdrawn_TellsTheAssigneesAndAdmins_ButNotWhoWithdrewIt()
     {
-        var (withdrawn, procedure, stage) = WithdrawnFromFinishedStage();
+        var (withdrawn, pathway, stage) = WithdrawnFromFinishedStage();
 
         var notifications = AppointmentNotifications.AfterStageVisitWithdrawn(
-            withdrawn, procedure, stage, [OtherAdmin, Colleague.UserId, StaffUserId], Colleague, Now);
+            withdrawn, pathway, stage, [OtherAdmin, Colleague.UserId, StaffUserId], Colleague, Now);
 
         notifications.Select(n => n.UserId).Should().Equal(StaffUserId, OtherAdmin);
         notifications.Should().AllSatisfy(n =>
@@ -314,21 +314,21 @@ public sealed class AppointmentNotificationsTests
                 $"calendar.colleague marked the visit on Friday 13 November at 10:00 for the '{StageName}' stage entered in error. " +
                 "The stage was finished on Friday 13 November and now has no attended visit, though it requires one. " +
                 "If it still needs its visit, an admin can unlock it, and then book one.");
-            n.ProcedureId.Should().Be(procedure.Id);
-            n.AppointmentId.Should().BeNull("the appointment is off the calendar; the link is to the procedure");
+            n.PathwayId.Should().Be(pathway.Id);
+            n.AppointmentId.Should().BeNull("the appointment is off the calendar; the link is to the pathway");
             n.CreatedAtUtc.Should().Be(Now);
-            n.Message.Should().NotContain(ProcedureTitle).And.NotContain(Notes).And.NotContain(PatientLastName);
+            n.Message.Should().NotContain(PathwayTitle).And.NotContain(Notes).And.NotContain(PatientLastName);
         });
     }
 
     [Test]
     public void AfterStageVisitWithdrawn_WithNoTimes_SaysAVisit()
     {
-        var (withdrawn, procedure, stage) = WithdrawnFromFinishedStage();
+        var (withdrawn, pathway, stage) = WithdrawnFromFinishedStage();
         withdrawn.StartUtc = null;
         stage.CompletedAtUtc = null;
 
-        AppointmentNotifications.AfterStageVisitWithdrawn(withdrawn, procedure, stage, [], Colleague, Now)
+        AppointmentNotifications.AfterStageVisitWithdrawn(withdrawn, pathway, stage, [], Colleague, Now)
             .Should().ContainSingle().Which.Message.Should().StartWith(
                 $"calendar.colleague marked a visit for the '{StageName}' stage entered in error. The stage was finished and now");
     }
@@ -342,11 +342,11 @@ public sealed class AppointmentNotificationsTests
     }
 
     [Test]
-    public void HasFixedTitle_EveryCalendarKind_AndNotTheProcedureAssignment()
+    public void HasFixedTitle_EveryCalendarKind_AndNotThePathwayAssignment()
     {
         Notification.HasFixedTitle(NotificationKind.AppointmentRecorded).Should().BeTrue();
         Notification.HasFixedTitle((NotificationKind)7).Should().BeTrue("7 and 8 are kept for calendar kinds, which have fixed titles");
-        Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+        Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.AppointmentRecorded).Should().BeFalse();
     }
 }

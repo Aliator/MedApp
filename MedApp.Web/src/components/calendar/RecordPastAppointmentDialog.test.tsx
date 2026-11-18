@@ -64,7 +64,7 @@ async function choose(user: ReturnType<typeof renderDialog>['user'], field: RegE
 
 const FOR_STAGE = {
   patient: TEST_PATIENT,
-  procedure: {id: 'procedure-1', title: 'Knee review'},
+  pathway: {id: 'pathway-1', title: 'Knee review'},
   stage: {id: 'stage-1', name: 'Assessment'},
 };
 
@@ -129,7 +129,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(recorded));
     expect(await bodyOf(fetch)).toEqual({
       patientId: 'patient-1',
-      procedureId: 'procedure-1',
+      pathwayId: 'pathway-1',
       stageId: 'stage-1',
       staffUserId: STAFF_ME.userId,
       startUtc: ukTime(TODAY, '10:00').replace('Z', '.000Z'),
@@ -146,10 +146,10 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
       {staffUserId: STAFF_OTHER.userId},
       {
         'GET /api/patients/search': () => json(pageOf([{id: 'patient-9', firstName: 'Alex', lastName: 'Sample', dateOfBirth: '1980-03-14', nhsNumber: '9990000026'}])),
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([{id: 'procedure-9', title: 'Hip review', dueDate: '2026-12-10', currentStageName: 'Consent'}])),
-        'GET /api/procedures/patient-procedures/procedure-9': () =>
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([{id: 'pathway-9', title: 'Hip review', dueDate: '2026-12-10', currentStageName: 'Consent'}])),
+        'GET /api/pathways/patient-pathways/pathway-9': () =>
           json({
-            id: 'procedure-9',
+            id: 'pathway-9',
             stages: [
               {id: 'stage-a', name: 'Referral', state: 'Completed'},
               {id: 'stage-b', name: 'Consent', state: 'InProgress', isCurrent: true, visitRequirement: 'Required'},
@@ -186,7 +186,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     await waitFor(async () =>
       expect(await bodyOf(fetch)).toMatchObject({
         patientId: 'patient-9',
-        procedureId: 'procedure-9',
+        pathwayId: 'pathway-9',
         stageId: 'stage-b',
         staffUserId: STAFF_OTHER.userId,
         startUtc: ukTime('2026-11-17', '17:00').replace('Z', '.000Z'),
@@ -199,14 +199,14 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     expect(calendarReads(fetch).every((c) => c === daysOf(STAFF_OTHER.userId!))).toBe(true);
   });
 
-  it('offers every stage of a procedure with none current', async () => {
+  it('offers every stage of a pathway with none current', async () => {
     const {user} = renderDialog(
       {patient: TEST_PATIENT},
       {
-        'GET /api/procedures/patient-procedures/search': () => json(pageOf([{id: 'procedure-9', title: 'Hip review', dueDate: '2026-12-10'}])),
-        'GET /api/procedures/patient-procedures/procedure-9': () =>
+        'GET /api/pathways/patient-pathways/search': () => json(pageOf([{id: 'pathway-9', title: 'Hip review', dueDate: '2026-12-10'}])),
+        'GET /api/pathways/patient-pathways/pathway-9': () =>
           json({
-            id: 'procedure-9',
+            id: 'pathway-9',
             stages: [
               {id: 'stage-a', name: 'Referral', state: 'Completed'},
               {id: 'stage-b', name: 'Consent', state: 'Completed', visitRequirement: 'Suggested'},

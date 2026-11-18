@@ -2,10 +2,10 @@ using FluentAssertions;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Patients.Common;
 
@@ -16,16 +16,16 @@ public sealed class PatientRecordAttachmentsTests
     private const string Canary = "file-canary-3c9d";
     private static readonly DateTime AnonymisedAt = new(2026, 11, 16, 9, 0, 0, DateTimeKind.Utc);
 
-    private static (PatientRecord Record, Attachment Live, Attachment Deleted, PatientProcedure Procedure) RecordWithFiles()
+    private static (PatientRecord Record, Attachment Live, Attachment Deleted, PatientPathway Pathway) RecordWithFiles()
     {
-        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.Completed, finishedStages: 3);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var live = new Attachment
         {
             Id = Guid.NewGuid(),
             PatientId = record.Patient.Id,
-            ProcedureId = procedure.Id,
-            StageId = procedure.StageAt(2).Id,
+            PathwayId = pathway.Id,
+            StageId = pathway.StageAt(2).Id,
             FileName = $"{Canary} scan.pdf",
             ContentType = "application/pdf",
             SizeBytes = 2048,
@@ -47,14 +47,14 @@ public sealed class PatientRecordAttachmentsTests
             DeletedByUserId = Admin.UserId,
             DeletedByUsername = Admin.Username,
         };
-        var audit = AttachmentAudit.Entry(live, new AttachmentTarget(record.Patient.Id, procedure, procedure.StageAt(2)), Staff,
-            PatientProcedureAuditAction.AttachmentAdded, Now.AddDays(-2));
+        var audit = AttachmentAudit.Entry(live, new AttachmentTarget(record.Patient.Id, pathway, pathway.StageAt(2)), Staff,
+            PatientPathwayAuditAction.AttachmentAdded, Now.AddDays(-2));
 
         return (new PatientRecord
         {
             Patient = record.Patient,
-            Procedures = record.Procedures,
-            ProcedureHistory = [.. record.ProcedureHistory, audit],
+            Pathways = record.Pathways,
+            PathwayHistory = [.. record.PathwayHistory, audit],
             Activity = record.Activity,
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
@@ -62,13 +62,13 @@ public sealed class PatientRecordAttachmentsTests
             Attachments = [live, deleted],
             NoteVersions = [],
             NoteDeletionRequests = []
-        }, live, deleted, procedure);
+        }, live, deleted, pathway);
     }
 
     [Test]
     public void Export_ListsEveryFilesDetails_DeletedOnesToo()
     {
-        var (record, live, deleted, procedure) = RecordWithFiles();
+        var (record, live, deleted, pathway) = RecordWithFiles();
 
         var export = PatientExportMapper.ToResponse(record, new Dictionary<Guid, string>(), Now, "exporter");
 
@@ -77,8 +77,8 @@ public sealed class PatientRecordAttachmentsTests
         {
             live.Id,
             AttachedTo = "Stage",
-            ProcedureId = (Guid?)procedure.Id,
-            StageName = ProcedureStage,
+            PathwayId = (Guid?)pathway.Id,
+            StageName = PathwayStage,
             live.FileName,
             ContentType = "application/pdf",
             TypeName = "PDF",
@@ -139,8 +139,8 @@ public sealed class PatientRecordAttachmentsTests
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
-        record.ProcedureHistory.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
-        record.ProcedureHistory.Single(e => e.Action == PatientProcedureAuditAction.AttachmentAdded).Details
+        record.PathwayHistory.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+        record.PathwayHistory.Single(e => e.Action == PatientPathwayAuditAction.AttachmentAdded).Details
             .Should().Contain($"\"fileName\":\"{PatientAnonymiser.RemovedText}\"").And.Contain("\"contentType\":\"application/pdf\"");
     }
 
@@ -151,7 +151,7 @@ public sealed class PatientRecordAttachmentsTests
         var odd = new Attachment { Id = Guid.NewGuid(), FileName = Canary, ContentType = "image/gif" };
         var withOdd = new PatientRecord
         {
-            Patient = record.Patient, Procedures = record.Procedures, ProcedureHistory = record.ProcedureHistory,
+            Patient = record.Patient, Pathways = record.Pathways, PathwayHistory = record.PathwayHistory,
             Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications, Attachments = [live, odd],
             NoteVersions = [],

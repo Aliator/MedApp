@@ -3,8 +3,8 @@ using MedApp.Application.Monitoring.Common;
 using MedApp.Contracts.Monitoring.Responses;
 using MedApp.Domain.Monitoring;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePriority;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 
 namespace MedApp.UnitTests.Application.Monitoring.Common;
 
@@ -55,8 +55,8 @@ public sealed class MonitoringRuleMapperTests
     [Test]
     public void ToResponse_SeveralRules_KeepsTheirOrder()
     {
-        var rules = new[] { CreateRule(MonitoringEvent.ProcedureBlocked), CreateRule(MonitoringEvent.ProcedureCancelled) };
+        var rules = new[] { CreateRule(MonitoringEvent.PathwayBlocked), CreateRule(MonitoringEvent.PathwayCancelled) };
 
-        MonitoringRuleMapper.ToResponse(rules, Names).Select(r => r.Event).Should().Equal("ProcedureBlocked", "ProcedureCancelled");
+        MonitoringRuleMapper.ToResponse(rules, Names).Select(r => r.Event).Should().Equal("PathwayBlocked", "PathwayCancelled");
     }
 }

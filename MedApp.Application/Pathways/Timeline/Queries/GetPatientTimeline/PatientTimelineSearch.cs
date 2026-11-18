@@ -1,0 +1,55 @@
+using MedApp.Application.Pathways.Timeline.Common;
+using MedApp.Domain.Pathways.PatientPathways;
+
+namespace MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
+
+/// <summary>
+/// The query behind <see cref="GetPatientTimelineQuery"/>, as plain LINQ that EF translates (see <c>PatientSearch</c>),
+/// so the same code runs in SQL and in unit tests.
+/// </summary>
+public static class PatientTimelineSearch
+{
+    /// <summary>
+    /// The page's entries, newest first, then by ID so the order is unique (entries one change writes are a tick
+    /// apart, <c>PathwayChange.Audit</c>, so they already sort in the order they happened), each with its
+    /// pathway's title now. It takes one more than the page size, so the handler can tell whether there's more.
+    /// Staff (not <see cref="GetPatientTimelineQuery.IsAdmin"/>) only get entries for pathways that still exist, and
+    /// for files attached to the patient themselves (<see cref="PatientPathwayAuditEntry.NoPathway"/>). Downloads
+    /// are in the audit log, never on the timeline.
+    /// </summary>
+    public static IQueryable<PatientTimelineRow> Page(
+        IQueryable<PatientPathwayAuditEntry> entries,
+        IQueryable<PatientPathway> pathways,
+        GetPatientTimelineQuery query)
+    {
+        var patientId = query.PatientId;
+        var noPathway = PatientPathwayAuditEntry.NoPathway;
+        var filtered = entries.Where(e => e.PatientId == patientId && e.Action != PatientPathwayAuditAction.AttachmentDownloaded);
+
+        if (!query.IsAdmin)
+            filtered = filtered.Where(e => e.PatientPathwayId == noPathway || pathways.Any(p => p.Id == e.PatientPathwayId));
+
+        var kinds = PatientTimelineKinds.Parse(query.Kinds);
+        if (kinds.Count > 0)
+            filtered = filtered.WhereKindIn(kinds);
+
+        var pathwayIds = (query.PathwayIds ?? []).Distinct().ToList();
+        if (pathwayIds.Count > 0)
+            filtered = filtered.Where(e => pathwayIds.Contains(e.PatientPathwayId));
+
+        if (TimelineCursor.TryDecode(query.Before, out var cursor))
+        {
+            var at = cursor.AtUtc;
+            var id = cursor.Id;
+            filtered = filtered.Where(e => e.AtUtc < at || (e.AtUtc == at && e.Id.CompareTo(id) < 0));
+        }
+
+        return filtered
+            .OrderByDescending(e => e.AtUtc)
+            .ThenByDescending(e => e.Id)
+            .Take(query.PageSize + 1)
+            .Select(e => new PatientTimelineRow(
+                e,
+                pathways.Where(p => p.Id == e.PatientPathwayId).Select(p => p.Title).FirstOrDefault()));
+    }
+}

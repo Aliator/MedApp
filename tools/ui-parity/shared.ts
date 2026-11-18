@@ -13,10 +13,10 @@ export interface ProjectMeta {
 /** Data discovered at login time and shared by the screens, so both apps show the same records. */
 export interface ParityData {
   patientId: string;
-  /** An in-progress procedure, for the procedure page (React only: Blazor never had one). */
-  procedureId?: string;
-  /** A procedure of a restricted patient, for a page with a long page message (the restricted banner). */
-  restrictedProcedureId?: string;
+  /** An in-progress pathway, for the pathway page (React only: Blazor never had one). */
+  pathwayId?: string;
+  /** A pathway of a restricted patient, for a page with a long page message (the restricted banner). */
+  restrictedPathwayId?: string;
   /**
    * The parity account's own synthetic meeting, which it has declined, and its UK date: for the meeting dialog's replies
    * (with Accept and Decline) and a declined meeting faded on the calendar. Made once by the setup (React only).

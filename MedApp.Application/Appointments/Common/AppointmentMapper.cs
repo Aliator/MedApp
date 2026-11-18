@@ -1,6 +1,6 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 
@@ -38,7 +38,7 @@ public static class AppointmentMapper
     }
 
     /// <summary>
-    /// An appointment's response, with its patient, procedure and stage (when loaded) and the usernames given.
+    /// An appointment's response, with its patient, pathway and stage (when loaded) and the usernames given.
     /// What can be done with it is worked out at <paramref name="nowUtc"/>: nothing but cancelling while its patient's
     /// record is restricted, and nothing at all once it's anonymised (<see cref="PatientRules"/>).
     /// </summary>
@@ -53,10 +53,10 @@ public static class AppointmentMapper
         {
             Id = appointment.Id,
             PatientId = appointment.PatientId,
-            PatientName = ProcedureMapper.PatientName(appointment.Patient),
-            ProcedureId = appointment.ProcedureId,
-            ProcedureTitle = appointment.Procedure?.Title,
-            ProcedureDueDate = appointment.Procedure is { } procedure ? DueDates.ToUkDate(procedure.DueDateUtc) : null,
+            PatientName = PathwayMapper.PatientName(appointment.Patient),
+            PathwayId = appointment.PathwayId,
+            PathwayTitle = appointment.Pathway?.Title,
+            PathwayDueDate = appointment.Pathway is { } pathway ? DueDates.ToUkDate(pathway.DueDateUtc) : null,
             StageId = appointment.StageId,
             StageName = appointment.Stage?.Name,
             VisitRequirement = appointment.Stage?.VisitRequirement.ToString(),
@@ -88,7 +88,7 @@ public static class AppointmentMapper
     }
 
     private static string Username(IReadOnlyDictionary<Guid, string> usernames, Guid userId) =>
-        usernames.TryGetValue(userId, out var name) ? name : ProcedureMapper.DeletedUser;
+        usernames.TryGetValue(userId, out var name) ? name : PathwayMapper.DeletedUser;
 
     private static string? Username(IReadOnlyDictionary<Guid, string> usernames, Guid? userId) =>
         userId is { } id ? Username(usernames, id) : null;

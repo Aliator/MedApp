@@ -18,7 +18,7 @@ import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
-import {AddToProcedureDialog, type NoteToAdd} from './AddToProcedureDialog';
+import {AddToPathwayDialog, type NoteToAdd} from './AddToPathwayDialog';
 import {useNotepad} from './NotepadContext';
 
 /** How long typing must pause before the notepad saves by itself. */
@@ -41,7 +41,7 @@ type SaveState =
   | {kind: 'conflict'; message: string};
 
 /**
- * The notepad: a header with Close, a rich text box, where saving has got to, and Clear and Add Note to Procedure. It
+ * The notepad: a header with Close, a rich text box, where saving has got to, and Clear and Add Note to Pathway. It
  * reads the notepad once as it opens; the box is its copy from then on. Reload (after a 409) reads it afresh, replacing
  * what the box says.
  */
@@ -312,13 +312,13 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
-  const procedures = context?.openProcedures ?? [];
+  const pathways = context?.openPathways ?? [];
   /**
    * The text selected (as Markdown, from the editor, so it keeps its formatting), or everything. Taking a selection out
    * afterwards removes exactly that range; if the editor can't say what's selected, it's added as the browser shows it,
    * and the dialog says it can't be taken out.
    */
-  const addToProcedure = () => {
+  const addToPathway = () => {
     if (selection.current.trim()) {
       const exact = field.current?.selection() ?? null;
       setToAdd(exact ? {text: exact.markdown, isSelection: true, remove: exact.remove} : {text: selection.current.trim(), isSelection: true});
@@ -378,12 +378,12 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
           />
           <StackItem size="fill" />
           <Button
-            label="Add Note to Procedure"
+            label="Add Note to Pathway"
             variant="secondary"
             icon={<Icon icon={AppIcon.Add} />}
-            onClick={addToProcedure}
-            isDisabled={procedures.length === 0 || isEmpty}
-            tooltip={procedures.length === 0 ? "Open a procedure's page to add a note to it" : undefined}
+            onClick={addToPathway}
+            isDisabled={pathways.length === 0 || isEmpty}
+            tooltip={pathways.length === 0 ? "Open a pathway's page to add a note to it" : undefined}
           />
         </HStack>
       </VStack>
@@ -401,7 +401,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
         onCancel={() => setIsConfirmingClear(false)}
       />
       {toAdd && (
-        <AddToProcedureDialog note={toAdd} procedures={procedures} onAdded={(remove) => added(toAdd, remove)} onCancel={() => setToAdd(null)} />
+        <AddToPathwayDialog note={toAdd} pathways={pathways} onAdded={(remove) => added(toAdd, remove)} onCancel={() => setToAdd(null)} />
       )}
     </>
   );

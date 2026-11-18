@@ -25,7 +25,7 @@ public sealed class ActivityLog(
         Guid? patientId = null,
         object? details = null,
         string? targetUsername = null,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         ActivityActor? actor = null)
     {
         var by = actor ?? context.Actor;
@@ -38,7 +38,7 @@ public sealed class ActivityLog(
             Username = Truncate(by.Username, ActivityLimits.Username) ?? string.Empty,
             IpAddress = Truncate(by.IpAddress, ActivityLimits.IpAddress),
             PatientId = patientId,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             TargetUsername = Truncate(targetUsername, ActivityLimits.Username),
             Details = SerializeDetails(details)
         };
@@ -51,7 +51,7 @@ public sealed class ActivityLog(
     public Task RecordAsync(ActivityEntry entry, CancellationToken ct) =>
         repository.AddAsync([entry], ct);
 
-    public async Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? procedureId = null)
+    public async Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null)
     {
         var ids = patientIds.Distinct().ToList();
         if (ids.Count == 0)
@@ -62,12 +62,12 @@ public sealed class ActivityLog(
         var since = timeProvider.GetUtcNow().UtcDateTime - window;
 
         IReadOnlySet<Guid> recent = window > TimeSpan.Zero
-            ? await repository.GetRecentlyRecordedPatientIdsAsync(actor.UserId, action, ids, procedureId, since, ct)
+            ? await repository.GetRecentlyRecordedPatientIdsAsync(actor.UserId, action, ids, pathwayId, since, ct)
             : new HashSet<Guid>();
 
         var entries = ids
             .Where(id => !recent.Contains(id))
-            .Select(id => Entry(action, id, procedureId: procedureId, actor: actor))
+            .Select(id => Entry(action, id, pathwayId: pathwayId, actor: actor))
             .ToList();
 
         if (entries.Count > 0)

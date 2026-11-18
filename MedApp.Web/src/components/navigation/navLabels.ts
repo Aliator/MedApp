@@ -12,6 +12,6 @@ export const acronym = (title: string) =>
     .map((word) => word[0].toUpperCase())
     .join('');
 
-/** A procedure's short label in the side nav: the patient's initials, then the procedure's acronym ("FA TKR"). */
-export const procedureNavLabel = (patientName: string, title: string) =>
-  [initials(patientName), acronym(title)].filter(Boolean).join(' ') || 'Procedure';
+/** A pathway's short label in the side nav: the patient's initials, then the pathway's acronym ("FA TKR"). */
+export const pathwayNavLabel = (patientName: string, title: string) =>
+  [initials(patientName), acronym(title)].filter(Boolean).join(' ') || 'Pathway';

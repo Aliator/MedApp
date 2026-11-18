@@ -10,7 +10,7 @@ using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Requests;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
@@ -23,7 +23,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class AppointmentsControllerTests
 {
-    private static readonly ProcedureActor Actor = new(UserId, Username);
+    private static readonly PathwayActor Actor = new(UserId, Username);
     private IFixture _fixture = null!;
     private AppointmentResponse _appointment = null!;
     private RecordingMediator _mediator = null!;
@@ -59,7 +59,7 @@ public sealed class AppointmentsControllerTests
         var result = await Controller.CreateAppointment(request, _cts.Token);
 
         _mediator.Request.Should().Be(new CreateAppointmentCommand(
-            request.PatientId, request.ProcedureId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor));
+            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/appointments/{_appointment.Id}");
@@ -84,7 +84,7 @@ public sealed class AppointmentsControllerTests
         var result = await Controller.RecordPastAppointment(request, _cts.Token);
 
         _mediator.Request.Should().Be(new RecordPastAppointmentCommand(
-            request.PatientId, request.ProcedureId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc,
+            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc,
             request.Outcome, request.Notes, Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
@@ -121,7 +121,7 @@ public sealed class AppointmentsControllerTests
         var result = await Controller.SearchAppointments(request, _cts.Token);
 
         _mediator.Request.Should().BeOfType<SearchAppointmentsQuery>().Which.Should().BeEquivalentTo(new SearchAppointmentsQuery(
-            request.Page, request.PageSize, request.Sort, request.Ascending, request.PatientId, request.ProcedureId, request.StageId,
+            request.Page, request.PageSize, request.Sort, request.Ascending, request.PatientId, request.PathwayId, request.StageId,
             request.StaffUserId, request.Statuses, request.From, request.To, request.Search));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);

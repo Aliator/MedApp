@@ -30,20 +30,20 @@ public static class NoteBuilder
     {
         var parts = stage switch
         {
-            DemoPathways.ReferralReceived => Referral(context, random),
-            DemoPathways.Triage => Triage(context, random),
-            DemoPathways.FirstClinicVisit => FirstClinicVisit(context, random),
-            DemoPathways.BiopsyOrSample => BiopsyOrSample(context, random),
-            DemoPathways.Histology => Histology(context, random),
-            DemoPathways.ResultsAndTeamReview => ResultsAndTeamReview(context, random),
-            DemoPathways.Treatment => Treatment(context, random),
-            DemoPathways.FollowUp => FollowUp(context, random),
-            DemoPathways.DischargeLetter => DischargeLetter(context, random),
-            DemoPathways.BloodAndUrineTests => BloodAndUrineTests(context, random),
-            DemoPathways.LabTests => LabTests(context, random),
-            DemoPathways.ClinicReview => ClinicReview(context, random),
-            DemoPathways.MedicinesReview => MedicinesReview(context, random),
-            DemoPathways.BiomechanicsSession => BiomechanicsSession(context, random),
+            DemoPathwayKinds.ReferralReceived => Referral(context, random),
+            DemoPathwayKinds.Triage => Triage(context, random),
+            DemoPathwayKinds.FirstClinicVisit => FirstClinicVisit(context, random),
+            DemoPathwayKinds.BiopsyOrSample => BiopsyOrSample(context, random),
+            DemoPathwayKinds.Histology => Histology(context, random),
+            DemoPathwayKinds.ResultsAndTeamReview => ResultsAndTeamReview(context, random),
+            DemoPathwayKinds.Treatment => Treatment(context, random),
+            DemoPathwayKinds.FollowUp => FollowUp(context, random),
+            DemoPathwayKinds.DischargeLetter => DischargeLetter(context, random),
+            DemoPathwayKinds.BloodAndUrineTests => BloodAndUrineTests(context, random),
+            DemoPathwayKinds.LabTests => LabTests(context, random),
+            DemoPathwayKinds.ClinicReview => ClinicReview(context, random),
+            DemoPathwayKinds.MedicinesReview => MedicinesReview(context, random),
+            DemoPathwayKinds.BiomechanicsSession => BiomechanicsSession(context, random),
             _ => ["Completed. Nothing further to add."],
         };
 
@@ -53,25 +53,25 @@ public static class NoteBuilder
     /// <summary>A note started on a stage still under way: what's been done so far, or what it's waiting for.</summary>
     public static string ProgressNote(string stage, NoteContext context, Random random) => stage switch
     {
-        DemoPathways.Triage => "Referral read; waiting for the GP's medication list before choosing the clinic.",
-        DemoPathways.FirstClinicVisit => Pick(random,
+        DemoPathwayKinds.Triage => "Referral read; waiting for the GP's medication list before choosing the clinic.",
+        DemoPathwayKinds.FirstClinicVisit => Pick(random,
             $"Referral reviewed ahead of clinic: {Pick(random, context.Kind.Indications)}.",
             "GP letter and earlier results reviewed before the visit."),
-        DemoPathways.BiopsyOrSample => "Information leaflet sent; consent to be confirmed on the day.",
-        DemoPathways.Histology => Pick(random,
+        DemoPathwayKinds.BiopsyOrSample => "Information leaflet sent; consent to be confirmed on the day.",
+        DemoPathwayKinds.Histology => Pick(random,
             "Specimen booked in; processing.",
             "In processing: slides due tomorrow.",
             "Waiting for extra levels before reporting."),
-        DemoPathways.ResultsAndTeamReview => Pick(random,
+        DemoPathwayKinds.ResultsAndTeamReview => Pick(random,
             "On the list for the next team meeting.",
             "Report back; call booked with the patient.",
             "Waiting for the report."),
-        DemoPathways.Treatment => "Listed for the next minor surgery list; aftercare leaflet sent.",
-        DemoPathways.BloodAndUrineTests => "Request forms printed; patient asked to bring a urine sample.",
-        DemoPathways.LabTests => "Samples booked in; on the afternoon run.",
-        DemoPathways.ClinicReview => "Results back; to go through them at the visit.",
-        DemoPathways.MedicinesReview => "Medication list asked for from the GP surgery.",
-        DemoPathways.BiomechanicsSession => $"Home programme sheet sent ahead of session {context.Occurrence}.",
+        DemoPathwayKinds.Treatment => "Listed for the next minor surgery list; aftercare leaflet sent.",
+        DemoPathwayKinds.BloodAndUrineTests => "Request forms printed; patient asked to bring a urine sample.",
+        DemoPathwayKinds.LabTests => "Samples booked in; on the afternoon run.",
+        DemoPathwayKinds.ClinicReview => "Results back; to go through them at the visit.",
+        DemoPathwayKinds.MedicinesReview => "Medication list asked for from the GP surgery.",
+        DemoPathwayKinds.BiomechanicsSession => $"Home programme sheet sent ahead of session {context.Occurrence}.",
         _ => Pick(random, "Started; notes to follow.", "In progress.", "Working on this today."),
     };
 
@@ -89,7 +89,7 @@ public static class NoteBuilder
     }
 
     /// <summary>A pathway record's own first note, when it's created (often empty).</summary>
-    public static string ProcedureNote(NoteContext context, Random random)
+    public static string PathwayNote(NoteContext context, Random random)
     {
         if (random.NextDouble() < 0.35)
             return string.Empty;
@@ -108,7 +108,7 @@ public static class NoteBuilder
     }
 
     /// <summary>An edit to a pathway record's note: what it said, with an update added.</summary>
-    public static string ProcedureNoteUpdate(string current, Random random)
+    public static string PathwayNoteUpdate(string current, Random random)
     {
         var update = Pick(random,
             "Update: transport booked for the visit.",
@@ -123,7 +123,7 @@ public static class NoteBuilder
     /// A note added to a pathway record after a stage, by whoever finished it: what happens next, for the rest of the
     /// team. Synthetic, and about "the patient", never a name.
     /// </summary>
-    public static string ProcedureFollowUpNote(string stage, StageRole role, Random random) => role switch
+    public static string PathwayFollowUpNote(string stage, StageRole role, Random random) => role switch
     {
         StageRole.Coordinator => Pick(random,
             $"{stage} done. Letter sent to the patient with the next steps.",
@@ -152,7 +152,7 @@ public static class NoteBuilder
     };
 
     /// <summary>A small fix to a note, by its author: a word corrected or a line added.</summary>
-    public static string ProcedureNoteFix(string current, Random random) =>
+    public static string PathwayNoteFix(string current, Random random) =>
         $"{current} {Pick(random, "(Edited: date confirmed with the patient.)", "(Edited: GP informed.)", "(Edited: typo corrected.)")}";
 
     public static string BlockReason(Random random) => Pick(random,
@@ -205,7 +205,7 @@ public static class NoteBuilder
         "Clinic cancelled for mandatory training; patient informed.",
         "Visiting clinic cancelled: the consultant was needed at the hospital; patient informed and rebooked.");
 
-    public const string ProcedureCancelledAppointmentReason = "Pathway cancelled; patient informed by phone.";
+    public const string PathwayCancelledAppointmentReason = "Pathway cancelled; patient informed by phone.";
 
     // Stage notes ----------------------------------------------------------------------------------------------
 

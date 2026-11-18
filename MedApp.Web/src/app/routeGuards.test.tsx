@@ -108,14 +108,14 @@ describe('route guards', () => {
 
   it('lets an admin into Insights, loading it for the period in the address', async () => {
     const fetch = mockApi({
-      'GET /api/procedures/insights': () => json(insights),
-      'GET /api/procedures/patient-procedure-stage/templates': () => json(templates),
+      'GET /api/pathways/insights': () => json(insights),
+      'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
     });
     renderApp({path: '/admin/insights?weeks=4', user: adminUser});
 
     expect(await screen.findByRole('heading', {name: 'Insights', level: 1})).toBeInTheDocument();
     expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toBeInTheDocument();
-    expect(fetch.mock.calls.some(([request]) => (request as Request).url.endsWith('/api/procedures/insights?Weeks=4'))).toBe(true);
+    expect(fetch.mock.calls.some(([request]) => (request as Request).url.endsWith('/api/pathways/insights?Weeks=4'))).toBe(true);
     // Longer than the default: the route's chunk (with the chart library) loads during the test, slowly on a busy runner.
   }, 15_000);
 
@@ -139,7 +139,7 @@ describe('route guards', () => {
     const {router} = renderApp({path: '/admin/insights', user: {...mustChangePasswordUser, roles: ['Admin', 'User'], isAdmin: true}});
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/change-password'));
-    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).not.toContain('/api/procedures/insights');
+    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).not.toContain('/api/pathways/insights');
   });
 
   it('sends someone signed out from the change-password page to sign in', async () => {

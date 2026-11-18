@@ -31,7 +31,7 @@ public sealed class PasswordChangeRequiredTests : IntegrationTest
     {
         yield return Case("GET", "/api/patients/search");
         yield return Case("POST", "/api/patients");
-        yield return Case("GET", "/api/procedures/patient-procedures/search");
+        yield return Case("GET", "/api/pathways/patient-pathways/search");
         yield return Case("GET", "/api/notifications");
         yield return Case("PUT", "/api/auth/me/settings");
         yield return Case("GET", "/api/auth/users/search");

@@ -1,10 +1,10 @@
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Procedures.Insights.Common;
+using MedApp.Application.Pathways.Insights.Common;
 
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>The demo centre's pathways, one per pathway template.</summary>
-public enum Pathway
+public enum PathwayKind
 {
     /// <summary>The skin lesion pathway as redesigned <see cref="VolumeCurves.SkinLesionRedesignedWeeksAgo"/> weeks ago.</summary>
     SkinLesion,
@@ -60,50 +60,50 @@ public static class VolumeCurves
     /// <item>Biomechanics course: 2 a week since it started <see cref="BiomechanicsStartedWeeksAgo"/> weeks ago.</item>
     /// </list>
     /// </summary>
-    public static double Expected(Pathway pathway, int weeksAgo, DateOnly monday)
+    public static double Expected(PathwayKind pathwayKind, int weeksAgo, DateOnly monday)
     {
         if (weeksAgo < 0 || weeksAgo >= HistoryWeeks)
             return 0;
 
         var thin = weeksAgo >= DetailedWeeks ? ThinHistory : 1.0;
-        return pathway switch
+        return pathwayKind switch
         {
-            Pathway.SkinLesion => weeksAgo > SkinLesionRedesignedWeeksAgo
+            PathwayKind.SkinLesion => weeksAgo > SkinLesionRedesignedWeeksAgo
                 ? 0
-                : Math.Min(8, 3 + (SkinLesionRedesignedWeeksAgo - weeksAgo) * 5.0 / SkinLesionRampWeeks) * Season(pathway, monday),
-            Pathway.SkinLesion2024 => weeksAgo <= SkinLesionRedesignedWeeksAgo ? 0 : 5 * thin * Season(pathway, monday),
-            Pathway.InflammatorySkin => weeksAgo == 1 ? 1 : 3.5 * thin * Season(pathway, monday),
-            Pathway.PostMenopausalBleeding => weeksAgo switch
+                : Math.Min(8, 3 + (SkinLesionRedesignedWeeksAgo - weeksAgo) * 5.0 / SkinLesionRampWeeks) * Season(pathwayKind, monday),
+            PathwayKind.SkinLesion2024 => weeksAgo <= SkinLesionRedesignedWeeksAgo ? 0 : 5 * thin * Season(pathwayKind, monday),
+            PathwayKind.InflammatorySkin => weeksAgo == 1 ? 1 : 3.5 * thin * Season(pathwayKind, monday),
+            PathwayKind.PostMenopausalBleeding => weeksAgo switch
             {
                 2 or 3 => 4,
                 >= 8 and <= 11 => 0.5,
                 _ => 2 * thin,
             },
-            Pathway.Prostate => 2 * thin,
-            Pathway.Diabetes => (IsRecallWeek(monday) ? 6 : 2) * thin,
-            Pathway.Biomechanics => weeksAgo <= BiomechanicsStartedWeeksAgo ? 2 : 0,
+            PathwayKind.Prostate => 2 * thin,
+            PathwayKind.Diabetes => (IsRecallWeek(monday) ? 6 : 2) * thin,
+            PathwayKind.Biomechanics => weeksAgo <= BiomechanicsStartedWeeksAgo ? 2 : 0,
             _ => 0,
         };
     }
 
     /// <summary>The same, for the week <paramref name="weeksAgo"/> weeks before the one <paramref name="nowUtc"/> is in.</summary>
-    public static double Expected(Pathway pathway, int weeksAgo, DateTime nowUtc) =>
-        Expected(pathway, weeksAgo, InsightsPeriod.MondayOf(UkTime.DateOf(nowUtc)).AddDays(-7 * weeksAgo));
+    public static double Expected(PathwayKind pathwayKind, int weeksAgo, DateTime nowUtc) =>
+        Expected(pathwayKind, weeksAgo, InsightsPeriod.MondayOf(UkTime.DateOf(nowUtc)).AddDays(-7 * weeksAgo));
 
     /// <summary>
     /// How the time of year changes a pathway's referrals, by the month its week starts in: people notice moles in
     /// summer clothes (May to September), and eczema and psoriasis flare in the cold (November to March). 1 for the
     /// pathways that don't follow the seasons.
     /// </summary>
-    public static double Season(Pathway pathway, DateOnly monday) => pathway switch
+    public static double Season(PathwayKind pathwayKind, DateOnly monday) => pathwayKind switch
     {
-        Pathway.SkinLesion or Pathway.SkinLesion2024 => monday.Month switch
+        PathwayKind.SkinLesion or PathwayKind.SkinLesion2024 => monday.Month switch
         {
             >= 5 and <= 9 => 1.25,
             12 or 1 or 2 => 0.8,
             _ => 1,
         },
-        Pathway.InflammatorySkin => monday.Month switch
+        PathwayKind.InflammatorySkin => monday.Month switch
         {
             >= 11 or <= 3 => 1.25,
             >= 6 and <= 8 => 0.8,
@@ -120,7 +120,7 @@ public static class VolumeCurves
     /// to how much of it has gone), rounded up or down at random, each at a random moment of the working day on a
     /// weekday of that week, and never after <paramref name="nowUtc"/>.
     /// </summary>
-    public static IReadOnlyList<DateTime> CreationTimes(Pathway pathway, DateTime nowUtc, Random random)
+    public static IReadOnlyList<DateTime> CreationTimes(PathwayKind pathwayKind, DateTime nowUtc, Random random)
     {
         var thisMonday = InsightsPeriod.MondayOf(UkTime.DateOf(nowUtc));
         var times = new List<DateTime>();
@@ -133,7 +133,7 @@ public static class VolumeCurves
                 ? Math.Clamp((nowUtc - weekStart).TotalDays / 7, 0, 1)
                 : 1;
 
-            var expected = Expected(pathway, weeksAgo, monday) * share;
+            var expected = Expected(pathwayKind, weeksAgo, monday) * share;
             var count = (int)Math.Floor(expected) + (random.NextDouble() < expected - Math.Floor(expected) ? 1 : 0);
 
             var week = new List<DateTime>();

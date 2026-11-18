@@ -30,7 +30,7 @@ public sealed class TestEnvironment
     /// <summary>The Azurite image the Helm chart runs (deploy/helm/medapp/values.yaml).</summary>
     public const string AzuriteImage = "mcr.microsoft.com/azure-storage/azurite:3.37.0";
 
-    /// <summary>The stage definition every database is seeded with (PatientProcedureStageDefinitionConfiguration).</summary>
+    /// <summary>The stage definition every database is seeded with (PatientPathwayStageDefinitionConfiguration).</summary>
     public static readonly Guid SeededStageDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     private static MsSqlContainer? _sql;
@@ -86,7 +86,7 @@ public sealed class TestEnvironment
             TablesToIgnore =
             [
                 new Table("__EFMigrationsHistory"),
-                new Table("PatientProcedureStageDefinitions"),
+                new Table("PatientPathwayStageDefinitions"),
                 new Table("CalendarActivityTypes"),
                 new Table("DataProtectionKeys"),
             ],
@@ -116,8 +116,8 @@ public sealed class TestEnvironment
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            DELETE FROM PatientProcedureStageDefinitions WHERE Id <> @seeded;
-            UPDATE PatientProcedureStageDefinitions
+            DELETE FROM PatientPathwayStageDefinitions WHERE Id <> @seeded;
+            UPDATE PatientPathwayStageDefinitions
             SET Name = N'Definition missing',
                 Description = N'This stage definition was deleted.',
                 Instructions = N'No instructions available.',

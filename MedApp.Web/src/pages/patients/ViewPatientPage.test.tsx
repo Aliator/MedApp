@@ -28,7 +28,7 @@ function renderPage(patient: object = oriel, user = adminUser, extra: Record<str
   current = patient;
   const fetch = mockApi({
     [`GET /api/patients/${id}`]: () => json(current),
-    'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
+    'GET /api/pathways/patient-pathways/search': () => json(pageOf([], 0)),
     [`GET ${ACCESS}`]: () =>
       json(pageOf([{id: 'e1', action: 'PatientViewed', username: 'k.ashford', atUtc: '2026-11-15T10:00:00Z', patientId: id, details: '{}'}])),
     ...extra,
@@ -72,7 +72,7 @@ describe('ViewPatientPage, privacy', () => {
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     expect(new URL(put.url).pathname).toBe(`/api/patients/${id}/restriction`);
-    expect(await put.json()).toEqual({set: true, reason: 'Synthetic accuracy check', confirmOpenProcedures: false});
+    expect(await put.json()).toEqual({set: true, reason: 'Synthetic accuracy check', confirmOpenPathways: false});
   });
 
   it('keeps the flag dialog open, with the reason typed, when someone else changed the record meanwhile', async () => {
@@ -101,7 +101,7 @@ describe('ViewPatientPage, privacy', () => {
 
     expect(await screen.findByText("This patient's record has been anonymised, so it can't be changed.")).toBeInTheDocument();
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
-    expect(await put.json()).toEqual({set: false, reason: null, confirmOpenProcedures: false});
+    expect(await put.json()).toEqual({set: false, reason: null, confirmOpenPathways: false});
   });
 
   it('marks the record as disputed, and clears a dispute', async () => {
@@ -121,7 +121,7 @@ describe('ViewPatientPage, privacy', () => {
 
     await waitFor(() => expect(calls(fetch).filter((c) => c === `PUT /api/patients/${id}/dispute`)).toHaveLength(2));
     const last = fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === 'PUT').pop()!;
-    expect(await last.json()).toEqual({set: false, reason: null, confirmOpenProcedures: false});
+    expect(await last.json()).toEqual({set: false, reason: null, confirmOpenPathways: false});
   });
 
   it('cancels a flag change and anonymising without asking the API', async () => {

@@ -22,7 +22,7 @@ export const ACTIVITY_ACTIONS = [
   'PatientDisputed',
   'PatientDisputeCleared',
   'RetentionKept',
-  'ProcedureViewed',
+  'PathwayViewed',
   'DemographicsLookedUp',
   'SignedIn',
   'SignInFailed',
@@ -68,7 +68,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   PatientDisputed: 'Marked disputed',
   PatientDisputeCleared: 'Dispute cleared',
   RetentionKept: 'Kept past retention',
-  ProcedureViewed: 'Procedure viewed',
+  PathwayViewed: 'Pathway viewed',
   DemographicsLookedUp: 'NHS number looked up',
   SignedIn: 'Signed in',
   SignInFailed: 'Sign-in refused',
@@ -107,7 +107,7 @@ export const activityActionLabel = (action: string | null | undefined) =>
 export const FILE_ACTIONS: ActivityAction[] = ['AttachmentsViewed', 'AttachmentDownloaded'];
 
 /** The actions that read a patient's record, for the "who has looked" quick filter. */
-export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'ProcedureViewed', 'PatientExported', ...FILE_ACTIONS];
+export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'PatientExported', ...FILE_ACTIONS];
 
 /** The sign-in actions, for their quick filter. */
 export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'TwoFactorChallenged', 'SignInFailed', 'SignedOut'];
@@ -211,7 +211,7 @@ const text = (value: unknown) => (typeof value === 'string' && value.trim() ? va
  * "By NHS number (FHIR API): 1 found", "A file on the patient" or "User → Admin, User". Empty when the action says
  * it all.
  */
-export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details' | 'procedureId'>): string {
+export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details' | 'pathwayId'>): string {
   const d = parse(entry.details);
   switch (entry.action) {
     case 'PatientUpdated': {
@@ -252,11 +252,11 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       return text(d.role);
     case 'RetentionKept':
       return [typeof d.keepUntil === 'string' ? `Until ${formatShortDate(d.keepUntil)}` : '', text(d.reason)].filter(Boolean).join(': ');
-    // Recorded with the procedure when the files are a procedure's or a stage's; the file's name is never recorded.
+    // Recorded with the pathway when the files are a pathway's or a stage's; the file's name is never recorded.
     case 'AttachmentsViewed':
-      return entry.procedureId ? "A procedure's or stage's files" : "All the patient's files";
+      return entry.pathwayId ? "A pathway's or stage's files" : "All the patient's files";
     case 'AttachmentDownloaded':
-      return entry.procedureId ? 'A file on a procedure or stage' : 'A file on the patient';
+      return entry.pathwayId ? 'A file on a pathway or stage' : 'A file on the patient';
     case 'PatientRestricted':
     case 'PatientRestrictionLifted':
     case 'PatientDisputed':

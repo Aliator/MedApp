@@ -20,7 +20,10 @@
 # The same as tools/seed-demo-data.sh, for Windows PowerShell 5.1 and later. Options are passed as they are, so they
 # keep their two dashes (--confirm).
 
-$ErrorActionPreference = 'Stop'
+# 'Continue', not 'Stop': Windows PowerShell 5.1 turns a native command's stderr into an error record whenever the
+# caller redirects it (*>&1, | Tee-Object), and 'Stop' would end the script at the seeder's first progress line. Every
+# native step checks its exit code instead (Assert-Succeeded).
+$ErrorActionPreference = 'Continue'
 $seedArgs = $args
 
 function Assert-Succeeded([string]$step) {

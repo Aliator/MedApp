@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using static MedApp.Domain.Appointments.AppointmentStatus;
 
 namespace MedApp.Application.Appointments.Common;
@@ -99,17 +99,17 @@ public static partial class AppointmentWorkflow
     public const string ChangedMeanwhileMessage =
         "Someone else changed this appointment just now. Reload it and try again.";
 
-    /// <summary>A procedure change refused because someone else saved one of its appointments first.</summary>
-    public const string ProcedureAppointmentChangedMeanwhileMessage =
-        "Someone else changed one of this procedure's appointments just now. Reload the procedure and try again.";
+    /// <summary>A pathway change refused because someone else saved one of its appointments first.</summary>
+    public const string PathwayAppointmentChangedMeanwhileMessage =
+        "Someone else changed one of this pathway's appointments just now. Reload the pathway and try again.";
 
     /// <summary>A booking of a Requested appointment that someone else booked first.</summary>
     public const string BookedMeanwhileMessage =
         "Someone else has already booked this appointment. Reload it to see when; reschedule it from there if it needs to move.";
 
-    /// <summary>A procedure change whose new visit lost a race with another one for the same stage.</summary>
+    /// <summary>A pathway change whose new visit lost a race with another one for the same stage.</summary>
     public const string StageVisitAddedMeanwhileMessage =
-        "Someone else asked for a visit for this stage just now. Reload the procedure and try again.";
+        "Someone else asked for a visit for this stage just now. Reload the pathway and try again.";
 
     /// <summary>
     /// Why a stage can't have another open appointment, pointing to the one it has (decision 18): when and with whom
@@ -135,23 +135,23 @@ public static partial class AppointmentWorkflow
         "If that's the one that happened, record its outcome instead; otherwise cancel it first.";
 
     /// <summary>
-    /// Whether a walk-in starting at <paramref name="startUtc"/> is from before its procedure: before the UK day it was
-    /// created, so a visit earlier on that day (seen at 10:00, the procedure created at 10:40) counts (decision 74).
+    /// Whether a walk-in starting at <paramref name="startUtc"/> is from before its pathway: before the UK day it was
+    /// created, so a visit earlier on that day (seen at 10:00, the pathway created at 10:40) counts (decision 74).
     /// </summary>
-    public static bool IsBeforeProcedure(DateTime startUtc, DateTime procedureCreatedUtc) =>
-        UkTime.DateOf(startUtc) < UkTime.DateOf(procedureCreatedUtc);
+    public static bool IsBeforePathway(DateTime startUtc, DateTime pathwayCreatedUtc) =>
+        UkTime.DateOf(startUtc) < UkTime.DateOf(pathwayCreatedUtc);
 
-    /// <summary>A walk-in for a procedure, from before the day the procedure was created (decision 74).</summary>
-    public static string BeforeProcedureMessage(DateTime procedureCreatedUtc) =>
-        $"This visit was before the day the procedure was created ({UkTime.Describe(procedureCreatedUtc)}). " +
-        "Record it without the procedure, or for the procedure it was for.";
+    /// <summary>A walk-in for a pathway, from before the day the pathway was created (decision 74).</summary>
+    public static string BeforePathwayMessage(DateTime pathwayCreatedUtc) =>
+        $"This visit was before the day the pathway was created ({UkTime.Describe(pathwayCreatedUtc)}). " +
+        "Record it without the pathway, or for the pathway it was for.";
 
     /// <summary>
-    /// Why a walk-in can't be for this stage: one after the procedure's current stage hasn't been reached yet (decision
+    /// Why a walk-in can't be for this stage: one after the pathway's current stage hasn't been reached yet (decision
     /// 77). The current stage and earlier ones can have one; so can any stage once every stage is finished.
     /// </summary>
-    public static string? WhyStageNotReached(PatientProcedure procedure, PatientProcedureStage stage) =>
-        ProcedureWorkflow.CurrentStage(procedure) is { } current && stage.StageOrder > current.StageOrder
+    public static string? WhyStageNotReached(PatientPathway pathway, PatientPathwayStage stage) =>
+        PathwayWorkflow.CurrentStage(pathway) is { } current && stage.StageOrder > current.StageOrder
             ? $"The '{stage.Name}' stage hasn't been reached yet: the current stage is '{current.Name}'. Record the visit for that stage, or without one."
             : null;
 

@@ -23,7 +23,7 @@ import {
 import {ActivityToken} from '../../components/calendar/CalendarTokens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
-import {SetupStatusToken} from '../../components/procedures/SetupCells';
+import {SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';

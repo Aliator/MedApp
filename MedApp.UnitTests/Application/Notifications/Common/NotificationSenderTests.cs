@@ -54,7 +54,7 @@ public sealed class NotificationSenderTests
     public async Task SendAsync_UserTurnedThatKindOff_SendsNothing()
     {
         _preferences.Setup(p => p.GetAsync(UserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NotificationPreferences { UserId = UserId, ProcedureAssigned = false });
+            .ReturnsAsync(new NotificationPreferences { UserId = UserId, PathwayAssigned = false });
 
         await _sender.SendAsync(CreateNotification(), CancellationToken.None);
 
@@ -66,7 +66,7 @@ public sealed class NotificationSenderTests
     public async Task SendAsync_UserLeftThatKindOn_SendsIt()
     {
         _preferences.Setup(p => p.GetAsync(UserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NotificationPreferences { UserId = UserId, ProcedureAssigned = true });
+            .ReturnsAsync(new NotificationPreferences { UserId = UserId, PathwayAssigned = true });
 
         await _sender.SendAsync(CreateNotification(), CancellationToken.None);
 
@@ -76,7 +76,7 @@ public sealed class NotificationSenderTests
     [Test]
     public async Task SendAsync_MonitoringNotification_SendsWithoutLookingUpChoices()
     {
-        var notification = new Notification { Id = NotificationId, UserId = UserId, Kind = NotificationKind.MonitoredProcedureCreated };
+        var notification = new Notification { Id = NotificationId, UserId = UserId, Kind = NotificationKind.MonitoredPathwayCreated };
 
         await _sender.SendAsync(notification, CancellationToken.None);
 

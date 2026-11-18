@@ -1,7 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Monitoring.Commands.CreateMonitoringRule;
 
@@ -22,7 +22,7 @@ public sealed class CreateMonitoringRuleValidatorTests
     [Test]
     public void Validate_NoConditions_Passes()
     {
-        _validator.Validate(new CreateMonitoringRuleCommand(OwnerId, null, "ProcedureCreated", null, null, null, false))
+        _validator.Validate(new CreateMonitoringRuleCommand(OwnerId, null, "PathwayCreated", null, null, null, false))
             .IsValid.Should().BeTrue();
     }
 
@@ -41,7 +41,7 @@ public sealed class CreateMonitoringRuleValidatorTests
         var result = _validator.Validate(Valid() with { Event = monitoringEvent });
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Event")
-            .Which.ErrorMessage.Should().StartWith("Event must be one of: ProcedureCreated, StageFinished");
+            .Which.ErrorMessage.Should().StartWith("Event must be one of: PathwayCreated, StageFinished");
     }
 
     [TestCase("Critical")]
@@ -63,8 +63,8 @@ public sealed class CreateMonitoringRuleValidatorTests
 
     [TestCase("StageFinished", true)]
     [TestCase("StageUnlocked", true)]
-    [TestCase("ProcedureCreated", false)]
-    [TestCase("ProcedureAssigned", false)]
+    [TestCase("PathwayCreated", false)]
+    [TestCase("PathwayAssigned", false)]
     public void Validate_StageChosen_PassesOnlyForStageEvents(string monitoringEvent, bool isValid)
     {
         var result = _validator.Validate(Valid() with { Event = monitoringEvent });

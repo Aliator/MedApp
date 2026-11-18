@@ -17,7 +17,7 @@ describe('note deletion reasons', () => {
   });
 
   it('describes a reason with its detail, or either alone', () => {
-    expect(describeNoteDeletionReason('WrongPatient', ' Synthetic: the other procedure. ')).toBe('Wrong patient: Synthetic: the other procedure.');
+    expect(describeNoteDeletionReason('WrongPatient', ' Synthetic: the other pathway. ')).toBe('Wrong patient: Synthetic: the other pathway.');
     expect(describeNoteDeletionReason('Duplicate', '  ')).toBe('Duplicate');
     expect(describeNoteDeletionReason(null, 'Synthetic detail.')).toBe('Synthetic detail.');
     expect(describeNoteDeletionReason(undefined, undefined)).toBe('');

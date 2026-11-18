@@ -33,7 +33,7 @@ export interface DayCalendarProps {
 
 /**
  * One person's day (decision 32): its appointments, blocked time and meetings on a read-only `CalendarGrid`, with
- * Previous day, Today and Next day (working days). Clicking an appointment opens its procedure, or its patient when it
+ * Previous day, Today and Next day (working days). Clicking an appointment opens its pathway, or its patient when it
  * isn't for one; blocks and meetings are only shown. It fills the height it's given, in a card. Use it where someone wants to see a day at a glance, like Home;
  * the Calendar page is where the time is changed.
  */
@@ -43,7 +43,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
   const [date, setDate] = useState(initialDate ?? today);
   const calendar = useQuery(dayCalendarQuery(date, staffUserId));
   const day = calendar.data?.days?.find((d) => d.date === date);
-  // Only appointments open (their procedure or patient); blocked time and meetings are just shown (the Calendar page
+  // Only appointments open (their pathway or patient); blocked time and meetings are just shown (the Calendar page
   // has their details).
   const items = calendarItems(calendar.data).map((item) => (item.kind === 'appointment' ? item : {...item, isReadOnly: true}));
   const hasAppointments = (calendar.data?.appointments ?? []).length > 0;
@@ -51,7 +51,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
   const open = (item: CalendarGridItem) => {
     const appointment = calendar.data?.appointments?.find((a) => appointmentKey(a.id) === item.key);
     if (!appointment) return;
-    if (appointment.procedureId) void navigate({to: '/procedures/$id', params: {id: appointment.procedureId}});
+    if (appointment.pathwayId) void navigate({to: '/pathways/$id', params: {id: appointment.pathwayId}});
     else void navigate({to: '/patients/$id', params: {id: appointment.patientId ?? ''}});
   };
 

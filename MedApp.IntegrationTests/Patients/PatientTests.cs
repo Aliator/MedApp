@@ -89,7 +89,7 @@ public sealed class PatientTests : IntegrationTest
     }
 
     [Test]
-    public async Task DeletePatient_NoProcedures_DeletesThem()
+    public async Task DeletePatient_NoPathways_DeletesThem()
     {
         var patient = await CreatePatientAsync(_staff);
 
@@ -100,16 +100,16 @@ public sealed class PatientTests : IntegrationTest
     }
 
     [Test]
-    public async Task DeletePatient_WithAProcedure_Returns409AndKeepsThem()
+    public async Task DeletePatient_WithAPathway_Returns409AndKeepsThem()
     {
         var admin = await SignInAsAdminAsync();
-        var procedure = await CreatePatientWithProcedureAsync(admin, stages: 1);
+        var pathway = await CreatePatientWithPathwayAsync(admin, stages: 1);
 
-        var response = await _staff.DeleteAsync($"/api/patients/{procedure.PatientId}");
+        var response = await _staff.DeleteAsync($"/api/patients/{pathway.PatientId}");
 
         var problem = await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
         problem.Title.Should().NotBeNullOrWhiteSpace();
-        await (await _staff.GetAsync($"/api/patients/{procedure.PatientId}")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _staff.GetAsync($"/api/patients/{pathway.PatientId}")).ShouldHaveStatusAsync(HttpStatusCode.OK);
     }
 
     [Test]

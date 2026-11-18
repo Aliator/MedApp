@@ -6,12 +6,12 @@ import {adminUser, json, mockFetch, pageOf, renderApp} from '../test/render';
 
 /**
  * Every page about one patient shows their banner (the control for the wrong-patient hazards H-01 and H-02). This
- * renders each such route through the real router, and fails if a new route under a patient or a procedure isn't
+ * renders each such route through the real router, and fails if a new route under a patient or a pathway isn't
  * listed here, so a page can't be added without it.
  */
 
 const patientId = '0000000b-0000-4000-8000-000000000001';
-const procedureId = '0000000b-0000-4000-8000-000000000002';
+const pathwayId = '0000000b-0000-4000-8000-000000000002';
 // A synthetic patient and test NHS number (the 999 range is never issued to real patients).
 const patient = {
   id: patientId,
@@ -21,8 +21,8 @@ const patient = {
   email: 'freya.ahmed18@example.com',
   nhsNumber: '9990000018',
 };
-const procedure = {
-  id: procedureId,
+const pathway = {
+  id: pathwayId,
   patientId,
   patientName: 'Freya Ahmed',
   patient,
@@ -51,10 +51,10 @@ const PAGES: Record<string, string> = {
   '/patients/$id': `/patients/${patientId}`,
   '/patients/$id/edit': `/patients/${patientId}/edit`,
   '/patients/$id/export': `/patients/${patientId}/export`,
-  '/patients/$id/procedures': `/patients/${patientId}/procedures`,
-  '/procedures/$id': `/procedures/${procedureId}`,
-  '/procedures/$id/edit': `/procedures/${procedureId}/edit`,
-  '/procedures/new': `/procedures/new?patientId=${patientId}`,
+  '/patients/$id/pathways': `/patients/${patientId}/pathways`,
+  '/pathways/$id': `/pathways/${pathwayId}`,
+  '/pathways/$id/edit': `/pathways/${pathwayId}/edit`,
+  '/pathways/new': `/pathways/new?patientId=${patientId}`,
 };
 
 function answerApi() {
@@ -62,9 +62,9 @@ function answerApi() {
     const {pathname} = new URL(request.url);
     if (pathname === `/api/patients/${patientId}`) return json(patient);
     if (pathname === `/api/patients/${patientId}/export`) return json({exportedAtUtc: '2026-11-16T09:00:00Z', exportedBy: 'test-admin', patient});
-    if (pathname === `/api/patients/${patientId}/timeline/overview`) return json({upcoming: [], openCount: 0, procedures: []});
+    if (pathname === `/api/patients/${patientId}/timeline/overview`) return json({upcoming: [], openCount: 0, pathways: []});
     if (pathname === `/api/patients/${patientId}/timeline`) return json({items: [], nextCursor: null});
-    if (pathname === `/api/procedures/patient-procedures/${procedureId}`) return json(procedure);
+    if (pathname === `/api/pathways/patient-pathways/${pathwayId}`) return json(pathway);
     if (pathname === '/api/demographics/status') return json({isAvailable: false, source: null});
     if (pathname === '/api/notifications') return json({items: [], unreadCount: 0});
     if (pathname === '/api/auth/me/settings') return json({settings: null});
@@ -74,10 +74,10 @@ function answerApi() {
 }
 
 describe('the patient banner', {timeout: 30_000}, () => {
-  it('is checked on every page about one patient or their procedure', () => {
+  it('is checked on every page about one patient or their pathway', () => {
     const router = createRouter({routeTree, context: {queryClient: new QueryClient()}});
     const aboutOnePatient = Object.keys(router.routesByPath).filter(
-      (path) => path.startsWith('/patients/$id') || (path.startsWith('/procedures/') && path !== '/procedures/'),
+      (path) => path.startsWith('/patients/$id') || (path.startsWith('/pathways/') && path !== '/pathways/'),
     );
 
     expect(aboutOnePatient.sort()).toEqual(Object.keys(PAGES).sort());

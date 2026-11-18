@@ -15,14 +15,14 @@ describe('ChartTable', () => {
         categoryKey="name"
         categoryHeader="Assigned to"
         series={[{key: 'count', label: 'Overdue'}, {key: 'hours', label: 'Time', format: (v) => `${v} h`}]}
-        hrefFor={(row) => (row.name === 'Nobody' ? undefined : `/procedures?assignee=${row.name}`)}
+        hrefFor={(row) => (row.name === 'Nobody' ? undefined : `/pathways?assignee=${row.name}`)}
         label="Overdue by assignee"
       />,
     );
 
     const table = await screen.findByRole('table', {name: 'Overdue by assignee'});
     expect(within(table).getByRole('columnheader', {name: 'Assigned to'})).toBeInTheDocument();
-    expect(within(table).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', '/procedures?assignee=k.ashford');
+    expect(within(table).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', '/pathways?assignee=k.ashford');
     // A row with nowhere to go is plain text.
     expect(within(table).getByText('Nobody').closest('a')).toBeNull();
     expect(within(table).getByText('1.5 h')).toBeInTheDocument();

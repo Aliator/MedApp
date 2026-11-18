@@ -12,7 +12,7 @@ public sealed class CalendarBlockConfiguration : IEntityTypeConfiguration<Calend
 
         builder.HasKey(x => x.Id);
 
-        // No foreign key to the users table for StaffUserId, as with procedure assignments.
+        // No foreign key to the users table for StaffUserId, as with pathway assignments.
         builder.Property(x => x.Note)
             .IsRequired()
             .HasMaxLength(200)

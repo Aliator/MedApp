@@ -1,10 +1,10 @@
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Domain.Monitoring;
 
 /// <summary>
-/// An admin's rule for being told about something staff do to procedures, e.g. "notify me when Sam finishes Bloods on
-/// a High or Urgent priority procedure". When a change matches an enabled rule, its owner gets a notification. Each
+/// An admin's rule for being told about something staff do to pathways, e.g. "notify me when Sam finishes Bloods on
+/// a High or Urgent priority pathway". When a change matches an enabled rule, its owner gets a notification. Each
 /// rule belongs to one admin, who alone sees and changes it.
 /// <para>
 /// Like the audit log and notifications, it has no foreign keys: a rule naming a deleted account, template or stage
@@ -19,17 +19,17 @@ public sealed class MonitoringRule
     public Guid OwnerUserId { get; init; }
 
     /// <summary>
-    /// The staff member it watches (for <see cref="MonitoringEvent.ProcedureAssigned"/>, the one assigned), or null for
+    /// The staff member it watches (for <see cref="MonitoringEvent.PathwayAssigned"/>, the one assigned), or null for
     /// anyone.
     /// </summary>
     public Guid? SubjectUserId { get; set; }
 
     public MonitoringEvent Event { get; set; }
 
-    /// <summary>Only procedures of this priority or higher, e.g. High for High and Urgent; null for any.</summary>
-    public PatientProcedurePriority? MinimumPriority { get; set; }
+    /// <summary>Only pathways of this priority or higher, e.g. High for High and Urgent; null for any.</summary>
+    public PatientPathwayPriority? MinimumPriority { get; set; }
 
-    /// <summary>Only procedures from this template; null for any.</summary>
+    /// <summary>Only pathways from this template; null for any.</summary>
     public Guid? TemplateId { get; set; }
 
     /// <summary>

@@ -25,7 +25,7 @@ public static class ActivityEntryMapper
         PatientName = entry.PatientId is { } id
             ? patientNames.TryGetValue(id, out var name) ? name : DeletedPatient
             : null,
-        ProcedureId = entry.ProcedureId,
+        PathwayId = entry.PathwayId,
         TargetUsername = entry.TargetUsername,
         Details = entry.Details
     };

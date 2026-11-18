@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useEffect} from 'react';
 import type {Notepad} from '../../api/notepad';
-import type {Procedure} from '../../api/procedures';
+import type {Pathway} from '../../api/pathways';
 import {NOTEPAD_OPEN_KEY, NotepadProvider, useNotepad, useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {HalfViewContext, InHalfPaneContext} from '../../components/pages/halfView';
 import {
@@ -29,7 +29,7 @@ const notepad = (overrides: Partial<Notepad> = {}): Notepad => ({
   ...overrides,
 });
 
-const procedure = (id: string, title: string): Procedure => ({
+const pathway = (id: string, title: string): Pathway => ({
   id,
   title,
   patientId: `patient-${id}`,
@@ -50,15 +50,15 @@ describe('NotepadPage in a half view', () => {
     return <p>{useNotepad()!.isOpen ? 'docked open' : 'docked closed'}</p>;
   }
 
-  /** A procedure page on the left, offering itself to the signed-in layout's notepad as the procedure page does. */
-  function ProcedureOnLeft({procedure: offered}: {procedure: Procedure}) {
+  /** A pathway page on the left, offering itself to the signed-in layout's notepad as the pathway page does. */
+  function PathwayOnLeft({pathway: offered}: {pathway: Pathway}) {
     return (
       <HalfViewContext.Provider value={{isHalf: true, side: 'left'}}>
-        <Offer procedure={offered} />
+        <Offer pathway={offered} />
       </HalfViewContext.Provider>
     );
   }
-  function Offer({procedure: offered}: {procedure: Procedure}) {
+  function Offer({pathway: offered}: {pathway: Pathway}) {
     useOfferToNotepad(offered);
     return null;
   }
@@ -72,12 +72,12 @@ describe('NotepadPage in a half view', () => {
   }
 
   /** The page in the half view's router, inside the signed-in layout's notepad, as `AppLayout` puts it. */
-  function renderInHalf({onClose = vi.fn(), left, isDockedOpen = false}: {onClose?: () => void; left?: Procedure; isDockedOpen?: boolean} = {}) {
+  function renderInHalf({onClose = vi.fn(), left, isDockedOpen = false}: {onClose?: () => void; left?: Pathway; isDockedOpen?: boolean} = {}) {
     const result = renderWithApp(
       <NotepadProvider>
         {isDockedOpen && <DockedOpen />}
         <DockedShown />
-        {left && <ProcedureOnLeft procedure={left} />}
+        {left && <PathwayOnLeft pathway={left} />}
         <InHalfPaneContext.Provider value={true}>
           <HalfViewContext.Provider value={{isHalf: true, side: 'right', onClose}}>
             <NotepadPage />
@@ -164,16 +164,16 @@ describe('NotepadPage in a half view', () => {
     expect(box).toHaveFocus();
   });
 
-  it("adds a note to the procedure page beside it (the signed-in layout's), after the same confirmation", async () => {
+  it("adds a note to the pathway page beside it (the signed-in layout's), after the same confirmation", async () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad()),
       [`PUT ${NOTEPAD}`]: () => json(notepad({text: '', version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', text: 'x', version: 1}, 201),
+      'POST /api/pathways/patient-pathways/p1/notes': () => json({id: 'n1', text: 'x', version: 1}, 201),
     });
-    const {user} = renderInHalf({left: procedure('p1', 'Synthetic knee review')});
+    const {user} = renderInHalf({left: pathway('p1', 'Synthetic knee review')});
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
+    await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
 
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('region', {name: 'Patient: Ahmedp1, Freya'})).toBeInTheDocument();
@@ -182,15 +182,15 @@ describe('NotepadPage in a half view', () => {
 
     await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(true));
     const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
-    expect(new URL(post.url).pathname).toBe('/api/procedures/patient-procedures/p1/notes');
+    expect(new URL(post.url).pathname).toBe('/api/pathways/patient-pathways/p1/notes');
   });
 
-  it('offers nothing to add to with no procedure page beside it', async () => {
+  it('offers nothing to add to with no pathway page beside it', async () => {
     mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
     renderInHalf();
     await screen.findByRole('textbox', {name: 'Notepad'});
 
-    expect(isDisabled(screen.getByRole('button', {name: 'Add Note to Procedure'}))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', {name: 'Add Note to Pathway'}))).toBe(true);
   });
 });
 

@@ -4,7 +4,7 @@ Status: **planned** · 2026-11-18 · Phase 2 of the community specialist centre 
 
 **In one paragraph:** a referral-led centre needs a front door. This phase adds **roles and permissions** that admins manage (so each member of staff does only what their job needs), **specialties** (admin-managed, each pathway template belongs to one, staff belong to several), **referrals** (a record of each request from a GP practice, with its letter, in an inbox), a **triage decision by a clinician** (accept into a pathway, reject, or redirect, with a reason), and a **waiting-time clock** on each referral (days waited, a target by specialty and priority, pauses with reasons, breaches shown). It also adds a filter for the stage a pathway has reached. **The clinician decides; the app records.** Nothing is scored, ranked by clinical content or suggested.
 
-It's written in the names of the Pathway rename (`feature/pathways-rename`, `docs/glossary.md`): `PatientPathway`, `PathwayTemplate`, `PathwayChange`, `PathwayWorkflow`, `api/pathways`. Build it after that merges. Numbers for stored enums and `ActivityAction` and `NotificationKind` are the next free ones today; if another branch takes one first, use the next free one and correct this document.
+It uses the names from the Pathway rename, which is on `main` (#144; `docs/glossary.md`): `PatientPathway`, `PathwayTemplate`, `PathwayChange`, `PathwayWorkflow`, `api/pathways`. Numbers for stored enums and `ActivityAction` and `NotificationKind` are the next free ones today; if another branch takes one first, use the next free one and correct this document.
 
 ## 1. Decisions
 
@@ -284,7 +284,7 @@ The owner brought roles into this phase, managed by admins on a page of their ow
 | `PatientTimelineKind` | not stored | Referrals and Waiting time are added; regroup freely | 5, 7 |
 | Permissions | text (`RolePermissions.Permission`, varchar 64) | The names in decision 68's table, exactly: `UseApp` (implicit, never stored), `ViewPatients`, `EditPatients`, `DeletePatients`, `RegisterReferrals`, `TriageReferrals`, `CreatePathways`, `WorkPathways`, `AssignPathways`, `OverrideStages`, `DeletePathways`, `BookAppointments`, `ManageAnyCalendar`, `ArrangeMeetings`, `AttachFiles`, `ViewInsights`, `ManageMonitoring`, `ManageSetup`, `ManageUsers`, `ManageRoles`, `ManageSecuritySettings`, `ViewAudit`, `ExportPatientRecords`, `ManagePrivacy`, `CorrectRecords`. Renaming one needs a migration that renames its rows | 2 |
 | Fixed IDs | Guid | The General specialty `5a1d0c4e-7b2f-4e61-9c3a-000000000001`; the starting roles Clinician `…-000000000011`, Nurse `…-000000000012`, Booking `…-000000000013`, Lab `…-000000000014`, Manager `…-000000000015` (each `5a1d0c4e-7b2f-4e61-9c3a-` plus those digits). `Admin` and `User` keep their existing IDs and are found by name | 1, 2 |
-| Migrations | name, in order | `AddedSpecialties`, `AddedRolePermissions`, `AddedReferrals`, `AddedReferralNotifications`, `AddedWaitingTimeClock` | 1, 2, 5, 6, 7 |
+| Migrations | name, in order | `AddedSpecialties`, `AddedRolePermissions`, `AddedReferrals`, `AddedReferralNotifications`, `AddedWaitingTimeClock`, each on top of `main`'s latest (today `20261118075440_RenamedProceduresToPathways`), so each one's timestamp is later than the one before | 1, 2, 5, 6, 7 |
 
 **Where the rules live** (`MedApp.Application`):
 - `Specialties/`: commands, queries, `SpecialtyMapper`, `ISpecialtyRepository`; membership under `Authentication/Users/` (`SetUserSpecialties`), as roles are.
@@ -393,7 +393,7 @@ In `tools/MedApp.DevMcp/DemoData` (run by `tools/seed-demo-data.sh`), through th
 - **`data-inventory.md`** and **`dpia.md`:** referrals (special category, from the referrer: a new source), letters, pause reasons, referrer details (a GP's name: personal data of a third party), staff specialty memberships, roles and permissions. New DPIA risks: 27 (referral free text and letters reaching places they shouldn't), 28 (staff attribution of triage decisions).
 - **`ropa.md`**, **`privacy-notice-patients-template.md`** (data received from the referrer), **`privacy-notice-staff-template.md`** (roles, specialties, decisions recorded by name), **`data-subject-rights.md`** (the export covers referrals), **`retention-schedule.md`** (referrals kept with the record).
 - **Security** (`docs/security/`), in the roles PRs: `threat-model.md` (elevation of privilege through role editing, the last admin, a page left open after a permission is removed) and `asvs.md` (V8 authorisation: least privilege, deny by default, checks on the server, administrative interfaces); also `docs/governance/security-policies.md` (access control), and `dpia.md` and `isms-risk-register.md` (the risk that any member of staff can change any record, now reduced).
-- **Agent guides:** a new `docs/agents/referrals.md`; `auth.md` (roles and permissions); `privacy.md`, `timeline.md`, `notifications.md`, `attachments.md`, `insights.md` and `procedures.md` (pathways) updated; `AGENTS.md`'s project table and mapper list.
+- **Agent guides:** a new `docs/agents/referrals.md`; `auth.md` (roles and permissions); `privacy.md`, `timeline.md`, `notifications.md`, `attachments.md`, `insights.md` and `pathways.md` updated; `AGENTS.md`'s project table and mapper list.
 
 ## 9. Building it: the PRs in order
 

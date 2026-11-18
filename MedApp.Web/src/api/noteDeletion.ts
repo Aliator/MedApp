@@ -18,7 +18,7 @@ export const isNoteDeletionReason = (value: string | null | undefined): value is
 export const noteDeletionReasonLabel = (reason: string | null | undefined) =>
   NOTE_DELETION_REASONS.find((r) => r.value === reason)?.label ?? reason ?? '';
 
-/** A reason and its detail in words: "Wrong patient: belongs to the other procedure", or just the reason. */
+/** A reason and its detail in words: "Wrong patient: belongs to the other pathway", or just the reason. */
 export function describeNoteDeletionReason(reason: string | null | undefined, detail?: string | null): string {
   const label = noteDeletionReasonLabel(reason);
   const more = detail?.trim();

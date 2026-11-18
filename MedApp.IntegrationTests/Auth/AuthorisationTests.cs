@@ -21,8 +21,8 @@ public sealed class AuthorisationTests : IntegrationTest
 
     private static IEnumerable<TestCaseData> AdminOnlyEndpoints()
     {
-        var procedure = $"/api/procedures/patient-procedures/{AnyId}";
-        var stages = "/api/procedures/patient-procedure-stage";
+        var pathway = $"/api/pathways/patient-pathways/{AnyId}";
+        var stages = "/api/pathways/patient-pathway-stage";
         yield return Case("GET", "/api/auth/users/search");
         yield return Case("GET", "/api/auth/users");
         yield return Case("GET", "/api/auth/users/someone");
@@ -39,14 +39,14 @@ public sealed class AuthorisationTests : IntegrationTest
         yield return Case("POST", $"{stages}/templates");
         yield return Case("POST", $"{stages}/templates/{AnyId}/archive");
         yield return Case("DELETE", $"{stages}/templates/{AnyId}");
-        yield return Case("POST", $"{procedure}/assignments/{AnyId}");
-        yield return Case("DELETE", $"{procedure}/assignments/{AnyId}");
-        yield return Case("POST", $"{procedure}/stages/{AnyId}/unlock");
-        yield return Case("DELETE", procedure);
-        yield return Case("POST", $"{procedure}/notes/{AnyId}/delete");
-        yield return Case("GET", $"/api/procedures/note-deletion-requests/{AnyId}");
-        yield return Case("POST", $"/api/procedures/note-deletion-requests/{AnyId}/decision");
-        yield return Case("GET", "/api/procedures/audit/search");
+        yield return Case("POST", $"{pathway}/assignments/{AnyId}");
+        yield return Case("DELETE", $"{pathway}/assignments/{AnyId}");
+        yield return Case("POST", $"{pathway}/stages/{AnyId}/unlock");
+        yield return Case("DELETE", pathway);
+        yield return Case("POST", $"{pathway}/notes/{AnyId}/delete");
+        yield return Case("GET", $"/api/pathways/note-deletion-requests/{AnyId}");
+        yield return Case("POST", $"/api/pathways/note-deletion-requests/{AnyId}/decision");
+        yield return Case("GET", "/api/pathways/audit/search");
         yield return Case("GET", "/api/monitoring/rules");
         yield return Case("POST", "/api/monitoring/rules");
         yield return Case("PUT", $"/api/monitoring/rules/{AnyId}");
@@ -57,9 +57,9 @@ public sealed class AuthorisationTests : IntegrationTest
     private static IEnumerable<TestCaseData> StaffEndpoints()
     {
         yield return Case("GET", "/api/patients/search");
-        yield return Case("GET", "/api/procedures/patient-procedure-stage/definitions");
-        yield return Case("GET", "/api/procedures/patient-procedure-stage/templates");
-        yield return Case("GET", "/api/procedures/patient-procedures/search");
+        yield return Case("GET", "/api/pathways/patient-pathway-stage/definitions");
+        yield return Case("GET", "/api/pathways/patient-pathway-stage/templates");
+        yield return Case("GET", "/api/pathways/patient-pathways/search");
         yield return Case("GET", "/api/notifications/preferences");
         yield return Case("GET", "/api/notifications");
         yield return Case("GET", "/api/auth/me/settings");

@@ -4,7 +4,7 @@ import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
 import {richText, typeRichText} from '../../test/richText';
 
-const BASE = '/api/procedures/patient-procedure-stage/definitions';
+const BASE = '/api/pathways/patient-pathway-stage/definitions';
 
 const definitions = [
   // Real SNOMED CT concept IDs, used only as codes: 71388002 is Procedure.

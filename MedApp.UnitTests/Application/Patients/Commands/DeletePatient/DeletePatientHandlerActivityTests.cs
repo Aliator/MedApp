@@ -25,7 +25,7 @@ public sealed class DeletePatientHandlerActivityTests
     {
         _fixture = AutoFixtureFactory.Create();
         _repository = new Mock<IPatientRepository>();
-        _repository.Setup(r => r.CountProceduresAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountPathwaysAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
         _fixture.Inject(_repository.Object);
         _fixture.Inject<IActivityLog>(new RecordingActivityLog());
         _fixture.Inject(new Mock<IAttachmentRepository>().Object);

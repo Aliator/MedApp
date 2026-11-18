@@ -3,11 +3,11 @@ using FluentAssertions;
 using MedApp.Application.Attachments.Commands.DownloadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Commands.DownloadAttachment;
 
@@ -26,8 +26,8 @@ public sealed class DownloadAttachmentHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_LiveFile_ReturnsItsBytesNameAndTypeAndAuditsTheDownload()
     {
-        var procedure = GivenProcedure(CreateProcedure());
-        var attachment = await StoredAttachment(AttachmentOn(procedure, stageOrder: 2));
+        var pathway = GivenPathway(CreatePathway());
+        var attachment = await StoredAttachment(AttachmentOn(pathway, stageOrder: 2));
         using var cts = new CancellationTokenSource();
 
         var download = await Handler.Handle(new DownloadAttachmentCommand(attachment.Id, Staff), cts.Token);
@@ -41,10 +41,10 @@ public sealed class DownloadAttachmentHandlerTests : AttachmentHandlerTestBase
             copy.ToArray().Should().Equal(Pdf);
         }
 
-        SavedAudit.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.AttachmentDownloaded
-                                               && e.UserId == Staff.UserId && e.PatientProcedureId == procedure.Id
-                                               && e.StageName == ProcedureStage);
-        Attachments.Verify(a => a.AddAuditAsync(It.IsAny<PatientProcedureAuditEntry>(), cts.Token), Times.Once);
+        SavedAudit.Should().ContainSingle(e => e.Action == PatientPathwayAuditAction.AttachmentDownloaded
+                                               && e.UserId == Staff.UserId && e.PatientPathwayId == pathway.Id
+                                               && e.StageName == PathwayStage);
+        Attachments.Verify(a => a.AddAuditAsync(It.IsAny<PatientPathwayAuditEntry>(), cts.Token), Times.Once);
     }
 
     [Test]
@@ -106,7 +106,7 @@ public sealed class DownloadAttachmentHandlerTests : AttachmentHandlerTestBase
         store.SetupGet(s => s.IsConfigured).Returns(true);
         store.Setup(s => s.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(content);
         Fixture.Inject(store.Object);
-        Attachments.Setup(a => a.AddAuditAsync(It.IsAny<PatientProcedureAuditEntry>(), It.IsAny<CancellationToken>()))
+        Attachments.Setup(a => a.AddAuditAsync(It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Synthetic database failure."));
 
         var act = () => Handler.Handle(new DownloadAttachmentCommand(attachment.Id, Staff), CancellationToken.None);

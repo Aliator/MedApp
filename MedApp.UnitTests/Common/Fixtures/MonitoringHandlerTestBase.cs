@@ -1,25 +1,25 @@
 using AutoFixture;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Repositories;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.UnitTests.Common.Constants;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Common.Fixtures;
 
 /// <summary>
 /// Shared setup for the monitoring rule handler tests: a mocked rule repository, a username lookup backed by
-/// <see cref="ProceduresTestConstants.Usernames"/>, one template (<see cref="MonitoringTestConstants.TemplateId"/>) and
-/// one stage (the Consultation definition), and a clock fixed at <see cref="ProceduresTestConstants.Now"/>.
+/// <see cref="PathwaysTestConstants.Usernames"/>, one template (<see cref="MonitoringTestConstants.TemplateId"/>) and
+/// one stage (the Consultation definition), and a clock fixed at <see cref="PathwaysTestConstants.Now"/>.
 /// </summary>
 public abstract class MonitoringHandlerTestBase
 {
     protected IFixture Fixture { get; private set; } = null!;
     protected Mock<IMonitoringRuleRepository> Rules { get; private set; } = null!;
     protected Mock<IIdentityReadService> Identity { get; private set; } = null!;
-    protected Mock<IPatientProcedureStagesRepository> Stages { get; private set; } = null!;
+    protected Mock<IPatientPathwayStagesRepository> Stages { get; private set; } = null!;
 
     [SetUp]
     public void SetUpMonitoringMocks()
@@ -27,7 +27,7 @@ public abstract class MonitoringHandlerTestBase
         Fixture = AutoFixtureFactory.Create();
         Rules = new Mock<IMonitoringRuleRepository>();
         Identity = new Mock<IIdentityReadService>();
-        Stages = new Mock<IPatientProcedureStagesRepository>();
+        Stages = new Mock<IPatientPathwayStagesRepository>();
 
         Identity
             .Setup(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
@@ -41,7 +41,7 @@ public abstract class MonitoringHandlerTestBase
                 username == Admin.Username ? ["Admin", "User"] : (IReadOnlyList<string>)["User"]);
 
         Stages
-            .Setup(s => s.GetStageTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPathwayTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
                 (IReadOnlyDictionary<Guid, string>)new Dictionary<Guid, string> { [TemplateId] = TemplateName }
                     .Where(kv => ids.Contains(kv.Key))

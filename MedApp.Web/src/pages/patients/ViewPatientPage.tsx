@@ -18,14 +18,14 @@ import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDi
 import {Attachments} from '../../components/attachments/Attachments';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
 import {Page, useIsNarrow} from '../../components/pages/Page';
-import {AppointmentList} from '../../components/procedures/AppointmentList';
+import {AppointmentList} from '../../components/pathways/AppointmentList';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
 import {PatientBanner} from '../../components/patients/PatientBanner';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
-import {PatientTimeline} from '../../components/procedures/PatientTimeline';
+import {PatientTimeline} from '../../components/pathways/PatientTimeline';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
@@ -39,7 +39,7 @@ import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
  * A patient's details (replaces Blazor's ViewPatient) and files, beside their timeline: everything that happened to
- * their procedures, with what's due. Like the procedure page, the two cards fill the page and each scrolls on its
+ * their pathways, with what's due. Like the pathway page, the two cards fill the page and each scrolls on its
  * own; a narrow window or a half view has one card of three folding sections instead (see PatientView). An unknown
  * patient goes back to the list, as in Blazor.
  *
@@ -164,7 +164,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
 }
 
 /**
- * Book Appointment, Procedures and Edit Patient (not booking or editing while the record is restricted or anonymised,
+ * Book Appointment, Pathways and Edit Patient (not booking or editing while the record is restricted or anonymised,
  * when it can't be changed), and an admin's Privacy menu.
  */
 function Actions({
@@ -183,7 +183,7 @@ function Actions({
     <>
       {isAdmin && <PrivacyActions patient={patient} onProblem={onProblem} />}
       {canChange && <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />}
-      <Button label="Procedures" variant="secondary" icon={<Icon icon={AppIcon.Procedures} />} href={`/patients/${patient.id}/procedures`} />
+      <Button label="Pathways" variant="secondary" icon={<Icon icon={AppIcon.Pathways} />} href={`/patients/${patient.id}/pathways`} />
       {canChange && (
         <Button label="Edit Patient" variant="secondary" icon={<Icon icon={AppIcon.Edit} />} href={`/patients/${patient.id}/edit`} />
       )}
@@ -229,7 +229,7 @@ function PatientAppointments({patientId}: {patientId: string}) {
   return (
     <VStack gap={4}>
       {upcoming.length > 0 ? (
-        <AppointmentList appointments={upcoming} showProcedure label="Upcoming appointments" />
+        <AppointmentList appointments={upcoming} showPathway label="Upcoming appointments" />
       ) : (
         <Text type="body" color="secondary">
           Nothing booked or waiting to be booked.
@@ -239,7 +239,7 @@ function PatientAppointments({patientId}: {patientId: string}) {
         <VStack gap={2}>
           {/* Cancelled ones may have been for a later day, so not just "Earlier". */}
           <Heading level={3}>Past and cancelled</Heading>
-          <AppointmentList appointments={past} showProcedure label="Past and cancelled appointments" />
+          <AppointmentList appointments={past} showPathway label="Past and cancelled appointments" />
           {morePast > 0 && (
             <Text type="supporting" color="secondary">
               {`And ${morePast} more: the timeline has them all.`}
@@ -300,11 +300,11 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
     setChange(next);
   };
 
-  const confirmFlag = (reason: string, confirmOpenProcedures: boolean) => {
+  const confirmFlag = (reason: string, confirmOpenPathways: boolean) => {
     if (!change) return;
     setFlagProblem(NO_PROBLEM);
     setFlag.mutate(
-      {...change, reason, confirmOpenProcedures},
+      {...change, reason, confirmOpenPathways},
       {
         onSuccess: () => setChange(null),
         onError: (e) => setFlagProblem(saveProblem(e, 'save')),
