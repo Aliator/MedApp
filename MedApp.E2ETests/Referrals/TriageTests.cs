@@ -50,7 +50,7 @@ public sealed class TriageTests : E2ETest
         await OpenAsync(page, $"/referrals/{referral.Id}");
         var main = page.GetByRole(AriaRole.Main);
 
-        // Accept: the template, priority and target date are chosen, never prefilled.
+        // Accept: the template and priority are chosen, never prefilled; the target date comes from the waiting-time clock.
         await main.GetByRole(AriaRole.Button, new() { Name = "Accept" }).ClickAsync();
         var dialog = page.GetByRole(AriaRole.Dialog, new() { Name = "Accept Referral" });
         await Expect(dialog).ToContainTextAsync("The referrer asked for: Urgent");
@@ -59,8 +59,6 @@ public sealed class TriageTests : E2ETest
         await page.GetByRole(AriaRole.Option, new() { Name = template.Name }).ClickAsync();
         await dialog.GetByRole(AriaRole.Combobox, new() { Name = "Priority" }).ClickAsync();
         await page.GetByRole(AriaRole.Option, new() { Name = "High", Exact = true }).ClickAsync();
-        var dueDate = UkToday.AddDays(21);
-        await dialog.GetByRole(AriaRole.Combobox, new() { Name = "Target Date" }).FillAsync(Typed(dueDate));
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
         // The check shows the patient, the specialty and the template before anything is saved.
@@ -84,7 +82,8 @@ public sealed class TriageTests : E2ETest
             Assert.That(saved.PathwayId, Is.EqualTo(pathwayId));
             Assert.That(saved.DecidedByUsername, Is.EqualTo(username));
             Assert.That(pathway!.Priority, Is.EqualTo("High"));
-            Assert.That(pathway.DueDate, Is.EqualTo(dueDate));
+            Assert.That(saved.Clock!.TargetDays, Is.EqualTo(specialty.TargetDaysHigh));
+            Assert.That(pathway.DueDate, Is.EqualTo(saved.Clock.TargetOn));
             Assert.That(pathway.Referral!.Id, Is.EqualTo(referral.Id));
         });
 
