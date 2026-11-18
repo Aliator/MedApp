@@ -19,6 +19,8 @@ export const PERMISSIONS = [
   'AssignPathways',
   'UnlockStages',
   'FinishWithoutVisit',
+  'RecordMdtOutcomes',
+  'RecordConsent',
   'DeletePathways',
   'BookAppointments',
   'ManageAnyCalendar',
@@ -27,6 +29,7 @@ export const PERMISSIONS = [
   'AttachFiles',
   'RecordSpecimens',
   'ProcessSpecimens',
+  'SignOffResults',
   'WriteLetters',
   'ApproveLetters',
   'SendLetters',
@@ -53,6 +56,7 @@ export type PermissionGroup =
   | 'AppointmentsAndCalendars'
   | 'Files'
   | 'Lab'
+  | 'Results'
   | 'Letters'
   | 'Oversight'
   | 'Setup'
@@ -82,6 +86,11 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   AssignPathways: {group: 'Pathways', description: 'Assign staff to pathways, and unassign them.'},
   UnlockStages: {group: 'Pathways', description: 'Unlock a finished stage, and reinstate a skipped one.'},
   FinishWithoutVisit: {group: 'Pathways', description: 'Finish, or skip, a stage that requires a visit without one, giving a reason.'},
+  RecordMdtOutcomes: {
+    group: 'Pathways',
+    description: "Record a multidisciplinary team meeting's (MDT) outcome on a pathway listed for it.",
+  },
+  RecordConsent: {group: 'Pathways', description: "Record a patient's consent to a stage, withdraw it, and attach the signed form."},
   DeletePathways: {group: 'Pathways', description: 'Delete a cancelled or archived pathway.'},
   BookAppointments: {
     group: 'AppointmentsAndCalendars',
@@ -101,6 +110,10 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   ProcessSpecimens: {
     group: 'Lab',
     description: 'Receive and reject specimens in the lab, mark them lost, and attach their reports.',
+  },
+  SignOffResults: {
+    group: 'Results',
+    description: 'Mark results seen, sign them off, and take them over or reassign them; be a responsible clinician.',
   },
   WriteLetters: {group: 'Letters', description: 'Write letters about patients from templates, and submit them for approval.'},
   ApproveLetters: {group: 'Letters', description: 'Approve or return letters submitted to you, and approve your own.'},

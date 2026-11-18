@@ -105,8 +105,22 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+        // MDTs (meetings marked as a specialty's) and the items listed for them.
+        var mdtMeetings = await context.Meetings
+            .Where(m => m.SpecialtyId != null && list.Contains(m.SpecialtyId.Value))
+            .GroupBy(m => m.SpecialtyId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+        var mdtItems = await context.MdtItems
+            .Where(i => list.Contains(i.SpecialtyId))
+            .GroupBy(i => i.SpecialtyId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
         return templates.Keys.Concat(pathways.Keys).Concat(members.Keys).Concat(referrals.Keys)
             .Concat(sessions.Keys).Concat(patterns.Keys).Concat(letterTemplates.Keys)
+            .Concat(mdtMeetings.Keys).Concat(mdtItems.Keys)
             .Distinct()
             .ToDictionary(
                 id => id,
@@ -118,7 +132,8 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
                     referrals.GetValueOrDefault(id)?.Awaiting ?? 0,
                     triagers.GetValueOrDefault(id),
                     sessions.GetValueOrDefault(id) + patterns.GetValueOrDefault(id),
-                    letterTemplates.GetValueOrDefault(id)));
+                    letterTemplates.GetValueOrDefault(id),
+                    mdtMeetings.GetValueOrDefault(id) + mdtItems.GetValueOrDefault(id)));
     }
 
     public async Task AddAsync(Specialty specialty, CancellationToken ct)

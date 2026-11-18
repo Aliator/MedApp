@@ -14,5 +14,7 @@ public sealed record CreateMeetingCommand(
     DateTime StartUtc,
     DateTime EndUtc,
     IReadOnlyList<Guid> AttendeeUserIds,
-    CalendarActor Actor)
+    CalendarActor Actor,
+    bool? IsMdt = null,
+    Guid? SpecialtyId = null)
     : IRequest<MeetingResponse>, IMeetingCommand;

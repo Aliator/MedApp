@@ -38,6 +38,8 @@ public static class PatientExportMapper
             .Concat(record.Letters.SelectMany(Letters.Common.LetterMapper.PeopleIn))
             .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
+            .Concat(record.Results.SelectMany(Results.Common.ResultMapper.PeopleIn))
+            .Concat(record.ConsentRecords.SelectMany(Consent.Common.ConsentMapper.PeopleIn))
             .Distinct();
 
     private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
@@ -197,6 +199,27 @@ public static class PatientExportMapper
                     CreatedAtUtc = m.CreatedAtUtc,
                     SentAtUtc = m.SentAtUtc,
                     StatusAtUtc = m.StatusAtUtc
+                })
+                .ToList(),
+            // Staff by the usernames recorded at the time.
+            MdtItems = record.MdtItems
+                .Select(i => new ExportedMdtItemResponse
+                {
+                    PathwayId = i.PathwayId,
+                    PathwayTitle = i.Pathway?.Title ?? string.Empty,
+                    Specialty = i.Specialty?.Name ?? string.Empty,
+                    Status = i.Status.ToString(),
+                    Question = i.Question,
+                    MeetingStartUtc = i.Meeting?.StartUtc,
+                    MeetingCancelledStartUtc = i.MeetingId is null ? i.MeetingCancelledStartUtc : null,
+                    ListedBy = i.ListedByUsername,
+                    ListedAtUtc = i.ListedAtUtc,
+                    Outcome = i.Outcome,
+                    OutcomeBy = i.OutcomeByUsername,
+                    OutcomeAtUtc = i.OutcomeAtUtc,
+                    Present = i.Attendees.Select(a => a.Username).OrderBy(u => u, StringComparer.OrdinalIgnoreCase).ToList(),
+                    WithdrawnBy = i.WithdrawnByUsername,
+                    WithdrawnAtUtc = i.WithdrawnAtUtc
                 })
                 .ToList(),
             // As the pathways' history: staff by the username recorded at the time.
@@ -383,6 +406,53 @@ public static class PatientExportMapper
                     ClosedDetail = s.ClosedDetail,
                     ClosedAtUtc = s.ClosedAtUtc,
                     ClosedBy = s.ClosedByUserId is null ? null : Username(s.ClosedByUserId),
+                })
+                .ToList(),
+            // Results, with their free text: the patient is entitled to it. Staff by username only.
+            Results = record.Results
+                .Select(r => new ExportedResultResponse
+                {
+                    Id = r.Id,
+                    PathwayId = r.PathwayId,
+                    SpecimenId = r.SpecimenId,
+                    SpecimenNumber = record.Specimens.FirstOrDefault(s => s.Id == r.SpecimenId)?.Number,
+                    Source = r.Source.ToString(),
+                    Title = r.Title,
+                    ReportAttachmentId = r.ReportAttachmentId,
+                    ReportedAtUtc = r.ReportedAtUtc,
+                    ReportedBy = Username(r.ReportedByUserId),
+                    ResponsibleClinician = Username(r.ResponsibleUserId),
+                    Status = r.Status.ToString(),
+                    SeenAtUtc = r.SeenAtUtc,
+                    SeenBy = r.SeenByUserId is null ? null : Username(r.SeenByUserId),
+                    SignedOffAtUtc = r.SignedOffAtUtc,
+                    SignedOffBy = r.SignedOffByUserId is null ? null : Username(r.SignedOffByUserId),
+                    Action = r.Action?.ToString(),
+                    ActionDetail = r.ActionDetail,
+                    EnteredInErrorAtUtc = r.EnteredInErrorAtUtc,
+                    EnteredInErrorBy = r.EnteredInErrorByUserId is null ? null : Username(r.EnteredInErrorByUserId),
+                    ErrorDetail = r.ErrorDetail,
+                })
+                .ToList(),
+            // Consent records, with their details: the patient is entitled to them. Staff by username only.
+            ConsentRecords = record.ConsentRecords
+                .Select(c => new ExportedConsentRecordResponse
+                {
+                    Id = c.Id,
+                    PathwayId = c.PathwayId,
+                    StageId = c.StageId,
+                    FormName = c.FormName,
+                    FormVersion = c.FormVersion,
+                    SignedOn = c.SignedOn,
+                    SignedBy = c.SignedBy.ToString(),
+                    RecordedBy = Username(c.RecordedByUserId),
+                    RecordedAtUtc = c.RecordedAtUtc,
+                    ScanAttachmentId = c.ScanAttachmentId,
+                    Status = c.Status.ToString(),
+                    WithdrawnOn = c.WithdrawnOn,
+                    StatusDetail = c.StatusDetail,
+                    StatusChangedAtUtc = c.StatusChangedAtUtc,
+                    StatusChangedBy = c.StatusChangedByUserId is null ? null : Username(c.StatusChangedByUserId),
                 })
                 .ToList()
         };

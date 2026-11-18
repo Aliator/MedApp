@@ -25,6 +25,8 @@ public enum Permission
     AssignPathways,
     UnlockStages,
     FinishWithoutVisit,
+    RecordMdtOutcomes,
+    RecordConsent,
     DeletePathways,
 
     BookAppointments,
@@ -36,6 +38,7 @@ public enum Permission
 
     RecordSpecimens,
     ProcessSpecimens,
+    SignOffResults,
     WriteLetters,
     ApproveLetters,
     SendLetters,
@@ -65,6 +68,7 @@ public enum PermissionGroup
     AppointmentsAndCalendars,
     Files,
     Lab,
+    Results,
     Letters,
     Oversight,
     Setup,
@@ -115,6 +119,10 @@ public static class Permissions
             "Unlock a finished stage, and reinstate a skipped one."),
         new(Permission.FinishWithoutVisit, PermissionGroup.Pathways,
             "Finish, or skip, a stage that requires a visit without one, giving a reason."),
+        new(Permission.RecordMdtOutcomes, PermissionGroup.Pathways,
+            "Record a multidisciplinary team meeting's (MDT) outcome on a pathway listed for it."),
+        new(Permission.RecordConsent, PermissionGroup.Pathways,
+            "Record a patient's consent to a stage, withdraw it, and attach the signed form."),
         new(Permission.DeletePathways, PermissionGroup.Pathways,
             "Delete a cancelled or archived pathway."),
 
@@ -134,6 +142,8 @@ public static class Permissions
             "Record specimens taken, sent and lost, and edit them before they're sent."),
         new(Permission.ProcessSpecimens, PermissionGroup.Lab,
             "Receive and reject specimens in the lab, mark them lost, and attach their reports."),
+        new(Permission.SignOffResults, PermissionGroup.Results,
+            "Mark results seen, sign them off, and take them over or reassign them; be a responsible clinician."),
         new(Permission.WriteLetters, PermissionGroup.Letters,
             "Write letters about patients from templates, and submit them for approval."),
         new(Permission.ApproveLetters, PermissionGroup.Letters,
@@ -173,19 +183,23 @@ public static class Permissions
 
     /// <summary>
     /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
-    /// and 138): triage, finishing a stage without its visit, recording and processing specimens, and writing, approving
-    /// and sending letters. An admin who does that work holds a role that grants it too. Admin keeps
+    /// and 138): triage, finishing a stage without its visit, recording consent, recording and processing specimens, and
+    /// writing, approving and sending letters, signing off results, and recording an MDT's outcome. An admin who does
+    /// that work holds a role that grants it too. Admin keeps
     /// <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
     {
         Permission.TriageReferrals,
         Permission.FinishWithoutVisit,
+        Permission.RecordConsent,
         Permission.RecordSpecimens,
         Permission.ProcessSpecimens,
+        Permission.SignOffResults,
         Permission.WriteLetters,
         Permission.ApproveLetters,
         Permission.SendLetters,
+        Permission.RecordMdtOutcomes,
     };
 
     /// <summary>

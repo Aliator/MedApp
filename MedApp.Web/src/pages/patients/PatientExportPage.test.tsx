@@ -297,6 +297,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No referrals.')).toBeInTheDocument();
     expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No specimens.')).toBeInTheDocument();
+    expect(screen.getByText('No results.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 
@@ -355,6 +356,59 @@ describe('PatientExportPage', () => {
     expect(screen.getAllByText('A deleted pathway').length).toBeGreaterThan(0);
     expect(screen.getByText('Not sent')).toBeInTheDocument();
     expect(screen.getByText('Notes for the lab: none')).toBeInTheDocument();
+  });
+
+  it('lists every result: where it came from, who was responsible, who saw and signed it off, and what was done', async () => {
+    renderExport({
+      ...data,
+      results: [
+        {
+          id: 'd184a7b8-2585-4437-bcd4-e1700be38221',
+          pathwayId,
+          specimenId: 'b184a7b8-2585-4437-bcd4-e1700be38215',
+          specimenNumber: 'MA26-000123',
+          source: 'Specimen',
+          title: 'Skin biopsy (punch) report',
+          reportAttachmentId: 'c184a7b8-2585-4437-bcd4-e1700be38216',
+          reportedAtUtc: '2026-11-05T12:00:00Z',
+          reportedBy: 'test-lab',
+          responsibleClinician: 'test-senior',
+          status: 'SignedOff',
+          seenAtUtc: '2026-11-06T09:00:00Z',
+          seenBy: 'test-senior',
+          signedOffAtUtc: '2026-11-06T10:00:00Z',
+          signedOffBy: 'test-senior',
+          action: 'Other',
+          actionDetail: 'Synthetic: phoned the GP.',
+        },
+        {
+          id: 'd184a7b8-2585-4437-bcd4-e1700be38222',
+          pathwayId: null,
+          source: 'ExternalReport',
+          title: 'CT chest report',
+          reportAttachmentId: 'c184a7b8-2585-4437-bcd4-e1700be38217',
+          reportedAtUtc: '2026-11-04T12:00:00Z',
+          reportedBy: 'test-nurse',
+          responsibleClinician: 'dr.synthetic',
+          status: 'EnteredInError',
+          enteredInErrorAtUtc: '2026-11-04T13:00:00Z',
+          enteredInErrorBy: 'test-nurse',
+          errorDetail: 'Synthetic: wrong patient.',
+        },
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {name: 'Results (2)'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Result: Skin biopsy (punch) report'})).toBeInTheDocument();
+    expect(screen.getByText('Specimen MA26-000123')).toBeInTheDocument();
+    expect(screen.getByText('5 Nov 2026, 12:00 by test-lab, its report is under Files')).toBeInTheDocument();
+    expect(screen.getByText('6 Nov 2026, 10:00 by test-senior')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: phoned the GP.')).toBeInTheDocument();
+    expect(screen.getByText('External report')).toBeInTheDocument();
+    expect(screen.getByText('Not on a pathway')).toBeInTheDocument();
+    expect(screen.getByText('Not signed off')).toBeInTheDocument();
+    expect(screen.getByText('4 Nov 2026, 13:00 by test-nurse')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: wrong patient.')).toBeInTheDocument();
   });
 
   it('lists every referral with what the referrer sent and what was decided, its history, and its letters', async () => {
@@ -584,6 +638,35 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/: Missed appointment by Email$/)).toBeInTheDocument();
     expect(screen.getByText(/^No message: no consent or contact \(the patient chose no messages this way\) · /)).toBeInTheDocument();
     expect(screen.getByText(/^Failed: permanent-failure, sent .* · Asked for by k\.ashford$/)).toBeInTheDocument();
+  });
+
+  it('lists every MDT discussion with its question, and the outcome as written with who was present', async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      mdtItems: [
+        {
+          pathwayId: 'proc-1',
+          pathwayTitle: 'Skin lesion',
+          specialty: 'Dermatology',
+          status: 'Discussed',
+          question: 'Synthetic question.',
+          meetingStartUtc: '2026-11-12T13:00:00Z',
+          listedBy: 'k.ashford',
+          listedAtUtc: '2026-11-10T09:00:00Z',
+          outcome: 'Synthetic outcome.',
+          outcomeBy: 's.brightwell',
+          outcomeAtUtc: '2026-11-12T13:20:00Z',
+          present: ['k.ashford', 's.brightwell'],
+        },
+      ],
+    });
+
+    expect(await screen.findByText('MDT Discussions (1)')).toBeInTheDocument();
+    expect(screen.getByText(/listed for the Dermatology MDT by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText('Question: Synthetic question.')).toBeInTheDocument();
+    expect(screen.getByText(/by s\.brightwell; present: k\.ashford, s\.brightwell\): Synthetic outcome\.$/)).toBeInTheDocument();
   });
 
   it('says when no messages were sent', async () => {

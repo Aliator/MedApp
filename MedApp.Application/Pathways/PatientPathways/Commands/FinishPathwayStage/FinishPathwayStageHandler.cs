@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
@@ -18,6 +19,8 @@ public sealed class FinishPathwayStageHandler(
     IAppointmentRepository appointmentRepository,
     ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
+    MedApp.Application.Results.Repositories.IResultRepository resultRepository,
+    IConsentRepository consentRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -41,6 +44,12 @@ public sealed class FinishPathwayStageHandler(
             && StageGates.WhyCantFinish(
                 pathway, stage, await specimenRepository.GetOpenForPathwayAsync(pathway.Id, cancellationToken)) is { } gate)
             throw new ConflictException(gate);
+
+        // A stage that waits for results, and the last stage, wait for the pathway's results to be signed off (no override).
+        if ((stage.WaitsForResults || StageGates.IsLastToFinish(pathway, stage))
+            && StageGates.WhyResultsAwaiting(
+                pathway, stage, await resultRepository.GetAwaitingForPathwayAsync(pathway.Id, cancellationToken)) is { } awaiting)
+            throw new ConflictException(awaiting);
 
         // A branch point finished for the first time needs one of its branches, chosen by the clinician (never assumed).
         if (PathwayWorkflow.WhyBranchChoiceInvalid(pathway, stage, request.Branch) is { } branchProblem)
@@ -66,6 +75,11 @@ public sealed class FinishPathwayStageHandler(
         if (stage.NeedsLetterKind is not null
             && StageGates.WhyLetterMissing(stage, await letterRepository.GetForPathwayAsync(pathway.Id, cancellationToken)) is { } needsLetter)
             throw new ConflictException(needsLetter);
+
+        // A stage that needs consent: a Valid consent record for it (no override: recording it is the action).
+        if (stage.NeedsConsent
+            && StageGates.WhyConsentMissing(stage, await consentRepository.GetForStageAsync(stage.Id, cancellationToken)) is { } needsConsent)
+            throw new ConflictException(needsConsent);
 
         StageFinishing.Finish(change, stage, appointments, request.Reason, request.Branch);
 

@@ -1,0 +1,62 @@
+using FluentValidation;
+using FluentValidation.Results;
+using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Mdt.Common;
+using MedApp.Application.Mdt.Repositories;
+using MedApp.Application.Notifications.Common;
+using MedApp.Application.Patients.Common;
+using MedApp.Contracts.Mdt.Responses;
+using MedApp.Domain.Mdt;
+using MediatR;
+
+namespace MedApp.Application.Mdt.Commands.RecordMdtOutcome;
+
+public sealed class RecordMdtOutcomeHandler(
+    IMdtItemRepository repository,
+    IIdentityReadService identityReadService,
+    INotificationSender notificationSender,
+    TimeProvider timeProvider)
+    : IRequestHandler<RecordMdtOutcomeCommand, MdtItemResponse>
+{
+    public async Task<MdtItemResponse> Handle(RecordMdtOutcomeCommand request, CancellationToken cancellationToken)
+    {
+        var item = await repository.GetForUpdateAsync(request.ItemId, cancellationToken)
+                   ?? throw new NotFoundException($"MDT item '{request.ItemId}' was not found.");
+
+        PatientRules.EnsureCanPause(item.Patient);
+        MdtRules.EnsureVersion(item, request.ExpectedVersion);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        MdtRules.EnsureCanRecordOutcome(item, now);
+
+        // Only the meeting's attendees can have been present.
+        var invited = item.Meeting!.Attendees.Select(a => a.StaffUserId).ToHashSet();
+        var present = request.PresentUserIds.Distinct().ToList();
+        if (present.Any(id => !invited.Contains(id)))
+            throw new ValidationException([new ValidationFailure(nameof(request.PresentUserIds), MdtRules.NotPresentMessage)]);
+        var usernames = await identityReadService.GetUsernamesByIdAsync(present, cancellationToken);
+
+        item.Status = MdtItemStatus.Discussed;
+        item.Outcome = request.Outcome.Trim();
+        item.OutcomeByUserId = request.Actor.UserId;
+        item.OutcomeByUsername = request.Actor.Username;
+        item.OutcomeAtUtc = now;
+        item.Attendees = present
+            .Select(id => new MdtItemAttendee
+            {
+                MdtItemId = item.Id,
+                StaffUserId = id,
+                Username = usernames.GetValueOrDefault(id) ?? "Deleted user"
+            })
+            .ToList();
+        item.Version++;
+
+        await repository.SaveAsync(
+            MdtAudit.OutcomeRecorded(item, item.Specialty?.Name ?? string.Empty, request.Actor, now), cancellationToken);
+
+        foreach (var notification in MdtNotifications.OutcomeRecorded(item, request.Actor, now))
+            await notificationSender.SendAsync(notification, cancellationToken);
+
+        return MdtMapper.ToResponse(item, request.Actor, now);
+    }
+}

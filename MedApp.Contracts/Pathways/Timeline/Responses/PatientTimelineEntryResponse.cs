@@ -199,4 +199,37 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>A specimen entry: its lab, an admin-written name.</summary>
     public string? LaboratoryName { get; set; }
+
+    /// <summary>A result entry: the result.</summary>
+    public Guid? ResultId { get; set; }
+
+    /// <summary>A result entry: where it came from, <c>Specimen</c> or <c>ExternalReport</c>.</summary>
+    public string? ResultSource { get; set; }
+
+    /// <summary>ResultSignedOff: what the clinician did, by name (<c>ResultAction</c>); never its detail for staff.</summary>
+    public string? ResultAction { get; set; }
+
+    /// <summary>An MDT entry's item.</summary>
+    public Guid? MdtItemId { get; set; }
+
+    /// <summary>An MDT entry's meeting time (the one moved to, for a deferral); null once that meeting was cancelled.</summary>
+    public DateTime? MeetingStartUtc { get; set; }
+
+    /// <summary>A deferral's earlier meeting time.</summary>
+    public DateTime? PreviousMeetingStartUtc { get; set; }
+
+    /// <summary>An MDT outcome's attendees, by username.</summary>
+    public List<string> PresentUsernames { get; set; } = [];
+    /// <summary>A consent entry: the consent record.</summary>
+    public Guid? ConsentRecordId { get; set; }
+
+    /// <summary>A consent entry: the form's name and version, admin-written.</summary>
+    public string? ConsentFormName { get; set; }
+    public string? ConsentFormVersion { get; set; }
+
+    /// <summary>A consent entry: who signed, by name (Patient, PersonWithParentalResponsibility, BestInterestsDecision).</summary>
+    public string? ConsentSignedBy { get; set; }
+
+    /// <summary>A consent entry: the date it was signed.</summary>
+    public DateOnly? ConsentSignedOn { get; set; }
 }

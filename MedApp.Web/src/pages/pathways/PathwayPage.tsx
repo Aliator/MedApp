@@ -40,6 +40,7 @@ import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../compon
 import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {NoteDeletionRequestDialog} from '../../components/pathways/NoteDeletionRequestDialog';
 import {PathwayNotes} from '../../components/pathways/PathwayNotes';
+import {PathwayMdt} from '../../components/mdt/PathwayMdt';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/pathways/StageVisit';
@@ -48,7 +49,9 @@ import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ReferralWaitCard} from '../../components/referrals/ReferralWaitCard';
+import {PathwayConsent} from '../../components/consent/PathwayConsent';
 import {PathwaySpecimens} from '../../components/specimens/PathwaySpecimens';
+import {PathwayResults} from '../../components/results/PathwayResults';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
@@ -208,9 +211,12 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     details: true,
     referralWait: true,
     notes: true,
+    mdt: true,
     currentStage: true,
     files: !isNarrow,
     specimens: !isNarrow,
+    results: !isNarrow,
+    consent: !isNarrow,
     letters: !isNarrow,
     stages: false,
     patientInfo: true,
@@ -397,6 +403,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const filesFor = (stage: PathwayStage) => (
     <AttachmentsFold
       target={{stageId: stage.id ?? ''}}
+      patient={pathway?.patient}
       canChange={stage.canEdit ?? false}
       isLocked={Boolean(pathway?.readOnlyReason)}
       state={attachments}
@@ -926,6 +933,21 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
+  /** The pathway's MDT items, and List for MDT (decisions 141 to 143). */
+  function mdtSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'mdt',
+      title: 'MDT',
+      isOpen: open.mdt,
+      onToggle: () => toggle('mdt'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayMdt pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
   function currentStageSection(pathway: Pathway): FoldingSection {
     return {
       key: 'currentStage',
@@ -955,6 +977,42 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * The pathway's results awaiting sign-off and signed off (decisions 91 to 97), newest report first, each opening its
+   * own page, with its status and responsible clinician.
+   */
+  function resultsSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'results',
+      title: 'Results',
+      isOpen: open.results,
+      onToggle: () => toggle('results'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayResults pathwayId={pathway.id ?? ''} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
+   * Its consent records (decisions 145 to 147), with Record Consent for holders of RecordConsent while a stage can take
+   * it: MedApp records the clinician's statement and never assesses it.
+   */
+  function consentSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'consent',
+      title: 'Consent',
+      isOpen: open.consent,
+      onToggle: () => toggle('consent'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayConsent pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * The pathway's own files (not its stages'). They can change unless it's cancelled or archived, as its details
    * can; admins can delete any.
    */
@@ -968,6 +1026,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         <Section variant="transparent" padding={6}>
           <Attachments
             target={{pathwayId: pathway.id ?? ''}}
+            patient={pathway.patient}
             canChange={pathway.canEditDetails ?? false}
             isLocked={Boolean(pathway.readOnlyReason)}
             state={attachments}
@@ -1001,8 +1060,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage, Specimens and
-   * Files, each folding and sharing the left card, and all the stages on the right.
+   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage, Specimens,
+   * Results and Files, each folding and sharing the left card, and all the stages on the right.
    */
   function wideLayout(pathway: Pathway) {
     return (
@@ -1013,8 +1072,11 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               detailsSection(pathway),
               ...referralWaitSection(pathway),
               notesSection(pathway),
+              mdtSection(pathway),
               currentStageSection(pathway),
               specimensSection(pathway),
+              resultsSection(pathway),
+              consentSection(pathway),
               filesSection(pathway),
               lettersSection(pathway),
             ]}
@@ -1032,7 +1094,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
 
   /**
    * One card of folding sections: Details, Referral and wait (from a referral only), Notes, Current stage, Specimens,
-   * Files and Stages, scrolling together; the page never does. View Patient stays in the footer.
+   * Results, Files and Stages, scrolling together; the page never does. View Patient stays in the footer.
    */
   function narrowLayout(pathway: Pathway) {
     return (
@@ -1042,8 +1104,11 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           detailsSection(pathway),
           ...referralWaitSection(pathway),
           notesSection(pathway),
+          mdtSection(pathway),
           currentStageSection(pathway),
           specimensSection(pathway),
+          resultsSection(pathway),
+          consentSection(pathway),
           filesSection(pathway),
           lettersSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},

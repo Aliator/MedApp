@@ -19,6 +19,12 @@ public sealed class PatientPathwayStageDefinitionResponse
     /// <summary>The kind of letter the stage needs before it can be finished, by name, or null for none.</summary>
     public string? NeedsLetterKind { get; set; }
 
+    /// <summary>Whether the stage can't be finished while any of the pathway's results awaits sign-off.</summary>
+    public bool WaitsForResults { get; set; }
+
+    /// <summary>Whether the stage needs a Valid consent record before it can be finished.</summary>
+    public bool NeedsConsent { get; set; }
+
     public bool IsArchived { get; set; }
 
     /// <summary>How many templates use it. A definition in use by a template or pathway can only be archived.</summary>

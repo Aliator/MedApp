@@ -28,6 +28,18 @@ public sealed class PatientPathwayStageDefinition
     /// </summary>
     public Letters.LetterKind? NeedsLetterKind { get; set; }
 
+    /// <summary>
+    /// Whether the stage waits for results: it can't be finished while any result of the pathway awaits sign-off (a
+    /// "Results and team review" stage); copied onto each pathway's stage when it's created.
+    /// </summary>
+    public bool WaitsForResults { get; set; }
+
+    /// <summary>
+    /// Whether the stage needs a Valid consent record before it can be finished (decision 146); copied onto each
+    /// pathway's stage when it's created, like the visit rule. No override: recording the consent is the action.
+    /// </summary>
+    public bool NeedsConsent { get; set; }
+
     /// <summary>Archived definitions can't be added to templates. A definition in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }
 }

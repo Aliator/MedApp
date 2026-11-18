@@ -44,7 +44,12 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
-                // Specimens hold their pathways, types and labs (foreign keys), so they go first.
+                // Consent records hold their patients, pathways and forms (foreign keys), so they go first.
+                await db.ConsentRecords.ExecuteDeleteAsync(cancellationToken);
+                await db.ConsentForms.ExecuteDeleteAsync(cancellationToken);
+                // Results hold their patients, pathways and specimens, and specimens their pathways, types and labs
+                // (foreign keys), so they go first.
+                await db.Results.ExecuteDeleteAsync(cancellationToken);
                 await db.Specimens.ExecuteDeleteAsync(cancellationToken);
                 await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
                 await db.Laboratories.ExecuteDeleteAsync(cancellationToken);
@@ -54,6 +59,8 @@ public static class DemoWipe
                 // name rooms and specialties, which go below.
                 await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
                 await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
+                // MDT items (who was present cascades) before the meetings, pathways and specialties they name.
+                await db.MdtItems.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);

@@ -8,6 +8,7 @@ import {
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
+  isResultEntry,
   isSpecimenEntry,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
@@ -82,6 +83,8 @@ describe('timeline filters', () => {
       'Referrals',
       'Waiting time',
       'Specimens',
+      'Results',
+      'Consent',
       'Letters',
       'Notes',
       'Assignments',
@@ -90,6 +93,7 @@ describe('timeline filters', () => {
       'Target dates',
       'Other edits',
       'Files',
+      'MDT',
       'Deleted',
     ]);
   });
@@ -116,6 +120,17 @@ describe('groupByDay', () => {
 });
 
 describe('describeTimelineEntry', () => {
+  it('words MDT entries with the specialty, the meetings and who was present, never the question or outcome', () => {
+    const base = {kind: 'Mdt', specialtyName: 'Dermatology', meetingStartUtc: '2026-12-03T13:00:00Z'};
+    expect(describeTimelineEntry(entry({...base, action: 'MdtListed'})).title).toBe('Listed for the Dermatology MDT');
+    expect(describeTimelineEntry(entry({...base, action: 'MdtWithdrawn'})).title).toBe('Withdrawn from the Dermatology MDT');
+    const outcome = describeTimelineEntry(entry({...base, action: 'MdtOutcomeRecorded', presentUsernames: ['k.ashford', 's.brightwell']}));
+    expect(outcome).toEqual({title: 'The Dermatology MDT outcome recorded', detail: 'Present: k.ashford, s.brightwell'});
+    const moved = describeTimelineEntry(entry({...base, action: 'MdtDeferred', previousMeetingStartUtc: '2026-11-26T13:00:00Z'}));
+    expect(moved.title).toBe('Moved to a later Dermatology MDT');
+    expect(moved.detail).toMatch(/^From .+To .+/);
+  });
+
   it("gives a note's text (admins only) as Markdown to show formatted, never in the detail line", () => {
     const added = describeTimelineEntry(entry({action: 'NoteAdded', changes: [{field: 'note', from: null, to: 'Prefers **mornings**.'}]}));
     expect(added).toEqual({title: 'Note added', detail: '', noteText: 'Prefers **mornings**.'});
@@ -563,6 +578,48 @@ describe('specimen entries', () => {
       detail:
         'Type Wound swab → Skin biopsy (punch); Time taken 2 Nov 2026, 09:00 → 2 Nov 2026, 08:30; Requesting clinician none → dr.synthetic; Site changed; Notes for the lab changed; SomethingNew changed',
     });
+  });
+});
+
+describe('result entries', () => {
+  const result = (fields: Partial<TimelineEntry>) =>
+    entry({kind: 'Results', resultId: '00000061-0000-0000-0000-000000000001', resultSource: 'Specimen', specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', ...fields});
+
+  it('says what happened to it, from what it came from, with structured values only for staff', () => {
+    expect(isResultEntry(result({action: 'ResultSeen'}))).toBe(true);
+    expect(isResultEntry(entry({}))).toBe(false);
+    expect(isSpecimenEntry(result({action: 'ResultSeen'}))).toBe(false);
+    expect(describeTimelineEntry(result({action: 'ResultRecorded', toStatus: 'AwaitingSignOff'}))).toEqual({
+      title: 'Skin biopsy (punch) result recorded, awaiting sign-off',
+      detail: '',
+    });
+    expect(describeTimelineEntry(result({action: 'ResultRecorded', resultSource: 'ExternalReport', specimenTypeName: null})).title).toBe(
+      'External report recorded, awaiting sign-off',
+    );
+    expect(describeTimelineEntry(result({action: 'ResultSeen'}))).toEqual({title: 'Skin biopsy (punch) result marked seen', detail: ''});
+    expect(describeTimelineEntry(result({action: 'ResultSignedOff', resultAction: 'ForMdtDiscussion'}))).toEqual({
+      title: 'Skin biopsy (punch) result signed off',
+      detail: 'To be discussed at MDT',
+    });
+    expect(
+      describeTimelineEntry(result({action: 'ResultReassigned', changes: [{field: 'responsibleClinician', from: 'test-senior', to: 'dr.synthetic'}]})),
+    ).toEqual({title: 'Skin biopsy (punch) result reassigned', detail: 'Responsible clinician test-senior → dr.synthetic'});
+    expect(describeTimelineEntry(result({action: 'ResultEnteredInError', fromStatus: 'Seen'}))).toEqual({
+      title: 'Skin biopsy (punch) result marked entered in error',
+      detail: 'Was seen',
+    });
+    expect(describeTimelineEntry(result({action: 'ResultSomethingNew', toStatus: 'SignedOff'}))).toEqual({
+      title: 'Skin biopsy (punch) result changed',
+      detail: 'Now signed off',
+    });
+  });
+
+  it("gives admins what the API sends them: the title, a sign-off's detail, what an entry in error said", () => {
+    expect(describeTimelineEntry(result({action: 'ResultRecorded', changes: [{field: 'title', to: 'Histology report'}]})).detail).toBe('Title: Histology report');
+    expect(describeTimelineEntry(result({action: 'ResultSignedOff', resultAction: 'Other', reason: 'Phoned the GP'})).detail).toBe('Other. Phoned the GP');
+    expect(describeTimelineEntry(result({action: 'ResultEnteredInError', fromStatus: 'AwaitingSignOff', reason: 'Wrong patient'})).detail).toBe(
+      'Was awaiting sign-off. Wrong patient',
+    );
   });
 });
 

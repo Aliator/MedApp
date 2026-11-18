@@ -1,7 +1,9 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Consent;
 using MedApp.Domain.Letters;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -83,4 +85,22 @@ public sealed record PatientRecord
     /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
     /// </summary>
     public required IReadOnlyList<Specimen> Specimens { get; init; }
+
+    /// <summary>
+    /// The patient's results, in any status, oldest reported first, with their specimens. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public IReadOnlyList<Domain.Results.Result> Results { get; init; } = [];
+
+    /// <summary>
+    /// The patient's MDT items, oldest listed first, with their specialty, meeting and who was present (items of a
+    /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).
+    /// </summary>
+    public required IReadOnlyList<MdtItem> MdtItems { get; init; }
+
+    /// <summary>
+    /// The patient's consent records, in any status, oldest recorded first. Their history is in
+    /// <see cref="PathwayHistory"/>; their scans are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<ConsentRecord> ConsentRecords { get; init; }
 }

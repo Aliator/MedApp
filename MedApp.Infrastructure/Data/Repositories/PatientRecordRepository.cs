@@ -129,6 +129,32 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var specimen in specimens)
             specimen.Patient = patient;
 
+        // Results; their history is in the audit entries above, their reports among the files.
+        var results = await Tracking(context.Results, forUpdate)
+            .Where(r => r.PatientId == patientId)
+            .OrderBy(r => r.ReportedAtUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        foreach (var result in results)
+            result.Patient = patient;
+
+        // MDT items, with the question and outcome, who was present, and their specialty and meeting for the export.
+        var mdtItems = await Tracking(context.MdtItems, forUpdate)
+            .Include(i => i.Attendees)
+            .Include(i => i.Specialty)
+            .Include(i => i.Meeting)
+            .Include(i => i.Pathway)
+            .Where(i => i.PatientId == patientId)
+            .OrderBy(i => i.ListedAtUtc).ThenBy(i => i.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+        // Consent records; their history is in the audit entries above, their scans among the files.
+        var consentRecords = await Tracking(context.ConsentRecords, forUpdate)
+            .Where(c => c.PatientId == patientId)
+            .OrderBy(c => c.RecordedAtUtc).ThenBy(c => c.Id)
+            .ToListAsync(ct);
+        foreach (var consent in consentRecords)
+            consent.Patient = patient;
+
         return new PatientRecord
         {
             Patient = patient,
@@ -149,7 +175,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Referrals = referrals,
             ReferralHistory = referralHistory,
             Letters = letters,
-            Specimens = specimens
+            Specimens = specimens,
+            Results = results,
+            MdtItems = mdtItems,
+            ConsentRecords = consentRecords
         };
     }
 

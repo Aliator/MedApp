@@ -1,3 +1,4 @@
+import {mdtStatusWords} from '../../api/mdt';
 import {Button} from '@astryxdesign/core/Button';
 import {Card} from '@astryxdesign/core/Card';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -18,6 +19,8 @@ import {messageKindLabel, messageOutcome, reminderChannelLabel, type ExportedPat
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
 import {describeSkipReason} from '../../api/stageSkips';
+import {resultActionLabel, resultSourceLabel, resultStatusLabel} from '../../api/results';
+import {consentFormLabel, consentStatusLabel, signedByLabel} from '../../api/consent';
 import {rejectionReasonLabel, specimenStatusLabel} from '../../api/specimens';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
@@ -448,6 +451,13 @@ function ExportContent({data}: {data: PatientExport}) {
   const referralHistory = data.referralHistory ?? [];
   // Where each specimen came from and went; their history is under Pathway History, their reports under Files.
   const specimens = data.specimens ?? [];
+  // Who was responsible for each result, who saw and signed it off and what they did; their history is under Pathway
+  // History, their reports under Files.
+  const results = data.results ?? [];
+  // Pathways put forward for a multidisciplinary team meeting, with the question and the team's outcome as written.
+  const mdtItems = data.mdtItems ?? [];
+  // What the patient consented to, and any withdrawal or correction; scans under Files.
+  const consents = data.consentRecords ?? [];
   // Each referral by its specialty and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
@@ -635,6 +645,67 @@ function ExportContent({data}: {data: PatientExport}) {
                     {specimen.closedDetail && <MetadataListItem label="Detail">{specimen.closedDetail}</MetadataListItem>}
                   </MetadataList>
                   <Text type="body">{`Notes for the lab: ${specimen.requestNotes || 'none'}`}</Text>
+                </VStack>
+              ))}
+            </VStack>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Results (${results.length})`}>
+        {results.length === 0
+          ? nothing('No results.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {results.map((result) => (
+                <VStack key={result.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{`Result: ${result.title}`}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Status">{resultStatusLabel(result.status)}</MetadataListItem>
+                    <MetadataListItem label="Source">
+                      {result.specimenNumber ? `Specimen ${result.specimenNumber}` : resultSourceLabel(result.source)}
+                    </MetadataListItem>
+                    <MetadataListItem label="Pathway">
+                      {result.pathwayId ? pathwayTitles.get(result.pathwayId) || 'A deleted pathway' : 'Not on a pathway'}
+                    </MetadataListItem>
+                    <MetadataListItem label="Reported">{`${when(result.reportedAtUtc)} by ${result.reportedBy}, its report is under Files`}</MetadataListItem>
+                    <MetadataListItem label="Responsible Clinician">{result.responsibleClinician}</MetadataListItem>
+                    <MetadataListItem label="Seen">{result.seenAtUtc ? `${when(result.seenAtUtc)} by ${result.seenBy ?? 'unknown'}` : 'Not seen'}</MetadataListItem>
+                    <MetadataListItem label="Signed Off">
+                      {result.signedOffAtUtc ? `${when(result.signedOffAtUtc)} by ${result.signedOffBy ?? 'unknown'}` : 'Not signed off'}
+                    </MetadataListItem>
+                    {result.action && <MetadataListItem label="What Was Done">{resultActionLabel(result.action)}</MetadataListItem>}
+                    {result.actionDetail && <MetadataListItem label="Detail">{result.actionDetail}</MetadataListItem>}
+                    {result.enteredInErrorAtUtc && (
+                      <MetadataListItem label="Entered in Error">{`${when(result.enteredInErrorAtUtc)} by ${result.enteredInErrorBy ?? 'unknown'}`}</MetadataListItem>
+                    )}
+                    {result.errorDetail && <MetadataListItem label="What Was Wrong">{result.errorDetail}</MetadataListItem>}
+                  </MetadataList>
+                </VStack>
+              ))}
+            </VStack>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Consent (${consents.length})`}>
+        {consents.length === 0
+          ? nothing('No consent recorded.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {consents.map((consent) => (
+                <VStack key={consent.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{consentFormLabel(consent.formName, consent.formVersion)}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Status">{consentStatusLabel(consent.status)}</MetadataListItem>
+                    <MetadataListItem label="Pathway">{pathwayTitles.get(consent.pathwayId) || 'A deleted pathway'}</MetadataListItem>
+                    <MetadataListItem label="Signed">{`${consent.signedOn ? formatDate(consent.signedOn) : '—'}, ${signedByLabel(consent.signedBy).toLowerCase()}`}</MetadataListItem>
+                    <MetadataListItem label="Recorded">{`${when(consent.recordedAtUtc)} by ${consent.recordedBy ?? 'unknown'}`}</MetadataListItem>
+                    <MetadataListItem label="Scan">{consent.scanAttachmentId ? 'Under Files' : 'No scan'}</MetadataListItem>
+                    {consent.withdrawnOn && <MetadataListItem label="Withdrawn">{formatDate(consent.withdrawnOn)}</MetadataListItem>}
+                    {consent.statusChangedAtUtc && (
+                      <MetadataListItem label="Changed">{`${when(consent.statusChangedAtUtc)} by ${consent.statusChangedBy ?? 'unknown'}`}</MetadataListItem>
+                    )}
+                    {consent.statusDetail && <MetadataListItem label="Detail">{consent.statusDetail}</MetadataListItem>}
+                  </MetadataList>
                 </VStack>
               ))}
             </VStack>
@@ -865,6 +936,46 @@ function ExportContent({data}: {data: PatientExport}) {
                     <Text type="supporting" color="secondary">
                       {[capitalised(referralNames.get(entry.referralId) ?? 'a referral'), describeReferralChange(entry.details)].filter(Boolean).join(' · ')}
                     </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`MDT Discussions (${mdtItems.length})`}>
+        {mdtItems.length === 0
+          ? nothing('Never listed for an MDT.')
+          : (
+            <List hasDividers edge="bleed">
+              {mdtItems.map((item, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={<Text type="body">{`${when(item.listedAtUtc)}: listed for the ${item.specialty} MDT by ${item.listedBy}`}</Text>}
+                  description={
+                    <VStack gap={1}>
+                      <Text type="supporting" color="secondary">
+                        {[
+                          item.pathwayTitle,
+                          mdtStatusWords(item.status),
+                          item.meetingStartUtc
+                            ? `Meeting ${when(item.meetingStartUtc)}`
+                            : item.meetingCancelledStartUtc
+                              ? `Meeting of ${when(item.meetingCancelledStartUtc)} cancelled`
+                              : null,
+                          item.withdrawnAtUtc ? `Withdrawn ${when(item.withdrawnAtUtc)} by ${item.withdrawnBy}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                      <Text type="body">{`Question: ${item.question ?? ''}`}</Text>
+                      {item.outcomeAtUtc && (
+                        <Text type="body">
+                          {`Outcome (${when(item.outcomeAtUtc)}, by ${item.outcomeBy}; present: ${(item.present ?? []).join(', ')}): ${item.outcome ?? ''}`}
+                        </Text>
+                      )}
+                    </VStack>
                   }
                 />
               ))}

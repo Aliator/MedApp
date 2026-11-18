@@ -28,6 +28,13 @@ export interface StageDefinitionInput {
    * `None`. Always sent: `None` clears it on a save.
    */
   needsLetterKind: string;
+  /**
+   * Whether the stage can't be finished while any of the pathway's results awaits sign-off (decision 97). Always sent:
+   * false clears it on a save.
+   */
+  waitsForResults: boolean;
+  /** Whether a Valid consent record for the stage is needed before it can be finished. Always sent. */
+  needsConsent: boolean;
   snomedCode: string;
   snomedTerm: string;
 }

@@ -6,14 +6,15 @@ import {adminUser, json, mockFetch, pageOf, renderApp} from '../test/render';
 
 /**
  * Every page about one patient shows their banner (the control for the wrong-patient hazards H-01 and H-02). This
- * renders each such route through the real router, and fails if a new route under a patient, a pathway, a referral or a
- * specimen isn't listed here, so a page can't be added without it.
+ * renders each such route through the real router, and fails if a new route under a patient, a pathway, a referral, a
+ * specimen or a result isn't listed here, so a page can't be added without it.
  */
 
 const patientId = '0000000b-0000-4000-8000-000000000001';
 const pathwayId = '0000000b-0000-4000-8000-000000000002';
 const referralId = '0000000b-0000-4000-8000-000000000003';
 const specimenId = '0000000b-0000-4000-8000-000000000005';
+const resultId = '0000000b-0000-4000-8000-000000000006';
 // A synthetic patient and test NHS number (the 999 range is never issued to real patients).
 const patient = {
   id: patientId,
@@ -93,6 +94,27 @@ const specimen = {
   otherSpecimensFromStage: [],
 };
 
+const result = {
+  id: resultId,
+  patientId,
+  patient,
+  pathwayId,
+  pathwayTitle: 'Knee review',
+  specimenId,
+  specimenNumber: 'MA26-000123',
+  source: 'Specimen',
+  title: 'Skin biopsy (punch) report',
+  reportAttachmentId: '0000000b-0000-4000-8000-000000000007',
+  reportFileName: 'report.pdf',
+  reportedAtUtc: '2026-11-04T10:00:00Z',
+  reportedByUsername: 'test-admin',
+  ageDays: 2,
+  responsibleUsername: 'test-admin',
+  status: 'AwaitingSignOff',
+  isAwaitingSignOff: true,
+  version: 1,
+};
+
 /** The pages about one patient, as the router names them, and an address for each. */
 const PAGES: Record<string, string> = {
   '/patients/$id': `/patients/${patientId}`,
@@ -108,6 +130,7 @@ const PAGES: Record<string, string> = {
   '/referrals/new': `/referrals/new?patientId=${patientId}`,
   '/specimens/$id': `/specimens/${specimenId}`,
   '/specimens/$id/print': `/specimens/${specimenId}/print?sheet=request`,
+  '/results/$id': `/results/${resultId}`,
 };
 
 function answerApi() {
@@ -120,6 +143,7 @@ function answerApi() {
     if (pathname === `/api/pathways/patient-pathways/${pathwayId}`) return json(pathway);
     if (pathname === `/api/referrals/${referralId}`) return json(referral);
     if (pathname === `/api/specimens/${specimenId}`) return json(specimen);
+    if (pathname === `/api/results/${resultId}`) return json(result);
     if (pathname === '/api/specialties') return json([]);
     if (pathname === '/api/referrals/awaiting-triage/count') return json({count: 0, inYourSpecialties: false});
     if (pathname === '/api/demographics/status') return json({isAvailable: false, source: null});
@@ -138,7 +162,8 @@ describe('the patient banner', {timeout: 30_000}, () => {
         path.startsWith('/patients/$id') ||
         (path.startsWith('/pathways/') && path !== '/pathways/') ||
         (path.startsWith('/referrals/') && path !== '/referrals/') ||
-        path.startsWith('/specimens/'),
+        path.startsWith('/specimens/') ||
+        (path.startsWith('/results/') && path !== '/results/'),
     );
 
     expect(aboutOnePatient.sort()).toEqual(Object.keys(PAGES).sort());

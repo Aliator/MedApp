@@ -91,8 +91,8 @@
 | [H-55](#h-55-a-missed-appointment-isnt-followed-up) | A missed appointment isn't followed up | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 26; built, to verify) | Open, draft for the CSO |
 | [H-56](#h-56-a-scheduled-job-stops-and-nobody-notices) | A scheduled job stops and nobody notices | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 19; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-57](#h-57-a-record-is-anonymised-too-early-because-its-retention-class-is-wrong) | A record is anonymised too early because its retention class is wrong | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 27; built) | Open, draft for the CSO |
-| [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-59](#h-59-a-procedure-goes-ahead-without-valid-consent-recorded-or-a-withdrawal-is-missed) | A procedure goes ahead without valid consent recorded, or a withdrawal is missed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 31; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30, built: `feature/mdt-list`) | Open, draft for the CSO |
+| [H-59](#h-59-a-procedure-goes-ahead-without-valid-consent-recorded-or-a-withdrawal-is-missed) | A procedure goes ahead without valid consent recorded, or a withdrawal is missed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 31: built) | Open, draft for the CSO |
 | [H-60](#h-60-questionnaire-answers-are-read-as-an-assessment-or-recorded-on-the-wrong-patient) | Questionnaire answers are read as an assessment, or recorded on the wrong patient | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 32; not built) | Open, draft for the CSO |
 | [H-61](#h-61-a-video-link-reaches-the-wrong-patient) | A video link reaches the wrong patient | Draft: Significant, Low: **2** | Draft: Significant, Very low: **1** | Draft: Significant, Very low: **1** | Yes, with the feature (PR 34; not built) | Open, draft for the CSO |
 | [H-62](#h-62-data-from-an-nhs-system-is-matched-to-the-wrong-patient) | Data from an NHS system is matched to the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 38a to 38c; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
@@ -1812,7 +1812,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
 **Further controls** (before the feature's first live use unless marked):
-- **Results sign-off** (PR 14): each report becomes a result its requesting clinician is told of and signs off, so a report that comes back is also seen (H-46). Protective; planned, PR 14.
+- **Results sign-off** (PR 14, built on branch `feature/results-signoff`): each report becomes a result its requesting clinician is told of and signs off, so a report that comes back is also seen (H-46). Protective.
 - **A service alert** for specimens N days past their expected turnaround. Protective; planned, Phase 4 (PR 25); later.
 - **Transferred** (`dcb0160-deploying-organisations.md`): a daily check of the lab worklist's Expected and Overdue views (and To send, for specimens left in the clinic), and a local process for chasing the lab.
 
@@ -1838,7 +1838,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A delayed or missed diagnosis or treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/results-signoff`, PR 14, for the CSO to verify): the named responsible clinician and "Result ready"; the results list with Awaiting my sign-off and its side-nav count, Awaiting sign-off (everyone) and Needs a clinician, oldest first with age in days; the `WaitsForResults` and last-stage gates (`StageGates.WhyResultsAwaiting`); sign-off records who and the action (none pre-selected), and tells the responsible clinician when someone else signs off; a restricted record's results can still be seen and signed off. The service alert (Phase 4) isn't built.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
@@ -1879,6 +1879,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 - **The label's identifiers:** the specimen number as text and as a QR code holding only that number, with the patient's name, date of birth and NHS number, and the request sheet with them too (decision 87; `SpecimenPrintPage`). Protective.
 - **A specimen's report can't be deleted on its own** (a 409, admins too; decision 71), so a report isn't removed from a specimen by mistake. Protective. (It also means a wrong one can't be removed yet: below.)
 - **A wrong specimen recorded before it's reported** (taken on the wrong patient, say) is marked **entered in error** with a detail, by whoever recorded it within 24 hours, or a holder of `CorrectRecords` at any time; it's closed and kept with its history. Corrective.
+- **A wrong report** (built with results sign-off, PR 14, branch `feature/results-signoff`; to be verified by the CSO): its result is marked **entered in error** with a detail, by whoever reported it within 24 hours or a holder of `CorrectRecords` at any time; the report file is deleted (audited) and the specimen goes back to Received, so the lab attaches the right report (decision 96; `MarkResultEnteredInErrorHandler`). Corrective.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
@@ -2263,7 +2264,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A wrong, delayed or missed treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** built with PR 30 (`feature/mdt-list`), for the CSO to verify: the controls below, plus an outcome only once the meeting has started, from the version the recorder read (409 otherwise), with who was present chosen from the meeting's attendees; MedApp never suggests an outcome or changes the pathway because of one. No estimate changed.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
@@ -2295,11 +2296,11 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Harm from an unwanted procedure, and a breach of the patient's rights. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 31, `feature/consent-records`, for the CSO to verify): the controls below, but the transferred one.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
-**Further controls** (planned, PR 31; before the feature's first live use):
+**Further controls** (built in PR 31 but the transferred one; the patient banner shows on every consent dialog):
 - **The `NeedsConsent` gate:** a flagged stage can't be finished without a Valid consent record for it; no override (decision 146). Protective.
 - **A withdrawal flagged on the pathway,** including after the stage finished (decision 147). Detective.
 - **No scan flagged** ("No scan") when the form isn't attached (decision 145). Information.

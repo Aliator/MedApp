@@ -63,7 +63,24 @@ public enum PatientPathwayAuditAction
     /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
     SpecimenDetailsEdited = 23,
 
-    // 24 to 28 are kept for results (docs/centre-phases-3-5-plan.md, section 5).
+    // Results (docs/centre-phases-3-5-plan.md, section 5). Not changes to the pathway either. Details hold the result's
+    // ID, source, the specimen's number and type, statuses, the action by name and usernames; never its title, action
+    // detail or error detail (ResultChange).
+
+    /// <summary>A result was made: from a specimen's report, or an attached file marked as an external result.</summary>
+    ResultRecorded = 24,
+
+    /// <summary>A clinician marked a result seen.</summary>
+    ResultSeen = 25,
+
+    /// <summary>A result was signed off: the action by name, never its detail.</summary>
+    ResultSignedOff = 26,
+
+    /// <summary>A result was given to another responsible clinician (taken over, or reassigned): the usernames.</summary>
+    ResultReassigned = 27,
+
+    /// <summary>A result was marked entered in error: its file deleted, a specimen's back to Received.</summary>
+    ResultEnteredInError = 28,
 
     /// <summary>
     /// A letter was started (a draft, from a template). Letters' entries (29 to 34) hold the letter's ID, kind and
@@ -99,5 +116,31 @@ public enum PatientPathwayAuditAction
     BranchChosen = 36,
 
     /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
-    StageReinstated = 37
+    StageReinstated = 37,
+
+    /// <summary>A pathway was listed for an MDT (the item's ID, the specialty and the meeting; never the question).</summary>
+    MdtListed = 38,
+
+    /// <summary>An MDT's outcome was recorded (the item's ID, the meeting and who was present; never the outcome).</summary>
+    MdtOutcomeRecorded = 39,
+
+    /// <summary>An MDT item was moved to a later meeting, or listed again after its meeting was cancelled.</summary>
+    MdtDeferred = 40,
+
+    /// <summary>An MDT item was taken off the list without being discussed.</summary>
+    MdtWithdrawn = 41,
+
+    // 38 to 41 are kept for the MDT list (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// Consent to a stage was recorded. Consent entries (42 to 44) hold the record's ID, the form's name and version
+    /// (admin-written), who signed by name, the date signed and whether there's a scan; never a detail typed (decision 70).
+    /// </summary>
+    ConsentRecorded = 42,
+
+    /// <summary>Consent was withdrawn, on a date (the detail only on the record).</summary>
+    ConsentWithdrawn = 43,
+
+    /// <summary>A consent record was marked entered in error (the detail only on the record).</summary>
+    ConsentEnteredInError = 44
 }

@@ -32,7 +32,9 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     /// <summary>
     /// Who could call each endpoint before permissions (the Staff policy and Roles = "Admin"); for an endpoint added
     /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
-    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74).
+    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74), and so
+    /// do seeing, signing off and reassigning results (SignOffResults), and recording, withdrawing and
+    /// scanning consent (RecordConsent).
     /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
@@ -148,6 +150,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ClinicsController.SearchSessions 00011
         ClinicsController.UpdatePattern 00001
         ClinicsController.UpdateSession 00001
+        ConsentController.ArchiveConsentForm 00001
+        ConsentController.AttachConsentScan 00000
+        ConsentController.CreateConsentForm 00001
+        ConsentController.DeleteConsentForm 00001
+        ConsentController.GetConsentForms 00011
+        ConsentController.GetPathwayConsentRecords 00011
+        ConsentController.MarkConsentEnteredInError 00011
+        ConsentController.RecordConsent 00000
+        ConsentController.RestoreConsentForm 00001
+        ConsentController.UpdateConsentForm 00001
+        ConsentController.WithdrawConsent 00000
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
@@ -178,6 +191,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LetterTemplatesController.PreviewLetterTemplate 00001
         LetterTemplatesController.RestoreLetterTemplate 00001
         LetterTemplatesController.UpdateLetterTemplate 00001
+        MdtController.Defer 00011
+        MdtController.GetAwaitingMeeting 00011
+        MdtController.GetMeetingList 00011
+        MdtController.GetMeetings 00011
+        MdtController.GetPathwayItems 00011
+        MdtController.ListForMdt 00011
+        MdtController.RecordOutcome 00000
+        MdtController.Withdraw 00011
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -269,6 +290,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.ResumeClock 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        ResultsController.CountResults 00011
+        ResultsController.GetResult 00011
+        ResultsController.MarkEnteredInError 00011
+        ResultsController.MarkSeen 00000
+        ResultsController.Reassign 00000
+        ResultsController.RecordExternalResult 00011
+        ResultsController.SearchResults 00011
+        ResultsController.SignOff 00000
         RolesController.ArchiveRole 00001
         RolesController.CreateRole 00001
         RolesController.DeleteRole 00001
@@ -456,7 +485,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
         // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
-        var adminBefore = Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        // The clinical permissions that came later (specimens, letters, MDT outcomes, consent) were never Admin's.
+        var cameLater = Permissions.NotForAdmin.Except([Permission.TriageReferrals, Permission.FinishWithoutVisit]).ToHashSet();
+        var adminBefore = Enum.GetValues<Permission>()
+            .Where(p => p != Permission.TriageReferrals && !cameLater.Contains(p))
+            .ToHashSet();
         var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
 
         adminBefore.Except(adminNow).Should().Equal(Permission.FinishWithoutVisit);

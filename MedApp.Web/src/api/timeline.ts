@@ -6,6 +6,8 @@ import {NO_PATHWAY} from './attachments';
 import {dispatchMethodWords, letterKindWords, recipientKindWords} from './letters';
 import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
 import {skipReasonLabel} from './stageSkips';
+import {resultActionLabel, resultStatusLabel} from './results';
+import {consentFormLabel, signedByLabel} from './consent';
 import {specimenStatusLabel} from './specimens';
 import {api, unwrap, type Schemas} from './client';
 
@@ -24,7 +26,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Results', 'Consent', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Mdt', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -34,6 +36,8 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Referrals: 'Referrals',
   WaitingTime: 'Waiting time',
   Specimens: 'Specimens',
+  Results: 'Results',
+  Consent: 'Consent',
   Letters: 'Letters',
   Notes: 'Notes',
   Assignments: 'Assignments',
@@ -42,6 +46,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   DueDates: 'Target dates',
   Details: 'Other edits',
   Files: 'Files',
+  Mdt: 'MDT',
   Deleted: 'Deleted',
 };
 
@@ -244,11 +249,58 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Attached ${entry.fileName?.trim() || 'a file'}`, detail: `To ${attachedToWords(entry)}`};
     case 'AttachmentDeleted':
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
+    // MDT items (decision 70): the specialty, the meetings' times and who was present; never the question or outcome.
+    case 'MdtListed':
+      return {title: `Listed for ${mdtName(entry)}`, detail: entry.meetingStartUtc ? `On ${formatDateTime(entry.meetingStartUtc)}` : ''};
+    case 'MdtDeferred':
+      return {
+        title: `Moved to a later ${entry.specialtyName ? `${entry.specialtyName} MDT` : 'MDT'}`,
+        detail: sentences(
+          entry.previousMeetingStartUtc ? `From ${formatDateTime(entry.previousMeetingStartUtc)}` : null,
+          entry.meetingStartUtc ? `To ${formatDateTime(entry.meetingStartUtc)}` : null,
+        ),
+      };
+    case 'MdtWithdrawn':
+      return {title: `Withdrawn from ${mdtName(entry)}`, detail: ''};
+    case 'MdtOutcomeRecorded':
+      return {
+        title: `${mdtName(entry, true)} outcome recorded`,
+        detail: (entry.presentUsernames ?? []).length ? `Present: ${(entry.presentUsernames ?? []).join(', ')}` : '',
+      };
     default:
+      if (isResultEntry(entry)) return describeResultEntry(entry);
       if (isSpecimenEntry(entry)) return describeSpecimenEntry(entry);
+      if (isConsentEntry(entry)) return describeConsentEntry(entry);
       if (isLetterEntry(entry)) return describeLetterEntry(entry);
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+  }
+}
+
+/** Whether an entry is about consent (its action is "Consent" and what happened). */
+export const isConsentEntry = (entry: TimelineEntry) => entry.kind === 'Consent' || (entry.action ?? '').startsWith('Consent');
+
+/**
+ * A consent entry in words: the form and its version (admin-written), who signed and when (structured, which staff
+ * see). What was said when it was withdrawn, or what was wrong, comes only to admins (`reason`). MedApp records consent;
+ * nothing here says whether it was valid.
+ */
+function describeConsentEntry(entry: TimelineEntry): TimelineWording {
+  const form = consentFormLabel(entry.consentFormName, entry.consentFormVersion) || 'a consent form';
+  const signed = sentences(
+    entry.consentSignedOn ? `Signed ${formatShortDate(entry.consentSignedOn)}` : null,
+    entry.consentSignedBy ? `By: ${signedByLabel(entry.consentSignedBy).toLowerCase()}` : null,
+  );
+  const reason = entry.reason?.trim();
+  switch (entry.action) {
+    case 'ConsentRecorded':
+      return {title: `Consent recorded on ${form}`, detail: sentences(signed, entry.attachmentId ? 'Scan attached' : 'No scan')};
+    case 'ConsentWithdrawn':
+      return {title: `Consent withdrawn (${form})`, detail: sentences(signed, reason)};
+    case 'ConsentEnteredInError':
+      return {title: `Consent record marked entered in error (${form})`, detail: sentences(signed, reason)};
+    default:
+      return {title: 'Consent changed', detail: signed};
   }
 }
 
@@ -309,6 +361,48 @@ function describeSpecimenEntry(entry: TimelineEntry): TimelineWording {
       return {title: `${type} specimen: details edited`, detail: (entry.changes ?? []).map(describeSpecimenChange).join('; ')};
     default:
       return {title: `${type} specimen changed`, detail: entry.toStatus ? `Now ${specimenWords(entry.toStatus)}` : ''};
+  }
+}
+
+/** Whether an entry is about a result (its action is "Result" and what happened). */
+export const isResultEntry = (entry: TimelineEntry) => entry.kind === 'Results' || (entry.action ?? '').startsWith('Result');
+
+/** A result's status in words, lower case: "AwaitingSignOff" → "awaiting sign-off". */
+const resultWords = (status: string | null | undefined) => resultStatusLabel(status).toLowerCase();
+
+/**
+ * A result entry in words: what happened to it, and what it came from (a specimen's type, or a report from
+ * elsewhere). Staff get the structured values only (statuses, the action by name, usernames); its title, a sign-off's
+ * detail and what an entry in error said come only to admins (`reason`, and the title as a `title` change). The
+ * result and its specimen are linked by `PatientTimeline`. Nothing here says what a report showed.
+ */
+function describeResultEntry(entry: TimelineEntry): TimelineWording {
+  const what = entry.resultSource === 'ExternalReport' ? 'External report' : `${entry.specimenTypeName?.trim() || 'Specimen'} result`;
+  const reason = entry.reason?.trim();
+  const was = entry.fromStatus ? `Was ${resultWords(entry.fromStatus)}` : null;
+  switch (entry.action) {
+    case 'ResultRecorded': {
+      const title = entry.changes?.find((c) => c.field === 'title')?.to?.trim();
+      return {title: `${what} recorded, awaiting sign-off`, detail: title ? `Title: ${title}` : ''};
+    }
+    case 'ResultSeen':
+      return {title: `${what} marked seen`, detail: ''};
+    case 'ResultSignedOff':
+      return {
+        title: `${what} signed off`,
+        detail: sentences(entry.resultAction ? resultActionLabel(entry.resultAction) : null, reason),
+      };
+    case 'ResultReassigned': {
+      const change = entry.changes?.find((c) => c.field === 'responsibleClinician');
+      return {
+        title: `${what} reassigned`,
+        detail: change ? `Responsible clinician ${change.from?.trim() || 'none'} → ${change.to?.trim() || 'none'}` : '',
+      };
+    }
+    case 'ResultEnteredInError':
+      return {title: `${what} marked entered in error`, detail: sentences(was, reason)};
+    default:
+      return {title: `${what} changed`, detail: entry.toStatus ? `Now ${resultWords(entry.toStatus)}` : ''};
   }
 }
 
@@ -581,4 +675,10 @@ function describeStatusChange(entry: TimelineEntry): TimelineWording {
     return {title: 'Taken off hold', detail: `Back to ${words(entry.toStatus)}`};
   const was = `Was ${words(entry.fromStatus)}${entry.isAutomatic ? ', changed automatically' : ''}`;
   return {title: `Status changed to ${words(entry.toStatus)}`, detail: [was, reason].filter(Boolean).join('. ')};
+}
+
+/** "the Dermatology MDT" (or "The Dermatology MDT" at the start of a sentence); "the MDT" without a specialty. */
+function mdtName(entry: TimelineEntry, isStart = false): string {
+  const the = isStart ? 'The' : 'the';
+  return entry.specialtyName ? `${the} ${entry.specialtyName} MDT` : `${the} MDT`;
 }

@@ -178,6 +178,26 @@ public static class TimelineMapper
             case >= SpecimenTaken and <= SpecimenDetailsEdited:
                 Specimen(response, entry.Action, details, isAdmin ? row.Specimen : null);
                 break;
+
+            case >= ResultRecorded and <= ResultEnteredInError:
+                Result(response, entry.Action, details, isAdmin ? row.Result : null);
+                break;
+
+            // MDT items: the specialty (an admin-written name), the meetings' times and who was present, for everyone.
+            // The question and the outcome are never in the details, so neither is ever here (decision 70).
+            case MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn:
+                response.MdtItemId = Guid.TryParse(Text(details, "mdtItemId"), out var mdtItemId) ? mdtItemId : null;
+                response.SpecialtyName = Text(details, "specialty");
+                response.MeetingStartUtc = Time(details, "meetingStartUtc");
+                response.PreviousMeetingStartUtc = Time(details, "fromMeetingStartUtc");
+                response.PresentUsernames = details.TryGetValue("present", out var present) && present.ValueKind == JsonValueKind.Array
+                    ? present.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.String).Select(p => p.GetString()!).ToList()
+                    : [];
+                break;
+
+            case ConsentRecorded or ConsentWithdrawn or ConsentEnteredInError:
+                Consent(response, entry.Action, details, isAdmin ? row.ConsentRecord : null);
+                break;
         }
 
         return response;
@@ -282,6 +302,87 @@ public static class TimelineMapper
                 response.Reason = specimen.ClosedDetail;
                 break;
         }
+    }
+
+    /// <summary>
+    /// A result entry: which result, where it came from (and its specimen's number and type), the status before and
+    /// after, the report's file, the action by name on sign-off, and on a reassignment the clinicians (usernames). Never
+    /// free text for staff: the title, the action's detail and the error detail are for admins only, read from the
+    /// result (<paramref name="result"/>, given only for admins), as the audit holds none.
+    /// </summary>
+    private static void Result(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Results.Result? result)
+    {
+        response.ResultId = Guid.TryParse(Text(details, "resultId"), out var resultId) ? resultId : null;
+        response.ResultSource = Text(details, "source");
+        response.SpecimenId = Guid.TryParse(Text(details, "specimenId"), out var specimenId) ? specimenId : null;
+        response.SpecimenNumber = Text(details, "number");
+        response.SpecimenTypeName = Text(details, "specimenType");
+        response.FromStatus = Text(details, "from");
+        response.ToStatus = Text(details, "to");
+        response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+
+        switch (action)
+        {
+            case ResultRecorded:
+                response.AssigneeUsername = Text(details, "responsible");
+                if (result is not null)
+                    response.Changes = [new PatientTimelineChangeResponse { Field = Results.Common.ResultChange.TitleField, To = result.Title }];
+                break;
+
+            case ResultSignedOff:
+                response.ResultAction = Text(details, "action");
+                if (result is not null)
+                    response.Reason = result.ActionDetail;
+                break;
+
+            case ResultReassigned:
+                var changes = details.TryGetValue("changes", out var c) ? ObjectOf(c) : new Dictionary<string, JsonElement>();
+                response.Changes =
+                [
+                    Change(
+                        Results.Common.ResultChange.ResponsibleField,
+                        changes.TryGetValue(Results.Common.ResultChange.ResponsibleField, out var values)
+                            ? ObjectOf(values)
+                            : new Dictionary<string, JsonElement>(),
+                        showValues: true)
+                ];
+                break;
+
+            case ResultEnteredInError when result is not null:
+                response.Reason = result.ErrorDetail;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A consent entry: which record, the form's name and version (admin-written), who signed (by kind), the date signed,
+    /// the status before and after, and the scan's file. Never free text for staff: a withdrawal's or correction's detail
+    /// is for admins only, read from the record (<paramref name="record"/>, given only for admins), as the audit holds
+    /// none.
+    /// </summary>
+    private static void Consent(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Consent.ConsentRecord? record)
+    {
+        response.ConsentRecordId = Guid.TryParse(Text(details, "consentRecordId"), out var recordId) ? recordId : null;
+        response.ConsentFormName = Text(details, "formName");
+        response.ConsentFormVersion = Text(details, "formVersion");
+        response.ConsentSignedBy = Text(details, "signedBy");
+        response.ConsentSignedOn = DateOnly.TryParse(Text(details, "signedOn"), System.Globalization.CultureInfo.InvariantCulture, out var signedOn)
+            ? signedOn
+            : null;
+        response.AttachmentId = Guid.TryParse(Text(details, "scanAttachmentId"), out var scanId) ? scanId : null;
+        response.FromStatus = Text(details, "from");
+        response.ToStatus = Text(details, "to");
+
+        if (action is ConsentWithdrawn or ConsentEnteredInError && record is not null)
+            response.Reason = record.StatusDetail;
     }
 
     /// <summary>A GUID a JSON object's property holds, or null (for details that aren't JSON, or lack it).</summary>

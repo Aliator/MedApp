@@ -48,6 +48,8 @@ public static class MeetingMapper
             CanEdit = viewer.CanArrangeMeetings && date >= UkTime.DateOf(nowUtc),
             MyReply = MeetingReplies.ReplyOf(meeting, viewer.UserId)?.ToString(),
             CanReply = MeetingReplies.CanReply(meeting, viewer.UserId, nowUtc),
+            IsMdt = meeting.IsMdt,
+            SpecialtyId = meeting.SpecialtyId,
             CreatedAtUtc = meeting.CreatedAtUtc,
             LastUpdated = meeting.LastUpdated
         };

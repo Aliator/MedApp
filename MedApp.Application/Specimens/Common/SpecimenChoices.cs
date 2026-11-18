@@ -17,13 +17,13 @@ public static class SpecimenChoices
     public const string LaboratoryMessage = "Choose a lab that isn't archived.";
 
     /// <summary>
-    /// The requesting clinician must hold this. Results sign-off (PR 14) changes it to SignOffResults, the permission
-    /// that makes someone a responsible clinician (decision 81).
+    /// The requesting clinician must hold this: SignOffResults, the permission that makes someone a responsible
+    /// clinician (decision 81), as they get the result to sign off.
     /// </summary>
-    public const Permission RequestingClinicianPermission = Permission.WorkPathways;
+    public const Permission RequestingClinicianPermission = Permission.SignOffResults;
 
     public const string RequestingUserNotClinicianMessage =
-        "Choose a clinician whose roles allow working on pathways: they'll get the result.";
+        "Choose a clinician whose roles allow signing off results: they'll get the result.";
 
     public static async Task<(SpecimenType Type, Laboratory Laboratory)> CheckAsync(
         ISpecimenRepository repository,

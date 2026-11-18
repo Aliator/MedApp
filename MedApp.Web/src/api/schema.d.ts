@@ -13773,6 +13773,536 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/results/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    View?: string;
+                    SpecialtyId?: string;
+                    PathwayId?: string;
+                    PatientId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultSummaryResponsePagedResponse"];
+                        "application/json": components["schemas"]["ResultSummaryResponsePagedResponse"];
+                        "text/json": components["schemas"]["ResultSummaryResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultCountResponse"];
+                        "application/json": components["schemas"]["ResultCountResponse"];
+                        "text/json": components["schemas"]["ResultCountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/external": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RecordExternalResultRequest"];
+                    "text/json": components["schemas"]["RecordExternalResultRequest"];
+                    "application/*+json": components["schemas"]["RecordExternalResultRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{id}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ResultVersionRequest"];
+                    "text/json": components["schemas"]["ResultVersionRequest"];
+                    "application/*+json": components["schemas"]["ResultVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{id}/sign-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SignOffResultRequest"];
+                    "text/json": components["schemas"]["SignOffResultRequest"];
+                    "application/*+json": components["schemas"]["SignOffResultRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ReassignResultRequest"];
+                    "text/json": components["schemas"]["ReassignResultRequest"];
+                    "application/*+json": components["schemas"]["ReassignResultRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{id}/entered-in-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MarkResultEnteredInErrorRequest"];
+                    "text/json": components["schemas"]["MarkResultEnteredInErrorRequest"];
+                    "application/*+json": components["schemas"]["MarkResultEnteredInErrorRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ResultResponse"];
+                        "application/json": components["schemas"]["ResultResponse"];
+                        "text/json": components["schemas"]["ResultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/roles": {
         parameters: {
             query?: never;
@@ -15814,6 +16344,670 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pathways/{id}/consent-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"][];
+                        "application/json": components["schemas"]["ConsentRecordResponse"][];
+                        "text/json": components["schemas"]["ConsentRecordResponse"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RecordConsentRequest"];
+                    "text/json": components["schemas"]["RecordConsentRequest"];
+                    "application/*+json": components["schemas"]["RecordConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["WithdrawConsentRequest"];
+                    "text/json": components["schemas"]["WithdrawConsentRequest"];
+                    "application/*+json": components["schemas"]["WithdrawConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/entered-in-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                    "text/json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                    "application/*+json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AttachConsentScanRequest"];
+                    "text/json": components["schemas"]["AttachConsentScanRequest"];
+                    "application/*+json": components["schemas"]["AttachConsentScanRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"][];
+                        "application/json": components["schemas"]["ConsentFormResponse"][];
+                        "text/json": components["schemas"]["ConsentFormResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ConsentFormRequest"];
+                    "text/json": components["schemas"]["ConsentFormRequest"];
+                    "application/*+json": components["schemas"]["ConsentFormRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ConsentFormRequest"];
+                    "text/json": components["schemas"]["ConsentFormRequest"];
+                    "application/*+json": components["schemas"]["ConsentFormRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/specimen-types": {
         parameters: {
             query?: never;
@@ -16963,6 +18157,494 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mdt/meetings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    specialtyId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtMeetingResponse"][];
+                        "application/json": components["schemas"]["MdtMeetingResponse"][];
+                        "text/json": components["schemas"]["MdtMeetingResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/meetings/{meetingId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    meetingId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtMeetingListResponse"];
+                        "application/json": components["schemas"]["MdtMeetingListResponse"];
+                        "text/json": components["schemas"]["MdtMeetingListResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/awaiting-meeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    specialtyId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"][];
+                        "application/json": components["schemas"]["MdtItemResponse"][];
+                        "text/json": components["schemas"]["MdtItemResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/pathways/{pathwayId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    pathwayId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"][];
+                        "application/json": components["schemas"]["MdtItemResponse"][];
+                        "text/json": components["schemas"]["MdtItemResponse"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ListForMdtRequest"];
+                    "text/json": components["schemas"]["ListForMdtRequest"];
+                    "application/*+json": components["schemas"]["ListForMdtRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"];
+                        "application/json": components["schemas"]["MdtItemResponse"];
+                        "text/json": components["schemas"]["MdtItemResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/items/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["WithdrawMdtItemRequest"];
+                    "text/json": components["schemas"]["WithdrawMdtItemRequest"];
+                    "application/*+json": components["schemas"]["WithdrawMdtItemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"];
+                        "application/json": components["schemas"]["MdtItemResponse"];
+                        "text/json": components["schemas"]["MdtItemResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/items/{id}/defer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["DeferMdtItemRequest"];
+                    "text/json": components["schemas"]["DeferMdtItemRequest"];
+                    "application/*+json": components["schemas"]["DeferMdtItemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"];
+                        "application/json": components["schemas"]["MdtItemResponse"];
+                        "text/json": components["schemas"]["MdtItemResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mdt/items/{id}/outcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RecordMdtOutcomeRequest"];
+                    "text/json": components["schemas"]["RecordMdtOutcomeRequest"];
+                    "application/*+json": components["schemas"]["RecordMdtOutcomeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"];
+                        "application/json": components["schemas"]["MdtItemResponse"];
+                        "text/json": components["schemas"]["MdtItemResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -17108,6 +18790,12 @@ export interface components {
             totalCount?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AttachConsentScanRequest: {
+            /** Format: uuid */
+            attachmentId?: string;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         AttachmentListResponse: {
             items?: components["schemas"]["AttachmentResponse"][] | null;
@@ -17460,6 +19148,60 @@ export interface components {
             userId?: string;
             token?: string | null;
         };
+        ConsentFormRequest: {
+            name?: string | null;
+            formVersion?: string | null;
+        };
+        ConsentFormResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            formVersion?: string | null;
+            isArchived?: boolean;
+            canBeDeleted?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
+        ConsentRecordResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            /** Format: uuid */
+            pathwayId?: string;
+            /** Format: uuid */
+            stageId?: string;
+            stageName?: string | null;
+            /** Format: uuid */
+            consentFormId?: string;
+            formName?: string | null;
+            formVersion?: string | null;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            /** Format: uuid */
+            recordedByUserId?: string;
+            recordedByUsername?: string | null;
+            /** Format: date-time */
+            recordedAtUtc?: string;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
+            status?: string | null;
+            /** Format: date */
+            withdrawnOn?: string | null;
+            statusDetail?: string | null;
+            statusChangedByUsername?: string | null;
+            /** Format: date-time */
+            statusChangedAtUtc?: string | null;
+            withdrawnAfterStageFinished?: boolean;
+            /** Format: int32 */
+            version?: number;
+            canWithdraw?: boolean;
+            canMarkEnteredInError?: boolean;
+            canAttachScan?: boolean;
+        };
         CreateActivityTypeRequest: {
             name?: string | null;
             colour?: string | null;
@@ -17547,6 +19289,8 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
+            waitsForResults?: boolean;
         };
         CreatePatientRequest: {
             firstName?: string | null;
@@ -17854,6 +19598,31 @@ export interface components {
             resumedOn?: string | null;
             resumedBy?: string | null;
         };
+        ExportedConsentRecordResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            pathwayId?: string;
+            /** Format: uuid */
+            stageId?: string;
+            formName?: string | null;
+            formVersion?: string | null;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            recordedBy?: string | null;
+            /** Format: date-time */
+            recordedAtUtc?: string;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
+            status?: string | null;
+            /** Format: date */
+            withdrawnOn?: string | null;
+            statusDetail?: string | null;
+            /** Format: date-time */
+            statusChangedAtUtc?: string | null;
+            statusChangedBy?: string | null;
+        };
         ExportedHistoryEntryResponse: {
             /** Format: date-time */
             atUtc?: string;
@@ -18083,6 +19852,36 @@ export interface components {
             stoppedOn?: string | null;
             stopReason?: string | null;
             pauses?: components["schemas"]["ExportedClockPauseResponse"][] | null;
+        };
+        ExportedResultResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            /** Format: uuid */
+            specimenId?: string | null;
+            specimenNumber?: string | null;
+            source?: string | null;
+            title?: string | null;
+            /** Format: uuid */
+            reportAttachmentId?: string;
+            /** Format: date-time */
+            reportedAtUtc?: string;
+            reportedBy?: string | null;
+            responsibleClinician?: string | null;
+            status?: string | null;
+            /** Format: date-time */
+            seenAtUtc?: string | null;
+            seenBy?: string | null;
+            /** Format: date-time */
+            signedOffAtUtc?: string | null;
+            signedOffBy?: string | null;
+            action?: string | null;
+            actionDetail?: string | null;
+            /** Format: date-time */
+            enteredInErrorAtUtc?: string | null;
+            enteredInErrorBy?: string | null;
+            errorDetail?: string | null;
         };
         ExportedSpecimenResponse: {
             /** Format: uuid */
@@ -18500,8 +20299,18 @@ export interface components {
         LookUpDemographicsRequest: {
             nhsNumber?: string | null;
         };
+        MarkConsentEnteredInErrorRequest: {
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         MarkEnteredInErrorRequest: {
             reason?: string | null;
+        };
+        MarkResultEnteredInErrorRequest: {
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         MeetingAttendeeResponse: {
             /** Format: uuid */
@@ -18528,6 +20337,9 @@ export interface components {
             attendeeUserIds?: string[] | null;
             /** Format: date-time */
             expectedLastUpdated?: string | null;
+            isMdt?: boolean | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
         };
         MeetingResponse: {
             /** Format: uuid */
@@ -18552,6 +20364,9 @@ export interface components {
             createdAtUtc?: string;
             /** Format: date-time */
             lastUpdated?: string;
+            isMdt?: boolean;
+            /** Format: uuid */
+            specialtyId?: string | null;
         };
         MonitoringRuleResponse: {
             /** Format: uuid */
@@ -18764,6 +20579,9 @@ export interface components {
             referralHistory?: components["schemas"]["ExportedReferralHistoryEntryResponse"][] | null;
             letters?: components["schemas"]["ExportedLetterResponse"][] | null;
             specimens?: components["schemas"]["ExportedSpecimenResponse"][] | null;
+            consentRecords?: components["schemas"]["ExportedConsentRecordResponse"][] | null;
+            results?: components["schemas"]["ExportedResultResponse"][] | null;
+            mdtItems?: components["schemas"]["ExportedMdtItemResponse"][] | null;
         };
         PatientFlagsResponse: {
             isRestricted?: boolean;
@@ -18939,6 +20757,8 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
+            waitsForResults?: boolean;
             isArchived?: boolean;
             /** Format: int32 */
             templateCount?: number;
@@ -18958,6 +20778,9 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
+            canRecordConsent?: boolean;
+            waitsForResults?: boolean;
             notes?: string | null;
             isOptional?: boolean;
             choosesBranch?: boolean;
@@ -19149,6 +20972,23 @@ export interface components {
             specimenNumber?: string | null;
             specimenTypeName?: string | null;
             laboratoryName?: string | null;
+            /** Format: uuid */
+            consentRecordId?: string | null;
+            consentFormName?: string | null;
+            consentFormVersion?: string | null;
+            consentSignedBy?: string | null;
+            /** Format: date */
+            consentSignedOn?: string | null;
+            /** Format: uuid */
+            resultId?: string | null;
+            resultSource?: string | null;
+            resultAction?: string | null;
+            mdtItemId?: string | null;
+            /** Format: date-time */
+            meetingStartUtc?: string | null;
+            /** Format: date-time */
+            previousMeetingStartUtc?: string | null;
+            presentUsernames?: string[] | null;
         };
         PatientTimelineOverviewResponse: {
             upcoming?: components["schemas"]["PatientTimelineUpcomingResponse"][] | null;
@@ -19266,12 +21106,38 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ReassignResultRequest: {
+            /** Format: uuid */
+            responsibleUserId?: string;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         RecordAppointmentOutcomeRequest: {
             outcome?: string | null;
+        };
+        RecordConsentRequest: {
+            /** Format: uuid */
+            stageId?: string;
+            /** Format: uuid */
+            consentFormId?: string;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
         };
         RecordDnaFollowUpRequest: {
             decision?: string | null;
             detail?: string | null;
+        };
+        RecordExternalResultRequest: {
+            /** Format: uuid */
+            attachmentId?: string;
+            title?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            /** Format: uuid */
+            responsibleUserId?: string;
         };
         RecordLetterSentRequest: {
             method?: string | null;
@@ -19494,6 +21360,104 @@ export interface components {
             token?: string | null;
             newPassword?: string | null;
         };
+        ResultCountResponse: {
+            /** Format: int32 */
+            awaitingMine?: number;
+        };
+        ResultResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            patient?: components["schemas"]["PathwayPatientResponse"];
+            patientFlags?: components["schemas"]["PatientFlagsResponse"];
+            /** Format: uuid */
+            pathwayId?: string | null;
+            pathwayTitle?: string | null;
+            /** Format: uuid */
+            specimenId?: string | null;
+            specimenNumber?: string | null;
+            specimenTypeName?: string | null;
+            source?: string | null;
+            title?: string | null;
+            /** Format: uuid */
+            reportAttachmentId?: string;
+            reportFileName?: string | null;
+            reportHasThumbnail?: boolean;
+            /** Format: date-time */
+            reportedAtUtc?: string;
+            reportedByUsername?: string | null;
+            /** Format: int32 */
+            ageDays?: number;
+            /** Format: uuid */
+            responsibleUserId?: string;
+            responsibleUsername?: string | null;
+            needsClinician?: boolean;
+            status?: string | null;
+            isAwaitingSignOff?: boolean;
+            /** Format: date-time */
+            seenAtUtc?: string | null;
+            seenByUsername?: string | null;
+            /** Format: date-time */
+            signedOffAtUtc?: string | null;
+            signedOffByUsername?: string | null;
+            action?: string | null;
+            actionDetail?: string | null;
+            /** Format: date-time */
+            enteredInErrorAtUtc?: string | null;
+            enteredInErrorByUsername?: string | null;
+            errorDetail?: string | null;
+            /** Format: int32 */
+            version?: number;
+            canMarkSeen?: boolean;
+            canSignOff?: boolean;
+            canReassign?: boolean;
+            canMarkEnteredInError?: boolean;
+            readOnlyReason?: string | null;
+        };
+        ResultSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            patientName?: string | null;
+            patientNhsNumber?: string | null;
+            /** Format: date */
+            patientDateOfBirth?: string;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            pathwayTitle?: string | null;
+            source?: string | null;
+            title?: string | null;
+            specimenNumber?: string | null;
+            /** Format: date-time */
+            reportedAtUtc?: string;
+            /** Format: int32 */
+            ageDays?: number;
+            responsibleUsername?: string | null;
+            needsClinician?: boolean;
+            status?: string | null;
+            isAwaitingSignOff?: boolean;
+            /** Format: date-time */
+            signedOffAtUtc?: string | null;
+            signedOffByUsername?: string | null;
+            action?: string | null;
+        };
+        ResultSummaryResponsePagedResponse: {
+            items?: components["schemas"]["ResultSummaryResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ResultVersionRequest: {
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         ResumeClockRequest: {
             /** Format: int32 */
             expectedVersion?: number;
@@ -19646,6 +21610,12 @@ export interface components {
         };
         SetUserSpecialtiesRequest: {
             specialtyIds?: string[] | null;
+        };
+        SignOffResultRequest: {
+            action?: string | null;
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         SiteHoursDayRequest: {
             dayOfWeek?: string | null;
@@ -20080,6 +22050,8 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean | null;
+            waitsForResults?: boolean | null;
         };
         UpdatePatientRequest: {
             firstName?: string | null;
@@ -20241,8 +22213,124 @@ export interface components {
             mustSetUpTwoFactor?: boolean;
             permissions?: string[] | null;
         };
+        WithdrawConsentRequest: {
+            /** Format: date */
+            withdrawnOn?: string;
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         WithdrawLetterRequest: {
             reason?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
+        DeferMdtItemRequest: {
+            /** Format: uuid */
+            meetingId?: string;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
+        ExportedMdtItemResponse: {
+            /** Format: uuid */
+            pathwayId?: string;
+            pathwayTitle?: string | null;
+            specialty?: string | null;
+            status?: string | null;
+            question?: string | null;
+            /** Format: date-time */
+            meetingStartUtc?: string | null;
+            /** Format: date-time */
+            meetingCancelledStartUtc?: string | null;
+            listedBy?: string | null;
+            /** Format: date-time */
+            listedAtUtc?: string;
+            outcome?: string | null;
+            outcomeBy?: string | null;
+            /** Format: date-time */
+            outcomeAtUtc?: string | null;
+            present?: string[] | null;
+            withdrawnBy?: string | null;
+            /** Format: date-time */
+            withdrawnAtUtc?: string | null;
+        };
+        ListForMdtRequest: {
+            /** Format: uuid */
+            pathwayId?: string;
+            /** Format: uuid */
+            meetingId?: string;
+            question?: string | null;
+        };
+        MdtItemResponse: {
+            /** Format: uuid */
+            id?: string;
+            status?: string | null;
+            patient?: components["schemas"]["PathwayPatientResponse"];
+            /** Format: uuid */
+            pathwayId?: string;
+            pathwayTitle?: string | null;
+            /** Format: uuid */
+            specialtyId?: string;
+            specialtyName?: string | null;
+            /** Format: uuid */
+            meetingId?: string | null;
+            meetingTitle?: string | null;
+            /** Format: date-time */
+            meetingStartUtc?: string | null;
+            /** Format: date-time */
+            meetingCancelledStartUtc?: string | null;
+            question?: string | null;
+            listedByUsername?: string | null;
+            /** Format: date-time */
+            listedAtUtc?: string;
+            outcome?: string | null;
+            outcomeByUsername?: string | null;
+            /** Format: date-time */
+            outcomeAtUtc?: string | null;
+            present?: string[] | null;
+            withdrawnByUsername?: string | null;
+            /** Format: date-time */
+            withdrawnAtUtc?: string | null;
+            /** Format: int32 */
+            version?: number;
+            canWithdraw?: boolean;
+            canDefer?: boolean;
+            canRecordOutcome?: boolean;
+            readOnlyReason?: string | null;
+        };
+        MdtMeetingListResponse: {
+            meeting?: components["schemas"]["MdtMeetingResponse"];
+            items?: components["schemas"]["MdtItemResponse"][] | null;
+        };
+        MdtMeetingResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            /** Format: date-time */
+            startUtc?: string;
+            /** Format: date-time */
+            endUtc?: string;
+            /** Format: uuid */
+            specialtyId?: string;
+            specialtyName?: string | null;
+            /** Format: int32 */
+            openItemCount?: number;
+            /** Format: int32 */
+            itemCount?: number;
+            attendees?: components["schemas"]["MdtPersonResponse"][] | null;
+        };
+        MdtPersonResponse: {
+            /** Format: uuid */
+            userId?: string;
+            username?: string | null;
+        };
+        RecordMdtOutcomeRequest: {
+            outcome?: string | null;
+            presentUserIds?: string[] | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
+        WithdrawMdtItemRequest: {
             /** Format: int32 */
             expectedVersion?: number;
         };

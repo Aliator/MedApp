@@ -29,6 +29,7 @@ public sealed class DeletePatientHandlerActivityTests
         _fixture.Inject(_repository.Object);
         _fixture.Inject<IActivityLog>(new RecordingActivityLog());
         _fixture.Inject(new Mock<IAttachmentRepository>().Object);
+        _fixture.Inject(new Mock<MedApp.Application.Results.Repositories.IResultRepository>().Object);
     }
 
     [Test]

@@ -14,8 +14,12 @@ using MedApp.Domain.Appointments;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Referrals;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.Application.Consent.Common;
 using MedApp.Application.Specimens.Common;
 using MedApp.Domain.Specimens;
+using MedApp.Application.Mdt.Common;
+using MedApp.Domain.Calendar;
+using MedApp.Domain.Mdt;
 
 namespace MedApp.UnitTests.Application.Pathways.Timeline.Common;
 
@@ -146,6 +150,10 @@ public sealed class TimelineStaffCanaryTests
                 >= Action.LetterDrafted and <= Action.LetterWithdrawn => new PatientTimelineRow(e, CurrentTitle) { Letter = CanaryLetter },
                 // As the handler gives admins a specimen entry's specimen, for its free text (the audit holds none).
                 >= Action.SpecimenTaken and <= Action.SpecimenDetailsEdited => new PatientTimelineRow(e, CurrentTitle) { Specimen = SpecimenHoldingTheCanary() },
+                // And a result entry's result.
+                >= Action.ResultRecorded and <= Action.ResultEnteredInError => new PatientTimelineRow(e, CurrentTitle) { Result = ResultHoldingTheCanary() },
+                // As the handler gives admins a consent entry's record, for its detail (the audit holds none).
+                >= Action.ConsentRecorded and <= Action.ConsentEnteredInError => new PatientTimelineRow(e, CurrentTitle) { ConsentRecord = ConsentHoldingTheCanary() },
                 _ => new PatientTimelineRow(e, CurrentTitle),
             })
             .ToList();
@@ -215,8 +223,29 @@ public sealed class TimelineStaffCanaryTests
         branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
         branchChange.ReinstateStage(branching.StageAt(2), Canary);
 
+        // As the MDT handlers: an item listed, deferred, withdrawn and its outcome recorded, with the canary as the
+        // question, the outcome and the meeting's title, none of which the details ever copy.
+        var mdtPathway = CreatePathway(Status.InProgress, title: Canary);
+        var meeting = new Meeting { Id = Guid.NewGuid(), Title = Canary, Notes = Canary, StartUtc = Now, EndUtc = Now.AddHours(1), IsMdt = true, SpecialtyId = Guid.NewGuid() };
+        var later = new Meeting { Id = Guid.NewGuid(), Title = Canary, StartUtc = Now.AddDays(7), EndUtc = Now.AddDays(7).AddHours(1), IsMdt = true, SpecialtyId = meeting.SpecialtyId };
+        var item = new MdtItem
+        {
+            Id = Guid.NewGuid(), PatientId = mdtPathway.PatientId, PathwayId = mdtPathway.Id, Pathway = mdtPathway,
+            MeetingId = meeting.Id, Meeting = meeting, Question = Canary, Outcome = Canary,
+            Attendees = [new MdtItemAttendee { StaffUserId = OtherUserId, Username = OtherUsername }]
+        };
+        var mdt = new[]
+        {
+            MdtAudit.Listed(item, mdtPathway, "Dermatology", meeting, Staff, Now),
+            MdtAudit.Deferred(item, "Dermatology", meeting.Id, meeting.StartUtc, later, Staff, Now),
+            MdtAudit.Withdrawn(item, "Dermatology", Staff, Now),
+            MdtAudit.OutcomeRecorded(item, "Dermatology", Staff, Now),
+        };
+
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
-            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
+            .Concat(ResultEntriesHoldingTheCanary())
+            .Concat(ConsentEntriesHoldingTheCanary()).ToList();
     }
 
     /// <summary>
@@ -302,6 +331,135 @@ public sealed class TimelineStaffCanaryTests
         wrong.MarkEnteredInError(Canary);
 
         return [.. change.AuditEntries, .. reject.AuditEntries, .. lose.AuditEntries, .. wrong.AuditEntries];
+    }
+
+    /// <summary>A specimen's result whose free text (title, action detail, error detail) is all the canary.</summary>
+    private static MedApp.Domain.Results.Result ResultHoldingTheCanary()
+    {
+        var specimen = SpecimenHoldingTheCanary();
+        specimen.Status = SpecimenStatus.Reported;
+        return new MedApp.Domain.Results.Result
+        {
+            Id = Guid.NewGuid(),
+            PatientId = specimen.PatientId,
+            PathwayId = specimen.PathwayId,
+            Pathway = specimen.Pathway,
+            SpecimenId = specimen.Id,
+            Specimen = specimen,
+            Source = MedApp.Domain.Results.ResultSource.Specimen,
+            Title = Canary,
+            ReportAttachmentId = Guid.NewGuid(),
+            ReportedAtUtc = Now,
+            ReportedByUserId = Staff.UserId,
+            ResponsibleUserId = OtherUserId,
+            ActionDetail = Canary,
+            ErrorDetail = Canary,
+        };
+    }
+
+    /// <summary>Every result action, through <see cref="MedApp.Application.Results.Common.ResultChange"/> as the handlers write them.</summary>
+    private static List<PatientPathwayAuditEntry> ResultEntriesHoldingTheCanary()
+    {
+        var result = ResultHoldingTheCanary();
+        var change = new MedApp.Application.Results.Common.ResultChange(result, result.Pathway, Staff, Now);
+        change.Record(OtherUsername);
+        change.MarkSeen();
+        change.Reassign(Staff.UserId, OtherUsername, Staff.Username);
+        change.SignOff(MedApp.Domain.Results.ResultAction.Other, Canary);
+
+        var wrong = ResultHoldingTheCanary();
+        var error = new MedApp.Application.Results.Common.ResultChange(wrong, wrong.Pathway, Staff, Now);
+        error.MarkEnteredInError(Canary);
+
+        return [.. change.AuditEntries, .. error.AuditEntries];
+    }
+
+    [Test]
+    public void ResultEntries_NeverHoldFreeText()
+    {
+        // The title, action detail and error detail live only on the result.
+        ResultEntriesHoldingTheCanary().Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_AdminResultEntries_CarryTheResultsFreeText()
+    {
+        // Recorded (its title), signed off (the action's detail) and entered in error (what was wrong).
+        var rows = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Action is Action.ResultRecorded or Action.ResultSignedOff or Action.ResultEnteredInError)
+            .ToList();
+
+        rows.Should().HaveCount(3);
+        foreach (var row in rows)
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_ResultEntries_GiveStructuredValuesToStaff()
+    {
+        var rows = RowsHoldingTheCanary();
+        var signedOff = TimelineMapper.ToResponse(rows.Single(r => r.Entry.Action == Action.ResultSignedOff), isAdmin: false);
+        signedOff.Kind.Should().Be(nameof(PatientTimelineKind.Results));
+        signedOff.ResultAction.Should().Be(nameof(MedApp.Domain.Results.ResultAction.Other));
+        signedOff.ResultSource.Should().Be(nameof(MedApp.Domain.Results.ResultSource.Specimen));
+        signedOff.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
+        signedOff.Reason.Should().BeNull();
+
+        var reassigned = TimelineMapper.ToResponse(rows.Single(r => r.Entry.Action == Action.ResultReassigned), isAdmin: false);
+        reassigned.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Field = MedApp.Application.Results.Common.ResultChange.ResponsibleField, From = OtherUsername, To = Staff.Username,
+        });
+    }
+
+    /// <summary>A consent record whose free text (the withdrawal or correction detail) is the canary.</summary>
+    private static MedApp.Domain.Consent.ConsentRecord ConsentHoldingTheCanary()
+    {
+        var record = ConsentTestConstants.CreateRecord(scanAttachmentId: Guid.NewGuid());
+        record.StatusDetail = Canary;
+        return record;
+    }
+
+    /// <summary>Every consent action, through <see cref="ConsentChange"/> as the handlers write them, with the canary as the detail.</summary>
+    private static List<PatientPathwayAuditEntry> ConsentEntriesHoldingTheCanary()
+    {
+        var recorded = ConsentTestConstants.CreateRecord(scanAttachmentId: Guid.NewGuid());
+        var record = new ConsentChange(recorded, recorded.Pathway, Staff, Now);
+        record.Recorded();
+        record.Withdraw(Today, Canary);
+
+        var wrong = ConsentTestConstants.CreateRecord();
+        var error = new ConsentChange(wrong, wrong.Pathway, Staff, Now);
+        error.MarkEnteredInError(Canary);
+
+        return [.. record.AuditEntries, .. error.AuditEntries];
+    }
+
+    [Test]
+    public void ConsentEntries_NeverHoldFreeText()
+    {
+        // DPIA risk 35: a withdrawal's or correction's detail lives only on the record.
+        ConsentEntriesHoldingTheCanary().Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_ConsentEntries_GiveTheFormAndWhoSigned_AndTheDetailOnlyToAdmins()
+    {
+        var rows = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Action is Action.ConsentWithdrawn or Action.ConsentEnteredInError)
+            .ToList();
+
+        rows.Should().HaveCount(2);
+        foreach (var row in rows)
+        {
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+            var staff = TimelineMapper.ToResponse(row, isAdmin: false);
+            staff.Reason.Should().BeNull();
+            staff.ConsentFormName.Should().Be(ConsentTestConstants.FormName);
+            staff.ConsentFormVersion.Should().Be(ConsentTestConstants.FormVersion);
+            staff.ConsentSignedBy.Should().Be("Patient");
+            staff.ConsentSignedOn.Should().Be(Today);
+        }
     }
 
     [Test]
@@ -611,5 +769,25 @@ public sealed class TimelineStaffCanaryTests
         staff.SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
         staff.Reason.Should().BeNull();
         admin.Reason.Should().Be(Canary);
+    }
+
+    [Test]
+    public void MdtEntries_NeverHoldTheQuestionOrTheOutcome_AndGiveEveryoneTheMeetingAndWhoWasPresent()
+    {
+        var entries = EntriesHoldingTheCanary()
+            .Where(e => e.Action is Action.MdtListed or Action.MdtDeferred or Action.MdtWithdrawn or Action.MdtOutcomeRecorded)
+            .ToList();
+        entries.Select(e => e.Action).Should().Equal(Action.MdtListed, Action.MdtDeferred, Action.MdtWithdrawn, Action.MdtOutcomeRecorded);
+        entries.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+
+        var outcome = TimelineMapper.ToResponse(new PatientTimelineRow(entries[3], CurrentTitle), isAdmin: false);
+        outcome.Kind.Should().Be(nameof(PatientTimelineKind.Mdt));
+        outcome.SpecialtyName.Should().Be("Dermatology");
+        outcome.MeetingStartUtc.Should().Be(Now);
+        outcome.PresentUsernames.Should().Equal(OtherUsername);
+
+        var deferred = TimelineMapper.ToResponse(new PatientTimelineRow(entries[1], CurrentTitle), isAdmin: false);
+        deferred.PreviousMeetingStartUtc.Should().Be(Now);
+        deferred.MeetingStartUtc.Should().Be(Now.AddDays(7));
     }
 }

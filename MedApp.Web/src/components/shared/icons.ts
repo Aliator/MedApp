@@ -5,8 +5,12 @@
 import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
+  RiDiscussLine,
   RiArrowGoBackLine,
   RiChatFollowUpLine,
+  RiCheckDoubleLine,
+  RiFileChartLine,
+  RiUserSharedLine,
   RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
@@ -134,6 +138,7 @@ import {
   RiQrScanLine,
   RiSendPlaneLine,
   RiTestTubeLine,
+  RiQuillPenLine,
   RiTruckLine,
 } from '@remixicon/react';
 
@@ -338,5 +343,17 @@ export const AppIcon = {
   SpecimenReceived: remix(RiMicroscopeLine),
   /** Finding a specimen by its number, typed or scanned from its label. */
   Scan: remix(RiQrScanLine),
+  /** The MDT list: pathways put forward for a specialty's multidisciplinary team meeting, and the team's outcomes. */
+  Mdt: remix(RiDiscussLine),
+  /** Printing a page (the MDT list). */
   Print: remix(RiPrinterLine),
+  // Results: reports awaiting a clinician's sign-off
+  /** The Results list and a result's page. */
+  Results: remix(RiFileChartLine),
+  /** Signing a result off. */
+  SignOff: remix(RiCheckDoubleLine),
+  /** Giving a result to another responsible clinician. */
+  Reassign: remix(RiUserSharedLine),
+  /** Consent to a stage: recorded, its form and the consent forms list (setup). */
+  Consent: remix(RiQuillPenLine),
 } as const satisfies Record<string, IconType>;

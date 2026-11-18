@@ -17,6 +17,7 @@ using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
 using MedApp.Application.Jobs.Common;
+using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Jobs.OperationalPurge;
@@ -268,6 +269,7 @@ public static class ServiceExtensions
         services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
+        services.AddScoped<MedApp.Application.Mdt.Repositories.IMdtItemRepository, MdtItemRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IPatientMessageRepository, PatientMessageRepository>();
         services.AddScoped<IClinicRepository, ClinicRepository>();
@@ -289,6 +291,8 @@ public static class ServiceExtensions
         services.AddScoped<ILetterRepository, LetterRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
+        services.AddScoped<MedApp.Application.Results.Repositories.IResultRepository, ResultRepository>();
+        services.AddScoped<IConsentRepository, ConsentRepository>();
         
         return services;
     }

@@ -1,7 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nurseUser, openDialog, renderWithApp, rowMenuItem, staffUser, userWithRoles} from '../../test/render';
+import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nurseUser, openDialog, renderWithApp, rowMenuItem, seniorClinicianUser, staffUser, userWithRoles} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
@@ -120,10 +120,12 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then Letters, the GP practice directory, then Patients.
-    expect(names.indexOf('/letters')).toBe(names.indexOf('/referrals') + 1);
+    // Then Results, Letters, the GP practice directory, the MDT list, then Patients.
+    expect(names.indexOf('/results')).toBe(names.indexOf('/referrals') + 1);
+    expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
     expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
-    expect(names.indexOf('/patients')).toBe(names.indexOf('/practices') + 1);
+    expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
   });
 
   it('offers Practices only to someone who can view patients', async () => {
@@ -160,6 +162,28 @@ describe('AppSideNav', () => {
     mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
+  });
+
+  it("has Results before Letters for someone who can view patients, current on a result's page, with a count only for those who sign off", async () => {
+    const fetch = mockApi({'GET /api/results/count': () => json({awaitingMine: 4})});
+    const {unmount} = renderWithApp(<AppSideNav />, {user: seniorClinicianUser, path: '/results/00000061-0000-0000-0000-000000000001'});
+    const results = await screen.findByRole('link', {name: 'Results, 4 awaiting your sign-off'});
+    expect(results).toHaveAttribute('href', '/results');
+    expect(results).toHaveAttribute('aria-current', 'page');
+    expect(results).toHaveTextContent('4');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
+    unmount();
+
+    fetch.mockClear();
+    const nurse = renderWithApp(<AppSideNav />, {user: nurseUser});
+    expect(await screen.findByRole('link', {name: 'Results'})).toBeInTheDocument();
+    expect(calls(fetch)).not.toContain('GET /api/results/count');
+    nurse.unmount();
+
+    renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Results/})).not.toBeInTheDocument();
   });
 
   it('has Letters for someone who can view patients, with how many to approve and to send', async () => {

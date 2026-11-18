@@ -1,3 +1,4 @@
+import {CheckboxInput} from '@astryxdesign/core/CheckboxInput';
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -5,6 +6,7 @@ import {Grid} from '@astryxdesign/core/Grid';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {VStack} from '@astryxdesign/core/Stack';
+import {Switch} from '@astryxdesign/core/Switch';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
@@ -53,6 +55,8 @@ const EMPTY: StageDefinitionInput = {
   snomedTerm: '',
   visitRequirement: 'None',
   needsLetterKind: 'None',
+  waitsForResults: false,
+  needsConsent: false,
 };
 
 /** The "Needs a letter" choices: none, or a kind of letter (decision 105). */
@@ -118,6 +122,8 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             snomedTerm: definition.snomedTerm ?? '',
             visitRequirement: visitRequirementOf(definition),
             needsLetterKind: definition.needsLetterKind || 'None',
+            waitsForResults: definition.waitsForResults ?? false,
+            needsConsent: definition.needsConsent ?? false,
           }
         : EMPTY,
     );
@@ -302,6 +308,18 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 value={form.needsLetterKind}
                 onChange={(value: string) => setForm((current) => ({...current, needsLetterKind: value}))}
                 status={fieldStatus(problem.validation, 'needsLetterKind')}
+              />
+              <Switch
+                label="Waits for results"
+                description="It can't be finished while any of the pathway's results awaits sign-off by its responsible clinician."
+                value={form.waitsForResults}
+                onChange={(isOn) => setForm((current) => ({...current, waitsForResults: isOn}))}
+              />
+              <CheckboxInput
+                label="Needs consent"
+                description="The patient's consent to this stage must be recorded before it can be finished. MedApp records the consent; it doesn't assess it."
+                value={form.needsConsent}
+                onChange={(value: boolean) => setForm((current) => ({...current, needsConsent: value}))}
               />
             </VStack>
           </ConfirmDialog>

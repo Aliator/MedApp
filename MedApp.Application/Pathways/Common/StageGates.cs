@@ -1,5 +1,6 @@
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Specimens.Common;
+using MedApp.Domain.Consent;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Specimens;
@@ -37,8 +38,13 @@ public static class StageLetterKinds
 /// <item><b>The last stage and open specimens</b> (decision 89): the stage whose finish leaves none unfinished can't be
 /// finished while any of the pathway's specimens is open (taken, sent or received), so a pathway can't be discharged
 /// with a report still to come.</item>
+/// <item><b>Results awaiting sign-off</b> (decision 95): a stage that waits for results
+/// (<see cref="PatientPathwayStage.WaitsForResults"/>), and the last stage always, can't be finished while any of the
+/// pathway's results awaits sign-off, so a pathway can't be discharged with a result nobody has acted on (hazard H-46).</item>
 /// </list>
-/// Results (PR 14) add their gates here.
+/// <item><b>Consent</b> (decision 146): a stage that needs consent (<see cref="PatientPathwayStage.NeedsConsent"/>) can't be
+/// finished without a Valid consent record for it (withdrawn or entered in error doesn't count). MedApp checks only that
+/// one is recorded; it never assesses the consent.</item>
 /// </summary>
 public static class StageGates
 {
@@ -66,6 +72,18 @@ public static class StageGates
                "Record each one's report, or mark it rejected, lost or entered in error.";
     }
 
+    /// <summary>
+    /// Why the stage can't be finished while results await sign-off, or null if it can: it waits for results, or it's
+    /// the last to finish, and some of <paramref name="awaitingResults"/> (the pathway's results awaiting sign-off) still
+    /// await. Dates only: MedApp never reads a result.
+    /// </summary>
+    public static string? WhyResultsAwaiting(
+        PatientPathway pathway,
+        PatientPathwayStage stage,
+        IReadOnlyCollection<Domain.Results.Result> awaitingResults) =>
+        Results.Common.ResultWorkflow.WhyAwaitingResultsBlockFinish(
+            awaitingResults, IsLastToFinish(pathway, stage), stage.WaitsForResults);
+
     /// <summary>Whether finishing this stage would leave none of the pathway's stages unfinished.</summary>
     public static bool IsLastToFinish(PatientPathway pathway, PatientPathwayStage stage) =>
         pathway.Stages.All(s => s.Id == stage.Id || s.IsCompleted);
@@ -92,6 +110,27 @@ public static class StageGates
                     ? "It's awaiting approval."
                     : "It's still a draft.";
         return $"This stage needs {Article(what)} {what}, approved and sent to every recipient, before it can be finished. {state}";
+    }
+
+    public const string ConsentMissingMessage =
+        "This stage needs the patient's consent recorded before it can be finished: record it from the pathway's Consent card.";
+
+    /// <summary>
+    /// Why the stage can't be finished for want of consent, or null if it needs none or has a Valid record.
+    /// <paramref name="stageRecords"/> are the stage's consent records, in any status.
+    /// </summary>
+    public static string? WhyConsentMissing(PatientPathwayStage stage, IReadOnlyCollection<ConsentRecord> stageRecords)
+    {
+        if (!stage.NeedsConsent)
+            return null;
+
+        var forStage = stageRecords.Where(r => r.StageId == stage.Id).ToList();
+        if (forStage.Any(r => r.Status == ConsentStatus.Valid))
+            return null;
+
+        return forStage.Any(r => r.Status == ConsentStatus.Withdrawn)
+            ? ConsentMissingMessage + " The consent recorded for it has been withdrawn."
+            : ConsentMissingMessage;
     }
 
     private static string Article(string words) => "aeiou".Contains(words[0]) ? "an" : "a";

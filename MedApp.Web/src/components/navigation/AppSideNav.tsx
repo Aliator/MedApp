@@ -27,6 +27,7 @@ import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
 import {letterCountQuery} from '../../api/letters';
 import {awaitingTriageCountQuery} from '../../api/referrals';
+import {resultCountQuery} from '../../api/results';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -59,6 +60,7 @@ const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon];
   {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
   {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},
   {label: 'Specimen Types and Labs', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
+  {label: 'Consent Forms', icon: AppIcon.Consent, href: '/admin/consent-forms', permission: 'ManageSetup'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights', permission: 'ViewInsights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
@@ -632,6 +634,20 @@ export function LettersCount({toApprove, toSend}: {toApprove: number; toSend: nu
 }
 
 /**
+ * The Results item's count: results awaiting the signed-in person's sign-off, as a badge (nothing when there are none).
+ * Seen as the number; heard as "2 awaiting your sign-off", after the item's name.
+ */
+export function ResultsCount({count}: {count: number}) {
+  if (count <= 0) return null;
+  return (
+    <>
+      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
+      <VisuallyHidden>{`, ${count} awaiting your sign-off`}</VisuallyHidden>
+    </>
+  );
+}
+
+/**
  * Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer.
  * Under Patients and under Pathways, as indented sub-items: the ones you've pinned (up to MAX_PINS of each,
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
@@ -676,6 +692,9 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const pathwayPins = usePins('pathways', user.username);
   // My letters to approve and every letter still to send: counts, naming no patients.
   const letterCount = useQuery({...letterCountQuery, enabled: can(user, 'ViewPatients')}).data;
+  // Results awaiting my sign-off, only for those who sign results off: a count, naming no patients.
+  const resultCount =
+    useQuery({...resultCountQuery, enabled: can(user, 'ViewPatients') && can(user, 'SignOffResults')}).data?.awaitingMine ?? 0;
 
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
@@ -749,6 +768,30 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           },
         ]
       : []),
+    // Results awaiting sign-off and signed off, for anyone who can view patients; a result's page counts as under it.
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'results',
+            label: 'Results',
+            icon: AppIcon.Results,
+            href: '/results',
+            isSelected: isAt('/results'),
+            isHalfView: isHalfAt('/results'),
+            row: (
+              <SideNavItem
+                label="Results"
+                icon={AppIcon.Results}
+                href="/results"
+                isSelected={isAt('/results')}
+                ref={halfViewRow(isHalfAt('/results'))}
+                endContent={can(user, 'SignOffResults') ? <ResultsCount count={resultCount} /> : undefined}
+                actions={<RowMenu label="Results" href="/results" />}
+              />
+            ),
+          },
+        ]
+      : []),
     // Letters to write, approve and send, for anyone who can view patients (decision 108).
     ...(can(user, 'ViewPatients')
       ? [
@@ -791,6 +834,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 isSelected={isAt('/practices')}
                 ref={halfViewRow(isHalfAt('/practices'))}
                 actions={<RowMenu label="Practices" href="/practices" />}
+              />
+            ),
+          },
+        ]
+      : []),
+    // The MDT list (multidisciplinary team meetings), for anyone who can view patients.
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'mdt',
+            label: 'MDT',
+            icon: AppIcon.Mdt,
+            href: '/mdt',
+            isSelected: isAt('/mdt'),
+            isHalfView: isHalfAt('/mdt'),
+            row: (
+              <SideNavItem
+                label="MDT"
+                icon={AppIcon.Mdt}
+                href="/mdt"
+                isSelected={isAt('/mdt')}
+                ref={halfViewRow(isHalfAt('/mdt'))}
+                actions={<RowMenu label="MDT" href="/mdt" />}
               />
             ),
           },

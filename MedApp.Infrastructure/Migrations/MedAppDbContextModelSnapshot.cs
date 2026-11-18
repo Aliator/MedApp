@@ -762,6 +762,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("EndUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsMdt")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
@@ -781,6 +784,9 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<Guid?>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("StartUtc")
                         .HasColumnType("datetime2");
 
@@ -790,6 +796,8 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SpecialtyId");
 
                     b.HasIndex("StartUtc");
 
@@ -1077,6 +1085,123 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("ClinicSessions", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Consent.ConsentForm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FormVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name", "FormVersion")
+                        .IsUnique();
+
+                    b.ToTable("ConsentForms", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Consent.ConsentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConsentFormId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FormName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FormVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RecordedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid?>("ScanAttachmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SignedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("SignedOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("StageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StatusChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("StatusChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StatusDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("WithdrawnOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsentFormId");
+
+                    b.HasIndex("PathwayId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ScanAttachmentId")
+                        .HasFilter("[ScanAttachmentId] IS NOT NULL");
+
+                    b.HasIndex("StageId");
+
+                    b.ToTable("ConsentRecords", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Jobs.ScheduledJob", b =>
                 {
                     b.Property<string>("Name")
@@ -1349,6 +1474,110 @@ namespace MedApp.Infrastructure.Migrations
                         .HasDatabaseName("IX_LetterTemplates_SpecialtyId_Name");
 
                     b.ToTable("LetterTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ListedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ListedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ListedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("MeetingCancelledStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("MeetingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("OutcomeAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("OutcomeByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OutcomeByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("WithdrawnAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("WithdrawnByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WithdrawnByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingId");
+
+                    b.HasIndex("PathwayId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("SpecialtyId", "Status");
+
+                    b.ToTable("MdtItems", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItemAttendee", b =>
+                {
+                    b.Property<Guid>("MdtItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("MdtItemId", "StaffUserId");
+
+                    b.ToTable("MdtItemAttendees", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
@@ -1937,6 +2166,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasDefaultValue("");
 
+                    b.Property<bool>("NeedsConsent")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("NeedsLetterKind")
                         .HasColumnType("int");
 
@@ -1994,6 +2226,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<bool>("WaitsForResults")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("StageDefinitionId");
@@ -2030,6 +2265,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("NeedsConsent")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("NeedsLetterKind")
                         .HasColumnType("int");
 
@@ -2047,6 +2285,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<bool>("WaitsForResults")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
@@ -2062,7 +2303,9 @@ namespace MedApp.Infrastructure.Migrations
                             Instructions = "No instructions available.",
                             IsArchived = true,
                             Name = "Definition missing",
-                            VisitRequirement = 0
+                            NeedsConsent = false,
+                            VisitRequirement = 0,
+                            WaitsForResults = false
                         });
                 });
 
@@ -2543,6 +2786,99 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("PatientId", "AtUtc", "Id");
 
                     b.ToTable("ReferralEvents", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Results.Result", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ActionDetail")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("EnteredInErrorAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("EnteredInErrorByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ErrorDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReportAttachmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ReportedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ReportedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ResponsibleUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("SeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("SeenByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("SignedOffAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("SignedOffByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SpecimenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PathwayId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ReportAttachmentId");
+
+                    b.HasIndex("SpecimenId")
+                        .IsUnique()
+                        .HasFilter("[SpecimenId] IS NOT NULL AND [Status] <> 3");
+
+                    b.HasIndex("Status", "ResponsibleUserId", "ReportedAtUtc");
+
+                    b.ToTable("Results", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Sites.Room", b =>
@@ -3303,6 +3639,14 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("DayTemplate");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Calendar.Meeting", b =>
+                {
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", null)
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Calendar.MeetingAttendee", b =>
                 {
                     b.HasOne("MedApp.Domain.Calendar.Meeting", "Meeting")
@@ -3396,6 +3740,33 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Specialty");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Consent.ConsentRecord", b =>
+                {
+                    b.HasOne("MedApp.Domain.Consent.ConsentForm", "ConsentForm")
+                        .WithMany()
+                        .HasForeignKey("ConsentFormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ConsentForm");
+
+                    b.Navigation("Pathway");
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("MedApp.Domain.Letters.Letter", b =>
                 {
                     b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", null)
@@ -3435,6 +3806,49 @@ namespace MedApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SpecialtyId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.HasOne("MedApp.Domain.Calendar.Meeting", "Meeting")
+                        .WithMany()
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Meeting");
+
+                    b.Navigation("Pathway");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("Specialty");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItemAttendee", b =>
+                {
+                    b.HasOne("MedApp.Domain.Mdt.MdtItem", null)
+                        .WithMany("Attendees")
+                        .HasForeignKey("MdtItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MedApp.Domain.Notepads.Notepad", b =>
@@ -3589,6 +4003,31 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Referral");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Results.Result", b =>
+                {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specimens.Specimen", "Specimen")
+                        .WithMany()
+                        .HasForeignKey("SpecimenId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Pathway");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("Specimen");
+                });
+
             modelBuilder.Entity("MedApp.Domain.Sites.Room", b =>
                 {
                     b.HasOne("MedApp.Domain.Sites.Site", "Site")
@@ -3739,6 +4178,11 @@ namespace MedApp.Infrastructure.Migrations
             modelBuilder.Entity("MedApp.Domain.Letters.Letter", b =>
                 {
                     b.Navigation("Recipients");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.Navigation("Attendees");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", b =>

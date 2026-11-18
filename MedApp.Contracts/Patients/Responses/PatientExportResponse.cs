@@ -77,6 +77,88 @@ public sealed class PatientExportResponse
     /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
+
+    /// <summary>
+    /// The patient's pathways put forward for multidisciplinary team meetings (MDTs), oldest listed first: the question
+    /// for the team and, once discussed, its outcome as written and who was present.
+    /// </summary>
+    public List<ExportedMdtItemResponse> MdtItems { get; set; } = [];
+
+    /// <summary>
+    /// The patient's results, oldest reported first: what each was, who was responsible, and who saw and signed it off
+    /// with what they did. Their history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedResultResponse> Results { get; set; } = [];
+
+    /// <summary>
+    /// The patient's consent records, oldest recorded first: the stage, the form, when and by whom it was signed, and
+    /// any withdrawal or correction. Their history is in <c>PathwayHistory</c>; their scans are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedConsentRecordResponse> ConsentRecords { get; set; } = [];
+}
+
+/// <summary>A result in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedResultResponse
+{
+    public Guid Id { get; set; }
+
+    public Guid? PathwayId { get; set; }
+
+    public Guid? SpecimenId { get; set; }
+
+    public string? SpecimenNumber { get; set; }
+
+    public string Source { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public Guid ReportAttachmentId { get; set; }
+
+    public DateTime ReportedAtUtc { get; set; }
+
+    public string ReportedBy { get; set; } = string.Empty;
+
+    public string ResponsibleClinician { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTime? SeenAtUtc { get; set; }
+
+    public string? SeenBy { get; set; }
+
+    public DateTime? SignedOffAtUtc { get; set; }
+
+    public string? SignedOffBy { get; set; }
+
+    public string? Action { get; set; }
+
+    public string? ActionDetail { get; set; }
+
+    public DateTime? EnteredInErrorAtUtc { get; set; }
+
+    public string? EnteredInErrorBy { get; set; }
+
+    public string? ErrorDetail { get; set; }
+}
+
+/// <summary>A consent record in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedConsentRecordResponse
+{
+    public Guid Id { get; set; }
+    public Guid PathwayId { get; set; }
+    public Guid StageId { get; set; }
+    public string FormName { get; set; } = string.Empty;
+    public string FormVersion { get; set; } = string.Empty;
+    public DateOnly SignedOn { get; set; }
+    public string SignedBy { get; set; } = string.Empty;
+    public string? RecordedBy { get; set; }
+    public DateTime RecordedAtUtc { get; set; }
+    public Guid? ScanAttachmentId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateOnly? WithdrawnOn { get; set; }
+    public string? StatusDetail { get; set; }
+    public DateTime? StatusChangedAtUtc { get; set; }
+    public string? StatusChangedBy { get; set; }
 }
 
 /// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>
@@ -196,6 +278,32 @@ public sealed class ExportedSpecimenResponse
     public DateTime? ClosedAtUtc { get; set; }
 
     public string? ClosedBy { get; set; }
+}
+
+/// <summary>A pathway put forward for an MDT, as the export gives it. Staff by username.</summary>
+public sealed class ExportedMdtItemResponse
+{
+    public Guid PathwayId { get; set; }
+    public string PathwayTitle { get; set; } = string.Empty;
+    public string Specialty { get; set; } = string.Empty;
+
+    /// <summary>Listed, Discussed, Deferred or Withdrawn.</summary>
+    public string Status { get; set; } = string.Empty;
+
+    public string Question { get; set; } = string.Empty;
+    public DateTime? MeetingStartUtc { get; set; }
+
+    /// <summary>When its meeting would have been, if that was cancelled.</summary>
+    public DateTime? MeetingCancelledStartUtc { get; set; }
+
+    public string ListedBy { get; set; } = string.Empty;
+    public DateTime ListedAtUtc { get; set; }
+    public string? Outcome { get; set; }
+    public string? OutcomeBy { get; set; }
+    public DateTime? OutcomeAtUtc { get; set; }
+    public List<string> Present { get; set; } = [];
+    public string? WithdrawnBy { get; set; }
+    public DateTime? WithdrawnAtUtc { get; set; }
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>

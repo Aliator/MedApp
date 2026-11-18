@@ -1,11 +1,13 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Consent;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Clinics;
 using MedApp.Domain.Jobs;
 using MedApp.Domain.Letters;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
@@ -57,6 +59,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Specimen> Specimens => Set<Specimen>();
     public DbSet<SpecimenType> SpecimenTypes => Set<SpecimenType>();
     public DbSet<Laboratory> Laboratories => Set<Laboratory>();
+    public DbSet<MedApp.Domain.Results.Result> Results => Set<MedApp.Domain.Results.Result>();
+    public DbSet<ConsentForm> ConsentForms => Set<ConsentForm>();
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();
@@ -73,6 +78,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<StaffHours> StaffHours => Set<StaffHours>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
+    public DbSet<MdtItem> MdtItems => Set<MdtItem>();
+    public DbSet<MdtItemAttendee> MdtItemAttendees => Set<MdtItemAttendee>();
     public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();
     public DbSet<DayTemplateBlock> DayTemplateBlocks => Set<DayTemplateBlock>();
     public DbSet<WeekTemplate> WeekTemplates => Set<WeekTemplate>();

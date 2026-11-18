@@ -9,6 +9,7 @@ using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Application.PatientMessages.Common;
 using MedApp.Domain.PatientMessages;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Common;
@@ -39,9 +40,13 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
 /// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their
 /// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
+/// <item>Consent records' withdrawal and correction details become <see cref="RemovedText"/>; their scans are deleted
+/// with every other live file.</item>
 /// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
 /// references are removed; their numbers, statuses, dates, types and labs stay. Their reports are files, deleted with
 /// the rest.</item>
+/// <item>Results' titles, action details and error details become <see cref="RemovedText"/>; their sources, statuses,
+/// actions, dates and who did what stay. Their reports are files, deleted with the rest.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -222,6 +227,37 @@ public static class PatientAnonymiser
             specimen.LabReference = null;
             specimen.CourierReference = null;
         }
+
+        // Results keep their sources, statuses, actions and dates; their free text goes.
+        foreach (var result in record.Results)
+        {
+            result.Title = Removed(result.Title);
+            if (result.ActionDetail is not null)
+                result.ActionDetail = Removed(result.ActionDetail);
+            if (result.ErrorDetail is not null)
+                result.ErrorDetail = Removed(result.ErrorDetail);
+        }
+
+        // MDT items: the question and the outcome are free text. Open ones are withdrawn, as the record can't change
+        // any more (by whoever anonymises, without an audit entry of their own: the anonymisation is the record of it).
+        foreach (var item in record.MdtItems)
+        {
+            item.Question = Removed(item.Question);
+            if (item.Outcome is not null)
+                item.Outcome = Removed(item.Outcome);
+            if (item.IsOpen)
+            {
+                item.Status = MdtItemStatus.Withdrawn;
+                item.WithdrawnAtUtc = nowUtc;
+                item.WithdrawnByUserId = by?.UserId;
+                item.WithdrawnByUsername = by?.Username;
+                item.Version++;
+            }
+        }
+        // Consent records keep their forms, dates, who signed (by kind) and statuses; a withdrawal's or correction's
+        // detail goes. Their scans are files, deleted below with the rest.
+        foreach (var consent in record.ConsentRecords.Where(c => c.StatusDetail is not null))
+            consent.StatusDetail = Removed(consent.StatusDetail!);
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;

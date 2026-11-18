@@ -46,7 +46,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.SnomedCode,
             request.SnomedTerm,
             request.VisitRequirement,
-            request.NeedsLetterKind), ct);
+            request.NeedsLetterKind,
+            request.WaitsForResults,
+            request.NeedsConsent), ct);
 
         return Created($"/api/pathways/patient-pathway-stage/definitions/{definition.Id}", definition);
     }
@@ -67,7 +69,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.SnomedCode,
             request.SnomedTerm,
             request.VisitRequirement,
-            request.NeedsLetterKind), ct));
+            request.NeedsLetterKind,
+            request.WaitsForResults,
+            request.NeedsConsent), ct));
 
     [HttpPost("definitions/{id:guid}/archive")]
     [ProducesResponseType(typeof(PatientPathwayStageDefinitionResponse), StatusCodes.Status200OK)]
