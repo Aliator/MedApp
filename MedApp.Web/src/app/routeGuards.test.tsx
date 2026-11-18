@@ -60,6 +60,21 @@ describe('route guards', () => {
     expect(await screen.findByText('No closed days in 2027')).toBeInTheDocument();
   });
 
+  it('sends a non-admin away from Sites and Rooms, without asking for them', async () => {
+    const fetch = mockApi({'GET /api/sites': () => json([])});
+    const {router} = renderApp({path: '/admin/sites', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('sites'))).toBe(false);
+  });
+
+  it('lets an admin into Sites and Rooms', async () => {
+    mockApi({'GET /api/sites': () => json([{id: 'main', name: 'Main site', addressLines: [], isArchived: false, canBeDeleted: false, rooms: []}])});
+    renderApp({path: '/admin/sites', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Sites and Rooms', level: 1})).toBeInTheDocument();
+    expect(await screen.findByText('Main site')).toBeInTheDocument();
+  });
+
   it('lets an admin into the admin pages', async () => {
     mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/roles'

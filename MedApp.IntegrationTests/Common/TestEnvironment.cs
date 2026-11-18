@@ -1,5 +1,7 @@
 using MedApp.Infrastructure.Data;
+using MedApp.Domain.Sites;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
+using MedApp.Infrastructure.Data.Configurations.Sites;
 using MedApp.IntegrationTests.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -82,12 +84,13 @@ public sealed class TestEnvironment
             DbAdapter = DbAdapter.SqlServer,
             // The data protection keys stay, as they would in a real database: the API caches its key ring, and a key
             // deleted under it would make tokens it seals unreadable after the cache refreshes. The seeded stage
-            // definition and activity types stay too, as migrations made them.
+            // definition, activity types and main site stay too, as migrations made them.
             TablesToIgnore =
             [
                 new Table("__EFMigrationsHistory"),
                 new Table("PatientPathwayStageDefinitions"),
                 new Table("CalendarActivityTypes"),
+                new Table("Sites"),
                 new Table("DataProtectionKeys"),
             ],
         });
@@ -106,7 +109,8 @@ public sealed class TestEnvironment
 
     /// <summary>
     /// Empties every table except the migrations history, then removes every stage definition but the seeded one, and
-    /// every activity type but the seeded ones, and puts those back as the migrations made them.
+    /// every activity type but the seeded ones, and every site but the main one, and puts those back as the migrations
+    /// made them.
     /// </summary>
     public static async Task ResetDatabaseAsync()
     {
@@ -148,5 +152,19 @@ public sealed class TestEnvironment
         }
 
         await activityTypes.ExecuteNonQueryAsync();
+
+        // The main site, as the migration made it (rooms and closed days, which name sites, are emptied by Respawn).
+        await using var sites = connection.CreateCommand();
+        sites.CommandText = """
+            DELETE FROM Sites WHERE Id <> @main;
+            UPDATE Sites
+            SET Name = @name, AddressLines = NULL, Postcode = NULL, Phone = NULL, IsArchived = 0,
+                CreatedAt = @createdAt, LastUpdated = @createdAt
+            WHERE Id = @main;
+            """;
+        sites.Parameters.AddWithValue("@main", Site.MainSiteId);
+        sites.Parameters.AddWithValue("@name", Site.MainSiteName);
+        sites.Parameters.AddWithValue("@createdAt", SiteConfiguration.MainSiteCreatedAt);
+        await sites.ExecuteNonQueryAsync();
     }
 }

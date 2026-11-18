@@ -10,6 +10,7 @@ import {
   closedDaysOfYearQuery,
   closedDaysQuery,
   hasBookings,
+  isClosedEverywhere,
   listWords,
   useAddBankHolidays,
   useAddClosedDay,
@@ -68,6 +69,18 @@ describe('closed day changes', () => {
     await expectRefreshed(queryClient);
   });
 
+  it('closes a day at one site, sending its ID', async () => {
+    const refit = {id: '0000003c-0000-0000-0000-000000000009', date: '2026-12-01', name: 'Refit', siteId: '5173e000-0000-4000-8000-000000000002', siteName: 'Northgate outreach clinic', isPast: false};
+    const fetch = mockApi({'POST /api/calendar/closed-days': () => json(refit, 201)});
+    const {queryClient, wrapper} = cachedClient();
+    const {result} = renderHook(() => useAddClosedDay(), {wrapper});
+
+    expect(await result.current.mutateAsync({date: '2026-12-01', name: 'Refit', siteId: refit.siteId})).toEqual(refit);
+
+    expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({date: '2026-12-01', name: 'Refit', siteId: refit.siteId});
+    await expectRefreshed(queryClient);
+  });
+
   it('removes one, then refreshes them', async () => {
     const fetch = mockApi({[`DELETE /api/calendar/closed-days/${CHRISTMAS.id}`]: () => new Response(null, {status: 204})});
     const {queryClient, wrapper} = cachedClient();
@@ -99,6 +112,14 @@ describe('closedDayBookingsQuery', () => {
 
     expect(await new QueryClient().fetchQuery(closedDayBookingsQuery('2026-12-24'))).toEqual(bookings);
     expect(calls(fetch)).toEqual(['GET /api/calendar/closed-days/bookings?date=2026-12-24']);
+  });
+});
+
+describe('isClosedEverywhere', () => {
+  it("tells a day closed everywhere from a site's", () => {
+    expect(isClosedEverywhere({})).toBe(true);
+    expect(isClosedEverywhere({siteId: null})).toBe(true);
+    expect(isClosedEverywhere({siteId: '5173e000-0000-4000-8000-000000000002'})).toBe(false);
   });
 });
 

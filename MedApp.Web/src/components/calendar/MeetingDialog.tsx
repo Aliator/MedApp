@@ -24,7 +24,7 @@ import {
   type MeetingAttendee,
   type MeetingReply,
 } from '../../api/calendar';
-import {closedDaysQuery} from '../../api/closedDays';
+import {closedDaysQuery, isClosedEverywhere} from '../../api/closedDays';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
@@ -325,10 +325,11 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
 
   const staff = useQuery({...staffQuery, enabled: isOpen});
   const myId = staff.data?.find((s) => s.username === me.username)?.userId;
-  // The days the clinic is closed from today on (bank holidays): the day picker leaves them out, and says so of one
-  // already chosen (a meeting arranged before the day closed).
+  // The days the clinic is closed everywhere from today on (bank holidays): the day picker leaves them out, and says so
+  // of one already chosen (a meeting arranged before the day closed). A site's closed day closes only its rooms, not
+  // anyone's calendar, so it doesn't count.
   const closedDays = useQuery({...closedDaysQuery({from: today}), enabled: isOpen});
-  const closed = new Map((closedDays.data ?? []).map((d) => [d.date ?? '', d.name ?? '']));
+  const closed = new Map((closedDays.data ?? []).filter(isClosedEverywhere).map((d) => [d.date ?? '', d.name ?? '']));
 
   // On a new meeting the organiser (the signed-in user) goes unless they untick "I'm going too", so they aren't in
   // Who. Starting from given people (the team view's), they go when they're among them; otherwise they go.

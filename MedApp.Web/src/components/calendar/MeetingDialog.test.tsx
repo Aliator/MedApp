@@ -407,6 +407,17 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     expect(requests(fetch, 'GET', '/api/calendar/closed-days').map((r) => new URL(r.url).search)).toContain('?From=2026-11-16');
   });
 
+  it("doesn't count a site's closed day, which closes its rooms but nobody's calendar", async () => {
+    const siteDay = {id: 'c2', date: MEETING.date, name: 'Northgate refit', siteId: '5173e000-0000-4000-8000-000000000002', siteName: 'Northgate outreach clinic', isPast: false};
+    const {user, fetch} = renderDialog({meeting: MEETING}, {handlers: {'GET /api/calendar/closed-days': () => json([siteDay])}});
+
+    await user.click(await dialog().findByRole('button', {name: 'Change'}));
+
+    await waitFor(() => expect(requests(fetch, 'GET', '/api/calendar/closed-days')).toHaveLength(1));
+    await waitFor(() => expect(isDisabled(dialog().getByRole('button', {name: 'Save'}))).toBe(false));
+    expect(dialog().queryByText(/The clinic is closed then/)).not.toBeInTheDocument();
+  });
+
   it('cancels a meeting once confirmed, and shows why when it cannot', async () => {
     withAnnouncements();
     let answer = json({title: 'This meeting has already been cancelled.'}, 404);

@@ -34,6 +34,7 @@ import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insigh
 import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
 import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
+import { Route as AppAdminSitesRouteImport } from './routes/_app/admin/sites'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
@@ -181,6 +182,11 @@ const AppAdminRetentionRoute = AppAdminRetentionRouteImport.update({
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
   id: '/admin/settings',
   path: '/admin/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
+  id: '/admin/sites',
+  path: '/admin/sites',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
@@ -332,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/sites': typeof AppAdminSitesRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -381,6 +388,7 @@ export interface FileRoutesByTo {
   '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/sites': typeof AppAdminSitesRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -432,6 +440,7 @@ export interface FileRoutesById {
   '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
   '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
+  '/_app/admin/sites': typeof AppAdminSitesRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -483,6 +492,7 @@ export interface FileRouteTypes {
     | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
+    | '/admin/sites'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -532,6 +542,7 @@ export interface FileRouteTypes {
     | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
+    | '/admin/sites'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -582,6 +593,7 @@ export interface FileRouteTypes {
     | '/_app/admin/monitoring'
     | '/_app/admin/retention'
     | '/_app/admin/settings'
+    | '/_app/admin/sites'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
@@ -796,6 +808,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/sites': {
+      id: '/_app/admin/sites'
+      path: '/admin/sites'
+      fullPath: '/admin/sites'
+      preLoaderRoute: typeof AppAdminSitesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/stages': {
       id: '/_app/admin/stages'
       path: '/admin/stages'
@@ -977,6 +996,7 @@ interface AppRouteChildren {
   AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
   AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminSitesRoute: typeof AppAdminSitesRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
@@ -1020,6 +1040,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminMonitoringRoute: AppAdminMonitoringRoute,
   AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminSitesRoute: AppAdminSitesRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,

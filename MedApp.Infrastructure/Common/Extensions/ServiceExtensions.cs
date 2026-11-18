@@ -8,6 +8,7 @@ using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Sites.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
@@ -171,6 +172,7 @@ public static class ServiceExtensions
         services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<IClosedDayRepository, ClosedDayRepository>();
+        services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
