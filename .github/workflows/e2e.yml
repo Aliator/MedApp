@@ -3,7 +3,8 @@ name: E2E tests
 # E2E_USERNAME and E2E_PASSWORD repository secrets. Those secrets don't exist yet: create them for the deployment
 # before using this (without them the run fails, never skips). The tests make their own synthetic data there and delete
 # what the app can delete (MedApp.E2ETests/README.md lists what stays). No traces are saved here: they would record the
-# real credentials. Every pull request runs the same tests against the production image itself (the e2e job in main.yml).
+# real credentials. main.yml's e2e job runs the same tests against the production image itself (on main, and on a
+# pull request labelled ci:full).
 on:
   workflow_dispatch:
     inputs:
