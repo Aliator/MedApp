@@ -94,7 +94,7 @@ describe('ViewPatientPage, privacy', () => {
       [`PUT /api/patients/${id}/restriction`]: () => json({title: "This patient's record has been anonymised, so it can't be changed."}, 409),
     });
 
-    expect(await screen.findByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
     expect(isDisabled(await privacyItem(user, 'Anonymise Record'))).toBe(true);
     await user.click(await privacyItem(user, 'Lift Restriction'));
     await user.click(within(await waitFor(() => openDialog()!)).getByRole('button', {name: 'Lift Restriction'}));

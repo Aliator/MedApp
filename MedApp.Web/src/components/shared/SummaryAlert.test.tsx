@@ -1,6 +1,26 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {SummaryAlert} from './SummaryAlert';
+import {LABEL_STYLE, SummaryAlert} from './SummaryAlert';
+
+// The hover card itself, counting what the label's click asks of it: jsdom can't show whether a real browser would
+// reopen a card that a tap closed, so the tests check that nothing asks it to.
+const showRequests = vi.hoisted(() => ({count: 0}));
+vi.mock('@astryxdesign/core/HoverCard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@astryxdesign/core/HoverCard')>();
+  return {
+    ...actual,
+    useHoverCard: (...args: Parameters<typeof actual.useHoverCard>) => {
+      const card = actual.useHoverCard(...args);
+      return {
+        ...card,
+        show: () => {
+          showRequests.count++;
+          card.show();
+        },
+      };
+    },
+  };
+});
 
 const MESSAGE = 'Synthetic standing warning: nothing here can be changed until an admin says so.';
 const DETAILS = ['Reason: Synthetic check', 'Since yesterday.'];
@@ -44,10 +64,45 @@ describe('SummaryAlert', () => {
   it('gives screen readers the whole message: in the alert, and as the button’s description', async () => {
     await renderAlert();
 
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent(MESSAGE);
-    expect(alert).toHaveTextContent('Reason: Synthetic check Since yesterday.');
+    // The alert is the message alone, once: not the label, and never the overlay.
+    expect(screen.getByRole('alert').textContent).toBe(`${MESSAGE} Reason: Synthetic check Since yesterday.`);
     expect(trigger()).toHaveAccessibleDescription(`${MESSAGE} Reason: Synthetic check Since yesterday.`);
+  });
+
+  it('keeps the open overlay out of the alert, so opening it never announces the message again', async () => {
+    const {user} = await renderAlert();
+
+    await user.click(trigger());
+    const card = await expectOpen();
+    const alert = screen.getByRole('alert');
+    expect(alert).not.toContainElement(card);
+    expect(alert).not.toContainElement(trigger());
+    expect(alert.textContent?.split(MESSAGE)).toHaveLength(2);
+  });
+
+  it('shows a summary after the label, on screen and in the button’s name', async () => {
+    const {user} = renderWithApp(<SummaryAlert label="Synthetic state" summary="key fact" message={MESSAGE} />);
+
+    const label = await screen.findByRole('button', {name: 'Synthetic state: key fact, show details'});
+    expect(label).toHaveTextContent(/^Synthetic state: key fact$/);
+    await user.click(label);
+    expect(await screen.findByRole('dialog', {name: 'Synthetic state: details'})).toBeInTheDocument();
+  });
+
+  it('wraps its label rather than cutting it short in a narrow header', async () => {
+    await renderAlert();
+
+    // Astryx's Button is one line with an ellipsis; jsdom has no layout, so this checks the styles that undo that.
+    expect(LABEL_STYLE).toMatchObject({whiteSpace: 'normal', height: 'auto'});
+    expect(trigger()).toHaveStyle({whiteSpace: 'normal', height: 'auto', textAlign: 'start'});
+  });
+
+  it('paints the overlay on the popover colour, as menus and popovers are', async () => {
+    const {user} = await renderAlert();
+
+    await user.click(trigger());
+    const card = await expectOpen();
+    expect(card.closest('[popover]')?.getAttribute('style') ?? card.getAttribute('style')).toContain('var(--color-background-popover)');
   });
 
   it('is not an alert when it only informs', async () => {
@@ -92,11 +147,42 @@ describe('SummaryAlert', () => {
     await expectOpen();
   });
 
-  it('shows the whole message on a tap', async () => {
+  it('shows the whole message on a tap, and hides it on a second', async () => {
     const {user} = await renderAlert();
 
     await user.pointer({keys: '[TouchA]', target: trigger()});
     await expectOpen();
+    await user.pointer({keys: '[TouchA]', target: trigger()});
+    await waitFor(() => expect(overlay()).not.toBeInTheDocument());
+  });
+
+  it('toggles on taps whose click reports a mouse, as iOS Safari’s do', async () => {
+    await renderAlert();
+    // iOS Safari's tap: the press says "touch", the click that follows says "mouse".
+    const tap = () => {
+      fireEvent.pointerDown(trigger(), {pointerType: 'touch', isPrimary: true});
+      fireEvent.pointerUp(trigger(), {pointerType: 'touch', isPrimary: true});
+      fireEvent.click(trigger(), {pointerType: 'mouse'});
+    };
+
+    act(tap);
+    await expectOpen();
+    showRequests.count = 0;
+    act(tap);
+    await waitFor(() => expect(overlay()).not.toBeInTheDocument());
+    // The click that ended the closing tap didn't ask to open it again.
+    expect(showRequests.count).toBe(0);
+  });
+
+  it('opens on a click whatever its pointer, but never asks again while it is open', async () => {
+    const {user} = await renderAlert();
+
+    await user.hover(trigger());
+    await expectOpen();
+    showRequests.count = 0;
+    await user.click(trigger());
+    expect(showRequests.count).toBe(0);
+    expect(overlay()).toBeInTheDocument();
   });
 
   it('closes when the focus leaves', async () => {

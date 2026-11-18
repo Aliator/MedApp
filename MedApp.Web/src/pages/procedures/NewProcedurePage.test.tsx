@@ -39,6 +39,16 @@ describe('NewProcedurePage', () => {
     expect(within(banner).getByText('NHS No. 999 000 0034')).toBeInTheDocument();
   });
 
+  it("names the patient's restricted or disputed record in the header", async () => {
+    renderNew({
+      'GET /api/patients/patient-1': () =>
+        json({id: 'patient-1', firstName: 'Test', lastName: 'Patient', isRestricted: true, restrictionReason: 'Synthetic accuracy check', isDisputed: true}),
+    });
+
+    expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Disputed record, show details'})).toBeInTheDocument();
+  });
+
   it('offers the templates that have stages, for the patient named in the subtitle', async () => {
     const {user} = renderNew();
 

@@ -10,6 +10,15 @@ export type PatientFlags = Pick<
 
 const since = (atUtc: string | null | undefined) => (atUtc ? `Since ${formatDateTime(atUtc)}.` : null);
 
+/** The longest dispute shown in the label itself; a longer one is only in the overlay, so the label stays short. */
+export const DISPUTE_IN_LABEL_MAX = 40;
+
+/** What's disputed, for the label, when the admin's words are short enough; otherwise nothing. */
+const disputeSummary = (reason: string | null | undefined) => {
+  const trimmed = reason?.trim();
+  return trimmed && trimmed.length <= DISPUTE_IN_LABEL_MAX ? trimmed : undefined;
+};
+
 /** Whether a patient has any flag a banner shows. */
 export const hasPatientFlags = (patient: PatientFlags) => Boolean(patient.isRestricted || patient.isDisputed || patient.isAnonymised);
 
@@ -20,10 +29,11 @@ export const hasPatientFlags = (patient: PatientFlags) => Boolean(patient.isRest
  * patient's procedures and each procedure's page (from the procedure's `patientFlags`); and in the appointment
  * dialogs, under the patient. Shows nothing when the record has no flags.
  *
- * Each is a `SummaryAlert`: a short label naming the state ("Restricted record"), so the header stays small, with the
- * whole message (what it means, the reason, since when) over the page on hover, focus or tap, and read in full by
- * screen readers (the restriction as an alert). The label still names the state on every page about the patient: it's
- * a control for hazard H-22, beside `PatientBanner`'s tokens.
+ * Each is a `SummaryAlert`, so the header stays small: a short label naming the state and its key fact on screen
+ * ("Restricted record: changes paused", "Disputed record: <what's disputed>" when that's short, "Anonymised record"),
+ * with the whole message (what it means, the reason, since when) over the page on hover, focus or tap, and given to
+ * screen readers as the label's description (the restriction as an alert too, announced when it appears). The label
+ * names the state on every page about the patient: it's a control for hazard H-22, beside `PatientBanner`'s tokens.
  */
 export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
   if (!hasPatientFlags(patient)) return null;
@@ -42,6 +52,7 @@ export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
         <SummaryAlert
           status="warning"
           label="Restricted record"
+          summary="changes paused"
           message="Restricted record: nothing about this patient, their procedures or their appointments can be changed until an admin lifts the restriction, except that a procedure can be blocked or cancelled, with a reason, and an appointment cancelled."
           details={[patient.restrictionReason ? `Reason: ${patient.restrictionReason}` : null, since(patient.restrictedAtUtc)].filter(
             (d): d is string => d !== null,
@@ -52,6 +63,7 @@ export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
         <SummaryAlert
           status="info"
           label="Disputed record"
+          summary={disputeSummary(patient.disputeReason)}
           message="Disputed: the patient disputes something in this record."
           details={[patient.disputeReason ? `What's disputed: ${patient.disputeReason}` : null, since(patient.disputedAtUtc)].filter(
             (d): d is string => d !== null,

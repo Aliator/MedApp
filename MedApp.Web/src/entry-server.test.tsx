@@ -648,10 +648,12 @@ describe('server rendering', () => {
 
     const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
 
-    expect(html).toContain('aria-label="Restricted record, show details"');
+    expect(html).toContain('aria-label="Restricted record: changes paused, show details"');
     expect(html).toContain('aria-expanded="false"');
     // The whole message is in the page (visually hidden), but its overlay isn't open.
     expect(html).toMatch(/Restricted record: nothing about this patient[^<]*Reason: Synthetic accuracy check/);
+    // Only that message is the alert, not the label or the overlay.
+    expect(html).toMatch(/role="alert"[^>]*>Restricted record: nothing about this patient/);
     expect(html).not.toContain('Restricted record: details');
   });
 

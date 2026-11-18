@@ -527,6 +527,8 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await screen.findByRole('dialog');
     const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+    // Why, on screen: the restricted banner above shows only its label and summary.
+    expect(dialog().getByText("This patient's record is restricted, so it can't be changed until an admin lifts the restriction.")).toBeInTheDocument();
     const details = await openAlertDetails(user, 'Restricted record', openDialog()!);
     expect(within(details).getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
     expect(within(details).getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();

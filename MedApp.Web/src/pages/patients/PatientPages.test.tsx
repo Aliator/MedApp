@@ -182,7 +182,7 @@ describe('ViewPatientPage: appointments', () => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, isRestricted: true}), [`GET ${APPOINTMENTS}`]: () => json(pageOf([])), ...timeline});
     renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
 
-    expect(await screen.findByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Procedures'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();

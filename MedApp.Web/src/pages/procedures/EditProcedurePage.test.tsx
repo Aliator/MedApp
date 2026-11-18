@@ -126,6 +126,22 @@ describe('EditProcedurePage', () => {
     expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
   });
 
+  it("names a restricted record in the header, and gives the restriction as why the details can't be edited", async () => {
+    const readOnlyReason = "This patient's record is restricted, so this procedure can't be changed until an admin lifts the restriction.";
+    renderEdit(procedure({canEditDetails: false, readOnlyReason, patientFlags: {isRestricted: true, restrictionReason: 'Synthetic accuracy check'}}));
+
+    expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
+    expect(await findAlert(readOnlyReason)).toBeInTheDocument();
+    expect(screen.queryByText(/This procedure is in progress/)).not.toBeInTheDocument();
+  });
+
+  it('names a disputed record in the header while editing', async () => {
+    renderEdit(procedure({patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy'}}));
+
+    expect(await screen.findByRole('button', {name: 'Disputed record: Synthetic allergy, show details'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Save'})).toBeInTheDocument();
+  });
+
   it('goes back to the list for an unknown procedure', async () => {
     mockApi({[`GET ${PATH}`]: () => json({title: 'Not found'}, 404)});
     const {router} = renderWithApp(<EditProcedurePage id={id} />, {path: `/procedures/${id}/edit`, user: staffUser});

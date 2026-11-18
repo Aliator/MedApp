@@ -214,7 +214,7 @@ describe('ProceduresListPage', () => {
     const {user} = renderList({}, {patientId, patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy', isRestricted: true, restrictionReason: 'Synthetic check'}});
 
     expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
   });
 
   it("shows someone's procedures, named from the accounts for an admin", async () => {
