@@ -1,13 +1,24 @@
 import {screen, waitFor} from '@testing-library/react';
 import {NotepadProvider, useNotepad} from '../components/notepad/NotepadContext';
+import {HalfViewsContext, InHalfPaneContext, type HalfViews} from '../components/pages/halfView';
 import {renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
 import {ADMIN, STAFF} from './accounts';
-import {PATHWAYS, REFERRALS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
 import {ReadMePage} from './ReadMePage';
 import {hasSeenReadMe} from './readMeSeen';
 import {demoNavigation} from './session';
 import {db} from './store';
+
+/** Stand-in half views, with this page in the half view (or none). */
+const halfViewsWith = (openPath: string | null): HalfViews => ({
+  open: vi.fn(),
+  openPath,
+  openFull: vi.fn(),
+  openOnLeft: vi.fn(),
+  showOnLeft: vi.fn(),
+  close: vi.fn(),
+});
 
 describe('ReadMePage', () => {
   it('says what the light version is, the two accounts, the tour and what it leaves out, and counts as seen', async () => {
@@ -43,6 +54,7 @@ describe('ReadMePage', () => {
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith(`/referrals/${REFERRALS.dermatologyToTriage}`));
     expect(state.user).toBe(STAFF.username);
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
   it('explains instead of opening a record that’s gone, and says when a step was done already', async () => {
@@ -60,15 +72,97 @@ describe('ReadMePage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${REFERRALS.dermatologyToTriage}`));
   });
 
-  it('starts the half-view step on the home page, telling them to Shift-click and Ctrl-click', async () => {
+  it('starts the half-view step on the Read Me itself, closing any half view, with its steps numbered', async () => {
     startLightDemo(ADMIN);
-    const {user, router} = renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
+    const halfViews = halfViewsWith('/patients');
+    const {user, router} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <ReadMePage />
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
 
-    expect(await screen.findByText(/Now Shift-click Patients in the side nav/)).toBeInTheDocument();
-    expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) does the opposite/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Start on the home page'}));
+    const first = await screen.findByText(/choose Open in half view\. Patients opens on the right/);
+    expect(first.closest('ol')).not.toBeNull();
+    expect(screen.getByText(/Shift-click Patients in the side nav: it opens on the right again/)).toBeInTheDocument();
+    expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) Patients: it opens on the left, and this Read Me moves to the right/)).toBeInTheDocument();
+    expect(screen.getByText(/carry on with the tour from it/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Start here, on the Read Me'}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(halfViews.close).toHaveBeenCalled();
+    expect(halfViews.openOnLeft).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe('/read-me');
+  });
+
+  it('from the Read Me in the right half, the half-view step gives it the whole view', async () => {
+    startLightDemo(ADMIN);
+    const halfViews = halfViewsWith('/read-me');
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <InHalfPaneContext.Provider value={true}>
+          <ReadMePage />
+        </InHalfPaneContext.Provider>
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Start here, on the Read Me'}));
+
+    expect(halfViews.openFull).toHaveBeenCalledWith('/read-me');
+  });
+
+  it('opens a step’s page on the left, moving the Read Me on its own to the right, as Ctrl-click does', async () => {
+    startLightDemo(ADMIN);
+    const halfViews = halfViewsWith(null);
+    const {user, router} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <ReadMePage />
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    expect(await screen.findByText(/opens the exact page on the left, keeping this Read Me on the right/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Open the list of pathways'}));
+    expect(halfViews.openOnLeft).toHaveBeenCalledWith('/pathways');
+    await user.click(screen.getByRole('button', {name: 'Start Using MedApp'}));
+    expect(halfViews.openOnLeft).toHaveBeenCalledWith('/');
+    expect(router.state.location.pathname).toBe('/read-me');
+  });
+
+  it('from the Read Me in the right half, opens a step’s page on the left and keeps the Read Me', async () => {
+    startLightDemo(ADMIN);
+    const halfViews = halfViewsWith('/read-me');
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <InHalfPaneContext.Provider value={true}>
+          <ReadMePage />
+        </InHalfPaneContext.Provider>
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Open the patient to pin'}));
+
+    expect(halfViews.showOnLeft).toHaveBeenCalledWith(`/patients/${PATIENTS.samuelOkafor}`);
+    expect(halfViews.openOnLeft).not.toHaveBeenCalled();
+  });
+
+  it('switching account for a step comes back with its page on the left and the Read Me on the right', async () => {
+    startLightDemo(ADMIN);
+    const assign = vi.spyOn(demoNavigation, 'assign').mockImplementation(() => {});
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViewsWith('/read-me')}>
+        <InHalfPaneContext.Provider value={true}>
+          <ReadMePage />
+        </InHalfPaneContext.Provider>
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Open the referral to triage it'}));
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/referrals/${REFERRALS.dermatologyToTriage}`));
+    expect(sessionStorage.getItem('medapp.halfView')).toBe('/read-me');
   });
 
   it('opens the notepad beside the Read Me, staying on it, and says Shift-click opens it in the half view', async () => {

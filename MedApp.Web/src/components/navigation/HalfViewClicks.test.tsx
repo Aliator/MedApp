@@ -19,7 +19,7 @@ const phone: AppShellMobileContextValue = {
 };
 
 function renderLinks(ui: ReactNode, {openPath = null, path = '/', isPhone = false}: {openPath?: string | null; path?: string; isPhone?: boolean} = {}) {
-  const halfViews: HalfViews = {open: vi.fn(), openPath, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
+  const halfViews: HalfViews = {open: vi.fn(), openPath, openFull: vi.fn(), openOnLeft: vi.fn(), showOnLeft: vi.fn(), close: vi.fn()};
   const content = (
     <HalfViewsContext.Provider value={halfViews}>
       <HalfViewClicks />

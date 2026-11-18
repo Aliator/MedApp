@@ -100,7 +100,8 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     // The page that's open can't be opened again.
     const patients = await halfViewItem(user, 'Patients');
     expect(isDisabled(patients)).toBe(true);
-    expect(patients).toHaveTextContent('Patients is already open');
+    expect(patients).not.toHaveTextContent(/already open/);
+    expect(patients).toHaveAccessibleName(/^Open in half view/);
     await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
     await openCategory(user, 'Oversight');
     await user.click(await halfViewItem(user, 'Audit Log'));
@@ -227,7 +228,8 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     // A page open on either side can't be opened on either side.
     const patientsLeft = await rowMenuItem(user, 'Patients', 'Open on the left');
     expect(isDisabled(patientsLeft)).toBe(true);
-    expect(patientsLeft).toHaveTextContent('Patients is already open on the left');
+    expect(patientsLeft).not.toHaveTextContent(/already open/);
+    expect(patientsLeft).toHaveAccessibleName(/^Open on the left/);
     const patientsMenu = within(patientsLeft.closest<HTMLElement>('[role="menu"]')!);
     expect(isDisabled(patientsMenu.getByRole('menuitem', {name: (name) => name.startsWith('Open on the right'), hidden: true}))).toBe(true);
     await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
@@ -235,7 +237,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await railCategoryPage(user, 'Oversight', 'Audit Log');
     const auditRight = await rowMenuItem(user, 'Audit Log', 'Open on the right');
     expect(isDisabled(auditRight)).toBe(true);
-    expect(auditRight).toHaveTextContent('Audit Log is already open on the right');
+    expect(auditRight).not.toHaveTextContent(/already open/);
 
     await user.unhover(screen.getByRole('button', {name: 'Oversight'}));
     await railCategoryPage(user, 'Account Management', 'Users');

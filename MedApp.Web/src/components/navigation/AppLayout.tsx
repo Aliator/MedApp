@@ -145,15 +145,25 @@ function MainLayout() {
     },
     [open, router],
   );
+  // The main view's page changed from the half view, which stays as it is. Never the half view's own page, so a page
+  // is never open twice side by side.
+  const showOnLeft = useCallback(
+    (path: string) => {
+      if (halfPath !== null && path.split('?')[0] === halfPath.split('?')[0]) return;
+      void router.navigate({href: path});
+    },
+    [router, halfPath],
+  );
   const halfViews = useMemo(
     () => ({
       open,
       openFull,
       openOnLeft,
+      showOnLeft,
       close: closeHalf,
       openPath: half && halfPath ? halfPath.split('?')[0] : null,
     }),
-    [open, openFull, openOnLeft, closeHalf, half, halfPath],
+    [open, openFull, openOnLeft, showOnLeft, closeHalf, half, halfPath],
   );
 
   const notepad = useNotepad();
