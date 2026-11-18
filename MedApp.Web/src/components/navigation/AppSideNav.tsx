@@ -42,6 +42,8 @@ import {pathwayNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
+import {readMeNavEntry} from '../../demo/readMeNav';
+import {READ_ME_PATH as READ_ME} from '../../demo/readMeSeen';
 
 /**
  * The Administration section's pages, each shown only to people whose roles grant its permission (the page's route
@@ -704,6 +706,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   // Each item once: its row for the open nav, and its icon for the folded one (a half view), whose hover brings
   // the same row out over the page.
   const main: NavRailEntry[] = [
+    // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
+    ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />})] : []),
     {
       key: 'tasks',
       label: 'My Worklist',

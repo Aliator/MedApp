@@ -1,0 +1,50 @@
+import {Banner} from '@astryxdesign/core/Banner';
+import {Button} from '@astryxdesign/core/Button';
+import {Icon} from '@astryxdesign/core/Icon';
+import {List, ListItem} from '@astryxdesign/core/List';
+import {VStack} from '@astryxdesign/core/Stack';
+import {Text} from '@astryxdesign/core/Text';
+import {useLogin} from '../auth/auth';
+import {StandalonePage} from '../components/pages/StandalonePage';
+import {AppIcon} from '../components/shared/icons';
+import {DEMO_ACCOUNTS} from './accounts';
+
+/**
+ * The light demo's login page (the demo build only): no password, just a choice of the two demo accounts. Choosing one
+ * signs in through the stand-in API, as the real page would, and goes in.
+ */
+export function DemoLoginPage() {
+  const login = useLogin();
+  return (
+    <StandalonePage title="MedApp: light demo" maxWidth={480}>
+      <VStack gap={4} hAlign="stretch">
+        <Banner
+          status="info"
+          container="card"
+          title="Synthetic data, kept only in this browser"
+          description="A light version of MedApp that runs in your browser, with made-up patients. Don’t enter real patient details."
+        />
+        {login.isError && <Banner status="error" container="card" title="That didn’t work. Reload the page and try again." role="alert" />}
+        <Text type="body">Choose who to be. You can switch at any time from the banner at the top of every page.</Text>
+        <List edge="flush">
+          {DEMO_ACCOUNTS.map((account) => (
+            <ListItem
+              key={account.id}
+              label={`${account.fullName} (${account.username})`}
+              description={`${account.roles.join(' and ')}. ${account.jobTitle}.`}
+              endContent={
+                <Button
+                  label={`Sign in as ${account.roles.includes('Admin') ? 'the admin' : account.fullName}`}
+                  variant={account.roles.includes('Admin') ? 'primary' : 'secondary'}
+                  icon={<Icon icon={AppIcon.Login} />}
+                  isDisabled={login.isPending}
+                  onClick={() => login.mutate({username: account.username, password: 'light-demo'})}
+                />
+              }
+            />
+          ))}
+        </List>
+      </VStack>
+    </StandalonePage>
+  );
+}
