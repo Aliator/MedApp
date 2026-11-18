@@ -47,6 +47,14 @@ const COUNT = {
   insetInlineEnd: 0,
   translate: '45% -45%',
   pointerEvents: 'none',
+  // Thin: 16px tall rather than Astryx's 20, at least as wide as it's tall (a circle for one digit), with a little room
+  // either side of the number.
+  blockSize: 'var(--spacing-4)',
+  minInlineSize: 'var(--spacing-4)',
+  lineHeight: 'var(--spacing-4)',
+  paddingBlock: 0,
+  paddingInline: 'var(--spacing-1)',
+  justifyContent: 'center',
 } as const;
 
 /** The bell's label: what it is, and how many are unread. */
