@@ -27,4 +27,23 @@ describe('DataRequestCells', () => {
     renderWithApp(<DoneCell isDone={false} />, {user: staffUser});
     expect(await screen.findByText('Not yet')).toBeInTheDocument();
   });
+
+  it('adds icons when "Icons on statuses" is on, and shows a status it does not know, and a missing date, plainly', async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+    renderWithApp(
+      <>
+        <DataRequestStatusToken status="Open" />
+        <DataRequestStatusToken status="Lost" />
+        <DataRequestStatusToken status={null} />
+        <DueCell dueOn={null} isOverdue />
+      </>,
+      {user: staffUser},
+    );
+
+    expect(await screen.findByText('Lost')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    // Open and Overdue have icons; a status it doesn't know has none.
+    expect(document.querySelectorAll('.astryx-token svg')).toHaveLength(2);
+  });
 });
+

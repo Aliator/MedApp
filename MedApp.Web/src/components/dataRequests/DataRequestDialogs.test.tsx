@@ -36,11 +36,14 @@ describe('data request dialogs', () => {
     expect(isDisabled(confirm)).toBe(true);
     await user.click(dialog.getByRole('radio', {name: 'Other'}));
     expect(isDisabled(confirm)).toBe(true);
+    await user.clear(dialog.getByRole('combobox', {name: /Checked on/}));
+    await user.type(dialog.getByRole('combobox', {name: /Checked on/}), '03/11/2026');
+    await user.tab();
     await user.type(dialog.getByRole('textbox', {name: /Detail/}), 'Video call with photo ID');
     await user.click(confirm);
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(await body(fetch)).toMatchObject({method: 'Other', detail: 'Video call with photo ID', expectedVersion: 3});
+    expect(await body(fetch)).toMatchObject({checkedOn: '2026-11-03', method: 'Other', detail: 'Video call with photo ID', expectedVersion: 3});
   });
 
   it("shows the API's 409 in the dialog, which stays open", async () => {
@@ -80,6 +83,9 @@ describe('data request dialogs', () => {
     const dialog = within(await dialogOpen());
     expect(isDisabled(dialog.getByRole('button', {name: 'Record as Sent'}))).toBe(true);
     await user.click(dialog.getByRole('radio', {name: 'Secure email'}));
+    await user.clear(dialog.getByRole('combobox', {name: /Sent on/}));
+    await user.type(dialog.getByRole('combobox', {name: /Sent on/}), '01/11/2026');
+    await user.tab();
     await user.click(dialog.getByRole('button', {name: 'Record as Sent'}));
     expect(await dialog.findByText("It can't be sent before it was received.")).toBeInTheDocument();
   });
@@ -96,5 +102,42 @@ describe('data request dialogs', () => {
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(await body(fetch)).toEqual({reason: 'Manifestly excessive', expectedVersion: 3});
+  });
+
+  it('starts an extension with the reason already given, and shows a failure in its own words', async () => {
+    const {user} = setUp(<ExtendDialog request={testDataRequest({extensionMonths: 1, extensionReason: 'Complex request'})} onCancel={vi.fn()} onDone={vi.fn()} />, {
+      [`POST ${BASE}/extension`]: () => json({}, 500),
+    });
+    const dialog = within(await dialogOpen());
+    expect(dialog.getByRole('textbox', {name: /Reason given to the requester/})).toHaveValue('Complex request');
+    expect(dialog.queryByRole('radio', {name: 'One more month'})).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('radio', {name: 'Two more months'}));
+    await user.click(dialog.getByRole('button', {name: 'Extend'}));
+    expect(await dialog.findByText('The due date could not be extended. Please try again.')).toBeInTheDocument();
+  });
+
+  it('shows a 400 about no field of its own above the fields', async () => {
+    const {user} = setUp(<IdentityCheckDialog request={testDataRequest()} onCancel={vi.fn()} onDone={vi.fn()} />, {
+      [`POST ${BASE}/identity-check`]: () => json({title: 'Invalid', status: 400, errors: {ExpectedVersion: ['Expected version is required.']}}, 400),
+    });
+    const dialog = within(await dialogOpen());
+    await user.click(dialog.getByRole('radio', {name: 'Documents'}));
+    await user.click(dialog.getByRole('button', {name: 'Record Identity Check'}));
+    expect(await dialog.findByText('Expected version is required.')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['identity check', IdentityCheckDialog],
+    ['extension', ExtendDialog],
+    ['sent', RecordSentDialog],
+    ['refusal', RefuseDialog],
+    ['withdrawal', WithdrawDialog],
+  ])('closes the %s dialog on Cancel, sending nothing', async (_, Dialog) => {
+    const onCancel = vi.fn();
+    const {user, fetch} = setUp(<Dialog request={testDataRequest()} onCancel={onCancel} onDone={vi.fn()} />);
+    const dialog = within(await dialogOpen());
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    expect(onCancel).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
