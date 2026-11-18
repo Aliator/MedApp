@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /** Where a stage's visit stands: the appointment that says so, if any. */
 export interface StageVisitState {
-  /** Attended, Booked, Requested (Needs booking), DidNotAttend, or None (nothing yet, or only cancelled ones). */
+  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones). */
   status: 'Attended' | 'Booked' | 'Requested' | 'DidNotAttend' | 'None';
   appointment?: Appointment;
 }
@@ -61,7 +61,7 @@ export const appointmentHref = (appointment: Appointment) => `/calendar?appointm
 
 /**
  * A stage's visit in a stage's title: whether it involves one, and, once there's an appointment, where it stands
- * (Needs booking; Booked, with when and with whom; Attended; Did not attend). Nothing for a stage without a visit.
+ * (Requires appointment; Booked, with when and with whom; Attended; Did not attend). Nothing for a stage without a visit.
  */
 export function StageVisitTokens({stage, appointments}: {stage: ProcedureStage; appointments: readonly Appointment[]}) {
   if (!involvesVisit(stage)) return null;
@@ -100,7 +100,7 @@ export interface StageVisitProps {
 
 /**
  * The Visit part of the current stage's work (`StageWork`'s `visit`), for a stage that involves one: where its visit
- * stands, and the next thing to do. Needs booking, or none: **Book Visit**. Booked: when and with whom,
+ * stands, and the next thing to do. Requires appointment, or none: **Book Visit**. Booked: when and with whom,
  * **Reschedule**, and once it has started **Attended** and **Did not attend**. Did not attend: **Book Another**.
  * Attended: when, and nothing more to do. While nothing is booked, **Record Past Visit** records one that has already
  * happened (a walk-in). Each appointment links to the Calendar, where it can also be cancelled.

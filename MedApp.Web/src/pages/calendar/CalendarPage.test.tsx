@@ -141,6 +141,16 @@ function layOutColumns() {
 }
 const yOf = (row: number) => row * 22 + 11;
 
+/** An item's card on the grid, by the start of its name. It has a grab cursor while it can be dragged. */
+const cardOf = (name: RegExp) => screen.getByRole('button', {name}).closest<HTMLElement>('[data-kind]')!;
+
+/** Drags a card with the pointer from one point to another (columns laid out by `layOutColumns`). */
+function dragCard(card: HTMLElement, pointerId: number, [fromX, fromY]: [number, number], [toX, toY]: [number, number]) {
+  fireEvent.pointerDown(card, {button: 0, pointerId, clientX: fromX, clientY: fromY});
+  fireEvent.pointerMove(card, {pointerId, clientX: toX, clientY: toY});
+  fireEvent.pointerUp(card, {pointerId});
+}
+
 /** The stand-in meeting dialog, once open. */
 const meetingDialog = () => screen.findByRole('region', {name: 'Meeting dialog'});
 
@@ -172,7 +182,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('heading', {name: 'Calendar', level: 1})).toBeInTheDocument();
     expect(screen.getByText('My calendar · 23 to 29 November 2026')).toBeInTheDocument();
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toBeInTheDocument();
-    expect(await screen.findByRole('link', {name: 'Needs Booking (3)'})).toHaveAttribute('href', '/calendar/needs-booking');
+    expect(await screen.findByRole('link', {name: 'Requires Appointment (3)'})).toHaveAttribute('href', '/calendar/requires-appointment');
     expect(screen.getByRole('button', {name: 'Default week: None'})).toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29');
   });
@@ -357,47 +367,143 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     });
   });
 
-  it("shows why a move was refused, and lets a block be moved", async () => {
-    withAnnouncements();
+  it("shows why an appointment's move was refused, and doesn't move blocked time while Edit blocks is off", async () => {
     const appointment = testAppointment({id: 'appt-1', date: MONDAY, start: '09:00', end: '09:30'});
     const block = testBlock(MONDAY, '12:00', '13:00', {blockId: 'block-1'});
-    const template = testBlock(MONDAY, '15:00', '15:30', {isFromTemplate: true, templateBlockId: 'tb-1', activityName: 'Admin time'});
     const {fetch} = renderPage({
-      calendar: {appointments: [appointment], blocks: [block, template]},
-      handlers: {
-        'POST /api/appointments/appt-1/book': () => json({title: 'That time overlaps Lunch, 12:00 to 13:00.'}, 409),
-        'PUT /api/calendar/blocks/block-1': () => json(block),
-        [`PUT /api/calendar/staff/${STAFF_ME.userId}/days/${MONDAY}/template-blocks/tb-1`]: () => json(template),
-      },
+      calendar: {appointments: [appointment], blocks: [block]},
+      handlers: {'POST /api/appointments/appt-1/book': () => json({title: 'That time overlaps Lunch, 12:00 to 13:00.'}, 409)},
     });
     const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
     layOutColumns();
 
-    fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 50, clientY: yOf(4)});
-    fireEvent.pointerMove(card, {pointerId: 1, clientX: 50, clientY: yOf(16)});
-    fireEvent.pointerUp(card, {pointerId: 1});
+    // Appointments move whatever the mode.
+    dragCard(card, 1, [50, yOf(4)], [50, yOf(16)]);
     fireEvent.click(await dialog().findByRole('button', {name: 'Move'}));
     expect(await screen.findByText('That time overlaps Lunch, 12:00 to 13:00.')).toBeInTheDocument();
 
-    const lunch = screen.getByRole('button', {name: /^Lunch/}).closest<HTMLElement>('[data-kind]')!;
-    fireEvent.pointerDown(lunch, {button: 0, pointerId: 2, clientX: 50, clientY: yOf(16)});
-    fireEvent.pointerMove(lunch, {pointerId: 2, clientX: 250, clientY: yOf(20)});
-    fireEvent.pointerUp(lunch, {pointerId: 2});
-    await expectAnnounced('Blocked time moved');
-    expect(await bodyOf(fetch, 'PUT', '/api/calendar/blocks/block-1')).toMatchObject({startUtc: '2026-11-25T13:00:00.000Z', endUtc: '2026-11-25T14:00:00.000Z'});
+    // Edit blocks starts off: blocked time stays put.
+    expect(screen.getByRole('button', {name: 'Edit blocks'})).toHaveAttribute('aria-pressed', 'false');
+    const lunch = cardOf(/^Lunch/);
+    expect(lunch.style.cursor).toBe('');
+    dragCard(lunch, 2, [50, yOf(16)], [250, yOf(20)]);
+    expect(calls(fetch).filter((c) => c.startsWith('PUT '))).toEqual([]);
+  });
 
-    // A template block moves within its own day.
-    const admin = screen.getByRole('button', {name: /^Admin time/}).closest<HTMLElement>('[data-kind]')!;
-    fireEvent.pointerDown(admin, {button: 0, pointerId: 3, clientX: 50, clientY: yOf(28)});
-    fireEvent.pointerMove(admin, {pointerId: 3, clientX: 150, clientY: yOf(30)});
-    fireEvent.pointerUp(admin, {pointerId: 3});
-    fireEvent.pointerDown(admin, {button: 0, pointerId: 4, clientX: 50, clientY: yOf(28)});
-    fireEvent.pointerMove(admin, {pointerId: 4, clientX: 50, clientY: yOf(32)});
-    fireEvent.pointerUp(admin, {pointerId: 4});
-    await waitFor(() => expect(calls(fetch).filter((c) => c.includes('template-blocks'))).toHaveLength(1));
-    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_ME.userId}/days/${MONDAY}/template-blocks/tb-1`)).toMatchObject({
-      startUtc: '2026-11-23T16:00:00.000Z',
+  it('moves blocked time by dragging it while Edit blocks is on: a stored block to another day, a template block within its own', async () => {
+    withAnnouncements();
+    let release = () => {};
+    const saved = new Promise<void>((resolve) => (release = resolve));
+    const block = testBlock(MONDAY, '12:00', '13:00', {blockId: 'block-1', note: 'Canteen'});
+    const template = testBlock(MONDAY, '15:00', '15:30', {isFromTemplate: true, templateBlockId: 'tb-1', activityName: 'Admin time'});
+    const {user, fetch} = renderPage({
+      calendar: {blocks: [block, template]},
+      handlers: {
+        // Held until the test lets it go, so the block can be seen where it was dropped while it saves.
+        'PUT /api/calendar/blocks/block-1': async () => {
+          await saved;
+          return json(block);
+        },
+        [`PUT /api/calendar/staff/${STAFF_ME.userId}/days/${MONDAY}/template-blocks/tb-1`]: () => json(template),
+      },
     });
+    await user.click(await screen.findByRole('button', {name: 'Edit blocks'}));
+    expect(screen.getByRole('button', {name: 'Edit blocks'})).toHaveAttribute('aria-pressed', 'true');
+    layOutColumns();
+
+    expect(cardOf(/^Lunch/).style.cursor).toBe('grab');
+    dragCard(cardOf(/^Lunch/), 1, [50, yOf(16)], [250, yOf(20)]);
+    // Shown where it was dropped, on Wednesday, while it saves; no other block can be picked up meanwhile.
+    const wednesday = screen.getByRole('group', {name: /^Wednesday 25 November/});
+    expect(await within(wednesday).findByRole('button', {name: /^Lunch, Canteen, 13:00 to 14:00/})).toBeInTheDocument();
+    expect(cardOf(/^Admin time/).style.cursor).toBe('');
+    release();
+    await expectAnnounced('Lunch moved to Wednesday 25 November, 13:00 to 14:00');
+    // The same block at the new time: its activity and note as they were.
+    expect(await bodyOf(fetch, 'PUT', '/api/calendar/blocks/block-1')).toEqual({
+      activityTypeId: 'activity-lunch',
+      startUtc: '2026-11-25T13:00:00.000Z',
+      endUtc: '2026-11-25T14:00:00.000Z',
+      note: 'Canteen',
+    });
+
+    // A template block is changed for its own day only, so it can't go to another day; within it, it moves.
+    await waitFor(() => expect(cardOf(/^Admin time/).style.cursor).toBe('grab'));
+    const admin = cardOf(/^Admin time/);
+    dragCard(admin, 2, [50, yOf(28)], [150, yOf(30)]);
+    dragCard(admin, 3, [50, yOf(28)], [50, yOf(32)]);
+    await expectAnnounced('Admin time moved to 16:00 to 16:30');
+    expect(calls(fetch).filter((c) => c.includes('template-blocks'))).toHaveLength(1);
+    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_ME.userId}/days/${MONDAY}/template-blocks/tb-1`)).toEqual({
+      activityTypeId: 'activity-lunch',
+      startUtc: '2026-11-23T16:00:00.000Z',
+      endUtc: '2026-11-23T16:30:00.000Z',
+      note: null,
+    });
+
+    // Off again: blocks stay put.
+    await user.click(screen.getByRole('button', {name: 'Edit blocks'}));
+    expect(cardOf(/^Lunch/).style.cursor).toBe('');
+  });
+
+  it("puts a refused block back, with the API's words, and loads the calendar again", async () => {
+    const block = testBlock(MONDAY, '12:00', '13:00', {blockId: 'block-1'});
+    const {user, fetch} = renderPage({
+      calendar: {blocks: [block]},
+      handlers: {'PUT /api/calendar/blocks/block-1': () => json({title: 'That time overlaps Test Patient, 13:00 to 13:30.'}, 409)},
+    });
+    await user.click(await screen.findByRole('button', {name: 'Edit blocks'}));
+    layOutColumns();
+    const calendarLoads = () => calls(fetch).filter((c) => c.startsWith('GET /api/calendar?')).length;
+    const loadsBefore = calendarLoads();
+
+    dragCard(cardOf(/^Lunch/), 1, [50, yOf(16)], [50, yOf(20)]);
+    expect(await screen.findByText('That time overlaps Test Patient, 13:00 to 13:30.')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: /^Lunch, 12:00 to 13:00/})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Lunch, 13:00 to 14:00/})).not.toBeInTheDocument();
+    await waitFor(() => expect(calendarLoads()).toBeGreaterThan(loadsBefore));
+  });
+
+  it('never lets blocked time on a past day, or a meeting, move by Edit blocks', async () => {
+    // Wednesday 25 November: Monday is past, and today's Lunch can still move.
+    vi.setSystemTime(new Date('2026-11-25T07:00:00Z'));
+    const past = testBlock(MONDAY, '12:00', '13:00', {blockId: 'block-past', activityName: 'Training'});
+    const today = testBlock('2026-11-25', '12:00', '13:00', {blockId: 'block-today'});
+    const meeting = testMeeting({id: 'meeting-1', date: '2026-11-25', start: '09:00', end: '09:30', title: 'MDT', canEdit: false});
+    const {user} = renderPage({calendar: {blocks: [past, today], meetings: [meeting], today: '2026-11-25'}});
+    await user.click(await screen.findByRole('button', {name: 'Edit blocks'}));
+
+    expect(cardOf(/^Lunch/).style.cursor).toBe('grab');
+    // The calendar says Monday is past (the API's canEdit would say so too; this one claims it can change).
+    expect(cardOf(/^Training/).style.cursor).toBe('');
+    // A meeting moves by its own rule (an admin), not by Edit blocks.
+    expect(cardOf(/^MDT/).style.cursor).toBe('');
+  });
+
+  it('offers Edit blocks only to someone who can change the calendar, never in the team view, and under View options when narrow', async () => {
+    withAnnouncements();
+    const other = renderPage({search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
+    await screen.findByRole('group', {name: /^b.staff's calendar,/});
+    expect(screen.queryByRole('button', {name: 'Edit blocks'})).not.toBeInTheDocument();
+    other.unmount();
+
+    const team = renderPage({user: adminUser, search: {view: 'team'}});
+    await screen.findByRole('group', {name: 'b.staff, Monday 23 November, today'});
+    expect(screen.queryByRole('button', {name: 'Edit blocks'})).not.toBeInTheDocument();
+    team.unmount();
+
+    const {user} = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}, calendar: {blocks: [testBlock(MONDAY, '12:00', '13:00')]}});
+    await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(screen.queryByRole('button', {name: 'Edit blocks'})).not.toBeInTheDocument();
+    expect(cardOf(/^Lunch/).style.cursor).toBe('');
+    await user.click(screen.getByRole('button', {name: 'View options'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Edit blocks: Off'}));
+    await expectAnnounced('Edit blocks on: drag blocked time to move it');
+    expect(cardOf(/^Lunch/).style.cursor).toBe('grab');
+    await user.click(screen.getByRole('button', {name: 'View options'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Edit blocks: On'}));
+    await expectAnnounced('Edit blocks off');
+    expect(cardOf(/^Lunch/).style.cursor).toBe('');
   });
 
   it('offers Apply Template in the day, week and compact week, to someone who can change the calendar', async () => {
@@ -516,13 +622,9 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByText('The calendar could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
-  it("leaves an appointment where it was when the move is called off, and says why a block couldn't move", async () => {
+  it('leaves an appointment where it was when the move is called off', async () => {
     const appointment = testAppointment({id: 'appt-1', date: MONDAY, start: '09:00', end: '09:30'});
-    const block = testBlock(MONDAY, '12:00', '13:00', {blockId: 'block-1'});
-    const {fetch} = renderPage({
-      calendar: {appointments: [appointment], blocks: [block]},
-      handlers: {'PUT /api/calendar/blocks/block-1': () => json({title: 'That time overlaps Training, 14:00 to 15:00.'}, 409)},
-    });
+    const {fetch} = renderPage({calendar: {appointments: [appointment]}});
     const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
     layOutColumns();
 
@@ -532,12 +634,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     fireEvent.click(await dialog().findByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(calls(fetch).some((c) => c.startsWith('POST'))).toBe(false);
-
-    const lunch = screen.getByRole('button', {name: /^Lunch/}).closest<HTMLElement>('[data-kind]')!;
-    fireEvent.pointerDown(lunch, {button: 0, pointerId: 2, clientX: 50, clientY: yOf(16)});
-    fireEvent.pointerMove(lunch, {pointerId: 2, clientX: 50, clientY: yOf(24)});
-    fireEvent.pointerUp(lunch, {pointerId: 2});
-    expect(await screen.findByText('That time overlaps Training, 14:00 to 15:00.')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: /^Test Patient, Knee review: Assessment, 09:00 to 09:30/})).toBeInTheDocument();
   });
 
   it('goes to a date typed into the date picker', async () => {
@@ -760,7 +857,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'team', appointment: undefined, who: undefined});
   });
 
-  it("moves things within a person's column in the team view, on their calendar", async () => {
+  it("moves appointments and meetings within a person's column in the team view, on their calendar, but not blocks", async () => {
     withAnnouncements();
     const {fetch} = renderPage({
       user: adminUser,
@@ -775,12 +872,11 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     // Everyone free, b.staff, then test-user: 100px each.
     layOutColumns();
 
+    // Edit blocks isn't offered here, so blocked time stays put (it still opens in its dialog).
     const lunch = within(bStaff).getByRole('button', {name: /^Lunch/}).closest<HTMLElement>('[data-kind]')!;
-    fireEvent.pointerDown(lunch, {button: 0, pointerId: 1, clientX: 150, clientY: yOf(24)});
-    fireEvent.pointerMove(lunch, {pointerId: 1, clientX: 150, clientY: yOf(28)});
-    fireEvent.pointerUp(lunch, {pointerId: 1});
-    await expectAnnounced('Blocked time moved');
-    expect(await bodyOf(fetch, 'PUT', '/api/calendar/blocks/block-b')).toMatchObject({startUtc: '2026-11-23T15:00:00.000Z'});
+    expect(lunch.style.cursor).toBe('');
+    dragCard(lunch, 1, [150, yOf(24)], [150, yOf(28)]);
+    expect(calls(fetch)).not.toContain('PUT /api/calendar/blocks/block-b');
 
     const appointment = within(bStaff).getByRole('button', {name: /^Test Patient/}).closest<HTMLElement>('[data-kind]')!;
     fireEvent.pointerDown(appointment, {button: 0, pointerId: 2, clientX: 150, clientY: yOf(16)});
@@ -891,7 +987,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     // Named by what it shows, so it isn't read as an appointment's length.
     await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
     // Replacing the address: the row length is a preference, not a step Back goes through.
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: 5}, {replace: true});
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
@@ -910,7 +1006,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await waitFor(() => expect(openDialog()).toBeNull());
 
     await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '15 minutes'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined}, {replace: true});
   });
 
@@ -929,7 +1025,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   it('remembers the row length last chosen, for an address that names none', async () => {
     const {user, unmount} = renderPage();
     await user.click(await screen.findByRole('button', {name: 'Rows: 15 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
     expect(localStorage.getItem('medapp.calendarRows')).toBe('5');
     unmount();
 
@@ -970,7 +1066,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('menuitem', {name: 'Whose calendar: My calendar'})).toBeInTheDocument();
     expect(screen.getByRole('menuitem', {name: /Default week: None/})).toBeInTheDocument();
     expect(screen.getByRole('menuitem', {name: 'My calendar templates'})).toHaveAttribute('href', '/calendar/templates');
-    await user.click(screen.getByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(screen.getByRole('menuitem', {name: '5 minutes'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week', rows: 5}, {replace: true});
 
     await user.click(screen.getByRole('button', {name: 'View options'}));
@@ -1013,7 +1109,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       scroller.scrollTop = 220;
       fireEvent.scroll(scroller);
       await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
-      await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+      await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
       await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5'));
       // Past the router's own work after the navigation, which once put back the old 220px (09:00 at the top).
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1023,7 +1119,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       expect(router.history.length).toBe(1);
 
       await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
-      await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+      await user.click(await screen.findByRole('menuitem', {name: '15 minutes'}));
       await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15'));
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(scroller.scrollTop).toBe(220);

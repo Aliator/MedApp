@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
 import {authenticatorSetup} from '../test/twoFactor';
 import {insights, templates} from '../test/insights';
 
@@ -89,6 +89,15 @@ describe('route guards', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
     expect(router.state.location.search).toEqual({tab: 'week'});
+  });
+
+  it("sends Requires Appointment's old address (Needs booking) to its new one, with the same page, sort and search", async () => {
+    mockFetch(() => json(pageOf([])));
+    const {router} = renderApp({path: '/calendar/needs-booking?page=2&sort=Patient&asc=false&patient=Synthetic', user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/requires-appointment'));
+    expect(router.state.location.search).toEqual({page: 2, sort: 'Patient', asc: false, patient: 'Synthetic'});
+    expect(router.history.length).toBe(1);
   });
 
   it('sends a non-admin away from Insights', async () => {

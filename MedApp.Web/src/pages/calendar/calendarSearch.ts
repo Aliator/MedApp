@@ -1,5 +1,5 @@
 /**
- * The Calendar and Needs booking pages keep their state in the URL, like the list pages (`listSearch.ts`), so a day,
+ * The Calendar and Requires Appointment pages keep their state in the URL, like the list pages (`listSearch.ts`), so a day,
  * a person's calendar or an open appointment is a link (notifications link to `/calendar?appointment=<id>`). These
  * parse what's in the address bar, dropping anything invalid, so a bad link shows the default.
  */
@@ -73,21 +73,21 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
   });
 }
 
-/** Needs booking's sort columns, by their URL names, and the API's names for them. */
-export const NEEDS_BOOKING_SORTS = {Due: 'dueDate', Requested: 'requested', Patient: 'patient'} as const;
-export type NeedsBookingSortColumn = keyof typeof NEEDS_BOOKING_SORTS;
+/** Requires Appointment's sort columns, by their URL names, and the API's names for them. */
+export const REQUIRES_APPOINTMENT_SORTS = {Due: 'dueDate', Requested: 'requested', Patient: 'patient'} as const;
+export type RequiresAppointmentSortColumn = keyof typeof REQUIRES_APPOINTMENT_SORTS;
 
-/** Needs booking: its page, sort (due date, soonest first, by default) and a patient search. */
-export interface NeedsBookingSearch {
+/** Requires Appointment: its page, sort (due date, soonest first, by default) and a patient search. */
+export interface RequiresAppointmentSearch {
   page?: number;
-  sort?: NeedsBookingSortColumn;
+  sort?: RequiresAppointmentSortColumn;
   asc?: boolean;
   patient?: string;
 }
 
-export function parseNeedsBookingSearch(raw: Record<string, unknown>): NeedsBookingSearch {
+export function parseRequiresAppointmentSearch(raw: Record<string, unknown>): RequiresAppointmentSearch {
   const page = Number(text(raw.page));
-  const sort = Object.keys(NEEDS_BOOKING_SORTS).find((k) => k.toLowerCase() === text(raw.sort)?.toLowerCase()) as NeedsBookingSortColumn | undefined;
+  const sort = Object.keys(REQUIRES_APPOINTMENT_SORTS).find((k) => k.toLowerCase() === text(raw.sort)?.toLowerCase()) as RequiresAppointmentSortColumn | undefined;
   const asc = text(raw.asc)?.toLowerCase();
   return compact({
     page: Number.isInteger(page) && page > 1 ? page : undefined,

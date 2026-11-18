@@ -36,7 +36,7 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Needs booking list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
+| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Requires Appointment list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
 | **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] Staff calendars and appointments are the first such change: their hazards are H-30 to H-36, and the device decision was checked for them (`intended-purpose-and-device-decision.md`, version 0.6). |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |
@@ -165,7 +165,7 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 | H-27 | An out-of-date or duplicate document is relied on | 2 | 2 | 2 | None |
 | H-28 | File storage is unavailable | 2 | 2 | 2 | Monitoring that includes storage; downtime procedure covers documents |
 | H-29 | An admin relies on a monitoring rule to follow up clinical work | 2 | 2 | 2 | Information: monitoring is a supervision aid, not how clinical follow-up is assured |
-| H-30 | A visit the patient needs doesn't happen | (3) | (2) | (2) | Flag or notify Requested appointments waiting too long and Did not attend not rebooked; a Needs booking count; local process |
+| H-30 | A visit the patient needs doesn't happen | (3) | (2) | (2) | Flag or notify Requested appointments waiting too long and Did not attend not rebooked; a Requires Appointment count; local process |
 | H-31 | A member of staff is double-booked | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified |
 | H-32 | A stage is finished without the visit it needed | (3) | (2) | (2) | A report of stages finished without a visit, reviewed locally; patient, stage and appointment named in the confirmations; clinical sign-off of which stages need a visit |
 | H-33 | An appointment is at the wrong time | (2) | (2) | (2) | Full date and day in confirmations; end-to-end tests outside UK time and on clock-change days |
@@ -227,7 +227,7 @@ This report holds only if each deploying organisation:
 - **identifies patients** at the point of care by its own positive identification process;
 - **governs its templates:** clinical sign-off of each template and stage definition before use, including which stages involve a visit and whether it's suggested or required, and review when a template changes;
 - **sets up its calendars:** activity types, day and week templates and each person's default week, and records staff absence in MedApp so appointments aren't booked over it;
-- **books and follows up visits:** reviews the Needs booking list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
+- **books and follows up visits:** reviews the Requires Appointment list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
 - **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp doesn't contact patients;
 - **reviews stages finished without a visit,** and limits the admin bypass to cases with a recorded reason;
 - **trains its staff** in MedApp, including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks must be set to all open work to show everything assigned to them;

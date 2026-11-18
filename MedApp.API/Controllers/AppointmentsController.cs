@@ -27,7 +27,7 @@ namespace MedApp.API.Controllers;
 [Authorize(Policy = AuthPolicies.Staff)]
 public sealed class AppointmentsController(IMediator mediator) : ControllerBase
 {
-    /// <summary>Books an appointment (with a member of staff, a start and an end) or adds one to Needs booking (with none of them).</summary>
+    /// <summary>Books an appointment (with a member of staff, a start and an end) or adds one to Requires Appointment (with none of them).</summary>
     [HttpPost]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]

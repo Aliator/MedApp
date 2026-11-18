@@ -60,7 +60,7 @@ export const procedureAppointmentsQuery = (procedureId: string) => appointmentsQ
 /** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
 export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
 
-/** The statuses still to happen (Needs booking, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
+/** The statuses still to happen (Requires appointment, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
 export const OPEN_APPOINTMENT_STATUSES: AppointmentStatus[] = ['Requested', 'Booked'];
 
 /** How many of a patient's appointments are open (Requested or Booked): one row of a search, for its total. */
@@ -90,7 +90,7 @@ export function useRefreshAppointments() {
   };
 }
 
-/** A new appointment: with a member of staff and a time it's Booked; with none of them, Requested (Needs booking). */
+/** A new appointment: with a member of staff and a time it's Booked; with none of them, Requested (Requires appointment). */
 export type NewAppointment = Schemas['CreateAppointmentRequest'];
 
 export function useCreateAppointment() {
@@ -153,11 +153,11 @@ export function useAppointmentActions() {
   };
 }
 
-/** A status in words: "Needs booking", "Booked", "Attended", "Did not attend", "Cancelled". */
+/** A status in words: "Requires appointment", "Booked", "Attended", "Did not attend", "Cancelled". */
 export function appointmentStatusLabel(status: string | null | undefined): string {
   switch (status) {
     case 'Requested':
-      return 'Needs booking';
+      return 'Requires appointment';
     case 'DidNotAttend':
       return 'Did not attend';
     default:

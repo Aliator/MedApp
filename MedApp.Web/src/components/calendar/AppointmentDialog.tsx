@@ -50,7 +50,7 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
  * patient's appointment can only be cancelled, and an anonymised one's not changed at all (the API's flags say so),
  * and neither is offered Book another.
  *
- * Use it wherever an appointment is opened: the calendar, Needs booking, a procedure or a patient.
+ * Use it wherever an appointment is opened: the calendar, Requires Appointment, a procedure or a patient.
  */
 export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: AppointmentDialogProps) {
   const isOpen = initial !== null;

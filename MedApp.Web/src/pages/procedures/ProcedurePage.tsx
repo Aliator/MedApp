@@ -46,6 +46,7 @@ import {StageWork} from '../../components/procedures/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/procedures/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
+import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
@@ -327,7 +328,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           <PatientFlagBanners patient={procedure.patientFlags} />
         ) : (
           // The patient's record is restricted or anonymised, so nothing here can change (and nothing is offered).
-          procedure?.readOnlyReason && <AlertMessage status="warning" message={procedure.readOnlyReason} />
+          procedure?.readOnlyReason && <SummaryAlert status="warning" label="Read-only procedure" message={procedure.readOnlyReason} />
         )
       }
       actions={
@@ -422,7 +423,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
                   {`Its visit, ${appointmentWhen(withoutVisitState.appointment)}, stays booked: cancel it on the calendar if it's no longer needed.`}
                 </Text>
               )}
-              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Needs booking.</Text>}
+              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Requires Appointment.</Text>}
               {withoutVisit?.visitRequirement === 'Required' && (
                 <TextArea
                   label="Reason"

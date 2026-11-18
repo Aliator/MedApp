@@ -8,7 +8,7 @@ namespace MedApp.Application.Appointments.Common;
 /// <summary>
 /// The rules of an appointment's statuses.
 /// <para>
-/// Requested (needs booking) has no member of staff or time. Booking gives it both (in the future, clash-free), and a
+/// Requested (Requires appointment) has no member of staff or time. Booking gives it both (in the future, clash-free), and a
 /// Booked one can be moved the same way. Once its start has passed, it's marked Attended or Did not attend, which can
 /// be corrected either way. Requested and Booked ones can be Cancelled, with a reason; Cancelled is final. An
 /// appointment that already happened (a walk-in) is recorded after the event straight to Attended or Did not attend,
@@ -79,7 +79,7 @@ public static partial class AppointmentWorkflow
 
     /// <summary>
     /// Why a stage can't have another open appointment, pointing to the one it has (decision 18): when and with whom
-    /// it's booked, or that it's in Needs booking. <paramref name="open"/> is null if it was closed meanwhile.
+    /// it's booked, or that it's in Requires Appointment. <paramref name="open"/> is null if it was closed meanwhile.
     /// </summary>
     public static string StageHasOpenVisit(Appointment? open, string? staffUsername) => open switch
     {
@@ -87,7 +87,7 @@ public static partial class AppointmentWorkflow
             $"This stage already has a visit booked, on {UkTime.Describe(start)}{(staffUsername is null ? "" : $" with {staffUsername}")}. " +
             "Reschedule or cancel that one instead.",
         { Status: Requested } =>
-            "This stage already has a visit in Needs booking. Book that one instead.",
+            "This stage already has a visit in Requires Appointment. Book that one instead.",
         _ => "This stage already has a visit requested or booked. Reload it and try again."
     };
 

@@ -150,7 +150,7 @@ export function testAppointment(overrides: Partial<Appointment> & {date?: string
   };
 }
 
-/** A Requested appointment (Needs booking): no member of staff or time yet. */
+/** A Requested appointment (Requires appointment): no member of staff or time yet. */
 export function testRequested(overrides: Partial<Appointment> = {}): Appointment {
   return testAppointment({
     id: 'requested-1',

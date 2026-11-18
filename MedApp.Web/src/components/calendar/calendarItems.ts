@@ -114,8 +114,11 @@ export function appointmentItem(appointment: Appointment): CalendarGridItem {
   };
 }
 
-/** Blocked time on a calendar, in its activity's colour; movable when it can be changed. */
-export function blockItem(block: CalendarBlock): CalendarGridItem {
+/**
+ * Blocked time on a calendar, in its activity's colour. Movable only when asked for (`isMovable`: the Calendar page's
+ * Edit blocks mode) and it can be changed (its calendar's owner or an admin, not on a past day: the API's `canEdit`).
+ */
+export function blockItem(block: CalendarBlock, {isMovable = false}: {isMovable?: boolean} = {}): CalendarGridItem {
   const start = block.startUtc ?? '';
   const end = block.endUtc ?? '';
   const parts = [
@@ -135,17 +138,26 @@ export function blockItem(block: CalendarBlock): CalendarGridItem {
     label: block.activityName ?? '',
     sublabel: block.note,
     description: parts.filter(Boolean).join(', '),
-    isMovable: block.canEdit === true,
+    isMovable: isMovable && block.canEdit === true,
+    // The API changes a template block for its own day only, so it can't be dragged to another.
     movesWithinDay: block.isFromTemplate === true,
     isFlagged: block.overlapsAppointment === true,
   };
 }
 
-/** Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them. */
-export function calendarItems(calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings'> | undefined): CalendarGridItem[] {
+/**
+ * Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them.
+ * Appointments and meetings are movable by their own flags; blocks only with `movableBlocks` (the Calendar page's Edit
+ * blocks mode), and never on a day the calendar says is past.
+ */
+export function calendarItems(
+  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days'> | undefined,
+  {movableBlocks = false}: {movableBlocks?: boolean} = {},
+): CalendarGridItem[] {
   if (!calendar) return [];
+  const pastDays = new Set((calendar.days ?? []).filter((d) => d.isPast).map((d) => d.date));
   return [
-    ...(calendar.blocks ?? []).map(blockItem),
+    ...(calendar.blocks ?? []).map((b) => blockItem(b, {isMovable: movableBlocks && !pastDays.has(b.date)})),
     ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map(meetingItem),
     ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map(appointmentItem),
   ];

@@ -20,6 +20,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {procedureLabelsQuery} from '../../api/procedures';
 import {useColorMode} from '../../app/colorMode';
@@ -33,7 +34,7 @@ import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
-import {useNotepad} from '../notepad/NotepadContext';
+import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -54,11 +55,6 @@ export function isCurrentSection(pathname: string, path: string): boolean {
   if (path === '/') return pathname === '/';
   return pathname === path || pathname.startsWith(`${path}/`);
 }
-
-const NEEDS_BOOKING = '/calendar/needs-booking';
-
-/** The Calendar page, but not Needs booking (under its address, with a nav item of its own). */
-const isCalendarPage = (pathname: string) => isCurrentSection(pathname, '/calendar') && !isCurrentSection(pathname, NEEDS_BOOKING);
 
 const ID = '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
 const PATIENT_PAGE = new RegExp(`^/patients/${ID}(?:/|$)`, 'i');
@@ -81,10 +77,14 @@ export function openProcedureId(pathname: string): string | null {
  */
 const ActiveRowsContext = createContext<(href: string) => boolean>(() => true);
 
-/** The address of the nav row an element is in (its link's), or null. */
+/** The address of the nav row an element is in (its link's, or for a row with no link, its `data-nav-row`), or null. */
 function rowHref(target: EventTarget | null): string | null {
   if (!(target instanceof Element)) return null;
-  return target.closest('.astryx-side-nav-item')?.querySelector('a[href]')?.getAttribute('href') ?? null;
+  // The strip between a row's menu button and its open menu (RowMenu) belongs to that row.
+  const bridge = target.closest('[data-nav-bridge]');
+  if (bridge) return bridge.getAttribute('data-nav-bridge');
+  const row = target.closest('.astryx-side-nav-item');
+  return row?.querySelector('a[href]')?.getAttribute('href') ?? row?.querySelector('[data-nav-row]')?.getAttribute('data-nav-row') ?? null;
 }
 
 /**
@@ -155,6 +155,17 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
   ];
 }
 
+/** The gap between a row's menu button and its open menu, which the pointer can cross without the menu closing. */
+interface Bridge {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Above the page it lies over (the menu itself is in the browser's top layer, above everything). */
+const BRIDGE_Z_INDEX = 1000;
+
 /** How long the pointer rests on a row's menu button before the menu opens (so passing over it doesn't). */
 const MENU_OPEN_DELAY_MS = 150;
 /** How long the menu stays after the pointer leaves the button and the menu, so it can cross between them. */
@@ -166,10 +177,24 @@ const MENU_CLOSE_DELAY_MS = 200;
  * has left the button and the menu. Like the rest of a row's controls, the button shows while the row is hovered or
  * focused (and while its menu is open), and always in the folded nav's flyouts. No tooltip: its icon says what it is.
  */
-function RowMenu({label, href, items = []}: {label: string; href: string; items?: DropdownMenuItemData[]}) {
+function RowMenu({
+  label,
+  href,
+  items = [],
+  isRightOnly = false,
+}: {
+  label: string;
+  href: string;
+  items?: DropdownMenuItemData[];
+  /** Offers only the half view (the right), never the main view: the notepad's page is only ever shown in a half view. */
+  isRightOnly?: boolean;
+}) {
   const isActive = useContext(ActiveRowsContext)(href);
   const {mode} = useColorMode();
   const [isOpen, setIsOpen] = useState(false);
+  // The gap between the button and its open menu (the menu sits a little off the nav's edge), in the window's
+  // coordinates: an invisible strip covers it while the menu is open (below).
+  const [bridge, setBridge] = useState<Bridge | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const triggerId = useRef<string | null>(null);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -206,6 +231,14 @@ function RowMenu({label, href, items = []}: {label: string; href: string; items?
           const dx = edge + (navRight - rowRight) - box.left;
           const dy = row.getBoundingClientRect().top - box.top;
           panel.style.translate = `${dx}px ${dy}px`;
+          // Where the gap is once the menu has moved: from the button's end to the menu's start, as tall as both.
+          frame = requestAnimationFrame(() => {
+            const from = button!.getBoundingClientRect();
+            const to = surface.getBoundingClientRect();
+            const top = Math.min(from.top, to.top);
+            const width = to.left - from.right;
+            setBridge(width > 0 ? {left: from.right, top, width, height: Math.max(from.bottom, to.bottom) - top} : null);
+          });
           return;
         }
       }
@@ -216,7 +249,8 @@ function RowMenu({label, href, items = []}: {label: string; href: string; items?
     return () => cancelAnimationFrame(frame);
   }, [isOpen, mode]);
 
-  const all = [...useHalfViewItems(label, href), ...items];
+  const halfViewItems = useHalfViewItems(label, href);
+  const all = [...(isRightOnly ? halfViewItems.filter((item) => item.id !== 'left') : halfViewItems), ...items];
   if (all.length === 0) return null;
 
   const setSoon = (open: boolean, delay: number) => {
@@ -230,6 +264,27 @@ function RowMenu({label, href, items = []}: {label: string; href: string; items?
       onMouseEnter={() => setSoon(true, MENU_OPEN_DELAY_MS)}
       onMouseLeave={() => setSoon(false, MENU_CLOSE_DELAY_MS)}
       style={shownFor(isActive || isOpen)}>
+      {/* The pointer crossing from the button to the menu crosses a gap that's part of neither, which closed the menu
+          (and a folded nav's row brought out, and the row's buttons). While the menu is open, an invisible strip
+          covers that gap. It's in this row's React tree (a portal), so the pointer on it is still on the row, its
+          menu and the flyout, and nothing closes. Over the page, outside the side nav, as the nav would cut it off. */}
+      {isOpen &&
+        bridge &&
+        createPortal(
+          <VStack
+            aria-hidden
+            data-nav-bridge={href}
+            style={{
+              position: 'fixed',
+              left: bridge.left,
+              top: bridge.top,
+              width: bridge.width,
+              height: bridge.height,
+              zIndex: BRIDGE_Z_INDEX,
+            }}
+          />,
+          document.body,
+        )}
       <DropdownMenu
         items={all}
         // Beside the nav, level with the row, rather than under the row (over the rows below it).
@@ -553,33 +608,25 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
-    // The calendar, and the appointments asked for but not yet booked (under the calendar's address, but an item of
-    // their own).
-    ...[
-      {key: 'calendar', label: 'Calendar', icon: AppIcon.Calendar, href: '/calendar', isHere: (path: string) => isCalendarPage(path)},
-      {key: 'needs-booking', label: 'Needs Booking', icon: AppIcon.NeedsBooking, href: NEEDS_BOOKING, isHere: (path: string) => isCurrentSection(path, NEEDS_BOOKING)},
-    ].map(({key, label, icon, href, isHere}) => {
-      const isSelected = isHere(pathname);
-      const isHalfView = halfPath !== null && isHere(halfPath) && !isSelected;
-      return {
-        key,
-        label,
-        icon,
-        href,
-        isSelected,
-        isHalfView,
-        row: (
-          <SideNavItem
-            label={label}
-            icon={icon}
-            href={href}
-            isSelected={isSelected}
-            ref={halfViewRow(isHalfView)}
-            actions={<RowMenu label={label} href={href} />}
-          />
-        ),
-      };
-    }),
+    // The calendar, marked current on every page under it (Requires Appointment, reached from the Calendar page, too).
+    {
+      key: 'calendar',
+      label: 'Calendar',
+      icon: AppIcon.Calendar,
+      href: '/calendar',
+      isSelected: isAt('/calendar'),
+      isHalfView: isHalfAt('/calendar'),
+      row: (
+        <SideNavItem
+          label="Calendar"
+          icon={AppIcon.Calendar}
+          href="/calendar"
+          isSelected={isAt('/calendar')}
+          ref={halfViewRow(isHalfAt('/calendar'))}
+          actions={<RowMenu label="Calendar" href="/calendar" />}
+        />
+      ),
+    },
   ];
   const admin: NavRailEntry[] = user.isAdmin
     ? ADMIN_PAGES.map((page) => ({
@@ -603,6 +650,16 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     : [];
   // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
   const notepad = useNotepad();
+  const toggleNotepad = () => {
+    if (!notepad) return;
+    if (notepad.isOpen) {
+      notepad.requestClose();
+      return;
+    }
+    // Shown in the half view, it closes there first (its box saves as it goes), so it isn't open twice side by side.
+    if (halfPath === NOTEPAD_PATH) halfViews?.close();
+    notepad.open();
+  };
   const notepadEntry: NavRailEntry[] = notepad
     ? [
         {
@@ -618,7 +675,10 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
               icon={notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes}
               aria-pressed={notepad.isOpen}
               data-notepad-toggle=""
-              onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
+              data-nav-row={NOTEPAD_ROW}
+              onClick={toggleNotepad}
+              // Beside the page, in the half view; never on the left, as its page isn't one of its own.
+              actions={<RowMenu label="Notepad" href={NOTEPAD_ROW} isRightOnly />}
             />
           ),
         },
@@ -682,7 +742,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
             // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
             // so it's a plain link here, like the rail's icons.
             // With the bell under it, as the rail has no room beside it.
-            <VStack gap={1} hAlign="center">
+            // Room under the logo for the bell's count, which sits over its top right corner.
+            <VStack gap={3} hAlign="center">
               <IconButton
                 label="MedApp"
                 icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
@@ -741,3 +802,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     </ActiveRowsContext.Provider>
   );
 }
+
+/** The Notepad row's key among the rows that show their buttons (it has no link to be known by): its page's address. */
+const NOTEPAD_ROW = NOTEPAD_PATH;

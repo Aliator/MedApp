@@ -66,7 +66,7 @@ Open the ones named in the summary's `tour`:
 - **`cancelledWithItsBookingCancelled`:** cancelled after its visit was booked; the coordinator then cancelled the booking by hand ("Procedure cancelled; patient informed by phone").
 - **`reassigned`:** the lead changed part-way: one assigned, the other taken off.
 - **`dueDateOrPriorityChanged`:** due dates moved at scheduling, or a diagnostic referral raised to Urgent at triage.
-- **`visitNeverBooked`:** a visit asked for weeks ago and still in Needs booking.
+- **`visitNeverBooked`:** a visit asked for weeks ago and still in Requires Appointment.
 - **`oldPathwayStillFinishing`:** the archived day-case pathway's last three.
 - **`missedAndRebooked`:** a visit the patient didn't attend, then a new one.
 - **`inReview`:** every stage finished, waiting to be marked completed.
@@ -110,7 +110,7 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
   - `d.ashworth` has a training day next Wednesday
   - `r.calloway`'s lunch is moved on the day after the diary day, round the meetings, into free time
   - `s.brightwell`'s admin time was removed on the day before, and an appointment booked in its place
-- **Needs booking:** visits recently asked for, and a few asked for long ago and never booked.
+- **Requires Appointment:** visits recently asked for, and a few asked for long ago and never booked.
 - **Appointment history:** booked, moved (rescheduled), cancelled by the patient or because the clinician couldn't make it, did not attend, notes added and edited.
 
 ### Meetings and the team view (as `admin` or `j.whitlock`)

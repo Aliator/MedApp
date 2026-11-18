@@ -88,10 +88,10 @@ describe('StageVisit', () => {
     return {...handlers, ...renderWithApp(<StageVisit stage={stage} appointments={appointments} isBusy={false} {...handlers} {...props} />)};
   }
 
-  it('books a visit that needs booking, saying why it matters for a required one', async () => {
+  it('books a visit that requires an appointment, saying why it matters for a required one', async () => {
     const {user, onBook} = renderVisit([requested]);
 
-    expect(await screen.findByText('Needs booking')).toBeInTheDocument();
+    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
     expect(screen.getByText(/the stage can't be finished until then/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Book Visit'}));
 

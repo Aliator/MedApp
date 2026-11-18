@@ -5,7 +5,7 @@ namespace MedApp.Domain.Appointments;
 
 /// <summary>
 /// A patient seeing a member of staff, optionally for one of their procedures and one of its stages. It goes from
-/// Requested (needs booking) to Booked (a member of staff and a time), then Attended or Did not attend, or Cancelled.
+/// Requested (Requires appointment) to Booked (a member of staff and a time), then Attended or Did not attend, or Cancelled.
 /// Every change is recorded in its history (<see cref="AppointmentEvent"/>).
 /// </summary>
 public sealed class Appointment
