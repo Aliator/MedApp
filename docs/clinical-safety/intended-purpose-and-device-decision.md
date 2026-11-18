@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-04, intended purpose and qualification as a medical device |
-| **Version** | 0.13, draft |
+| **Version** | 0.14, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes on stage definitions and a demographics lookup), for admins' monitoring rules, and for staff calendars and appointments (`feature/staff-calendars`, designed in `docs/calendar-plan.md`); reassessed, from their design, for roles and permissions, specialties, referrals and triage, and the waiting-time clock (`docs/centre-phase2-plan.md`); reassessed, from their design, for the centre's Phases 3 to 5 (`docs/centre-phases-3-5-plan.md`); patient reminders and the Did not attend view checked as built (`feature/patient-reminders`); specimens, lab reports as files and the last stage's specimen gate checked against what branch `feature/specimens` built (PR 13) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes on stage definitions and a demographics lookup), for admins' monitoring rules, and for staff calendars and appointments (`feature/staff-calendars`, designed in `docs/calendar-plan.md`); reassessed, from their design, for roles and permissions, specialties, referrals and triage, and the waiting-time clock (`docs/centre-phase2-plan.md`); reassessed, from their design, for the centre's Phases 3 to 5 (`docs/centre-phases-3-5-plan.md`); patient reminders and the Did not attend view checked as built (`feature/patient-reminders`); specimens, lab reports as files and the last stage's specimen gate checked against what branch `feature/specimens` built (PR 13); reassessed, from its design, for the multi-clinic centre (`docs/multi-clinic-plan.md`, MC1) |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code and `docs/architecture.md`. Not yet reviewed by a person. |
 | **Decision owner** | [Manufacturer's accountable owner] |
@@ -82,7 +82,9 @@ The MHRA judges intended purpose from labelling, instructions for use and promot
 - scores questionnaires;
 - checks consent is valid;
 - decides the next step in a pathway;
-- follows up patients who miss appointments, or decides who needs another one.
+- follows up patients who miss appointments, or decides who needs another one;
+- prioritises samples by clinical urgency;
+- decides which route a pathway takes.
 
 They can say that it records and coordinates pathway workflow, keeps an audit trail, shows staff their tasks and target dates, and books staff time for appointments, asking for one where the organisation's template says a stage involves a visit. Once Phases 3 to 5 are built, they can also say that it tracks specimens and files lab reports for a named clinician to sign off, helps clinicians write, approve and send their own letters, records consent, MDT outcomes and questionnaire answers as staff enter them, and reminds patients when their appointments are. That last is built (PR 26): if the organisation turns it on, MedApp texts or emails patients who chose it about their appointments; it mustn't be described as reducing missed appointments or as following them up.
 
@@ -254,6 +256,21 @@ Phase 5 (`docs/centre-phases-3-5-plan.md`, section 4) was assessed from its desi
 
 **The decision is unchanged,** on these conditions: no score calculated or interpreted; no assessment of consent; no data transformed or interpreted clinically on its way in or out; no automatic matching of incoming data to patients. Hazards H-58 to H-64 cover what could go wrong. At go-live (the plan's decision 179), this document is brought up to date with everything actually built, for the CSO.
 
+### Reassessment: the multi-clinic centre
+
+The multi-clinic centre (`docs/multi-clinic-plan.md`, section 8) was assessed from its design, before it's built (MC1): separate clinics and an in-house lab as teams, pathways passed between them, hospital requests with deadlines, consults and clinical photos.
+
+| Feature | Position |
+|---|---|
+| Teams, the boundary between clinics, the relay, worklists | Not a device: access control and workflow |
+| Tree pathways, added branches | Not a device: staff choose; nothing suggested or pre-selected |
+| Hospital clocks and lab alerts | Not a device: **service alerts on time**, never on values (decision 186) |
+| Lab cases, steps, reports | Not a device: workflow; reports stay documents |
+| Surgery details | Not a device: recorded as written; nothing calculated |
+| Consults, MDTs, photos | Not a device: communication and storage; photos not analysed |
+
+**The decision is unchanged,** on these conditions: no route, branch or stage owner chosen or suggested by MedApp; no sample ranked by clinical urgency (a hospital's priority is shown as it sent it); clocks and alerts on time only; reports and surgery details stored as written. Two claims join the [list](#claims-the-manufacturer-must-not-make). Hazards H-65 to H-76 cover what could go wrong. Each MC PR checks its row against the code.
+
 It is a decision about this product and this intended purpose. A customer who uses MedApp outside its intended purpose takes on that use; the MHRA notes that using a product for a medical purpose doesn't by itself make it a device, but the hazard log assumes the intended use.
 
 ## What would change the decision
@@ -334,3 +351,4 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | 0.11 | 18 November 2026 | Specialties, permissions, referrals and triage built (#149, #150, #153, #154 and `feature/triage`): their function table rows marked built and checked against the code. Triage offers nothing prefilled (the template, the priority and the target date start empty; the referrer's priority is shown as text), lists only the specialty's templates by name and refuses another's, and orders the inbox by date received until the clock. No new function; the decision is unchanged | AI coding agent, for review |
 | 0.12 | 18 November 2026 | Patient reminders and the Did not attend view built (branch `feature/patient-reminders`, Phase 4's PR 26): the statement, outputs and use environment now say MedApp texts and emails patients who chose it, if the organisation turns it on, as a courtesy, and lists missed appointments for staff to follow up; its function table row marked built and checked against the code (fixed wording, the patient's chosen channels, a view ordered by date, a follow-up chosen by staff); one more claim not to make (that MedApp follows up missed appointments or decides who needs another); the Phase 4 reassessment and the roadmap row updated. No new function beyond the design; the decision is unchanged | AI coding agent, for review |
 | 0.13 | 18 November 2026 | Specimens built (branch `feature/specimens`, Phase 3's PR 13): specimen tracking, the lab worklist, lab reports filed as files and the last stage's gate for open specimens checked against the code; question 4 now answered "as documents only"; the function table's rows marked built (the results, letter and consent gates still designed). The decision is unchanged | AI coding agent, for review |
+| 0.14 | 18 November 2026 | The multi-clinic centre (`docs/multi-clinic-plan.md`, MC1), assessed from its design before it's built: a new reassessment (teams and the boundary, tree pathways and added branches, hospital clocks and lab alerts, lab cases, surgery details, consults, MDTs and photos), each not a device on the conditions stated; two claims added (prioritising samples by clinical urgency, deciding a pathway's route). The decision is unchanged; hazards H-65 to H-76 | AI coding agent, for review |
