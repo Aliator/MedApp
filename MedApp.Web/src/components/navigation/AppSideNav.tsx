@@ -671,7 +671,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   };
 
   const patientPins = usePins('patients', user.username);
-  // How many referrals await triage in your specialties (everyone's, if you have none): a count, naming no patients.
   const pathwayPins = usePins('pathways', user.username);
   // My letters to approve and every letter still to send: counts, naming no patients.
   const letterCount = useQuery({...letterCountQuery, enabled: can(user, 'ViewPatients')}).data;
