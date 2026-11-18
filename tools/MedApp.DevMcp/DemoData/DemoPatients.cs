@@ -14,8 +14,11 @@ public enum PatientRole
     /// <summary>Referred, with pathways.</summary>
     Active,
 
-    /// <summary>Registered, waiting for a referral: no pathways yet.</summary>
+    /// <summary>Registered in the last few weeks with a referral still awaiting triage: no pathways yet.</summary>
     Waiting,
+
+    /// <summary>Referred, but not taken on (the referral was rejected, redirected elsewhere or withdrawn): no pathways.</summary>
+    ReferredOnly,
 
     /// <summary>Imported from the older system, with closed records long past: due for the retention review.</summary>
     ImportedDue,
@@ -96,11 +99,13 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
     public List<PatientSeed> All { get; } = [];
 
     /// <summary>
-    /// A new patient registered just before <paramref name="referredUtc"/>: mostly older adults, as a specialist centre
+    /// A new patient registered before <paramref name="referredUtc"/>: mostly older adults, as a specialist centre
     /// sees; a child only if <paramref name="mayBeChild"/>; a woman or a man, and no younger than
-    /// <paramref name="minimumAge"/>, where the pathway needs it.
+    /// <paramref name="minimumAge"/>, where the pathway needs it. With <paramref name="justBefore"/>, minutes before
+    /// (added to register their referral, decision 11); otherwise up to three weeks before.
     /// </summary>
-    public PatientSeed NewPatient(DateTime referredUtc, bool mayBeChild, PatientRole role = PatientRole.Active, bool? female = null, int minimumAge = 0)
+    public PatientSeed NewPatient(
+        DateTime referredUtc, bool mayBeChild, PatientRole role = PatientRole.Active, bool? female = null, int minimumAge = 0, bool justBefore = false)
     {
         int age;
         do
@@ -116,7 +121,9 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
         }
         while (age < minimumAge);
 
-        var created = DemoTimeline.InWorkingHours(referredUtc.AddDays(-random.Next(0, 22)).AddMinutes(-random.Next(0, 400)), random);
+        var created = justBefore
+            ? referredUtc.AddMinutes(-random.Next(3, 25))
+            : DemoTimeline.InWorkingHours(referredUtc.AddDays(-random.Next(0, 22)).AddMinutes(-random.Next(0, 400)), random);
         if (created > referredUtc)
             created = referredUtc.AddMinutes(-random.Next(10, 60));
         var dob = DateOnly.FromDateTime(referredUtc).AddYears(-age).AddDays(-random.Next(1, 360));
@@ -159,38 +166,48 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
     }
 
     /// <summary>
-    /// For each referral in time order, its patient: often someone already registered (a second referral: a skin lesion
-    /// one year, a diabetes review the next), otherwise someone new. Children only on the pathways that see them; women
-    /// only, or men only, and old enough, on the two pathways that need it.
+    /// For each pathway in time order, its patient: often someone already registered (a second referral: a skin lesion
+    /// one year, a diabetes review the next), otherwise someone new, added just before their referral was registered.
+    /// Children only on the pathways that see them; women only, or men only, and old enough, on the two pathways that
+    /// need it. (The patients of referrals that never became pathways come from <see cref="ReferralStories"/>.)
     /// </summary>
     public void AssignPatients(IReadOnlyList<PathwayPlan> plans)
     {
-        foreach (var plan in plans.OrderBy(p => p.CreatedUtc))
+        foreach (var plan in plans.OrderBy(p => p.ReferredUtc))
         {
-            var mayBeChild = ProcedureKinds.SeesChildren(plan.PathwayKind);
-            var (female, minimumAge) = ProcedureKinds.Sees(plan.PathwayKind);
-            PatientSeed? patient = null;
-            if (random.NextDouble() < 0.64)
-            {
-                var eligible = All.Where(p => p.Role == PatientRole.Active
-                                              && p.CreatedUtc < plan.CreatedUtc.AddDays(-1)
-                                              && p.Pathways < 4
-                                              && (female is null || p.Female == female)
-                                              && p.AgeAt(plan.CreatedUtc) >= minimumAge
-                                              && (mayBeChild || !p.IsChildAt(plan.CreatedUtc))).ToList();
-                // Someone with one pathway is likelier to come back than someone with three.
-                if (eligible.Count > 0)
-                    patient = PathwayPlans.Weighted(random, eligible.Select(p => (p, p.Pathways switch { 1 => 6, 2 => 3, _ => 1 })).ToArray());
-            }
-
-            patient ??= NewPatient(plan.CreatedUtc, mayBeChild, female: female, minimumAge: minimumAge);
+            var patient = random.NextDouble() < 0.64 ? Existing(plan.PathwayKind, plan.ReferredUtc) : null;
+            patient ??= New(plan.PathwayKind, plan.ReferredUtc, PatientRole.Active, justBefore: plan.FromReferral);
             patient.Pathways++;
             plan.Patient = patient;
         }
+    }
 
-        // Registered in the last few weeks, waiting for a referral.
-        for (var i = 0; i < 14; i++)
-            NewPatient(timeline.NowUtc.AddDays(-random.Next(1, 28)), mayBeChild: true, PatientRole.Waiting);
+    /// <summary>
+    /// Someone already registered a day before <paramref name="referredUtc"/> who could be referred for this kind of
+    /// pathway (sex, age, adult or child), likelier the fewer pathways they have; null if nobody fits.
+    /// </summary>
+    public PatientSeed? Existing(PathwayKind kind, DateTime referredUtc, Func<PatientSeed, bool>? also = null)
+    {
+        var mayBeChild = ProcedureKinds.SeesChildren(kind);
+        var (female, minimumAge) = ProcedureKinds.Sees(kind);
+        var eligible = All.Where(p => p.Role == PatientRole.Active
+                                      && p.CreatedUtc < referredUtc.AddDays(-1)
+                                      && p.Pathways < 4
+                                      && (female is null || p.Female == female)
+                                      && p.AgeAt(referredUtc) >= minimumAge
+                                      && (mayBeChild || !p.IsChildAt(referredUtc))
+                                      && (also?.Invoke(p) ?? true)).ToList();
+        // Someone with one pathway is likelier to come back than someone with three.
+        return eligible.Count == 0
+            ? null
+            : PathwayPlans.Weighted(random, eligible.Select(p => (p, p.Pathways switch { 0 or 1 => 6, 2 => 3, _ => 1 })).ToArray());
+    }
+
+    /// <summary>Someone new who could be referred for this kind of pathway, registered before <paramref name="referredUtc"/>.</summary>
+    public PatientSeed New(PathwayKind kind, DateTime referredUtc, PatientRole role, bool justBefore)
+    {
+        var (female, minimumAge) = ProcedureKinds.Sees(kind);
+        return NewPatient(referredUtc, ProcedureKinds.SeesChildren(kind), role, female, minimumAge, justBefore);
     }
 
     /// <summary>

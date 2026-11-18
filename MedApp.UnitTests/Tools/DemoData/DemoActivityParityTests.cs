@@ -12,6 +12,8 @@ using MedApp.Application.Common.Paging;
 using MedApp.Application.Common.Security;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Referrals.Queries.GetReferralById;
+using MedApp.Application.Referrals.Repositories;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Authentication;
@@ -127,5 +129,21 @@ public sealed class DemoActivityParityTests
         listed.Action.Should().Be(ActivityAction.PatientListed, "the seed lists each patient a search found");
         listed.PatientIds.Should().Equal(found.Select(p => p.Id));
         listed.PathwayId.Should().BeNull();
+    }
+
+    /// <summary>Opening a referral records what the seed writes for each referral someone registered or triaged.</summary>
+    [Test]
+    public async Task ReferralViewed_WritesWhatTheSeedWrites()
+    {
+        var referral = ReferralsTestConstants.CreateReferral();
+        var repository = new Mock<IReferralRepository>();
+        repository.Setup(r => r.GetByIdAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(referral);
+        repository.Setup(r => r.GetHistoryAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        await new GetReferralByIdHandler(repository.Object, _activity, _clock)
+            .Handle(new GetReferralByIdQuery(referral.Id, ReferralsTestConstants.Registrar), CancellationToken.None);
+
+        _activity.SingleViews.Should().Equal(
+            (ActivityAction.ReferralViewed, referral.PatientId, ActivityLog.SerializeDetails(DemoActivity.ReferralViewDetails(referral.Id))));
     }
 }

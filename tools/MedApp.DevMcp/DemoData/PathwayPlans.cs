@@ -1,4 +1,6 @@
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 
 namespace MedApp.DevMcp.DemoData;
@@ -24,7 +26,27 @@ public enum Fate
     Deleted,
 }
 
-/// <summary>One referral to replay: when it came in, what for, and the twists its story takes.</summary>
+/// <summary>How a pathway's waiting-time clock is paused, for a delay the patient chose or caused (decision 33).</summary>
+public enum PauseFate
+{
+    None,
+
+    /// <summary>Paused, then resumed weeks later: its paused days move the target on.</summary>
+    Resumed,
+
+    /// <summary>Paused, and still paused now, with its review date ahead.</summary>
+    StillPaused,
+
+    /// <summary>Paused long ago, and still paused, with its review date passed: it shows as overdue (hazard H-42).</summary>
+    ReviewOverdue,
+}
+
+/// <summary>
+/// One pathway to replay: when it came in, what for, and the twists its story takes. Most come in as a referral,
+/// registered by the booking coordinator and accepted at triage by a clinician of its specialty, who creates the
+/// pathway (<see cref="CreatedUtc"/> is that moment); a diabetes recall or a biomechanics course asked for in clinic is
+/// often created directly by its clinician instead, with no referral and no waiting-time clock.
+/// </summary>
 public sealed class PathwayPlan
 {
     public required PathwayKindSpec Spec { get; init; }
@@ -66,6 +88,43 @@ public sealed class PathwayPlan
     /// <summary>The pathway replayed from this plan (set once its replay is kept).</summary>
     public Guid PathwayId { get; set; }
 
+    /// <summary>Whether it came in as a referral (registered, then accepted at triage); false when created directly.</summary>
+    public bool FromReferral { get; set; } = true;
+
+    /// <summary>When the booking coordinator registered its referral (before <see cref="CreatedUtc"/>, the triage).</summary>
+    public DateTime RegisteredUtc { get; set; }
+
+    /// <summary>When the referral arrived (a UK date, typed from the letter): its clock starts here.</summary>
+    public DateOnly ReceivedOn { get; set; }
+
+    /// <summary>The priority the referrer asked for; the triager chooses the pathway's (<see cref="ChosenPriority"/>).</summary>
+    public Priority RequestedPriority { get; set; }
+
+    /// <summary>The priority the triager chose: the plan's, or Urgent for a referral raised at triage.</summary>
+    public Priority ChosenPriority => RaisePriority ? Priority.Urgent : Priority;
+
+    /// <summary>The specialty its referral was first registered under, moved to this one by a triager there.</summary>
+    public string? RedirectedFrom { get; set; }
+
+    /// <summary>When it was moved here (between its registration and its acceptance).</summary>
+    public DateTime RedirectedUtc { get; set; }
+
+    public PauseFate Pause { get; set; }
+    public ClockPauseReason PauseReason { get; set; }
+
+    /// <summary>The stage at which (once reached) the patient asked to wait: before the clock-stop stage is finished.</summary>
+    public int PauseStage { get; set; } = -1;
+
+    /// <summary>
+    /// The target date its lead gives it by hand: for a pathway created directly, when it's created; for one from a
+    /// referral, once its clock has stopped (until then the clock sets it).
+    /// </summary>
+    public DateOnly PlannedDueDate =>
+        DueDates.ToUkDate(CreatedUtc).AddDays(7 * (ChosenPriority == Priority.Urgent ? Spec.UrgentDueWeeks : Spec.DueWeeks));
+
+    /// <summary>When the patient was referred, for choosing them: the referral's registration, or the pathway's creation.</summary>
+    public DateTime ReferredUtc => FromReferral ? RegisteredUtc : CreatedUtc;
+
     public NoteContext NoteContext(int occurrence = 1, int occurrences = 1) => new(Kind, Side, Urgent, occurrence, occurrences, Outcome);
 }
 
@@ -95,7 +154,89 @@ public static class PathwayPlans
 
         plans = plans.OrderBy(p => p.CreatedUtc).ToList();
         AddTwists(plans, timeline, random);
+        PlanReferrals(plans, timeline, random);
         return plans;
+    }
+
+    /// <summary>
+    /// Each pathway's referral: whether it had one (a diabetes recall or a biomechanics course asked for in clinic is
+    /// often created directly), when it was registered and received (urgent ones triaged within a day or so, routine
+    /// ones within two weeks), the priority the referrer asked for (usually what the triager chose; a bleeding referral
+    /// raised to Urgent at triage asked for less), a few moved here from another specialty first, and the pauses.
+    /// </summary>
+    private static void PlanReferrals(List<PathwayPlan> plans, DemoTimeline timeline, Random random)
+    {
+        var now = timeline.NowUtc;
+        var priorities = Enum.GetValues<Priority>();
+        foreach (var plan in plans)
+        {
+            plan.FromReferral = plan.PathwayKind is not (PathwayKind.Diabetes or PathwayKind.Biomechanics) || random.NextDouble() < 0.5;
+            var chosen = plan.ChosenPriority;
+            var roll = random.NextDouble();
+            plan.RequestedPriority = plan.RaisePriority ? plan.Priority
+                : roll < 0.12 && chosen != Priority.Urgent ? priorities[Array.IndexOf(priorities, chosen) + 1]
+                : roll is >= 0.12 and < 0.18 && chosen != Priority.Low ? priorities[Array.IndexOf(priorities, chosen) - 1]
+                : chosen;
+
+            var wait = chosen switch
+            {
+                Priority.Urgent => 0.05 + random.NextDouble() * 1.2,
+                Priority.High => 0.3 + random.NextDouble() * 4,
+                _ => 1 + random.NextDouble() * 11,
+            };
+            Register(plan, wait);
+        }
+
+        // Moved here by a triager of the specialty it was first registered under: bleeding referrals sent to urology,
+        // and foot pain sent to diabetes, then accepted here.
+        var redirectable = plans.Where(p => p.FromReferral && p.Fate == Fate.Normal && !p.Straggler && p.NeverBookStage < 0
+                                            && p.CreatedUtc >= now.AddDays(-300) && p.CreatedUtc <= now.AddDays(-20)).ToList();
+        foreach (var (kind, from) in new[] { (PathwayKind.PostMenopausalBleeding, DemoSpecialties.Urology), (PathwayKind.Biomechanics, DemoSpecialties.Diabetes) })
+            foreach (var plan in Choose(redirectable.Where(p => p.PathwayKind == kind), 2))
+            {
+                plan.RedirectedFrom = from;
+                Register(plan, 3 + random.NextDouble() * 5);
+                plan.RedirectedUtc = DemoTimeline.InWorkingHours(plan.RegisteredUtc.AddDays(1 + random.NextDouble()), random);
+                if (plan.RedirectedUtc >= plan.CreatedUtc.AddMinutes(-30))
+                    plan.RedirectedUtc = plan.CreatedUtc.AddHours(-2);
+            }
+
+        // Pauses, each asked for when an early stage was reached: about ten still paused now (each reason), one paused
+        // so long ago that its review date has passed, and some resumed in the past.
+        bool Pausable(PathwayPlan p) => p.FromReferral && p.Fate == Fate.Normal && !p.Straggler && p.NeverBookStage < 0
+                                        && p.BypassStage < 0 && p.UnlockStage < 0 && p.RedirectedFrom is null && p.Pause == PauseFate.None;
+        var reasons = Enum.GetValues<ClockPauseReason>();
+        var index = 0;
+        foreach (var plan in Choose(plans.Where(p => Pausable(p) && p.CreatedUtc >= now.AddDays(-55) && p.CreatedUtc <= now.AddDays(-6)), 10))
+            (plan.Pause, plan.PauseStage, plan.PauseReason) = (PauseFate.StillPaused, 0, reasons[index++ % reasons.Length]);
+        foreach (var plan in Choose(plans.Where(p => Pausable(p) && p.CreatedUtc >= now.AddDays(-120) && p.CreatedUtc <= now.AddDays(-75)), 1))
+            (plan.Pause, plan.PauseStage, plan.PauseReason) = (PauseFate.ReviewOverdue, 0, ClockPauseReason.PatientUnavailable);
+        foreach (var plan in Choose(plans.Where(p => Pausable(p) && p.CreatedUtc >= now.AddDays(-400) && p.CreatedUtc <= now.AddDays(-30)), 10))
+            (plan.Pause, plan.PauseStage, plan.PauseReason) =
+                (PauseFate.Resumed, Math.Min(random.Next(0, 2), plan.Spec.ClockStopIndex), reasons[index++ % reasons.Length]);
+
+        void Register(PathwayPlan plan, double waitDays)
+        {
+            var created = plan.CreatedUtc;
+            var registered = DemoTimeline.InWorkingHours(created.AddDays(-waitDays), random);
+            if (registered >= created.AddMinutes(-10))
+                registered = created.AddMinutes(-random.Next(15, 120));
+            plan.RegisteredUtc = registered;
+            // Usually typed the day the letter came; now and then the next working day.
+            var registeredOn = DueDates.ToUkDate(registered);
+            plan.ReceivedOn = random.NextDouble() < 0.3 ? PreviousWeekday(registeredOn) : registeredOn;
+        }
+
+        IEnumerable<PathwayPlan> Choose(IEnumerable<PathwayPlan> source, int count) =>
+            source.OrderBy(_ => random.Next()).Take(count).ToList();
+    }
+
+    /// <summary>The weekday before a date.</summary>
+    public static DateOnly PreviousWeekday(DateOnly date)
+    {
+        do date = date.AddDays(-1);
+        while (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday);
+        return date;
     }
 
     private static void AddTwists(List<PathwayPlan> plans, DemoTimeline timeline, Random random)

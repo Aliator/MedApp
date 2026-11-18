@@ -33,6 +33,7 @@ public sealed class DemoTimeline
         MonitoringRulesUtc = WorkingMoment(NowUtc.AddDays(-63), 11, 0);
         LocumRoleCreatedUtc = WorkingMoment(NowUtc.AddDays(-56), 11, 30);
         RolesRefinedUtc = WorkingMoment(NowUtc.AddDays(-28), 14, 0);
+        NewServiceAddedUtc = WorkingMoment(NowUtc.AddDays(-24), 10, 30);
         NotificationsFromUtc = NowUtc.AddDays(-30);
         ActivityFromUtc = NowUtc.AddDays(-60);
 
@@ -79,6 +80,9 @@ public sealed class DemoTimeline
     public DateTime RolesRefinedUtc { get; }
 
     public DateTime NewStarterCreatedUtc { get; }
+
+    /// <summary>When the lead added the new service (Respiratory), whose referrals nobody can triage yet.</summary>
+    public DateTime NewServiceAddedUtc { get; }
 
     /// <summary>Notifications are made for what happened from here on (30 days).</summary>
     public DateTime NotificationsFromUtc { get; }
