@@ -84,7 +84,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
                 variant="secondary"
                 size="sm"
                 icon={<Icon icon={AppIcon.Calendar} />}
-                href={`/calendar?date=${date}${staffUserId ? `&staff=${staffUserId}` : ''}`}
+                href={`/calendar?date=${date}${staffUserId ? `&staff=${encodeURIComponent(staffUserId)}` : ''}`}
               />
               {actions}
             </HStack>
