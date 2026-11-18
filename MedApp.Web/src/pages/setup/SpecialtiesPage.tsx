@@ -1,7 +1,9 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {Grid} from '@astryxdesign/core/Grid';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
+import {NumberInput} from '@astryxdesign/core/NumberInput';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
@@ -12,7 +14,19 @@ import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {useListSettings} from '../../app/listSettings';
 import {fieldStatus} from '../../api/errors';
-import {specialtiesQuery, useSaveSpecialty, useSpecialtyActions, type Specialty} from '../../api/specialties';
+import {
+  DEFAULT_SPECIALTY_TARGETS,
+  MAX_TARGET_DAYS,
+  MIN_TARGET_DAYS,
+  specialtiesQuery,
+  specialtyTargets,
+  TARGET_PRIORITIES,
+  targetsWords,
+  useSaveSpecialty,
+  useSpecialtyActions,
+  type Specialty,
+  type SpecialtyTargets,
+} from '../../api/specialties';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
@@ -71,9 +85,13 @@ export interface SpecialtiesPageProps {
   onSearchChange: (search: SetupListSearch) => void;
 }
 
+/** The fields the edit dialog shows its API errors on. */
+const FORM_FIELDS = ['name', ...TARGET_PRIORITIES.map((p) => p.field)];
+
 /**
  * Specialties (admin): what pathway templates belong to and staff work in, such as Dermatology or Urology. Admins add
- * and rename them, archive ones no longer wanted (templates, pathways and staff that have one keep it, but it isn't
+ * them, change their names and waiting-time targets (days, for each priority: the centre's own targets, which a
+ * referral's clock copies when it starts), archive ones no longer wanted (templates, pathways and staff that have one keep it, but it isn't
  * offered for new ones), restore them, and delete ones nothing has used. Renaming, archiving and restoring send the
  * version shown, so a change someone made meanwhile is refused (409) with the API's words, and the list is read again.
  * Members of staff are given their specialties on the Users page.
@@ -86,6 +104,7 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [name, setName] = useState('');
+  const [targets, setTargets] = useState<SpecialtyTargets>(DEFAULT_SPECIALTY_TARGETS);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +114,7 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
 
   const openEditor = (specialty: Specialty | null) => {
     setName(specialty?.name ?? '');
+    setTargets(specialty ? specialtyTargets(specialty) : DEFAULT_SPECIALTY_TARGETS);
     setProblem(NO_PROBLEM);
     setError(null);
     setDialog({kind: 'edit', specialty});
@@ -114,10 +134,10 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
 
   const saveSpecialty = () =>
     save.mutate(
-      editing ? {id: editing.id, name: name.trim(), expectedVersion: editing.version ?? 0} : {name: name.trim()},
+      editing ? {id: editing.id, name: name.trim(), targets, expectedVersion: editing.version ?? 0} : {name: name.trim(), targets},
       {
         onSuccess: () => {
-          announce(editing ? 'Specialty renamed' : 'Specialty added');
+          announce(editing ? 'Specialty saved' : 'Specialty added');
           close();
         },
         // A 409 (the name is taken, or someone changed it meanwhile) keeps the dialog open with the API's words. The
@@ -144,6 +164,16 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
         />
       ),
     },
+    {
+      key: 'targets',
+      header: 'Waiting-time targets',
+      width: proportional(2, {minWidth: 120}),
+      renderCell: (s) => (
+        <Text type="body" maxLines={2}>
+          {targetsWords(s)}
+        </Text>
+      ),
+    },
     {key: 'templates', header: 'Templates', width: pixel(100), align: 'end', renderCell: (s) => <Text type="body">{s.templateCount ?? 0}</Text>},
     {key: 'pathways', header: 'Pathways', width: pixel(100), align: 'end', renderCell: (s) => <Text type="body">{s.pathwayCount ?? 0}</Text>},
     {key: 'members', header: 'Staff', width: pixel(80), align: 'end', renderCell: (s) => <Text type="body">{s.memberCount ?? 0}</Text>},
@@ -156,7 +186,7 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
       renderCell: (s) => (
         <TableActions
           actions={[
-            {label: 'Rename specialty', icon: AppIcon.Edit, onClick: () => openEditor(s)},
+            {label: 'Edit specialty', icon: AppIcon.Edit, onClick: () => openEditor(s)},
             s.isArchived
               ? {
                   label: 'Restore specialty',
@@ -185,6 +215,7 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
   const summary = target && (
     <MetadataList>
       <MetadataListItem label="Specialty">{target.name}</MetadataListItem>
+      <MetadataListItem label="Waiting-time targets">{targetsWords(target)}</MetadataListItem>
       <MetadataListItem label="Used by">{specialtyUse(target)}</MetadataListItem>
     </MetadataList>
   );
@@ -217,21 +248,21 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
         <>
           <ConfirmDialog
             isOpen={dialog?.kind === 'edit'}
-            title={editing ? 'Rename Specialty' : 'Add Specialty'}
+            title={editing ? 'Edit Specialty' : 'Add Specialty'}
             message={
               editing
-                ? 'Templates, pathways and staff show the new name everywhere they have it.'
+                ? 'Templates, pathways and staff show the new name everywhere they have it. New targets apply to waiting-time clocks set from now on.'
                 : 'Each pathway template belongs to a specialty, and staff can be given the ones they work in.'
             }
             icon={editing ? AppIcon.Edit : AppIcon.Add}
             confirmText={editing ? 'Save' : 'Add Specialty'}
             isProcessing={save.isPending}
-            confirmDisabled={!name.trim()}
+            confirmDisabled={!name.trim() || TARGET_PRIORITIES.some(({key}) => targets[key] === null)}
             hasSaveShortcut
             onConfirm={saveSpecialty}
             onCancel={close}>
             <VStack gap={2}>
-              {problem.validation && <ValidationAlert errors={problem.validation} fields={['name']} />}
+              {problem.validation && <ValidationAlert errors={problem.validation} fields={FORM_FIELDS} />}
               {problem.message && <AlertMessage message={problem.message} />}
               {/* Only while it's open, so its autofocus can't act in a closing dialog. */}
               {dialog?.kind === 'edit' && (
@@ -245,6 +276,32 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
                   hasAutoFocus
                   status={fieldStatus(problem.validation, 'name')}
                 />
+              )}
+              {dialog?.kind === 'edit' && (
+                <VStack gap={1}>
+                  <Text type="label" weight="semibold">
+                    Waiting-time targets
+                  </Text>
+                  <Text type="supporting" color="secondary">
+                    {`Days from a referral being received to its target date, for each priority (${MIN_TARGET_DAYS} to ${MAX_TARGET_DAYS}). They're the centre's own targets, not national rules.`}
+                  </Text>
+                  <Grid columns={2} gap={4}>
+                    {TARGET_PRIORITIES.map(({key, label, field}) => (
+                      <NumberInput
+                        key={key}
+                        label={label}
+                        value={targets[key]}
+                        onChange={(value) => setTargets((current) => ({...current, [key]: value}))}
+                        min={MIN_TARGET_DAYS}
+                        max={MAX_TARGET_DAYS}
+                        isIntegerOnly
+                        isWheelEnabled={false}
+                        isRequired
+                        status={fieldStatus(problem.validation, field)}
+                      />
+                    ))}
+                  </Grid>
+                </VStack>
               )}
             </VStack>
           </ConfirmDialog>

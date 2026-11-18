@@ -20,6 +20,10 @@ public static class SpecialtyMapper
         LetterTemplateCount = usage.LetterTemplateCount,
         TriagerCount = usage.TriagerCount,
         CanBeDeleted = !usage.IsInUse,
+        TargetDaysUrgent = specialty.TargetDaysUrgent,
+        TargetDaysHigh = specialty.TargetDaysHigh,
+        TargetDaysMedium = specialty.TargetDaysMedium,
+        TargetDaysLow = specialty.TargetDaysLow,
         CreatedAt = specialty.CreatedAt,
         LastUpdated = specialty.LastUpdated
     };

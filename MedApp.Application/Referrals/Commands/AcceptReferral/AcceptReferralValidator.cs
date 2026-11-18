@@ -6,7 +6,7 @@ namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 
 public sealed class AcceptReferralValidator : AbstractValidator<AcceptReferralCommand>
 {
-    public AcceptReferralValidator(TimeProvider timeProvider)
+    public AcceptReferralValidator()
     {
         RuleFor(x => x.ReferralId).NotEmpty().WithMessage("Referral id is required.");
 
@@ -15,13 +15,6 @@ public sealed class AcceptReferralValidator : AbstractValidator<AcceptReferralCo
         RuleFor(x => x.Priority)
             .Must(PathwayEnums.IsPriority)
             .WithMessage($"Choose the pathway's priority: one of {PathwayEnums.PriorityNames}.");
-
-        RuleFor(x => x.DueDate)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty()
-            .WithMessage("Choose the pathway's target date.")
-            .Must(dueDate => dueDate >= DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime))
-            .WithMessage("The target date must not be in the past.");
 
         RuleFor(x => x.Title)
             .MaximumLength(200)

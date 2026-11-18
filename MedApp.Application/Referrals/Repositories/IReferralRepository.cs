@@ -14,10 +14,10 @@ namespace MedApp.Application.Referrals.Repositories;
 /// </summary>
 public interface IReferralRepository
 {
-    /// <summary>A referral with its patient and specialty, read-only.</summary>
+    /// <summary>A referral with its patient, specialty and clock pauses, read-only.</summary>
     Task<Referral?> GetByIdAsync(Guid id, CancellationToken ct);
 
-    /// <summary>A referral with its patient and specialty, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
+    /// <summary>A referral with its patient, specialty and clock pauses, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
     Task<Referral?> GetForUpdateAsync(Guid id, CancellationToken ct);
 
     /// <summary>Adds a new referral and its history entries.</summary>
@@ -39,8 +39,11 @@ public interface IReferralRepository
     /// <summary>Whether a member of staff belongs to a specialty (triage needs it).</summary>
     Task<bool> IsSpecialtyMemberAsync(Guid userId, Guid specialtyId, CancellationToken ct);
 
-    /// <summary>The referral accepted into a pathway, with its specialty, read-only; null if none was.</summary>
+    /// <summary>The referral accepted into a pathway, with its patient, specialty and clock pauses, read-only; null if none was.</summary>
     Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);
+
+    /// <summary>The details of these clock pauses (free text, for admins' timeline), by pause ID; pauses without one are left out.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetPauseDetailsAsync(IReadOnlyCollection<Guid> pauseIds, CancellationToken ct);
 
     /// <summary>A referral's history, oldest first.</summary>
     Task<IReadOnlyList<ReferralEvent>> GetHistoryAsync(Guid referralId, CancellationToken ct);
@@ -54,8 +57,12 @@ public interface IReferralRepository
     /// </summary>
     Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid specialtyId, CancellationToken ct);
 
-    /// <summary>One page of referrals matching the query (see <see cref="ReferralSearch"/>), with their patients and specialties.</summary>
-    Task<PagedResult<ReferralRow>> SearchAsync(SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, CancellationToken ct);
+    /// <summary>
+    /// One page of referrals matching the query (see <see cref="ReferralSearch"/>), with their patients and
+    /// specialties; the clock's filters and sort count to <paramref name="today"/> (UK).
+    /// </summary>
+    Task<PagedResult<ReferralRow>> SearchAsync(
+        SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, DateOnly today, CancellationToken ct);
 
     /// <summary>How many referrals await triage, in any of these specialties (every specialty when null).</summary>
     Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? specialtyIds, CancellationToken ct);

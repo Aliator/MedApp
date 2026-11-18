@@ -17,10 +17,25 @@ import {SpecialtiesPage, specialtyUse, untriageable, untriageableWords} from './
 
 const BASE = '/api/specialties';
 
+const TARGETS = {targetDaysUrgent: 14, targetDaysHigh: 28, targetDaysMedium: 126, targetDaysLow: 126};
+
 const specialties = [
-  {id: 's1', name: 'Dermatology', isArchived: false, version: 3, templateCount: 2, pathwayCount: 14, memberCount: 3, canBeDeleted: false},
-  {id: 's2', name: 'Urology', isArchived: false, version: 1, templateCount: 0, pathwayCount: 0, memberCount: 0, canBeDeleted: true},
-  {id: 's3', name: 'Old clinic', isArchived: true, version: 5, templateCount: 1, pathwayCount: 0, memberCount: 0, canBeDeleted: false},
+  {
+    id: 's1',
+    name: 'Dermatology',
+    isArchived: false,
+    version: 3,
+    templateCount: 2,
+    pathwayCount: 14,
+    memberCount: 3,
+    canBeDeleted: false,
+    targetDaysUrgent: 7,
+    targetDaysHigh: 21,
+    targetDaysMedium: 90,
+    targetDaysLow: 120,
+  },
+  {id: 's2', name: 'Urology', isArchived: false, version: 1, templateCount: 0, pathwayCount: 0, memberCount: 0, canBeDeleted: true, ...TARGETS},
+  {id: 's3', name: 'Old clinic', isArchived: true, version: 5, templateCount: 1, pathwayCount: 0, memberCount: 0, canBeDeleted: false, ...TARGETS},
 ];
 
 function renderPage(search: SetupListSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
@@ -102,6 +117,7 @@ describe('SpecialtiesPage', () => {
       'UrologyNot used yet',
     ]);
     expect(within(dermatology).getByText('14')).toBeInTheDocument();
+    expect(within(dermatology).getByText('Urgent 7, High 21, Medium 90, Low 120 days')).toBeInTheDocument();
     expect(within(dermatology).getByText('Active')).toBeInTheDocument();
     expect(screen.queryByText('Old clinic')).not.toBeInTheDocument();
     expect(screen.getByText('2 active specialties')).toBeInTheDocument();
@@ -127,8 +143,52 @@ describe('SpecialtiesPage', () => {
     await user.click(dialog.getByRole('button', {name: 'Add Specialty'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await sent(fetch, 'POST')[0].json()).toEqual({name: 'Cardiology'});
+    expect(await sent(fetch, 'POST')[0].json()).toEqual({name: 'Cardiology', ...TARGETS});
     await expectAnnounced('Specialty added');
+  });
+
+  it('adds one with the waiting-time targets chosen, starting from the defaults', async () => {
+    const {user, fetch} = renderPage({}, {[`POST ${BASE}`]: () => json({id: 's9', name: 'Cardiology'}, 201)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Specialty'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText(/Days from a referral being received to its target date, for each priority \(1 to 365\)/)).toBeInTheDocument();
+    for (const label of ['High', 'Medium']) expect(dialog.getByRole('spinbutton', {name: new RegExp(`^${label}`)})).toBeInTheDocument();
+    expect(dialog.getByRole('spinbutton', {name: /^Urgent/})).toHaveValue('14');
+    expect(dialog.getByRole('spinbutton', {name: /^Low/})).toHaveValue('126');
+    await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Cardiology');
+    const urgent = dialog.getByRole('spinbutton', {name: /^Urgent/});
+    await user.clear(urgent);
+    await user.type(urgent, '10');
+    await user.tab();
+    await user.click(dialog.getByRole('button', {name: 'Add Specialty'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await sent(fetch, 'POST')[0].json()).toEqual({name: 'Cardiology', ...TARGETS, targetDaysUrgent: 10});
+  });
+
+  it("starts editing from the specialty's targets, shows the API's errors on them, and can't save one with targets missing", async () => {
+    const {user} = renderPage(
+      {},
+      {
+        [`GET ${BASE}`]: () => json([specialties[0], {...specialties[1], targetDaysHigh: undefined}]),
+        [`PUT ${BASE}/s1`]: () => json({title: 'Validation failed', status: 400, errors: {TargetDaysHigh: ['High must be from 1 to 365 days.']}}, 400),
+      },
+    );
+
+    await user.click(within(await rowOf('Dermatology')).getByRole('button', {name: 'Edit specialty'}));
+    let dialog = within(openDialog()!);
+    expect(dialog.getByRole('heading', {name: 'Edit Specialty'})).toBeInTheDocument();
+    expect(dialog.getByRole('spinbutton', {name: /^Urgent/})).toHaveValue('7');
+    expect(dialog.getByRole('spinbutton', {name: /^Medium/})).toHaveValue('90');
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+    await waitFor(() => expect(dialog.getByRole('spinbutton', {name: /^High/})).toHaveAccessibleDescription(/from 1 to 365 days/));
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+
+    await user.click(within(await rowOf('Urology')).getByRole('button', {name: 'Edit specialty'}));
+    dialog = within(openDialog()!);
+    expect(dialog.getByRole('spinbutton', {name: /^High/})).toHaveValue('');
+    expect(isDisabled(dialog.getByRole('button', {name: 'Save'}))).toBe(true);
   });
 
   it("shows the API's reason when a name is taken, and its field errors on the name", async () => {
@@ -172,7 +232,7 @@ describe('SpecialtiesPage', () => {
       },
     );
 
-    await user.click(within(await rowOf('Dermatology')).getByRole('button', {name: 'Rename specialty'}));
+    await user.click(within(await rowOf('Dermatology')).getByRole('button', {name: 'Edit specialty'}));
     const dialog = within(openDialog()!);
     const name = dialog.getByRole('textbox', {name: /Name/});
     expect(name).toHaveValue('Dermatology');
@@ -187,10 +247,10 @@ describe('SpecialtiesPage', () => {
     await waitFor(() => expect(openDialog()).toBeNull());
     const bodies = await Promise.all(sent(fetch, 'PUT').map((r) => r.json()));
     expect(bodies).toEqual([
-      {name: 'Skin', expectedVersion: 3},
-      {name: 'Skin', expectedVersion: 4},
+      {name: 'Skin', targetDaysUrgent: 7, targetDaysHigh: 21, targetDaysMedium: 90, targetDaysLow: 120, expectedVersion: 3},
+      {name: 'Skin', targetDaysUrgent: 7, targetDaysHigh: 21, targetDaysMedium: 90, targetDaysLow: 120, expectedVersion: 4},
     ]);
-    await expectAnnounced('Specialty renamed');
+    await expectAnnounced('Specialty saved');
   });
 
   it('archives after a confirmation, and restores an archived one, each from the version shown', async () => {
@@ -202,6 +262,7 @@ describe('SpecialtiesPage', () => {
     await user.click(within(await rowOf('Dermatology')).getByRole('button', {name: 'Archive specialty'}));
     const dialog = within(openDialog()!);
     expect(dialog.getByText('2 templates, 14 pathways, 3 members of staff')).toBeInTheDocument();
+    expect(dialog.getByText('Urgent 7, High 21, Medium 90, Low 120 days')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Archive'}));
     await user.click(within(await rowOf('Old clinic')).getByRole('button', {name: 'Restore specialty'}));
 

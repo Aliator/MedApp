@@ -8928,6 +8928,7 @@ export interface paths {
                     AssignedToMe?: boolean;
                     NobodyAssigned?: boolean;
                     OverdueOnly?: boolean;
+                    BreachedOnly?: boolean;
                     DueFrom?: string;
                     DueTo?: string;
                     IncludeClosed?: boolean;
@@ -11116,6 +11117,9 @@ export interface paths {
                     Mine?: boolean;
                     PatientId?: string;
                     Search?: string;
+                    BreachedOnly?: boolean;
+                    Paused?: boolean;
+                    ClockStopped?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -11684,6 +11688,162 @@ export interface paths {
                         "text/plain": components["schemas"]["ReferralResponse"];
                         "application/json": components["schemas"]["ReferralResponse"];
                         "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/{id}/clock/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PauseClockRequest"];
+                    "text/json": components["schemas"]["PauseClockRequest"];
+                    "application/*+json": components["schemas"]["PauseClockRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PathwayReferralResponse"];
+                        "application/json": components["schemas"]["PathwayReferralResponse"];
+                        "text/json": components["schemas"]["PathwayReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/{id}/clock/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ResumeClockRequest"];
+                    "text/json": components["schemas"]["ResumeClockRequest"];
+                    "application/*+json": components["schemas"]["ResumeClockRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PathwayReferralResponse"];
+                        "application/json": components["schemas"]["PathwayReferralResponse"];
+                        "text/json": components["schemas"]["PathwayReferralResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -13776,8 +13936,6 @@ export interface components {
             /** Format: uuid */
             templateId?: string;
             priority?: string | null;
-            /** Format: date */
-            dueDate?: string;
             title?: string | null;
             /** Format: uuid */
             assigneeUserId?: string | null;
@@ -14210,6 +14368,24 @@ export interface components {
             patientName?: string | null;
             appointmentStatus?: string | null;
         };
+        ClockPauseResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: date */
+            pausedOn?: string;
+            /** Format: date-time */
+            pausedAtUtc?: string;
+            pausedByUsername?: string | null;
+            reason?: string | null;
+            detail?: string | null;
+            /** Format: date */
+            reviewOn?: string;
+            /** Format: date */
+            resumedOn?: string | null;
+            resumedByUsername?: string | null;
+            /** Format: int32 */
+            days?: number;
+        };
         CloseReferralRequest: {
             detail?: string | null;
             /** Format: int32 */
@@ -14287,6 +14463,8 @@ export interface components {
             /** Format: uuid */
             specialtyId?: string;
             stageDefinitionIdsInOrder?: string[] | null;
+            /** Format: int32 */
+            clockStopStageOrder?: number | null;
         };
         CreatePatientPathwayRequest: {
             /** Format: uuid */
@@ -14348,6 +14526,14 @@ export interface components {
         };
         CreateSpecialtyRequest: {
             name?: string | null;
+            /** Format: int32 */
+            targetDaysUrgent?: number | null;
+            /** Format: int32 */
+            targetDaysHigh?: number | null;
+            /** Format: int32 */
+            targetDaysMedium?: number | null;
+            /** Format: int32 */
+            targetDaysLow?: number | null;
         };
         CreateUserRequest: {
             username?: string | null;
@@ -14573,6 +14759,18 @@ export interface components {
             deletedAtUtc?: string | null;
             deletedBy?: string | null;
         };
+        ExportedClockPauseResponse: {
+            /** Format: date */
+            pausedOn?: string;
+            pausedBy?: string | null;
+            reason?: string | null;
+            detail?: string | null;
+            /** Format: date */
+            reviewOn?: string;
+            /** Format: date */
+            resumedOn?: string | null;
+            resumedBy?: string | null;
+        };
         ExportedHistoryEntryResponse: {
             /** Format: date-time */
             atUtc?: string;
@@ -14725,6 +14923,18 @@ export interface components {
             redirectDetail?: string | null;
             /** Format: uuid */
             pathwayId?: string | null;
+            /** Format: int32 */
+            targetDays?: number;
+            /** Format: date */
+            waitStartOn?: string;
+            /** Format: date */
+            targetOn?: string;
+            /** Format: int32 */
+            pausedDays?: number;
+            /** Format: date */
+            stoppedOn?: string | null;
+            stopReason?: string | null;
+            pauses?: components["schemas"]["ExportedClockPauseResponse"][] | null;
         };
         ExportedStageResponse: {
             /** Format: int32 */
@@ -15130,6 +15340,12 @@ export interface components {
             /** Format: date */
             receivedOn?: string;
             specialtyName?: string | null;
+            /** Format: int32 */
+            version?: number;
+            clock?: components["schemas"]["WaitingClockResponse"];
+            pauses?: components["schemas"]["ClockPauseResponse"][] | null;
+            canPauseClock?: boolean;
+            canResumeClock?: boolean;
         };
         PathwayTemplateResponse: {
             /** Format: uuid */
@@ -15143,6 +15359,8 @@ export interface components {
             pathwayCount?: number;
             stages?: components["schemas"]["PathwayTemplateStageResponse"][] | null;
             stageDefinitionIdsInOrder?: string[] | null;
+            /** Format: int32 */
+            clockStopStageOrder?: number | null;
         };
         PathwayTemplateStageResponse: {
             /** Format: int32 */
@@ -15155,6 +15373,7 @@ export interface components {
             snomedTerm?: string | null;
             isArchived?: boolean;
             visitRequirement?: string | null;
+            stopsClock?: boolean;
         };
         PatientExportResponse: {
             /** Format: date-time */
@@ -15368,6 +15587,7 @@ export interface components {
             assignees?: string[] | null;
             /** Format: date-time */
             lastUpdated?: string;
+            clock?: components["schemas"]["WaitingClockResponse"];
         };
         PatientPathwaySummaryResponsePagedResponse: {
             items?: components["schemas"]["PatientPathwaySummaryResponse"][] | null;
@@ -15471,6 +15691,18 @@ export interface components {
             previousSpecialtyName?: string | null;
             rejectionReason?: string | null;
             redirectedTo?: string | null;
+            pauseReason?: string | null;
+            /** Format: date */
+            reviewOn?: string | null;
+            /** Format: int32 */
+            previousTargetDays?: number | null;
+            /** Format: int32 */
+            targetDays?: number | null;
+            stopReason?: string | null;
+            /** Format: int32 */
+            daysWaited?: number | null;
+            breached?: boolean | null;
+            fromClock?: boolean;
         };
         PatientTimelineOverviewResponse: {
             upcoming?: components["schemas"]["PatientTimelineUpcomingResponse"][] | null;
@@ -15520,6 +15752,14 @@ export interface components {
             nhsNumber?: string | null;
             /** Format: date-time */
             startUtc?: string;
+        };
+        PauseClockRequest: {
+            reason?: string | null;
+            detail?: string | null;
+            /** Format: date */
+            reviewOn?: string;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         PermissionResponse: {
             name?: string | null;
@@ -15632,6 +15872,17 @@ export interface components {
             pathwayId?: string | null;
             rejectionReason?: string | null;
             changedFields?: string[] | null;
+            pauseReason?: string | null;
+            /** Format: date */
+            reviewOn?: string | null;
+            /** Format: int32 */
+            previousTargetDays?: number | null;
+            /** Format: int32 */
+            targetDays?: number | null;
+            stopReason?: string | null;
+            /** Format: int32 */
+            daysWaited?: number | null;
+            breached?: boolean | null;
         };
         ReferralResponse: {
             /** Format: uuid */
@@ -15678,6 +15929,10 @@ export interface components {
             readOnlyReason?: string | null;
             canTriage?: boolean;
             whyCantTriage?: string | null;
+            clock?: components["schemas"]["WaitingClockResponse"];
+            pauses?: components["schemas"]["ClockPauseResponse"][] | null;
+            canPauseClock?: boolean;
+            canResumeClock?: boolean;
             history?: components["schemas"]["ReferralEventResponse"][] | null;
         };
         ReferralSummaryResponse: {
@@ -15704,6 +15959,7 @@ export interface components {
             registeredAtUtc?: string;
             /** Format: date-time */
             decidedAtUtc?: string | null;
+            clock?: components["schemas"]["WaitingClockResponse"];
         };
         ReferralSummaryResponsePagedResponse: {
             items?: components["schemas"]["ReferralSummaryResponse"][] | null;
@@ -15753,6 +16009,10 @@ export interface components {
             userId?: string;
             token?: string | null;
             newPassword?: string | null;
+        };
+        ResumeClockRequest: {
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         RetentionReviewItemResponse: {
             /** Format: uuid */
@@ -15975,6 +16235,14 @@ export interface components {
             /** Format: int32 */
             triagerCount?: number;
             canBeDeleted?: boolean;
+            /** Format: int32 */
+            targetDaysUrgent?: number;
+            /** Format: int32 */
+            targetDaysHigh?: number;
+            /** Format: int32 */
+            targetDaysMedium?: number;
+            /** Format: int32 */
+            targetDaysLow?: number;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -16149,6 +16417,8 @@ export interface components {
             /** Format: uuid */
             specialtyId?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
+            /** Format: int32 */
+            clockStopStageOrder?: number | null;
         };
         UpdatePatientPathwayRequest: {
             title?: string | null;
@@ -16201,6 +16471,14 @@ export interface components {
             name?: string | null;
             /** Format: int32 */
             expectedVersion?: number;
+            /** Format: int32 */
+            targetDaysUrgent?: number | null;
+            /** Format: int32 */
+            targetDaysHigh?: number | null;
+            /** Format: int32 */
+            targetDaysMedium?: number | null;
+            /** Format: int32 */
+            targetDaysLow?: number | null;
         };
         UpdateUserPasswordRequest: {
             oldPassword?: string | null;
@@ -16245,6 +16523,28 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        WaitingClockResponse: {
+            state?: string | null;
+            /** Format: int32 */
+            targetDays?: number;
+            /** Format: date */
+            waitStartOn?: string;
+            /** Format: date */
+            targetOn?: string;
+            /** Format: int32 */
+            daysWaited?: number;
+            /** Format: int32 */
+            pausedDays?: number;
+            isBreached?: boolean;
+            /** Format: date */
+            pausedSinceOn?: string | null;
+            /** Format: date */
+            pauseReviewOn?: string | null;
+            isReviewOverdue?: boolean;
+            /** Format: date */
+            stoppedOn?: string | null;
+            stopReason?: string | null;
         };
         WeekTemplateDayResponse: {
             dayOfWeek?: string | null;

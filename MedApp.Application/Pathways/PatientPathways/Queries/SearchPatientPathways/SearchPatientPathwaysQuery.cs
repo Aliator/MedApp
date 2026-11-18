@@ -38,5 +38,6 @@ public sealed record SearchPatientPathwaysQuery(
     string? PatientName = null,
     bool NobodyAssigned = false,
     IReadOnlyList<Guid>? SpecialtyIds = null,
-    IReadOnlyList<Guid>? StageDefinitionIds = null)
+    IReadOnlyList<Guid>? StageDefinitionIds = null,
+    bool BreachedOnly = false)
     : IRequest<PagedResponse<PatientPathwaySummaryResponse>>;

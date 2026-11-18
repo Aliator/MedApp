@@ -39,6 +39,11 @@ public sealed class ReferralPrivacyTests
         referral.RedirectDetail = Canary;
         var change = new ReferralChange(referral, Registrar, NowUtc);
         change.Register(referral.Specialty);
+        // A finished pause and an open one, each with the canary as its detail.
+        var clock = new ReferralChange(referral, Registrar, NowUtc);
+        clock.ResumeClock(clock.PauseClock(ClockPauseReason.Other, Canary, Today.AddDays(10)));
+        new ReferralChange(referral, Registrar, NowUtc.AddMinutes(5))
+            .PauseClock(ClockPauseReason.PatientChoseToWait, Canary, Today.AddDays(20));
         var letter = new Attachment
         {
             Id = Guid.NewGuid(), PatientId = record.Patient.Id, ReferralId = referral.Id, FileName = Canary, ContentType = "application/pdf"
@@ -63,6 +68,16 @@ public sealed class ReferralPrivacyTests
         exported.RegisteredBy.Should().Be(Registrar.Username);
         exported.DecisionDetail.Should().Be(Canary);
         exported.RedirectDetail.Should().Be(Canary);
+        exported.TargetDays.Should().Be(28);
+        exported.WaitStartOn.Should().Be(ReceivedOn);
+        exported.TargetOn.Should().Be(ReceivedOn.AddDays(28));
+        exported.Pauses.Should().HaveCount(2);
+        exported.Pauses[0].Should().BeEquivalentTo(new
+        {
+            PausedOn = Today, PausedBy = Registrar.Username, Reason = "Other", Detail = Canary, ReviewOn = Today.AddDays(10),
+            ResumedOn = (DateOnly?)Today, ResumedBy = Registrar.Username
+        });
+        exported.Pauses[1].ResumedOn.Should().BeNull();
         var history = export.ReferralHistory.Single();
         history.Action.Should().Be("Registered");
         history.Username.Should().Be(Registrar.Username);
@@ -85,6 +100,8 @@ public sealed class ReferralPrivacyTests
         referral.RedirectedTo.Should().Be(PatientAnonymiser.RemovedText);
         referral.RedirectDetail.Should().Be(PatientAnonymiser.RemovedText);
         referral.ReferrerOdsCode.Should().BeNull();
+        referral.Pauses.Should().OnlyContain(p => p.Detail == PatientAnonymiser.RemovedText);
+        referral.Pauses.Select(p => p.Reason).Should().Equal(ClockPauseReason.Other, ClockPauseReason.PatientChoseToWait);
         referral.ReceivedOn.Should().Be(ReceivedOn);
         referral.Status.Should().Be(ReferralStatus.Withdrawn);
         registered.Details.Should().Contain(SpecialtiesTestConstants.SpecialtyName);

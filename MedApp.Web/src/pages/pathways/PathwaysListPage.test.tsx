@@ -111,6 +111,25 @@ describe('PathwaysListPage', () => {
     ]);
   });
 
+  it('shows the wait for a pathway from a referral, and asks for the breached ones by days waited', async () => {
+    const {fetch} = renderList(
+      {breached: true, sort: 'Wait', asc: false},
+      {
+        body: pageOf([
+          summary({clock: {state: 'Running', daysWaited: 130, targetDays: 126, isBreached: true}}),
+          summary({id: 'proc-2', title: 'Biopsy'}),
+        ]),
+      },
+    );
+
+    const table = within(await screen.findByRole('table'));
+    expect(await table.findByText('Day 130 of 126')).toBeInTheDocument();
+    expect(table.getByText('Breached')).toBeInTheDocument();
+    expect(table.getByText('No clock')).toBeInTheDocument();
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=daysWaited&Ascending=false&BreachedOnly=true`]);
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Breached/));
+  });
+
   it('asks the API for the specialties and stage reached in the URL, and names them in the search', async () => {
     const {fetch} = renderList({specialty: `${SKIN_ID},${FEET_ID}`, stage: HISTOLOGY_ID});
 

@@ -1614,7 +1614,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
 **Further controls** (planned, Phase 2, before first live use unless marked):
-- **The inbox's days waited and breach badge,** longest wait first, from the waiting-time clock (PR 7), and filtered to the viewer's specialties (PR 8). Detective; planned.
+- **The inbox's days waited and breach badge,** longest wait first, from the waiting-time clock (PR 7, branch `feature/waiting-clock`: **built**), and filtered to the viewer's specialties (PR 8). Detective.
 - **Transferred** (`dcb0160-deploying-organisations.md`):
   - a daily check of the inbox;
   - a procedure for referrals received when MedApp is unavailable;
@@ -1650,7 +1650,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 - **A referral on the wrong patient** is marked entered in error, with a detail, and stays in the record, closed. Corrective.
 - **Triage** (branch `feature/triage`, PR 6):
   - **The patient as the patient banner shows them** in every triage confirmation (accept, reject, redirect), with the specialty and, for accepting, the template and priority chosen (`AcceptReferralDialog`, `RejectReferralDialog`, `RedirectReferralDialog`). Protective.
-  - **Choices kept narrow, nothing prefilled:** only the specialty's own templates are offered, by name and never ranked, and the server refuses another specialty's (400, `ReferralWorkflow.TemplateNotInSpecialtyMessage`); the priority, the template and the target date start empty and must be chosen, with the referrer's request shown beside the priority as text. Protective.
+  - **Choices kept narrow, nothing prefilled:** only the specialty's own templates are offered, by name and never ranked, and the server refuses another specialty's (400, `ReferralWorkflow.TemplateNotInSpecialtyMessage`); the priority and the template start empty and must be chosen, with the referrer's request shown beside the priority as text; the pathway's target date is the waiting-time clock's for the priority chosen (PR 7), not typed. Protective.
   - **Only a clinician of the specialty decides:** the triage permission and membership of the referral's specialty, checked on the server (403). Protective.
   - **Who decided, when and why** is recorded on the referral and in its history, and on the timeline; the pathway's Created audit entry names the referral, and the pathway page links back to it. Two decisions at once can't both succeed: the row version, and the second is told who decided and how (409, `ReferralWorkflow.AlreadyTriagedMessage`); an acceptance that loses leaves no pathway. Detective and protective.
   - **The patient's other referrals** are listed on the referral page. Protective.
@@ -1682,22 +1682,22 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Possible harm.** A delayed investigation or treatment. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/waiting-clock`, Phase 2's PR 7; to be verified by the CSO):
+- **A review date is required,** from tomorrow to at most 90 days ahead, checked on the server (`PauseClockValidator`); the pause records its reason (a fixed, patient-initiated list), an optional detail (required for Other), who paused it and when. Protective.
+- **While paused, the pathway's target date is the review date** (`WaitingClock.PathwayTargetOn`, `PathwayChange.FollowClock`), so a missed review shows as Overdue on every list and on My Worklist, and the monitoring rule for a changed target date fires. Detective.
+- **The Paused clocks view** on the Referrals page lists every open pause by review date, with past ones flagged (`paused=true`, `sort=reviewOn`; `WaitingClockResponse.IsReviewOverdue`). Detective.
+- **Only patient-initiated reasons, only after acceptance;** On hold doesn't pause the clock; one open pause at a time (a unique index); a pause starts and ends today, never backdated. Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, Phase 2, before first live use):
-- **A review date is required,** at most 90 days ahead. The pause records its reason, who paused it and when. Protective.
-- **While paused, the pathway's target date is the review date,** so a missed review shows as Overdue on every list and task list. Detective.
-- **The Paused clocks view** lists every open pause by review date, with past ones flagged. Detective.
-- **Only patient-initiated reasons,** only after acceptance: On hold doesn't pause the clock. Design.
+**Further controls:**
 - **A notification or monitoring rule when a review date passes.** Protective; planned for Phase 4 (it needs a scheduled job); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
 **Residual risk:** Draft: Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the controls are built (branch `feature/waiting-clock`), to be verified; the notification when a review date passes is later.
 
 ---
 
@@ -1715,14 +1715,15 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Possible harm.** A delayed diagnosis or treatment. Several patients; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/waiting-clock`, Phase 2's PR 7; to be verified by the CSO):
+- **Breached** on the referral lists and the pathway lists (a Wait column, "Day n of target"), on the referral page and the pathway's Referral and wait card; sorting by days waited and a "Breached only" filter (`PathwaySearch`, `ReferralSearch`). A clock that breached before a pause stays breached. Detective.
+- **The target's source is visible:** each clock shows its target days and date; each specialty's targets are on the Specialties page; every re-read of a clock's target (the triager's priority, a redirection, a correction, a new priority) is in the referral's history with the old and new days. Information.
+- **One rule, in one class, with its own tests** (`WaitingClock`, `WaitingClockTests`): whole UK days, the clock changes, same-day pauses, breaches before a pause. Protective.
+- **Pause reasons are a fixed list** of patient-initiated reasons; On hold doesn't pause. Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, Phase 2, before first live use unless marked):
-- **Breached** on every referral and pathway list, with "Day n of target". Sorting by days waited, and a "Breached only" filter. Detective.
-- **The target's source is visible:** each clock shows its target days, and each specialty's targets are on its admin page. Changes to targets are recorded. Information.
-- **Pause reasons are a fixed list** of patient-initiated reasons. Design.
+**Further controls:**
 - **Transferred:**
   - the organisation sets and reviews its targets;
   - it reviews its waiting list on a set schedule.
@@ -1732,7 +1733,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Residual risk:** Draft: Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the lists, sort, filter and visible targets are built (branch `feature/waiting-clock`), to be verified; breach notifications are later.
 
 ---
 

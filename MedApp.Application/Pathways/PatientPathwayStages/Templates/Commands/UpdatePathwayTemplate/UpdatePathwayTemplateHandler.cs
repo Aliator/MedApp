@@ -44,10 +44,11 @@ public sealed class UpdatePathwayTemplateHandler(
             definitions = await TemplateStages.CheckAsync(repository, ids, current, cancellationToken);
         }
 
-        await repository.UpdatePathwayTemplateAsync(template, request.StageDefinitionIdsInOrder, cancellationToken);
+        await repository.UpdatePathwayTemplateAsync(
+            template, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder, cancellationToken);
 
         if (request.StageDefinitionIdsInOrder is { } newIds)
-            template.Maps = PathwayTemplateMapper.ToMaps(template.Id, newIds);
+            template.Maps = PathwayTemplateMapper.ToMaps(template.Id, newIds, request.ClockStopStageOrder);
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
         return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);

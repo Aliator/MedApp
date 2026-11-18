@@ -49,7 +49,7 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
         _repository.Setup(r => r.CountLettersAsync(referral.Id, _cts.Token)).ReturnsAsync(2);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity)
+        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Registrar), _cts.Token);
 
         response.LetterCount.Should().Be(2);
@@ -63,7 +63,7 @@ public sealed class ReferralQueriesTests
     [Test]
     public async Task GetById_Unknown_IsNotFoundAndRecordsNothing()
     {
-        var act = () => new GetReferralByIdHandler(_repository.Object, _activity)
+        var act = () => new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(Guid.NewGuid(), Registrar), _cts.Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
@@ -80,7 +80,7 @@ public sealed class ReferralQueriesTests
     {
         var first = CreateReferral();
         var second = CreateReferral();
-        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, _cts.Token))
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, Today, _cts.Token))
             .ReturnsAsync(new PagedResult<ReferralRow>([new(first, true), new(second, false)], 12));
 
         var page = await SearchHandler.Handle(Search(), _cts.Token);
@@ -97,7 +97,7 @@ public sealed class ReferralQueriesTests
     [Test]
     public async Task Search_ByPatientName_RecordsTheFiltersUsedButNeverTheTerm()
     {
-        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, _cts.Token))
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, Today, _cts.Token))
             .ReturnsAsync(new PagedResult<ReferralRow>([new(CreateReferral(), false)], 1));
 
         await SearchHandler.Handle(Search() with { Search = "Synthia" }, _cts.Token);
@@ -111,7 +111,7 @@ public sealed class ReferralQueriesTests
     [Test]
     public async Task Search_WithoutAPatientName_RecordsNoSearch()
     {
-        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, _cts.Token))
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, Today, _cts.Token))
             .ReturnsAsync(new PagedResult<ReferralRow>([], 0));
 
         await SearchHandler.Handle(Search() with { PatientId = Guid.NewGuid() }, _cts.Token);
@@ -137,7 +137,7 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
         _repository.Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, referral.SpecialtyId, _cts.Token)).ReturnsAsync(true);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity)
+        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Triager), _cts.Token);
 
         response.CanTriage.Should().BeTrue();
@@ -150,7 +150,7 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetByIdAsync(referral.Id, _cts.Token)).ReturnsAsync(referral);
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity)
+        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Registrar), _cts.Token);
 
         response.CanTriage.Should().BeFalse();
@@ -163,24 +163,24 @@ public sealed class ReferralQueriesTests
     {
         var mine = SpecialtiesTestConstants.CreateSpecialty();
         var other = Guid.NewGuid();
-        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), It.IsAny<IReadOnlyCollection<Guid>?>(), It.IsAny<CancellationToken>()))
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), It.IsAny<IReadOnlyCollection<Guid>?>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<ReferralRow>([], 0));
 
         await SearchHandler.Handle(Search(mine: true), _cts.Token);
-        _repository.Verify(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, It.IsAny<CancellationToken>()));
+        _repository.Verify(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()));
 
         GivenMembership(mine);
         await SearchHandler.Handle(Search(mine: true), _cts.Token);
         _repository.Verify(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(),
-            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.SequenceEqual(new[] { mine.Id })), It.IsAny<CancellationToken>()));
+            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.SequenceEqual(new[] { mine.Id })), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()));
 
         await SearchHandler.Handle(Search(mine: true, specialtyIds: [other, mine.Id]), _cts.Token);
         _repository.Verify(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(),
-            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Count == 1 && ids.Contains(mine.Id)), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Count == 1 && ids.Contains(mine.Id)), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
 
         await SearchHandler.Handle(Search(specialtyIds: [other]), _cts.Token);
         _repository.Verify(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(),
-            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Count == 1 && ids.Contains(other)), It.IsAny<CancellationToken>()));
+            It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Count == 1 && ids.Contains(other)), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()));
     }
 
     [Test]
@@ -209,7 +209,8 @@ public sealed class ReferralQueriesTests
         validator.Validate(Search()).IsValid.Should().BeTrue();
         validator.Validate(Search() with { Page = 0 }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { PageSize = 101 }).IsValid.Should().BeFalse();
-        validator.Validate(Search() with { Sort = "daysWaited" }).IsValid.Should().BeFalse();
+        validator.Validate(Search() with { Sort = "daysWaited" }).IsValid.Should().BeTrue();
+        validator.Validate(Search() with { Sort = "waitedLongest" }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { Statuses = ["Open"] }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { Search = new string('a', 201) }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { SpecialtyIds = Enumerable.Range(0, 100).Select(_ => Guid.NewGuid()).ToList() }).IsValid.Should().BeTrue();

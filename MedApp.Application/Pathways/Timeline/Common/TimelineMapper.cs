@@ -131,6 +131,8 @@ public static class TimelineMapper
                 response.Changes = changes.EnumerateObject()
                     .Select(c => Change(c.Name, ObjectOf(c.Value), isAdmin || PublicValueFields.Contains(c.Name)))
                     .ToList();
+                // A target date the waiting-time clock moved, rather than someone by hand.
+                response.FromClock = Text(details, "source") == Referrals.Common.WaitingClock.AuditSource;
                 break;
 
             case Deleted:
@@ -230,7 +232,7 @@ public static class TimelineMapper
         var response = new PatientTimelineEntryResponse
         {
             Id = entry.Id,
-            Kind = nameof(PatientTimelineKind.Referrals),
+            Kind = Queries.GetPatientTimeline.ReferralTimelineSearch.KindOf(entry.Action).ToString(),
             Action = ReferralAction + entry.Action,
             AtUtc = entry.AtUtc,
             Username = entry.Username,
@@ -287,6 +289,30 @@ public static class TimelineMapper
                 response.PreviousSpecialtyName = details.PreviousSpecialtyName;
                 // The referral keeps the latest redirection's detail only.
                 response.Reason = isAdmin ? row.RedirectDetail : null;
+                break;
+
+            // The waiting-time clock: reasons by name, dates and days; a pause's detail is free text, for admins only.
+            case Domain.Referrals.ReferralEventAction.ClockPaused:
+                response.PauseReason = details.PauseReason;
+                response.ReviewOn = details.ReviewOn;
+                response.Reason = isAdmin ? row.PauseDetail : null;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.ClockResumed:
+                response.PauseReason = details.PauseReason;
+                response.IsAutomatic = details.Automatic;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.ClockStopped:
+                response.StopReason = details.StopReason;
+                response.DaysWaited = details.DaysWaited;
+                response.TargetDays = details.TargetDays;
+                response.Breached = details.Breached;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.TargetChanged:
+                response.PreviousTargetDays = details.PreviousTargetDays;
+                response.TargetDays = details.TargetDays;
                 break;
 
             default:

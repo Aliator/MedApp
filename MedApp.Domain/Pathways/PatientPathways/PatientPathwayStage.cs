@@ -27,6 +27,12 @@ public sealed class PatientPathwayStage
     /// <summary>Copied from the stage definition: whether the stage involves a visit (an appointment).</summary>
     public VisitRequirement VisitRequirement { get; set; }
 
+    /// <summary>
+    /// Copied from the template: finishing this stage stops the waiting-time clock of the referral the pathway was
+    /// accepted from (at most one stage of a template does). A stopped clock never restarts, even if the stage is unlocked.
+    /// </summary>
+    public bool StopsClock { get; set; }
+
     /// <summary>The staff member's notes for this stage, editable until it's finished (or while an admin has it unlocked).</summary>
     public string Notes { get; set; } = string.Empty;
 

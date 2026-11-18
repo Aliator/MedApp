@@ -127,11 +127,16 @@ public sealed class ReferralMapperTests
         response.DecidedByUsername.Should().Be(Triager.Username);
         response.CanTriage.Should().BeFalse();
         response.WhyCantTriage.Should().BeNull();
-        var entry = response.History.Single();
-        entry.Action.Should().Be("Rejected");
+        response.History.Select(e => e.Action).Should().Equal("Rejected", "ClockStopped");
+        var entry = response.History[0];
         entry.RejectionReason.Should().Be("Duplicate");
         entry.ToStatus.Should().Be("Rejected");
-        change.Events.Single().Details.Should().NotContain(Canary);
+        var stopped = response.History[1];
+        stopped.StopReason.Should().Be("Rejected");
+        stopped.DaysWaited.Should().Be(8);
+        stopped.TargetDays.Should().Be(28);
+        stopped.Breached.Should().BeFalse();
+        change.Events.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
     }
 
     [Test]
@@ -148,11 +153,13 @@ public sealed class ReferralMapperTests
     {
         var referral = CreateReferral();
 
-        var response = ReferralMapper.ToPathwayReferral(referral);
+        var response = ReferralMapper.ToPathwayReferral(referral, Viewer, Today);
 
         response.Id.Should().Be(referral.Id);
         response.ReceivedOn.Should().Be(ReceivedOn);
         response.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        response.Version.Should().Be(referral.Version);
+        response.Clock!.DaysWaited.Should().Be(8);
     }
 
     [Test]
@@ -207,6 +214,61 @@ public sealed class ReferralMapperTests
     }
 
     [Test]
+    public void ToClock_GivesTheWaitTheTargetAndThePause()
+    {
+        var referral = CreateReferral(status: ReferralStatus.Accepted);
+        var running = ReferralMapper.ToClock(referral, Today);
+
+        running.Should().BeEquivalentTo(new
+        {
+            State = WaitingClock.Running, TargetDays = 28, WaitStartOn = ReceivedOn, TargetOn = ReceivedOn.AddDays(28),
+            DaysWaited = 8, PausedDays = 0, IsBreached = false, PausedSinceOn = (DateOnly?)null, PauseReviewOn = (DateOnly?)null,
+            IsReviewOverdue = false, StoppedOn = (DateOnly?)null, StopReason = (string?)null
+        });
+
+        new ReferralChange(referral, Registrar, NowUtc).PauseClock(ClockPauseReason.PatientUnavailable, Detail, Today.AddDays(3));
+        var paused = ReferralMapper.ToClock(referral, Today.AddDays(40));
+        paused.State.Should().Be(WaitingClock.Paused);
+        paused.DaysWaited.Should().Be(8);
+        paused.PausedSinceOn.Should().Be(Today);
+        paused.PauseReviewOn.Should().Be(Today.AddDays(3));
+        paused.IsReviewOverdue.Should().BeTrue();
+
+        var pauses = ReferralMapper.ToPauses(referral);
+        pauses.Single().Should().BeEquivalentTo(new
+        {
+            PausedOn = Today, PausedByUsername = Registrar.Username, Reason = "PatientUnavailable", Detail, ReviewOn = Today.AddDays(3),
+            ResumedOn = (DateOnly?)null, Days = 0
+        });
+    }
+
+    [Test]
+    public void ToResponse_PauseAndResumeFlags_FollowThePermissionTheClockAndTheRecord()
+    {
+        var worker = new MedApp.Application.Pathways.Common.PathwayActor(Guid.NewGuid(), "w.synthetic", TestPermissions.Staff);
+        var referral = CreateReferral(status: ReferralStatus.Accepted);
+
+        ReferralMapper.ToResponse(referral, [], 0, worker, today: Today).Should().BeEquivalentTo(new { CanPauseClock = true, CanResumeClock = false });
+        ReferralMapper.ToResponse(referral, [], 0, Viewer, today: Today).CanPauseClock.Should().BeFalse("viewing isn't working on pathways");
+        ReferralMapper.ToResponse(CreateReferral(), [], 0, worker, today: Today).CanPauseClock.Should().BeFalse("before triage it always runs");
+
+        new ReferralChange(referral, worker, NowUtc).PauseClock(ClockPauseReason.Other, Detail, Today.AddDays(3));
+        ReferralMapper.ToResponse(referral, [], 0, worker, today: Today).Should().BeEquivalentTo(new { CanPauseClock = false, CanResumeClock = true });
+
+        referral.Patient.RestrictedAtUtc = NowUtc;
+        ReferralMapper.ToResponse(referral, [], 0, worker, today: Today).CanResumeClock.Should().BeFalse("a restricted record can't change");
+    }
+
+    [Test]
+    public void ToSummary_GivesTheClock()
+    {
+        var referral = CreateReferral();
+
+        ReferralMapper.ToSummary(new ReferralRow(referral, true), ReceivedOn.AddDays(30)).Clock!
+            .Should().BeEquivalentTo(new { DaysWaited = 30, IsBreached = true, TargetDays = 28 });
+    }
+
+    [Test]
     public void EventDetails_NotJson_IsEmpty()
     {
         var parsed = ReferralEventDetails.Parse("not json");
@@ -239,6 +301,51 @@ public sealed class ReferralSearchTests
     }
 
     [Test]
+    public void Filter_ByTheClock_BreachedPausedOrStopped()
+    {
+        var within = CreateReferral();
+        var breached = CreateReferral();
+        breached.ReceivedOn = Today.AddDays(-40);
+        MedApp.Application.Referrals.Common.WaitingClock.Recalculate(breached);
+        var paused = CreateReferral(status: ReferralStatus.Accepted);
+        paused.PausedSinceOn = Today;
+        paused.PauseReviewOn = Today.AddDays(5);
+        var stopped = CreateReferral(status: ReferralStatus.Rejected);
+        stopped.StoppedOn = Today;
+        var all = new[] { within, breached, paused, stopped }.AsQueryable();
+
+        all.Filter(Query() with { BreachedOnly = true }, null, Today).Should().Equal(breached);
+        all.Filter(Query() with { Paused = true }, null, Today).Should().Equal(paused);
+        all.Filter(Query() with { Paused = false }, null, Today).Should().BeEquivalentTo([within, breached, stopped]);
+        all.Filter(Query() with { ClockStopped = true }, null, Today).Should().Equal(stopped);
+        all.Filter(Query() with { ClockStopped = false }, null, Today).Should().BeEquivalentTo([within, breached, paused]);
+        ReferralSearch.FiltersUsed(Query() with { BreachedOnly = true, Paused = true, ClockStopped = false })
+            .Should().Equal("breachedOnly", "paused", "clockStopped");
+    }
+
+    [Test]
+    public void Sort_DaysWaitedTargetAndReviewDate()
+    {
+        var shorter = CreateReferral();
+        var longer = CreateReferral();
+        longer.ReceivedOn = Today.AddDays(-20);
+        MedApp.Application.Referrals.Common.WaitingClock.Recalculate(longer);
+        var reviewSoon = CreateReferral(status: ReferralStatus.Accepted);
+        reviewSoon.ReceivedOn = Today.AddDays(-3);
+        MedApp.Application.Referrals.Common.WaitingClock.Recalculate(reviewSoon);
+        reviewSoon.PausedSinceOn = Today;
+        reviewSoon.PauseReviewOn = Today.AddDays(2);
+        var all = new[] { shorter, longer, reviewSoon }.AsQueryable();
+
+        all.Sort("daysWaited", false, Today).Should().Equal(longer, shorter, reviewSoon);
+        all.Sort("daysWaited", true, Today).Should().Equal(reviewSoon, shorter, longer);
+        all.Sort("targetOn", true, Today).Should().Equal(longer, shorter, reviewSoon);
+        all.Sort("targetOn", false, Today).Should().Equal(reviewSoon, shorter, longer);
+        all.Sort("reviewOn", true, Today).First().Should().Be(reviewSoon);
+        all.Sort("reviewOn", false, Today).First().Should().Be(reviewSoon);
+    }
+
+    [Test]
     public void Sort_OldestReceivedFirstByDefault_ThenById()
     {
         var newer = CreateReferral();
@@ -256,6 +363,9 @@ public sealed class ReferralSearchTests
     [TestCase("specialty", true)]
     [TestCase("priority", true)]
     [TestCase("registered", true)]
-    [TestCase("daysWaited", false)]
+    [TestCase("daysWaited", true)]
+    [TestCase("targetOn", true)]
+    [TestCase("reviewOn", true)]
+    [TestCase("waitedLongest", false)]
     public void IsSortColumn(string sort, bool valid) => ReferralSearch.IsSortColumn(sort).Should().Be(valid);
 }

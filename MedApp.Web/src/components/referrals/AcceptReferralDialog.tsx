@@ -1,5 +1,3 @@
-import type {ISODateString} from '@astryxdesign/core/Calendar';
-import {DateInput} from '@astryxdesign/core/DateInput';
 import {MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -11,7 +9,6 @@ import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} 
 import {pathwayTemplatesQuery, PRIORITIES, type Pathway, type PathwayTemplate} from '../../api/pathways';
 import {useAcceptReferral, type AcceptReferralInput, type Referral} from '../../api/referrals';
 import {useCan} from '../../auth/auth';
-import {formatDate, todayIso, WEEK_STARTS_ON} from '../../utils/dates';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
 import {RichTextField} from '../forms/RichTextField';
 import {AppIcon} from '../shared/icons';
@@ -19,7 +16,11 @@ import {RichText} from '../shared/RichText';
 import {TriageDialog, type TriageStep} from './TriageDialog';
 
 /** The fields the form shows, whose 400 errors show on them. */
-const FIELDS = ['templateId', 'priority', 'dueDate', 'title', 'assigneeUserId', 'notes'] as const;
+const FIELDS = ['templateId', 'priority', 'title', 'assigneeUserId', 'notes'] as const;
+
+/** Where the new pathway's target date comes from: said beside the priority, and on Check and Confirm. */
+export const TARGET_FROM_CLOCK =
+  "The target date comes from the waiting-time clock: the specialty's target for the priority you choose, counted from the date received.";
 
 /** The assignee choice that means nobody (assigning is optional, and can be done later on the pathway's page). */
 const NOBODY = 'nobody';
@@ -46,9 +47,11 @@ export interface AcceptReferralDialogProps {
 /**
  * Accepting a referral into a new pathway (decision 19): the template (its specialty's only, by name), the priority
  * (empty, with "The referrer asked for: High" beside it as plain text, so the clinician chooses rather than agrees),
- * the target date (empty, today or later), and optionally a title (blank takes the template's name), someone to
+ * and optionally a title (blank takes the template's name), someone to
  * assign (holders of AssignPathways only: the people who can work on pathways) and a first note. Nothing is prefilled
- * or suggested: the clinician decides and the app records. Then Check and Confirm shows the patient, the specialty,
+ * or suggested: the clinician decides and the app records. There's no target date to choose: the pathway's comes from
+ * the referral's waiting-time clock, for the specialty's target at the priority chosen (decision 32), and the dialog
+ * says so. Then Check and Confirm shows the patient, the specialty,
  * the template and the priority before it's sent (hazard H-41). A 400 goes back to the form with the errors on their
  * fields; a 403 or 409 (triaged by someone else meanwhile, changed, the record restricted) shows the API's words, and
  * the referral is read again. Mount it afresh for each opening (a `key`), so it starts empty.
@@ -59,7 +62,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
   const templates = useQuery({...pathwayTemplatesQuery(), enabled: isOpen});
   const staff = useQuery({...staffWithPermissionQuery('WorkPathways'), enabled: isOpen && canAssign});
   const [step, setStep] = useState<TriageStep>('form');
-  const [input, setInput] = useState({templateId: '', priority: '', dueDate: '', title: '', assigneeUserId: '', notes: ''});
+  const [input, setInput] = useState({templateId: '', priority: '', title: '', assigneeUserId: '', notes: ''});
   const [errors, setErrors] = useState<ValidationErrors | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const set = <K extends keyof typeof input>(key: K, value: (typeof input)[K]) => setInput((current) => ({...current, [key]: value}));
@@ -68,7 +71,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
   const template = usable.find((t) => t.id === input.templateId);
   const people = [...(staff.data ?? [])].sort((a, b) => (a.username ?? '').localeCompare(b.username ?? ''));
   const assignee = people.find((p) => p.userId === input.assigneeUserId);
-  const canContinue = Boolean(template && input.priority && input.dueDate && input.dueDate >= todayIso());
+  const canContinue = Boolean(template && input.priority);
 
   const confirm = () => {
     setMessage(null);
@@ -110,7 +113,7 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
         <>
           <MetadataListItem label="Template">{template?.name}</MetadataListItem>
           <MetadataListItem label="Priority">{input.priority}</MetadataListItem>
-          <MetadataListItem label="Target date">{input.dueDate ? formatDate(input.dueDate) : '—'}</MetadataListItem>
+          <MetadataListItem label="Target date">From the waiting-time clock, for this priority</MetadataListItem>
           <MetadataListItem label="Title">{input.title.trim() || `${template?.name ?? ''} (the template's name)`}</MetadataListItem>
           {canAssign && <MetadataListItem label="Assigned to">{assignee?.username ?? 'Nobody yet'}</MetadataListItem>}
           <MetadataListItem label="First note">{input.notes.trim() ? <RichText>{input.notes}</RichText> : 'None'}</MetadataListItem>
@@ -148,16 +151,9 @@ export function AcceptReferralDialog({isOpen, referral, onCancel, onAccepted}: A
           isRequired
           status={fieldStatus(errors, 'priority')}
         />
-        <DateInput
-          label="Target Date"
-          description="Due by the end of the day, UK time."
-          value={(input.dueDate || undefined) as ISODateString | undefined}
-          onChange={(value) => set('dueDate', value ?? '')}
-          min={todayIso()}
-          weekStartsOn={WEEK_STARTS_ON}
-          isRequired
-          status={fieldStatus(errors, 'dueDate')}
-        />
+        <Text type="supporting" color="secondary">
+          {TARGET_FROM_CLOCK}
+        </Text>
         <TextInput
           label="Title"
           description="Leave it blank to use the template's name."

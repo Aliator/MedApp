@@ -45,6 +45,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Stages: AppIcon.Success,
   Appointments: AppIcon.AppointmentBooked,
   Referrals: AppIcon.Referrals,
+  WaitingTime: AppIcon.Wait,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,
   Blocks: AppIcon.StatusBlocked,
@@ -89,6 +90,14 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.StatusChange;
     case 'ReferralEnteredInError':
       return AppIcon.EnteredInError;
+    case 'ReferralClockPaused':
+      return AppIcon.PauseClock;
+    case 'ReferralClockResumed':
+      return AppIcon.ResumeClock;
+    case 'ReferralClockStopped':
+      return AppIcon.ClockStopped;
+    case 'ReferralTargetChanged':
+      return AppIcon.Calendar;
     case 'StageUnlocked':
       return AppIcon.Unlock;
     case 'Unassigned':

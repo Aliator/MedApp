@@ -122,7 +122,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
         var template = await mediator.Send(new CreatePathwayTemplateCommand(
             request.Name,
             request.SpecialtyId,
-            request.StageDefinitionIdsInOrder), ct);
+            request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder), ct);
 
         return Created($"/api/pathways/patient-pathway-stage/templates/{template.Id}", template);
     }
@@ -139,7 +140,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             id,
             request.Name,
             request.SpecialtyId,
-            request.StageDefinitionIdsInOrder), ct));
+            request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder), ct));
 
     [HttpPost("templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]

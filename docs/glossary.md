@@ -29,6 +29,10 @@ MedApp was built around "procedures". In November 2026 they became **pathways**,
 - **The actions follow the statuses:** Put on Hold and Take off Hold (the status change to and from `Blocked`), Mark Discharged (to `Completed`).
 - **Field and column labels inside a page stay short:** a pathway's "Template", the "Stages" of a pathway.
 
+## The waiting-time clock's words
+
+A referral's clock (`WaitingClock`, `docs/agents/referrals.md`) shows as the **wait**, "Day 84 of 126" (days waited of the target); **Breached** once it's past its target date; **Paused** (with its review date, flagged once past); and **Stopped**. The **clock-stop stage** is the template's stage whose finishing stops it (`StopsClock`). While the clock runs or is paused, a pathway's target date comes from it ("from the waiting-time clock").
+
 ## Where "procedure" stays
 
 - **In its medical sense:** something done to a patient. A stage named "Procedure", "minor procedures", "pre-procedure check", SNOMED CT's concept 71388002 (Procedure), and the kinds of procedure in the demo data (`ProcedureKind`).

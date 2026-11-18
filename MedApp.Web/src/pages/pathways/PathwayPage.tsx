@@ -46,6 +46,7 @@ import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageV
 import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
+import {ReferralWaitCard} from '../../components/referrals/ReferralWaitCard';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
@@ -180,6 +181,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   // folded, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when clicked.
   const [open, setOpen] = useState(() => ({
     details: true,
+    referralWait: true,
     notes: true,
     currentStage: true,
     files: !isNarrow,
@@ -783,6 +785,27 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     return {key: 'details', title: 'Details', isOpen: open.details, onToggle: () => toggle('details'), children: details(pathway)};
   }
 
+  /**
+   * Referral and wait, for a pathway accepted from a referral: the referral, its waiting-time clock and pauses, and
+   * Pause Clock or Resume Clock as the API's flags allow. None for a pathway created directly (it has no clock).
+   */
+  function referralWaitSection(pathway: Pathway): FoldingSection[] {
+    if (!pathway.referral?.id) return [];
+    return [
+      {
+        key: 'referralWait',
+        title: 'Referral and wait',
+        isOpen: open.referralWait,
+        onToggle: () => toggle('referralWait'),
+        children: (
+          <Section variant="transparent" padding={6}>
+            <ReferralWaitCard referral={pathway.referral} pathwayId={pathway.id ?? id} patient={pathway.patient} />
+          </Section>
+        ),
+      },
+    ];
+  }
+
   /** The pathway's notes: Add Note, and every note, newest first (your own can be edited). */
   function notesSection(pathway: Pathway): FoldingSection {
     return {
@@ -832,15 +855,21 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, Notes, the Current stage and Files, each folding and sharing the left card, and
-   * all the stages on the right.
+   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage and Files, each
+   * folding and sharing the left card, and all the stages on the right.
    */
   function wideLayout(pathway: Pathway) {
     return (
       <TwoColumns
         start={
           <FoldingCard
-            sections={[detailsSection(pathway), notesSection(pathway), currentStageSection(pathway), filesSection(pathway)]}
+            sections={[
+              detailsSection(pathway),
+              ...referralWaitSection(pathway),
+              notesSection(pathway),
+              currentStageSection(pathway),
+              filesSection(pathway),
+            ]}
             footerActions={footer(pathway)}
           />
         }
@@ -854,8 +883,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * One card of five folding sections: Details, Notes, Current stage, Files and Stages, scrolling together; the page
-   * never does. View Patient stays in the footer.
+   * One card of folding sections: Details, Referral and wait (from a referral only), Notes, Current stage, Files and
+   * Stages, scrolling together; the page never does. View Patient stays in the footer.
    */
   function narrowLayout(pathway: Pathway) {
     return (
@@ -863,6 +892,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         footerActions={footer(pathway)}
         sections={[
           detailsSection(pathway),
+          ...referralWaitSection(pathway),
           notesSection(pathway),
           currentStageSection(pathway),
           filesSection(pathway),

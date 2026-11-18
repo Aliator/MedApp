@@ -47,13 +47,22 @@ public sealed class ReferralChangeTests
         referral.SpecialtyId.Should().Be(newSpecialty.Id);
         referral.Reason.Should().Be(Canary);
         referral.ReferrerOdsCode.Should().BeNull();
-        var parsed = ReferralEventDetails.Parse(change.Events.Single().Details);
+        change.Events.Select(e => e.Action).Should().Equal(ReferralEventAction.DetailsEdited, ReferralEventAction.TargetChanged);
+        var parsed = ReferralEventDetails.Parse(change.Events[0].Details);
         parsed.ChangedFields.Should().BeEquivalentTo(
             "specialty", "receivedOn", "requestedPriority", "referrerPractice", "referrerClinician", "referrerOdsCode", "reason");
         parsed.SpecialtyName.Should().Be(newSpecialty.Name);
         parsed.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
         parsed.Changes["requestedPriority"].Should().Be(("High", "Urgent"));
-        change.Events.Single().Details.Should().NotContain(Canary).And.NotContain(OtherPractice).And.NotContain(Practice);
+        change.Events.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary).And.NotContain(OtherPractice).And.NotContain(Practice));
+
+        // The corrected specialty and priority re-read the clock's target, counting from the corrected date received.
+        referral.TargetDays.Should().Be(newSpecialty.TargetDaysUrgent);
+        referral.WaitStartOn.Should().Be(ReceivedOn.AddDays(-1));
+        referral.TargetOn.Should().Be(ReceivedOn.AddDays(-1 + newSpecialty.TargetDaysUrgent));
+        var target = ReferralEventDetails.Parse(change.Events[1].Details);
+        target.PreviousTargetDays.Should().Be(28);
+        target.TargetDays.Should().Be(14);
     }
 
     [Test]
@@ -88,8 +97,9 @@ public sealed class ReferralChangeTests
         referral.DecidedByUserId.Should().Be(Registrar.UserId);
         referral.DecidedByUsername.Should().Be(Registrar.Username);
         referral.Version.Should().Be(2);
-        var entry = change.Events.Single();
-        entry.Action.Should().Be(action);
+        change.Events.Select(e => e.Action).Should().Equal(action, ReferralEventAction.ClockStopped);
+        referral.StoppedOn.Should().Be(Today);
+        var entry = change.Events[0];
         entry.Details.Should().NotContain(Canary);
         ReferralEventDetails.Parse(entry.Details).ToStatus.Should().Be(status.ToString());
     }

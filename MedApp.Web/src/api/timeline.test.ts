@@ -78,6 +78,7 @@ describe('timeline filters', () => {
       'Stages',
       'Appointments',
       'Referrals',
+      'Waiting time',
       'Notes',
       'Assignments',
       'On hold',
@@ -332,6 +333,7 @@ describe('referral entries', () => {
   it('knows a referral entry, and a file attached to a referral', () => {
     expect(isReferralEntry(referralEntry({action: 'ReferralRegistered'}))).toBe(true);
     expect(isReferralEntry(entry({kind: 'Other', action: 'ReferralWithdrawn'}))).toBe(true);
+    expect(isReferralEntry(entry({kind: 'WaitingTime', action: 'Unknown'}))).toBe(true);
     expect(isReferralEntry(entry({}))).toBe(false);
     expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Referral', referralId}))).toBe(true);
     expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Patient'}))).toBe(false);
@@ -379,6 +381,46 @@ describe('referral entries', () => {
       title: 'Referral to Dermatology marked entered in error',
       detail: 'Registered twice',
     });
+  });
+
+  it('words the waiting-time clock: the pause reason and review date to everyone, its detail only to admins', () => {
+    const clock = (fields: Partial<TimelineEntry>) => referralEntry({kind: 'WaitingTime', ...fields});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockPaused', pauseReason: 'PatientChoseToWait', reviewOn: '2027-02-03'}))).toEqual({
+      title: 'Waiting-time clock paused',
+      detail: 'Patient chose to wait, review 3 Feb 2027',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockPaused', pauseReason: 'Other', reason: 'On holiday abroad'}))).toEqual({
+      title: 'Waiting-time clock paused',
+      detail: 'Other. On holiday abroad',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockResumed'}))).toEqual({title: 'Waiting-time clock resumed', detail: ''});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockResumed', isAutomatic: true}))).toEqual({
+      title: 'Waiting-time clock resumed',
+      detail: 'Resumed automatically, as the clock stopped',
+    });
+    expect(
+      describeTimelineEntry(clock({action: 'ReferralClockStopped', stopReason: 'StopStageFinished', daysWaited: 130, targetDays: 126, breached: true})),
+    ).toEqual({title: 'Waiting-time clock stopped', detail: 'Clock-stop stage finished, day 130 of 126, breached'});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockStopped', stopReason: 'PathwayDischarged', daysWaited: 40}))).toEqual({
+      title: 'Waiting-time clock stopped',
+      detail: 'Discharged, day 40',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockStopped'}))).toEqual({title: 'Waiting-time clock stopped', detail: ''});
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged', previousTargetDays: 126, targetDays: 28, priority: 'High'}))).toEqual({
+      title: 'Waiting-time target changed',
+      detail: '126 → 28 days (high priority)',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged', targetDays: 14}))).toEqual({
+      title: 'Waiting-time target changed',
+      detail: '14 days',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged'}))).toEqual({title: 'Waiting-time target changed', detail: ''});
+  });
+
+  it('says when the waiting-time clock set the target date', () => {
+    expect(
+      describeTimelineEntry(entry({action: 'DetailsUpdated', kind: 'DueDates', fromClock: true, changes: [{field: 'dueDate', from: '2026-06-20', to: '2026-07-01'}]})),
+    ).toEqual({title: 'Target date set by the waiting-time clock', detail: 'Target date 20 Jun 2026 → 1 Jul 2026'});
   });
 
   it('words a referral change it does not know yet by the status after it', () => {

@@ -94,6 +94,14 @@ describe('MyTasksPage', () => {
     expect(screen.getByRole('columnheader', {name: 'Current stage'})).toBeInTheDocument();
   });
 
+  it('asks for the breached ones by days waited, and shows each task\'s wait', async () => {
+    expect(taskQuery({breached: true, sort: 'Wait', asc: false})).toMatchObject({BreachedOnly: true, Sort: 'daysWaited', Ascending: false});
+    renderTasks();
+    expect(await screen.findByText('Colonoscopy')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name: /Wait/})).toBeInTheDocument();
+    expect(screen.getByText('No clock')).toBeInTheDocument();
+  });
+
   it('asks the API for both when the progress filter is removed, with the other filters', () => {
     expect(
       taskQuery({progress: 'any', title: 'knee', status: '!Blocked', priority: 'High,Urgent', overdue: true, page: 2, sort: 'Priority', asc: false}),

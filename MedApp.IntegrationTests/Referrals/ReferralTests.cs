@@ -113,7 +113,7 @@ public sealed class ReferralTests : IntegrationTest
 
         var edited = await (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).ReadAsAsync<ReferralResponse>();
         edited.Version.Should().Be(2);
-        edited.History.Last().ChangedFields.Should().Contain(["reason", "requestedPriority", "referrerClinician", "referrerOdsCode"]);
+        edited.History.Single(h => h.Action == "DetailsEdited").ChangedFields.Should().Contain(["reason", "requestedPriority", "referrerClinician", "referrerOdsCode"]);
 
         (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
 

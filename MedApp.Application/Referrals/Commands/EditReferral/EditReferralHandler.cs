@@ -52,6 +52,6 @@ public sealed class EditReferralHandler(
 
         // After saving: the specialty was read without tracking (see ReferralChange.EditDetails).
         referral.Specialty = specialty;
-        return await ReferralResponses.ForAsync(referral, repository, request.Actor, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Actor, timeProvider, cancellationToken);
     }
 }

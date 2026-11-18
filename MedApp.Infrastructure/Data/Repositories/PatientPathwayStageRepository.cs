@@ -127,6 +127,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
     public async Task UpdatePathwayTemplateAsync(
         PathwayTemplate template,
         IReadOnlyList<Guid>? stageDefinitionIdsInOrder,
+        int? clockStopStageOrder,
         CancellationToken ct)
     {
         var existing = await Templates.Include(x => x.Maps).FirstOrDefaultAsync(x => x.Id == template.Id, ct);
@@ -145,13 +146,17 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
             {
                 var order = i + 1;
                 if (byOrder.TryGetValue(order, out var map))
+                {
                     map.StageDefinitionId = stageDefinitionIdsInOrder[i];
+                    map.StopsClock = clockStopStageOrder == order;
+                }
                 else
                     Maps.Add(new PathwayTemplateMap
                     {
                         TemplateId = existing.Id,
                         StageDefinitionId = stageDefinitionIdsInOrder[i],
-                        StageOrder = order
+                        StageOrder = order,
+                        StopsClock = clockStopStageOrder == order
                     });
             }
 
