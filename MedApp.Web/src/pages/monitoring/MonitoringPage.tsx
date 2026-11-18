@@ -1,7 +1,6 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
-import {Selector} from '@astryxdesign/core/Selector';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Switch} from '@astryxdesign/core/Switch';
 import {pixel, proportional} from '@astryxdesign/core/Table';
@@ -35,6 +34,7 @@ import {TableActions} from '../../components/tables/TableActions';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {RuleSentence} from './RuleSentence';
 import {MINIMUM_PRIORITIES, describeRule, sentenceText, type RuleDescription} from './ruleText';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 type RuleRow = MonitoringRule & Record<string, unknown>;
 
@@ -291,7 +291,7 @@ export function MonitoringPage() {
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
               {problem.message && <AlertMessage message={problem.message} />}
-              <Selector
+              <AnchoredSelector
                 label="Staff member"
                 description={personHint}
                 options={personOptions}
@@ -299,7 +299,7 @@ export function MonitoringPage() {
                 onChange={(value: string) => set('subjectUserId', fromAny(value))}
                 status={fieldStatus(problem.validation, 'subjectUserId')}
               />
-              <Selector
+              <AnchoredSelector
                 label="Does this"
                 options={MONITORING_EVENTS.map((e) => ({value: e.value, label: e.label}))}
                 value={form.event}
@@ -308,7 +308,7 @@ export function MonitoringPage() {
                 status={fieldStatus(problem.validation, 'event')}
               />
               {hasStage(form.event) && (
-                <Selector
+                <AnchoredSelector
                   label="Stage"
                   options={stageOptions}
                   value={form.stageDefinitionId?.toLowerCase() ?? ANY}
@@ -316,14 +316,14 @@ export function MonitoringPage() {
                   status={fieldStatus(problem.validation, 'stageDefinitionId')}
                 />
               )}
-              <Selector
+              <AnchoredSelector
                 label="Priority"
                 options={priorityOptions}
                 value={form.minimumPriority ?? ANY}
                 onChange={(value: string) => set('minimumPriority', fromAny(value))}
                 status={fieldStatus(problem.validation, 'minimumPriority')}
               />
-              <Selector
+              <AnchoredSelector
                 label="Template"
                 options={templateOptions}
                 value={form.templateId?.toLowerCase() ?? ANY}

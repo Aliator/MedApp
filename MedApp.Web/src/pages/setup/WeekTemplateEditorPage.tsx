@@ -1,6 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
@@ -20,6 +19,7 @@ import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {clockTime, WEEKDAYS, type WeekdayKey} from './calendarSetup';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplatesHref} from './calendarTemplatesSearch';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 /** A weekday with no day template: no template blocks, so free for appointments all day. */
 const NONE = 'none';
@@ -239,7 +239,7 @@ function WeekTemplateEditor({
               </HStack>
             )}
             {WEEKDAYS.map(({key, name: dayName}) => (
-              <Selector
+              <AnchoredSelector
                 key={key}
                 label={dayName}
                 description={blocksSummary(days[key] === NONE ? undefined : byId.get(days[key]))}

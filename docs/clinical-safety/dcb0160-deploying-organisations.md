@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.5, draft |
-| **Date** | 16 November 2026 |
+| **Version** | 0.6, draft |
+| **Date** | 18 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer. Not yet reviewed by a person. |
@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 36 hazards, of which H-30 to H-36 (staff calendars and appointments) are drafts still to be rated by the CSO: `hazard-log.md` |
+| The hazard log | Draft, 64 hazards, of which H-30 to H-64 are drafts still to be rated by the CSO; H-40 to H-64 (the community specialist centre's Phases 2 to 5) were written from the design, before the features are built: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -99,6 +99,32 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-35 An appointment is left without its member of staff | Record leave and training in MedApp before booking around it; when someone is away unexpectedly, move or cancel their appointments and tell the patients |
 | H-36 A cancelled or moved appointment isn't passed on to the patient | A process for telling patients about every booking, change and cancellation, including the Booked appointments of a cancelled pathway |
 
+### Planned: what you'll provide for the centre's Phases 3 to 5
+
+Specimens, results, letters, clinics, reminders, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO.
+
+| Hazard | What you'll provide |
+|---|---|
+| H-45 A specimen is lost, or its report never comes back | **A daily check of the lab worklist** (Expected and Overdue), and a process for chasing the lab |
+| H-46 A result is never seen or acted on | **A daily check of results** awaiting sign-off and Needs a clinician, and cover for clinicians who are away |
+| H-47 A report is attached to the wrong patient or specimen | Positive patient identification when labelling; the lab checks each label against its request |
+| H-48 A letter goes to the wrong practice or person | Check the patient's address and GP practice with them at each visit |
+| H-49 A letter isn't sent, or goes late | A daily check of letters to send and awaiting approval, and **a downtime process for letters** (below) |
+| H-50 A letter shows another patient's details, or an unapproved version is sent | Check the identifiers on every page before posting or handing a letter over |
+| H-51 A branch is chosen, or a stage skipped, in error | Clinical sign-off of each template's branches and optional stages |
+| H-52 A patient is booked when nobody, or no room, is available | Keep sites' and staff's hours and closed days up to date; work the call list when a clinic is cancelled |
+| H-53 A reminder reaches the wrong person or says too much | Confirm the patient's mobile, email and reminder choice with them, and record an opt-out |
+| H-54 A patient relies on a reminder that isn't sent | **Reminders are a courtesy:** your appointment letters or calls stay the way patients are told |
+| H-55 A missed appointment isn't followed up | A named owner for the Did not attend view, and your policy for patients who don't attend |
+| H-56 A scheduled job stops and nobody notices | Alerting on MedApp's health check, and a weekly look at Scheduled Jobs (for a hosted service, the manufacturer's) |
+| H-57 A record is anonymised too early because its retention class is wrong | Your DPO checks the retention class of each template and the years against the Records Management Code of Practice |
+| H-58 An MDT outcome is recorded on the wrong patient, or not acted on | The MDT's own process for confirming outcomes and owning actions |
+| H-59 A procedure goes ahead without valid consent recorded | Your consent policy, including capacity, and clinical sign-off of which stages need consent |
+| H-60 Questionnaire answers are read as an assessment | The instrument's own scoring rules, and a licence for each instrument you use |
+| H-61 A video link reaches the wrong patient | The video platform's waiting room, with each patient admitted by the clinician |
+| H-62 Data from an NHS system is matched to the wrong patient | Positive patient identification when matching an incoming referral |
+| H-64 A file is held as "being scanned" when it's needed | Master copies of documents in your own systems |
+
 ## Configuring MedApp safely
 
 - **Templates and stage definitions** are your clinical content:
@@ -140,6 +166,8 @@ Plan for MedApp being unavailable, whether for minutes or a day:
 - **Before:** print the task lists and summaries of open pathways, and each day's appointments, at a set time each day. MedApp can't print a day list of appointments yet (`docs/todo.md`), so keep a copy another way. MedApp can't print them yet: the printable task list is a control the manufacturer needs before first live use (H-10), so don't go live without it.
 - **During:** work from paper; record what was done, by whom and when. If only MedApp's files can't be opened (H-28), use the master copies in your own systems.
 - **After:** enter the work into MedApp, saying in the notes that it was done during downtime and when; check for work that was done twice or missed.
+- **Letters (planned, Phase 3):** once letters are built, keep a way to write and send an urgent letter outside MedApp (your own template and secure mailbox); afterwards, record it in MedApp as sent outside MedApp, with the date, so the To send list and the letter gates stay right.
+- **Lab work (planned, Phase 3):** during downtime, keep a paper log of specimens taken and sent (with their numbers, if labels were printed), and enter them afterwards; reports that arrive meanwhile go to the responsible clinician on paper.
 - **After a restore** from backup: the manufacturer will tell you the restore point. Re-enter work done since then from your downtime records.
 
 ## A starter hazard log for your deployment
@@ -183,4 +211,5 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | 0.2 | 16 November 2026 | After the review of #60: a sign-off, My Worklist's default view, the leaver process (H-21) | AI coding agent, for review |
 | 0.3 | 16 November 2026 | File attachments: the controls H-23 to H-28 transfer to you, an assumption, configuration, training, downtime and a starter hazard (D-11) | AI coding agent, for review |
 | 0.4 | 16 November 2026 | The privacy features and NHS integrations (PRs #68 and #69): the optional NHS number in identifying patients, and the transferred control for H-22. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
+| 0.6 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), before they're built: the controls planned to transfer to you for H-45 to H-64 (among them a daily check of the lab worklist and of results awaiting sign-off), and downtime for letters and lab work. The hazard count brought up to date (64) | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-12 to D-14 (drafted as D-11 to D-13, renumbered after file attachments took D-11) | AI coding agent, for review |

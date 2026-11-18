@@ -5,8 +5,6 @@ import {DateInput} from '@astryxdesign/core/DateInput';
 import {useListFocus} from '@astryxdesign/core/hooks';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {MultiSelector} from '@astryxdesign/core/MultiSelector';
-import {Selector} from '@astryxdesign/core/Selector';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -54,6 +52,7 @@ import {useIsNarrowWindow} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {MeetingReplyToken} from './CalendarTokens';
+import {AnchoredMultiSelector, AnchoredSelector} from '../forms/AnchoredSelector';
 
 export interface MeetingDialogProps {
   isOpen: boolean;
@@ -429,7 +428,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         status={fieldStatus(validation, 'title')}
       />
       <VStack gap={2} hAlign="stretch">
-        <MultiSelector
+        <AnchoredMultiSelector
           label="Who"
           description={isNew ? 'Who else is going.' : "Who's going."}
           value={others}
@@ -447,7 +446,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         </HStack>
       </VStack>
       {isNew && <CheckboxInput label={`I'm going too (${me.username})`} value={includeMe} onChange={setIncludeMe} />}
-      <Selector
+      <AnchoredSelector
         label="Length"
         value={String(length)}
         onChange={(value) => setLength(Number(value))}
@@ -542,7 +541,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
             />
           </StackItem>
           <StackItem size="fill">
-            <Selector
+            <AnchoredSelector
               label="Start"
               value={start === undefined ? '' : String(start)}
               placeholder="Choose a time"
