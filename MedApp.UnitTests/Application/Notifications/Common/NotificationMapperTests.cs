@@ -69,6 +69,7 @@ public sealed class NotificationMapperTests
     [TestCase(NotificationKind.MeetingInvited, "MeetingInvited")]
     [TestCase(NotificationKind.MeetingChanged, "MeetingChanged")]
     [TestCase(NotificationKind.MeetingCancelled, "MeetingCancelled")]
+    [TestCase(NotificationKind.MeetingDeclined, "MeetingDeclined")]
     public void ToResponse_MeetingNotification_CarriesItsCalendarDateAndKindByName(NotificationKind kind, string expected)
     {
         var date = new DateOnly(2026, 11, 23);

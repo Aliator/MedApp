@@ -27,6 +27,9 @@ public enum NotificationKind
     /// <summary>An admin cancelled a meeting the user was going to, or took them off it.</summary>
     MeetingCancelled = 6,
 
+    /// <summary>Someone declined a meeting the user arranged.</summary>
+    MeetingDeclined = 7,
+
     /// <summary>Monitoring: someone created a procedure.</summary>
     MonitoredProcedureCreated = 10,
 

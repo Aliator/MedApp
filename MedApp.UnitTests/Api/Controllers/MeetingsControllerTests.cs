@@ -4,6 +4,7 @@ using MedApp.API.Controllers;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Meetings.Commands.CancelMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.CreateMeeting;
+using MedApp.Application.Calendar.Meetings.Commands.ReplyToMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 using MedApp.Application.Calendar.Meetings.Queries.GetMeetingById;
 using MedApp.Contracts.Calendar.Requests;
@@ -142,6 +143,30 @@ public sealed class MeetingsControllerTests
             nameof(MeetingsController.GetMeeting),
             nameof(MeetingsController.CreateMeeting),
             nameof(MeetingsController.UpdateMeeting),
-            nameof(MeetingsController.CancelMeeting));
+            nameof(MeetingsController.CancelMeeting),
+            nameof(MeetingsController.ReplyToMeeting));
+    }
+
+    [TestCase("User", false)]
+    [TestCase("Admin", true)]
+    public async Task ReplyToMeeting_SendsTheReplyAsWhoeverIsAsking(string role, bool isAdmin)
+    {
+        var meeting = _fixture.Create<MeetingResponse>();
+        var mediator = new RecordingMediator(_ => meeting);
+
+        var result = await Controller(mediator, role).ReplyToMeeting(RecordId, new MeetingReplyRequest { Reply = "Declined" }, _cts.Token);
+
+        mediator.Request.Should().Be(new ReplyToMeetingCommand(RecordId, "Declined", new CalendarActor(UserId, Username, isAdmin)));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
+    }
+
+    [Test]
+    public async Task ReplyToMeeting_AnyMemberOfStaff()
+    {
+        // Whether they're going is the handler's to check (a 403 otherwise).
+        (await ControllerAuthorisation.MayCallAsync<MeetingsController>(nameof(MeetingsController.ReplyToMeeting), SignedIn("User"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<MeetingsController>(nameof(MeetingsController.ReplyToMeeting), SignedIn("Admin"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<MeetingsController>(nameof(MeetingsController.ReplyToMeeting), SignedIn())).Should().BeFalse();
     }
 }

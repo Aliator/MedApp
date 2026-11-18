@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
@@ -152,6 +153,33 @@ public sealed class CalendarClashesTests
             .Should().Be($"That time overlaps the meeting '{OtherTitle}', 10:00 to 10:30.");
     }
 
+
+    [Test]
+    public void Find_AMeetingThePersonDeclined_IsNotBusyForThem()
+    {
+        // StaffUserId's calendar: they declined the MDT, so the time is theirs again.
+        var mdt = NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        mdt.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+        var data = CreateData(NextMonday) with { Meetings = [mdt] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30)).Should().BeNull();
+        CalendarClashes.BusyTimes(data).Should().BeEmpty();
+    }
+
+    [TestCase(MeetingReply.NoReply)]
+    [TestCase(MeetingReply.Accepted)]
+    public void Find_AMeetingSomeoneElseDeclined_IsStillBusyForThem(MeetingReply theirReply)
+    {
+        // StaffUserId's calendar: the other attendee declined, and they didn't.
+        var mdt = NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        mdt.Attendees.Single(a => a.StaffUserId == OtherStaffUserId).Reply = MeetingReply.Declined;
+        mdt.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = theirReply;
+        var data = CreateData(NextMonday) with { Meetings = [mdt] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30))
+            .Should().Be("That time overlaps the meeting 'MDT', 09:00 to 10:00.");
+        CalendarClashes.BusyTimes(data).Should().ContainSingle();
+    }
     [Test]
     public void FindFirst_Overlap_ReturnsWhatAndWhen()
     {

@@ -691,6 +691,12 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("StaffUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("RepliedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Reply")
+                        .HasColumnType("int");
+
                     b.HasKey("MeetingId", "StaffUserId");
 
                     b.HasIndex("StaffUserId");

@@ -42,12 +42,14 @@ public sealed class NotificationPreferencesTests
     {
         Notification.IsMonitoring(NotificationKind.MeetingInvited).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
+        Notification.IsMonitoring(NotificationKind.MeetingDeclined).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MonitoredProcedureCreated).Should().BeTrue();
     }
 
     [TestCase(NotificationKind.MeetingInvited, 4)]
     [TestCase(NotificationKind.MeetingChanged, 5)]
     [TestCase(NotificationKind.MeetingCancelled, 6)]
+    [TestCase(NotificationKind.MeetingDeclined, 7)]
     public void MeetingKinds_KeepTheirStoredNumbers(NotificationKind kind, int number)
     {
         ((int)kind).Should().Be(number);

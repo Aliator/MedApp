@@ -30,6 +30,12 @@ public sealed class MeetingResponse
     /// <summary>Whether the signed-in user can change or cancel it: an admin, and it isn't on a past day.</summary>
     public bool CanEdit { get; set; }
 
+    /// <summary>The signed-in user's own reply ("NoReply", "Accepted" or "Declined"), or null when they aren't going.</summary>
+    public string? MyReply { get; set; }
+
+    /// <summary>Whether the signed-in user can accept or decline it: they're going, and it hasn't ended.</summary>
+    public bool CanReply { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime LastUpdated { get; set; }
@@ -41,4 +47,10 @@ public sealed class MeetingAttendeeResponse
 
     /// <summary>Null once their account is deleted.</summary>
     public string? Username { get; set; }
+
+    /// <summary>Their answer: "NoReply" (none yet, or the meeting moved since), "Accepted" or "Declined".</summary>
+    public string Reply { get; set; } = string.Empty;
+
+    /// <summary>When they last replied; null while there's no reply.</summary>
+    public DateTime? RepliedAtUtc { get; set; }
 }

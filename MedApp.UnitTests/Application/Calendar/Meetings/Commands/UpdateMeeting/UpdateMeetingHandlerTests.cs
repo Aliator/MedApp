@@ -324,7 +324,7 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
         Sent.Should().OnlyContain(s => s.Notification.Kind == NotificationKind.MeetingChanged);
         Sent.Should().OnlyContain(s => s.Notification.Title == "Meeting moved");
         Sent.Should().OnlyContain(s =>
-            s.Notification.Message == $"{AdminUsername} moved '{OtherTitle}' to Monday 23 November, 14:00 to 15:00.");
+            s.Notification.Message == $"{AdminUsername} moved '{OtherTitle}' to Monday 23 November, 14:00 to 15:00. Please reply again.");
         Sent.Should().OnlyContain(s => s.Notification.CalendarDate == NextMonday);
     }
 
@@ -371,5 +371,75 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
         response.CanEdit.Should().BeTrue();
         response.LastUpdated.Should().Be(Now);
         Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), Token), Times.Once);
+    }
+
+    // Replies
+
+    /// <summary>Gives this attendee of the stored meeting a reply, as of an hour ago.</summary>
+    private void GivenReply(Guid staffUserId, MeetingReply reply)
+    {
+        var attendee = _tracked.Attendees.Single(a => a.StaffUserId == staffUserId);
+        attendee.Reply = reply;
+        attendee.RepliedAtUtc = Now.AddHours(-1);
+    }
+
+    [TestCase(10, 30, 11, 30)]
+    [TestCase(10, 0, 11, 30)]
+    [TestCase(9, 30, 11, 0)]
+    public async Task Handle_Moved_PutsEveryReplyBackToNoReply(int startHour, int startMinute, int endHour, int endMinute)
+    {
+        GivenReply(StaffUserId, MeetingReply.Declined);
+        GivenReply(OtherStaffUserId, MeetingReply.Accepted);
+
+        var response = await _handler.Handle(
+            Command(At(NextMonday, startHour, startMinute), At(NextMonday, endHour, endMinute), [StaffUserId, OtherStaffUserId, AdminUserId]), Token);
+
+        _tracked.Attendees.Should().HaveCount(3).And.OnlyContain(a => a.Reply == MeetingReply.NoReply && a.RepliedAtUtc == null);
+        response.Attendees.Should().OnlyContain(a => a.Reply == "NoReply");
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NotMoved_KeepsReplies_AndThoseAddedStartWithNone()
+    {
+        GivenReply(StaffUserId, MeetingReply.Declined);
+        GivenReply(OtherStaffUserId, MeetingReply.Accepted);
+
+        await _handler.Handle(Command(attendees: [StaffUserId, OtherStaffUserId, AdminUserId]), Token);
+
+        var replies = _tracked.Attendees.ToDictionary(a => a.StaffUserId);
+        replies[StaffUserId].Reply.Should().Be(MeetingReply.Declined);
+        replies[StaffUserId].RepliedAtUtc.Should().Be(Now.AddHours(-1));
+        replies[OtherStaffUserId].Reply.Should().Be(MeetingReply.Accepted);
+        replies[AdminUserId].Reply.Should().Be(MeetingReply.NoReply);
+        replies[AdminUserId].RepliedAtUtc.Should().BeNull();
+        Sent.Should().NotContain(s => s.Notification.Kind == NotificationKind.MeetingChanged, "nobody is asked to reply again");
+    }
+
+    [Test]
+    public async Task Handle_NotMoved_SomeoneWhoDeclinedHasBookedTheTimeSince_IsStillSaved()
+    {
+        // They declined, then booked an appointment at 10:00: a change of title keeps their decline, so isn't refused.
+        GivenReply(StaffUserId, MeetingReply.Declined);
+        GivenCalendar(CalendarOf(StaffUserId, NextMonday, appointments: [CreateAppointment(startUtc: At(NextMonday, 10))], meetings: [_tracked]));
+
+        await _handler.Handle(Command(), Token);
+
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+        CalendarReads.Single().StaffUserIds.Should().Equal(OtherStaffUserId);
+    }
+
+    [Test]
+    public async Task Handle_Moved_SomeoneWhoDeclinedIsBusyAtTheNewTime_ThrowsConflictWithoutSaving()
+    {
+        // Moving it asks them again, so their time must be free too.
+        GivenReply(StaffUserId, MeetingReply.Declined);
+        GivenCalendar(CalendarOf(StaffUserId, NextMonday, appointments: [CreateAppointment(startUtc: At(NextMonday, 14))]));
+
+        var act = () => _handler.Handle(Command(At(NextMonday, 14), At(NextMonday, 15)), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"{StaffUsername} has another appointment, 14:00 to 14:30.");
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _tracked.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply.Should().Be(MeetingReply.Declined);
     }
 }

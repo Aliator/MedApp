@@ -47,5 +47,5 @@ public sealed class Notification
     /// anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
-        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingCancelled || IsMonitoring(kind);
+        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingDeclined || IsMonitoring(kind);
 }

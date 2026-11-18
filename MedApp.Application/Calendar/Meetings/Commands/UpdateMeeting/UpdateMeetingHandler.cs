@@ -14,7 +14,9 @@ namespace MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 /// meeting has changed since the caller read it (<see cref="UpdateMeetingCommand.ExpectedLastUpdated"/>), so a change
 /// made from a stale screen or a drag can't silently undo another admin's. Only the attendees it newly adds must be
 /// staff; anyone already going whose account has gone (or who is no longer staff) is dropped, untold
-/// (<see cref="MeetingStaff.ChooseOrThrow"/>).
+/// (<see cref="MeetingStaff.ChooseOrThrow"/>). Moving it (its start or end) puts every reply back to no reply
+/// (<see cref="MeetingReplies.ResetAll"/>), and those still going are asked to reply again; any other change keeps
+/// replies, and those added start with none.
 /// </summary>
 public sealed class UpdateMeetingHandler(
     IMeetingRepository repository,
@@ -59,7 +61,11 @@ public sealed class UpdateMeetingHandler(
             if (tracked.Attendees.Any(a => !locked.Contains(a.StaffUserId)))
                 throw new ConflictException(MeetingLimits.ChangedMeanwhile);
 
-            await calendarRepository.EnsureEveryoneFreeAsync(attendees, start, end, tracked.Id, ct);
+            // Moving it clears everyone's reply, so everyone must be free at the new time. Kept where it is, those who
+            // declined keep their reply, and the time is no longer theirs to keep free: they aren't checked.
+            var moved = start != tracked.StartUtc || end != tracked.EndUtc;
+            var mustBeFree = moved ? attendees : attendees.Where(a => !MeetingReplies.HasDeclined(tracked, a.UserId)).ToList();
+            await calendarRepository.EnsureEveryoneFreeAsync(mustBeFree, start, end, tracked.Id, ct);
 
             var was = (Attendees: tracked.Attendees.Select(a => a.StaffUserId).ToList(), tracked.StartUtc, tracked.EndUtc);
             var wanted = attendees.Select(a => a.UserId).ToHashSet();
@@ -69,6 +75,8 @@ public sealed class UpdateMeetingHandler(
             tracked.StartUtc = start;
             tracked.EndUtc = end;
             tracked.LastUpdated = now;
+            if (moved)
+                MeetingReplies.ResetAll(tracked);
             tracked.Attendees.RemoveAll(a => !wanted.Contains(a.StaffUserId));
             tracked.Attendees.AddRange(MeetingStaff.Attendees(
                 tracked.Id, wanted.Where(id => tracked.Attendees.All(a => a.StaffUserId != id))));
@@ -84,7 +92,7 @@ public sealed class UpdateMeetingHandler(
             await notificationSender.SendAsync(notification, cancellationToken);
 
         var usernames = await identityReadService.GetUsernamesByIdAsync(MeetingMapper.UserIds(meeting), cancellationToken);
-        return MeetingMapper.ToResponse(meeting, usernames, request.Actor.IsAdmin, today);
+        return MeetingMapper.ToResponse(meeting, usernames, request.Actor, now);
     }
 
     /// <summary>A 409 when the meeting isn't as the caller last read it.</summary>

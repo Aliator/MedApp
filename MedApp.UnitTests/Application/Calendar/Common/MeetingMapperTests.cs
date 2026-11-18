@@ -23,7 +23,7 @@ public sealed class MeetingMapperTests
         var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11, 30));
         meeting.LastUpdated = Now;
 
-        var response = MeetingMapper.ToResponse(meeting, Usernames, isAdmin: true, Today);
+        var response = MeetingMapper.ToResponse(meeting, Usernames, AdminActor, Now);
 
         response.Id.Should().Be(MeetingId);
         response.Title.Should().Be(Title);
@@ -47,7 +47,7 @@ public sealed class MeetingMapperTests
         var usernames = new Dictionary<Guid, string>(Usernames) { [upper] = "Calendar.middle" };
         var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [deleted, StaffUserId, upper, alsoDeleted, AdminUserId]);
 
-        var attendees = MeetingMapper.ToResponse(meeting, usernames, isAdmin: false, Today).Attendees;
+        var attendees = MeetingMapper.ToResponse(meeting, usernames, StaffActor, Now).Attendees;
 
         attendees.Select(a => a.Username).Should().Equal(AdminUsername, "Calendar.middle", StaffUsername, null, null);
         attendees.Select(a => a.UserId).Should().Equal(AdminUserId, upper, StaffUserId, alsoDeleted, deleted);
@@ -58,7 +58,7 @@ public sealed class MeetingMapperTests
     {
         var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
 
-        MeetingMapper.ToResponse(meeting, new Dictionary<Guid, string>(), isAdmin: true, Today).OrganiserUsername.Should().BeNull();
+        MeetingMapper.ToResponse(meeting, new Dictionary<Guid, string>(), AdminActor, Now).OrganiserUsername.Should().BeNull();
     }
 
     [TestCase(true, 0, true)]
@@ -71,7 +71,7 @@ public sealed class MeetingMapperTests
         var date = Today.AddDays(daysFromToday);
         var meeting = NewMeeting(At(date, 10), At(date, 11));
 
-        MeetingMapper.ToResponse(meeting, Usernames, isAdmin, Today).CanEdit.Should().Be(canEdit);
+        MeetingMapper.ToResponse(meeting, Usernames, isAdmin ? AdminActor : StaffActor, Now).CanEdit.Should().Be(canEdit);
     }
 
     [Test]
@@ -79,7 +79,7 @@ public sealed class MeetingMapperTests
     {
         var meeting = NewMeeting(At(SummerMonday, 8), At(SummerMonday, 9));
 
-        var response = MeetingMapper.ToResponse(meeting, Usernames, isAdmin: false, Today);
+        var response = MeetingMapper.ToResponse(meeting, Usernames, StaffActor, Now);
 
         response.Date.Should().Be(SummerMonday);
         response.StartUtc.Should().Be(new DateTime(2026, 6, 15, 7, 0, 0, DateTimeKind.Utc));
@@ -99,6 +99,59 @@ public sealed class MeetingMapperTests
     {
         var meeting = new Meeting { Id = MeetingId, Title = Title, StartUtc = At(NextMonday, 10), EndUtc = At(NextMonday, 11) };
 
-        MeetingMapper.ToResponse(meeting, Usernames, isAdmin: true, Today).Attendees.Should().BeEmpty();
+        MeetingMapper.ToResponse(meeting, Usernames, AdminActor, Now).Attendees.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ToResponse_Attendees_CarryTheirRepliesByName()
+    {
+        var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, OtherStaffUserId, AdminUserId]);
+        meeting.Attendees[0].Reply = MeetingReply.Accepted;
+        meeting.Attendees[0].RepliedAtUtc = Now.AddHours(-2);
+        meeting.Attendees[1].Reply = MeetingReply.Declined;
+        meeting.Attendees[1].RepliedAtUtc = Now.AddHours(-1);
+
+        var attendees = MeetingMapper.ToResponse(meeting, Usernames, AdminActor, Now).Attendees.ToDictionary(a => a.UserId);
+
+        attendees[StaffUserId].Reply.Should().Be("Accepted");
+        attendees[StaffUserId].RepliedAtUtc.Should().Be(Now.AddHours(-2));
+        attendees[OtherStaffUserId].Reply.Should().Be("Declined");
+        attendees[OtherStaffUserId].RepliedAtUtc.Should().Be(Now.AddHours(-1));
+        attendees[AdminUserId].Reply.Should().Be("NoReply");
+        attendees[AdminUserId].RepliedAtUtc.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_ViewerGoing_SeesTheirOwnReplyAndCanReply()
+    {
+        var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        meeting.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+
+        var response = MeetingMapper.ToResponse(meeting, Usernames, StaffActor, Now);
+
+        response.MyReply.Should().Be("Declined");
+        response.CanReply.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToResponse_ViewerNotGoing_HasNoReplyAndCantReply()
+    {
+        // The organiser (an admin) isn't going unless listed, and can't reply for anyone.
+        var response = MeetingMapper.ToResponse(NewMeeting(At(NextMonday, 10), At(NextMonday, 11)), Usernames, AdminActor, Now);
+
+        response.MyReply.Should().BeNull();
+        response.CanReply.Should().BeFalse();
+    }
+
+    [TestCase(-60, true)]
+    [TestCase(-1, true)]
+    [TestCase(0, false)]
+    [TestCase(30, false)]
+    public void ToResponse_CanReply_UntilItEnds(int minutesAfterEnd, bool canReply)
+    {
+        // Under way (started an hour ago) still takes a reply; from its end, none.
+        var meeting = NewMeeting(Now.AddMinutes(-60 - minutesAfterEnd), Now.AddMinutes(-minutesAfterEnd));
+
+        MeetingMapper.ToResponse(meeting, Usernames, StaffActor, Now).CanReply.Should().Be(canReply);
     }
 }

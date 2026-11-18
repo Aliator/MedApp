@@ -53,7 +53,7 @@ public sealed class GetTeamCalendarHandler(
                         today,
                         usernames,
                         now,
-                        request.Actor.IsAdmin);
+                        request.Actor);
                 })
                 .ToList(),
             EveryoneFree = Availability.FreeTime(calendars, request.Date, request.Date, now)
