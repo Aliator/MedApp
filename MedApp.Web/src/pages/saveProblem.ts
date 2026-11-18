@@ -18,6 +18,8 @@ export type SaveSubject =
   | 'activity type'
   | 'day template'
   | 'week template'
+  | 'site'
+  | 'room'
   | 'specialty';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */

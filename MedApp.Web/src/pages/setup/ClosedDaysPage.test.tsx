@@ -1,12 +1,32 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {SaveShortcutProvider} from '../../components/forms/SaveShortcut';
 import {adminUser, calls, expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
-import {bankHolidaysOutcome, closedDayOutcome, ClosedDaysPage, parseClosedDaysSearch, shownYear, type ClosedDaysSearch} from './ClosedDaysPage';
+import {
+  bankHolidaysOutcome,
+  closedDayOutcome,
+  ClosedDaysPage,
+  parseClosedDaysSearch,
+  shownYear,
+  whereWords,
+  type ClosedDaysSearch,
+} from './ClosedDaysPage';
 
 const BASE = '/api/calendar/closed-days';
 
 const SPRING = {id: '0000003c-0000-0000-0000-000000000001', date: '2026-05-25', name: 'Spring bank holiday', isPast: true};
 const CHRISTMAS = {id: '0000003c-0000-0000-0000-000000000002', date: '2026-12-25', name: 'Christmas Day', isPast: false};
+
+/** A synthetic second site, and a day it's closed. */
+const NORTHGATE = {id: '5173e000-0000-4000-8000-000000000002', name: 'Northgate outreach clinic', isArchived: false, rooms: []};
+const MAIN = {id: '5173e000-0000-4000-8000-000000000001', name: 'Main site', isArchived: false, rooms: []};
+const REFIT = {
+  id: '0000003c-0000-0000-0000-000000000008',
+  date: '2026-12-01',
+  name: 'Refit',
+  siteId: NORTHGATE.id,
+  siteName: NORTHGATE.name,
+  isPast: false,
+};
 
 /** What's on a day: 14 appointments, a block and a meeting, for two people. */
 const BUSY = {
@@ -22,7 +42,7 @@ const BUSY = {
 const EMPTY = {date: '2026-12-24', appointments: 0, blocks: 0, meetings: 0, staff: []};
 
 function renderPage(search: ClosedDaysSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
-  const fetch = mockApi({[`GET ${BASE}`]: () => json([SPRING, CHRISTMAS]), ...extra});
+  const fetch = mockApi({[`GET ${BASE}`]: () => json([SPRING, CHRISTMAS]), 'GET /api/sites': () => json([MAIN, NORTHGATE]), ...extra});
   const onSearchChange = vi.fn();
   return {
     fetch,
@@ -63,6 +83,47 @@ describe('ClosedDaysPage', () => {
     expect(screen.getByText(/like a weekend on every calendar/)).toBeInTheDocument();
     expect(screen.getByText(/England and Wales/)).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${BASE}?From=2026-01-01&To=2026-12-31`]);
+  });
+
+  it("says where each is closed, everywhere or at one site, and what removing a site's means", async () => {
+    const {user} = renderPage({}, {[`GET ${BASE}`]: () => json([REFIT, CHRISTMAS])});
+
+    expect(within(await rowOf('Christmas Day')).getByText('Everywhere')).toBeInTheDocument();
+    const refit = await rowOf('Refit');
+    expect(within(refit).getByText('Northgate outreach clinic')).toBeInTheDocument();
+    await user.click(within(refit).getByRole('button', {name: 'Remove Refit at Northgate outreach clinic'}));
+    expect(dialog().getByText("Northgate outreach clinic's rooms open again that day.")).toBeInTheDocument();
+    expect(dialog().getByText('Tue 1 Dec 2026')).toBeInTheDocument();
+  });
+
+  it("closes a day at one site: its rooms, not anyone's calendar, so nothing booked is checked", async () => {
+    withAnnouncements();
+    const {user, fetch} = renderPage(
+      {},
+      {
+        [`GET ${BASE}/bookings`]: () => json(BUSY),
+        [`POST ${BASE}`]: () => json({...REFIT, bookings: null}, 201),
+      },
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Add Closed Day'}));
+    expect(dialog().getByRole('combobox', {name: /Where/})).toHaveTextContent('Everywhere');
+    await user.click(dialog().getByRole('combobox', {name: /Where/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Everywhere', 'Main site', 'Northgate outreach clinic']);
+    await user.click(screen.getByRole('option', {name: 'Northgate outreach clinic'}));
+    expect(
+      dialog().getByText("Closes Northgate outreach clinic's rooms. Staff calendars aren't closed: to close everyone's, choose Everywhere."),
+    ).toBeInTheDocument();
+    await user.type(dialog().getByRole('combobox', {name: /Date/}), '1 December 2026{Enter}');
+    await user.type(dialog().getByRole('textbox', {name: /Name/}), 'Refit');
+    await user.click(dialog().getByRole('button', {name: 'Add Closed Day'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await lastBody(fetch, 'POST')).toEqual({date: '2026-12-01', name: 'Refit', siteId: NORTHGATE.id});
+    expect(calls(fetch)).toContain('GET /api/sites?includeArchived=false');
+    expect(calls(fetch).some((c) => c.startsWith(`GET ${BASE}/bookings`))).toBe(false);
+    expect(await screen.findByText('Tue 1 Dec 2026 closed at Northgate outreach clinic: Refit.')).toBeInTheDocument();
+    await expectAnnounced('Tue 1 Dec 2026 closed at Northgate outreach clinic: Refit.');
   });
 
   it('moves a year at a time, keeping this year out of the address', async () => {
@@ -290,5 +351,15 @@ describe('closed days search and words', () => {
       message: 'Typed name added as a closed day.',
       details: ['On Thu 24 Dec: 2 meetings. They stay.'],
     });
+    expect(closedDayOutcome(REFIT, 'typed')).toEqual({message: 'Tue 1 Dec 2026 closed at Northgate outreach clinic: Refit.', details: []});
+    expect(closedDayOutcome({date: '2026-12-01', siteId: NORTHGATE.id}, 'Refit')).toEqual({
+      message: 'Tue 1 Dec 2026 closed at the site: Refit.',
+      details: [],
+    });
+  });
+
+  it('says where a closed day is closed', () => {
+    expect(whereWords({siteId: null})).toBe('Everywhere');
+    expect(whereWords(REFIT)).toBe('Northgate outreach clinic');
   });
 });

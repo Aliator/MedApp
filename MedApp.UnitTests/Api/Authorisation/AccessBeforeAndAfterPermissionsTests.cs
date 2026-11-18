@@ -204,6 +204,19 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+        SitesController.ArchiveRoom 00001
+        SitesController.ArchiveSite 00001
+        SitesController.CreateRoom 00001
+        SitesController.CreateSite 00001
+        SitesController.DeleteRoom 00001
+        SitesController.DeleteSite 00001
+        SitesController.GetRooms 00011
+        SitesController.GetSite 00011
+        SitesController.GetSites 00011
+        SitesController.RestoreRoom 00001
+        SitesController.RestoreSite 00001
+        SitesController.UpdateRoom 00001
+        SitesController.UpdateSite 00001
         SpecialtiesController.ArchiveSpecialty 00001
         SpecialtiesController.CreateSpecialty 00001
         SpecialtiesController.DeleteSpecialty 00001
