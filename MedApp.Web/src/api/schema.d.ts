@@ -20382,6 +20382,11 @@ export interface components {
             /** Format: uuid */
             stageDefinitionId?: string | null;
             stageName?: string | null;
+            /** Format: int32 */
+            thresholdDays?: number | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
+            specialtyName?: string | null;
             isEnabled?: boolean;
             /** Format: date-time */
             createdAtUtc?: string;
@@ -21540,6 +21545,10 @@ export interface components {
             templateId?: string | null;
             /** Format: uuid */
             stageDefinitionId?: string | null;
+            /** Format: int32 */
+            thresholdDays?: number | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
             isEnabled?: boolean;
         };
         SaveNotepadRequest: {

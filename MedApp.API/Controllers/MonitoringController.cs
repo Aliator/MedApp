@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// The signed-in admin's monitoring rules: what staff do to pathways that they want to be told about. Each admin
-/// sees and changes only their own; another admin's rule is a 404.
+/// The signed-in admin's monitoring rules: what staff do to pathways that they want to be told about, and the service
+/// alerts (work waiting longer than they chose). Each admin sees and changes only their own; another admin's rule is a 404.
 /// </summary>
 [ApiController]
 [Route("api/monitoring/rules")]
@@ -42,7 +42,9 @@ public sealed class MonitoringController(IMediator mediator) : ControllerBase
             request.MinimumPriority,
             request.TemplateId,
             request.StageDefinitionId,
-            request.IsEnabled), ct);
+            request.IsEnabled,
+            request.ThresholdDays,
+            request.SpecialtyId), ct);
 
         return Created($"/api/monitoring/rules/{rule.Id}", rule);
     }
@@ -61,7 +63,9 @@ public sealed class MonitoringController(IMediator mediator) : ControllerBase
             request.MinimumPriority,
             request.TemplateId,
             request.StageDefinitionId,
-            request.IsEnabled), ct));
+            request.IsEnabled,
+            request.ThresholdDays,
+            request.SpecialtyId), ct));
 
     /// <summary>Switches one of your rules on or off, changing nothing else (so one naming something since deleted can be switched too).</summary>
     [HttpPut("{id:guid}/enabled")]

@@ -51,7 +51,8 @@ public sealed class Notification
     /// What it's about, when that isn't one of the columns above: its meaning comes from the kind (a letter for
     /// <see cref="NotificationKind.LetterAwaitingApproval"/>, <see cref="NotificationKind.LetterApproved"/> and
     /// <see cref="NotificationKind.LetterReturned"/>; a specimen for <see cref="NotificationKind.SpecimenRejectedByLab"/>
-    /// and <see cref="NotificationKind.SpecimenLost"/>; a result for the result kinds), and the web app links each kind to its page. No foreign key: the
+    /// and <see cref="NotificationKind.SpecimenLost"/>; a result for the result kinds; the rule's specialty, if it has one, for
+    /// the service alerts, 32 to 37), and the web app links each kind to its page. No foreign key: the
     /// notification outlives what it's about.
     /// </summary>
     public Guid? SubjectId { get; init; }
@@ -63,12 +64,12 @@ public sealed class Notification
 
     /// <summary>
     /// Whether it's a monitoring notification: an admin told about what a member of staff did. It's about the staff,
-    /// not the patient, so a patient's export leaves it out. A set, not one range: 10 to 17, and the later kinds from 32
-    /// (<see cref="NotificationKind.MonitoredStageFinishedWithoutVisit"/>).
+    /// not the patient, so a patient's export leaves it out. A set, not one range: 10 to 17, and 32 to 38 (the service
+    /// alerts and <see cref="NotificationKind.MonitoredStageFinishedWithoutVisit"/>).
     /// </summary>
     public static bool IsMonitoring(NotificationKind kind) =>
         kind is >= NotificationKind.MonitoredPathwayCreated and <= NotificationKind.MonitoredDueDateChanged
-            or NotificationKind.MonitoredStageFinishedWithoutVisit;
+            or >= NotificationKind.MonitoredReferralNotTriaged and <= NotificationKind.MonitoredStageFinishedWithoutVisit;
 
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'

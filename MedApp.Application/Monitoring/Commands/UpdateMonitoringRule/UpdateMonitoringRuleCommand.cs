@@ -16,4 +16,6 @@ public sealed record UpdateMonitoringRuleCommand(
     string? MinimumPriority,
     Guid? TemplateId,
     Guid? StageDefinitionId,
-    bool IsEnabled) : IRequest<MonitoringRuleResponse>, IMonitoringRuleInput;
+    bool IsEnabled,
+    int? ThresholdDays = null,
+    Guid? SpecialtyId = null) : IRequest<MonitoringRuleResponse>, IMonitoringRuleInput;
