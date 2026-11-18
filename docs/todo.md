@@ -257,6 +257,7 @@ What the security baseline left, so the app would work exactly as before (`docs/
 
 ## Testing
 
+- **A clinical safety officer reviews removing the banner from the pathway page before first live use.** The owner removed `PatientBanner` from `/pathways/$id` (18 November 2026, `feature/pathway-layout`): the patient's name, date of birth and NHS number are at the top of its always-open Details card instead (`PathwayPatient`). In a half view or a narrow window Details can scroll out of view (hazard log, H-01 and H-02). Keep it, or bring the banner back.
 - **Before first live use, make CI and reviews strict again.** While MedApp isn't live, speed comes first, deliberately (the owner's decision, 18 November 2026): a pull request runs a light tier by default (#123), the integration tests, E2E, image scan and coverage thresholds run on `main` after the merge without gating Publish, merges don't wait for CI (admins bypass the required checks), and each merge gets one quick, low-effort review (`AGENTS.md`, CI and Git workflow). Before real patients' data: make the full suite a required check on every PR again, without the admin bypass (or write down why not); make Publish wait for it, so a commit that fails it is never deployed; and bring back full reviews, at high or xhigh, with the long review document.
 - **Known rough edges of the CI tiers** (#123), left for later:
   - **A broken commit can deploy to kind:** `main`'s full run and Publish start together. The issue "Full suite failing on main" is the only signal.

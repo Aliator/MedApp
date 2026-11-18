@@ -5,7 +5,7 @@ import {Link} from '@astryxdesign/core/Link';
 import {MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {ProgressBar} from '@astryxdesign/core/ProgressBar';
-import {HStack, VStack} from '@astryxdesign/core/Stack';
+import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
@@ -40,6 +40,7 @@ import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../compon
 import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {NoteDeletionRequestDialog} from '../../components/pathways/NoteDeletionRequestDialog';
 import {PathwayNotes} from '../../components/pathways/PathwayNotes';
+import {PathwayPatient} from '../../components/pathways/PathwayPatient';
 import {PathwayMdt} from '../../components/mdt/PathwayMdt';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
@@ -57,7 +58,6 @@ import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
 import {LettersAbout} from '../../components/letters/LettersAbout';
-import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {formatDate, formatDateTime} from '../../utils/dates';
 
@@ -110,9 +110,14 @@ interface Booking {
 }
 
 /**
- * One pathway, and the place it's worked on: its details, who is assigned and the current stage on the left,
- * beside all its stages. Like Home, the two cards fill the page and each scrolls on its own, so the page itself
- * never does; a narrow window has one card instead (see PathwayView).
+ * One pathway, and the place it's worked on: its details (with who the patient is, always open) and the current
+ * stage on the left, beside everything else on the right: all its stages, folded into their progress bar, then its
+ * appointments, assigned staff, notes, MDT, specimens, results, consent, files and letters. Like Home, the two cards fill the page and each
+ * scrolls on its own, so the page itself never does; a narrow window has one card instead (see PathwayView).
+ *
+ * It has no `PatientBanner` (the owner's decision, 18 November 2026): the patient's name, date of birth and NHS number
+ * are at the top of Details (`PathwayPatient`), which never folds and is always first, so the patient is the first
+ * thing on the page (hazards H-01 and H-02). The patient's flags stay in the page's message.
  *
  * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive), as
  * their roles allow (WorkPathways: the API's flags say so); holders of AssignPathways also assign and unassign
@@ -162,8 +167,8 @@ export interface PathwayPageProps {
 export interface PathwayViewProps {
   id: string;
   /**
-   * A narrow window: one card of three folding sections (Details, Current stage, Stages) instead of two cards
-   * (Details and Current stage beside Stages).
+   * A narrow window: one card (Details, Current stage, Stages, then the rest) instead of two (Details and Current
+   * stage beside the rest).
    */
   isNarrow: boolean;
 }
@@ -205,10 +210,10 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const [isCheckAnswered, setIsCheckAnswered] = useState(false);
   const [toAssign, setToAssign] = useState<string[]>([]);
   // What's open and folded is held here, so it carries over when the window switches between one card and two.
-  // The defaults apply once, when the page loads: Details (with Patient info) and the Current stage open, Stages
-  // folded, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when clicked.
+  // The defaults apply once, when the page loads: Patient info and the Current stage open, Stages folded into their
+  // progress bar, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when
+  // clicked. Details itself never folds.
   const [open, setOpen] = useState(() => ({
-    details: true,
     referralWait: true,
     notes: true,
     mdt: true,
@@ -425,7 +430,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       isLoading={isPending}
       loadingMessage="Loading pathway..."
       fill={pathway !== undefined}
-      banner={pathway?.patient && <PatientBanner patient={pathway.patient} />}
+      // No banner: the patient is at the top of Details, which never folds (see PathwayPage).
       message={
         isMissing ? (
           <AlertMessage message="Pathway not found. It may have been deleted." />
@@ -691,12 +696,13 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     </Page>
   );
 
-  /** Status and progress, then parts that fold: Patient info, Appointments and Assigned staff. */
+  /** Who the patient is and the status, then Patient info (the pathway's template and dates), which folds. */
   function details(pathway: Pathway) {
     return (
       <>
         <Section variant="transparent" padding={6}>
           <VStack gap={4}>
+            <PathwayPatient patientId={pathway.patientId ?? ''} patient={pathway.patient} patientName={pathway.patientName} />
             <HStack gap={2} vAlign="center">
             <StatusToken status={pathway.status ?? ''} />
             <PriorityToken priority={pathway.priority ?? ''} />
@@ -706,14 +712,6 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               </Text>
             )}
           </HStack>
-          {/* Skipped stages count as done, and say how many were skipped. */}
-          <ProgressBar
-            label="Stages finished"
-            value={(pathway.completedStageCount ?? 0) + (pathway.skippedStageCount ?? 0)}
-            max={Math.max(pathway.stageCount ?? 0, 1)}
-            hasValueLabel
-            formatValueLabel={() => progressWords(pathway)}
-          />
           {/* Accepted from a referral: a link back to it (only the pathway's own read says so). */}
           {pathway.referral?.id && (
             <Text type="body">
@@ -726,9 +724,6 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         </Section>
         <DetailPart title="Patient info" isOpen={open.patientInfo} onToggle={() => toggle('patientInfo')}>
           <ViewSection>
-            <MetadataListItem label="Patient">
-              <Link href={`/patients/${pathway.patientId}`}>{pathway.patientName}</Link>
-            </MetadataListItem>
             <MetadataListItem label="Template">{pathway.templateName || '—'}</MetadataListItem>
             <MetadataListItem label="Target date">
               <DueDateCell dueDate={pathway.dueDate ?? ''} isOverdue={pathway.isOverdue ?? false} />
@@ -736,38 +731,6 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             <MetadataListItem label="Created">{formatDateTime(pathway.createdAt ?? '')}</MetadataListItem>
             <MetadataListItem label="Last updated">{formatDateTime(pathway.lastUpdated ?? '')}</MetadataListItem>
           </ViewSection>
-        </DetailPart>
-        <DetailPart title="Appointments" isOpen={open.appointments} onToggle={() => toggle('appointments')}>
-          {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
-          <VStack gap={3}>
-            {appointmentsList(pathway)}
-            {canBook && !CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
-              <HStack>
-                <Button
-                  label="Book Appointment"
-                  variant="secondary"
-                  icon={<Icon icon={AppIcon.Book} />}
-                  onClick={() => {
-                    setActionError(null);
-                    setBooking({});
-                  }}
-                  isDisabled={isBusy}
-                />
-              </HStack>
-            )}
-          </VStack>
-        </DetailPart>
-        <DetailPart title="Assigned staff" isOpen={open.assignedStaff} onToggle={() => toggle('assignedStaff')}>
-          <AssigneeList
-            isTitled={false}
-            assignments={pathway.assignments ?? []}
-            canManage={canAssign(pathway)}
-            isBusy={isBusy}
-            onUnassign={(a) => {
-              setActionError(null);
-              setDialog({kind: 'unassign', userId: a.userId ?? '', username: a.username ?? ''});
-            }}
-          />
         </DetailPart>
       </>
     );
@@ -856,18 +819,18 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /** The stage being worked on, with its notes box and actions. */
-  function currentStageBody(pathway: Pathway) {
+  function currentStageBody(pathway: Pathway, stage: PathwayStage) {
     return (
       <Section variant="transparent" padding={6}>
         <CurrentStage
           pathway={pathway}
           canWork={canWork}
-          stage={currentStage}
-          work={currentStage && workFor(currentStage, true)}
-          files={currentStage && filesFor(currentStage)}
+          stage={stage}
+          work={workFor(stage, true)}
+          files={filesFor(stage)}
           instructions={instructions}
           // Its Visit part says where the visit stands while it's worked on; otherwise the title does.
-          visit={currentStage && !currentStage.canEdit && <StageVisitTokens stage={currentStage} appointments={appointments} />}
+          visit={!stage.canEdit && <StageVisitTokens stage={stage} appointments={appointments} />}
         />
       </Section>
     );
@@ -893,8 +856,38 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     );
   }
 
+  /** Details never fold: the patient at their top is the page's wrong-patient control (see PathwayPage). */
   function detailsSection(pathway: Pathway): FoldingSection {
-    return {key: 'details', title: 'Details', isOpen: open.details, onToggle: () => toggle('details'), children: details(pathway)};
+    return {key: 'details', title: 'Details', isOpen: true, canFold: false, onToggle: () => {}, children: details(pathway)};
+  }
+
+  /**
+   * Every stage, folded into its bar, which shows how far through them the pathway is (skipped stages count as done,
+   * and say how many were skipped); clicking it opens the list.
+   */
+  function stagesSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'stages',
+      title: 'Stages',
+      summary: (
+        <HStack gap={3} vAlign="center">
+          <StackItem size="fill">
+            <ProgressBar
+              label="Stages finished"
+              isLabelHidden
+              value={(pathway.completedStageCount ?? 0) + (pathway.skippedStageCount ?? 0)}
+              max={Math.max(pathway.stageCount ?? 0, 1)}
+            />
+          </StackItem>
+          <Text type="body" color="secondary">
+            {progressWords(pathway)}
+          </Text>
+        </HStack>
+      ),
+      isOpen: open.stages,
+      onToggle: () => toggle('stages'),
+      children: stageList(pathway),
+    };
   }
 
   /**
@@ -948,13 +941,14 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
-  function currentStageSection(pathway: Pathway): FoldingSection {
+  /** The current stage's section; a pathway with none (every stage finished or skipped) has no such section. */
+  function currentStageSection(pathway: Pathway, stage: PathwayStage): FoldingSection {
     return {
       key: 'currentStage',
       title: 'Current stage',
       isOpen: open.currentStage,
       onToggle: () => toggle('currentStage'),
-      children: currentStageBody(pathway),
+      children: currentStageBody(pathway, stage),
     };
   }
 
@@ -1060,41 +1054,101 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage, Specimens,
-   * Results and Files, each folding and sharing the left card, and all the stages on the right.
+   * Every appointment for the pathway, and Book Appointment (booking sits with them, not in the footer, which has no
+   * room for another button).
+   */
+  function appointmentsSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'appointments',
+      title: 'Appointments',
+      isOpen: open.appointments,
+      onToggle: () => toggle('appointments'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <VStack gap={3}>
+            {appointmentsList(pathway)}
+            {canBook && !CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
+              <HStack>
+                <Button
+                  label="Book Appointment"
+                  variant="secondary"
+                  icon={<Icon icon={AppIcon.Book} />}
+                  onClick={() => {
+                    setActionError(null);
+                    setBooking({});
+                  }}
+                  isDisabled={isBusy}
+                />
+              </HStack>
+            )}
+          </VStack>
+        </Section>
+      ),
+    };
+  }
+
+  /** Who is assigned, each with Unassign for holders of AssignPathways. */
+  function assignedStaffSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'assignedStaff',
+      title: 'Assigned staff',
+      isOpen: open.assignedStaff,
+      onToggle: () => toggle('assignedStaff'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <AssigneeList
+            isTitled={false}
+            assignments={pathway.assignments ?? []}
+            canManage={canAssign(pathway)}
+            isBusy={isBusy}
+            onUnassign={(a) => {
+              setActionError(null);
+              setDialog({kind: 'unassign', userId: a.userId ?? '', username: a.username ?? ''});
+            }}
+          />
+        </Section>
+      ),
+    };
+  }
+
+  /** Everything after Details, the Current stage and Stages, in its order. */
+  function otherSections(pathway: Pathway): FoldingSection[] {
+    return [
+      appointmentsSection(pathway),
+      assignedStaffSection(pathway),
+      ...referralWaitSection(pathway),
+      notesSection(pathway),
+      mdtSection(pathway),
+      specimensSection(pathway),
+      resultsSection(pathway),
+      consentSection(pathway),
+      filesSection(pathway),
+      lettersSection(pathway),
+    ];
+  }
+
+  /**
+   * Two cards side by side: Details and the Current stage on the left, so the current stage starts on the first
+   * screen, and on the right Stages (folded into their progress bar), Appointments, Assigned staff, Referral and wait
+   * (from a referral only), Notes, MDT, Specimens, Results, Consent, Files and Letters. With no current stage (every stage finished or skipped), Stages takes its place on the left.
    */
   function wideLayout(pathway: Pathway) {
     return (
       <TwoColumns
         start={
           <FoldingCard
-            sections={[
-              detailsSection(pathway),
-              ...referralWaitSection(pathway),
-              notesSection(pathway),
-              mdtSection(pathway),
-              currentStageSection(pathway),
-              specimensSection(pathway),
-              resultsSection(pathway),
-              consentSection(pathway),
-              filesSection(pathway),
-              lettersSection(pathway),
-            ]}
+            sections={[detailsSection(pathway), currentStage ? currentStageSection(pathway, currentStage) : stagesSection(pathway)]}
             footerActions={footer(pathway)}
           />
         }
-        end={
-          <PanelCard title="Stages" isBodyPadded={false}>
-            {stageList(pathway)}
-          </PanelCard>
-        }
+        end={<FoldingCard sections={[...(currentStage ? [stagesSection(pathway)] : []), ...otherSections(pathway)]} />}
       />
     );
   }
 
   /**
-   * One card of folding sections: Details, Referral and wait (from a referral only), Notes, Current stage, Specimens,
-   * Results, Files and Stages, scrolling together; the page never does. View Patient stays in the footer.
+   * One card of sections, in the wide layout's order: Details, the Current stage (when there is one), Stages, then
+   * the rest, scrolling together; the page never does. View Patient stays in the footer.
    */
   function narrowLayout(pathway: Pathway) {
     return (
@@ -1102,16 +1156,9 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         footerActions={footer(pathway)}
         sections={[
           detailsSection(pathway),
-          ...referralWaitSection(pathway),
-          notesSection(pathway),
-          mdtSection(pathway),
-          currentStageSection(pathway),
-          specimensSection(pathway),
-          resultsSection(pathway),
-          consentSection(pathway),
-          filesSection(pathway),
-          lettersSection(pathway),
-          {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},
+          ...(currentStage ? [currentStageSection(pathway, currentStage)] : []),
+          stagesSection(pathway),
+          ...otherSections(pathway),
         ]}
       />
     );
@@ -1141,14 +1188,14 @@ function DetailPart({title, isOpen, onToggle, children}: {title: string; isOpen:
 }
 
 /**
- * The stage being worked on, in full, with its notes box and actions (`work`); or a note that every stage is
- * finished. Says why when the pathway's status, or the person's roles (`canWork`), stop work on it.
+ * The stage being worked on, in full, with its notes box and actions (`work`). Says why when the pathway's status,
+ * or the person's roles (`canWork`), stop work on it.
  */
 interface CurrentStageProps {
   pathway: Pathway;
   /** The person's roles grant WorkPathways. */
   canWork: boolean;
-  stage: PathwayStage | undefined;
+  stage: PathwayStage;
   work: ReactNode;
   /** The stage's files, under its notes. */
   files: ReactNode;
@@ -1159,24 +1206,16 @@ interface CurrentStageProps {
 
 function CurrentStage({pathway, canWork, stage, work, files, instructions, visit}: CurrentStageProps) {
   return (
-    <VStack gap={4}>
-      {stage ? (
-        <VStack gap={3}>
-          <StageTitle stage={stage} extra={visit} />
-          {!pathway.canWorkOnStages && (
-            <Text type="body" color="secondary">
-              {canWork
-                ? `Stages can't be worked on while the pathway is ${statusLabel(pathway.status ?? '').toLowerCase()}.`
-                : "Your roles don't allow working on pathways, so this is read only."}
-            </Text>
-          )}
-          <StageDetails stage={stage} work={work} files={files} instructions={instructions} />
-        </VStack>
-      ) : (
+    <VStack gap={3}>
+      <StageTitle stage={stage} extra={visit} />
+      {!pathway.canWorkOnStages && (
         <Text type="body" color="secondary">
-          {`${allDoneWords(pathway)}.`}
+          {canWork
+            ? `Stages can't be worked on while the pathway is ${statusLabel(pathway.status ?? '').toLowerCase()}.`
+            : "Your roles don't allow working on pathways, so this is read only."}
         </Text>
       )}
+      <StageDetails stage={stage} work={work} files={files} instructions={instructions} />
     </VStack>
   );
 }
