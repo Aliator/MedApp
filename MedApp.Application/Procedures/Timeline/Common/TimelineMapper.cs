@@ -176,6 +176,18 @@ public static class TimelineMapper
                 response.FromStatus = Text(details, "previousStatus");
                 break;
 
+            case AppointmentEventAction.RecordedAfterEvent:
+                // The outcome, and Requested when it was a stage's visit in Requires Appointment: structured values.
+                response.FromStatus = Text(details, "previousStatus");
+                response.ToStatus = Text(details, "outcome");
+                break;
+
+            case AppointmentEventAction.EnteredInError:
+                // The outcome it had is structured; why it was withdrawn is free text, for admins only.
+                response.FromStatus = Text(details, "previousStatus");
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
             case AppointmentEventAction.Cancelled:
                 response.Reason = isAdmin ? Text(details, "reason") : null;
                 break;

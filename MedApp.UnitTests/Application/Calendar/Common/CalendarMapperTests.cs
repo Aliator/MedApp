@@ -19,7 +19,7 @@ public sealed class CalendarMapperTests
         var sameTimeLowerId = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 9, 30), id: Guid.Parse("0000000d-0000-0000-0000-000000000000"));
         var data = CreateData(NextMonday) with { Meetings = [later, sameTimeHigherId, sameTimeLowerId] };
 
-        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now, isAdmin: true);
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now, AdminActor);
 
         response.Meetings.Select(m => m.Id).Should().Equal(sameTimeLowerId.Id, sameTimeHigherId.Id, later.Id);
         response.Meetings[0].Attendees.Select(a => a.Username).Should().Equal(OtherStaffUsername, StaffUsername);
@@ -36,27 +36,46 @@ public sealed class CalendarMapperTests
         };
 
         // canEdit is about the person's own calendar: their blocks, not meetings.
-        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now, isAdmin);
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now, isAdmin ? AdminActor : StaffActor);
 
         response.Meetings.Single().CanEdit.Should().Be(isAdmin);
     }
 
     [Test]
-    public void ToResponse_IsAdminLeftOut_MeetingsCantBeChanged()
+    public void ToResponse_ViewerLeftOut_MeetingsCantBeChangedOrRepliedTo()
     {
         var data = CreateData(NextMonday) with
         {
             Meetings = [MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10))]
         };
 
-        CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now)
-            .Meetings.Single().CanEdit.Should().BeFalse();
+        var meeting = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now).Meetings.Single();
+
+        meeting.CanEdit.Should().BeFalse();
+        meeting.CanReply.Should().BeFalse();
+        meeting.MyReply.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_Meetings_CarryEveryonesReplyAndTheViewersOwn()
+    {
+        var meeting = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        meeting.Attendees.Single(a => a.StaffUserId == OtherStaffUserId).Reply = MeetingReply.Declined;
+        var data = CreateData(NextMonday) with { StaffUserId = OtherStaffUserId, Meetings = [meeting] };
+
+        var response = CalendarMapper.ToResponse(data, OtherStaffUsername, null, canEdit: false, Today, MeetingsTestConstants.Usernames, Now, StaffActor)
+            .Meetings.Single();
+
+        // Still on the decliner's calendar (faded there by the web app), with everyone's reply.
+        response.Attendees.Select(a => (a.Username, a.Reply)).Should().Equal((OtherStaffUsername, "Declined"), (StaffUsername, "NoReply"));
+        response.MyReply.Should().Be("NoReply");
+        response.CanReply.Should().BeTrue();
     }
 
     [Test]
     public void ToResponse_NoMeetings_HasNone()
     {
-        CalendarMapper.ToResponse(CreateData(NextMonday), StaffUsername, null, canEdit: true, Today, Usernames, Now, isAdmin: true)
+        CalendarMapper.ToResponse(CreateData(NextMonday), StaffUsername, null, canEdit: true, Today, Usernames, Now, AdminActor)
             .Meetings.Should().BeEmpty();
     }
 
@@ -425,5 +444,42 @@ public sealed class CalendarMapperTests
         response.WeekTemplateId.Should().BeNull();
         response.WeekTemplateName.Should().BeNull();
         response.Since.Should().BeNull();
+    }
+
+    // Closed days and what's on them
+
+    [Test]
+    public void ToResponse_ClosedDay_IsNotWorkingAndNamed_AndWhatsOnItStillShows()
+    {
+        var booked = CreateAppointment(AppointmentStatus.Booked, At(ClosedWednesday, 10));
+        var block = CreateBlock(At(ClosedWednesday, 12), At(ClosedWednesday, 13));
+        var meeting = MeetingsTestConstants.NewMeeting(At(ClosedWednesday, 14), At(ClosedWednesday, 15));
+        var data = CreateData(NextMonday, NextFriday, [CreateTemplateBlock(16, 17)], blocks: [block], appointments: [booked])
+            with { Meetings = [meeting], ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now);
+
+        var day = response.Days.Single(d => d.Date == ClosedWednesday);
+        day.IsWorkingDay.Should().BeFalse();
+        day.ClosedDayName.Should().Be(ClosedDayName);
+        response.Days.Where(d => d.Date != ClosedWednesday).Should().OnlyContain(d => d.ClosedDayName == null);
+        response.Appointments.Should().ContainSingle(a => a.Id == booked.Id);
+        response.Blocks.Should().ContainSingle(b => b.BlockId == block.Id);
+        response.Blocks.Should().NotContain(b => b.IsFromTemplate && b.Date == ClosedWednesday);
+        response.Meetings.Should().ContainSingle(m => m.Id == meeting.Id);
+    }
+
+    [Test]
+    public void ToResponse_MeetingAnAppointmentOverlaps_IsFlagged()
+    {
+        var walkIn = CreateAppointment(AppointmentStatus.Attended, At(NextMonday, 9, 30));
+        var overlapped = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10), id: MeetingsTestConstants.MeetingId);
+        var clear = MeetingsTestConstants.NewMeeting(At(NextMonday, 11), At(NextMonday, 12), id: MeetingsTestConstants.OtherMeetingId);
+        var data = CreateData(NextMonday, appointments: [walkIn]) with { Meetings = [overlapped, clear] };
+
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now);
+
+        response.Meetings.Select(m => (m.Id, m.OverlapsAppointment))
+            .Should().Equal((MeetingsTestConstants.MeetingId, true), (MeetingsTestConstants.OtherMeetingId, false));
     }
 }

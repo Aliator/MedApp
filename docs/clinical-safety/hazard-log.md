@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting procedure notes (`feature/note-deletion`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting procedure notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -71,6 +71,7 @@
 | [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 | [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-procedure) | A note from the notepad is added to the wrong patient's procedure | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
 | [H-38](#h-38-a-procedures-note-is-deleted-wrongly) | A procedure's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
+| [H-39](#h-39-a-visit-is-recorded-after-the-event-that-didnt-happen-or-on-the-wrong-patient) | A visit is recorded after the event that didn't happen, or on the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built (the patient shown, the 30-day limit, who recorded it)** | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -85,6 +86,8 @@
 **The notepad and several notes per procedure (H-37)** is a draft for the CSO too, written with the feature (branch `feature/procedure-notes`), with a draft estimate in the same way: 3 to start, 2 with its confirmation, which is built.
 
 **Deleting procedure notes (H-38)** is a draft for the CSO, written with the feature (branch `feature/note-deletion`): admins delete notes (soft, with a reason), and staff ask them to. Draft estimate: 2 to start, as its controls (admins only, a reason, a confirmation showing the patient and the note, the note kept and recoverable) are built with it.
+
+**Closed days and appointments recorded after the event (H-39)** (branch `feature/closed-days-walk-ins`): a new draft hazard, H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), estimated at 3 to start and 2 with its built controls; and closed days' and walk-ins' effect on H-31 to H-35's causes and controls. No earlier draft estimate changed.
 
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
@@ -1195,6 +1198,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **A later template change** (an admin moves everyone's lunch, or applies a day template with leave to a day) lands on appointments already booked. MedApp allows that, and shows both (decision 6).
 - **A page left open** shows slots that have since been taken (H-16).
 - **Appointments kept elsewhere** (a paper diary, another system), so MedApp's calendar isn't the whole picture.
+- **An appointment recorded after the event** (a walk-in, decision 74) may overlap blocked time or a meeting, because what happened, happened; it can't overlap another appointment.
 
 **Effect.** One patient is seen late, or not at all, or the member of staff isn't where the calendar says.
 
@@ -1204,7 +1208,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The server refuses any overlap:** a new or moved appointment or block that overlaps a Booked, Attended or Did not attend appointment, or a block (stored or from a template), on that person's calendar is a 409 that names the clash (decision 6; `CalendarClashes`). The UI only offers free slots (decisions 6 and 30).
 - **Racing bookings are serialised** by a database lock per member of staff (`ICalendarLock`, SQL Server's `sp_getapplock`), so one wins and the other gets the 409 (decision 6). An integration test books the same slot twice at once (plan, section 7).
 - **Two changes to one appointment can't both win:** an appointment has a row version, so the later of two overlapping saves is a 409, and a booking says whether it's booking a Requested appointment or moving a Booked one, refused (409) if someone else got there first (decision 46). An integration test books one Requested appointment twice at once, with two different members of staff: one succeeds, one gets the 409, and only one is told.
-- **Overlaps from template changes are shown, not hidden:** both appear, the appointment on top, and the block is flagged as overlapping; nothing is moved or removed by the app (decision 6).
+- **Overlaps from template changes are shown, not hidden:** both appear, the appointment on top, and the block is flagged as overlapping; nothing is moved or removed by the app (decision 6). A walk-in over blocked time or a meeting is flagged the same way (decision 76).
+- **A walk-in can't overlap another appointment:** recording one over a Booked, Attended or Did not attend appointment of that member of staff is a 409 naming it, under the same calendar lock (decision 76).
 - **Past days don't change** (decision 8).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
@@ -1232,6 +1237,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each procedure when it's created (decision 22), so a correction doesn't reach procedures already under way (as H-14).
 - **Finishing again after an unlock** doesn't ask for a visit again (decision 26).
 - **An Attended appointment linked to the stage counts,** however long before the stage it was.
+- **An appointment recorded after the event as Attended counts too** (decision 77), so recording one in error, or on the wrong stage, lets a Required stage be finished: H-39.
 
 **Effect.** The record says the stage is done, and the procedure moves on, although the visit it depends on didn't happen.
 
@@ -1272,6 +1278,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **"Today" on the server:** server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (H-12's residual note). Home's day calendar or the Calendar page could open on the wrong day for that hour.
 - **The wrong day or slot picked** in the booking dialog, or the wrong week open in the week view.
 - **A reschedule** that moves the appointment, when the patient was told the old time (H-36).
+- **A closed day that's wrong:** a bank holiday worked out wrongly, a one-off change (a coronation, a moved spring bank holiday) not added by hand, or a day closed by mistake, so a day the clinic is open can't be booked, or a closed one can. Bank holidays are England and Wales's only (decision 73).
 - **A stale "book" that moves someone else's booking** (found in the review of PR #93): someone books a Requires Appointment appointment and tells the patient; a colleague whose list is out of date books it too, and the second request quietly moved it to their time, with nobody told.
 
 **Effect.** The patient and the member of staff turn up at different times, or the patient is told the wrong time.
@@ -1282,7 +1289,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Times are stored and sent as UTC with a `Z`** (`UtcDateTimeConverter`, from PR #62), and the web app shows them in UK time (decision 3).
 - **One place for UK time:** `UkTime` turns UK dates and clock times into UTC, and template times are turned into UTC for each date, so a 12:00 lunch is at 12:00 UK time on both sides of a clock change (decision 3).
 - **The browser does no time zone arithmetic:** the calendar response gives each day's working start and end in UTC, and the browser steps through slots from them (decision 3). A UK working day never spans a clock change.
-- **The server checks every time:** inside the working day, on a weekday, on a 5-minute boundary, start before end, and not in the past for a booking (decisions 2 and 17).
+- **The server checks every time:** inside the working day, on a weekday that isn't a closed day, on a 5-minute boundary, start before end, and not in the past for a booking (decisions 2, 17 and 72), from one rule every command uses (`WorkingDays`). A walk-in must have started, within the last 30 days (decision 74).
+- **Bank holidays are worked out from gov.uk's rules,** tested against the dates gov.uk published for 2025 to 2028, substitute days included, and added only when an admin asks; the list is on an admin page, by year, where a wrong day can be removed (decision 73).
 - **Tests:** `CalendarProjection` across a clock change, in unit and integration tests (plan, section 7).
 - **Messages say the day and time in words** ("Monday 23 November at 10:00", `UkTime`).
 - **A booking says what it expects** (`expectedStatus`): booking an appointment someone else has already booked is a 409 ("Someone else has already booked this appointment"), not a move; moving one needs the caller to have seen it Booked (decision 46).
@@ -1325,7 +1333,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Further controls:**
 - **Show the date of birth beside the patient's name** in the booking dialog's patient picker, in the confirmation, and on the appointment's dialog. Protective; **proposed**; before first live use.
-- **The patient's details in the booking and appointment dialogs,** as H-01's patient banner shows them: once a patient is chosen, the dialog shows their name, date of birth and NHS number. Protective; **built** (with the patient banner from PR #69); to be verified by the CSO before first live use.
+- **The patient's details in the booking and appointment dialogs,** as H-01's patient banner shows them: once a patient is chosen, the dialog shows their name, date of birth and NHS number. Protective; **built** (with the patient banner from PR #69); to be verified by the CSO before first live use. The dialog for recording an appointment after the event shows them the same way (H-39).
 - **A duplicate check on name and date of birth, and tracing NHS numbers with PDS** (H-01). Design; **planned** (step 9); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
@@ -1343,6 +1351,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Causes:**
 - **Leave or training added by a template change** (a week template edit, or a day's template applied) over appointments already booked. It's allowed, and both show, flagged (decision 6), but nothing moves the appointments or tells the patient.
 - **Absence that isn't in MedApp:** sickness, or leave recorded only in another system.
+- **A day closes after appointments are booked on it** (a bank holiday or training day added late): they stay, as nothing is ever moved or cancelled by the app (decision 75), but the clinic may not be open for them.
 - **A member of staff loses their role:** the staff picker lists everyone with a role (`GET api/calendar/staff`), so their calendar would drop out of the picker and become a 404, with their appointments on it. Now refused while they have upcoming Booked appointments (below).
 
 **Effect.** The patient arrives and nobody is there to see them, or the appointment silently doesn't happen.
@@ -1353,6 +1362,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **An account with upcoming Booked appointments can't be deleted** until they're moved or cancelled (decision 21), **nor lose every role** (decision 48): both are refused with the same `HasUpcomingAppointments` error, from one check (`WhyCantStopBeingStaffAsync`).
 - **A new block can't overlap an appointment** (decision 6), so leave added as a block forces the appointments to be moved or cancelled first.
 - **Overlaps from template changes are shown, not hidden,** with the appointment on top and the block flagged (decision 6).
+- **Appointments on a day that later closed are shown, flagged** on the Calendar page's grid: the day reads "Closed: Christmas Day" (in the team view's "Everyone free" column too) and each item on it says it's on a closed day (decision 75). Nothing new can be booked there. Lists, the procedure page and Home's day don't mark them.
+- **Closing a day says what's already on it, and tells those staff:** the Add Closed Day dialog (and the bank holidays result) shows how many appointments, blocks and meetings are on the day and whose, before saving, and each member of staff with something on it gets a "Day closed" notification naming the day and what they have then, asking them to move or cancel what's still to come and tell the patients (decision 75). Protective; **built** (after the review of #119).
 - **The member of staff is notified** when someone else books an appointment with them, moves one to them or away from them, or cancels one (decision 20), and sees their day's appointments on Home (decision 32).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
@@ -1485,6 +1496,49 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
+## H-39: A visit is recorded after the event that didn't happen, or on the wrong patient
+
+**Description.** Staff record an appointment after the event (a walk-in, or one booked outside MedApp, decision 74), and it's wrong: the patient wasn't seen, or it's recorded on a different patient, procedure or stage, or with the wrong outcome.
+
+**Causes:**
+- **No booking came before it,** so nothing in MedApp shows the visit was expected: it's only as good as the memory or paper it's recorded from.
+- **The patient is chosen by name** in the dialog (opened from the Calendar page's New menu), with the same identification limits as H-01 and H-34.
+- **Recording one for a stage's visit in Requires Appointment** turns that visit into the recorded one (decision 77); an Attended one then satisfies a Required stage (H-32), so the stage can be finished as though the patient had been seen.
+- **Recorded days later,** the details (the time, the member of staff, whether they came) are easier to get wrong.
+- **A visit from before the day the procedure was created, or for a stage not yet reached,** would satisfy that stage: refused (409), so it's recorded without the procedure or for the right stage (decision 74). A visit earlier on the day the procedure was created is allowed, as the procedure is often created after the clinician has seen the patient.
+- **Races:** a visit booked for the stage at the same moment as the walk-in (re-checked under the calendar lock, but another person's booking takes their own lock), or the stage becoming current at that moment (a needless Requested visit appears beside the walk-in). Each window is milliseconds and loses nothing; documented in the plan (decision 76).
+
+**Effect.** The record says a patient was seen when they weren't, or another patient's record says so. A Required stage can be finished on the strength of it, and the patient who needed the visit isn't followed up (H-30).
+
+**Possible harm.** A procedure goes ahead without the visit it needed, or care is missed for the patient actually seen, or a disclosure on the wrong record. One patient; Major in the worst credible case, as H-32.
+
+**Existing controls** (built on `feature/closed-days-walk-ins`):
+- **The patient as the patient banner shows them** (`SURNAME, Forename`, date of birth and age, NHS number) in the dialog once chosen, as for booking (H-34). From a stage's visit, the patient, procedure and stage are filled in and can't be changed. Protective; **built**.
+- **The dialog says it's for an appointment that has already happened, and that it's recorded with your name;** the outcome has no default, so Attended or Did not attend is a choice. Protective; **built**.
+- **Only within 30 days, and only once it has started,** on a weekday, inside the working day: the server refuses anything else (400, decision 74). A closed day is allowed, as what happened, happened (a day closed part-way through, or later), and the visit shows flagged on it. Protective; **built**.
+- **Who recorded it, and when,** is in the appointment's history (`RecordedAfterEvent`), on the patient's timeline and on the appointment ("Recorded after the event by …"); the member of staff it's with is notified when someone else recorded it. Detective; **built**.
+- **A stage's visit already Booked can't be bypassed** by recording another: that's a 409 saying to record the booked one's outcome, or cancel it (decision 77). Protective; **built**.
+- **The restriction guard** applies as for any appointment change: a restricted or anonymised record can't gain one (409). Protective; **built**.
+- **The outcome can be corrected** (Attended to Did not attend and back) as for any appointment. Corrective; **built**.
+- **A wrong walk-in can be withdrawn as entered in error** (it didn't happen, or it's on the wrong patient), with a reason, by whoever recorded it within 30 days of it, or by an admin at any time: it leaves the calendar, stops counting as a stage's visit, and stays in the history with the reason (admins see it); if it was a stage's visit, the stage's visit goes back to Requires Appointment when the stage would ask for one (not on a restricted record, which can't gain appointments), or the person is told why not. Corrective; **built** (after the review of #119; admins at any time after its follow-up review).
+- **A finished stage left without its visit is told to the people who can act on it:** when the walk-in withdrawn was the only attended visit of a finished stage that requires one, the procedure's assignees and every admin (not whoever withdrew it) get a "Stage visit withdrawn" notification linked to the procedure, saying which stage and that an admin can unlock it and book the visit, as finishing it again after an unlock doesn't ask for the visit. Without it, only the person withdrawing it was told, in a dialog they could close. Detective; **built** (after the follow-up review of #119). It relies on someone reading the notification: it doesn't mark the stage on the procedure page, which is a further control to consider.
+- **The visit's own notes are kept** when a walk-in takes over a stage's waiting visit; the walk-in's notes are added after them, and the dialog shows them first. Protective; **built**.
+- **Transferred:** positive patient identification, and recording visits as they happen.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3** (without the controls).
+
+**Further controls:**
+- **A list of appointments recorded after the event,** for admins, reviewed on a set schedule, beside the stages finished without a visit (H-32). Protective; **proposed**; before first live use.
+- **Ask for the patient's details to be confirmed** (date of birth) before saving a walk-in for a Required stage. Protective; **proposed**; later.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -1518,3 +1572,4 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.13 | 18 November 2026 | Shorter record banners (branch `feature/warning-banners`): the restricted, disputed and anonymised banners show a label on screen ("Restricted record: changes paused", "Disputed record: <what's disputed>" when it's short, "Anonymised record"), with the whole message over the page on hover, keyboard focus, a click or a tap; screen readers get it as the label's description, and as an alert when it appears. **A change to H-22's control for the CSO to accept:** "Everyone sees why" now means the label on screen and the reason, and what can still be done, on demand (renamed "Everyone sees that the record is restricted, and why on demand"). After the review of #114, the label is also on Edit Procedure and New Procedure, Edit Procedure gives the restriction as its reason, and the booking dialog shows its own refusal again. H-03's disputed banner reworded to match (what's disputed may now be on demand). No rating changed | AI coding agent, for review |
 | 0.14 | 18 November 2026 | Deleting procedure notes (branch `feature/note-deletion`): new draft hazard H-38 (a note deleted wrongly), with its controls (admins only, a reason, a confirmation showing the patient, the procedure and the note, the note kept and in the export and the admins' timeline, the requester told, restricted and anonymised records refused); H-37's "entered in error" further control is now built as admin deletion, and its cause updated. After the review of #115: a new cause (the note edited after the admin read it) with its control (only the version read is deleted), the reason a fixed choice, the author told, and the patient in the direct delete's confirmation. Ratings left for the CSO | AI coding agent, for review |
 | 0.15 | 18 November 2026 | Two-factor codes by email (branch `feature/email-2fa-codes`, after its review): an emailed code that doesn't arrive added to H-10's causes for the CSO, with its controls (codes' own share of the email allowance, no promise of a code that can't be sent, resending, recovery codes and the app) | AI coding agent, for review |
+| 0.16 | 18 November 2026 | Closed days and appointments recorded after the event (branch `feature/closed-days-walk-ins`): new draft hazard H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), with its built controls; closed days and walk-ins added to H-31 (a walk-in may overlap blocked time or a meeting, flagged; never another appointment), H-32 (an Attended walk-in counts as the visit), H-33 (a closed day that's wrong; the working day rule now includes closed days; bank holidays tested against gov.uk), H-34 (the walk-in dialog shows the patient) and H-35 (a day closed after appointments were booked on it: they stay, flagged; listing them when a day closes proposed). No draft estimate changed. Still a draft, not an issued version After the review of #119: H-39 gets entered in error as a corrective control (a wrong walk-in withdrawn with a reason, its stage's visit asked for again), walk-ins on a closed day allowed, the procedure and stage checks, the visit's notes kept, and the races named; H-35's control for a day closed with bookings made true (what's on it shown before closing, and those staff told). No draft estimate changed. After its follow-up review: H-39's entered in error by admins at any time, no visit asked for again on a restricted record, and a new detective control (a finished stage's only visit withdrawn is told to the procedure's assignees and the admins); a visit earlier on the day its procedure was created is allowed. No draft estimate changed | AI coding agent, for review |

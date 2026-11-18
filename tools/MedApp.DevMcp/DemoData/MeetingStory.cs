@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Meetings.Commands.CreateMeeting;
+using MedApp.Application.Calendar.Meetings.Commands.ReplyToMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
@@ -10,15 +11,17 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// One meeting's history, replayed through the app's own meeting steps in memory: each version checked by the
 /// commands' validators (<see cref="CreateMeetingValidator"/>, <see cref="UpdateMeetingValidator"/>: the working
-/// day's rules, the title, notes and attendees), the past-day guard (<see cref="CalendarGuards.EnsureNotPast"/>), and
+/// day's rules, bank holidays included, the title, notes and attendees), the past-day guard (<see cref="CalendarGuards.EnsureNotPast"/>), and
 /// its notifications made by <see cref="MeetingNotifications"/>, as the create, update and cancel handlers send them.
 /// Whoever changes it must be an admin then. Clashes are the caller's to check (<see cref="CalendarClashes"/>), on
-/// every attendee's calendar, as the handlers do before each step.
+/// every attendee's calendar, as the handlers do before each step. Attendees' replies go through
+/// <see cref="MeetingReplies"/>, as the reply handler records them.
 /// </summary>
 public sealed class MeetingStory
 {
-    private static readonly CreateMeetingValidator CreateValidator = new();
-    private static readonly UpdateMeetingValidator UpdateValidator = new();
+    private static readonly CreateMeetingValidator CreateValidator = new(DemoClosedDays.WorkingDays);
+    private static readonly UpdateMeetingValidator UpdateValidator = new(DemoClosedDays.WorkingDays);
+    private static readonly ReplyToMeetingValidator ReplyValidator = new();
 
     private readonly List<Notification> _notifications = [];
 
@@ -40,7 +43,7 @@ public sealed class MeetingStory
         string title, string notes, DateTime startUtc, DateTime endUtc, IReadOnlyCollection<Guid> attendees, StaffMember by, DateTime atUtc)
     {
         var actor = ActorAt(by, atUtc);
-        CreateValidator.ValidateAndThrow(new CreateMeetingCommand(title, notes, startUtc, endUtc, attendees.ToList(), actor));
+        DemoClosedDays.Validate(CreateValidator, new CreateMeetingCommand(title, notes, startUtc, endUtc, attendees.ToList(), actor));
         CalendarGuards.EnsureNotPast(UkTime.DateOf(startUtc), UkTime.DateOf(atUtc));
 
         var id = Guid.NewGuid();
@@ -69,7 +72,7 @@ public sealed class MeetingStory
         EnsureOpen(atUtc);
         var meeting = Meeting;
         var actor = ActorAt(by, atUtc);
-        UpdateValidator.ValidateAndThrow(new UpdateMeetingCommand(
+        DemoClosedDays.Validate(UpdateValidator, new UpdateMeetingCommand(
             meeting.Id, meeting.Title, meeting.Notes, startUtc, endUtc, attendees.ToList(), meeting.LastUpdated, actor));
         var today = UkTime.DateOf(atUtc);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(meeting.StartUtc), today);
@@ -77,9 +80,12 @@ public sealed class MeetingStory
 
         var before = (Attendees: meeting.Attendees.Select(a => a.StaffUserId).ToList(), meeting.StartUtc, meeting.EndUtc);
         var wanted = attendees.ToHashSet();
+        var moved = startUtc != meeting.StartUtc || endUtc != meeting.EndUtc;
         meeting.StartUtc = startUtc;
         meeting.EndUtc = endUtc;
         meeting.LastUpdated = atUtc;
+        if (moved)
+            MeetingReplies.ResetAfterMove(meeting);
         meeting.Attendees.RemoveAll(a => !wanted.Contains(a.StaffUserId));
         meeting.Attendees.AddRange(MeetingStaff.Attendees(
             meeting.Id, wanted.Where(id => meeting.Attendees.All(a => a.StaffUserId != id))));
@@ -95,6 +101,36 @@ public sealed class MeetingStory
         CalendarGuards.EnsureNotPast(UkTime.DateOf(Meeting.StartUtc), UkTime.DateOf(atUtc));
         _notifications.AddRange(MeetingNotifications.AfterCancelling(Meeting, ActorAt(by, atUtc), atUtc));
         IsCancelled = true;
+    }
+
+    /// <summary>How many replies attendees gave (<see cref="Reply"/>).</summary>
+    public int Replies { get; private set; }
+
+    /// <summary>
+    /// An attendee accepts or declines it, for themselves (<c>ReplyToMeetingHandler</c>): before it ends, while they
+    /// work here. A decline tells the organiser (unless it's theirs). Accepting after declining isn't told here: the
+    /// handler then checks the freed time is still free, which the story doesn't track.
+    /// </summary>
+    public void Reply(StaffMember by, MeetingReply reply, DateTime atUtc)
+    {
+        if (IsCancelled)
+            throw new InvalidOperationException("A cancelled meeting is deleted: it can't be replied to.");
+        if (atUtc < Meeting.LastUpdated)
+            throw new InvalidOperationException("A reply comes after the invitation, and after any move (which clears it).");
+        if (!by.WorksAt(atUtc))
+            throw new InvalidOperationException($"{by.Username} doesn't work here at {UkTime.Describe(atUtc)}.");
+
+        var actor = new CalendarActor(by.Id, by.Username, by.IsAdminAt(atUtc));
+        ReplyValidator.ValidateAndThrow(new ReplyToMeetingCommand(Meeting.Id, reply.ToString(), Meeting.StartUtc, Meeting.EndUtc, actor));
+        if (MeetingReplies.HasDeclined(Meeting, by.Id) && reply == MeetingReply.Accepted)
+            throw new InvalidOperationException("Accepting after declining needs the freed time checked, which the story doesn't do.");
+
+        var before = MeetingReplies.Reply(Meeting, by.Id, reply, Meeting.StartUtc, Meeting.EndUtc, atUtc);
+        if (reply == MeetingReply.Declined && before != MeetingReply.Declined
+            && MeetingNotifications.AfterDeclining(Meeting, actor, atUtc) is { } notification)
+            _notifications.Add(notification);
+        if (before != reply)
+            Replies++;
     }
 
     private void EnsureOpen(DateTime atUtc)

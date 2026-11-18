@@ -10,7 +10,8 @@ import {ApiError} from './errors';
  * Anyone can read any calendar; a calendar's blocks, day templates and default week are changed by its owner or an
  * admin (the response's `canEdit`). Day and week templates are each person's own: anyone reads them, their owner or an
  * admin changes them (their `canEdit`). Activity types are changed by admins. Meetings are arranged, changed and
- * cancelled by admins, and show on every attendee's calendar; admins also have the team view and suggested times.
+ * cancelled by admins, and show on every attendee's calendar; each attendee accepts or declines for themselves (a
+ * declined meeting is no longer busy time on their calendar). Admins also have the team view and suggested times.
  */
 export type Calendar = Schemas['CalendarResponse'];
 export type CalendarDay = Schemas['CalendarDayResponse'];
@@ -27,6 +28,15 @@ export type BlockInput = Schemas['UpdateCalendarBlockRequest'];
 export type Meeting = Schemas['MeetingResponse'];
 export type MeetingAttendee = Schemas['MeetingAttendeeResponse'];
 export type MeetingInput = Schemas['MeetingRequest'];
+/** An attendee's answer to a meeting: `NoReply` until they answer (and again once it moves), `Accepted` or `Declined`. */
+export type MeetingReply = 'NoReply' | 'Accepted' | 'Declined';
+
+/**
+ * Whether this person declined the meeting: then it isn't busy time on their calendar (the server's
+ * `CalendarClashes.BusyTimes`), though it still is for everyone else going.
+ */
+export const hasDeclined = (meeting: Pick<Meeting, 'attendees'>, userId: string | null | undefined) =>
+  userId !== undefined && userId !== null && (meeting.attendees ?? []).some((a) => a.userId === userId && a.reply === 'Declined');
 export type TeamCalendar = Schemas['TeamCalendarResponse'];
 export type TimeRange = Schemas['TimeRangeResponse'];
 export type Availability = Schemas['AvailabilityResponse'];
@@ -323,6 +333,31 @@ export function useMeetingActions() {
       onSuccess,
     }),
   };
+}
+
+/**
+ * The signed-in member of staff accepts or declines a meeting they're going to (its `canReply`), changing an earlier
+ * reply if they like. The API refuses someone not going (403), a cancelled meeting (404), one that has ended (409),
+ * and accepting again while something else is on their calendar then (409, naming it). It isn't a change to the
+ * meeting, so it sends no version; but it's about the time the person saw (`startUtc` and `endUtc`, sent as
+ * `expectedStartUtc` and `expectedEndUtc`), so it's a 409 if the meeting has moved since. The calendars are refreshed after it, or after a 404 or 409: a decline frees
+ * the time, and a refusal means what was shown is out of date.
+ */
+export function useMeetingReply() {
+  const onSuccess = useRefreshCalendars();
+  return useMutation({
+    mutationFn: ({id, reply, startUtc, endUtc}: {id: string; reply: Exclude<MeetingReply, 'NoReply'>; startUtc: string; endUtc: string}) =>
+      unwrap(
+        api.PUT('/api/calendar/meetings/{id}/reply', {
+          params: {path: {id}},
+          body: {reply, expectedStartUtc: startUtc, expectedEndUtc: endUtc},
+        }),
+      ),
+    onSuccess,
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 409)) void onSuccess();
+    },
+  });
 }
 
 type SetupKind = 'activity-types' | 'day-templates' | 'week-templates';

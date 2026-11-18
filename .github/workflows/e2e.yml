@@ -3,7 +3,8 @@ name: E2E tests
 # E2E_USERNAME and E2E_PASSWORD repository secrets. Those secrets don't exist yet: create them for the deployment
 # before using this (without them the run fails, never skips). The tests make their own synthetic data there and delete
 # what the app can delete (MedApp.E2ETests/README.md lists what stays). No traces are saved here: they would record the
-# real credentials. Every pull request runs the same tests against the production image itself (the e2e job in main.yml).
+# real credentials. main.yml's e2e job runs the same tests against the production image itself (on main, and on a
+# pull request labelled ci:full).
 on:
   workflow_dispatch:
     inputs:
@@ -18,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 

@@ -1,4 +1,5 @@
 using MedApp.Application.Calendar.Common;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
 
 namespace MedApp.DevMcp.DemoData;
@@ -19,6 +20,12 @@ namespace MedApp.DevMcp.DemoData;
 /// one (<see cref="Availability"/>). The admin invites those who can go: someone busy then (on leave, part-time, in
 /// another meeting) isn't invited, and someone who booked leave after it was arranged is taken off it first. People who
 /// joined after it was arranged are added. Each step sends the notifications the app would.
+/// <para>
+/// Then the attendees reply (<see cref="GatherReplies"/>), as they would have after the invitation or the last move:
+/// most past meetings accepted, a few declined and some never answered; upcoming ones a mix of accepted, declined and
+/// not yet answered. A decline tells the organiser. Declines come after everything was planned, so nothing was booked
+/// into the time they free (the schedule allocator still counts it as busy); the app would allow it.
+/// </para>
 /// </summary>
 public sealed class DemoMeetings
 {
@@ -144,6 +151,50 @@ public sealed class DemoMeetings
         CancelTheAwayDay(now);
         MoveTheNextGovernance(now);
         MoveTheNextOneToOne(now);
+        GatherReplies(now);
+    }
+
+    /// <summary>The replies' own random numbers, so the rest of the story draws exactly as it did before replies.</summary>
+    private const int RepliesSeed = 20261117;
+
+    /// <summary>
+    /// Each attendee but the organiser replies, or doesn't, some time after the invitation or the last move (in the
+    /// working day where it fits), before the meeting starts and before now, while they work here. Past meetings: four
+    /// in five accepted, one in twenty declined, the rest never answered. Upcoming: half accepted, one in ten declined,
+    /// the rest not yet answered.
+    /// </summary>
+    private void GatherReplies(DateTime now)
+    {
+        var random = new Random(RepliesSeed);
+        var replies = new List<(DateTime At, MeetingStory Story, StaffMember Member, MeetingReply Reply)>();
+
+        foreach (var story in _stories.Where(s => !s.IsCancelled))
+        {
+            var meeting = story.Meeting;
+            var isPast = meeting.StartUtc <= now;
+            var latest = isPast ? meeting.StartUtc : now;
+            foreach (var member in _staff.Where(s => meeting.Attendees.Any(a => a.StaffUserId == s.Id) && s.Id != meeting.OrganiserUserId)
+                         .OrderBy(s => s.Username, StringComparer.Ordinal))
+            {
+                var roll = random.NextDouble();
+                var after = TimeSpan.FromMinutes(random.Next(10, 3 * 24 * 60));
+                MeetingReply? reply = isPast
+                    ? roll < 0.8 ? MeetingReply.Accepted : roll < 0.85 ? MeetingReply.Declined : null
+                    : roll < 0.5 ? MeetingReply.Accepted : roll < 0.6 ? MeetingReply.Declined : null;
+                if (reply is not { } answer || latest - meeting.LastUpdated < TimeSpan.FromMinutes(5))
+                    continue;
+
+                var at = DemoTimeline.InWorkingHours(meeting.LastUpdated + after, random);
+                if (at >= latest)
+                    at = MeetingSchedule.Between(meeting.LastUpdated, latest);
+                if (member.WorksAt(at))
+                    replies.Add((at, story, member, answer));
+            }
+        }
+
+        // In the order they happened, so each meeting's notifications stay oldest first.
+        foreach (var (at, story, member, reply) in replies.OrderBy(r => r.At))
+            story.Reply(member, reply, at);
     }
 
     /// <summary>The new starter's first morning (or the next free one): with the nurse who'll mentor them, and the service manager.</summary>
@@ -262,7 +313,7 @@ public sealed class DemoMeetings
 
     private bool IsFreeForAll(MeetingStory story, IEnumerable<StaffMember> people, DateTime start, DateTime end)
     {
-        if (WorkingHours.WhyOutside(start, end) is not null)
+        if (DemoClosedDays.WhyOutside(start, end) is not null)
             return false;
         var date = UkTime.DateOf(start);
         return people.All(p => CalendarClashes.FindFirst(_calendars.DataFor(p.Id, date, date), start, end, ignoreMeetingId: story.Meeting.Id) is null);
@@ -289,7 +340,7 @@ public sealed class DemoMeetings
     {
         var days = new List<DateOnly>();
         for (var date = first; days.Count < count; date = date.AddDays(1))
-            if (WorkingHours.IsWorkingDay(date))
+            if (DemoClosedDays.IsWorkingDay(date))
                 days.Add(date);
         return days;
     }
@@ -318,6 +369,11 @@ public sealed class DemoMeetings
     {
         var (start, end) = (time.StartUtc, time.EndUtc);
         var date = UkTime.DateOf(start);
+
+        // Nothing is arranged on a bank holiday: a weekly meeting that falls on one is skipped that week.
+        if (!DemoClosedDays.IsWorkingDay(date))
+            return null;
+
         var invited = new List<StaffMember>();
         var later = new List<(DateTime At, StaffMember Member, bool Joins)>();
 

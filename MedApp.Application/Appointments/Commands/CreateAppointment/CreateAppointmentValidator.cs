@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Calendar.Common;
 
 namespace MedApp.Application.Appointments.Commands.CreateAppointment;
 
@@ -8,7 +9,7 @@ public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppoint
     public const string BookOrRequest =
         "Give a member of staff, a start and an end to book it, or none of them to add it to Requires Appointment.";
 
-    public CreateAppointmentValidator(TimeProvider timeProvider)
+    public CreateAppointmentValidator(TimeProvider timeProvider, WorkingDays workingDays)
     {
         RuleFor(x => x.PatientId).NotEmpty().WithMessage("Patient is required.");
 
@@ -27,11 +28,12 @@ public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppoint
             .WithMessage("Member of staff is required.");
 
         RuleFor(x => x.StartUtc)
-            .Custom((start, context) =>
+            .CustomAsync(async (start, context, ct) =>
             {
                 var command = context.InstanceToValidate;
                 if (command.IsBooking
-                    && BookingTimes.WhyNot(start!.Value, command.EndUtc!.Value, timeProvider.GetUtcNow().UtcDateTime) is { } why)
+                    && await BookingTimes.WhyNotAsync(
+                        workingDays, start!.Value, command.EndUtc!.Value, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
                     context.AddFailure(why);
             });
 

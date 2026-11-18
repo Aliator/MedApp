@@ -69,7 +69,7 @@ public static class MeetingsTestConstants
         CreatedAtUtc = meeting.CreatedAtUtc,
         LastUpdated = meeting.LastUpdated,
         Attendees = meeting.Attendees
-            .Select(a => new MeetingAttendee { MeetingId = a.MeetingId, StaffUserId = a.StaffUserId })
+            .Select(a => new MeetingAttendee { MeetingId = a.MeetingId, StaffUserId = a.StaffUserId, Reply = a.Reply, RepliedAtUtc = a.RepliedAtUtc })
             .ToList()
     };
 

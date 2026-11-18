@@ -43,6 +43,6 @@ public sealed class GetCalendarHandler(
             today,
             usernames,
             now,
-            request.Actor.IsAdmin);
+            request.Actor);
     }
 }

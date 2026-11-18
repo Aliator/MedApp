@@ -26,7 +26,7 @@ public sealed class ScheduleAllocatorTests
         var slot = _allocator.Find(StaffId, At(Monday, 7), 45, _random);
 
         slot.Should().NotBeNull();
-        WorkingHours.WhyOutside(slot!.StartUtc, slot.EndUtc).Should().BeNull();
+        WorkingHours.WhyOutside(slot!.StartUtc, slot.EndUtc, DemoClosedDays.Set).Should().BeNull();
         (UkTime.TimeOf(slot.StartUtc).Minute % ScheduleAllocator.StepMinutes).Should().Be(0);
         (slot.EndUtc - slot.StartUtc).Should().Be(TimeSpan.FromMinutes(45));
         UkTime.DateOf(slot.StartUtc).Should().Be(Monday);

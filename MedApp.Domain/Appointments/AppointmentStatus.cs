@@ -16,5 +16,11 @@ public enum AppointmentStatus
     DidNotAttend = 3,
 
     /// <summary>Called off, with a reason. Final.</summary>
-    Cancelled = 4
+    Cancelled = 4,
+
+    /// <summary>
+    /// Recorded after the event in error (it didn't happen, or it's on the wrong patient), withdrawn with a reason.
+    /// Off the calendar, and final; its history keeps what was recorded.
+    /// </summary>
+    EnteredInError = 5
 }

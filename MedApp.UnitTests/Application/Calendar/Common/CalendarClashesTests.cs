@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
@@ -152,6 +153,33 @@ public sealed class CalendarClashesTests
             .Should().Be($"That time overlaps the meeting '{OtherTitle}', 10:00 to 10:30.");
     }
 
+
+    [Test]
+    public void Find_AMeetingThePersonDeclined_IsNotBusyForThem()
+    {
+        // StaffUserId's calendar: they declined the MDT, so the time is theirs again.
+        var mdt = NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        mdt.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+        var data = CreateData(NextMonday) with { Meetings = [mdt] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30)).Should().BeNull();
+        CalendarClashes.BusyTimes(data).Should().BeEmpty();
+    }
+
+    [TestCase(MeetingReply.NoReply)]
+    [TestCase(MeetingReply.Accepted)]
+    public void Find_AMeetingSomeoneElseDeclined_IsStillBusyForThem(MeetingReply theirReply)
+    {
+        // StaffUserId's calendar: the other attendee declined, and they didn't.
+        var mdt = NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        mdt.Attendees.Single(a => a.StaffUserId == OtherStaffUserId).Reply = MeetingReply.Declined;
+        mdt.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = theirReply;
+        var data = CreateData(NextMonday) with { Meetings = [mdt] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30))
+            .Should().Be("That time overlaps the meeting 'MDT', 09:00 to 10:00.");
+        CalendarClashes.BusyTimes(data).Should().ContainSingle();
+    }
     [Test]
     public void FindFirst_Overlap_ReturnsWhatAndWhen()
     {
@@ -273,5 +301,74 @@ public sealed class CalendarClashesTests
                 At(NextMonday, 10), At(NextMonday, 11),
                 At(NextMonday, startHour, startMinute), At(NextMonday, endHour, endMinute))
             .Should().Be(expected);
+    }
+
+    // FindAppointment: a time recorded after the event
+
+    [Test]
+    public void FindAppointment_OverlapsAnAppointment_NamesItWithoutThePatient()
+    {
+        var data = CreateData(NextMonday, appointments: [CreateAppointment(AppointmentStatus.DidNotAttend, At(NextMonday, 10, 15))]);
+
+        CalendarClashes.FindAppointment(data, At(NextMonday, 10), At(NextMonday, 10, 30))
+            .Should().Be("That time overlaps another appointment, 10:15 to 10:45.");
+    }
+
+    [Test]
+    public void FindAppointment_BlocksAndMeetings_DontCount()
+    {
+        var data = CreateData(NextMonday, templateBlocks: [CreateTemplateBlock(10, 11)], blocks: [CreateBlock(At(NextMonday, 10), At(NextMonday, 11))])
+            with { Meetings = [NewMeeting(At(NextMonday, 10), At(NextMonday, 11))] };
+
+        CalendarClashes.FindAppointment(data, At(NextMonday, 10), At(NextMonday, 10, 30)).Should().BeNull();
+        CalendarClashes.Find(data, At(NextMonday, 10), At(NextMonday, 10, 30)).Should().NotBeNull("a booking would clash");
+    }
+
+    [TestCase(AppointmentStatus.Requested)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public void FindAppointment_AppointmentsOffTheCalendar_DontCount(AppointmentStatus status)
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        appointment.Status = status;
+
+        CalendarClashes.FindAppointment(CreateData(NextMonday, appointments: [appointment]), At(NextMonday, 10), At(NextMonday, 10, 30))
+            .Should().BeNull();
+    }
+
+    [Test]
+    public void FindAppointment_TouchingOrIgnored_IsNull()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        var data = CreateData(NextMonday, appointments: [appointment]);
+
+        CalendarClashes.FindAppointment(data, At(NextMonday, 10, 30), At(NextMonday, 11)).Should().BeNull();
+        CalendarClashes.FindAppointment(data, At(NextMonday, 10), At(NextMonday, 10, 30), ignoreAppointmentId: appointment.Id).Should().BeNull();
+    }
+
+    [Test]
+    public void FindAppointment_SeveralOverlap_NamesTheEarliest()
+    {
+        var data = CreateData(NextMonday, appointments:
+        [
+            CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10, 30)),
+            CreateAppointment(AppointmentStatus.Attended, At(NextMonday, 9, 45))
+        ]);
+
+        CalendarClashes.FindAppointment(data, At(NextMonday, 10), At(NextMonday, 11))
+            .Should().Be("That time overlaps another appointment, 09:45 to 10:15.");
+    }
+
+    // A day closed since the validator ran
+
+    [Test]
+    public void Find_OnAClosedDay_SaysTheClinicIsClosedBeforeAnyClash()
+    {
+        var data = CreateData(ClosedWednesday, blocks: [CreateBlock(At(ClosedWednesday, 10), At(ClosedWednesday, 11))])
+            with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        CalendarClashes.Find(data, At(ClosedWednesday, 10), At(ClosedWednesday, 11))
+            .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        CalendarClashes.WhyClosed(data, At(ClosedWednesday, 10)).Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        CalendarClashes.WhyClosed(data with { ClosedDays = ClosedDaySet.None }, At(ClosedWednesday, 10)).Should().BeNull();
     }
 }

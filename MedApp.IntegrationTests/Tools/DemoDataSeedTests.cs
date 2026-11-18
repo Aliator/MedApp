@@ -13,6 +13,7 @@ using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Authentication;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -160,7 +161,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
     /// <summary>
     /// Every appointment and every stored block, checked as the app checks a new one (<see cref="CalendarClashes"/>)
-    /// against everything else on that person's calendar: appointments, stored blocks and the day templates' blocks.
+    /// against everything else on that person's calendar: appointments, stored blocks and the day templates' blocks; and
+    /// none on a weekend or a closed day (the seeded bank holidays).
     /// </summary>
     [Test]
     public async Task Calendars_NoAppointmentOrStoredBlockOverlapsAnythingElse_NorFallsOutsideTheWorkingDay()
@@ -186,20 +188,42 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             foreach (var appointment in appointments.Where(a => a.StaffUserId == person))
             {
                 var (start, end) = (appointment.StartUtc!.Value, appointment.EndUtc!.Value);
-                WorkingHours.WhyOutside(start, end).Should().BeNull($"appointment {appointment.Id}");
+                WorkingHours.WhyOutside(start, end, data.ClosedDays).Should().BeNull($"appointment {appointment.Id}");
                 CalendarClashes.Find(On(start), start, end, ignoreAppointmentId: appointment.Id).Should().BeNull($"appointment {appointment.Id}");
             }
 
             foreach (var block in blocks.Where(b => b.StaffUserId == person))
+            {
+                WorkingHours.WhyOutside(block.StartUtc, block.EndUtc, data.ClosedDays).Should().BeNull($"block {block.Id}");
                 CalendarClashes.Find(On(block.StartUtc), block.StartUtc, block.EndUtc, ignoreBlockId: block.Id)
                     .Should().BeNull($"block {block.Id}, {UkTime.Describe(block.StartUtc)}");
+            }
         }
+    }
+
+    /// <summary>
+    /// The clinic's closed days are England and Wales bank holidays, for every year the story covers and the next, and
+    /// the calendars know them.
+    /// </summary>
+    [Test]
+    public async Task ClosedDays_AreTheBankHolidaysOfTheSeededYears()
+    {
+        var closed = await Query(db => db.ClosedDays.AsNoTracking().OrderBy(d => d.Date).ToListAsync());
+        var firstYear = closed.Min(d => d.Date.Year);
+
+        firstYear.Should().BeLessThanOrEqualTo(UkTime.DateOf(Now).Year - 1, "the story goes back about 18 months");
+        closed.Max(d => d.Date.Year).Should().Be(UkTime.DateOf(Now).Year + 1);
+        closed.Select(d => (d.Date, d.Name)).Should().Equal(
+            Enumerable.Range(firstYear, UkTime.DateOf(Now).Year + 2 - firstYear)
+                .SelectMany(BankHolidays.EnglandAndWales)
+                .Select(h => (h.Date, h.Name)));
     }
 
     /// <summary>
     /// Every meeting checked as the app checks a new one (<see cref="CalendarClashes"/>, as <c>MeetingStaff</c> does):
     /// inside the working day, and clear of everything on every attendee's calendar (appointments, stored and template
-    /// blocks, other meetings). Nobody deleted is still going to one that hasn't happened.
+    /// blocks, other meetings), except a calendar whose owner declined it. Nobody deleted is still going to one that
+    /// hasn't happened.
     /// </summary>
     [Test]
     public async Task Meetings_FollowTheWorkingDayRules_AndOverlapNothingOnAnyAttendeesCalendar()
@@ -211,16 +235,22 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         meetings.Should().OnlyContain(m => m.Attendees.Count > 0 && users.Contains(m.OrganiserUserId));
         meetings.Where(m => m.StartUtc > Now).SelectMany(m => m.Attendees)
             .Should().OnlyContain(a => users.Contains(a.StaffUserId), "deleting an account takes it off meetings still to come");
+        meetings.SelectMany(m => m.Attendees).Select(a => a.Reply).Distinct()
+            .Should().BeEquivalentTo([MeetingReply.NoReply, MeetingReply.Accepted, MeetingReply.Declined], "people accepted, declined or didn't answer");
+        meetings.SelectMany(m => m.Attendees.Where(a => a.Reply != MeetingReply.NoReply).Select(a => (m, a)))
+            .Should().OnlyContain(r => r.a.RepliedAtUtc >= r.m.CreatedAtUtc && r.a.RepliedAtUtc <= Now && r.a.RepliedAtUtc < r.m.EndUtc,
+                "a reply comes after the invitation, and before it ends (deleting the leaver later moved some LastUpdated on)");
 
         var (from, to) = (UkTime.DateOf(meetings.Min(m => m.StartUtc)), UkTime.DateOf(meetings.Max(m => m.StartUtc)));
         foreach (var person in meetings.SelectMany(m => m.Attendees).Select(a => a.StaffUserId).Distinct())
         {
             var data = await _services.Run(sp => sp.GetRequiredService<ICalendarRepository>()
                 .GetCalendarDataAsync(person, from, to, CancellationToken.None));
-            foreach (var meeting in meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == person)))
+            // Not one they declined: the time is theirs again, as the app sees it.
+            foreach (var meeting in meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == person && a.Reply != MeetingReply.Declined)))
             {
                 var on = data with { From = UkTime.DateOf(meeting.StartUtc), To = UkTime.DateOf(meeting.StartUtc) };
-                WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc).Should().BeNull($"meeting '{meeting.Title}'");
+                WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc, data.ClosedDays).Should().BeNull($"meeting '{meeting.Title}'");
                 CalendarClashes.Find(on, meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id)
                     .Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)} is clear on every attendee's calendar");
             }
@@ -257,12 +287,12 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     [Test]
     public async Task MeetingNotifications_HaveFixedTitles_AndNoPatientDetails()
     {
-        var kinds = new[] { NotificationKind.MeetingInvited, NotificationKind.MeetingChanged, NotificationKind.MeetingCancelled };
+        var kinds = new[] { NotificationKind.MeetingInvited, NotificationKind.MeetingChanged, NotificationKind.MeetingCancelled, NotificationKind.MeetingDeclined };
         var notifications = await Query(db => db.Notifications.AsNoTracking().Where(n => kinds.Contains(n.Kind)).ToListAsync());
         var meetings = await Query(db => db.Meetings.AsNoTracking().ToListAsync());
         var patients = await Query(db => db.Patients.AsNoTracking().ToListAsync());
 
-        notifications.Select(n => n.Kind).Distinct().Should().BeEquivalentTo(kinds, "invitations, moves and cancellations all happened");
+        notifications.Select(n => n.Kind).Distinct().Should().BeEquivalentTo(kinds, "invitations, moves, cancellations and declines all happened");
         notifications.Should().OnlyContain(n => Notification.HasFixedTitle(n.Kind) && n.Title == MeetingNotifications.TitleOf(n.Kind)
                                                 && n.CalendarDate != null && n.ProcedureId == null && n.AppointmentId == null);
         notifications.Should().OnlyContain(n => n.CreatedAtUtc >= Now.AddDays(-30) && n.CreatedAtUtc <= Now);

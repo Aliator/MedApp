@@ -3,7 +3,7 @@
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
 /// kinds; the monitoring kinds (one of an admin's rules matched) are 10 to 17, one for each <c>MonitoringEvent</c>;
-/// 18 to 21 are about deleting a procedure's note.
+/// 18 to 21 are about deleting a procedure's note; 22 is a stage's visit withdrawn.
 /// </summary>
 public enum NotificationKind
 {
@@ -27,6 +27,20 @@ public enum NotificationKind
 
     /// <summary>An admin cancelled a meeting the user was going to, or took them off it.</summary>
     MeetingCancelled = 6,
+
+    /// <summary>Someone declined a meeting the user arranged.</summary>
+    MeetingDeclined = 7,
+
+    /// <summary>
+    /// An admin closed a day (a bank holiday, a training day) on which the user has appointments, blocked time or
+    /// meetings. They stay; the user moves or cancels them.
+    /// </summary>
+    DayClosed = 8,
+
+    /// <summary>
+    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp).
+    /// </summary>
+    AppointmentRecorded = 9,
 
     /// <summary>Monitoring: someone created a procedure.</summary>
     MonitoredProcedureCreated = 10,
@@ -62,5 +76,12 @@ public enum NotificationKind
     NoteDeletionDeclined = 20,
 
     /// <summary>An admin deleted a note the user wrote (unless they deleted it themselves, or asked for it).</summary>
-    AuthorsNoteDeleted = 21
+    AuthorsNoteDeleted = 21,
+
+    /// <summary>
+    /// Someone marked a walk-in entered in error that was the only attended visit of a finished stage that requires
+    /// one, so the stage is finished without its visit. Sent to the procedure's assignees and the admins, never to
+    /// whoever withdrew it.
+    /// </summary>
+    StageVisitWithdrawn = 22
 }

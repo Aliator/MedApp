@@ -3,8 +3,6 @@
 # changes. Security updates (for a known advisory) are separate: they come as soon as there's an advisory, without
 # waiting for the schedule or the cooldown. They, Dependabot alerts and dependency review (main.yml) need the
 # repository's dependency graph, Dependabot alerts and Dependabot security updates on (Settings, Advanced Security),
-# which they are since #67 (docs/todo.md, Repository settings). They, Dependabot alerts and dependency review (main.yml) need the
-# repository's dependency graph, Dependabot alerts and Dependabot security updates on (Settings, Advanced Security),
 # which they are since #67 (docs/todo.md, Repository settings).
 #
 # cooldown: a new version is only proposed once it has been out for a week. A hijacked release (like Trivy's, in March
@@ -71,6 +69,18 @@ updates:
       npm-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # Node's types follow the Node that runs the code. CI's web job uses Node 24 (main.yml), and the image's page
+      # server runs Node 22 (MedApp.API/Dockerfile, NODE_VERSION), so types for Node 25 or later would accept APIs
+      # neither has. Move this with the runtime.
+      - dependency-name: "@types/node"
+        versions: [">=25"]
+      # Lexical moves with @astryxdesign/richtext, whose peer range pins its minor (^0.52.0 allows only 0.52.x), and
+      # a 0.x minor is a breaking release. Upgrade it with Astryx, in Astryx's own PR (MedApp.Web/AGENTS.md).
+      - dependency-name: "lexical"
+        update-types: [version-update:semver-minor, version-update:semver-major]
+      - dependency-name: "@lexical/*"
+        update-types: [version-update:semver-minor, version-update:semver-major]
 
   # The base images in the API's Dockerfile. Its FROM lines take their tags from ARGs (NODE_VERSION, DOTNET_VERSION),
   # which Dependabot can't follow, so until they're written out (ideally with digests) this finds nothing to update.

@@ -17,6 +17,7 @@ import {appointmentQuery, appointmentsQuery, useAppointmentActions, type Appoint
 import {
   calendarQuery,
   dayTemplatesQuery,
+  meetingQuery,
   staffQuery,
   teamCalendarQuery,
   useCalendarActions,
@@ -44,6 +45,7 @@ import {
 } from '../../components/calendar/CalendarGrid';
 import {appointmentKey, blockKey, calendarItems, meetingKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
 import {MeetingDialog, type MeetingDialogProps} from '../../components/calendar/MeetingDialog';
+import {RecordPastAppointmentDialog} from '../../components/calendar/RecordPastAppointmentDialog';
 import {StaffPicker, staffPickerOptions} from '../../components/calendar/StaffPicker';
 import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -167,7 +169,8 @@ interface PendingMove {
  *
  * Selecting free time offers Book appointment or Block time there (or goes straight to booking, on a calendar you can
  * only book on), in the team view for the person whose column it is; selecting in "Everyone free" offers New meeting
- * with them all at that time. New does the same without the grid, and admins can arrange a meeting from it. Opening an
+ * with them all at that time. New does the same without the grid, records an appointment that has already happened
+ * (Record past appointment, a walk-in: `RecordPastAppointmentDialog`), and admins can arrange a meeting from it. Opening an
  * item opens its dialog (an appointment, a block or a meeting); dragging one moves it (an appointment after a
  * confirmation naming the new time; a meeting by an admin, keeping its title, notes and attendees; blocked time only
  * while Edit blocks is on, decision 70, a template block within its own day). The toolbar goes
@@ -244,6 +247,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const [move, setMove] = useState<PendingMove | null>(null);
   const [meeting, setMeeting] = useState<Pick<MeetingDialogProps, 'meeting' | 'initial'> | null>(null);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+  const [isRecordingPast, setIsRecordingPast] = useState(false);
   // Edit blocks: while it's on, blocked time can be dragged to another time (decision 70). Off each time the page
   // opens, and only on one person's calendar that can be changed, never in the team view.
   const [isEditMode, setIsEditMode] = useState(false);
@@ -269,6 +273,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     // Only when the linked appointment arrives: moving on from its day afterwards is up to the person.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedStart]);
+
+  // A meeting in the URL (from a notification): shown in its dialog, whether or not it's on the calendar shown (an
+  // organiser told of a decline may not be going). One that's gone (cancelled) says so instead.
+  const linkedMeeting = useQuery({...meetingQuery(search.meeting ?? ''), enabled: search.meeting !== undefined, retry: false});
+  const isLinkedMeetingGone = search.meeting !== undefined && linkedMeeting.isError;
 
   const go = (next: Partial<CalendarSearch>, options?: {replace?: boolean}) => {
     setHeld(null);
@@ -441,8 +450,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const newMeetingWith = isTeam ? search.who : isOwn ? undefined : staffUserId ? [staffUserId] : undefined;
 
   const shown = isTeam ? team : calendar;
-  const teamDay = team.data?.day;
   const teamDate = team.data?.date ?? date;
+  // The team view's own day knows nothing of a closed day, but each person's day does: "Everyone free" is greyed and
+  // labelled "Closed: …" like their columns, with nothing to select.
+  const closedName = members.map((m) => m.days?.find((d) => d.date === teamDate)?.closedDayName).find(Boolean);
+  const teamDay = team.data?.day && closedName ? {...team.data.day, isWorkingDay: false, closedDayName: closedName} : team.data?.day;
   // A block being saved shows at its new time; meanwhile no block can be picked up, so one move finishes before the next.
   const shownPerson =
     person && movingBlock
@@ -618,8 +630,13 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       subtitle={`${whose} · ${rangeLabel}`}
       fill
       message={
-        message || linked.isError ? (
-          <AlertMessage message={message ?? "That appointment couldn't be found. It may have been deleted."} />
+        message || linked.isError || isLinkedMeetingGone ? (
+          <AlertMessage
+            message={
+              message ??
+              (linked.isError ? "That appointment couldn't be found. It may have been deleted." : "That meeting couldn't be found. It may have been cancelled.")
+            }
+          />
         ) : undefined
       }
       // A fragment, not a group of its own, so the header can wrap the buttons among themselves on a phone.
@@ -647,6 +664,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             button={{label: 'New', variant: 'primary', icon: <Icon icon={AppIcon.Add} />}}
             items={[
               {label: 'Book appointment', icon: <Icon icon={AppIcon.Book} />, onClick: () => setBooking({})},
+              {label: 'Record past appointment', icon: <Icon icon={AppIcon.RecordPast} />, onClick: () => setIsRecordingPast(true)},
               ...(canEdit ? [{label: 'Block time', icon: <Icon icon={AppIcon.BlockTime} />, onClick: () => setBlocking({calendar: person})}] : []),
               ...(me.isAdmin
                 ? [
@@ -670,6 +688,12 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             endUtc={booking?.selection?.endUtc}
             stepMinutes={rowMinutes}
             onClose={() => setBooking(null)}
+          />
+          <RecordPastAppointmentDialog
+            isOpen={isRecordingPast}
+            staffUserId={isTeam ? undefined : staffUserId || undefined}
+            stepMinutes={rowMinutes}
+            onClose={() => setIsRecordingPast(false)}
           />
           <BlockDialog
             isOpen={blocking !== null}
@@ -697,6 +721,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             />
           )}
           <MeetingDialog isOpen={meeting !== null} meeting={meeting?.meeting} initial={meeting?.initial} onClose={() => setMeeting(null)} />
+          <MeetingDialog
+            isOpen={search.meeting !== undefined && linkedMeeting.data !== undefined}
+            meeting={search.meeting ? linkedMeeting.data : null}
+            onClose={() => go({meeting: undefined})}
+          />
           <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} stepMinutes={rowMinutes} onClose={() => go({appointment: undefined})} />
           <ConfirmDialog
             isOpen={move !== null}

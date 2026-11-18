@@ -250,4 +250,39 @@ public sealed class AppointmentMapperTests
         response.CanRecordOutcome.Should().BeFalse();
         response.CanEditNotes.Should().BeFalse();
     }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ToResponse_RecordedAfterTheEvent_SaysSo(bool recorded)
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Attended, At(Today, 8));
+        appointment.IsRecordedAfterEvent = recorded;
+
+        AppointmentMapper.ToResponse(appointment, new Dictionary<Guid, string>(), Now).IsRecordedAfterEvent.Should().Be(recorded);
+    }
+
+    [Test]
+    public void ToResponse_AWalkInWithinThirtyDays_CanBeMarkedEnteredInError_UnlessAnonymised()
+    {
+        var walkIn = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-2), 9));
+        walkIn.IsRecordedAfterEvent = true;
+
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now)
+            .Should().BeEquivalentTo(new { CanMarkEnteredInError = true, CanRecorderMarkEnteredInError = true });
+        walkIn.Patient.RestrictedAtUtc = Now;
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now).CanMarkEnteredInError.Should().BeTrue("withdrawing it is rectification");
+        walkIn.Patient.AnonymisedAtUtc = Now;
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now)
+            .Should().BeEquivalentTo(new { CanMarkEnteredInError = false, CanRecorderMarkEnteredInError = false });
+    }
+
+    [Test]
+    public void ToResponse_AWalkInOverThirtyDaysAgo_ByAnAdminOnly()
+    {
+        var walkIn = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-31), 9));
+        walkIn.IsRecordedAfterEvent = true;
+
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now)
+            .Should().BeEquivalentTo(new { CanMarkEnteredInError = true, CanRecorderMarkEnteredInError = false });
+    }
 }

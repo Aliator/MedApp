@@ -7,11 +7,12 @@ import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
 import {useRef, useState} from 'react';
-import {appointmentQuery, useAppointmentActions, type Appointment} from '../../api/appointments';
+import {appointmentQuery, canMarkEnteredInError, useAppointmentActions, type Appointment} from '../../api/appointments';
 import {ApiValidationError, fieldStatus, problemMessage} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {useAnnounce} from '../../app/announcements';
-import {formatCalendarDay, formatTimeRange} from '../../utils/calendarSlots';
+import {useCurrentUser} from '../../auth/auth';
+import {formatCalendarDay, formatTimeRange, sameMoment} from '../../utils/calendarSlots';
 import {formatDateTime, ukDay} from '../../utils/dates';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
@@ -38,7 +39,7 @@ export function appointmentWhen(appointment: Appointment): string {
   return appointment.staffUsername ? `${when} with ${appointment.staffUsername}` : when;
 }
 
-type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
+type Mode = 'view' | 'book' | 'bookAnother' | 'cancel' | 'enteredInError';
 
 /**
  * An appointment's details, and everything that can be done to it (docs/calendar-plan.md, decisions 15 and 16): who
@@ -46,6 +47,9 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
  * for it, booked it and recorded how it went, and why it was cancelled. Its buttons follow what the API allows
  * (`can...`): Book, Reschedule, Attended and Did not attend (once it has started), Cancel (with a reason), and Book
  * another (after Did not attend or Cancelled). Booking opens `BookAppointmentDialog` in its place, and comes back here.
+ * One recorded after the event can be withdrawn as **Entered in Error** (a visit that didn't happen, or on the wrong
+ * patient), with a reason, by whoever recorded it or an admin (`canMarkEnteredInError`): it leaves the calendar, stays
+ * in the history, and the server's words about the stage's visit (`stageMessage`) show here and are announced.
  * The patient's banner heads it (name, date of birth and NHS number), with their record's flags: a restricted
  * patient's appointment can only be cancelled, and an anonymised one's not changed at all (the API's flags say so),
  * and neither is offered Book another.
@@ -55,6 +59,7 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
 export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: AppointmentDialogProps) {
   const isOpen = initial !== null;
   const announce = useAnnounce();
+  const user = useCurrentUser();
   const actions = useAppointmentActions();
   const fresh = useQuery({...appointmentQuery(initial?.id ?? ''), enabled: isOpen && !!initial?.id});
   const appointment = fresh.data ?? initial;
@@ -63,6 +68,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   const [notes, setNotes] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [stageMessage, setStageMessage] = useState<string | null>(null);
   const [notesError, setNotesError] = useState<ReturnType<typeof fieldStatus>>(undefined);
   const [openedFor, setOpenedFor] = useState(initial?.id);
 
@@ -73,6 +79,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
     setNotes(null);
     setReason('');
     setProblem(null);
+    setStageMessage(null);
     setNotesError(undefined);
   }
 
@@ -130,25 +137,56 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
     );
   };
 
+  const markEnteredInError = () => {
+    setProblem(null);
+    actions.markEnteredInError.mutate(
+      {id, reason: reason.trim()},
+      {
+        onSuccess: (result) => {
+          const said = result.stageMessage?.trim() || null;
+          announce(said ? `Marked entered in error. ${said}` : 'Marked entered in error');
+          setStageMessage(said);
+          setMode('view');
+          setReason('');
+        },
+        onError: (error) => {
+          setMode('view');
+          fail(error);
+        },
+      },
+    );
+  };
+
   if (!appointment) return null;
 
   const status = appointment.status ?? '';
-  const isBusy = actions.recordOutcome.isPending || actions.saveNotes.isPending || actions.cancel.isPending;
+  const isBusy =
+    actions.recordOutcome.isPending || actions.saveNotes.isPending || actions.cancel.isPending || actions.markEnteredInError.isPending;
+  const canWithdraw = canMarkEnteredInError(appointment, user);
   // Only once the patient is known to be bookable (not restricted or anonymised), as booking needs their details.
   const patient = patientState.patient;
   const canBookAnother = (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
   const purpose = appointmentPurpose(appointment);
 
-  const history: {label: string; value: string}[] = [
-    {
-      label: 'Requested',
-      value: appointment.isAutomatic
-        ? `Automatically, ${formatDateTime(appointment.createdAtUtc ?? '')}`
-        : `By ${appointment.createdByUsername ?? 'someone'}, ${formatDateTime(appointment.createdAtUtc ?? '')}`,
-    },
-  ];
+  // One recorded after the event (a walk-in) was never asked for, unless it was a visit waiting in Requires Appointment (asked
+  // for earlier); it was recorded, not booked.
+  const isWalkIn = appointment.isRecordedAfterEvent === true;
+  const wasRequested = !isWalkIn || !sameMoment(appointment.createdAtUtc, appointment.bookedAtUtc);
+  const history: {label: string; value: string}[] = wasRequested
+    ? [
+        {
+          label: 'Requested',
+          value: appointment.isAutomatic
+            ? `Automatically, ${formatDateTime(appointment.createdAtUtc ?? '')}`
+            : `By ${appointment.createdByUsername ?? 'someone'}, ${formatDateTime(appointment.createdAtUtc ?? '')}`,
+        },
+      ]
+    : [];
   if (appointment.bookedAtUtc) {
-    history.push({label: 'Booked', value: `By ${appointment.bookedByUsername ?? 'someone'}, ${formatDateTime(appointment.bookedAtUtc)}`});
+    history.push({
+      label: isWalkIn ? 'Recorded after the event' : 'Booked',
+      value: `By ${appointment.bookedByUsername ?? 'someone'}, ${formatDateTime(appointment.bookedAtUtc)}`,
+    });
   }
   if (appointment.outcomeAtUtc) {
     history.push({label: 'Outcome recorded', value: `By ${appointment.outcomeByUsername ?? 'someone'}, ${formatDateTime(appointment.outcomeAtUtc)}`});
@@ -167,6 +205,18 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
           <HStack gap={2} wrap="wrap" hAlign="end">
             {appointment.canCancel && (
               <Button label="Cancel Appointment" variant="destructive" isDisabled={isBusy} onClick={() => setMode('cancel')} />
+            )}
+            {canWithdraw && (
+              <Button
+                label="Entered in Error"
+                variant="destructive"
+                icon={<Icon icon={AppIcon.EnteredInError} />}
+                isDisabled={isBusy}
+                onClick={() => {
+                  setReason('');
+                  setMode('enteredInError');
+                }}
+              />
             )}
             {appointment.canRecordOutcome && (
               <>
@@ -197,6 +247,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         <VStack ref={content} gap={5} hAlign="stretch">
           <AppointmentPatientBanner state={patientState} name={appointment.patientName} />
           {problem && <AlertMessage message={problem} />}
+          {stageMessage && <AlertMessage status="info" message={stageMessage} />}
           <VStack gap={1}>
             <HStack gap={2} vAlign="center" wrap="wrap">
               <AppointmentStatusToken status={status} />
@@ -226,7 +277,9 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
                 {h.value}
               </MetadataListItem>
             ))}
-            {appointment.cancelReason && <MetadataListItem label="Why cancelled">{appointment.cancelReason}</MetadataListItem>}
+            {appointment.cancelReason && (
+              <MetadataListItem label={status === 'EnteredInError' ? 'Why entered in error' : 'Why cancelled'}>{appointment.cancelReason}</MetadataListItem>
+            )}
           </MetadataList>
           {appointment.canEditNotes ? (
             <VStack gap={2} hAlign="stretch">
@@ -271,6 +324,20 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         confirmDisabled={!reason.trim()}
         isProcessing={actions.cancel.isPending}
         onConfirm={cancel}
+        onCancel={() => setMode('view')}>
+        <TextArea label="Reason" value={reason} onChange={setReason} rows={3} maxLength={500} isRequired />
+      </ConfirmDialog>
+      <ConfirmDialog
+        isOpen={isOpen && mode === 'enteredInError'}
+        title="Mark Entered in Error"
+        message="This withdraws the record of a visit that didn't happen, or that's on the wrong patient. It comes off the calendar but stays in the appointment's history, and it can't be undone. Say why."
+        icon={AppIcon.EnteredInError}
+        isDanger
+        confirmText="Mark Entered in Error"
+        cancelText="Keep It"
+        confirmDisabled={!reason.trim()}
+        isProcessing={actions.markEnteredInError.isPending}
+        onConfirm={markEnteredInError}
         onCancel={() => setMode('view')}>
         <TextArea label="Reason" value={reason} onChange={setReason} rows={3} maxLength={500} isRequired />
       </ConfirmDialog>

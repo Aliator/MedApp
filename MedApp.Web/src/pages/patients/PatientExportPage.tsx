@@ -22,6 +22,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
 import {PanelHeader} from '../../components/views/PanelCard';
+import {sameMoment} from '../../utils/calendarSlots';
 import {formatAppointmentTime, formatDate, formatDateTime} from '../../utils/dates';
 import {formatFileSize} from '../../utils/fileSize';
 import {formatNhsNumber} from '../../utils/nhsNumber';
@@ -89,6 +90,23 @@ export function describeExportedAppointment(appointment: ExportedAppointment): s
   return slot ? `${status}: ${slot}` : status;
 }
 
+/**
+ * Who asked for, booked and recorded an appointment, in words: "requested … by …, booked … by …, outcome recorded …
+ * by …". One recorded after the event (a walk-in) was "recorded after the event … by …", not booked, and was asked for
+ * only if it was a visit waiting in Requires Appointment (made before it was recorded), as `AppointmentDialog` says.
+ */
+export function appointmentHistoryWords(a: ExportedAppointment): string {
+  const isWalkIn = a.isRecordedAfterEvent === true;
+  const wasRequested = !isWalkIn || !sameMoment(a.createdAtUtc, a.bookedAtUtc);
+  return [
+    wasRequested ? `requested ${when(a.createdAtUtc)} ${a.isAutomatic ? 'automatically' : `by ${a.createdBy}`}` : null,
+    a.bookedAtUtc ? `${isWalkIn ? 'recorded after the event' : 'booked'} ${when(a.bookedAtUtc)} by ${a.bookedBy}` : null,
+    a.outcomeAtUtc ? `outcome recorded ${when(a.outcomeAtUtc)} by ${a.outcomeBy}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 const APPOINTMENT_ACTIONS: Record<string, string> = {
   Requested: 'Appointment requested',
   Booked: 'Appointment booked',
@@ -97,6 +115,8 @@ const APPOINTMENT_ACTIONS: Record<string, string> = {
   DidNotAttend: 'Marked Did not attend',
   Cancelled: 'Appointment cancelled',
   NotesUpdated: 'Appointment notes changed',
+  RecordedAfterEvent: 'Recorded after the event',
+  EnteredInError: 'Marked entered in error',
 };
 
 /** An appointment history action in words: "DidNotAttend" → "Marked Did not attend". */
@@ -116,7 +136,8 @@ const quoted = (value: unknown) => (text(value) ? `"${text(value)}"` : 'nothing'
 
 /**
  * What an appointment history entry's details say, in words: the time it moved from, the outcome it corrected, why it
- * was cancelled, or the notes before and after (the export gives everything, notes and reasons included).
+ * was cancelled or marked entered in error, the outcome recorded after the event (and that it was waiting in Requires
+ * Appointment), or the notes before and after (the export gives everything, notes and reasons included).
  */
 export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange, 'action' | 'details'>): string {
   const d = parseDetails(entry.details);
@@ -132,6 +153,12 @@ export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange,
       return d.previousStatus === 'Attended' || d.previousStatus === 'DidNotAttend' ? `Was marked ${appointmentStatusLabel(d.previousStatus)}` : '';
     case 'Cancelled':
       return [d.automatic === true ? 'Cancelled automatically' : null, text(d.reason) || null].filter(Boolean).join(': ');
+    case 'RecordedAfterEvent':
+      return [text(d.outcome) ? appointmentStatusLabel(text(d.outcome)) : null, d.previousStatus === 'Requested' ? 'was in Requires Appointment' : null]
+        .filter(Boolean)
+        .join(', ');
+    case 'EnteredInError':
+      return text(d.reason);
     case 'NotesUpdated': {
       const change = `${quoted(d.from)} → ${quoted(d.to)}`;
       return change.charAt(0).toUpperCase() + change.slice(1);
@@ -492,18 +519,11 @@ function ExportContent({data}: {data: PatientExport}) {
                   description={
                     <VStack gap={1}>
                       <Text type="supporting" color="secondary">
-                        {[
-                          appointmentFor(a),
-                          `requested ${when(a.createdAtUtc)} ${a.isAutomatic ? 'automatically' : `by ${a.createdBy}`}`,
-                          a.bookedAtUtc ? `booked ${when(a.bookedAtUtc)} by ${a.bookedBy}` : null,
-                          a.outcomeAtUtc ? `outcome recorded ${when(a.outcomeAtUtc)} by ${a.outcomeBy}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')}
+                        {[appointmentFor(a), appointmentHistoryWords(a)].filter(Boolean).join(', ')}
                       </Text>
                       {a.cancelReason && (
                         <Text type="supporting" color="secondary">
-                          {`Why cancelled: ${a.cancelReason}`}
+                          {`${a.status === 'EnteredInError' ? 'Why entered in error' : 'Why cancelled'}: ${a.cancelReason}`}
                         </Text>
                       )}
                       {a.notes && <Text type="body">{`Notes: ${a.notes}`}</Text>}

@@ -387,6 +387,31 @@ public sealed class TimelineMapperTests
     }
 
     [Test]
+    public void ToResponse_EnteredInError_GivesTheOutcomeItHad_AndTheReasonToAdminsOnly([Values] bool isAdmin)
+    {
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.EnteredInError, Now,
+            "{\"reason\":\"Synthetic wrong patient.\",\"previousStatus\":\"Attended\"}"), isAdmin);
+
+        response.Action.Should().Be("AppointmentEnteredInError");
+        response.FromStatus.Should().Be("Attended");
+        response.Reason.Should().Be(isAdmin ? "Synthetic wrong patient." : null);
+    }
+
+    [TestCase(false, "{\"outcome\":\"Attended\"}", null, "Attended")]
+    [TestCase(false, "{\"outcome\":\"DidNotAttend\",\"previousStatus\":\"Requested\"}", "Requested", "DidNotAttend")]
+    [TestCase(true, "{\"outcome\":\"Attended\",\"previousStatus\":\"Requested\"}", "Requested", "Attended")]
+    public void ToResponse_RecordedAfterTheEvent_GivesTheOutcomeAndWhetherItWasRequested(
+        bool isAdmin, string details, string? from, string to)
+    {
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.RecordedAfterEvent, Now, details), isAdmin);
+
+        response.Kind.Should().Be("Appointments");
+        response.Action.Should().Be("AppointmentRecordedAfterEvent");
+        response.FromStatus.Should().Be(from);
+        response.ToStatus.Should().Be(to);
+    }
+
+    [Test]
     public void ToResponse_CancelledForAnAdmin_IncludesTheReason()
     {
         var details = "{\"reason\":\"" + CancelReasonText + "\",\"automatic\":true}";

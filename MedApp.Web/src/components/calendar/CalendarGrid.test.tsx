@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {calendarDay, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
+import {calendarDay, STAFF_ME, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
 import {appointmentItem, blockItem, meetingItem, type CalendarGridItem} from './calendarItems';
@@ -63,6 +63,32 @@ describe('CalendarGrid', () => {
     expect(css).toMatch(/\.mc-weekend-text \{ position: sticky; top: /);
     // 40 free 15-minute slots on each of the five working days.
     expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(200);
+  });
+
+  it('greys a closed day like a weekend, but at full width and named, with nothing to select and what is on it flagged', async () => {
+    atMondayMorning();
+    const days = week().map((d) => (d.date === '2026-11-25' ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
+    const appointment = appointmentItem(testAppointment({date: '2026-11-25', start: '09:00', end: '10:00'}));
+    const onDayOpen = vi.fn();
+    const {user} = renderGrid({days, items: [appointment], onDayOpen});
+
+    const closed = await screen.findByRole('group', {name: 'Wednesday 25 November, closed: Staff training day'});
+    expect(closed).toHaveTextContent('Closed: Staff training day');
+    expect(closed).toHaveAttribute('data-weekend');
+    expect(closed).toHaveAttribute('data-closed');
+    expect(closed).not.toHaveAttribute('data-narrow');
+    expect(within(closed).queryAllByRole('button', {name: /, free$/})).toHaveLength(0);
+    // Only the other four working days have free time.
+    expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(160);
+    // What was there before it closed still shows, flagged, and says so.
+    const card = within(closed).getByRole('button', {name: 'Test Patient, Knee review: Assessment, 09:00 to 10:00, Booked, on a closed day'});
+    expect(card.closest('[data-kind]')!.querySelector('svg')).not.toBeNull();
+    // Its name reads across the column, not up it as a weekend's does.
+    expect(document.querySelector('.medapp-calendar style')!.textContent).toMatch(/\.mc-col\[data-closed\] \.mc-weekend-text \{ writing-mode: horizontal-tb/);
+    // Its heading still opens the day, and a compact week keeps it.
+    await user.click(screen.getByRole('button', {name: 'Wed 25: show the day'}));
+    expect(onDayOpen).toHaveBeenCalledWith('2026-11-25');
+    expect(dayColumns(days, [], {weekdaysOnly: true}).map((c) => c.date)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
   });
 
   it('shows appointments and blocks, which open when clicked or pressed', async () => {
@@ -551,6 +577,70 @@ describe('CalendarGrid', () => {
     expect(box).toHaveTextContent('2 attending');
     await user.click(card);
     expect(onItemOpen).toHaveBeenCalledWith(meeting, expect.objectContaining({key: MONDAY}));
+  });
+
+  it('shows a meeting its calendar owner declined faded: plain, behind, with a dashed edge, still opening', async () => {
+    atMondayMorning();
+    const declined = testMeeting({
+      date: MONDAY,
+      start: '09:00',
+      end: '10:00',
+      title: 'MDT',
+      attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'}],
+    });
+    const {user, onItemOpen} = renderGrid({items: [meetingItem(declined, STAFF_ME.userId), meetingItem({...declined, id: 'other'})]});
+
+    const cards = await screen.findAllByRole('button', {name: /^MDT, meeting, 09:00 to 10:00/});
+    const card = (ending: string) => cards.find((c) => c.getAttribute('aria-label')?.endsWith(ending))!.closest<HTMLElement>('[data-kind]')!;
+    const faded = card('Declined');
+    const usual = card('0 attending');
+    expect(faded).toHaveAttribute('data-faded', 'true');
+    expect(faded).toHaveTextContent('Declined');
+    expect(faded.style.borderInlineStart).toContain('dashed');
+    expect(faded.style.zIndex).toBe('1');
+    expect(faded.style.backgroundImage).toBe('');
+    expect(faded.style.opacity).toBe('');
+    expect(usual).not.toHaveAttribute('data-faded');
+    expect(usual.style.borderInlineStart).toContain('solid');
+    expect(usual.style.zIndex).toBe('2');
+    await user.click(cards[0]);
+    expect(onItemOpen).toHaveBeenCalled();
+  });
+
+  it("leaves a declined meeting's time free: its slots select, and the card sits at the column's end, still opening", async () => {
+    atMondayMorning();
+    const TUESDAY = '2026-11-24';
+    const declined = testMeeting({
+      date: TUESDAY,
+      start: '09:00',
+      end: '10:00',
+      title: 'MDT',
+      attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'}],
+    });
+    const {user, onSelectRange, onItemOpen} = renderGrid({items: [meetingItem(declined, STAFF_ME.userId)]});
+
+    // Under it, the rows are free buttons, as the server sees that time.
+    const free = await screen.findByRole('button', {name: 'Tuesday 24 November, 09:15, free'});
+    expect(screen.getByRole('button', {name: 'Tuesday 24 November, 09:00, free'})).toBeInTheDocument();
+    fireEvent.pointerDown(free, {button: 0, pointerId: 1});
+    fireEvent.pointerUp(free, {pointerId: 1});
+    await waitFor(() => expect(onSelectRange).toHaveBeenCalledWith(expect.objectContaining({date: TUESDAY, column: TUESDAY}), free));
+
+    // The card takes only the end of the column's width, leaving the rest to the slots, and still opens.
+    const card = screen.getByRole('button', {name: 'MDT, meeting, 09:00 to 10:00, Declined'});
+    const box = card.closest<HTMLElement>('[data-kind]')!;
+    expect(box.style.insetInlineStart).toBe('calc(60% + var(--spacing-0-5))');
+    expect(box.style.inlineSize).toBe('calc(40% - var(--spacing-1))');
+    await user.click(card);
+    expect(onItemOpen).toHaveBeenCalledWith(expect.objectContaining({key: 'meeting-meeting-2026-11-24-09:00'}), expect.objectContaining({key: TUESDAY}));
+  });
+
+  it('keeps the time of a meeting nobody on this calendar declined taken', async () => {
+    atMondayMorning();
+    renderGrid({items: [meetingItem(testMeeting({date: '2026-11-24', start: '09:00', end: '10:00', title: 'MDT'}), STAFF_ME.userId)]});
+
+    await screen.findByRole('button', {name: 'Tuesday 24 November, 10:00, free'});
+    expect(screen.queryByRole('button', {name: 'Tuesday 24 November, 09:15, free'})).not.toBeInTheDocument();
   });
 
   describe('with a column for each person', () => {

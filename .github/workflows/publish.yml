@@ -8,12 +8,23 @@ name: Publish
 # (.github/scripts/deploy-to-env.sh).
 # It only ever deploys main. Started by hand (workflow_dispatch) on another branch, it still builds that branch's
 # image and pushes it to GHCR, tagged with the commit, but moves no environment branch: both deploy jobs are skipped.
+# A push that changes nothing that goes into the image or the chart deploys nothing: docs, tests, tools/ and .github/
+# (but for this workflow and the script it runs). The environment branches then stay a commit of main behind in those
+# files only, until the next deploy brings them.
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
+    paths:
+      - '**'
+      - '!**.md'
+      - '!docs/**'
+      - '!tools/**'
+      - '!MedApp.UnitTests/**'
+      - '!MedApp.IntegrationTests/**'
+      - '!MedApp.E2ETests/**'
+      - '!.github/**'
+      - '.github/workflows/publish.yml'
+      - '.github/scripts/deploy-to-env.sh'
   workflow_dispatch:
 # Each job asks for only what it needs.
 permissions: {}
@@ -38,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
@@ -73,7 +84,7 @@ jobs:
           upload-release-assets: false
 
       - name: Upload the SBOM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: medapp-api-sbom
           path: medapp-api.spdx.json
@@ -132,7 +143,7 @@ jobs:
         with:
           fetch-depth: 0   # all history: the deploy commit's parents are env/azure's tip and this commit
 
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:

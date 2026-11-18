@@ -110,6 +110,16 @@ public sealed class MeetingStaffTests
     }
 
     [Test]
+    public async Task EnsureEveryoneFreeAsync_ADayClosedSinceTheValidatorRan_IsAConflict()
+    {
+        _data[StaffUserId] = CalendarOf(StaffUserId, ClosedWednesday) with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        var act = () => _calendars.Object.EnsureEveryoneFreeAsync(Attendees, At(ClosedWednesday, 10), At(ClosedWednesday, 11), null, _cts.Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+    }
+
+    [Test]
     public async Task EnsureEveryoneFreeAsync_SomeoneHasABlock_ThrowsConflictNamingThemAndIt()
     {
         _data[OtherStaffUserId] = CalendarOf(OtherStaffUserId, NextMonday, templateBlocks: [CreateTemplateBlock(12, 13)]);

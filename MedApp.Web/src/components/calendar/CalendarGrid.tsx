@@ -152,6 +152,12 @@ interface ColumnLayout {
   unavailable: boolean[];
 }
 
+/** An item on a closed day: flagged, and saying so in its accessible name and tooltip. */
+const onClosedDay = (item: CalendarGridItem): CalendarGridItem => ({...item, isFlagged: true, description: `${item.description}, on a closed day`});
+
+/** What a day that isn't a working day says at the top of its column: "Closed: Christmas Day", or "Not a working day". */
+export const notWorkingWords = (day: Pick<CalendarDay, 'closedDayName'>) => (day.closedDayName ? `Closed: ${day.closedDayName}` : 'Not a working day');
+
 /** Where an item sits in its column: rows from the top, and its share of the width beside items it overlaps. */
 interface PlacedItem {
   item: CalendarGridItem;
@@ -278,7 +284,9 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
  * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
  * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
- * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
+ * edge. A week's weekends show as narrow greyed columns that do nothing. A closed day (`closedDayName`: a bank holiday)
+ * is greyed too, but keeps its width, headed "Closed: Christmas Day": nothing can be selected on it, and anything on it
+ * (put there before it closed) is flagged, "on a closed day". A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
  * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put. A compact grid
  * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow card: Monday to Friday, a narrower hour
@@ -317,12 +325,15 @@ export function CalendarGrid({
 
   const layouts = useMemo<ColumnLayout[]>(
     () =>
-      columns.map((column) => {
-        const {day} = column;
+      columns.map((given) => {
+        const {day} = given;
+        // On a closed day, whatever is there (put there before it closed) is flagged, as an overlapping block is.
+        const column = day.closedDayName ? {...given, items: given.items.map(onClosedDay)} : given;
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
         const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
-        const busy = column.items.map((i) => intervalOf(i.startUtc, i.endUtc));
+        // A faded item (a meeting this calendar's owner declined) isn't busy time, as the server sees it.
+        const busy = column.items.filter((i) => !i.isFaded).map((i) => intervalOf(i.startUtc, i.endUtc));
         const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
         const unavailable = Array.from({length: rows}, (_, row) => {
           if (!free) return false;
@@ -339,7 +350,8 @@ export function CalendarGrid({
           day,
           date: column.date,
           name: column.label ? `${column.label}, ${dayName}` : dayName,
-          isNarrow: !day.isWorkingDay && !column.label,
+          // A closed weekday keeps its width: it may hold what was there before it closed.
+          isNarrow: !day.isWorkingDay && !day.closedDayName && !column.label,
           start,
           rows,
           slot: SLOT,
@@ -711,7 +723,7 @@ export function CalendarGrid({
   const hasFocusable =
     tabStop !== null ||
     (onItemOpen !== undefined && columns.some((c) => c.items.some((i) => !i.isReadOnly))) ||
-    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => l.day.isWorkingDay && !isOneDay && !l.column.label));
+    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => !l.isNarrow && !isOneDay && !l.column.label));
 
   return (
     <VStack
@@ -732,7 +744,6 @@ export function CalendarGrid({
           <div className="mc-head">
             <div className="mc-gutter" aria-hidden />
             {layouts.map((l) => {
-              const weekend = !l.day.isWorkingDay;
               // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
               const name = l.column.label ?? (isOneDay ? formatWeekday(l.date) : formatShortDay(l.date));
               const headingName = `${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`;
@@ -743,7 +754,7 @@ export function CalendarGrid({
                   data-narrow={l.isNarrow || undefined}
                   data-labelled={l.column.label ? true : undefined}
                   data-today={(l.day.isToday && !l.column.label) || undefined}>
-                  {onDayOpen && !weekend && !isOneDay && !l.column.label ? (
+                  {onDayOpen && !l.isNarrow && !isOneDay && !l.column.label ? (
                     <Button
                       // Compact, its content is its own (below), and Astryx names it by its label.
                       label={isCompact ? headingName : name}
@@ -804,9 +815,10 @@ export function CalendarGrid({
                 }}
                 className="mc-col"
                 role="group"
-                aria-label={weekend ? `${l.name}, not a working day` : `${l.name}${l.day.isToday ? ', today' : ''}`}
+                aria-label={weekend ? `${l.name}, ${l.day.closedDayName ? `closed: ${l.day.closedDayName}` : 'not a working day'}` : `${l.name}${l.day.isToday ? ', today' : ''}`}
                 data-narrow={l.isNarrow || undefined}
                 data-weekend={weekend || undefined}
+                data-closed={l.day.closedDayName ? true : undefined}
                 data-labelled={l.column.label ? true : undefined}
                 data-today={l.day.isToday || undefined}
                 data-past={l.day.isPast || undefined}
@@ -821,7 +833,7 @@ export function CalendarGrid({
                 {weekend ? (
                   <span className="mc-weekend-text">
                     <Text type="supporting" color="secondary">
-                      Not a working day
+                      {notWorkingWords(l.day)}
                     </Text>
                   </span>
                 ) : (
@@ -1026,6 +1038,13 @@ const stripe = (colour: string) =>
   `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
 
 /**
+ * How much of its share of a column's width a faded item takes, at the end of it: a meeting its calendar's owner
+ * declined isn't busy time, so the rest of the width shows the free slots under it, which a pointer can select; the
+ * card itself still opens with a click, or Enter when it's focused (it's a tab stop like any item).
+ */
+const FADED_SHARE = 0.4;
+
+/**
  * How an item's text fits its height, in rows (each as tall as a line of text, whatever the row length): `tiny` (under
  * two thirds of a row: under 10 minutes in 15-minute rows) shows none, its words only in its tooltip and accessible
  * name; `short` (under a row) one small, tight line; otherwise one line a row.
@@ -1037,7 +1056,8 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 }
 
 /**
- * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
+ * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter, a faded item plain with
+ * a dashed edge: a meeting its calendar's owner declined), as many lines as fit,
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
  * it never relies on colour alone. One too short for any text has a tooltip. On a compact grid its words wrap to the
  * lines it has room for (the short ones at the same size as the rest), in full in a tooltip, and where even that's
@@ -1065,21 +1085,29 @@ function GridItem({
   const {item, top, height, column, columns} = placed;
   const fit = itemFit(height * rows);
   const lines = Math.max(1, Math.round(height * rows));
-  const isTinted = item.kind !== 'block';
+  // A faded item (a meeting its calendar's owner declined) is untinted, unstriped and behind the rest, with a dashed
+  // edge: faded without lowering its words' contrast, which opacity would.
+  const isFaded = item.isFaded === true;
+  const isTinted = item.kind !== 'block' && !isFaded;
+  const isStriped = item.kind === 'block';
   const time = formatTimeRange(item.startUtc, item.endUtc);
+  // Its share of the column's width; a faded item takes only the end part of it (`FADED_SHARE`), as its time isn't
+  // busy: the rest shows the free slots under it, which can be selected there.
+  const share = 100 / columns;
+  const width = isFaded ? share * FADED_SHARE : share;
   const style = {
     position: 'absolute' as const,
     top: `${top * 100}%`,
     // A hair shorter, so items one after another (10:00 to 10:30, then 10:30) don't run together.
     height: `calc(${height * 100}% - var(--spacing-0-5))`,
-    insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
-    inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
+    insetInlineStart: `calc(${(column + 1) * share - width}% + var(--spacing-0-5))`,
+    inlineSize: `calc(${width}% - var(--spacing-1))`,
     zIndex: isTinted ? 2 : 1,
     // What its text shows depends on its own width (the grid's CSS: its start time alone when it's very narrow).
     containerType: 'inline-size' as const,
     padding: isCompact ? '0 var(--spacing-1)' : '0 var(--spacing-1-5)',
     overflow: 'hidden',
-    borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
+    borderInlineStart: `var(--spacing-1) ${isFaded ? 'dashed' : 'solid'} var(--color-border-${item.colour})`,
     borderRadius: 'var(--radius-inner)',
     opacity: isDragged ? 0.5 : undefined,
     cursor: onPointerDown ? 'grab' : undefined,
@@ -1087,7 +1115,7 @@ function GridItem({
     // A press that wobbles across its words would select some, and Astryx's ClickableCard ignores a click while its
     // text is selected: the wobble that should open it would do nothing.
     userSelect: onPointerDown ? ('none' as const) : undefined,
-    ...(isTinted
+    ...(!isStriped
       ? {}
       : {
           // Quieter stripes in dark mode, where the full colour behind the text is busy.
@@ -1176,7 +1204,7 @@ function GridItem({
   if (!onOpen) {
     // Nothing to open: shown as a plain card, named by its description.
     return withTooltip(
-      <Card variant={variant} padding={0} data-kind={item.kind} data-fit={fit} style={style}>
+      <Card variant={variant} padding={0} data-kind={item.kind} data-fit={fit} data-faded={isFaded || undefined} style={style}>
         <VisuallyHidden>{item.description}</VisuallyHidden>
         <span aria-hidden>{content}</span>
       </Card>,
@@ -1192,6 +1220,7 @@ function GridItem({
       onPointerMove={onPointerDown ? onPointerMove : undefined}
       onPointerUp={onPointerDown ? onPointerUp : undefined}
       data-kind={item.kind}
+      data-faded={isFaded || undefined}
       data-fit={fit}
       style={style}>
       {content}
@@ -1222,6 +1251,7 @@ const GRID_CSS = `
 .medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: flex-start; justify-content: center; padding-block-start: var(--spacing-2); box-sizing: border-box; }
 .medapp-calendar .mc-col[data-today] { background: color-mix(in srgb, var(--color-accent) 5%, transparent); }
 .medapp-calendar .mc-weekend-text { position: sticky; top: calc(var(--spacing-12) + var(--spacing-1)); writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.medapp-calendar .mc-col[data-closed] .mc-weekend-text { writing-mode: horizontal-tb; transform: none; white-space: normal; text-align: center; padding-inline: var(--spacing-1); }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
 .medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }

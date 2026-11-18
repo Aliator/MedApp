@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
@@ -212,6 +213,20 @@ public sealed class AvailabilityTests
             .Should().Equal(Range(NextMonday, 8, 0, 10, 0), Range(NextMonday, 11, 0, 14, 0), Range(NextMonday, 15, 0, 18, 0));
     }
 
+
+    [Test]
+    public void FreeTime_AMeetingSomeoneDeclined_IsFreeForThemButNotForTheOthersGoing()
+    {
+        var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        meeting.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+        var decliner = CalendarOf(StaffUserId, NextMonday, meetings: [meeting]);
+        var other = CalendarOf(OtherStaffUserId, NextMonday, meetings: [meeting]);
+
+        Availability.FreeTime([decliner], NextMonday, NextMonday, LongBefore).Single().Free
+            .Should().Equal(Range(NextMonday, 8, 0, 18, 0));
+        Availability.FreeTime([decliner, other], NextMonday, NextMonday, LongBefore).Single().Free
+            .Should().Equal(Range(NextMonday, 8, 0, 10, 0), Range(NextMonday, 11, 0, 18, 0));
+    }
     [Test]
     public void FreeTime_NobodyAsked_IsEveryWorkingDay()
     {
@@ -350,4 +365,31 @@ public sealed class AvailabilityTests
 
     private static DateTime Utc(int year, int month, int day, int hour, int minute = 0) =>
         new(year, month, day, hour, minute, 0, DateTimeKind.Utc);
+
+    // Closed days
+
+    [Test]
+    public void FreeTime_ClosedDay_IsLeftOutLikeAWeekend()
+    {
+        var closed = new ClosedDaySet([CreateClosedDay()]);
+        var data = Empty(StaffUserId, NextMonday, NextFriday) with { ClosedDays = closed };
+
+        var days = Availability.FreeTime([data], NextMonday, NextFriday, LongBefore);
+
+        days.Select(d => d.Date).Should().Equal(NextMonday, NextMonday.AddDays(1), NextMonday.AddDays(3), NextFriday);
+        Availability.Suggestions(days, 60).Should().NotContain(s => UkTime.DateOf(s.StartUtc) == ClosedWednesday);
+    }
+
+    [Test]
+    public void FreeTime_ClosedDayKnownToAnyOfThePeople_IsLeftOut()
+    {
+        var closed = new ClosedDaySet([CreateClosedDay()]);
+        var people = new[]
+        {
+            Empty(StaffUserId, ClosedWednesday),
+            Empty(OtherStaffUserId, ClosedWednesday) with { ClosedDays = closed }
+        };
+
+        Availability.FreeTime(people, ClosedWednesday, ClosedWednesday, LongBefore).Should().BeEmpty();
+    }
 }

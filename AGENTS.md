@@ -17,7 +17,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Procedures, templates, stages, notes | `procedures.md` | Change a procedure only through `ProcedureChange`, loaded with `GetForUpdateOrThrowAsync`, so it's audited. Audit details hold a note's ID and version, never its text. Only a note's author edits it; only admins delete one (soft). |
 | Patient timeline | `timeline.md` | Staff never get free text from the audit log or appointment history (`TimelineMapper`'s `PublicValueFields`; `TimelineStaffCanaryTests`). |
 | Notifications | `notifications.md` | A title is a fixed phrase; a message holds only usernames, enums, admin-written names and dates, never free text or the patient. |
-| Calendar, appointments, meetings, visits | `calendar.md` | Use `WorkingHours`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. |
+| Calendar, appointments, meetings, visits | `calendar.md` | Use `WorkingHours`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays`, so closed days count. |
 | Notepad | `notepad.md` | Kept on the server only, never in browser storage. |
 | Monitoring | `monitoring.md` | Every procedure command calls `IProcedureMonitor.NotifyAsync(change)` after saving. Clinical follow-up never relies on it. |
 | Attachments | `attachments.md` | Types come from the contents (`FileTypeSniffer`), never the name; SVG and HTML are refused. Files leave only through the API, as downloads. |
@@ -32,7 +32,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Deploying (kind, Argo CD, Azure, Publish) | `deploy.md` | The chart is locked down: a new container, port or connection needs a matching change. Never run Azure's `deploy.sh` or `bootstrap.sh` unasked. Never commit to an `env/*` branch by hand except in an emergency. |
 | Integration and E2E tests | `testing.md` | An account an admin made must change its generated password before any other `/api` call (`CreateStaffAsync` does). E2E tests make their own data through the API and register every clean-up. |
 
-**Stored enum numbers are never renumbered:** `PatientProcedureStatus`, `PatientProcedureAuditAction` (with the attachment actions), `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction` and `TwoFactorMethod`. Add new values with new numbers.
+**Stored enum numbers are never renumbered:** `PatientProcedureStatus`, `PatientProcedureAuditAction` (with the attachment actions), `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction`, `MeetingReply` and `TwoFactorMethod`. Add new values with new numbers.
 
 **Privacy rules for every area** (`privacy.md`):
 - **Every read and change of patient data is logged** in the activity log (`IActivityLog`: `RecordViewsAsync` for reads; a change passes its entry to the repository's save). It fails closed. Classify a new GET endpoint in `EndpointCoverageTests`.
@@ -45,7 +45,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 
 ## Keeping this file small
 
-- **The limit:** this core file stays at or under **40,000 characters** (`wc -m AGENTS.md`), as it's loaded into every session and subagent. Claude Code's own hard limit is 150,000 characters; the file must never get near it again. CI's `web` job fails above 40,000.
+- **The limit:** this core file stays at or under **40,000 characters** (`wc -m AGENTS.md`), as it's loaded into every session and subagent. Claude Code's own hard limit is 150,000 characters; the file must never get near it again. CI's `changes` job fails above 40,000.
 - **When to check:** whenever a change edits this file, before committing it.
 - **Over the limit:** move detail into its area file, or condense, in the same PR if that's small; otherwise open a separate PR (`feature/condense-agents-md`) without waiting to be asked. It isn't merged without the owner's "merge it", like any PR.
 - **Area files** (`docs/agents/*.md`) have no hard limit, but new detail should be as short as the rules need; depth belongs in the rest of `docs/`.
@@ -80,14 +80,19 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one. Kubernetes (`deploy/kind/up.sh`), Argo CD and Azure: `docs/agents/deploy.md`. After changing the chart run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-**Testing a change: only what it touches.** CI runs every suite on each PR (about 9 minutes), and a PR merges only when green. Locally:
+**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: a PR's CI runs a light tier by default, `main` gets the full suite after each merge, and what that finds is fixed afterwards ([CI](#ci)). Locally and in CI, run only what checks your change:
+- **Which CI tier:**
+  - **A small fix** (as [Effort](#effort-for-each-stage-of-a-change) defines small): label the PR `ci:none`, and CI builds and tests nothing.
+  - **A UI change:** the default light tier (lint, type check, the changed files' own Vitest tests), plus the screenshots below, looked at locally.
+  - **A minor backend change:** the default light tier (the solution's build and the unit tests).
+  - **Integration and E2E tests are for major changes, and the owner decides.** Before running them, locally or with the `ci:full` label, ask the owner and say why (a migration, SQL translation, sign-in, sessions or permissions, a race, the image or server rendering). Don't run them unasked.
 - **Use Release** (`-c Release`): a Debug build of either test project rebuilds `medapp-dev` into the folder the running tool has locked (see `docs/agents/dev-mcp.md`).
 - **Build** the projects you changed, with no new warnings (`dotnet build <project> -c Release`), and run only their unit tests (`--filter`).
 - **`MedApp.Web`:** the changed files' tests (`npx vitest run <files>`), `npm run typecheck`, and `npx eslint <files>`.
-- **Integration tests:** only for what unit tests can't reach (SQL translation, Identity, a migration, middleware, the demo data seed), and only that fixture (`--filter "FullyQualifiedName~<Fixture>"`).
+- **Integration tests** are only for what unit tests can't reach (SQL translation, Identity, a migration, middleware, the demo data seed): ask the owner first (above), then run only that fixture (`--filter "FullyQualifiedName~<Fixture>"`).
 - **A visible change is looked at in a browser** (nothing in CI does): with the AppHost running, capture and look at the UI parity screenshots of just the screens it touches, and run the axe audit on just those (`npm run a11y -- -g "<screen>"` in `tools/ui-parity`), as the accessibility statement promises.
-- **A change to how MedApp is deployed is tried on kind** before it merges: the chart (`deploy/helm`), the Dockerfile or the image's contents, `deploy/kind`, `deploy/argocd`, or a new setting, secret, port, container or connection the API needs outside Development. Run `deploy/kind/up.sh` and check the app answers; CI never installs the chart.
-- **Not locally**, unless the user asks, a rule above calls for it, or you're chasing one failing test: the full unit, web or integration suites, E2E, the whole UI parity set or every screen's axe audit, kind.
+- **A change to how MedApp is deployed is tried on kind** before it merges, once the owner agrees to start the cluster (it's heavy, and the only test that installs the chart): the chart (`deploy/helm`), the Dockerfile or the image's contents, `deploy/kind`, `deploy/argocd`, or a new setting, secret, port, container or connection the API needs outside Development. Run `deploy/kind/up.sh` and check the app answers.
+- **Not locally**, unless the user asks or you're chasing one failing test: the full unit, web or integration suites, E2E, the whole UI parity set or every screen's axe audit.
 - **When CI fails,** run only the failing tests locally.
 
 ## Solution layout
@@ -96,7 +101,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientProcedure`, `PatientProcedureStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `Appointment`, `UserSession`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientProcedure`, `PatientProcedureStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Appointment`, `UserSession`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -157,7 +162,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`
   - `ProcedureMapper`, `ProcedureNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`, `ProcedureInsightsMapper` (from totals)
-  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `MeetingMapper` (meetings and free times)
+  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into a `PagedResponse`.
@@ -227,55 +232,40 @@ Docker, memory, the dev server, server-side rendering and the production image: 
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`. `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are required checks on `main`. Job detail, coverage, CodeQL, Dependabot and the supply chain rules: `docs/agents/ci.md`.
-- **A push of only `docs/`** after a passing run skips the build and tests (the `changes` job). **Never put a file that a build or test reads under `docs/`.**
-- **New code comes with tests.** Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR. `coverage-comment` lists .NET classes and React files under 80% line coverage.
-- **Each merge to `main` deploys** (the Publish workflow, `docs/agents/deploy.md`): after a merge, its run is the deploy, checked as you check CI.
+`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and in full on `main` after every merge and nightly. Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
+- **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` always runs everything, `deploy/` runs `helm`, and image inputs run `image`.
+- **`main`'s full run gates nothing** (Publish deploys alongside it). A failure opens or updates the issue "Full suite failing on main".
+- **The six required checks** (`web`, `helm`, `unit-tests`, `image`, `integration-tests`, `e2e`) mean "what the tier asked for passed".
+- **Never put a file that a build or test reads under `docs/`:** a docs-only push skips every job.
+- **New code comes with tests.** Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
-### Checking CI on PRs you opened or pushed to
+### Checking CI after a merge
 
-After opening a PR, or pushing to one you opened, check its CI result before calling the work done. Don't stop at "pushed".
-
-**Don't block the user while CI runs.** Hand steps 1–3 to a background subagent (Claude Code's `Agent` tool, which notifies you when done), tell the user it's watching CI, and carry on with what they ask next. Give it the branch, the pushed commit SHA and this section. The subagent's rules:
-- **Read-only:** no edits, commits or pushes. It reports; it doesn't fix.
-- **Waiting:** poll about every 30 seconds with the harness's wait mechanism (a background command or monitor; foreground `sleep` may be blocked). A run usually takes about 9 minutes, under one for a docs-only push after a passing run. After 15 minutes, report it as still pending, with its URL.
-- **One PR each:** a watcher waits for one PR's run, never several, so a ready PR isn't held up by another's CI.
-- **Report:** the run URL and result; for a failure, the failing step, the error, the cause, whether it's already broken on `main`, and a proposed fix as an exact diff.
-
-When it reports, do step 4 yourself without interrupting the user's current task: mention the result at the next natural break, or at once if it failed.
-
-1. **Find the run for your commit.** The repo is public, so the GitHub REST API needs no auth; use `gh` if it's installed and logged in.
-   - `GET https://api.github.com/repos/Aliator/MedApp/actions/runs?branch=<branch>`. Trust only a run whose `head_sha` is the commit you pushed. A new run can take a minute to appear, and until then the API returns the previous one: say the check is pending and look again later. Never report the old run's result as the new one.
-   - Then read its jobs (`/actions/runs/<run_id>/jobs`) for each step's `conclusion`.
-2. **If it passed**, say so in one line, with any coverage problems from the sticky PR comment (handlers, validators or React files under 80%).
-3. **If it failed**, find the cause before reporting:
-   - Note the failing step. A failure in "Set up job" means the workflow is broken (bad action ref, runner image), not the code.
-   - Read the annotations (`GET /repos/Aliator/MedApp/check-runs/<job_id>/annotations`); full logs need auth (`gh run view <run_id> --log-failed`).
-   - Reproduce only the failing tests locally, as CI runs them: `--configuration Release` with a `--filter`, or the `web` job's npm script on the failing files.
-   - Check whether it's yours or already broken on `main` (say, when your branch doesn't change the workflow).
-4. **Ask the user before fixing:** the failing step and error, the cause, whether your change caused it, and the fix as an exact diff. Wait for approval before committing or pushing it, unless they've already told you to fix it. After pushing a fix, check the new run (step 1).
+Merging doesn't wait for CI ([the merge flow](#merge-it-or-ship-it-the-full-merge-flow)). After a merge, at the next natural break:
+- **One call:** `gh run list --commit <merge commit> --json workflowName,status,conclusion,url` shows `main`'s CI run (the full suite) and Publish for it. A push that changes nothing deployed has no Publish run.
+- **If either failed,** tell the owner what failed (`gh run view <id> --log-failed` has the step and the error) and fix it on a new branch. Reproduce only the failing tests locally.
+- **No polling loops and no watcher subagents.** Don't wait on a PR's own run unless the owner asks, or the PR is labelled `ci:full`.
 
 ## Git workflow
 
 - Branch from `main` as `feature/<name>`, and merge back through a PR to `main`.
 - Commit messages are short, capitalised and past tense ("Updated patient task routing").
 - Never commit `bin/`, `obj/`, `.idea/` or `*.DotSettings.user`.
+- **While MedApp isn't live,** the owner wants speed and few tokens: quick reviews, merging without waiting for CI, and failures fixed afterwards. What comes back before first live use is in `docs/todo.md` (Testing).
 
 ### Effort for each stage of a change
 
-The user wants each change made in three stages, each at its own reasoning effort (Claude Code's Agent tool `effort`):
+A subagent starts cold and reads the project instructions again, so use few, and cheap ones (in Claude Code, the Agent tool's `effort` and `model`):
 
 | Stage | Effort | Who does it |
 |---|---|---|
-| **Thinking:** understanding the task, reading the code, the design and the plan | **xhigh** | The main session (its effort setting is `xhigh`). |
-| **Implementation:** the code, tests and docs, to the plan | **high** | A subagent with `effort: "high"`, given the plan, the files and the conventions. The main session checks its work (a build, the tests for what changed, a read of the diff) before calling it done. |
-| **Review:** a fresh, adversarial look at the whole PR | **xhigh** (**high** for a small change) | A subagent with `effort: "xhigh"` that wasn't told the author's conclusions, as part of every merge (below). |
+| **Thinking:** understanding the task, reading the code, the design and the plan | The session's own effort setting | The main session. |
+| **Implementation:** the code, tests and docs, to the plan | The session's own; **high** for a subagent doing design-heavy work | The main session itself, unless the change is large (many files across layers) or several independent pieces can run in parallel: then subagents with `effort: "high"`, briefed with the area files they need. The main session checks their work (a build, the tests for what changed, a read of the diff). |
+| **Mechanical work:** merging `main` into a branch, version bumps, checking a run | **low** or **medium** | A subagent with `model: "sonnet"`, if a subagent at all. |
+| **Review:** a quick look at the PR's diff for what would hurt | **low** | One subagent with `effort: "low"` that wasn't told the author's conclusions, as part of every merge (below). |
 
-**Small changes are lighter:**
-- **What counts:** a fix or tweak in a few files, with no new endpoint, table, migration or dependency, and nothing touching sign-in, security, privacy rules, patient data, clinical safety, CI or deploying. When unsure, it isn't small.
-- **Implementation:** the main session makes it itself; a subagent's cold start costs more than the change.
-- **Review:** at **high** (`effort: "high"`), not xhigh, which was the longest stage of recent small changes (a quarter to a third of the time from asking to deployed).
-- Small, mechanical edits (a typo, a one-line config change) need no stages until they're shipped.
+- **A small change** (the meaning `ci:none` uses) is a fix or tweak in a few files, with no new endpoint, table, migration or dependency, and nothing that touches sign-in, security, privacy rules, patient data, clinical safety, CI or deploying. When unsure, it isn't small.
+- **Reviews are quick while MedApp isn't live** (no xhigh or high reviews, and no check that a change is small). Full reviews come back before first live use (`docs/todo.md`, Testing); until then the owner can ask for one.
 
 ### "Merge it" or "ship it": the full merge flow
 
@@ -285,41 +275,26 @@ The user wants each change made in three stages, each at its own reasoning effor
 
 When the user says to merge, do every step, in order, without asking again:
 1. **Commit** outstanding changes on the feature branch (branching from `main` first if you're on it), and push. New scripts need their executable bit set in git (`git update-index --chmod=+x`), as this checkout doesn't track file modes.
-2. **Open a PR** to `main`, or reuse the existing one.
-3. **Review the PR at xhigh** (high for a small change: see [Effort](#effort-for-each-stage-of-a-change)) with a subagent (`effort: "xhigh"` or `"high"`), written up as a review document:
-   - **A small change's reviewer checks it's small:** a review at high starts by saying whether the change meets the Effort rule's definition of small; if not, it's reviewed again at xhigh.
-   - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description and the code around the changes. Give the reviewer the PR and the files, not your conclusions, so its view isn't anchored on yours.
-   - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), docs matching code, whether `docs/governance/` is still true (a change to what personal data is held, who sees it, where it goes or how long it's kept must update it in the same PR), and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence and a suggested fix.
-   - **How the reviewer checks:** by reading the code, and for anything it doubts, the narrowest test (a filtered unit test run, or Vitest on named files). It starts no Docker, AppHost, kind cluster or browser, and runs no full suite: CI does, and step 4 waits for it.
-   - **The document:** `docs/reviews/pr-<number>-<short-name>.md`, committed and pushed to the branch so it merges with the PR, in the [Review document format](#review-document-format).
-   - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, report them to the user with your proposed fixes, and wait. Medium and low findings are recorded and don't block; mention them when you report the merge.
-4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (with the review document) to complete ([Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). Here, waiting is the point. A push of only the review document after a passing run skips the build and tests (`changes`) and takes under a minute; review fixes or a merge from `main` run everything.
-   - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to).
-5. **Merge** with a merge commit (`gh pr merge <n> --merge`), matching the "Merge pull request #N" history. Stash any uncommitted local changes first, or the merge's local step fails after GitHub has already merged.
-6. **Delete the branch** on GitHub and locally (`--delete-branch` does both).
-7. **Pull `main` locally** (`git switch main`, `git pull`), then confirm the merge commit and a clean working tree.
-8. **Check the deploy:** the merge runs Publish, which deploys through the environment branches (`deploy/argocd/README.md`). Check its run for the merge commit succeeded, as with CI. Green only means `env/kind` moved, not that the cluster took it.
+2. **Open a PR** to `main`, or reuse the existing one, with its CI tier's label if it isn't the default ([Testing a change](#commands)).
+3. **A quick review,** by one subagent with `effort: "low"`, given the PR's diff (`git diff main...HEAD`) and description, not your conclusions. It reads the diff only, runs nothing, and takes a few minutes.
+   - **It looks only for what would hurt:** data loss, a security or privacy hole, a broken build or deploy, a stored enum renumbered, a migration that drops data. Style, test depth and polish are out of scope.
+   - **The document:** `docs/reviews/pr-<number>-<short-name>.md`, in the [Review document format](#review-document-format), committed and pushed to the branch so it merges with the PR.
+   - **Only a critical or high finding stops the merge.** Check it yourself against the code, report it to the user with your proposed fix, and wait. Anything else is listed, and fixed afterwards.
+4. **Merge** with a merge commit, without waiting for CI: `gh pr merge <n> --merge --admin --delete-branch` (repository admins bypass `main`'s required checks: ruleset "Protect", since 18 November 2026). Only a critical or high finding, or a failing local check for the change's tier, stops it. Stash any uncommitted local changes first, or the merge's local step fails after GitHub has already merged.
+5. **Pull `main` locally** (`git switch main`, `git pull`), then confirm the merge commit and a clean working tree.
+6. **Afterwards, check `main`'s run and the deploy** ([Checking CI after a merge](#checking-ci-after-a-merge)). Publish deploys through the environment branches (`docs/agents/deploy.md`); green only means `env/kind` moved, not that the cluster took it.
    - **If the kind cluster is running,** check Argo CD's `medapp` Application is **Synced and Healthy** at that commit (`kubectl --context kind-medapp -n argocd get application medapp`).
-   - **Don't start the cluster just for this:** Argo CD catches up with `env/kind` when it next starts, and a deploy change was already tried on kind before merging ([Commands](#commands), Testing a change).
+   - **Don't start the cluster just for this:** Argo CD catches up with `env/kind` when it next starts.
    - A change adding a secret store entry needs `deploy/kind/up.sh --argocd` run against the existing cluster before it merges (`deploy/kind/README.md`).
 
 ### Review document format
 
-Write each review so someone who didn't make the change can follow it quickly: short sections, bullets with bold lead-ins, short sentences, and any non-obvious term explained where it first appears. Keep the depth in the findings and the detail at the end.
+A few lines, written for an engineer: precise and technical, not simplified.
+- The PR's link and branch, the commit reviewed and the date.
+- What the PR does.
+- The findings, or "none": each with its `file:line`, its severity (critical, high, medium or low, as graded in `docs/reviews/README.md`) and what happened to it.
+- Any remaining risk.
 
-Start with the PR's link and branch, the commit reviewed and the `main` compared with, the date, and whether any finding is high or critical. Then these sections, with these names, in this order (a review may add sections, but not rename or drop these):
-1. **Summary:** what the PR does, in one or two sentences.
-2. **What changed, and why:** each change, what it does here, and why it was needed.
-3. **Design choices:** for each real choice, the main alternative and the trade-off, including what the chosen option is worse at.
-4. **How it was checked:** tests, builds, screenshots and anything run by hand, with the results.
-5. **Findings,** most severe first. Each has:
-   - a severity (critical, high, medium or low, as graded in `docs/reviews/README.md`) and a confidence
-   - what could go wrong, as a concrete scenario
-   - the evidence (`file:line`)
-   - the fix, and what happened to it (fixed in the PR, documented, or left as a to-do)
-
-   With no findings, say so.
-6. **Remaining risks:** what's still weak or left to do after this PR.
-7. **Detail** (optional): diffs, longer reasoning, and anything else only an engineer needs.
+No fixed headings are needed. A full review is something the owner asks for, in whatever shape they ask.
 
 Personal preferences for how reviews or explanations are written belong in a contributor's own git-ignored `CLAUDE.local.md`, not in this file.
