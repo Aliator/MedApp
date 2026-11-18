@@ -1,9 +1,13 @@
-# Dependabot: weekly pull requests that update dependencies, one ecosystem at a time. Minor and patch updates are
-# grouped into one pull request per ecosystem; a major update gets a pull request of its own, since it may need code
-# changes. Security updates (for a known advisory) are separate: they come as soon as there's an advisory, without
-# waiting for the schedule or the cooldown. They, Dependabot alerts and dependency review (main.yml) need the
-# repository's dependency graph, Dependabot alerts and Dependabot security updates on (Settings, Advanced Security),
-# which they are since #67 (docs/todo.md, Repository settings).
+# Dependabot: monthly pull requests that update dependencies, one ecosystem at a time. Updates are grouped so there
+# are few pull requests: minor and patch updates in one per ecosystem, and major updates in another (across every
+# directory of that ecosystem), since a major update may need code changes and gets a closer look. The trade-off: when
+# a grouped pull request breaks something, the package at fault has to be found by hand. Security updates (for a known
+# advisory) are separate: they come as soon as there's an advisory, without waiting for the schedule or the cooldown.
+# They, Dependabot alerts and dependency review (main.yml) need the repository's dependency graph, Dependabot alerts
+# and Dependabot security updates on (Settings, Advanced Security), which they are since #67 (docs/todo.md,
+# Repository settings).
+#
+# At most 5 pull requests are open per ecosystem (open-pull-requests-limit), so closing some lets the next ones out.
 #
 # cooldown: a new version is only proposed once it has been out for a week. A hijacked release (like Trivy's, in March
 # 2026) is usually found and pulled within days, so this keeps one from arriving here in a routine update.
@@ -14,8 +18,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
@@ -23,6 +26,9 @@ updates:
       actions-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+      actions-major:
+        patterns: ["*"]
+        update-types: [major]
 
   # The .NET projects: MedApp.sln at the root, and the dev MCP tool, which isn't in the solution.
   - package-ecosystem: nuget
@@ -30,8 +36,7 @@ updates:
       - /
       - /tools/MedApp.DevMcp
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
@@ -43,6 +48,9 @@ updates:
       nuget-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+      nuget-major:
+        patterns: ["*"]
+        update-types: [major]
     ignore:
       # A new .NET major version (ASP.NET Core, EF Core, the Microsoft.Extensions packages) needs the new SDK and
       # target framework: that's a deliberate upgrade, not a weekly bump. (Whenever EF Core moves, even by a patch,
@@ -60,8 +68,7 @@ updates:
       - /MedApp.Web
       - /tools/ui-parity
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
@@ -69,6 +76,9 @@ updates:
       npm-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+      npm-major:
+        patterns: ["*"]
+        update-types: [major]
     ignore:
       # Node's types follow the Node that runs the code. CI's web job uses Node 24 (main.yml), and the image's page
       # server runs Node 22 (MedApp.API/Dockerfile, NODE_VERSION), so types for Node 25 or later would accept APIs
@@ -87,8 +97,7 @@ updates:
   - package-ecosystem: docker
     directory: /MedApp.API
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
@@ -96,3 +105,6 @@ updates:
       docker-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+      docker-major:
+        patterns: ["*"]
+        update-types: [major]
