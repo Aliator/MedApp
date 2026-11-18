@@ -73,7 +73,11 @@ public static class ServiceExtensions
         services.AddScoped<HttpActivityContext>();
         services.AddScoped(ActivityContextFor);
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
-        services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
+        // A class's years under 1 would list its records for review straight away: stop at startup instead.
+        services.AddOptions<RetentionOptions>()
+            .BindConfiguration(RetentionOptions.Section)
+            .Validate(options => options.IsValid, RetentionOptions.InvalidPeriods)
+            .ValidateOnStart();
         services.AddOptions<LettersOptions>().BindConfiguration(LettersOptions.Section);
         // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
         services.AddOptions<NotepadOptions>()

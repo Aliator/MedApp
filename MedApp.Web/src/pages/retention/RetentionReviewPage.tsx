@@ -13,9 +13,7 @@ import {useListSettings} from '../../app/listSettings';
 import {Page} from '../../components/pages/Page';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {KeepRecordDialog} from '../../components/patients/KeepRecordDialog';
-import {SPECIALTY_RETENTION_WARNING} from '../../components/patients/retentionWarning';
 import {AlertMessage} from '../../components/shared/AlertMessage';
-import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TextCell} from '../../components/tables/TextCell';
@@ -34,11 +32,19 @@ export function retentionListQuery(search: RetentionListSearch, pageSize: number
   return retentionReviewQuery({Page: search.page ?? 1, PageSize: pageSize, IncludeKept: search.kept ? true : undefined});
 }
 
-const CLASS_LABELS: Record<string, string> = {Adult: 'Adult', Child: 'Child'};
+/** What set each record's period: the adult or child rule, or its pathways' longer specialty class. */
+const CLASS_LABELS: Record<string, string> = {
+  Adult: 'Adult',
+  Child: 'Child',
+  Oncology: 'Oncology',
+  Maternity: 'Maternity',
+  MentalHealth: 'Mental health',
+};
 
 /**
  * The retention review list (admin): patients whose records are past their minimum retention period (from the
- * schedule: adults 8 years after their care ended, children until their 25th birthday, or 26th if they were 17), the
+ * schedule: adults 8 years after their care ended, children until their 25th birthday, or 26th if they were 17, or
+ * longer when one of their pathways' templates has a specialty class: oncology, maternity or mental health), the
  * longest overdue first. Nothing is ever deleted automatically: for each, an admin reviews the record, keeps it with a
  * reason until a later review, or anonymises it. Records being kept can be listed too.
  */
@@ -135,12 +141,7 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
       subtitle={subtitle}
       fill
       message={
-        isError ? (
-          <AlertMessage message="The records due for review could not be loaded. Please try again." />
-        ) : (
-          // Until retention classes exist, every record is adult or child: specialty records could show years early.
-          <SummaryAlert status="warning" label="Specialty retention periods not applied" message={SPECIALTY_RETENTION_WARNING} />
-        )
+        isError ? <AlertMessage message="The records due for review could not be loaded. Please try again." /> : undefined
       }
       actions={
         <Switch

@@ -1,4 +1,5 @@
 using FluentValidation;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 
 namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
@@ -22,6 +23,11 @@ public sealed class UpdatePathwayTemplateValidator : AbstractValidator<UpdatePat
             .Must(id => id != Guid.Empty)
             .When(x => x.SpecialtyId is not null)
             .WithMessage("Specialty must not be empty.");
+
+        RuleFor(x => x.RetentionClass)
+            .Must(PathwayEnums.IsRetentionClass)
+            .When(x => x.RetentionClass is not null)
+            .WithMessage($"Retention class must be one of: {PathwayEnums.RetentionClassNames}.");
 
         RuleFor(x => x.StageDefinitionIdsInOrder)
             .Must(ids => ids is null || ids.Count > 0)

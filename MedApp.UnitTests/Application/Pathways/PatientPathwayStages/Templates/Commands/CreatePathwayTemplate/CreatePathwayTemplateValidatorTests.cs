@@ -97,4 +97,15 @@ public sealed class CreatePathwayTemplateValidatorTests
                 [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [TemplateStageOptions.Plain, new(IsOptional: true)]))
             .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.LastStageMessage);
     }
+
+    [TestCase(null, true)]
+    [TestCase("Standard", true)]
+    [TestCase("oncology", true)]
+    [TestCase("MentalHealth", true)]
+    [TestCase("1", false)]
+    [TestCase("Dental", false)]
+    public void Validate_RetentionClass_IsOneByName(string? value, bool valid)
+    {
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], RetentionClass: value)).IsValid.Should().Be(valid);
+    }
 }

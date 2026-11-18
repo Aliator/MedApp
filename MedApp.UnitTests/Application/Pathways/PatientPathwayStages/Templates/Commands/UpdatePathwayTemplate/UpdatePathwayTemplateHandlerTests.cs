@@ -7,6 +7,8 @@ using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Specialties;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
+using MedApp.Application.Patients.Common;
+using Microsoft.Extensions.Options;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 using static MedApp.UnitTests.Common.Constants.SpecialtiesTestConstants;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
@@ -250,5 +252,68 @@ public sealed class UpdatePathwayTemplateHandlerTests
         UpdatePathwayTemplateHandler.KeptOptions(template, [consultation.Id, consultation.Id]).Should().BeNull();
         UpdatePathwayTemplateHandler.KeptOptions(template, null).Should().BeNull();
         UpdatePathwayTemplateHandler.KeptOptions(template, [consultation.Id])!.Single().IsOptional.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Handle_RetentionClass_ChangesTheTemplate()
+    {
+        _fixture.Inject(Options.Create(new RetentionOptions()));
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        var response = await Handler.Handle(
+            new UpdatePathwayTemplateCommand(template.Id, null, null, null, RetentionClass: "MentalHealth"), CancellationToken.None);
+
+        template.RetentionClass.Should().Be(RetentionClass.MentalHealth);
+        response.RetentionClass.Should().Be("MentalHealth");
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, null, It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NoRetentionClass_LeavesIt()
+    {
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        template.RetentionClass = RetentionClass.Oncology;
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, "Renamed", null, null), CancellationToken.None);
+
+        template.RetentionClass.Should().Be(RetentionClass.Oncology);
+    }
+
+    [Test]
+    public async Task Handle_StandardToOncology_RaisesExistingPathwaysFromEveryShorterClass()
+    {
+        _fixture.Inject(Options.Create(new RetentionOptions()));
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, null, RetentionClass: "Oncology"), CancellationToken.None);
+
+        _repository.Verify(r => r.RaisePathwayRetentionClassesAsync(
+            template.Id,
+            RetentionClass.Oncology,
+            It.Is<IReadOnlyCollection<RetentionClass>>(from => from.Order().SequenceEqual(new[]
+                { RetentionClass.Standard, RetentionClass.Maternity, RetentionClass.MentalHealth })),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestCase(RetentionClass.Oncology, "Standard")]
+    [TestCase(RetentionClass.Oncology, "MentalHealth")]
+    public async Task Handle_LoweringTheClass_LeavesExistingPathwaysAsTheyAre(RetentionClass before, string after)
+    {
+        _fixture.Inject(Options.Create(new RetentionOptions()));
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        template.RetentionClass = before;
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, null, RetentionClass: after), CancellationToken.None);
+
+        // Oncology pathways stay Oncology: only classes shorter than the new one could be raised, and Oncology isn't.
+        template.RetentionClass.ToString().Should().Be(after);
+        _repository.Verify(r => r.RaisePathwayRetentionClassesAsync(
+            It.IsAny<Guid>(), It.IsAny<RetentionClass>(),
+            It.Is<IReadOnlyCollection<RetentionClass>>(from => from.Contains(RetentionClass.Oncology)),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }
