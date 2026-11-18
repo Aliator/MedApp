@@ -467,7 +467,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
           ))}
         </List>
       ))}
-      {feed.isFetchNextPageError && <AlertMessage message="Older entries could not be loaded. Please try again." />}
+      {feed.isFetchNextPageError && !isUpdating && <AlertMessage message="Older entries could not be loaded. Please try again." />}
       {isUpdating ? (
         // At the end, so nothing above it moves.
         <Center axis="horizontal" padding={2}>
