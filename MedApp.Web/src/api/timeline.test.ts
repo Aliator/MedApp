@@ -4,6 +4,7 @@ import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  isConsentEntry,
   isLetterEntry,
   isPatientEntry,
   isReferralEntry,
@@ -682,5 +683,54 @@ describe('letter entries', () => {
       title: 'Referral to Dermatology: information received',
       detail: 'Back to awaiting triage',
     });
+  });
+});
+
+describe('consent entries', () => {
+  const consent = (fields: Partial<TimelineEntry>) =>
+    entry({kind: 'Consent', consentFormName: 'Synthetic excision consent', consentFormVersion: '2', consentSignedOn: '2026-06-14', consentSignedBy: 'Patient', ...fields});
+
+  it('says the form, who signed and when, and whether a scan is attached', () => {
+    expect(isConsentEntry(consent({action: 'ConsentRecorded'}))).toBe(true);
+    expect(isConsentEntry(entry({kind: 'Stages', action: 'ConsentWithdrawn'}))).toBe(true);
+    expect(isConsentEntry(entry({}))).toBe(false);
+
+    const recorded = describeTimelineEntry(consent({action: 'ConsentRecorded', attachmentId: '00000031-0000-0000-0000-000000000009'}));
+    expect(recorded.title).toBe('Consent recorded on Synthetic excision consent (version 2)');
+    expect(recorded.detail).toMatch(/^Signed .+\. By: the patient\. Scan attached$/);
+    expect(describeTimelineEntry(consent({action: 'ConsentRecorded', consentSignedOn: null, consentSignedBy: null})).detail).toBe('No scan');
+  });
+
+  it('gives what was said when withdrawn or wrong, which only admins get, and copes with no form', () => {
+    expect(describeTimelineEntry(consent({action: 'ConsentWithdrawn', reason: ' Synthetic: changed their mind '}))).toEqual({
+      title: 'Consent withdrawn (Synthetic excision consent (version 2))',
+      detail: expect.stringMatching(/Synthetic: changed their mind$/),
+    });
+    expect(
+      describeTimelineEntry(consent({action: 'ConsentEnteredInError', consentFormName: null, consentFormVersion: null, consentSignedOn: null, consentSignedBy: null})),
+    ).toEqual({title: 'Consent record marked entered in error (a consent form)', detail: ''});
+    expect(describeTimelineEntry(consent({action: 'ConsentSomethingNew', consentSignedBy: 'SomeoneNew', consentSignedOn: null}))).toEqual({
+      title: 'Consent changed',
+      detail: 'By: someonenew',
+    });
+  });
+});
+
+describe('specimen detail edits', () => {
+  const edited = (changes: TimelineEntry['changes']) =>
+    describeTimelineEntry(entry({kind: 'Specimens', action: 'SpecimenDetailsEdited', specimenTypeName: '  ', changes})).detail;
+
+  it('names each field changed, with its values where sent', () => {
+    expect(describeTimelineEntry(entry({kind: 'Specimens', action: 'SpecimenDetailsEdited', specimenTypeName: null, changes: []})).title).toBe(
+      'Specimen specimen: details edited',
+    );
+    expect(edited([{field: 'laboratory'}, {field: 'somethingNew'}, {}])).toBe('Lab changed; SomethingNew changed;  changed');
+    expect(edited([{field: 'laboratory', from: 'Old lab', to: 'New lab'}, {field: 'specimenType', from: null, to: 'Biopsy'}])).toBe(
+      'Lab Old lab → New lab; Type none → Biopsy',
+    );
+    expect(edited([{field: 'takenAtUtc', from: null, to: '2026-06-15T09:00:00Z'}])).toMatch(/^Time taken none → .+$/);
+    expect(edited([{field: 'takenAtUtc', from: '2026-06-15T09:00:00Z', to: null}])).toMatch(/^Time taken .+ → none$/);
+    expect(edited([{field: 'site', from: 'Left', to: '  '}])).toBe('Site: none');
+    expect(edited([{field: 'requestNotes', from: 'a', to: 'Urgent'}])).toBe('Notes for the lab: Urgent');
   });
 });

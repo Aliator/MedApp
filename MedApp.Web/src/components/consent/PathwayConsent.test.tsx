@@ -72,3 +72,45 @@ describe('PathwayConsent', () => {
     expect(await screen.findByText('The consent records could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });
+
+describe('PathwayConsent, more', () => {
+  it('shows a record entered in error with what was wrong, its scan withheld, and an unknown recorder', async () => {
+    renderSection([
+      testConsent({status: 'EnteredInError', statusDetail: 'Synthetic: wrong stage.', scanAttachmentId: SCAN_ID, recordedByUsername: null, canWithdraw: false, canAttachScan: false}),
+    ]);
+    expect(await screen.findByText('Entered in error: Synthetic: wrong stage.')).toBeInTheDocument();
+    expect(screen.getByText(/recorded by Deleted user/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Download the scanned form'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+    expect(screen.queryByText('No scan')).not.toBeInTheDocument();
+  });
+
+  it('opens Add Scan and Entered in Error, and the record dialog, and closes each', async () => {
+    const {user} = renderSection();
+
+    await user.click(await screen.findByRole('button', {name: 'Add Scan'}));
+    let dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'Entered in Error'}));
+    dialog = within(await waitFor(() => openDialog()!));
+    expect(dialog.getByRole('textbox', {name: /What was wrong/})).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'Record Consent'}));
+    dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('says when no stage needs consent, and offers no Record Consent when none can take it', async () => {
+    mockApi({[`GET /api/pathways/${CONSENT_PATHWAY_ID}/consent-records`]: () => json([])});
+    const none = {...consentPathway(false), stages: [{...consentPathway(false).stages![0], needsConsent: false}]};
+    renderWithApp(<PathwayConsent pathway={none} />, {user: nurseUser});
+
+    expect(await screen.findByText('No stage of this pathway needs consent recorded.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Consent'})).not.toBeInTheDocument();
+  });
+});

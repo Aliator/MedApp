@@ -142,6 +142,23 @@ describe('StageList', () => {
     expect(screen.getAllByText(/^Waits for results/)).toHaveLength(1);
   });
 
+  it('says when a stage needs consent, and nothing for one that does not', async () => {
+    renderWithApp(<StageList stages={[stage({isCurrent: true, needsConsent: true}), stage({id: 'x', stageOrder: 2, needsConsent: false})]} />);
+
+    expect(await screen.findByText('Needs consent recorded before it can be finished')).toBeVisible();
+    expect(screen.getAllByText(/^Needs consent/)).toHaveLength(1);
+  });
+
+  it('orders stages missing their order first, and opens them as the page says without telling it', async () => {
+    const {user} = renderWithApp(
+      <StageList stages={[stage({id: 'b', stageOrder: 2, name: 'Second'}), stage({id: undefined, stageOrder: undefined, name: 'Unordered'})]} openStageIds={['b']} />,
+    );
+
+    const headers = await screen.findAllByRole('button', {name: /^\d+\.|Unordered|Second/});
+    expect(headers[0]).toHaveTextContent('Unordered');
+    await user.click(headers[0]);
+  });
+
   it('says when a stage has no notes', async () => {
     renderWithApp(<StageList stages={[stage({isCurrent: true})]} />);
 
