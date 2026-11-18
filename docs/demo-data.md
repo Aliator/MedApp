@@ -21,7 +21,7 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
    It builds the seeder, checks the database is a local one, applies any pending migrations, saves a `pre-reset-<timestamp>` snapshot, then **wipes the data** and replays the centre's history. It takes about a minute. Without `--confirm` it changes nothing.
 3. **Keep its summary** (`--out` writes it to a file; without it, it's printed). It holds:
    - the generated passwords (`accounts`), and the two-factor account's key and recovery codes (`twoFactor`)
-   - `tour`: the records named in this page (blocked pathways, the unlocked stage, the diary, in `tour.calendar` the meetings, the team view's day and the personal templates, and in `tour.referrals` the inbox, triage outcomes and waiting-time clocks), which depend on the day it runs
+   - `tour`: the records named in this page (blocked pathways, the unlocked stage, the diary, in `tour.calendar` the meetings, the team view's day and the personal templates, in `tour.referrals` the inbox, triage outcomes and waiting-time clocks, and in `tour.centre` the lab, results, consent, MDT, branches, letters and clinic sessions), which depend on the day it runs
    - `privacy`: the restricted, disputed, kept and due records
    - `today`: who signed in today, and the locked account
    - the counts
@@ -99,13 +99,13 @@ Seven, one archived. Each is an ordered list of stages from the stage library, w
 
 | Pathway template | Stages | Led by |
 |---|---|---|
-| **Skin lesion pathway** | **First clinic visit**, Biopsy or sample, Histology (lab), Results and team review, Treatment, Follow-up, Discharge letter to GP | `n.thornbury` or `t.hallworth` |
+| **Skin lesion pathway** | **First clinic visit**, Biopsy or sample, Histology (lab), Results and team review (a branch point), then **Benign**: Discharge letter to GP, or **Treatment**: Treatment, Follow-up, Discharge letter to GP | `n.thornbury` or `t.hallworth` |
 | **Skin lesion pathway (2024)** (archived) | **First clinic visit**, Biopsy or sample, Histology (lab), Follow-up | The same two, and the leaver |
 | **Inflammatory skin review** | **First clinic visit**, Medicines review, Follow-up, Discharge letter to GP | `t.hallworth` mostly |
 | **Post-menopausal bleeding pathway** | **First clinic visit**, Biopsy or sample, Histology (lab), Results and team review, Discharge letter to GP | `f.linton` |
 | **Prostate assessment** | Blood and urine tests, Lab tests (lab), **First clinic visit**, Results and team review, Follow-up, Discharge letter to GP | `o.penhale` |
 | **Diabetes review** | Blood and urine tests, Lab tests (lab), **Clinic review**, Medicines review, Follow-up, Discharge letter to GP | `m.carrow` or `admin` |
-| **Biomechanics course** | **First clinic visit**, Biomechanics session (three times), Discharge letter to GP | `s.winterburn` |
+| **Biomechanics course** | **First clinic visit**, Biomechanics session (three times; the third optional), Discharge letter to GP | `s.winterburn` |
 
 **Who works each stage:** the lead clinician sees the patient and writes the letter; the healthcare assistant (or `b.sandiford`) takes bloods and samples; `r.aldous` does the lab's stages; `d.quince` the medicines reviews; a nurse specialist the follow-up on the skin lesion and diabetes pathways. Before any of that, the booking coordinator registers the referral and a clinician of its specialty (usually the lead) accepts it, which creates the pathway.
 
@@ -118,6 +118,8 @@ Twelve stage definitions in use, and three retired (archived): "Referral receive
 | **Required** (the patient must be seen) | First clinic visit, Biopsy or sample, Treatment, Blood and urine tests, Clinic review, Biomechanics session |
 | **Suggested** (a phone call often does) | Results and team review, Medicines review, Follow-up |
 | **None** (the lab's work, and letters) | Histology (lab), Lab tests (lab), Discharge letter to GP (and the retired Referral received and Triage) |
+
+**What a stage needs before it's finished** (Phases 3 to 5; copied onto pathways created from ten weeks ago, when the centre started tracking them, so older pathways don't have them): Histology (lab) and Lab tests (lab) **wait for results** (signed off); Biopsy or sample **needs consent** recorded; Discharge letter to GP **needs a discharge summary**, approved and sent. And always: a pathway's last stage waits for its specimens and results.
 
 **SNOMED CT codes** are on Referral received, Triage, First clinic visit, Biopsy or sample, Follow-up, Discharge letter to GP, Lab tests (lab) and Medicines review: the concepts certain enough to use. The others are blank, so both states show.
 
@@ -193,6 +195,40 @@ Every referral is registered by `h.marsh` from the letter, usually the day it ar
   - **Breached** (`tour.referrals.clocks.breachedOpen`, open; `tour.referrals.clocks.breachedStopped`, stopped late): mostly urology, where the visiting consultant's clinic is the slowest to reach, and now and then an urgent skin or bleeding referral.
 - **Saved searches on the Referrals page:** `admin` has "Longest waits" (the waiting list, whose order is the longest wait first) and "Paused clocks"; `h.marsh` has "Paused clocks" and "Closed referrals"; `n.thornbury` has "Dermatology inbox".
 - **On the patient's timeline:** Referrals and Waiting time entries (registered, triaged, paused, resumed, stopped, target changed); staff never see the reason, the details or the referrer.
+
+### The lab, results and consent (from ten weeks ago: `tour.centre`)
+
+The centre started tracking specimens in MedApp ten weeks ago (`tour.centre.labAndLettersFrom`); older biopsies have their reports as files only.
+- **Specimens** (Lab, as `r.aldous`): every biopsy (a punch, an excision or an endometrial biopsy) and every blood and urine visit since then takes one or two, labelled with a number (`MA26-000123`). Sent within the hour, received when the lab's stage starts, reported when its work is done; a fifth of the skin biopsies go to the invented partner lab, which takes longer (a long tail), so a few are **overdue** now (`specimensOverdueAtLab`). The archived pathway's stragglers' biopsies have been at the lab for weeks.
+  - **Rejected and taken again** (`specimenRejectedAndTakenAgain`): the urine pot came without a label; the lab rejected it and the sample was taken again before the patient left.
+  - **Lost** (`specimenLostAndPathwayOnHold`): on its way to the partner lab; the clinician marked it lost and put the pathway on hold for a repeat biopsy.
+- **Results** (Results, as the clinician who asked): each report makes a result for the requesting clinician to sign off with what they did (every action shows: no further action, patient informed, appointment arranged, for MDT discussion, referred on, other with a detail); some marked seen first. About 15 await sign-off now (`resultsAwaitingSignOff`), a few for over two weeks (`resultsAwaitingOverTwoWeeks`); a lab stage waits for them. One was **entered in error** by the lab (filed against the wrong specimen) and reported again (`resultEnteredInErrorAndReportedAgain`). One, a report from another service on a patient's record, was recorded by the leaver before they left and never signed off: it **needs a clinician** (`resultNeedingAClinician`).
+- **Consent** (the pathway's Consent card): a signed consent form ("Consent for a skin procedure (demo)" or "Consent for an endometrial biopsy (demo)") recorded on each biopsy stage. One patient **withdrew** before their biopsy; the pathway is on hold (`consentWithdrawnAndPathwayOnHold`).
+- **Nothing here is MedApp's advice:** the actions and outcomes are what the clinician "recorded" from the referral's planned outcome; MedApp never reads a report.
+
+### The MDT list (Friday's skin cancer team meeting)
+
+Since the MDT list went live, the weekly skin cancer team meeting is the Dermatology **MDT**. Each skin lesion's results and team review lists it for the next one with the lead's question; the lead, who chairs it, records the outcome the team agreed, and who was there (its attendees who hadn't declined). The pathway's assignees are told ("MDT outcome recorded"). `tour.centre.mdt` names the last meeting (with how many were discussed) and the next one, with the pathways listed for it.
+
+### Branches and skipped stages
+
+- **Branches** (the skin lesion pathway): after the results and team review the clinician chooses **Benign** (straight to the discharge letter) or **Treatment** (treatment, follow-up, then the letter), from the referral's outcome; the other branch's stages show as skipped. `benignBranchChosen` and `treatmentBranchChosen` name some.
+- **Skipped when the patient declines:** the third biomechanics session is optional; about one in five patients since then declined it (`stageSkippedPatientDeclined`), and one changed their mind: the stage was **reinstated** and the session held (`stageSkippedThenReinstated`).
+- **Did not attend:** since then, the booking coordinator records what's next after each (another appointment, or a clinician to review); a few from the last week still wait for a decision (`didNotAttendAwaitingDecision`).
+
+### Letters
+
+Letter templates for each specialty (clinic letter, discharge summary, referral response, request for information; Administration, Letter templates), with merge fields for the patient, the practice, the author and the approver. Staff have full names and job titles (invented), as letters print them.
+- **Discharge summaries** for every discharge letter stage that needs one: written by the lead from the template, approved by them (a clinician approves their own) or, for the diabetes nurse, submitted to the clinical lead; its PDF made; then recorded as posted to the GP practice and the patient by the booking coordinator, before the stage was finished.
+- **In other states now** (`tour.centre.letters`): a `draft`, one `awaitingApproval`, one `returned` with a comment, one `approvedToSend`, and one `withdrawnAndCorrected` (withdrawn after it was sent; its correction approved and posted). A request for information is drafted on a dermatology referral awaiting triage (`informationRequestDraftedOn`).
+- **Practices and contact details:** eight invented GP practices (the referrals' names) on invented streets, postcodes in the `ZZ` area (none exists), phones from Ofcom's drama range, no ODS codes. Every patient has an address there, most a mobile from 07700 900000 to 900999, a registered practice, and how they agreed to be reminded (a quarter gave no consent).
+
+### Sites, hours, clinic sessions and reminders
+
+- **Sites and rooms** (Administration, Sites): the main site (open until 20:00 on Tuesdays) with clinic rooms, a minor surgery room and a phlebotomy room; the invented Wrenhurst outreach clinic (Saturday mornings too) with a consulting room and a gait lab.
+- **Working hours** (Users, a person's hours) from ten weeks ago: `f.linton` Tuesdays and Thursdays, `o.penhale` Wednesdays and Fridays, `m.carrow` mornings; everyone else the default.
+- **Clinic sessions** (Calendar, Clinics): a weekly pattern for each specialty's clinic, set up three weeks ago; its sessions made for eight weeks through Create sessions (dates already taken on the clinician's or the room's calendar were skipped, as the app skips them). Reviews are booked into some of the coming slots, and one session was **cancelled** with its call list (`tour.centre.clinics`). Appointments booked by the pathways before then stay outside sessions.
+- **Reminders** (an appointment's Messages): a reminder two days before each appointment over the last four weeks, made by the app's own factory as the reminders job makes them and sent by the offline transport (nothing leaves): most delivered, a few failed, and a Not sent record for patients who gave no consent. The setting that sends them (`PatientMessages:Mode`) stays as the deployment has it (Off unless turned on).
 
 ### Files
 
@@ -309,4 +345,9 @@ Six imported records are due: five adults last seen 9 to 12 years ago, and one c
 - **Templates are personal:** each person has their own copies of the day templates their work needs, named the same way, as the app keeps them, rather than one set the centre shares.
 - **Meetings** are arranged one at a time, as the app has no repeating meetings: the regular ones in batches of eight weeks, four weeks ahead; governance three weeks ahead; training four; 1:1s two. Everyone invited is free then, so a meeting never overlaps anything on an attendee's calendar, and visits are booked round them. Their notifications, like the rest, are made for the last 30 days only.
 - **Patients' names** are unique, so the summary can name a record by name alone. Real centres have namesakes; a demo can't afford to open the wrong one.
+- **Phases 3 to 5 start ten weeks ago** (`LabAndLettersFromUtc`): specimens, results, consent, the MDT list, letters, Did not attend decisions and skipped stages come from then, and only pathways created from then carry the stage rules that came with them (a stage's copy is fixed when the pathway is made). Through the app's shared code (`SpecimenChange`, `ResultChange`, `ConsentChange`, `MdtAudit`, `StageFinishing`, `StageGates`, `AppointmentChange`) in the replay, and the letter and clinic commands afterwards.
+- **The lab reports whatever happened to the pathway since** (on hold, cancelled): a report is never stuck; one on a pathway that no longer takes files goes on the patient's record, as the app files it.
+- **The reports' and letters' files** are stored only when Azurite answers; otherwise their records are kept without the bytes (as on kind).
+- **Specimen numbers** restart the sequence after the last used, so one recorded now gets the next.
+- **Clinic sessions don't cover the history:** the pathways' appointments were booked before sessions existed, so sessions are made only from three weeks ago, where the calendars are free.
 - **History respects when each patient existed:** nobody views, lists, books or changes a patient before they were registered, and nobody sees the anonymised record afterwards.
