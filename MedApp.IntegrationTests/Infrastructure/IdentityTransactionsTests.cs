@@ -27,11 +27,11 @@ public sealed class IdentityTransactionsTests : IntegrationTest
     {
         var result = await RunInScopeAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             return services.GetRequiredService<IIdentityTransactions>().RunAsync(async () =>
             {
-                await roles.CreateAsync(new IdentityRole<Guid>(RoleA));
-                return await roles.CreateAsync(new IdentityRole<Guid>(RoleB));
+                await roles.CreateAsync(new ApplicationRole(RoleA));
+                return await roles.CreateAsync(new ApplicationRole(RoleB));
             }, CancellationToken.None);
         });
 
@@ -46,10 +46,10 @@ public sealed class IdentityTransactionsTests : IntegrationTest
 
         var result = await RunInScopeAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             return services.GetRequiredService<IIdentityTransactions>().RunAsync(async () =>
             {
-                (await roles.CreateAsync(new IdentityRole<Guid>(RoleA))).Succeeded.Should().BeTrue();
+                (await roles.CreateAsync(new ApplicationRole(RoleA))).Succeeded.Should().BeTrue();
                 return IdentityResult.Failed(failure);
             }, CancellationToken.None);
         });
@@ -63,10 +63,10 @@ public sealed class IdentityTransactionsTests : IntegrationTest
     {
         var act = () => RunInScopeAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             return services.GetRequiredService<IIdentityTransactions>().RunAsync(async () =>
             {
-                await roles.CreateAsync(new IdentityRole<Guid>(RoleA));
+                await roles.CreateAsync(new ApplicationRole(RoleA));
                 throw new InvalidOperationException("Synthetic failure.");
             }, CancellationToken.None);
         });
@@ -80,13 +80,13 @@ public sealed class IdentityTransactionsTests : IntegrationTest
     {
         var result = await RunInScopeAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             var transactions = services.GetRequiredService<IIdentityTransactions>();
             return transactions.RunAsync(async () =>
             {
-                (await transactions.RunAsync(() => roles.CreateAsync(new IdentityRole<Guid>(RoleA)), CancellationToken.None))
+                (await transactions.RunAsync(() => roles.CreateAsync(new ApplicationRole(RoleA)), CancellationToken.None))
                     .Succeeded.Should().BeTrue();
-                return await roles.CreateAsync(new IdentityRole<Guid>(RoleB));
+                return await roles.CreateAsync(new ApplicationRole(RoleB));
             }, CancellationToken.None);
         });
 
@@ -101,11 +101,11 @@ public sealed class IdentityTransactionsTests : IntegrationTest
         // next step fails, so the roles the inner part saved must go too.
         var act = () => RunInScopeAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             var transactions = services.GetRequiredService<IIdentityTransactions>();
             return transactions.RunAsync(async () =>
             {
-                await transactions.RunAsync(() => roles.CreateAsync(new IdentityRole<Guid>(RoleA)), CancellationToken.None);
+                await transactions.RunAsync(() => roles.CreateAsync(new ApplicationRole(RoleA)), CancellationToken.None);
                 throw new InvalidOperationException("Synthetic failure after the inner part.");
             }, CancellationToken.None);
         });
@@ -153,7 +153,7 @@ public sealed class IdentityTransactionsTests : IntegrationTest
 
     private static Task<List<string?>> RoleNamesAsync() =>
         RunInScopeAsync(services =>
-            services.GetRequiredService<RoleManager<IdentityRole<Guid>>>().Roles.Select(r => r.Name).ToListAsync());
+            services.GetRequiredService<RoleManager<ApplicationRole>>().Roles.Select(r => r.Name).ToListAsync());
 
     private static Task<int> UserCountAsync() =>
         RunInScopeAsync(services => services.GetRequiredService<UserManager<ApplicationUser>>().Users.CountAsync());

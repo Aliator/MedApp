@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
@@ -24,6 +25,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     private static readonly Guid AdminId = Guid.Parse("0000000b-0000-0000-0000-0000000000ad");
 
     private Mock<IPatientPathwayRepository> _pathways = null!;
+    private Mock<IPermissionHolders> _holders = null!;
     private MarkAppointmentEnteredInErrorHandler _handler = null!;
 
     [SetUp]
@@ -32,7 +34,9 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         _pathways = new Mock<IPatientPathwayRepository>();
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
-        Identity.Setup(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
+        _holders = new Mock<IPermissionHolders>();
+        _holders.Setup(h => h.GetUserIdsAsync(Permission.OverrideStages, It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
+        Fixture.Inject(_holders.Object);
         Fixture.Inject(_pathways.Object);
         _handler = Fixture.Create<MarkAppointmentEnteredInErrorHandler>();
     }
@@ -262,7 +266,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
 
         response.StageMessage.Should().Be($"The '{StageName}' stage is finished, and still has an attended visit.");
         Sent.Should().BeEmpty();
-        Identity.Verify(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _holders.Verify(h => h.GetUserIdsAsync(It.IsAny<Permission>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

@@ -1,3 +1,5 @@
+using MedApp.API.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
@@ -40,13 +42,13 @@ public sealed class PathwayInsightsControllerTests
     }
 
     [Test]
-    public void GetPathwayInsights_IsForAdminsOnly()
+    public void GetPathwayInsights_NeedsViewInsights()
     {
         // The API has no fallback policy: without this attribute, anyone could read the counts and usernames.
         var action = typeof(PathwayInsightsController).GetMethod(nameof(PathwayInsightsController.GetPathwayInsights))!;
 
-        action.GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()
-            .Should().ContainSingle().Which.Roles.Should().Be("Admin");
+        action.GetCustomAttributes(typeof(RequirePermissionAttribute), true).Cast<RequirePermissionAttribute>()
+            .Should().ContainSingle().Which.Permission.Should().Be(Permission.ViewInsights);
         action.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
         typeof(PathwayInsightsController).GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
     }

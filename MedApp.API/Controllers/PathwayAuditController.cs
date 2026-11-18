@@ -1,3 +1,5 @@
+using MedApp.Application.Common.Identity;
+using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.Audit.Queries.SearchPathwayAudit;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Pathways.Audit.Requests;
@@ -17,7 +19,7 @@ public sealed class PathwayAuditController(IMediator mediator) : ControllerBase
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<PatientPathwayAuditEntryResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ViewAudit)]
     public async Task<IActionResult> SearchPathwayAudit([FromQuery] SearchPathwayAuditRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchPathwayAuditQuery(
             request.Page,

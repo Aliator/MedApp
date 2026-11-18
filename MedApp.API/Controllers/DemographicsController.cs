@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Demographics.Queries.GetDemographicsStatus;
 using MedApp.Application.Demographics.Queries.LookUpDemographics;
@@ -15,7 +16,7 @@ namespace MedApp.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/demographics")]
-[Authorize(Policy = AuthPolicies.Staff)]
+[RequirePermission(Permission.EditPatients)]
 public sealed class DemographicsController(IMediator mediator) : ControllerBase
 {
     /// <summary>Whether a lookup is set up, so the forms know whether to offer one.</summary>

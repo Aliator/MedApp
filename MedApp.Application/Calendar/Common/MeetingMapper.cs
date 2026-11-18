@@ -45,7 +45,7 @@ public static class MeetingMapper
                 .ThenBy(a => a.Username, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.UserId)
                 .ToList(),
-            CanEdit = viewer.IsAdmin && date >= UkTime.DateOf(nowUtc),
+            CanEdit = viewer.CanArrangeMeetings && date >= UkTime.DateOf(nowUtc),
             MyReply = MeetingReplies.ReplyOf(meeting, viewer.UserId)?.ToString(),
             CanReply = MeetingReplies.CanReply(meeting, viewer.UserId, nowUtc),
             CreatedAtUtc = meeting.CreatedAtUtc,

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Calendar.StaffCalendars.Commands.ApplyDayTemplate;
 using MedApp.Application.Calendar.StaffCalendars.Commands.ChangeTemplateBlockForDay;
@@ -28,7 +29,6 @@ namespace MedApp.API.Controllers;
 [ApiController]
 [Route("api/calendar")]
 [Tags("Calendar")]
-[Authorize(Policy = AuthPolicies.Staff)]
 public sealed class CalendarController(IMediator mediator) : ControllerBase
 {
     /// <summary>
@@ -39,6 +39,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(CalendarResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetCalendar([FromQuery] GetCalendarRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(
             new GetCalendarQuery(request.StaffUserId, request.From, request.To, User.ToCalendarActor(), request.WithoutAppointments), ct));
@@ -48,10 +49,10 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     /// named), and when they're all free.
     /// </summary>
     [HttpGet("team")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(TeamCalendarResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ArrangeMeetings)]
     public async Task<IActionResult> GetTeamCalendar([FromQuery] GetTeamCalendarRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetTeamCalendarQuery(request.Date, request.StaffUserIds ?? [], User.ToCalendarActor()), ct));
 
@@ -60,10 +61,10 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     /// times for a meeting of the length given, and each person's busy times. Names no patient.
     /// </summary>
     [HttpGet("availability")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(AvailabilityResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ArrangeMeetings)]
     public async Task<IActionResult> GetAvailability([FromQuery] GetAvailabilityRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAvailabilityQuery(
             request.StaffUserIds ?? [],
@@ -75,6 +76,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     /// <summary>Everyone whose calendar can be shown (anyone with a role), with their default week template.</summary>
     [HttpGet("staff")]
     [ProducesResponseType(typeof(IReadOnlyList<StaffMemberResponse>), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetStaff(CancellationToken ct) =>
         Ok(await mediator.Send(new GetCalendarStaffQuery(), ct));
 
@@ -85,6 +87,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> CreateBlock([FromBody] CreateCalendarBlockRequest request, CancellationToken ct)
     {
         var block = await mediator.Send(new CreateCalendarBlockCommand(
@@ -104,6 +107,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> UpdateBlock(Guid id, [FromBody] UpdateCalendarBlockRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateCalendarBlockCommand(
             id,
@@ -118,6 +122,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> DeleteBlock(Guid id, CancellationToken ct)
     {
         await mediator.Send(new DeleteCalendarBlockCommand(id, User.ToCalendarActor()), ct);
@@ -134,6 +139,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> ChangeTemplateBlockForDay(
         Guid userId,
         DateOnly date,
@@ -156,6 +162,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> RemoveTemplateBlockForDay(Guid userId, DateOnly date, Guid templateBlockId, CancellationToken ct)
     {
         await mediator.Send(new RemoveTemplateBlockForDayCommand(userId, date, templateBlockId, User.ToCalendarActor()), ct);
@@ -169,6 +176,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> ApplyDayTemplate(
         Guid userId,
         DateOnly date,
@@ -182,6 +190,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> ClearDayTemplate(Guid userId, DateOnly date, CancellationToken ct)
     {
         await mediator.Send(new ClearDayTemplateCommand(userId, date, User.ToCalendarActor()), ct);
@@ -191,6 +200,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [HttpGet("staff/{userId:guid}/week-template")]
     [ProducesResponseType(typeof(StaffWeekTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetWeekTemplate(Guid userId, CancellationToken ct) =>
         Ok(await mediator.Send(new GetStaffWeekTemplateQuery(userId), ct));
 
@@ -201,6 +211,7 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> SetWeekTemplate(Guid userId, [FromBody] SetStaffWeekTemplateRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetStaffWeekTemplateCommand(userId, request.WeekTemplateId, User.ToCalendarActor()), ct));
 }

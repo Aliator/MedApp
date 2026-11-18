@@ -1,4 +1,5 @@
-﻿using MedApp.API.Common.Authentication;
+﻿using MedApp.Application.Common.Identity;
+using MedApp.API.Common.Authentication;
 using MedApp.Application.Notifications.Commands.MarkNotificationsRead;
 using MedApp.Application.Notifications.Commands.UpdateMyNotificationPreferences;
 using MedApp.Application.Notifications.Queries.GetMyNotificationPreferences;
@@ -14,8 +15,8 @@ namespace MedApp.API.Controllers;
 /// <summary>The signed-in user's notifications. New ones also arrive live, through the notifications hub.</summary>
 [ApiController]
 [Route("api/notifications")]
-[Authorize(Policy = AuthPolicies.Staff)]
 [Tags("Notifications")]
+[RequirePermission(Permission.UseApp)]
 public sealed class NotificationsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

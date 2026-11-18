@@ -40,4 +40,10 @@ public enum SecurityEventKind
 
     /// <summary>Two-factor authentication with codes by email was turned off.</summary>
     EmailCodesDisabled,
+
+    /// <summary>
+    /// Whoever deploys gave an account the Admin role with the <c>grant-admin</c> command, to recover when every admin
+    /// is locked out. By nobody (no one is signed in), with the account as its target.
+    /// </summary>
+    AdminGrantedByCommand,
 }

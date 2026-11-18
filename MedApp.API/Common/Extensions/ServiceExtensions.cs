@@ -92,13 +92,15 @@ public static class ServiceExtensions
                 SessionAuthenticationDefaults.Scheme,
                 _ => { });
 
-        // A refused FHIR request gets an OperationOutcome; every other path is refused as before.
-        services.AddSingleton<IAuthorizationMiddlewareResultHandler, FhirAuthorizationResultHandler>();
+        // A refused FHIR request gets an OperationOutcome; a missing permission a 403 that names it; anything else as before.
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationResultHandler>();
+
+        // One policy per permission (RequirePermission), checked against the session's permission claims.
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicies>();
+        services.AddSingleton<IAuthorizationHandler, PermissionRequirementHandler>();
 
         services.AddAuthorization(options =>
         {
-            options.AddPolicy(AuthPolicies.Staff, policy => policy.RequireRole("Admin", "User"));
-
             options.AddPolicy(AuthPolicies.SelfUserOnly, policy =>
                 policy.RequireAssertion(context =>
                     context.Resource is HttpContext http && AuthPolicies.IsOwnUsername(http, context.User)));

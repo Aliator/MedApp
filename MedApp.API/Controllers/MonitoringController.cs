@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 using MedApp.Application.Monitoring.Commands.DeleteMonitoringRule;
@@ -18,8 +19,8 @@ namespace MedApp.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/monitoring/rules")]
-[Authorize(Roles = "Admin")]
 [Tags("Monitoring")]
+[RequirePermission(Permission.ManageMonitoring)]
 public sealed class MonitoringController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -16,7 +17,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 public sealed class NoteDeletionRequestsControllerTests
 {
     // Signed in as an admin, so the actor says so.
-    private static readonly PathwayActor Actor = new(UserId, Username, IsAdmin: true);
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Admin);
     private NoteDeletionRequestResponse _response = null!;
     private RecordingMediator _mediator = null!;
     private CancellationTokenSource _cts = null!;

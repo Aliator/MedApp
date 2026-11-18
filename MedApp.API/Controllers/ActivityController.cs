@@ -1,3 +1,5 @@
+using MedApp.Application.Common.Identity;
+using MedApp.API.Common.Authentication;
 using MedApp.Application.Activity.Queries.SearchActivity;
 using MedApp.Contracts.Activity.Requests;
 using MedApp.Contracts.Activity.Responses;
@@ -21,7 +23,7 @@ public sealed class ActivityController(IMediator mediator) : ControllerBase
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<ActivityEntryResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ViewAudit)]
     public async Task<IActionResult> SearchActivity([FromQuery] SearchActivityRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchActivityQuery(
             request.Page,

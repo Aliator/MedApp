@@ -87,6 +87,35 @@ public static class IdentityErrors
             Description = "This link is for another account. Sign in as that account, then open the link again."
         };
 
+    /// <summary>
+    /// Taking the Admin role from the last active admin (or deleting them) would leave nobody to run MedApp: a 409.
+    /// </summary>
+    public static IdentityError LastAdmin =>
+        new()
+        {
+            Code = LastAdminCode,
+            Description = "This is the last active admin. Make someone else an admin first."
+        };
+
+    /// <summary>The built-in Admin role can't be deleted (or renamed, edited or archived).</summary>
+    public static IdentityError BuiltInRole =>
+        new()
+        {
+            Code = BuiltInRoleCode,
+            Description = "The Admin role is built in and can't be changed or deleted."
+        };
+
+    /// <summary>An archived role can't be given to anyone new; its holders keep it.</summary>
+    public static IdentityError RoleArchived(string roleName) =>
+        new()
+        {
+            Code = RoleArchivedCode,
+            Description = $"The role {roleName} is archived, so it can't be given to anyone new."
+        };
+
+    public const string LastAdminCode = "LastAdmin";
+    public const string BuiltInRoleCode = "BuiltInRole";
+    public const string RoleArchivedCode = "RoleArchived";
     public const string WrongAccountCode = "WrongAccount";
     public const string UserNotFoundCode = "UserNotFound";
     public const string InvalidTokenCode = "InvalidToken";

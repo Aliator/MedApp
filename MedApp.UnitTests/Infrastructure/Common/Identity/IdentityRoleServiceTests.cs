@@ -11,7 +11,7 @@ namespace MedApp.UnitTests.Infrastructure.Common.Identity;
 public sealed class IdentityRoleServiceTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
-    private Mock<RoleManager<IdentityRole<Guid>>> _roleManager = null!;
+    private Mock<RoleManager<ApplicationRole>> _roleManager = null!;
     private Mock<IIdentityTransactions> _transactions = null!;
     private IdentityRoleService _service = null!;
 
@@ -22,8 +22,8 @@ public sealed class IdentityRoleServiceTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             userStore.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        var roleStore = new Mock<IRoleStore<IdentityRole<Guid>>>();
-        _roleManager = new Mock<RoleManager<IdentityRole<Guid>>>(
+        var roleStore = new Mock<IRoleStore<ApplicationRole>>();
+        _roleManager = new Mock<RoleManager<ApplicationRole>>(
             roleStore.Object, null!, null!, null!, null!);
 
         // The transaction runs the work as given (committing or rolling back is IdentityTransactions' job).
@@ -32,7 +32,7 @@ public sealed class IdentityRoleServiceTests
             .Setup(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()))
             .Returns((Func<Task<IdentityResult>> work, CancellationToken _) => work());
 
-        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object);
+        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object, TimeProvider.System);
     }
 
     [Test]
@@ -51,7 +51,7 @@ public sealed class IdentityRoleServiceTests
         result.Should().BeSameAs(role);
 
         _roleManager.Verify(
-            r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()),
+            r => r.CreateAsync(It.IsAny<ApplicationRole>()),
             Times.Never);
     }
 
@@ -62,10 +62,10 @@ public sealed class IdentityRoleServiceTests
 
         _roleManager
             .Setup(r => r.FindByNameAsync(roleName))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
+            .ReturnsAsync((ApplicationRole?)null);
 
         _roleManager
-            .Setup(r => r.CreateAsync(It.Is<IdentityRole<Guid>>(x => x.Name == roleName)))
+            .Setup(r => r.CreateAsync(It.Is<ApplicationRole>(x => x.Name == roleName)))
             .ReturnsAsync(IdentityResult.Failed());
 
         var result = await _service.CreateRoleAsync(
@@ -82,10 +82,10 @@ public sealed class IdentityRoleServiceTests
 
         _roleManager
             .Setup(r => r.FindByNameAsync(roleName))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
+            .ReturnsAsync((ApplicationRole?)null);
 
         _roleManager
-            .Setup(r => r.CreateAsync(It.Is<IdentityRole<Guid>>(x => x.Name == roleName)))
+            .Setup(r => r.CreateAsync(It.Is<ApplicationRole>(x => x.Name == roleName)))
             .ReturnsAsync(IdentityResult.Success);
 
         var result = await _service.CreateRoleAsync(
@@ -122,7 +122,7 @@ public sealed class IdentityRoleServiceTests
 
         _roleManager
             .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
+            .ReturnsAsync((ApplicationRole?)null);
 
         var result = await _service.AssignRoleAsync(
             user.UserName!,
@@ -136,7 +136,7 @@ public sealed class IdentityRoleServiceTests
     public async Task AssignRoleAsync_RoleNameNull_ReturnsNull()
     {
         var user = AuthTestConstants.CreateValidUser();
-        var role = new IdentityRole<Guid>();
+        var role = new ApplicationRole();
 
         _userManager
             .Setup(u => u.FindByNameAsync(user.UserName!))
@@ -236,7 +236,7 @@ public sealed class IdentityRoleServiceTests
 
         _roleManager
             .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
+            .ReturnsAsync((ApplicationRole?)null);
 
         var result = await _service.RevokeRoleAsync(
             user.UserName!,
@@ -250,7 +250,7 @@ public sealed class IdentityRoleServiceTests
     public async Task RevokeRoleAsync_RoleNameNull_ReturnsNull()
     {
         var user = AuthTestConstants.CreateValidUser();
-        var role = new IdentityRole<Guid>();
+        var role = new ApplicationRole();
 
         _userManager
             .Setup(u => u.FindByNameAsync(user.UserName!))
@@ -329,7 +329,7 @@ public sealed class IdentityRoleServiceTests
     {
         _roleManager
             .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
+            .ReturnsAsync((ApplicationRole?)null);
 
         var result = await _service.DeleteRoleAsync(
             AuthTestConstants.Roles[0],
@@ -368,7 +368,7 @@ public sealed class IdentityRoleServiceTests
         foreach (var name in names)
             _roleManager
                 .Setup(r => r.FindByNameAsync(It.Is<string>(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase))))
-                .ReturnsAsync(new IdentityRole<Guid>(name));
+                .ReturnsAsync(new ApplicationRole(name));
     }
 
     [Test]
@@ -496,5 +496,58 @@ public sealed class IdentityRoleServiceTests
 
         result.Succeeded.Should().BeFalse();
         _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_AddingAnArchivedRole_FailsWithoutChangingAnything()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync([]);
+        _roleManager.Setup(r => r.FindByNameAsync("Lab")).ReturnsAsync(new ApplicationRole("Lab") { IsArchived = true });
+
+        var result = await _service.SetRolesAsync(user.UserName!, ["Lab"], CancellationToken.None);
+
+        result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.RoleArchivedCode);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_KeepingAnArchivedRoleTheyHold_Succeeds()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync(["Lab"]);
+        _roleManager.Setup(r => r.FindByNameAsync("Lab")).ReturnsAsync(new ApplicationRole("Lab") { IsArchived = true });
+
+        var result = await _service.SetRolesAsync(user.UserName!, ["Lab"], CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task DeleteRoleAsync_TheBuiltInAdminRole_FailsWithoutDeleting()
+    {
+        _roleManager.Setup(r => r.FindByNameAsync("Admin")).ReturnsAsync(new ApplicationRole("Admin") { IsBuiltIn = true });
+
+        var result = await _service.DeleteRoleAsync("Admin", CancellationToken.None);
+
+        result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.BuiltInRoleCode);
+        _roleManager.Verify(r => r.DeleteAsync(It.IsAny<ApplicationRole>()), Times.Never);
+    }
+
+    [Test]
+    public async Task CreateRoleAsync_New_SetsWhenItWasMade()
+    {
+        var now = new DateTime(2026, 11, 18, 10, 0, 0, DateTimeKind.Utc);
+        _roleManager.Setup(r => r.FindByNameAsync("Visitor")).ReturnsAsync((ApplicationRole?)null);
+        _roleManager.Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>())).ReturnsAsync(IdentityResult.Success);
+        var service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object, new MedApp.UnitTests.Common.Fixtures.FixedTimeProvider(now));
+
+        var role = (ApplicationRole?)await service.CreateRoleAsync("Visitor", CancellationToken.None);
+
+        role!.CreatedAt.Should().Be(now);
+        role.LastUpdated.Should().Be(now);
+        role.IsBuiltIn.Should().BeFalse();
     }
 }

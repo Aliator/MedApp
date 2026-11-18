@@ -22,7 +22,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
         var attachment = GivenAttachment(CreateAttachment(uploadedBy: Staff.UserId));
         using var cts = new CancellationTokenSource();
 
-        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), cts.Token);
+        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, CanCorrectRecords: false), cts.Token);
 
         attachment.DeletedAtUtc.Should().Be(Now);
         attachment.DeletedByUserId.Should().Be(Staff.UserId);
@@ -38,7 +38,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     {
         var attachment = GivenAttachment(CreateAttachment(uploadedBy: OtherUserId));
 
-        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
+        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, CanCorrectRecords: false), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenException>();
         attachment.IsDeleted.Should().BeFalse();
@@ -50,7 +50,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     {
         var attachment = GivenAttachment(CreateAttachment(uploadedBy: OtherUserId));
 
-        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, IsAdmin: true), CancellationToken.None);
+        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, CanCorrectRecords: true), CancellationToken.None);
 
         attachment.DeletedByUsername.Should().Be(Admin.Username);
     }
@@ -61,7 +61,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
         var pathway = GivenPathway(CreatePathway(Status.InProgress, finishedStages: 1));
         var attachment = GivenAttachment(AttachmentOn(pathway, stageOrder: 1));
 
-        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
+        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, CanCorrectRecords: false), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*finished and locked*");
         attachment.IsDeleted.Should().BeFalse();
@@ -73,7 +73,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
         var pathway = GivenPathway(CreatePathway(Status.Completed, finishedStages: 3));
         var attachment = GivenAttachment(AttachmentOn(pathway, stageOrder: 1));
 
-        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, IsAdmin: true), CancellationToken.None);
+        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, CanCorrectRecords: true), CancellationToken.None);
 
         attachment.IsDeleted.Should().BeTrue();
         SavedAudit.Single().StageId.Should().Be(pathway.StageAt(1).Id);
@@ -85,7 +85,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     {
         var attachment = GivenAttachment(CreateAttachment(pathwayId: Guid.NewGuid()));
 
-        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
+        await Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Staff, CanCorrectRecords: false), CancellationToken.None);
 
         SavedAudit.Single().PatientPathwayId.Should().Be(PatientPathwayAuditEntry.NoPathway);
     }
@@ -95,7 +95,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     {
         var attachment = GivenAttachment(CreateAttachment(deleted: true));
 
-        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, IsAdmin: true), CancellationToken.None);
+        var act = () => Handler.Handle(new DeleteAttachmentCommand(attachment.Id, Admin, CanCorrectRecords: true), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -103,7 +103,7 @@ public sealed class DeleteAttachmentHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_Unknown_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new DeleteAttachmentCommand(Guid.NewGuid(), Admin, IsAdmin: true), CancellationToken.None);
+        var act = () => Handler.Handle(new DeleteAttachmentCommand(Guid.NewGuid(), Admin, CanCorrectRecords: true), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
