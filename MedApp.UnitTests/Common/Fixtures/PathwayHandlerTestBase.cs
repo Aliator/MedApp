@@ -38,6 +38,9 @@ public abstract class PathwayHandlerTestBase
     /// <summary>Pathway changes passed to AddAsync or SaveAsync, with the appointments and history they bring.</summary>
     protected List<PathwayChange> SavedChanges { get; } = [];
 
+    /// <summary>The pathway's letters (none by default).</summary>
+    protected Mock<MedApp.Application.Letters.Repositories.ILetterRepository> Letters { get; private set; } = null!;
+
     [SetUp]
     public void SetUpPathwayMocks()
     {
@@ -102,6 +105,11 @@ public abstract class PathwayHandlerTestBase
         Fixture.Inject(Identity.Object);
         Fixture.Inject(Attachments.Object);
         Fixture.Inject(Specimens.Object);
+        // No letters, unless a test says so: none stops a pathway's deletion or a stage's finish.
+        Letters = new Mock<MedApp.Application.Letters.Repositories.ILetterRepository>();
+        Letters.Setup(l => l.GetForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        Letters.Setup(l => l.CountForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        Fixture.Inject(Letters.Object);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(PathwaysTestConstants.Now));
     }
 

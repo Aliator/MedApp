@@ -58,6 +58,9 @@ public enum PatientTimelineKind
     /// </summary>
     WaitingTime,
 
+    /// <summary>A letter was started, submitted, returned, approved, sent (or a secure email failed) or withdrawn.</summary>
+    Letters,
+
     /// <summary>A specimen was taken, sent, received, reported, rejected, lost, entered in error or edited.</summary>
     Specimens
 }

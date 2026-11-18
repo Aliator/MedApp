@@ -67,10 +67,87 @@ public sealed class PatientExportResponse
     public List<ExportedReferralHistoryEntryResponse> ReferralHistory { get; set; } = [];
 
     /// <summary>
+    /// The patient's letters, oldest first: what each said, who wrote and approved it, and whom it went to, when and how.
+    /// Their history is in <c>PathwayHistory</c>; their approved PDFs are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedLetterResponse> Letters { get; set; } = [];
+
+    /// <summary>
     /// The patient's specimens, oldest taken first: where each came from, where it went and what happened to it. Their
     /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
+}
+
+/// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedLetterResponse
+{
+    public Guid Id { get; set; }
+
+    public Guid? PathwayId { get; set; }
+
+    public Guid? ReferralId { get; set; }
+
+    public string Kind { get; set; } = string.Empty;
+
+    public string TemplateName { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public string Letterhead { get; set; } = string.Empty;
+
+    public string Body { get; set; } = string.Empty;
+
+    public string Closing { get; set; } = string.Empty;
+
+    public bool LargePrint { get; set; }
+
+    public string Author { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? SubmittedAtUtc { get; set; }
+
+    /// <summary>Whom it awaits approval from, or who approved it.</summary>
+    public string? Approver { get; set; }
+
+    public DateTime? ApprovedAtUtc { get; set; }
+
+    public string? ReturnComment { get; set; }
+
+    public DateTime? WithdrawnAtUtc { get; set; }
+
+    public string? WithdrawnBy { get; set; }
+
+    public string? WithdrawnReason { get; set; }
+
+    public Guid? PdfAttachmentId { get; set; }
+
+    public Guid? ReplacesLetterId { get; set; }
+
+    public List<ExportedLetterRecipientResponse> Recipients { get; set; } = [];
+}
+
+/// <summary>One recipient of a letter in a patient's export, and how it reached them.</summary>
+public sealed class ExportedLetterRecipientResponse
+{
+    public string Kind { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string? AddressLines { get; set; }
+
+    public string? Postcode { get; set; }
+
+    public string? Email { get; set; }
+
+    public string DispatchStatus { get; set; } = string.Empty;
+
+    public string? Method { get; set; }
+
+    public DateOnly? SentOn { get; set; }
+
+    public string? SentBy { get; set; }
 }
 
 /// <summary>A specimen in a patient's export: everything it holds, with staff by username only.</summary>

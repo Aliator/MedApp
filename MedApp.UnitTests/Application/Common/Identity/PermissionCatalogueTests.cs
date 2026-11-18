@@ -44,8 +44,8 @@ public sealed class PermissionCatalogueTests
     }
 
     /// <summary>
-    /// Column A: every permission but the clinical ones: triage, finishing a stage without its visit, and recording and
-    /// processing specimens (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74 and 138).
+    /// Column A: every permission but the clinical ones: triage, finishing a stage without its visit, recording and
+    /// processing specimens, and letters (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74 and 138).
     /// </summary>
     [Test]
     public void Admin_HasEveryPermissionButTheClinicalOnes()
@@ -58,6 +58,7 @@ public sealed class PermissionCatalogueTests
             ViewAudit, ExportPatientRecords, ManagePrivacy, CorrectRecords,
         ]);
         Permissions.Admin.Should().NotContain(TriageReferrals).And.NotContain(FinishWithoutVisit);
+        Permissions.Admin.Should().NotContain([WriteLetters, ApproveLetters, SendLetters]);
         Permissions.Admin.Should().NotContain(RecordSpecimens).And.NotContain(ProcessSpecimens);
     }
 
@@ -67,13 +68,14 @@ public sealed class PermissionCatalogueTests
         StandardRoles.AllStaffBeforeRoles.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles]);
         StandardRoles.Clinician.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens]);
+            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles,
+             RecordSpecimens, WriteLetters, ApproveLetters, SendLetters]);
         StandardRoles.SeniorClinician.Permissions.Should().BeEquivalentTo(
             StandardRoles.Clinician.Permissions.Union([UnlockStages, FinishWithoutVisit]));
         StandardRoles.Nurse.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles, RecordSpecimens]);
+            [UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, SendLetters]);
         StandardRoles.Booking.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar, ManageClinics, AttachFiles]);
+            [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar, ManageClinics, AttachFiles, SendLetters]);
         StandardRoles.Lab.Permissions.Should().BeEquivalentTo([UseApp, ViewPatients, WorkPathways, AttachFiles, RecordSpecimens, ProcessSpecimens]);
         StandardRoles.Manager.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ManageClinics, ViewInsights, ManageMonitoring]);
@@ -165,12 +167,12 @@ public sealed class PermissionCatalogueTests
         var startedWith = StandardRoles.Starting.Where(r => r != StandardRoles.SeniorClinician).ToList();
         starting.Select(r => (Guid.Parse(r.Id), r.Name, r.Description)).Should().Equal(
             startedWith.Select(r => (r.Id, r.Name, r.Description)));
-        // Later migrations add the permissions that came after (AddedWorkingHours: ManageClinics; AddedSpecimens:
-        // RecordSpecimens and ProcessSpecimens).
-        Permission[] later = [ManageClinics, RecordSpecimens, ProcessSpecimens];
+        // Later migrations add the permissions that came after (AddedWorkingHours: ManageClinics; AddedLetters: the
+        // letter permissions; AddedSpecimens: RecordSpecimens and ProcessSpecimens).
         foreach (var (role, standard) in starting.Zip(startedWith))
             AsNow(role.Permissions).Should().BeEquivalentTo(
-                standard.Permissions.Where(p => !later.Contains(p)).Select(p => p.ToString()), standard.Name);
+                standard.Permissions.Where(p => p is not (ManageClinics or WriteLetters or ApproveLetters or SendLetters or RecordSpecimens or ProcessSpecimens)).Select(p => p.ToString()),
+                standard.Name);
 
         ((string)migration.GetField("AdminId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Admin.Id.ToString());
         ((string)migration.GetField("AllStaffId", Private)!.GetValue(null)!).Should().Be(StandardRoles.AllStaffBeforeRoles.Id.ToString());

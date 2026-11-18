@@ -3,6 +3,7 @@ import {formatAppointmentTime, formatDateTime, formatShortDate, ukDay} from '../
 import {statusWords} from '../utils/statusWords';
 import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
+import {dispatchMethodWords, letterKindWords, recipientKindWords} from './letters';
 import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
 import {skipReasonLabel} from './stageSkips';
 import {specimenStatusLabel} from './specimens';
@@ -23,7 +24,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -33,6 +34,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Referrals: 'Referrals',
   WaitingTime: 'Waiting time',
   Specimens: 'Specimens',
+  Letters: 'Letters',
   Notes: 'Notes',
   Assignments: 'Assignments',
   Blocks: 'On hold',
@@ -244,6 +246,7 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
     default:
       if (isSpecimenEntry(entry)) return describeSpecimenEntry(entry);
+      if (isLetterEntry(entry)) return describeLetterEntry(entry);
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
   }
@@ -306,6 +309,55 @@ function describeSpecimenEntry(entry: TimelineEntry): TimelineWording {
       return {title: `${type} specimen: details edited`, detail: (entry.changes ?? []).map(describeSpecimenChange).join('; ')};
     default:
       return {title: `${type} specimen changed`, detail: entry.toStatus ? `Now ${specimenWords(entry.toStatus)}` : ''};
+  }
+}
+
+/** Whether an entry is about a letter (its action is "Letter" and what happened). */
+export const isLetterEntry = (entry: TimelineEntry) => entry.kind === 'Letters' || (entry.action ?? '').startsWith('Letter');
+
+/** Who a letter was sent to, in a sentence: "the GP practice", "the patient", "the referrer", "someone else". */
+function recipientWords(kind: string | null | undefined): string {
+  if (kind === 'GpPractice') return 'the GP practice';
+  const words = recipientKindWords(kind);
+  return words ? words.charAt(0).toLowerCase() + words.slice(1) : 'a recipient';
+}
+
+/**
+ * A letter's entry in words: "Discharge summary started", "... submitted for approval" (to whom), "... returned to its
+ * author", "... approved", "... sent to the GP practice" (how) or "... couldn't be sent to ..." (a secure email the
+ * mail server refused), and "... withdrawn". With the template it was written from. A return comment or a withdrawal
+ * reason (`reason`) comes only to admins; the letter's text never comes at all.
+ */
+function describeLetterEntry(entry: TimelineEntry): TimelineWording {
+  const letter = letterKindWords(entry.letterKind);
+  const template = entry.letterTemplateName?.trim() ? `From ${entry.letterTemplateName.trim()}` : null;
+  const reason = entry.reason?.trim();
+  switch (entry.action) {
+    case 'LetterDrafted':
+      return {title: `${letter} started`, detail: sentences(template)};
+    case 'LetterSubmitted':
+      return {
+        title: `${letter} submitted for approval`,
+        detail: sentences(entry.approverUsername ? `To ${entry.approverUsername}` : null, template),
+      };
+    case 'LetterReturned':
+      return {title: `${letter} returned to its author`, detail: sentences(template, reason ? `Comment: ${reason}` : null)};
+    case 'LetterApproved':
+      return {title: `${letter} approved`, detail: sentences(template)};
+    case 'LetterSent':
+      return entry.dispatchStatus === 'Failed'
+        ? {
+            title: `${letter} couldn't be sent to ${recipientWords(entry.recipientKind)}`,
+            detail: sentences(`${dispatchMethodWords(entry.dispatchMethod) || 'Secure email from MedApp'} failed`, template),
+          }
+        : {
+            title: `${letter} sent to ${recipientWords(entry.recipientKind)}`,
+            detail: sentences(dispatchMethodWords(entry.dispatchMethod), template),
+          };
+    case 'LetterWithdrawn':
+      return {title: `${letter} withdrawn`, detail: sentences(template, reason ? `Reason: ${reason}` : null)};
+    default:
+      return {title: `${letter} changed`, detail: sentences(template)};
   }
 }
 
@@ -377,6 +429,10 @@ function describeReferralEntry(entry: TimelineEntry): TimelineWording {
       return {title: `${referral} withdrawn`, detail: reason ?? ''};
     case 'ReferralEnteredInError':
       return {title: `${referral} marked entered in error`, detail: reason ?? ''};
+    case 'ReferralInformationRequested':
+      return {title: `${referral}: more information asked for`, detail: 'Waiting for the referrer'};
+    case 'ReferralInformationReceived':
+      return {title: `${referral}: information received`, detail: 'Back to awaiting triage'};
     // The waiting-time clock: the pause reason is a fixed choice (everyone); its detail (`reason`) only to admins.
     case 'ReferralClockPaused':
       return {

@@ -25,6 +25,7 @@ import {
 import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
+import {letterCountQuery} from '../../api/letters';
 import {awaitingTriageCountQuery} from '../../api/referrals';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
@@ -614,6 +615,21 @@ export function AwaitingTriageCount({count}: {count: number}) {
 }
 
 /**
+ * The Letters item's count: the signed-in person's letters to approve, and every approved letter still to send, as a
+ * badge (nothing when there are none). Seen as the number; heard as "2 to approve, 3 to send", after the item's name.
+ */
+export function LettersCount({toApprove, toSend}: {toApprove: number; toSend: number}) {
+  const count = toApprove + toSend;
+  if (count <= 0) return null;
+  return (
+    <>
+      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
+      <VisuallyHidden>{`, ${toApprove} to approve, ${toSend} to send`}</VisuallyHidden>
+    </>
+  );
+}
+
+/**
  * Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer.
  * Under Patients and under Pathways, as indented sub-items: the ones you've pinned (up to MAX_PINS of each,
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
@@ -656,6 +672,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const awaitingTriage =
     useQuery({...awaitingTriageCountQuery, enabled: can(user, 'ViewPatients')}).data?.count ?? 0;
   const pathwayPins = usePins('pathways', user.username);
+  // My letters to approve and every letter still to send: counts, naming no patients.
+  const letterCount = useQuery({...letterCountQuery, enabled: can(user, 'ViewPatients')}).data;
 
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
@@ -722,6 +740,30 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 isSelected={isAt('/lab') || isAt('/specimens')}
                 ref={halfViewRow(isHalfAt('/lab') || isHalfAt('/specimens'))}
                 actions={<RowMenu label="Lab" href="/lab" />}
+              />
+            ),
+          },
+        ]
+      : []),
+    // Letters to write, approve and send, for anyone who can view patients (decision 108).
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'letters',
+            label: 'Letters',
+            icon: AppIcon.Letters,
+            href: '/letters',
+            isSelected: isAt('/letters'),
+            isHalfView: isHalfAt('/letters'),
+            row: (
+              <SideNavItem
+                label="Letters"
+                icon={AppIcon.Letters}
+                href="/letters"
+                isSelected={isAt('/letters')}
+                ref={halfViewRow(isHalfAt('/letters'))}
+                endContent={<LettersCount toApprove={letterCount?.toApprove ?? 0} toSend={letterCount?.toSend ?? 0} />}
+                actions={<RowMenu label="Letters" href="/letters" />}
               />
             ),
           },

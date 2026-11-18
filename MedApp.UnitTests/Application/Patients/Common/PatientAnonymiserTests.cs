@@ -265,6 +265,7 @@ public sealed class PatientAnonymiserTests
         Attachments = [],
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -282,6 +283,7 @@ public sealed class PatientAnonymiserTests
         Attachments = [],
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -299,6 +301,7 @@ public sealed class PatientAnonymiserTests
         Attachments = [],
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -394,6 +397,7 @@ public sealed class PatientAnonymiserTests
         Attachments = [],
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -411,6 +415,7 @@ public sealed class PatientAnonymiserTests
         Attachments = [],
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 }

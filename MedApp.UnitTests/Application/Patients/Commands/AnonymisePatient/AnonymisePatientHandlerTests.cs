@@ -135,6 +135,7 @@ public sealed class AnonymisePatientHandlerTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         });
 

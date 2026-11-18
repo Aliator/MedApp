@@ -2,6 +2,7 @@ import {QueryClient} from '@tanstack/react-query';
 import {calls, json, mockApi} from '../test/render';
 import {
   awaitingTriageCountQuery,
+  isOpenReferralStatus,
   CLOCK_PAUSE_REASONS,
   openFirst,
   pauseNeedsDetail,
@@ -46,7 +47,7 @@ describe('referral queries', () => {
       `GET /api/referrals/search?Page=1&PatientId=${patientId}`,
       'GET /api/referrals/awaiting-triage/count',
       `GET /api/referrals/search?PatientId=${patientId}&Sort=registered&Ascending=false&PageSize=20`,
-      `GET /api/referrals/search?PatientId=${patientId}&Statuses=AwaitingTriage&PageSize=20`,
+      `GET /api/referrals/search?PatientId=${patientId}&Statuses=AwaitingTriage&Statuses=InformationRequested&PageSize=20`,
     ]);
   });
 });
@@ -97,6 +98,14 @@ describe('referral words', () => {
     });
     expect(referralEventWords(event({action: 'SpecialtyChanged'}))).toEqual({title: 'Redirected by k.ashford', detail: ''});
     expect(referralEventWords(event({action: 'RedirectedElsewhere'}))).toEqual({title: 'Redirected elsewhere by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: 'InformationRequested'}))).toEqual({
+      title: 'More information asked for by k.ashford',
+      detail: 'Waiting for the referrer',
+    });
+    expect(referralEventWords(event({action: 'InformationReceived'}))).toEqual({
+      title: 'Information received, recorded by k.ashford',
+      detail: 'Back to awaiting triage',
+    });
     expect(referralEventWords(event({action: 'SomethingNew', toStatus: 'AwaitingTriage'}))).toEqual({
       title: 'Something new by k.ashford',
       detail: 'Now awaiting triage',
@@ -204,9 +213,12 @@ describe('referral details', () => {
   it('puts open referrals first, oldest received first', () => {
     const r = (id: string, status: string, receivedOn: string): ReferralSummary => ({id, status, receivedOn});
     expect(
-      openFirst([r('a', 'Withdrawn', '2026-01-01'), r('b', 'AwaitingTriage', '2026-03-01'), r('c', 'AwaitingTriage', '2026-02-01'), r('d', 'Accepted', '2026-04-01')]).map(
+      openFirst([r('a', 'Withdrawn', '2026-01-01'), r('b', 'AwaitingTriage', '2026-03-01'), r('c', 'InformationRequested', '2026-02-01'), r('d', 'Accepted', '2026-04-01')]).map(
         (x) => x.id,
       ),
     ).toEqual(['c', 'b', 'a', 'd']);
+    expect(isOpenReferralStatus('InformationRequested')).toBe(true);
+    expect(isOpenReferralStatus('Accepted')).toBe(false);
+    expect(isOpenReferralStatus(null)).toBe(false);
   });
 });

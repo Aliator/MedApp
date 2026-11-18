@@ -133,6 +133,7 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 
@@ -184,6 +185,7 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 
@@ -313,6 +315,7 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 
@@ -381,6 +384,7 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 

@@ -1,6 +1,7 @@
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
@@ -15,10 +16,14 @@ public sealed class DeleteAttachmentHandler(
     IAttachmentRepository attachments,
     IPatientRepository patients,
     IPatientPathwayRepository pathways,
+    ILetterRepository letters,
     ISpecimenRepository specimens,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
 {
+    public const string LetterPdfMessage =
+        "This file is a letter's approved PDF, so it can't be deleted on its own. If the letter was wrong, withdraw it from its page.";
+
     public async Task Handle(DeleteAttachmentCommand request, CancellationToken cancellationToken)
     {
         var attachment = await attachments.GetForUpdateAsync(request.Id, cancellationToken);
@@ -27,6 +32,10 @@ public sealed class DeleteAttachmentHandler(
 
         if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords, canAttachFiles: true))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");
+
+        // A letter's approved PDF is the record of what was sent (decision 71): withdraw the letter instead.
+        if (await letters.IsPdfAsync(attachment.Id, cancellationToken))
+            throw new ConflictException(LetterPdfMessage);
 
         var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, attachments, cancellationToken);
         // A restricted or anonymised record can't change, for admins too (an admin lifts the restriction first).

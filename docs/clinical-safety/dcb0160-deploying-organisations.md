@@ -116,6 +116,8 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 
 Results, letters, clinics, the MDT list, consent and the NHS adapters are designed (`docs/centre-phases-3-5-plan.md`) but **not built**. When each is, its controls transfer to you as below; until then, none applies. Hazards H-45 to H-64 are drafts for the CSO. **Specimens are built** (branch `feature/specimens`, PR 13): their controls for H-45 and H-47 apply now, and are in the table above. **Reminders and the Did not attend view are built** (PR 26): their controls (H-53 to H-55) are in the table above.
 
+**Letters are built** (PR 16), so H-48 to H-50's rows below apply now. For secure email from MedApp you also provide **your organisation's NHSmail (or other DCB1596-accredited) relay** and declare it meets the standard (`Letters:SecureEmail:RelayMeetsDcb1596`); without that declaration MedApp sends nothing by email, and letters are posted or handed over and recorded. Give the permissions to write, approve and send letters only to the staff who do that work (the starting Clinician and Senior clinician roles have all three; Nurse writes and sends; Booking sends; Admin has none).
+
 | Hazard | What you'll provide |
 |---|---|
 | H-46 A result is never seen or acted on | **A daily check of results** awaiting sign-off and Needs a clinician, and cover for clinicians who are away |

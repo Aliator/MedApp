@@ -63,7 +63,28 @@ public enum PatientPathwayAuditAction
     /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
     SpecimenDetailsEdited = 23,
 
-    // 24 to 34 are kept for Phase 3's results and letters (docs/centre-phases-3-5-plan.md, section 5).
+    // 24 to 28 are kept for results (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// A letter was started (a draft, from a template). Letters' entries (29 to 34) hold the letter's ID, kind and
+    /// template name, recipients' kinds and methods, and dates; never its text, a comment or a reason (decision 70).
+    /// </summary>
+    LetterDrafted = 29,
+
+    /// <summary>A draft was submitted to a named approver (by username).</summary>
+    LetterSubmitted = 30,
+
+    /// <summary>The approver returned it to its author with a comment (the comment only on the letter).</summary>
+    LetterReturned = 31,
+
+    /// <summary>It was approved: its PDF made and kept as a file (the file's ID in the details).</summary>
+    LetterApproved = 32,
+
+    /// <summary>It was sent to one recipient (the recipient's kind and the method), or a secure email to one failed.</summary>
+    LetterSent = 33,
+
+    /// <summary>An approved letter was withdrawn (its reason only on the letter), or a draft discarded.</summary>
+    LetterWithdrawn = 34,
 
     /// <summary>
     /// A stage was skipped: an optional stage, by hand, with a reason (<c>skipReason</c> by name, and a <c>detail</c>

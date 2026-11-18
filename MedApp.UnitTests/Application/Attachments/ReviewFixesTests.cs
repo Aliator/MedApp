@@ -218,6 +218,7 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             NoteDeletionRequests = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 

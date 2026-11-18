@@ -29,5 +29,8 @@ public sealed class CreatePatientPathwayStageDefinitionValidator : AbstractValid
         RuleFor(x => x.VisitRequirement)
             .Must(PathwayEnums.IsVisitRequirement)
             .WithMessage($"Visit requirement must be one of: {PathwayEnums.VisitRequirementNames}.");
+        RuleFor(x => x.NeedsLetterKind)
+            .Must(StageLetterKinds.IsValid)
+            .WithMessage(StageLetterKinds.Message);
     }
 }

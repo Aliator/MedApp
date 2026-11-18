@@ -184,6 +184,8 @@ describe('ReferralsListPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', asc: undefined, patient: undefined, view: 'closed'});
     await pickFavourite(user, 'All');
     expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', asc: undefined, patient: undefined, view: 'all'});
+    await pickFavourite(user, 'Information requested');
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', asc: undefined, patient: undefined, view: 'information'});
   });
 
   it('shows the inbox again from the favourites', async () => {
@@ -216,6 +218,11 @@ describe('ReferralsListPage', () => {
     const all = renderList({view: 'all'}, {body: pageOf([])});
     expect(await screen.findByText('No referrals yet')).toBeInTheDocument();
     all.unmount();
+
+    const information = renderList({view: 'information'}, {body: pageOf([])});
+    expect(await screen.findByText('No referrals are waiting for more information')).toBeInTheDocument();
+    expect(screen.getByText('0 referrals waiting for more information')).toBeInTheDocument();
+    information.unmount();
 
     const {user, onSearchChange} = renderList({patient: 'zz'}, {body: pageOf([])});
     expect(await screen.findByText('No referrals match your search')).toBeInTheDocument();

@@ -217,6 +217,8 @@ const ORDER = [
   'BookAppointments',
   'AttachFiles',
   'RecordSpecimens',
+  'WriteLetters',
+  'SendLetters',
 ];
 function byCatalogue(a: string, b: string) {
   return ORDER.indexOf(a) - ORDER.indexOf(b);

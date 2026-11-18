@@ -1,4 +1,4 @@
-﻿using MedApp.Contracts.Notifications.Responses;
+using MedApp.Contracts.Notifications.Responses;
 using MedApp.Domain.Notifications;
 
 namespace MedApp.Application.Notifications.Common;

@@ -111,6 +111,8 @@ public static class ServiceExtensions
 
         // Letters' PDFs (PDFsharp and MigraDoc, with the bundled font): stateless, with its own limit per copy.
         services.AddSingleton<ILetterRenderer, PdfSharpLetterRenderer>();
+        // Letters by secure email, straight to the relay (Letters:SecureEmail), off until it's set up and declared.
+        services.AddSingleton<ILetterTransport, SecureEmailLetterTransport>();
 
         return services;
     }
@@ -284,6 +286,7 @@ public static class ServiceExtensions
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
+        services.AddScoped<ILetterRepository, LetterRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         

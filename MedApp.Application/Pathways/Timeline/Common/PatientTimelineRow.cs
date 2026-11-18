@@ -19,6 +19,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     public string? PreviousNoteText { get; init; }
 
     /// <summary>
+    /// For a letter entry (only for admins), the letter as it is now, for its free text (the return comment and the
+    /// withdrawal reason): the audit entry itself holds none.
+    /// </summary>
+    public Domain.Letters.Letter? Letter { get; init; }
+
+    /// <summary>
     /// For a specimen entry (only for admins), the specimen as it is now, for its free text (the site, request notes and
     /// the detail given when it closed): the audit entry itself holds none.
     /// </summary>

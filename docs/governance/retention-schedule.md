@@ -58,6 +58,7 @@ Everything about the patient, kept and destroyed together:
 - their **referrals** (`Referral`, by `PatientId`), with the reason, the referrer's details and the details given, and their history (`ReferralEvent`, matched by `PatientId`, structured values only), whatever their status: a referral that was rejected, withdrawn or entered in error is still part of the record
 - their **specimens** (`Specimen`, by `PatientId`), with the site, the request notes and any closing detail, whatever their status: a specimen rejected, lost or entered in error is still part of the record; their history is in the audit entries above (structured values only), and **their lab reports** are attached files (above)
 - the versions of their pathways' notes (`PatientPathwayNoteVersion`, matched by `PatientId`), including those of pathways already deleted, and their pathways' notes themselves, **deleted notes included**: an admin's deletion only hides a note, which is kept, with who deleted it, when and why, as part of the record
+- their **letters** (`Letter`, by `PatientId`), with their text and recipients (`LetterRecipient`), and their approved PDFs among the attached files
 - staff's requests to delete their pathways' notes (`PathwayNoteDeletionRequest`, matched by `PatientId`), with their reasons and outcomes, including those about pathways already deleted
 - access audit entries, once step 7 adds them
 - notifications about their pathways, appointments and specimens (already gone under section 3, which is shorter)

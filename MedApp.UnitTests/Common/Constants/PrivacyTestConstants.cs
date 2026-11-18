@@ -51,6 +51,7 @@ public static class PrivacyTestConstants
         Attachments = record.Attachments,
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -69,6 +70,7 @@ public static class PrivacyTestConstants
         Attachments = record.Attachments,
         Referrals = [],
         ReferralHistory = [],
+        Letters = [],
         Specimens = []
     };
 
@@ -133,6 +135,7 @@ public static class PrivacyTestConstants
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
     }

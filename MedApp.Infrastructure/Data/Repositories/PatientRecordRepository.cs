@@ -111,6 +111,14 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
+        // Letters, with their recipients (their history is in the pathway audit; their PDFs among the files).
+        var letters = await Tracking(context.Letters, forUpdate)
+            .Include(l => l.Recipients)
+            .Where(l => l.PatientId == patientId)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
         // Specimens, with their types and labs; their history is in the audit entries above.
         var specimens = await Tracking(context.Specimens, forUpdate)
             .Include(s => s.SpecimenType)
@@ -140,6 +148,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Attachments = attachments,
             Referrals = referrals,
             ReferralHistory = referralHistory,
+            Letters = letters,
             Specimens = specimens
         };
     }

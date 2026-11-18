@@ -16,6 +16,9 @@ public sealed class PatientPathwayStageDefinitionResponse
     /// <summary>Whether the stage involves a visit: None, Suggested or Required.</summary>
     public string VisitRequirement { get; set; } = string.Empty;
 
+    /// <summary>The kind of letter the stage needs before it can be finished, by name, or null for none.</summary>
+    public string? NeedsLetterKind { get; set; }
+
     public bool IsArchived { get; set; }
 
     /// <summary>How many templates use it. A definition in use by a template or pathway can only be archived.</summary>

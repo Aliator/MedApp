@@ -6,8 +6,11 @@ namespace MedApp.Application.Letters.Common;
 /// <summary>Letter templates and merge fields as the API returns them.</summary>
 public static class LetterTemplateMapper
 {
-    /// <summary>A template, with its specialty's name (null for every specialty).</summary>
-    public static LetterTemplateResponse ToResponse(LetterTemplate template, string? specialtyName) => new()
+    /// <summary>
+    /// A template, with its specialty's name (null for every specialty) and whether it can be deleted (no letter has
+    /// been written from it).
+    /// </summary>
+    public static LetterTemplateResponse ToResponse(LetterTemplate template, string? specialtyName, bool canBeDeleted = false) => new()
     {
         Id = template.Id,
         Name = template.Name,
@@ -19,6 +22,7 @@ public static class LetterTemplateMapper
         Closing = template.Closing,
         MergeFields = LetterMergeFields.Used(template.Letterhead, template.BodySkeleton, template.Closing),
         IsArchived = template.IsArchived,
+        CanBeDeleted = canBeDeleted,
         Version = template.Version,
         CreatedAt = template.CreatedAt,
         LastUpdated = template.LastUpdated

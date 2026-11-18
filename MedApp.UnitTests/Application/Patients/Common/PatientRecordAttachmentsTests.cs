@@ -64,6 +64,7 @@ public sealed class PatientRecordAttachmentsTests
             NoteDeletionRequests = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         }, live, deleted, pathway);
     }
@@ -161,6 +162,7 @@ public sealed class PatientRecordAttachmentsTests
             NoteDeletionRequests = [],
             Referrals = [],
             ReferralHistory = [],
+            Letters = [],
             Specimens = []
         };
 

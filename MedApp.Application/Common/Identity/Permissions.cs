@@ -36,6 +36,9 @@ public enum Permission
 
     RecordSpecimens,
     ProcessSpecimens,
+    WriteLetters,
+    ApproveLetters,
+    SendLetters,
 
     ViewInsights,
     ManageMonitoring,
@@ -62,6 +65,7 @@ public enum PermissionGroup
     AppointmentsAndCalendars,
     Files,
     Lab,
+    Letters,
     Oversight,
     Setup,
 
@@ -130,6 +134,12 @@ public static class Permissions
             "Record specimens taken, sent and lost, and edit them before they're sent."),
         new(Permission.ProcessSpecimens, PermissionGroup.Lab,
             "Receive and reject specimens in the lab, mark them lost, and attach their reports."),
+        new(Permission.WriteLetters, PermissionGroup.Letters,
+            "Write letters about patients from templates, and submit them for approval."),
+        new(Permission.ApproveLetters, PermissionGroup.Letters,
+            "Approve or return letters submitted to you, and approve your own."),
+        new(Permission.SendLetters, PermissionGroup.Letters,
+            "Send approved letters by secure email, or record them as posted or handed over."),
 
         new(Permission.ViewInsights, PermissionGroup.Oversight,
             "See Insights."),
@@ -163,8 +173,9 @@ public static class Permissions
 
     /// <summary>
     /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
-    /// and 138): triage, finishing a stage without its visit, and recording and processing specimens. An admin who does
-    /// that work holds a role that grants it too. Admin keeps <see cref="Permission.UnlockStages"/>, a correction.
+    /// and 138): triage, finishing a stage without its visit, recording and processing specimens, and writing, approving
+    /// and sending letters. An admin who does that work holds a role that grants it too. Admin keeps
+    /// <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
     {
@@ -172,6 +183,9 @@ public static class Permissions
         Permission.FinishWithoutVisit,
         Permission.RecordSpecimens,
         Permission.ProcessSpecimens,
+        Permission.WriteLetters,
+        Permission.ApproveLetters,
+        Permission.SendLetters,
     };
 
     /// <summary>

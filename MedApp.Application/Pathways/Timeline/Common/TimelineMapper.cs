@@ -171,12 +171,59 @@ public static class TimelineMapper
                 response.FileName = isAdmin ? Text(details, "fileName") : null;
                 break;
 
+            case >= LetterDrafted and <= LetterWithdrawn:
+                Letter(response, entry.Action, details, isAdmin ? row.Letter : null);
+                break;
+
             case >= SpecimenTaken and <= SpecimenDetailsEdited:
                 Specimen(response, entry.Action, details, isAdmin ? row.Specimen : null);
                 break;
         }
 
         return response;
+    }
+
+    /// <summary>
+    /// A letter entry: which letter, its kind and template (an admin-written name), its referral, whom it was submitted
+    /// to, and for a sending the recipient's kind, the method and whether it reached them. Never free text for staff:
+    /// the return comment and the withdrawal reason are for admins only, read from the letter
+    /// (<paramref name="letter"/>, given only for admins), as the audit holds none; the letter's text is on its page.
+    /// </summary>
+    private static void Letter(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Letters.Letter? letter)
+    {
+        response.LetterId = Guid.TryParse(Text(details, "letterId"), out var letterId) ? letterId : null;
+        response.LetterKind = Text(details, "kind");
+        response.LetterTemplateName = Text(details, "templateName");
+        response.ReferralId = Guid.TryParse(Text(details, "referralId"), out var referralId) ? referralId : null;
+
+        switch (action)
+        {
+            case LetterSubmitted:
+                response.ApproverUsername = Text(details, "approver");
+                break;
+
+            case LetterApproved:
+                response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+                break;
+
+            case LetterSent:
+                response.RecipientKind = Text(details, "recipientKind");
+                response.DispatchMethod = Text(details, "method");
+                response.DispatchStatus = Text(details, "dispatchStatus");
+                break;
+
+            case LetterReturned when letter is not null:
+                response.Reason = letter.ReturnedAtUtc is not null ? letter.ReturnComment : null;
+                break;
+
+            case LetterWithdrawn when letter is not null:
+                response.Reason = letter.WithdrawnReason;
+                break;
+        }
     }
 
     /// <summary>
@@ -236,6 +283,10 @@ public static class TimelineMapper
                 break;
         }
     }
+
+    /// <summary>A GUID a JSON object's property holds, or null (for details that aren't JSON, or lack it).</summary>
+    public static Guid? GuidIn(string details, string property) =>
+        Guid.TryParse(Text(ParseDetails(details), property), out var id) ? id : null;
 
     /// <summary>
     /// One appointment history entry: its action is "Appointment" and what happened (e.g. AppointmentBooked), with
@@ -349,6 +400,11 @@ public static class TimelineMapper
                         return new PatientTimelineChangeResponse { Field = field, From = values.From, To = values.To };
                     })
                     .ToList();
+                break;
+
+            // More information asked of the referrer, or come: the status, structured.
+            case Domain.Referrals.ReferralEventAction.InformationRequested or Domain.Referrals.ReferralEventAction.InformationReceived:
+                response.ToStatus = details.ToStatus;
                 break;
 
             case Domain.Referrals.ReferralEventAction.Withdrawn or Domain.Referrals.ReferralEventAction.EnteredInError:

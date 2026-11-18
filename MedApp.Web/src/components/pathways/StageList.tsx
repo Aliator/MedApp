@@ -4,6 +4,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
+import {needsLetterWords} from '../../api/letters';
 import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
@@ -141,6 +142,12 @@ export function StageDetails({stage, work, instructions, files}: StageDetailsPro
         </Text>
       )}
       <SnomedConcept code={stage.snomedCode} term={stage.snomedTerm} />
+      {/* A stage that waits for a letter (decision 105): it can't be finished until one of that kind is approved and sent. */}
+      {needsLetterWords(stage.needsLetterKind) && (
+        <Text type="body" weight="semibold">
+          {needsLetterWords(stage.needsLetterKind)}
+        </Text>
+      )}
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
       {work ?? <StageNotes notes={stage.notes ?? ''} />}

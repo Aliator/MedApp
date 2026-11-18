@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
@@ -21,6 +22,7 @@ public sealed class GetPatientTimelineHandler(
     IPathwayAuditRepository auditRepository,
     IAppointmentRepository appointmentRepository,
     IReferralRepository referralRepository,
+    ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
@@ -72,6 +74,7 @@ public sealed class GetPatientTimelineHandler(
         if (request.FullView)
         {
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
+            page = await WithLettersAsync(page, cancellationToken);
             page = await WithSpecimensAsync(page, cancellationToken);
         }
 
@@ -146,14 +149,14 @@ public sealed class GetPatientTimelineHandler(
     }
 
     /// <summary>
-    /// The page with each specimen entry's specimen, for its free text (admins only): the audit holds none. Only
-    /// specimens of this patient's entries are asked for, by the IDs their entries hold.
+    /// The page with each letter entry's letter, for its free text (admins only): the audit holds none. Only letters of
+    /// this patient's entries are asked for, by the IDs their entries hold.
     /// </summary>
-    private async Task<List<Entry>> WithSpecimensAsync(List<Entry> page, CancellationToken ct)
+    private async Task<List<Entry>> WithLettersAsync(List<Entry> page, CancellationToken ct)
     {
         var ids = page
-            .Select(e => e.Audit is { } audit && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Specimens
-                ? SpecimenIdOf(audit.Entry.Details)
+            .Select(e => e.Audit is { } audit && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Letters
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "letterId")
                 : null)
             .OfType<Guid>()
             .Distinct()
@@ -161,30 +164,39 @@ public sealed class GetPatientTimelineHandler(
         if (ids.Count == 0)
             return page;
 
-        var specimens = (await specimenRepository.GetByIdsAsync(ids, ct)).ToDictionary(s => s.Id);
+        var letters = (await letterRepository.GetByIdsAsync(ids, ct)).ToDictionary(l => l.Id);
         return page
-            .Select(e => e.Audit is { } audit && SpecimenIdOf(audit.Entry.Details) is { } id
-                         && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
-                ? e with { Audit = audit with { Specimen = specimen } }
+            .Select(e => e.Audit is { } audit
+                         && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Letters
+                         && TimelineMapper.GuidIn(audit.Entry.Details, "letterId") is { } id
+                         && letters.TryGetValue(id, out var letter) && letter.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Letter = letter } }
                 : e)
             .ToList();
     }
 
-    private static Guid? SpecimenIdOf(string details)
+    /// <summary>
+    /// The page with each specimen entry's specimen, for its free text (admins only): the audit holds none. Only
+    /// specimens of this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithSpecimensAsync(List<Entry> page, CancellationToken ct)
     {
-        try
-        {
-            using var json = System.Text.Json.JsonDocument.Parse(details);
-            return json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
-                   && json.RootElement.TryGetProperty("specimenId", out var id)
-                   && id.TryGetGuid(out var guid)
-                ? guid
+        static Guid? SpecimenIdOf(PatientTimelineRow audit) =>
+            PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Specimens
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "specimenId")
                 : null;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return null;
-        }
+
+        var ids = page.Select(e => e.Audit is { } audit ? SpecimenIdOf(audit) : null).OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var specimens = (await specimenRepository.GetByIdsAsync(ids, ct)).ToDictionary(s => s.Id);
+        return page
+            .Select(e => e.Audit is { } audit && SpecimenIdOf(audit) is { } id
+                         && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Specimen = specimen } }
+                : e)
+            .ToList();
     }
 
     /// <summary>One entry of the merged feed, from the audit log, appointments' history or referrals' history.</summary>

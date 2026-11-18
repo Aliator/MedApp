@@ -108,6 +108,56 @@ describe('PatientTimeline', () => {
     expect(screen.queryByRole('button', {name: 'Load More'})).not.toBeInTheDocument();
   });
 
+  it("links a letter's entries to the letter, and to its pathway or referral", async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+    const letter = (fields: Partial<TimelineEntry>) => entry({kind: 'Letters', letterId: 'l1', letterKind: 'DischargeSummary', ...fields});
+    mockApi({
+      [`GET ${OVERVIEW}`]: () => json(overview),
+      [`GET ${TIMELINE}`]: () =>
+        json({
+          items: [
+            letter({action: 'LetterApproved', letterTemplateName: 'Skin discharge'}),
+            letter({action: 'LetterSubmitted', approverUsername: 'd.clinician'}),
+            letter({action: 'LetterReturned'}),
+            letter({action: 'LetterWithdrawn'}),
+            letter({action: 'LetterSent', recipientKind: 'GpPractice', dispatchMethod: 'Post', dispatchStatus: 'Sent'}),
+            letter({action: 'LetterSent', recipientKind: 'GpPractice', dispatchStatus: 'Failed'}),
+            letter({
+              action: 'LetterDrafted',
+              letterId: 'l2',
+              letterKind: 'ReferralResponse',
+              pathwayId: '00000000-0000-0000-0000-000000000000',
+              pathwayTitle: '',
+              referralId: 'r1',
+              specialtyName: 'Dermatology',
+            }),
+            letter({action: 'LetterDrafted', letterId: 'l3', letterKind: 'InformationRequest', pathwayId: null, pathwayTitle: null, referralId: 'r2'}),
+            letter({action: 'LetterDrafted', letterId: 'l4', letterKind: 'ClinicLetter', pathwayId: null, pathwayTitle: null, referralId: null}),
+            entry({kind: 'Referrals', action: 'ReferralInformationRequested', pathwayId: null, referralId: 'r1', specialtyName: 'Dermatology'}),
+            entry({kind: 'Referrals', action: 'ReferralInformationReceived', pathwayId: null, referralId: 'r1', specialtyName: 'Dermatology'}),
+          ],
+          nextCursor: null,
+        }),
+    });
+    renderWithApp(<Harness />, {user: staffUser});
+
+    const approved = within((await screen.findByText('Discharge summary approved')).closest('li')!);
+    expect(approved.getByRole('link', {name: 'The discharge summary'})).toHaveAttribute('href', '/letters/l1');
+    expect(approved.getByRole('link', {name: 'Knee assessment'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+    expect(screen.getByText("Discharge summary couldn't be sent to the GP practice")).toBeInTheDocument();
+    const reply = within(screen.getByText('Referral response started').closest('li')!);
+    expect(reply.getByRole('link', {name: 'The referral response'})).toHaveAttribute('href', '/letters/l2');
+    expect(reply.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', '/referrals/r1');
+    const request = within(screen.getByText('Request for more information started').closest('li')!);
+    expect(request.getByRole('link', {name: 'The referral'})).toHaveAttribute('href', '/referrals/r2');
+    const alone = within(screen.getByText('Clinic letter started').closest('li')!);
+    expect(alone.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByText('Referral to Dermatology: more information asked for')).toBeInTheDocument();
+    expect(screen.getByText('Referral to Dermatology: information received')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Letters'})).toBeInTheDocument();
+    localStorage.clear();
+  });
+
   it("labels a deleted pathway's entries, without a link", async () => {
     mockApi({
       [`GET ${OVERVIEW}`]: () => json({...overview, pathways: [...overview.pathways!, {id: deletedPathwayId, title: 'Old biopsy', isDeleted: true}]}),

@@ -2,7 +2,9 @@ import type {Role} from '../api/roles';
 import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
-const NOT_FOR_ADMIN: readonly Permission[] = ['TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens'];
+const NOT_FOR_ADMIN: readonly Permission[] = [
+  'TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens', 'WriteLetters', 'ApproveLetters', 'SendLetters',
+];
 
 /**
  * The permissions of the API's standard roles (`StandardRoles`): the built-in Admin's fixed set (every one but the
@@ -18,19 +20,21 @@ export const ROLE_PERMISSIONS = {
   ],
   Clinician: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'WriteLetters', 'ApproveLetters',
+    'SendLetters',
   ],
   'Senior clinician': [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'WriteLetters', 'ApproveLetters',
+    'SendLetters',
   ],
   Nurse: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles',
-    'RecordSpecimens',
+    'RecordSpecimens', 'WriteLetters', 'SendLetters',
   ],
   Booking: [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar',
-    'ManageClinics', 'AttachFiles',
+    'ManageClinics', 'AttachFiles', 'SendLetters',
   ],
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'],
   Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ManageClinics', 'ViewInsights', 'ManageMonitoring'],

@@ -58,13 +58,18 @@ public sealed class TimelineStaffCanaryTests
         // admin's reason), the details edited, each status change made with a reason (the automatic ones have none),
         // every entry about a file (its name), and a note deleted (the admin's reason).
         // And the notes added, edited and deleted, whose text comes from the note versions.
-        var withText = RowsHoldingTheCanary().Where(r => r.Entry.Details.Contains(Canary) || r.NoteText is not null).ToList();
+        // And a letter returned and withdrawn, whose comment and reason come from the letter.
+        var withText = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Details.Contains(Canary) || r.NoteText is not null
+                        || r.Entry.Action is Action.LetterReturned or Action.LetterWithdrawn)
+            .ToList();
 
         withText.Select(r => r.Entry.Action).Should().BeEquivalentTo(
             [
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
                 Action.AttachmentAdded, Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
+                Action.LetterReturned, Action.LetterWithdrawn,
                 Action.StageSkipped, Action.StageReinstated,
             ]);
         foreach (var row in withText)
@@ -137,6 +142,8 @@ public sealed class TimelineStaffCanaryTests
                 Action.NoteAdded => new PatientTimelineRow(e, CurrentTitle) { NoteText = Canary },
                 Action.NoteEdited => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
                 Action.NoteDeleted => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
+                // A letter's free text is on the letter, which the handler gives admins' rows.
+                >= Action.LetterDrafted and <= Action.LetterWithdrawn => new PatientTimelineRow(e, CurrentTitle) { Letter = CanaryLetter },
                 // As the handler gives admins a specimen entry's specimen, for its free text (the audit holds none).
                 >= Action.SpecimenTaken and <= Action.SpecimenDetailsEdited => new PatientTimelineRow(e, CurrentTitle) { Specimen = SpecimenHoldingTheCanary() },
                 _ => new PatientTimelineRow(e, CurrentTitle),
@@ -208,7 +215,55 @@ public sealed class TimelineStaffCanaryTests
         branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
         branchChange.ReinstateStage(branching.StageAt(2), Canary);
 
-        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
+            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+    }
+
+    /// <summary>
+    /// A letter with the canary as all its free text: its body, closing, return comment, withdrawal reason and every
+    /// recipient's name and address (as the timeline's handler loads it for admins).
+    /// </summary>
+    private static readonly MedApp.Domain.Letters.Letter CanaryLetter = new()
+    {
+        Id = Guid.NewGuid(),
+        Body = Canary,
+        Closing = Canary,
+        ReturnComment = Canary,
+        ReturnedAtUtc = Now,
+        WithdrawnReason = Canary,
+        Recipients = [new MedApp.Domain.Letters.LetterRecipient { Name = Canary, AddressLines = Canary, Postcode = Canary }],
+    };
+
+    /// <summary>Every letter action, through <see cref="MedApp.Application.Letters.Common.LetterChange"/> as the handlers write them.</summary>
+    private static IEnumerable<PatientPathwayAuditEntry> LetterEntriesHoldingTheCanary(PatientPathway pathway)
+    {
+        var letter = new MedApp.Domain.Letters.Letter
+        {
+            Id = Guid.NewGuid(),
+            PatientId = pathway.PatientId,
+            PathwayId = pathway.Id,
+            TemplateName = TemplateName,
+            Kind = MedApp.Domain.Letters.LetterKind.DischargeSummary,
+            Body = Canary,
+            Closing = Canary,
+            Recipients =
+            [
+                new MedApp.Domain.Letters.LetterRecipient
+                {
+                    Id = Guid.NewGuid(), Kind = MedApp.Domain.Letters.LetterRecipientKind.Patient, Name = Canary, AddressLines = Canary,
+                },
+            ],
+        };
+        var change = new MedApp.Application.Letters.Common.LetterChange(letter, pathway, Staff, Now);
+        change.Draft();
+        change.Submit(OtherUserId, OtherUsername);
+        change.Return(Canary);
+        change.Submit(OtherUserId, OtherUsername);
+        change.Approve(Guid.NewGuid());
+        change.Send(letter.Recipients[0], MedApp.Domain.Letters.LetterDispatchMethod.Post,
+            MedApp.Domain.Letters.LetterDispatchStatus.Sent, Today);
+        change.Withdraw(Canary);
+        return change.AuditEntries;
     }
 
     /// <summary>A specimen whose free text (site, request notes, the detail it closed with) is all the canary.</summary>
@@ -450,6 +505,14 @@ public sealed class TimelineStaffCanaryTests
         var rejected = new ReferralChange(rejectedReferral, ReferralsTestConstants.Triager, Now);
         rejected.Reject(ReferralRejectionReason.Other, Canary);
 
+        // Triage: more information asked for, then received.
+        var askedReferral = ReferralsTestConstants.CreateReferral();
+        askedReferral.Reason = Canary;
+        var asked = new ReferralChange(askedReferral, ReferralsTestConstants.Triager, Now);
+        asked.AskForInformation();
+        var received = new ReferralChange(askedReferral, ReferralsTestConstants.Triager, Now.AddMinutes(1));
+        received.InformationReceived();
+
         var sentReferral = ReferralsTestConstants.CreateReferral();
         var sent = new ReferralChange(sentReferral, ReferralsTestConstants.Triager, Now);
         sent.RedirectElsewhere(Canary, Canary);
@@ -464,7 +527,7 @@ public sealed class TimelineStaffCanaryTests
         clock.StopClock(ClockStopReason.PathwayDischarged);
 
         return change.Events.Concat(error.Events).Concat(accept.Events).Concat(accepted.Events)
-            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events)
+            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events).Concat(asked.Events).Concat(received.Events)
             .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary) { PauseDetail = Canary })
             .ToList();
     }

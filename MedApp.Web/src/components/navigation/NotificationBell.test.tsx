@@ -376,6 +376,33 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/specimens/${specimenId}`));
   });
 
+  it("opens a letter's notification on the letter it names", async () => {
+    const letterId = '0000000c-0000-0000-0000-000000000051';
+    const notification = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000050',
+      kind: 'LetterAwaitingApproval',
+      title: 'Letter awaiting approval',
+      message: 'k.ashford submitted a discharge summary for you to approve.',
+      pathwayId,
+      subjectId: letterId,
+    };
+    const returned = {...read, id: '0000000c-0000-0000-0000-000000000052', kind: 'LetterReturned', title: 'Letter returned', subjectId: letterId};
+    const approved = {...read, id: '0000000c-0000-0000-0000-000000000053', kind: 'LetterApproved', title: 'Letter approved', subjectId: letterId};
+    mockApi({
+      'GET /api/notifications': () => json({items: [notification, returned, approved], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.getByRole('link', {name: /^Letter returned/})).toHaveAttribute('href', `/letters/${letterId}`);
+    expect(list.getByRole('link', {name: /^Letter approved/})).toHaveAttribute('href', `/letters/${letterId}`);
+    await user.click(list.getByRole('link', {name: /^Letter awaiting approval/}));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/letters/${letterId}`));
+  });
+
   it('marks read only the unread notifications about the pathway opened', async () => {
     const otherPathway = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other pathway', pathwayId: '0000000c-0000-0000-0000-000000000006'};
     const fetch = mockApi({

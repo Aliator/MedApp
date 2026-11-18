@@ -24,4 +24,16 @@ public interface ILetterTemplateRepository
     /// saved and it's a 409. Another with its name in its specialty, saved meanwhile, is a 409 too.
     /// </summary>
     Task UpdateAsync(LetterTemplate template, int originalVersion, CancellationToken ct);
+
+    /// <summary>Which of these templates some letter was written from: they're archived, never deleted.</summary>
+    Task<IReadOnlySet<Guid>> GetInUseAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>Whether some letter was written from the template.</summary>
+    Task<bool> IsInUseAsync(Guid id, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes a template no letter was written from. A letter written from it meanwhile (the foreign key refuses the
+    /// delete) is a 409.
+    /// </summary>
+    Task DeleteAsync(Guid id, CancellationToken ct);
 }
