@@ -162,8 +162,8 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
         ) : problem.message ? (
           <AlertMessage message={problem.message} />
         ) : (
-          // A restricted or anonymised record can't be changed: the API refuses, so its banners say so before anyone
-          // tries (and a disputed one says what the patient disputes).
+          // A restricted or anonymised record can't be changed: the API refuses, so its banners name the state before
+          // anyone tries, with why over the page (and a disputed one names what the patient disputes when it's short).
           <PatientFlagBanners patient={patient} />
         )
       }
