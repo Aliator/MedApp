@@ -1,5 +1,5 @@
 import {CheckboxList, CheckboxListItem} from '@astryxdesign/core/CheckboxList';
-import {Selector, type SelectorOptionType} from '@astryxdesign/core/Selector';
+import type {SelectorOptionType} from '@astryxdesign/core/Selector';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {VStack} from '@astryxdesign/core/Stack';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import {addDays, formatShortDay, isWeekday, weekStart} from '../../utils/calenda
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {AnchoredSelector} from '../forms/AnchoredSelector';
 
 /** The template choice that's an empty day: an override with no day template. */
 export const NO_TEMPLATE = 'no-template';
@@ -175,7 +176,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
           details={failures.map((f) => `${formatShortDay(f.date)}: ${f.message}`)}
         />
       )}
-      <Selector
+      <AnchoredSelector
         label="Template"
         placeholder="Choose a template"
         value={choice}

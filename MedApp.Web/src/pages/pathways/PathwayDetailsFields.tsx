@@ -1,6 +1,5 @@
 import type {ISODateString} from '@astryxdesign/core/Calendar';
 import {DateInput} from '@astryxdesign/core/DateInput';
-import {Selector} from '@astryxdesign/core/Selector';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {fieldStatus, type ValidationErrors} from '../../api/errors';
 import {PRIORITIES, type NewPathwayDetailsInput, type PathwayDetailsInput} from '../../api/pathways';
@@ -8,6 +7,7 @@ import {BLANK_DESCRIPTION} from '../../components/forms/fieldSpace';
 import {FormSection} from '../../components/forms/FormSection';
 import {WEEK_STARTS_ON} from '../../utils/dates';
 import {RichTextField} from '../../components/forms/RichTextField';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 export const EMPTY_PATHWAY_DETAILS: NewPathwayDetailsInput = {title: '', notes: '', dueDate: '', priority: 'Medium'};
 
@@ -58,7 +58,7 @@ export function PathwayDetailsFields<T extends DetailsValue>({
           isDisabled={isDisabled}
           status={fieldStatus(errors, 'title')}
         />
-        <Selector
+        <AnchoredSelector
           label="Priority"
           // Level with the title's input when the title has a description.
           description={titleDescription ? BLANK_DESCRIPTION : undefined}

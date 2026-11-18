@@ -4,7 +4,6 @@ import {useListFocus} from '@astryxdesign/core/hooks';
 import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -51,6 +50,7 @@ import {useIsNarrowWindow} from '../pages/Page';
 import {ValidationAlert, AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
+import {AnchoredSelector} from '../forms/AnchoredSelector';
 
 export interface BookAppointmentDialogProps {
   isOpen: boolean;
@@ -354,7 +354,7 @@ function BookingForm({
         <PatientPicker value={pickedPatient} onChange={choosePatient} status={fieldStatus(problem.validation, 'patientId')} />
       )}
       {!isForFixed && patientId !== undefined && (
-        <Selector
+        <AnchoredSelector
           label="For"
           isOptional
           value={pathwayId}
@@ -372,7 +372,7 @@ function BookingForm({
         />
       )}
       {fixedStage === undefined && chosenPathwayId !== undefined && (
-        <Selector
+        <AnchoredSelector
           label="Stage"
           isOptional
           value={stageId}
@@ -389,7 +389,7 @@ function BookingForm({
           ]}
         />
       )}
-      <Selector
+      <AnchoredSelector
         label="With"
         value={staffId ?? ''}
         onChange={(id) => {
@@ -401,7 +401,7 @@ function BookingForm({
         status={fieldStatus(problem.validation, 'staffUserId')}
         options={(staff.data ?? []).map((s) => ({value: s.userId ?? '', label: s.userId === myId ? `${s.username} (you)` : (s.username ?? '')}))}
       />
-      <Selector
+      <AnchoredSelector
         label="Length"
         value={String(length)}
         onChange={(value) => setLength(Number(value))}
