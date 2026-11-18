@@ -27,3 +27,4 @@ public sealed class GetNotepadHandler(
         return NotepadMapper.ToResponse(notepad, keepDays);
     }
 }
+// CI proof: a scratch line, never merged.
