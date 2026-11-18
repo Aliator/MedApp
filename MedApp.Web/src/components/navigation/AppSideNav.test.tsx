@@ -5,6 +5,13 @@ import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nur
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
+import {NAV_CATEGORIES_KEY} from './navCategories';
+
+/** The admin categories, in the nav's order. */
+const CATEGORIES = ['People and Access', 'Pathway Setup', 'Clinics and Calendar', 'Oversight', 'Privacy and System'];
+
+/** An admin category's row in the open nav (its name may go on to say it has the current page). */
+const categoryRow = (name: string) => screen.findByRole('button', {name: (accessible) => accessible.startsWith(name)});
 
 /** The IDs a labels lookup asked for. */
 const askedIds = (request: Request) => new URL(request.url).searchParams.getAll('ids');
@@ -35,8 +42,13 @@ describe('isCurrentSection', () => {
 });
 
 describe('AppSideNav', () => {
-  it('shows the admin pages and role to an admin', async () => {
-    renderWithApp(<AppSideNav />, {user: adminUser});
+  it('shows the admin pages to an admin in categories, closed until opened with a click, and their role', async () => {
+    const {user} = renderWithApp(<AppSideNav />, {user: adminUser});
+
+    for (const name of CATEGORIES) expect(await categoryRow(name)).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', {name: /users/i})).not.toBeInTheDocument();
+    for (const name of CATEGORIES) await user.click(await categoryRow(name));
+    for (const name of CATEGORIES) expect(await categoryRow(name)).toHaveAttribute('aria-expanded', 'true');
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
     expect(screen.getByRole('link', {name: 'Roles and Permissions'})).toHaveAttribute('href', '/admin/roles');
@@ -50,6 +62,7 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Closed Days'})).toHaveAttribute('href', '/admin/closed-days');
     expect(screen.getByRole('link', {name: 'Sites and Rooms'})).toHaveAttribute('href', '/admin/sites');
     expect(screen.getByRole('link', {name: 'Specimen Types and Labs'})).toHaveAttribute('href', '/admin/specimen-setup');
+    expect(screen.getByRole('link', {name: 'Consent Forms'})).toHaveAttribute('href', '/admin/consent-forms');
     // The lab's worklist is for those who record or process specimens, which the Admin role alone doesn't grant.
     expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
@@ -64,9 +77,13 @@ describe('AppSideNav', () => {
     expect(screen.getByText('Admin +1')).toBeInTheDocument();
   });
 
-  it('shows a manager only the pages their roles allow: Insights and Monitoring', async () => {
-    renderWithApp(<AppSideNav />, {user: managerUser});
+  it('shows a manager only the pages their roles allow, Insights and Monitoring, and only the category holding them', async () => {
+    const {user} = renderWithApp(<AppSideNav />, {user: managerUser});
 
+    await user.click(await categoryRow('Oversight'));
+    // A category none of whose pages they can see isn't there at all.
+    for (const name of CATEGORIES.filter((c) => c !== 'Oversight'))
+      expect(screen.queryByRole('button', {name: (accessible) => accessible.startsWith(name)})).not.toBeInTheDocument();
     expect(await screen.findByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
     expect(screen.queryByRole('link', {name: /^users$/i})).not.toBeInTheDocument();
@@ -89,6 +106,44 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: 'Insights'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Scheduled Jobs'})).not.toBeInTheDocument();
     expect(screen.getByText('All staff (before roles)')).toBeInTheDocument();
+    expect(screen.queryByText('Administration')).not.toBeInTheDocument();
+    for (const name of CATEGORIES)
+      expect(screen.queryByRole('button', {name: (accessible) => accessible.startsWith(name)})).not.toBeInTheDocument();
+  });
+
+  it('remembers which categories are open, with the account (as the pins are), and closes one with a second click', async () => {
+    const {user, unmount} = renderWithApp(<AppSideNav />, {user: adminUser});
+
+    await user.click(await categoryRow('Pathway Setup'));
+    await user.click(await categoryRow('Oversight'));
+    expect(JSON.parse(localStorage.getItem(NAV_CATEGORIES_KEY)!)).toEqual(['pathway-setup', 'oversight']);
+    await user.click(await categoryRow('Pathway Setup'));
+    expect(JSON.parse(localStorage.getItem(NAV_CATEGORIES_KEY)!)).toEqual(['oversight']);
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: adminUser});
+    expect(await categoryRow('Oversight')).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('link', {name: /audit log/i})).toBeInTheDocument();
+    expect(await categoryRow('Pathway Setup')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', {name: 'Stage Library'})).not.toBeInTheDocument();
+  });
+
+  it('opens the category holding the current page, marked as holding it, until it is closed there', async () => {
+    const {user} = renderWithApp(<AppSideNav />, {user: adminUser, path: '/admin/closed-days'});
+
+    const clinics = await categoryRow('Clinics and Calendar');
+    expect(clinics).toHaveAttribute('aria-expanded', 'true');
+    expect(clinics).toHaveAccessibleName('Clinics and Calendar, has the current page');
+    expect(screen.getByRole('link', {name: 'Closed Days'})).toHaveAttribute('aria-current', 'page');
+    expect(await categoryRow('Oversight')).toHaveAccessibleName('Oversight');
+
+    // Closing it there holds, and isn't kept: it was never opened by hand.
+    await user.click(clinics);
+    expect(clinics).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', {name: 'Closed Days'})).not.toBeInTheDocument();
+    expect(localStorage.getItem(NAV_CATEGORIES_KEY)).toBeNull();
+    await user.click(clinics);
+    expect(clinics).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('marks the current section', async () => {
@@ -122,13 +177,14 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then Results, Letters, the GP practice directory, the MDT list, Data Requests (ManagePrivacy), then Patients.
+    // Then Results, Letters, the GP practice directory, the MDT list, then Patients (Data Requests, between them, is for
+    // those who answer or review requests, which staff don't).
     expect(names.indexOf('/results')).toBe(names.indexOf('/referrals') + 1);
     expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
     expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
-    expect(names.indexOf('/data-requests')).toBe(names.indexOf('/mdt') + 1);
-    expect(names.indexOf('/patients')).toBe(names.indexOf('/data-requests') + 1);
+    expect(names).not.toContain('/data-requests');
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
   });
 
   it('offers Practices only to someone who can view patients', async () => {
@@ -302,7 +358,7 @@ describe('AppSideNav', () => {
   it('has no light/dark mode button (it moved to Account Settings)', async () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
-    await screen.findByRole('link', {name: /users/i});
+    await screen.findByRole('link', {name: 'Patients'});
     expect(screen.queryByRole('button', {name: /switch to (light|dark) mode/i})).not.toBeInTheDocument();
   });
 });
@@ -521,6 +577,26 @@ describe('AppSideNav folded, and its menus', () => {
     expect(screen.getByRole('button', {name: 'Logout'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: /^Notifications/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Users'})).not.toBeInTheDocument();
+  });
+
+  it("folds an admin's categories to one icon each, whose row comes out with every page in it", async () => {
+    localStorage.setItem('medapp.navFlyoutDelay', 'none');
+    const {user} = renderWithApp(<AppSideNav collapsible={{isCollapsed: true}} />, {user: adminUser, path: '/admin/insights'});
+
+    const oversight = await screen.findByRole('button', {name: 'Oversight'});
+    // Filled while it holds the current page, and said so, but not announced as the current page itself.
+    expect(oversight).toHaveAccessibleDescription('Has the current page');
+    expect(oversight).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('button', {name: 'People and Access'})).not.toHaveAccessibleDescription();
+    expect(screen.queryByRole('link', {name: 'Audit Log'})).not.toBeInTheDocument();
+
+    // Out over the page, its pages are all there (as the pinned items under Patients are), whatever it was in the open nav.
+    await user.hover(screen.getByRole('button', {name: 'People and Access'}));
+    expect(await screen.findByRole('link', {name: 'Users'})).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByRole('link', {name: 'Roles and Permissions'})).toHaveAttribute('href', '/admin/roles');
+    await user.hover(oversight);
+    expect(await screen.findByRole('link', {name: 'Audit Log'})).toHaveAttribute('href', '/admin/audit');
+    expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('aria-current', 'page');
   });
 
   it("holds a folded nav's row out while its menu is pinned, and lets it go when the menu closes", async () => {
@@ -925,6 +1001,8 @@ describe('AppSideNav with a half view open', () => {
   it("marks the half view's page a shade darker than the current page", async () => {
     renderWithHalf('/pathways', '/admin/audit');
 
+    // Its category opens, marked as holding it.
+    expect(await categoryRow('Oversight')).toHaveAccessibleName('Oversight, has the page in the half view');
     const audit = await screen.findByRole('link', {name: /audit log/i});
     expect(rowOf(audit).style.backgroundColor).toBe(HALF_VIEW_SHADE);
     expect(audit).not.toHaveAttribute('aria-current');
@@ -956,6 +1034,7 @@ describe('AppSideNav with a half view open', () => {
 
   it('opens a clicked page on its own, but leaves a modified click to the browser', async () => {
     const {user, halfViews} = renderWithHalf('/pathways', '/admin/audit');
+    await user.click(await categoryRow('People and Access'));
     const users = await screen.findByRole('link', {name: /^users$/i});
 
     await user.keyboard('{Control>}');

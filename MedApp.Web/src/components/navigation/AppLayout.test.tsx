@@ -2,7 +2,7 @@ import {SideNavRenderContext} from '@astryxdesign/core/SideNav';
 import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
-import {SideNavTheme} from './AppLayout';
+import {DemoBannerSlot, SideNavTheme} from './AppLayout';
 
 /** Every list is empty: enough for the pages to render their headers. */
 /** No data anywhere: empty lists (an empty page from the search endpoints, which the rest are). */
@@ -20,16 +20,16 @@ const heading = (name: string) => screen.findByRole('heading', {name, level: 1},
 const halfViewItem = (user: ReturnType<typeof userEvent.setup>, item: string) =>
   rowMenuItem(user, item, 'Open in half view');
 
-/**
- * A nav item's row, brought out of the folded nav (a half view is open) by hovering its icon. It comes out after a
- * short delay.
- */
-async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
+/** An admin page's row in the folded nav: its category's icon brings the category's row out, with its pages under it. */
+async function railCategoryPage(user: ReturnType<typeof userEvent.setup>, category: string, item: string) {
   const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
-  // The icon is a link too; the row is the second one.
-  await user.hover(nav.getByRole('link', {name: item}));
-  await waitFor(() => expect(nav.getAllByRole('link', {name: item})).toHaveLength(2), {timeout: 3000});
-  return nav.getAllByRole('link', {name: item})[1];
+  await user.hover(nav.getByRole('button', {name: category}));
+  return nav.findByRole('link', {name: item}, {timeout: 3000});
+}
+
+/** Opens an admin category in the open nav, with a click on its row. */
+async function openCategory(user: ReturnType<typeof userEvent.setup>, category: string) {
+  await user.click(await screen.findByRole('button', {name: (name) => name.startsWith(category)}));
 }
 
 describe('SideNavTheme', () => {
@@ -53,6 +53,18 @@ describe('SideNavTheme', () => {
       </SideNavRenderContext>,
     );
     expect(screen.getByText('Top bar').closest('[data-theme="dark"]')).toBeNull();
+  });
+});
+
+describe('DemoBannerSlot', () => {
+  it('shows nothing outside the light demo build, in either place', () => {
+    const {container} = render(
+      <>
+        <DemoBannerSlot place="window" />
+        <DemoBannerSlot place="page" />
+      </>,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
@@ -102,6 +114,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(isDisabled(patients)).toBe(true);
     expect(patients).toHaveTextContent('Patients is already open');
     await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
+    await openCategory(user, 'Oversight');
     await user.click(await halfViewItem(user, 'Audit Log'));
 
     expect(await heading('Audit Log')).toBeInTheDocument();
@@ -115,6 +128,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
+    await openCategory(user, 'Oversight');
     await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
     const closes = screen.getAllByRole('button', {name: 'Close half view'});
@@ -132,6 +146,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
+    await openCategory(user, 'Oversight');
     await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
     // The Patients page's header: the nearest box round its title that holds a close button.
@@ -208,7 +223,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    await user.click(await railRow(user, 'Pathway Templates'));
+    await user.click(await railCategoryPage(user, 'Pathway Setup', 'Pathway Templates'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
@@ -223,7 +238,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    await user.click(await railRow(user, 'Users'));
+    await user.click(await railCategoryPage(user, 'People and Access', 'Users'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
     expect(await heading('User Management')).toBeInTheDocument();
@@ -243,14 +258,18 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const patientsMenu = within(patientsLeft.closest<HTMLElement>('[role="menu"]')!);
     expect(isDisabled(patientsMenu.getByRole('menuitem', {name: (name) => name.startsWith('Open on the right'), hidden: true}))).toBe(true);
     await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
+    // An admin page's row comes out under its category's.
+    await railCategoryPage(user, 'Oversight', 'Audit Log');
     const auditRight = await rowMenuItem(user, 'Audit Log', 'Open on the right');
     expect(isDisabled(auditRight)).toBe(true);
     expect(auditRight).toHaveTextContent('Audit Log is already open on the right');
 
-    await user.unhover(screen.getAllByRole('link', {name: 'Audit Log'})[0]);
+    await user.unhover(screen.getByRole('button', {name: 'Oversight'}));
+    await railCategoryPage(user, 'People and Access', 'Users');
     await user.click(await rowMenuItem(user, 'Users', 'Open on the right'));
     await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users'));
 
+    await railCategoryPage(user, 'Pathway Setup', 'Pathway Templates');
     await user.click(await rowMenuItem(user, 'Pathway Templates', 'Open on the left'));
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users');
