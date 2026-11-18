@@ -168,7 +168,11 @@ const BRIDGE_Z_INDEX = 1000;
 /** How long the pointer rests on a row's menu button before the menu opens (so passing over it doesn't). */
 const MENU_OPEN_DELAY_MS = 150;
 /** How long the menu stays after the pointer leaves the button and the menu, so it can cross between them. */
-const MENU_CLOSE_DELAY_MS = 200;
+const MENU_CLOSE_DELAY_MS = 400;
+/** How far the strip across the gap to an open menu reaches above and below the button and the menu. */
+const BRIDGE_MARGIN_PX = 8;
+/** How far the strip reaches into the menu, so it meets the menu wherever the menu settles. */
+const BRIDGE_OVERLAP_PX = 24;
 
 /**
  * A row's menu, behind one button at its end: its half views, then anything of its own (a pin, or a section's
@@ -208,6 +212,7 @@ function RowMenu({
     if (!isOpen) return;
     let frame = 0;
     let tries = 0;
+    let isCancelled = false;
     const place = () => {
       const menu = triggerId.current && document.querySelector(`[aria-labelledby="${CSS.escape(triggerId.current)}"]`);
       const button = triggerId.current ? document.getElementById(triggerId.current) : null;
@@ -230,13 +235,26 @@ function RowMenu({
           const dx = edge + (navRight - rowRight) - box.left;
           const dy = row.getBoundingClientRect().top - box.top;
           panel.style.translate = `${dx}px ${dy}px`;
-          // Where the gap is once the menu has moved: from the button's end to the menu's start, as tall as both.
-          frame = requestAnimationFrame(() => {
+          // Where the gap is once the menu has moved: from the button's end into the menu (the menu is in the
+          // browser's top layer, so the part under it never takes the pointer), and a little above and below both.
+          // Measured again once the menu has settled: it slides into place, and a strip measured mid-way stopped
+          // short of it, leaving a dead zone that closed the menu under a slow pointer.
+          const measure = () => {
+            if (isCancelled) return;
             const from = button!.getBoundingClientRect();
             const to = surface.getBoundingClientRect();
-            const top = Math.min(from.top, to.top);
-            const width = to.left - from.right;
-            setBridge(width > 0 ? {left: from.right, top, width, height: Math.max(from.bottom, to.bottom) - top} : null);
+            const top = Math.min(from.top, to.top) - BRIDGE_MARGIN_PX;
+            const bottom = Math.max(from.bottom, to.bottom) + BRIDGE_MARGIN_PX;
+            setBridge(to.left > from.right ? {left: from.right, top, width: to.left + BRIDGE_OVERLAP_PX - from.right, height: bottom - top} : null);
+          };
+          frame = requestAnimationFrame(() => {
+            measure();
+            // Only animations that end by themselves: an endless one would hold the second measurement back for good.
+            const settling = (typeof surface.getAnimations === 'function' ? surface.getAnimations({subtree: true}) : []).filter((animation) => {
+              const end = animation.effect?.getComputedTiming().endTime;
+              return typeof end === 'number' && Number.isFinite(end);
+            });
+            if (settling.length > 0) void Promise.allSettled(settling.map((animation) => animation.finished)).then(measure);
           });
           return;
         }
@@ -245,7 +263,10 @@ function RowMenu({
       if (++tries < 5) frame = requestAnimationFrame(place);
     };
     place();
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [isOpen, mode]);
 
   const halfViewItems = useHalfViewItems(label, href);
