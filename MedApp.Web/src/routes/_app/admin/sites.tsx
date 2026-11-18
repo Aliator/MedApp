@@ -4,7 +4,7 @@ import {requirePermission} from '../../../auth/auth';
 import {parseSetupSearch} from '../../../pages/listSearch';
 import {SitesPage, sitesPageQuery} from '../../../pages/setup/SitesPage';
 
-/** For holders of ManageSetup: the places the centre works from, and their rooms. */
+/** For holders of ManageSetup: the places the centre works from, and their rooms. Deprecated: no new work, not in the side nav. */
 export const Route = createFileRoute('/_app/admin/sites')({
   beforeLoad: requirePermission('ManageSetup'),
   validateSearch: parseSetupSearch,

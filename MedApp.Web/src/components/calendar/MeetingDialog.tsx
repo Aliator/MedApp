@@ -28,7 +28,7 @@ import {closedDaysQuery, isClosedEverywhere} from '../../api/closedDays';
 import {specialtiesQuery} from '../../api/specialties';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {formatCalendarDay, formatTimeRange, minutesBetween, sameMoment, ukToday} from '../../utils/calendarSlots';
 import {WEEK_STARTS_ON} from '../../utils/dates';
 import {
@@ -95,6 +95,7 @@ type Mode = 'view' | 'change' | 'cancel';
 
 function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: MeetingDialogProps) {
   const announce = useAnnounce();
+  const canViewPatients = can(useCurrentUser(), 'ViewPatients');
   const {cancel} = useMeetingActions();
   const replyTo = useMeetingReply();
   const queryClient = useQueryClient();
@@ -161,6 +162,10 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
         purpose="info"
         footer={
           <HStack gap={2} wrap="wrap" hAlign="end">
+            {/* An MDT opens its list (the MDT list is reached from the Calendar now, not the side nav). */}
+            {meeting.isMdt && canViewPatients && (
+              <Button label="Open MDT List" variant="secondary" icon={<Icon icon={AppIcon.Mdt} />} href={`/mdt?meeting=${meeting.id}`} />
+            )}
             {meeting.canEdit && (
               <>
                 <Button label="Cancel Meeting" variant="destructive" onClick={() => setMode('cancel')} />

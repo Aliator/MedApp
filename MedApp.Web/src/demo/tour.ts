@@ -176,6 +176,7 @@ export const TOUR: TourStep[] = [
       'Opens this morning’s skin MDT: the pathways listed for the team to discuss.',
       'Choose Record Outcome on Ellis Varden’s item, tick who was there and write the team’s outcome. MedApp never suggests one.',
       `${STAFF.fullName}, who has the pathway, is told in her notifications.`,
+      'The MDT list is reached from the Calendar page, by its MDT button.',
     ],
     account: ADMIN.username,
     path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,

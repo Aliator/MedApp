@@ -1,4 +1,3 @@
-import {Badge} from '@astryxdesign/core/Badge';
 import {Icon} from '@astryxdesign/core/Icon';
 import {DropdownMenu, type DropdownMenuItemData} from '@astryxdesign/core/DropdownMenu';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -7,7 +6,6 @@ import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps}
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Theme} from '@astryxdesign/core/theme';
-import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
 import {useQuery} from '@tanstack/react-query';
 import {useRouter, useRouterState} from '@tanstack/react-router';
 import {
@@ -25,8 +23,6 @@ import {
 import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
-import {letterCountQuery} from '../../api/letters';
-import {resultCountQuery} from '../../api/results';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -584,9 +580,6 @@ interface AdminCategoryRowProps {
   pages: AdminPage[];
   isOpen: boolean;
   onToggle: () => void;
-  /** It holds the current page, or the half view's. */
-  holdsCurrent: boolean;
-  holdsHalfView: boolean;
   /** In the folded nav's flyout: always open, as the pinned items under Patients are there. */
   isAlwaysOpen: boolean;
   pageRow: (page: AdminPage) => ReactNode;
@@ -594,58 +587,20 @@ interface AdminCategoryRowProps {
 
 /**
  * An admin category: a row that opens with a click (or Enter) to show its pages indented under it, as the pinned items
- * show under Patients. The row is Astryx's own toggle (`aria-expanded`). Holding the current page (or the half
- * view's), it has a dot at its end, said as "has the current page".
+ * show under Patients. The row is Astryx's own toggle (`aria-expanded`). It opens by itself on its current page (or
+ * the half view's), with no mark of its own (the owner took the dot away): the page's own row is marked.
  */
-function AdminCategoryRow({category, pages, isOpen, onToggle, holdsCurrent, holdsHalfView, isAlwaysOpen, pageRow}: AdminCategoryRowProps) {
-  const holds = holdsCurrent ? 'has the current page' : holdsHalfView ? 'has the page in the half view' : null;
+function AdminCategoryRow({category, pages, isOpen, onToggle, isAlwaysOpen, pageRow}: AdminCategoryRowProps) {
   return (
     <SideNavItem
       label={category.label}
       icon={category.icon}
       data-nav-category={category.key}
-      collapsible={isAlwaysOpen ? false : {isCollapsed: !isOpen, onCollapsedChange: onToggle}}
-      endContent={
-        holds && (
-          <>
-            <Icon icon={AppIcon.HoldsCurrent} size="xsm" color={holdsCurrent ? 'accent' : 'secondary'} aria-hidden />
-            <VisuallyHidden>{`, ${holds}`}</VisuallyHidden>
-          </>
-        )
-      }>
+      collapsible={isAlwaysOpen ? false : {isCollapsed: !isOpen, onCollapsedChange: onToggle}}>
       {pages.map((page) => (
         <Fragment key={page.href}>{pageRow(page)}</Fragment>
       ))}
     </SideNavItem>
-  );
-}
-
-/**
- * The Letters item's count: the signed-in person's letters to approve, and every approved letter still to send, as a
- * badge (nothing when there are none). Seen as the number; heard as "2 to approve, 3 to send", after the item's name.
- */
-export function LettersCount({toApprove, toSend}: {toApprove: number; toSend: number}) {
-  const count = toApprove + toSend;
-  if (count <= 0) return null;
-  return (
-    <>
-      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
-      <VisuallyHidden>{`, ${toApprove} to approve, ${toSend} to send`}</VisuallyHidden>
-    </>
-  );
-}
-
-/**
- * The Results item's count: results awaiting the signed-in person's sign-off, as a badge (nothing when there are none).
- * Seen as the number; heard as "2 awaiting your sign-off", after the item's name.
- */
-export function ResultsCount({count}: {count: number}) {
-  if (count <= 0) return null;
-  return (
-    <>
-      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
-      <VisuallyHidden>{`, ${count} awaiting your sign-off`}</VisuallyHidden>
-    </>
   );
 }
 
@@ -689,11 +644,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
 
   const patientPins = usePins('patients', user.username);
   const pathwayPins = usePins('pathways', user.username);
-  // My letters to approve and every letter still to send: counts, naming no patients.
-  const letterCount = useQuery({...letterCountQuery, enabled: can(user, 'ViewPatients')}).data;
-  // Results awaiting my sign-off, only for those who sign results off: a count, naming no patients.
-  const resultCount =
-    useQuery({...resultCountQuery, enabled: can(user, 'ViewPatients') && can(user, 'SignOffResults')}).data?.awaitingMine ?? 0;
 
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
@@ -783,7 +733,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 href="/results"
                 isSelected={isAt('/results')}
                 ref={halfViewRow(isHalfAt('/results'))}
-                endContent={can(user, 'SignOffResults') ? <ResultsCount count={resultCount} /> : undefined}
                 actions={<RowMenu label="Results" href="/results" />}
               />
             ),
@@ -807,82 +756,14 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 href="/letters"
                 isSelected={isAt('/letters')}
                 ref={halfViewRow(isHalfAt('/letters'))}
-                endContent={<LettersCount toApprove={letterCount?.toApprove ?? 0} toSend={letterCount?.toSend ?? 0} />}
                 actions={<RowMenu label="Letters" href="/letters" />}
               />
             ),
           },
         ]
       : []),
-    // The GP practice directory, for anyone who can view patients (holders of EditPatients keep it).
-    ...(can(user, 'ViewPatients')
-      ? [
-          {
-            key: 'practices',
-            label: 'Practices',
-            icon: AppIcon.Practices,
-            href: '/practices',
-            isSelected: isAt('/practices'),
-            isHalfView: isHalfAt('/practices'),
-            row: (
-              <SideNavItem
-                label="Practices"
-                icon={AppIcon.Practices}
-                href="/practices"
-                isSelected={isAt('/practices')}
-                ref={halfViewRow(isHalfAt('/practices'))}
-                actions={<RowMenu label="Practices" href="/practices" />}
-              />
-            ),
-          },
-        ]
-      : []),
-    // The MDT list (multidisciplinary team meetings), for anyone who can view patients.
-    ...(can(user, 'ViewPatients')
-      ? [
-          {
-            key: 'mdt',
-            label: 'MDT',
-            icon: AppIcon.Mdt,
-            href: '/mdt',
-            isSelected: isAt('/mdt'),
-            isHalfView: isHalfAt('/mdt'),
-            row: (
-              <SideNavItem
-                label="MDT"
-                icon={AppIcon.Mdt}
-                href="/mdt"
-                isSelected={isAt('/mdt')}
-                ref={halfViewRow(isHalfAt('/mdt'))}
-                actions={<RowMenu label="MDT" href="/mdt" />}
-              />
-            ),
-          },
-        ]
-      : []),
-    // Patients' data requests (subject access), for those who answer them (ManagePrivacy) or review them (SignOffResults).
-    ...(can(user, 'ViewPatients') && (can(user, 'ManagePrivacy') || can(user, 'SignOffResults'))
-      ? [
-          {
-            key: 'data-requests',
-            label: 'Data Requests',
-            icon: AppIcon.DataRequests,
-            href: '/data-requests',
-            isSelected: isAt('/data-requests'),
-            isHalfView: isHalfAt('/data-requests'),
-            row: (
-              <SideNavItem
-                label="Data Requests"
-                icon={AppIcon.DataRequests}
-                href="/data-requests"
-                isSelected={isAt('/data-requests')}
-                ref={halfViewRow(isHalfAt('/data-requests'))}
-                actions={<RowMenu label="Data Requests" href="/data-requests" />}
-              />
-            ),
-          },
-        ]
-      : []),
+    // No count badges (the owner, 18 November 2026): what needs attention is on the home page. Practices moved to
+    // the Calendar category, Data Requests to Oversight (navCategories.ts), and the MDT list under the Calendar page.
     {
       key: 'patients',
       label: 'Patients',
@@ -942,26 +823,21 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const admin: NavRailEntry[] = ADMIN_CATEGORIES.flatMap((category) => {
     const pages = category.pages.filter((page) => can(user, page.permission));
     if (pages.length === 0) return [];
-    const holdsCurrent = pages.some((page) => isAt(page.href));
-    const holdsHalfView = pages.some((page) => isHalfAt(page.href));
-    const holds = holdsCurrent || holdsHalfView;
+    // Holding the current page (or the half view's), it opens by itself, but isn't marked: only the page's row is.
+    const holds = pages.some((page) => isAt(page.href) || isHalfAt(page.href));
     return [
       {
         key: `category:${category.key}`,
         label: category.label,
         icon: category.icon,
-        // Not a page: its icon is filled while it holds the current page, but announced as holding it, not as it.
+        // Not a page: never marked as one.
         isSelected: false,
-        holdsCurrent,
-        isHalfView: holdsHalfView,
         row: (
           <AdminCategoryRow
             category={category}
             pages={pages}
             isOpen={adminCategories.isOpen(category.key, holds)}
             onToggle={() => adminCategories.toggle(category.key, holds)}
-            holdsCurrent={holdsCurrent}
-            holdsHalfView={holdsHalfView}
             isAlwaysOpen={isFolded}
             pageRow={adminPageRow}
           />

@@ -238,7 +238,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    await user.click(await railCategoryPage(user, 'People and Access', 'Users'));
+    await user.click(await railCategoryPage(user, 'Account Management', 'Users'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
     expect(await heading('User Management')).toBeInTheDocument();
@@ -265,7 +265,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(auditRight).toHaveTextContent('Audit Log is already open on the right');
 
     await user.unhover(screen.getByRole('button', {name: 'Oversight'}));
-    await railCategoryPage(user, 'People and Access', 'Users');
+    await railCategoryPage(user, 'Account Management', 'Users');
     await user.click(await rowMenuItem(user, 'Users', 'Open on the right'));
     await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users'));
 

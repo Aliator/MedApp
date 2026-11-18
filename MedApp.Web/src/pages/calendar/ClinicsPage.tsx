@@ -53,6 +53,9 @@ export interface ClinicsPageProps {
  * and who is booked into each, where a free slot can be booked. Holders of ManageClinics add sessions (New Session),
  * change or cancel them from their dialog, and keep the clinic patterns (Clinic Patterns). The week and site are in the
  * address, so a week is a link.
+ *
+ * **Deprecated** (the owner, 18 November 2026): no new work, kept building and working by address, with its tests;
+ * nothing links to it from the Calendar page any more (docs/agents/calendar.md).
  */
 export function ClinicsPage({search, onSearchChange}: ClinicsPageProps) {
   const canManage = useCan('ManageClinics');
