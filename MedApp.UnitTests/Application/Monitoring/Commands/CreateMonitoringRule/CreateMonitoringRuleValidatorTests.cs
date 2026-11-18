@@ -72,6 +72,65 @@ public sealed class CreateMonitoringRuleValidatorTests
 
         result.IsValid.Should().Be(isValid);
         if (!isValid)
-            result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked.");
+            result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked, a visit not booked or a specimen overdue.");
+    }
+
+    private static CreateMonitoringRuleCommand Alert(string monitoringEvent, int? days = 2) =>
+        new(OwnerId, null, monitoringEvent, null, null, null, true, days, Guid.NewGuid());
+
+    [TestCase("ReferralNotTriaged", 0)]
+    [TestCase("ResultNotSignedOff", 90)]
+    [TestCase("VisitNotBooked", 2)]
+    [TestCase("SpecimenOverdue", 5)]
+    [TestCase("WaitBreached", 14)]
+    [TestCase("PauseReviewPassed", 1)]
+    public void Validate_ServiceAlertWithDays_Passes(string monitoringEvent, int days)
+    {
+        _validator.Validate(Alert(monitoringEvent, days)).IsValid.Should().BeTrue();
+    }
+
+    [TestCase(null)]
+    [TestCase(-1)]
+    [TestCase(91)]
+    public void Validate_ServiceAlertWithoutValidDays_Fails(int? days)
+    {
+        _validator.Validate(Alert("ReferralNotTriaged", days)).Errors.Should().Contain(e => e.PropertyName == "ThresholdDays");
+    }
+
+    [Test]
+    public void Validate_DaysOnAChange_Fails()
+    {
+        _validator.Validate(Valid() with { ThresholdDays = 2 }).Errors.Should().ContainSingle(e => e.PropertyName == "ThresholdDays");
+    }
+
+    [Test]
+    public void Validate_PersonOnAnAlertAboutTheService_Fails_ButOnResultsIsTheResponsibleClinician()
+    {
+        _validator.Validate(Alert("VisitNotBooked") with { SubjectUserId = Staff.UserId })
+            .Errors.Should().ContainSingle(e => e.PropertyName == "SubjectUserId");
+        _validator.Validate(Alert("ResultNotSignedOff") with { SubjectUserId = Staff.UserId }).IsValid.Should().BeTrue();
+    }
+
+    [Test]
+    public void Validate_TemplateOnReferralNotTriaged_Fails()
+    {
+        _validator.Validate(Alert("ReferralNotTriaged") with { TemplateId = TemplateId })
+            .Errors.Should().ContainSingle(e => e.PropertyName == "TemplateId");
+    }
+
+    [TestCase("VisitNotBooked", true)]
+    [TestCase("SpecimenOverdue", true)]
+    [TestCase("ReferralNotTriaged", false)]
+    [TestCase("WaitBreached", false)]
+    public void Validate_StageOnAnAlert_OnlyWhereItHasOne(string monitoringEvent, bool allowed)
+    {
+        _validator.Validate(Alert(monitoringEvent) with { StageDefinitionId = ConsultationDefinitionId }).IsValid.Should().Be(allowed);
+    }
+
+    [Test]
+    public void Validate_EmptySpecialty_Fails()
+    {
+        _validator.Validate(Alert("ReferralNotTriaged") with { SpecialtyId = Guid.Empty })
+            .Errors.Should().ContainSingle(e => e.PropertyName == "SpecialtyId");
     }
 }

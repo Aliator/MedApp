@@ -1,0 +1,59 @@
+name: Pages
+# The light demo on GitHub Pages (https://aliator.github.io/MedApp/): the React app built with no server
+# (`npm run build:demo`), its API calls answered in the visitor's browser by a stand-in with synthetic data
+# (docs/agents/light-demo.md). It never touches the API, a database or a secret.
+# On each push to main that changes the web app (or this workflow), and by hand. Pages must be set to deploy from
+# GitHub Actions in the repository's settings.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'MedApp.Web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+# Each job asks for only what it needs.
+permissions: {}
+# One deploy at a time; a newer one waits rather than cancelling a deploy halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: MedApp.Web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: MedApp.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Client only, under /MedApp/, with index.html copied to 404.html so a deep link loads the app.
+      - name: Build the light demo
+        run: npm run build:demo
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: MedApp.Web/dist-demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

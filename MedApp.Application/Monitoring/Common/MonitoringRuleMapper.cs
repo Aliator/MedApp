@@ -19,6 +19,9 @@ public static class MonitoringRuleMapper
         NameOf(rule.TemplateId, names.TemplateNames),
         rule.StageDefinitionId,
         NameOf(rule.StageDefinitionId, names.StageNames),
+        rule.ThresholdDays,
+        rule.SpecialtyId,
+        NameOf(rule.SpecialtyId, names.SpecialtyNames),
         rule.IsEnabled,
         rule.CreatedAtUtc,
         rule.UpdatedAtUtc);

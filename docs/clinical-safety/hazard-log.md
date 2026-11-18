@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`); H-51's controls built with branching pathways (`feature/branching-pathways`); H-53 to H-55 updated for patient reminders and the Did not attend view built, and H-30, H-36 and H-52 for what they add (`feature/patient-reminders`); H-29, H-32 and H-51 updated for the stage overrides split and the bypass monitored (`feature/stage-permissions`); H-45, H-47 and H-01 updated for the specimens built (`feature/specimens`); H-48 to H-50 updated for letters built (PR 16) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`); H-51's controls built with branching pathways (`feature/branching-pathways`); H-53 to H-55 updated for patient reminders and the Did not attend view built, and H-30, H-36 and H-52 for what they add (`feature/patient-reminders`); H-29, H-32 and H-51 updated for the stage overrides split and the bypass monitored (`feature/stage-permissions`); H-45, H-47 and H-01 updated for the specimens built (`feature/specimens`); H-48 to H-50 updated for letters built (PR 16); H-29 and H-45 updated for the service alerts built (PR 25, `feature/service-alerts`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -1147,8 +1147,9 @@ Each removes the pathway from the open lists, where it would otherwise be seen.
 - **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
 - **Only nine actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires. Since PR 24 (decision 136 of `docs/centre-phases-3-5-plan.md`) a Required stage finished without its visit is one (`StageFinishedWithoutVisit`), but skipping a Required stage, which needs the same permission, isn't (`docs/todo.md`): a rule for it doesn't see every stage left without its visit, and the stages finished without a visit stay H-32's report, not this rule.
 - **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
+- **Service alerts** (PR 25: referrals not triaged, results not signed off, visits not booked, specimens overdue, waits near their target, pause reviews passed, each after days an admin chose) come from a job every 15 minutes: a stopped job, a rule switched off or its owner losing `ManageMonitoring` means no alert, and each item is reported once per rule, so an item still waiting after its alert isn't reported again.
 
-**Effect.** A blocked, cancelled or re-dated Urgent pathway isn't followed up by the person who expected to hear of it.
+**Effect.** A blocked, cancelled or re-dated Urgent pathway, or work waiting too long, isn't followed up by the person who expected to hear of it.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
@@ -1156,6 +1157,7 @@ Each removes the pathway from the open lists, where it would otherwise be seen.
 - **The intended purpose says it:** monitoring rules are supervision of work, not clinical alerting, and "must not be relied on to make sure anything clinical happens" (`intended-purpose-and-device-decision.md`).
 - **The work is visible anyway:** the pathways list, My Worklist, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated pathway, whatever the rules.
 - The notifications that are sent are stored, so they show at the next page load.
+- **Service alerts are counts with a link to the list,** never the record of what's waiting: the referrals inbox and waiting list, the results list, Requires appointment and the lab's Overdue view show every item, whatever the rules. A service alert's notification is saved in the same save as the record of what it reported, so a run cut short repeats nothing and loses nothing; a job that keeps failing tells the holders of `ManageSetup` (decision 111) and makes `/health` Degraded.
 
 **Initial risk:** Considerable, Low: **2**.
 
@@ -1813,14 +1815,14 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Further controls** (before the feature's first live use unless marked):
 - **Results sign-off** (PR 14, built on branch `feature/results-signoff`): each report becomes a result its requesting clinician is told of and signs off, so a report that comes back is also seen (H-46). Protective.
-- **A service alert** for specimens N days past their expected turnaround. Protective; planned, Phase 4 (PR 25); later.
+- **A service alert** for specimens N days past their expected turnaround (`SpecimenOverdue`). Protective; **built** (PR 25, `feature/service-alerts`), for the CSO to verify; a convenience, never the control (H-29).
 - **Transferred** (`dcb0160-deploying-organisations.md`): a daily check of the lab worklist's Expected and Overdue views (and To send, for specimens left in the clinic), and a local process for chasing the lab.
 
 **At first live use:** Draft: Major, Very low: **2**.
 
 **Residual risk:** Draft: Major, Very low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO: the worklist, turnaround, the last-stage gate and the lost and rejected notifications are built; results sign-off and the service alert aren't.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the worklist, turnaround, the last-stage gate, the lost and rejected notifications and the service alert (PR 25) are built; results sign-off isn't.
 
 ---
 

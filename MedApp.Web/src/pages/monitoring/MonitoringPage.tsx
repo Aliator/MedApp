@@ -1,5 +1,6 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
+import {NumberInput} from '@astryxdesign/core/NumberInput';
 import {Icon} from '@astryxdesign/core/Icon';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Switch} from '@astryxdesign/core/Switch';
@@ -10,8 +11,13 @@ import {useState} from 'react';
 import {fieldStatus} from '../../api/errors';
 import {ApiError} from '../../api/errors';
 import {
+  hasPerson,
   hasStage,
+  hasTemplate,
   inputOf,
+  isServiceAlert,
+  MAX_THRESHOLD_DAYS,
+  MIN_THRESHOLD_DAYS,
   MONITORING_EVENTS,
   monitoringPeopleQuery,
   monitoringUnlockersQuery,
@@ -24,6 +30,7 @@ import {
   type MonitoringRuleInput,
 } from '../../api/monitoring';
 import {allTemplatesQuery, stageDefinitionsQuery} from '../../api/pathwaySetup';
+import {specialtiesQuery} from '../../api/specialties';
 import {useAnnounce} from '../../app/announcements';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
@@ -49,11 +56,16 @@ const EMPTY: MonitoringRuleInput = {
   minimumPriority: null,
   templateId: null,
   stageDefinitionId: null,
+  thresholdDays: null,
+  specialtyId: null,
   isEnabled: true,
 };
 
+/** The days a new service alert starts with. */
+const DEFAULT_THRESHOLD_DAYS = 2;
+
 /** The fields shown, whose errors show on them (so the banner leaves them out). */
-const FIELDS = ['subjectUserId', 'event', 'minimumPriority', 'templateId', 'stageDefinitionId'];
+const FIELDS = ['subjectUserId', 'event', 'minimumPriority', 'templateId', 'stageDefinitionId', 'thresholdDays', 'specialtyId'];
 
 const fromAny = (value: string) => (value === ANY ? null : value);
 const sameId = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
@@ -75,7 +87,8 @@ function problemOf(error: unknown, action: 'save' | 'add' | 'delete' | 'switch')
 }
 
 /**
- * Monitoring (holders of ManageMonitoring): the signed-in person's rules for being told what staff do to pathways, e.g. "Notify me when
+ * Monitoring (holders of ManageMonitoring): the signed-in person's rules for being told what staff do to pathways, and
+ * the service alerts (work waiting longer than they chose, checked by a job every 15 minutes), e.g. "Notify me when
  * **Sam** finishes **Bloods** on a **High or Urgent** priority pathway". When a change matches one of their switched-on
  * rules, they get a notification in the bell, live. Each admin sees and changes only their own rules.
  *
@@ -90,6 +103,7 @@ export function MonitoringPage() {
   const unlockers = useQuery(monitoringUnlockersQuery);
   const templates = useQuery(allTemplatesQuery);
   const stages = useQuery(stageDefinitionsQuery);
+  const specialties = useQuery(specialtiesQuery(true));
   const save = useSaveMonitoringRule();
   const setEnabled = useSetMonitoringRuleEnabled();
   const remove = useDeleteMonitoringRule();
@@ -106,6 +120,13 @@ export function MonitoringPage() {
   const target = dialog?.kind === 'delete' ? dialog.rule : null;
   const close = () => setDialog(null);
   const set = <K extends keyof MonitoringRuleInput>(key: K, value: MonitoringRuleInput[K]) => setForm((current) => ({...current, [key]: value}));
+  // A service alert needs its days, so choosing one starts them at a default.
+  const setEvent = (event: MonitoringEvent) =>
+    setForm((current) => ({
+      ...current,
+      event,
+      thresholdDays: isServiceAlert(event) ? (current.thresholdDays ?? DEFAULT_THRESHOLD_DAYS) : current.thresholdDays,
+    }));
 
   const openEditor = (rule: MonitoringRule | null) => {
     setForm(rule ? inputOf(rule) : EMPTY);
@@ -116,8 +137,15 @@ export function MonitoringPage() {
 
   const saveRule = () =>
     save.mutate(
-      // A stage only goes with the events that have one.
-      {id: editing?.id, ...form, stageDefinitionId: hasStage(form.event) ? form.stageDefinitionId : null},
+      // A stage, person, template and days only go with the events that have them.
+      {
+        id: editing?.id,
+        ...form,
+        stageDefinitionId: hasStage(form.event) ? form.stageDefinitionId : null,
+        subjectUserId: hasPerson(form.event) ? form.subjectUserId : null,
+        templateId: hasTemplate(form.event) ? form.templateId : null,
+        thresholdDays: isServiceAlert(form.event) ? form.thresholdDays : null,
+      },
       {
         onSuccess: () => {
           announce(editing ? 'Rule saved' : 'Rule added');
@@ -164,6 +192,7 @@ export function MonitoringPage() {
     id ? (people.data?.find((u) => sameId(u.userId, id))?.username ?? (sameId(editing?.subjectUserId, id) ? editing?.subjectUsername : null) ?? null) : null;
   const templateName = (id: string | null) => (id ? (templates.data?.find((t) => sameId(t.id, id))?.name ?? null) : null);
   const stageName = (id: string | null) => (id ? (stages.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
+  const specialtyName = (id: string | null) => (id ? (specialties.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
 
   // The options, each with "any" first. Archived templates and stages are offered too (old pathways still have
   // them), and a rule's own choice stays offered even when it's no longer in a list.
@@ -179,9 +208,13 @@ export function MonitoringPage() {
     form.subjectUserId,
     personName(form.subjectUserId) ?? 'Deleted user',
   );
+  const forResults = form.event === 'ResultNotSignedOff';
   const personHint = onlyUnlockers
     ? 'Only people whose roles let them unlock stages are listed.'
-    : 'For an assignment, the person assigned.';
+    : forResults
+      ? 'The clinician responsible for signing the results off.'
+      : 'For an assignment, the person assigned.';
+  const alerting = isServiceAlert(form.event);
   const templateOptions = withChosen(
     [
       {value: ANY, label: 'Any template'},
@@ -198,6 +231,14 @@ export function MonitoringPage() {
     form.stageDefinitionId,
     'Deleted stage',
   );
+  const specialtyOptions = withChosen(
+    [
+      {value: ANY, label: 'Any specialty'},
+      ...(specialties.data ?? []).map((d) => ({value: d.id?.toLowerCase() ?? '', label: d.isArchived ? `${d.name} (archived)` : (d.name ?? '')})),
+    ],
+    form.specialtyId,
+    'Deleted specialty',
+  );
   const priorityOptions = [{value: ANY, label: 'Any priority'}, ...MINIMUM_PRIORITIES.map((p) => ({value: p.value, label: p.label}))];
 
   // The sentence being built.
@@ -210,6 +251,9 @@ export function MonitoringPage() {
     templateName: templateName(form.templateId),
     stageDefinitionId: hasStage(form.event) ? form.stageDefinitionId : null,
     stageName: stageName(form.stageDefinitionId),
+    thresholdDays: alerting ? form.thresholdDays : null,
+    specialtyId: form.specialtyId,
+    specialtyName: specialtyName(form.specialtyId),
   };
 
   const columns: DataTableColumn<RuleRow>[] = [
@@ -276,7 +320,11 @@ export function MonitoringPage() {
           <ConfirmDialog
             isOpen={dialog?.kind === 'edit'}
             title={editing ? 'Edit Rule' : 'Add Rule'}
-            message="You're told in the bell when a change matches, never about your own changes. Leave a choice on Any to match everything."
+            message={
+              alerting
+                ? "A service alert is checked every 15 minutes: you're told in the bell how many have waited longer than your days, each once. It's a convenience: the lists are what to work from."
+                : "You're told in the bell when a change matches, never about your own changes. Leave a choice on Any to match everything."
+            }
             icon={editing ? AppIcon.Edit : AppIcon.Add}
             confirmText={editing ? 'Save' : 'Add Rule'}
             isProcessing={save.isPending}
@@ -286,22 +334,40 @@ export function MonitoringPage() {
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
               {problem.message && <AlertMessage message={problem.message} />}
-              <AnchoredSelector
-                label="Staff member"
-                description={personHint}
-                options={personOptions}
-                value={form.subjectUserId?.toLowerCase() ?? ANY}
-                onChange={(value: string) => set('subjectUserId', fromAny(value))}
-                status={fieldStatus(problem.validation, 'subjectUserId')}
-              />
+              {hasPerson(form.event) && (
+                <AnchoredSelector
+                  label={forResults ? 'Responsible clinician' : 'Staff member'}
+                  description={personHint}
+                  options={personOptions}
+                  value={form.subjectUserId?.toLowerCase() ?? ANY}
+                  onChange={(value: string) => set('subjectUserId', fromAny(value))}
+                  status={fieldStatus(problem.validation, 'subjectUserId')}
+                />
+              )}
               <AnchoredSelector
                 label="Does this"
                 options={MONITORING_EVENTS.map((e) => ({value: e.value, label: e.label}))}
                 value={form.event}
-                onChange={(value: string) => set('event', value as MonitoringEvent)}
+                onChange={(value: string) => setEvent(value as MonitoringEvent)}
                 isRequired
                 status={fieldStatus(problem.validation, 'event')}
               />
+              {alerting && (
+                <NumberInput
+                  label={form.event === 'WaitBreached' ? 'Days before the target' : 'Days'}
+                  description={
+                    form.event === 'WaitBreached'
+                      ? `${MIN_THRESHOLD_DAYS} to ${MAX_THRESHOLD_DAYS}; 0 tells you once the target has passed.`
+                      : `${MIN_THRESHOLD_DAYS} to ${MAX_THRESHOLD_DAYS}: how long it may wait before you're told.`
+                  }
+                  value={form.thresholdDays}
+                  onChange={(value) => set('thresholdDays', value)}
+                  min={MIN_THRESHOLD_DAYS}
+                  max={MAX_THRESHOLD_DAYS}
+                  isRequired
+                  status={fieldStatus(problem.validation, 'thresholdDays')}
+                />
+              )}
               {hasStage(form.event) && (
                 <AnchoredSelector
                   label="Stage"
@@ -318,12 +384,21 @@ export function MonitoringPage() {
                 onChange={(value: string) => set('minimumPriority', fromAny(value))}
                 status={fieldStatus(problem.validation, 'minimumPriority')}
               />
+              {hasTemplate(form.event) && (
+                <AnchoredSelector
+                  label="Template"
+                  options={templateOptions}
+                  value={form.templateId?.toLowerCase() ?? ANY}
+                  onChange={(value: string) => set('templateId', fromAny(value))}
+                  status={fieldStatus(problem.validation, 'templateId')}
+                />
+              )}
               <AnchoredSelector
-                label="Template"
-                options={templateOptions}
-                value={form.templateId?.toLowerCase() ?? ANY}
-                onChange={(value: string) => set('templateId', fromAny(value))}
-                status={fieldStatus(problem.validation, 'templateId')}
+                label="Specialty"
+                options={specialtyOptions}
+                value={form.specialtyId?.toLowerCase() ?? ANY}
+                onChange={(value: string) => set('specialtyId', fromAny(value))}
+                status={fieldStatus(problem.validation, 'specialtyId')}
               />
               <Switch label="On" description="A rule that's off is kept, but tells you nothing." value={form.isEnabled} onChange={(v) => set('isEnabled', v)} />
               <VStack gap={1} aria-live="polite">
