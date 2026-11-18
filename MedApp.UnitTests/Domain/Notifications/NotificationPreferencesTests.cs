@@ -51,6 +51,8 @@ public sealed class NotificationPreferencesTests
         Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingDeclined).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MonitoredPathwayCreated).Should().BeTrue();
+        Notification.IsMonitoring(NotificationKind.MonitoredStageFinishedWithoutVisit).Should().BeTrue();
+        Notification.HasFixedTitle(NotificationKind.MonitoredStageFinishedWithoutVisit).Should().BeTrue();
         Notification.IsMonitoring(NotificationKind.NoteDeletionRequested).Should().BeFalse();
     }
 

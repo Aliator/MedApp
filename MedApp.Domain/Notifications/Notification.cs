@@ -54,10 +54,12 @@ public sealed class Notification
 
     /// <summary>
     /// Whether it's a monitoring notification: an admin told about what a member of staff did. It's about the staff,
-    /// not the patient, so a patient's export leaves it out.
+    /// not the patient, so a patient's export leaves it out. A set, not one range: 10 to 17, and the later kinds from 32
+    /// (<see cref="NotificationKind.MonitoredStageFinishedWithoutVisit"/>).
     /// </summary>
     public static bool IsMonitoring(NotificationKind kind) =>
-        kind is >= NotificationKind.MonitoredPathwayCreated and <= NotificationKind.MonitoredDueDateChanged;
+        kind is >= NotificationKind.MonitoredPathwayCreated and <= NotificationKind.MonitoredDueDateChanged
+            or NotificationKind.MonitoredStageFinishedWithoutVisit;
 
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'

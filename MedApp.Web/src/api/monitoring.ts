@@ -28,6 +28,7 @@ export const MONITORING_EVENTS = [
   {value: 'PathwayAssigned', label: 'Is assigned to a pathway'},
   {value: 'StageUnlocked', label: 'Unlocks a stage', hasStage: true},
   {value: 'DueDateChanged', label: "Changes a pathway's target date"},
+  {value: 'StageFinishedWithoutVisit', label: 'Finishes a stage without its required visit', hasStage: true},
 ] as const;
 
 export type MonitoringEvent = (typeof MONITORING_EVENTS)[number]['value'];
@@ -54,8 +55,8 @@ export const monitoringRulesQuery = queryOptions({
  */
 export const monitoringPeopleQuery = staffQuery;
 
-/** Who a "Stage unlocked" rule can name: holders of OverrideStages, as only they unlock stages (the API refuses anyone else). */
-export const monitoringUnlockersQuery = staffWithPermissionQuery('OverrideStages');
+/** Who a "Stage unlocked" rule can name: holders of UnlockStages, as only they unlock stages (the API refuses anyone else). */
+export const monitoringUnlockersQuery = staffWithPermissionQuery('UnlockStages');
 
 /** Adds a rule (no `id`) or replaces one, switching it on or off too. */
 export function useSaveMonitoringRule() {

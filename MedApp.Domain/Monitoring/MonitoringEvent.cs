@@ -27,9 +27,17 @@ public enum MonitoringEvent
     /// </summary>
     PathwayAssigned = 5,
 
-    /// <summary>An admin unlocked a finished stage.</summary>
+    /// <summary>Someone unlocked a finished stage (a holder of UnlockStages).</summary>
     StageUnlocked = 6,
 
     /// <summary>Someone changed a pathway's target date.</summary>
-    DueDateChanged = 7
+    DueDateChanged = 7,
+
+    // 8 to 13 are the service alerts' time-based events (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// Someone finished a stage whose visit is Required without an attended one (a holder of FinishWithoutVisit, with a
+    /// reason). The same finish is a <see cref="StageFinished"/> too.
+    /// </summary>
+    StageFinishedWithoutVisit = 14
 }

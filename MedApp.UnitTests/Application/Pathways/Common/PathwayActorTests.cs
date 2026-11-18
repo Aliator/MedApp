@@ -15,7 +15,8 @@ public sealed class PathwayActorTests
     {
         var actor = new PathwayActor(UserId, "test.clinician", StandardRoles.Clinician.Permissions);
 
-        actor.Has(Permission.OverrideStages).Should().BeTrue();
+        actor.Has(Permission.UnlockStages).Should().BeTrue();
+        actor.Has(Permission.FinishWithoutVisit).Should().BeTrue();
         actor.Has(Permission.CorrectRecords).Should().BeFalse();
     }
 

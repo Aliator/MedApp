@@ -23,7 +23,8 @@ public enum Permission
     CreatePathways,
     WorkPathways,
     AssignPathways,
-    OverrideStages,
+    UnlockStages,
+    FinishWithoutVisit,
     DeletePathways,
 
     BookAppointments,
@@ -102,8 +103,10 @@ public static class Permissions
             "Work on pathways: stages, notes, details, hold, discharge and cancel; ask for a note to be deleted."),
         new(Permission.AssignPathways, PermissionGroup.Pathways,
             "Assign staff to pathways, and unassign them."),
-        new(Permission.OverrideStages, PermissionGroup.Pathways,
-            "Unlock a finished stage, and finish a stage that requires a visit without one."),
+        new(Permission.UnlockStages, PermissionGroup.Pathways,
+            "Unlock a finished stage, and reinstate a skipped one."),
+        new(Permission.FinishWithoutVisit, PermissionGroup.Pathways,
+            "Finish, or skip, a stage that requires a visit without one, giving a reason."),
         new(Permission.DeletePathways, PermissionGroup.Pathways,
             "Delete a cancelled or archived pathway."),
 
@@ -150,12 +153,15 @@ public static class Permissions
         Catalogue.ToDictionary(p => p.Name, p => p.Permission, StringComparer.Ordinal);
 
     /// <summary>
-    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but
-    /// <see cref="Permission.TriageReferrals"/>, the clinical decision (an admin who triages holds a role that grants
-    /// it too).
+    /// The built-in Admin role's permissions, fixed in code: all of them but the clinical decisions,
+    /// <see cref="Permission.TriageReferrals"/> and <see cref="Permission.FinishWithoutVisit"/> (an admin who triages,
+    /// or who is a senior clinician, holds a role that grants it too: decision 138 of
+    /// <c>docs/centre-phases-3-5-plan.md</c>). Admin keeps <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> Admin =
-        Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        Enum.GetValues<Permission>()
+            .Where(p => p is not (Permission.TriageReferrals or Permission.FinishWithoutVisit))
+            .ToHashSet();
 
     /// <summary>A permission's group and description.</summary>
     public static PermissionDescription Describe(Permission permission) => ByPermission[permission];
