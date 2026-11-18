@@ -57,7 +57,7 @@ public sealed class PatientRecordAttachmentsTests
             PathwayHistory = [.. record.PathwayHistory, audit],
             Activity = record.Activity,
             Appointments = record.Appointments,
-            AppointmentHistory = record.AppointmentHistory,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications = record.Notifications,
             Attachments = [live, deleted],
             NoteVersions = [],
@@ -155,7 +155,7 @@ public sealed class PatientRecordAttachmentsTests
         var withOdd = new PatientRecord
         {
             Patient = record.Patient, Pathways = record.Pathways, PathwayHistory = record.PathwayHistory,
-            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
+            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications = record.Notifications, Attachments = [live, odd],
             NoteVersions = [],
             NoteDeletionRequests = [],

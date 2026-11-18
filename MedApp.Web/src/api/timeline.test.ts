@@ -79,6 +79,7 @@ describe('timeline filters', () => {
       'Stages',
       'Appointments',
       'Referrals',
+      'Waiting time',
       'Specimens',
       'Notes',
       'Assignments',
@@ -231,6 +232,29 @@ describe('describeTimelineEntry', () => {
     expect(describeTimelineEntry(entry({action: 'StageFinished', finishedWithoutVisit: true})).detail).toBe('');
   });
 
+  it('words a skipped stage: the reason to everyone, its detail only to admins', () => {
+    expect(describeTimelineEntry(entry({action: 'StageSkipped', stageName: 'Scan', skipReason: 'PatientDeclined'}))).toEqual({title: 'Skipped Scan', detail: 'Patient declined'});
+    expect(describeTimelineEntry(entry({action: 'StageSkipped', stageName: 'Scan', skipReason: 'Other', reason: 'Seen at another hospital'}))).toEqual({
+      title: 'Skipped Scan',
+      detail: 'Other. Seen at another hospital',
+    });
+  });
+
+  it('words a branch chosen, with the stages it skipped, and a stage reinstated, with why only for admins', () => {
+    expect(
+      describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: 'Treatment', skippedStageNames: ['Discharge letter', 'Follow-up']})),
+    ).toEqual({title: 'Chose the Treatment branch at Biopsy', detail: 'Skipped: Discharge letter, Follow-up'});
+    expect(describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: null, skippedStageNames: []}))).toEqual({
+      title: 'Chose a branch at Biopsy',
+      detail: '',
+    });
+    expect(describeTimelineEntry(entry({action: 'StageReinstated', stageName: 'Follow-up', skipReason: 'BranchNotChosen', reason: 'Wrong branch'}))).toEqual({
+      title: 'Reinstated Follow-up',
+      detail: 'Had been skipped: Another branch was chosen. Wrong branch',
+    });
+    expect(describeTimelineEntry(entry({action: 'StageReinstated', stageName: 'Follow-up'}))).toEqual({title: 'Reinstated Follow-up', detail: ''});
+  });
+
   describe('appointments', () => {
     const appointment = (fields: Partial<TimelineEntry>) =>
       entry({
@@ -259,6 +283,10 @@ describe('describeTimelineEntry', () => {
       // Why comes to admins only; staff see just when and with whom.
       [{action: 'AppointmentEnteredInError', reason: 'Recorded on the wrong patient.'}, 'Appointment marked entered in error for Review', `${slot}. Recorded on the wrong patient.`],
       [{action: 'AppointmentEnteredInError', reason: null}, 'Appointment marked entered in error for Review', slot],
+      // A missed appointment's follow-up: the decision for everyone, its detail (the reason) for admins only.
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'ClinicianToReview', reason: 'Dr Test to call.'}, 'Did not attend follow-up recorded for Review: Clinician to review', `${slot}. Dr Test to call.`],
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook', reason: null}, 'Did not attend follow-up recorded for Review: Rebook', slot],
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: null}, 'Did not attend follow-up recorded for Review: unknown', slot],
       [{action: 'AppointmentSomethingNew', appointmentStartUtc: null}, 'Appointment changed for Review', 'With test.doctor'],
     ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
       expect(describeTimelineEntry(appointment(fields))).toEqual({title, detail});
@@ -334,6 +362,7 @@ describe('referral entries', () => {
   it('knows a referral entry, and a file attached to a referral', () => {
     expect(isReferralEntry(referralEntry({action: 'ReferralRegistered'}))).toBe(true);
     expect(isReferralEntry(entry({kind: 'Other', action: 'ReferralWithdrawn'}))).toBe(true);
+    expect(isReferralEntry(entry({kind: 'WaitingTime', action: 'Unknown'}))).toBe(true);
     expect(isReferralEntry(entry({}))).toBe(false);
     expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Referral', referralId}))).toBe(true);
     expect(isReferralFileEntry(entry({kind: 'Files', attachedTo: 'Patient'}))).toBe(false);
@@ -381,6 +410,46 @@ describe('referral entries', () => {
       title: 'Referral to Dermatology marked entered in error',
       detail: 'Registered twice',
     });
+  });
+
+  it('words the waiting-time clock: the pause reason and review date to everyone, its detail only to admins', () => {
+    const clock = (fields: Partial<TimelineEntry>) => referralEntry({kind: 'WaitingTime', ...fields});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockPaused', pauseReason: 'PatientChoseToWait', reviewOn: '2027-02-03'}))).toEqual({
+      title: 'Waiting-time clock paused',
+      detail: 'Patient chose to wait, review 3 Feb 2027',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockPaused', pauseReason: 'Other', reason: 'On holiday abroad'}))).toEqual({
+      title: 'Waiting-time clock paused',
+      detail: 'Other. On holiday abroad',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockResumed'}))).toEqual({title: 'Waiting-time clock resumed', detail: ''});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockResumed', isAutomatic: true}))).toEqual({
+      title: 'Waiting-time clock resumed',
+      detail: 'Resumed automatically, as the clock stopped',
+    });
+    expect(
+      describeTimelineEntry(clock({action: 'ReferralClockStopped', stopReason: 'StopStageFinished', daysWaited: 130, targetDays: 126, breached: true})),
+    ).toEqual({title: 'Waiting-time clock stopped', detail: 'Clock-stop stage finished, day 130 of 126, breached'});
+    expect(describeTimelineEntry(clock({action: 'ReferralClockStopped', stopReason: 'PathwayDischarged', daysWaited: 40}))).toEqual({
+      title: 'Waiting-time clock stopped',
+      detail: 'Discharged, day 40',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralClockStopped'}))).toEqual({title: 'Waiting-time clock stopped', detail: ''});
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged', previousTargetDays: 126, targetDays: 28, priority: 'High'}))).toEqual({
+      title: 'Waiting-time target changed',
+      detail: '126 → 28 days (high priority)',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged', targetDays: 14}))).toEqual({
+      title: 'Waiting-time target changed',
+      detail: '14 days',
+    });
+    expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged'}))).toEqual({title: 'Waiting-time target changed', detail: ''});
+  });
+
+  it('says when the waiting-time clock set the target date', () => {
+    expect(
+      describeTimelineEntry(entry({action: 'DetailsUpdated', kind: 'DueDates', fromClock: true, changes: [{field: 'dueDate', from: '2026-06-20', to: '2026-07-01'}]})),
+    ).toEqual({title: 'Target date set by the waiting-time clock', detail: 'Target date 20 Jun 2026 → 1 Jul 2026'});
   });
 
   it('words a referral change it does not know yet by the status after it', () => {

@@ -63,6 +63,12 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
+        // Texts and emails to the patient, those never sent too.
+        var patientMessages = await Tracking(context.PatientMessages, forUpdate)
+            .Where(m => m.PatientId == patientId)
+            .OrderBy(m => m.CreatedAtUtc).ThenBy(m => m.Id)
+            .ToListAsync(ct);
+
         // Notifications point at pathways, including ones since deleted, which only the audit still names, at
         // appointments, or at referrals.
         var pathwayIds = pathways.Select(p => p.Id)
@@ -90,9 +96,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(a => a.UploadedAtUtc).ThenBy(a => a.Id)
             .ToListAsync(ct);
 
-        // Referrals, with what the referrer sent and what was decided, and their history.
+        // Referrals, with what the referrer sent and what was decided, their clocks' pauses, and their history.
         var referrals = await Tracking(context.Referrals, forUpdate)
             .Include(r => r.Specialty)
+            .Include(r => r.Pauses)
             .Where(r => r.PatientId == patientId)
             .OrderBy(r => r.ReceivedOn).ThenBy(r => r.RegisteredAtUtc).ThenBy(r => r.Id)
             .ToListAsync(ct);
@@ -128,6 +135,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Activity = activity,
             Appointments = appointments,
             AppointmentHistory = appointmentHistory,
+            PatientMessages = patientMessages,
             Notifications = notifications,
             Attachments = attachments,
             Referrals = referrals,

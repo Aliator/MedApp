@@ -21,7 +21,7 @@ public sealed class RolePermissionsMigrationTests
     private const string Migration = "20261118111735_AddedRolePermissions";
     private const string BeforeWorkingHours = "20261118131343_AddedReferrals";
     private const string WorkingHoursMigration = "20261118133740_AddedWorkingHours";
-    private const string SpecimensMigration = "20261118152819_AddedSpecimens";
+    private const string SpecimensMigration = "20261118174329_AddedSpecimens";
 
     /// <summary>The permissions later migrations add (AddedSpecimens), which the starting roles have now.</summary>
     private static readonly Permission[] SpecimenPermissions = [Permission.RecordSpecimens, Permission.ProcessSpecimens];

@@ -16,8 +16,11 @@ public static class PathwaySearch
     public const string SortByPatient = "patient";
     public const string SortByLastUpdated = "lastUpdated";
 
+    /// <summary>The referral's waiting-time clock's days waited; pathways without a clock last, either way.</summary>
+    public const string SortByDaysWaited = "daysWaited";
+
     public static readonly IReadOnlyList<string> SortColumns =
-        [SortByDueDate, SortByPriority, SortByStatus, SortByTitle, SortByPatient, SortByLastUpdated];
+        [SortByDueDate, SortByPriority, SortByStatus, SortByTitle, SortByPatient, SortByLastUpdated, SortByDaysWaited];
 
     /// <summary>The most IDs a list filter (specialties, stages) may name, so a URL can't make a huge query.</summary>
     public const int MaxIdsPerFilter = 100;
@@ -109,6 +112,15 @@ public static class PathwaySearch
             pathways = pathways.Where(p => open.Contains(p.Status) && p.DueDateUtc < nowUtc);
         }
 
+        if (query.BreachedOnly)
+        {
+            // The same rule as WaitingClock.IsBreached: the day the wait is counted to is past the clock's target.
+            var today = DueDates.ToUkDate(nowUtc);
+            pathways = pathways.Where(p =>
+                p.Referral != null
+                && (p.Referral.StoppedOn ?? p.Referral.PausedSinceOn ?? today) > p.Referral.TargetOn);
+        }
+
         if (query.Started is { } started)
         {
             // The same rule as PathwayWorkflow.HasStarted: any stage started or finished.
@@ -133,7 +145,7 @@ public static class PathwaySearch
     }
 
     /// <summary>
-    /// The stage reached: pathways whose current stage (the first unfinished one by order, as
+    /// The stage reached: pathways whose current stage (the first one by order neither finished nor skipped, as
     /// <see cref="PathwayWorkflow.CurrentStage"/> has it) comes from any of these stage definitions, so "Waiting for
     /// histology" is the Histology definition. Only pathways not yet closed: a discharged, cancelled or archived one has
     /// stopped wherever it was, so it isn't waiting at a stage. On hold counts, since it still sits at that stage.
@@ -146,22 +158,38 @@ public static class PathwaySearch
         return pathways.Where(p =>
             !closed.Contains(p.Status)
             && ids.Contains(p.Stages
-                .Where(s => !s.IsCompleted)
+                .Where(s => !s.IsCompleted && s.SkippedAtUtc == null)
                 .OrderBy(s => s.StageOrder)
                 .Select(s => (Guid?)s.StageDefinitionId)
                 .FirstOrDefault()));
     }
 
     /// <summary>
-    /// Sorts by target date (the default), priority, status, title, patient (last, then first name) or last update.
-    /// Ties go to the soonest due, then by ID, so paging never shows a row twice or skips one.
+    /// Sorts by target date (the default), priority, status, title, patient (last, then first name), last update, or
+    /// days waited on the referral's clock (to <paramref name="today"/> while it runs; pathways without a referral
+    /// last, either way). Ties go to the soonest due, then by ID, so paging never shows a row twice or skips one.
+    /// Days waited is date arithmetic on dates staff entered (<c>DateOnly.DayNumber</c>, which EF translates), never
+    /// anything clinical.
     /// </summary>
-    public static IOrderedQueryable<PatientPathway> Sort(this IQueryable<PatientPathway> pathways, string? sort, bool ascending)
+    public static IOrderedQueryable<PatientPathway> Sort(
+        this IQueryable<PatientPathway> pathways, string? sort, bool ascending, DateOnly today = default)
     {
         var column = SortColumns.FirstOrDefault(c => string.Equals(c, sort, StringComparison.OrdinalIgnoreCase)) ?? SortByDueDate;
 
         IOrderedQueryable<PatientPathway> ordered = (column, ascending) switch
         {
+            (SortByDaysWaited, true) => pathways
+                .OrderBy(p => p.Referral == null ? 1 : 0)
+                .ThenBy(p => p.Referral == null
+                    ? 0
+                    : (p.Referral.StoppedOn ?? p.Referral.PausedSinceOn ?? today).DayNumber - p.Referral.WaitStartOn.DayNumber)
+                .ThenBy(p => p.DueDateUtc),
+            (SortByDaysWaited, false) => pathways
+                .OrderBy(p => p.Referral == null ? 1 : 0)
+                .ThenByDescending(p => p.Referral == null
+                    ? 0
+                    : (p.Referral.StoppedOn ?? p.Referral.PausedSinceOn ?? today).DayNumber - p.Referral.WaitStartOn.DayNumber)
+                .ThenBy(p => p.DueDateUtc),
             (SortByPriority, true) => pathways.OrderBy(p => p.Priority).ThenBy(p => p.DueDateUtc),
             (SortByPriority, false) => pathways.OrderByDescending(p => p.Priority).ThenBy(p => p.DueDateUtc),
             (SortByStatus, true) => pathways.OrderBy(p => p.Status).ThenBy(p => p.DueDateUtc),

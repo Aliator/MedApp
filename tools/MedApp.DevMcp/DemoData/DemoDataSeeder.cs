@@ -66,6 +66,7 @@ public static class DemoDataSeeder
         var staff = await DemoStaff.CreateAsync(services, timeline, ct);
         var specialties = await DemoSpecialties.CreateAsync(services, staff[0], timeline, ct);
         var memberships = await DemoSpecialties.AddMembershipsAsync(services, staff, specialties, ct);
+        var specialtyTargets = await DemoSpecialties.LoadAsync(services, ct);
         Mark("accounts");
         var (definitions, templates) = await CreatePathwayKindsAsync(services, specialties.Ids, ct);
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
@@ -76,6 +77,8 @@ public static class DemoDataSeeder
         var plans = PathwayPlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
         patients.AssignPatients(plans);
+        // The referrals that never became pathways, and the inbox now: their patients are registered with the rest.
+        var stories = ReferralStories.Plan(plans, patients, timeline, random);
         var imported = patients.AddImported();
         Mark("pathways, calendars, rules and plans");
         await patients.CreateAsync(services, staff, ct);
@@ -90,6 +93,7 @@ public static class DemoDataSeeder
             Templates = templates,
             Definitions = definitions,
             Rules = rules,
+            Specialties = specialtyTargets,
         };
 
         // The lead's diary day: a full clinic, with free time left.
@@ -98,12 +102,17 @@ public static class DemoDataSeeder
         DemoPathways.Replay(world, plans);
         DemoPathways.BookStandalone(world, patients.All);
         DemoPathways.AddImported(world, imported);
+        // The referrals that weren't accepted, and those awaiting triage now, after the pathways' (whose referrals the
+        // duplicate checks see).
+        var played = ReferralStories.Play(world, stories, patients.All);
         // The meetings' invitations, moves and cancellations, as the app sent them, read or not like the rest.
         world.Notifications.AddRange(calendars.MeetingPlan.RecentNotifications);
         DemoPathways.MarkRead(world);
         Mark("replay");
         await DemoPathways.SaveAsync(services, world, ct);
+        await DemoReferrals.SaveAsync(services, world, ct);
         var pathways = DemoPathways.Summarise(world);
+        var referrals = DemoReferrals.Summarise(world, played);
         Mark("save");
 
         var privacy = await DemoPrivacy.CreateAsync(services, world, patients, ct);
@@ -162,6 +171,7 @@ public static class DemoDataSeeder
                 specialties = specialties.Ids.Count,
                 specialtyMemberships = memberships,
                 pathways,
+                referrals,
                 calendar = new
                 {
                     activityTypesAdded = calendars.ActivityTypesAdded,
@@ -184,7 +194,7 @@ public static class DemoDataSeeder
                 activityEntries = activity,
             },
             ["privacy"] = privacy,
-            ["tour"] = DemoTour.Build(world, plans, patients.All),
+            ["tour"] = DemoTour.Build(world, plans, patients.All, stories),
             ["files"] = files,
             ["settings"] = settings,
             ["today"] = today,
@@ -219,6 +229,8 @@ public static class DemoDataSeeder
                 // Loaded, as the create handler reads the template: pathways are made from it (PathwayCreation).
                 StageDefinition = definitions[s.Definition],
                 StageOrder = i + 1,
+                // "The waiting-time clock stops when this stage is finished": one per template.
+                StopsClock = i == p.ClockStopIndex,
             }).ToList(),
         });
 

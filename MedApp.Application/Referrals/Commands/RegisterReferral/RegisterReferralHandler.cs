@@ -2,6 +2,7 @@ using MedApp.Application.Common.Identity;
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Practices.Common;
@@ -102,6 +103,7 @@ public sealed class RegisterReferralHandler(
         // The registrant may triage it too, if they're a clinician of its specialty.
         var isMember = request.Actor.Has(Permission.TriageReferrals)
                        && await repository.IsSpecialtyMemberAsync(request.Actor.UserId, referral.SpecialtyId, cancellationToken);
-        return ReferralMapper.ToResponse(referral, change.Events, letterCount: 0, request.Actor, isMember);
+        return ReferralMapper.ToResponse(
+            referral, change.Events, letterCount: 0, request.Actor, isMember, DueDates.ToUkDate(now));
     }
 }

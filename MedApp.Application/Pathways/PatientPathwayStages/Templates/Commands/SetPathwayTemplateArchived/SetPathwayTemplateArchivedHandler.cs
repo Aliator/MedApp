@@ -18,7 +18,7 @@ public sealed class SetPathwayTemplateArchivedHandler(IPatientPathwayStagesRepos
         if (template.IsArchived != request.IsArchived)
         {
             template.IsArchived = request.IsArchived;
-            await repository.UpdatePathwayTemplateAsync(template, null, cancellationToken);
+            await repository.UpdatePathwayTemplateAsync(template, null, null, null, cancellationToken);
         }
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);

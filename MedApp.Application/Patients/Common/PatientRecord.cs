@@ -4,6 +4,7 @@ using MedApp.Domain.Attachments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specimens;
@@ -51,6 +52,9 @@ public sealed record PatientRecord
 
     /// <summary>Every change to the patient's appointments, oldest first.</summary>
     public required IReadOnlyList<AppointmentEvent> AppointmentHistory { get; init; }
+
+    /// <summary>Every text and email to the patient about their appointments, oldest first, those never sent too.</summary>
+    public required IReadOnlyList<PatientMessage> PatientMessages { get; init; }
 
     /// <summary>Notifications about any of the patient's pathways (including deleted ones) or appointments.</summary>
     public required IReadOnlyList<Notification> Notifications { get; init; }

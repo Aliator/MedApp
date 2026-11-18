@@ -51,6 +51,7 @@ const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon];
   {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
   {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
   {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
+  {label: 'Letter Templates', icon: AppIcon.LetterTemplates, href: '/admin/letter-templates', permission: 'ManageSetup'},
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
   {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
   {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},

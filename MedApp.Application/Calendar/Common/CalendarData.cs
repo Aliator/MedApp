@@ -1,5 +1,6 @@
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
 
 namespace MedApp.Application.Calendar.Common;
 
@@ -35,6 +36,12 @@ public sealed record CalendarData(
 {
     /// <summary>The meetings the person is going to in the range, each with its attendees.</summary>
     public IReadOnlyList<Meeting> Meetings { get; init; } = [];
+
+    /// <summary>
+    /// The person's Planned clinic sessions in the range, each with its room and specialty: busy time for blocks,
+    /// meetings and appointments outside them, and where appointments into their slots go (centre plan decision 123).
+    /// </summary>
+    public IReadOnlyList<ClinicSession> Sessions { get; init; } = [];
 
     /// <summary>The days in the range the clinic is closed: no templates apply on them, and nothing new can go on them.</summary>
     public ClosedDaySet ClosedDays { get; init; } = ClosedDaySet.None;

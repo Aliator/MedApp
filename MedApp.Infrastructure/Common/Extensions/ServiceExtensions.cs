@@ -10,18 +10,23 @@ using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Sites.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
 using MedApp.Application.Jobs.Common;
+using MedApp.Application.Letters.Common;
+using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Jobs.OperationalPurge;
 using MedApp.Application.Jobs.Repositories;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.PatientMessages.Common;
+using MedApp.Application.PatientMessages.Repositories;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Application.Specimens.Repositories;
@@ -33,6 +38,8 @@ using MedApp.Infrastructure.Common.Email;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Demographics;
+using MedApp.Infrastructure.Letters;
+using MedApp.Infrastructure.PatientMessages;
 using MedApp.Infrastructure.Data.Repositories;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -59,6 +66,51 @@ public static class ServiceExtensions
         services.AddAttachmentStorage(configuration);
         services.AddDemographics(configuration);
         services.AddJobSettings(configuration);
+        services.AddPatientMessages(configuration);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Texts and emails to patients (centre plan decision 128): their settings (<c>PatientMessages</c>, <c>Reminders</c>)
+    /// and the sender <c>PatientMessages:Mode</c> chooses: none (Off, the default), the offline stand-in that emails
+    /// Mailpit, or GOV.UK Notify (Live), whose key and templates must be set or the host stops at startup.
+    /// </summary>
+    private static IServiceCollection AddPatientMessages(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<PatientMessageOptions>()
+            .BindConfiguration(PatientMessageOptions.Section)
+            .Validate(options => options.IsValid, PatientMessageOptions.UnsafeOfflineRecipient)
+            .ValidateOnStart();
+        services.AddOptions<ReminderOptions>()
+            .BindConfiguration(ReminderOptions.Section)
+            .Validate(options => options.IsValid, ReminderOptions.InvalidSettings)
+            .ValidateOnStart();
+
+        var mode = configuration.GetSection(PatientMessageOptions.Section).Get<PatientMessageOptions>()?.Mode ?? PatientMessageMode.Off;
+        switch (mode)
+        {
+            case PatientMessageMode.Offline:
+                services.AddSingleton<IPatientMessageTransport, OfflinePatientMessageTransport>();
+                break;
+            case PatientMessageMode.Live:
+                services.AddOptions<NotifyOptions>()
+                    .BindConfiguration(NotifyOptions.Section)
+                    .Validate(options => options.IsComplete, NotifyOptions.Incomplete)
+                    .ValidateOnStart();
+                // A named client: the API takes the default resilience handler off it (NotifyPatientMessageTransport.ClientName),
+                // as a retried POST could send a message twice (Notify has no idempotency key).
+                services.AddHttpClient(NotifyPatientMessageTransport.ClientName, (provider, client) =>
+                    client.Timeout = TimeSpan.FromSeconds(Math.Max(1, provider.GetRequiredService<IOptions<NotifyOptions>>().Value.TimeoutSeconds)));
+                services.AddSingleton<IPatientMessageTransport, NotifyPatientMessageTransport>();
+                break;
+            default:
+                services.AddSingleton<IPatientMessageTransport, NoPatientMessageTransport>();
+                break;
+        }
+
+        // Letters' PDFs (PDFsharp and MigraDoc, with the bundled font): stateless, with its own limit per copy.
+        services.AddSingleton<ILetterRenderer, PdfSharpLetterRenderer>();
 
         return services;
     }
@@ -215,6 +267,8 @@ public static class ServiceExtensions
         services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<IPatientMessageRepository, PatientMessageRepository>();
+        services.AddScoped<IClinicRepository, ClinicRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
         services.AddScoped<IEmailCodeRepository, EmailCodeRepository>();
@@ -229,6 +283,7 @@ public static class ServiceExtensions
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         services.AddScoped<IPracticeRepository, PracticeRepository>();
+        services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         

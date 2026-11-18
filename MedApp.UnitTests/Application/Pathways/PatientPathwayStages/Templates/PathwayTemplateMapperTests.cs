@@ -66,6 +66,20 @@ public sealed class PathwayTemplateMapperTests
         maps.Select(m => m.StageOrder).Should().Equal(1, 2, 3);
         maps.Select(m => m.StageDefinitionId).Should().Equal(ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId);
         maps.Should().OnlyContain(m => m.TemplateId == templateId);
+        maps.Should().OnlyContain(m => !m.StopsClock);
+    }
+
+    [Test]
+    public void ToMaps_ClockStopStage_MarksThatPositionAndTheResponseGivesIt()
+    {
+        var template = new MedApp.Domain.Pathways.PatientPathways.PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName };
+        template.Maps = PathwayTemplateMapper.ToMaps(template.Id, [ConsultationDefinitionId, PathwayDefinitionId], clockStopStageOrder: 2);
+
+        template.Maps.Select(m => m.StopsClock).Should().Equal(false, true);
+        var response = PathwayTemplateMapper.ToResponse(template, 0);
+        response.ClockStopStageOrder.Should().Be(2);
+        response.Stages.Select(s => s.StopsClock).Should().Equal(false, true);
+        PathwayTemplateMapper.ToResponse(new MedApp.Domain.Pathways.PatientPathways.PathwayTemplate(), 0).ClockStopStageOrder.Should().BeNull();
     }
 
     [Test]
@@ -92,5 +106,22 @@ public sealed class PathwayTemplateMapperTests
         var response = PathwayTemplateMapper.ToResponse(template, 0, new Dictionary<Guid, PatientPathwayStageDefinition>());
 
         response.Stages.Single().VisitRequirement.Should().Be("None");
+    }
+
+    [Test]
+    public void ToMaps_WithOptions_CopiesThemTrimmingBranchNames()
+    {
+        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId],
+            options: [new TemplateStageOptions(ChoosesBranch: true), new TemplateStageOptions(IsOptional: true, Branch: "  ")]);
+
+        maps.Select(m => (m.IsOptional, m.ChoosesBranch, m.Branch)).Should().Equal((false, true, null), (true, false, null));
+    }
+
+    [Test]
+    public void ToMaps_WithoutOptions_MakesPlainStages()
+    {
+        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId]);
+
+        maps.Should().AllSatisfy(m => (m.IsOptional, m.ChoosesBranch, m.Branch).Should().Be((false, false, (string?)null)));
     }
 }

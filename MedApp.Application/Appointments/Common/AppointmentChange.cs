@@ -37,30 +37,47 @@ public sealed class AppointmentChange(
         Record(AppointmentEventAction.Requested, automatic ? new { automatic = true } : null);
 
     /// <summary>
-    /// Books a Requested appointment, or moves a Booked one (recorded with its previous time and member of staff).
-    /// Nothing happens if a Booked one is "moved" to exactly where it is.
+    /// Books a Requested appointment, or moves a Booked one (recorded with its previous time, member of staff, and clinic
+    /// session and room if it had them), into a clinic session's slot or a room when <paramref name="place"/> says so
+    /// (none: neither, so a move out of a session leaves it). Nothing happens if a Booked one is "moved" to exactly where
+    /// it is. The history records the session's and room's IDs, never names.
     /// </summary>
-    public void Book(Guid staffUserId, string bookedStaffUsername, DateTime startUtc, DateTime endUtc)
+    public void Book(Guid staffUserId, string bookedStaffUsername, DateTime startUtc, DateTime endUtc, AppointmentPlace? place = null)
     {
+        place ??= AppointmentPlace.None;
         var wasBooked = appointment.Status == Booked;
         if (wasBooked
             && appointment.StaffUserId == staffUserId
             && appointment.StartUtc == startUtc
-            && appointment.EndUtc == endUtc)
+            && appointment.EndUtc == endUtc
+            && appointment.ClinicSessionId == place.ClinicSessionId
+            && appointment.RoomId == place.RoomId)
             return;
 
-        var previous = new
+        // As the other details, nulls are left out.
+        var previous = new Dictionary<string, object>();
+        void Add(string key, object? value)
         {
-            previousStartUtc = appointment.StartUtc,
-            previousEndUtc = appointment.EndUtc,
-            previousStaffUserId = appointment.StaffUserId,
-            previousStaffUsername = _staffUsername
-        };
+            if (value is not null)
+                previous[key] = value;
+        }
+
+        Add("previousStartUtc", appointment.StartUtc);
+        Add("previousEndUtc", appointment.EndUtc);
+        Add("previousStaffUserId", appointment.StaffUserId);
+        Add("previousStaffUsername", _staffUsername);
+        Add("previousClinicSessionId", appointment.ClinicSessionId);
+        Add("previousRoomId", appointment.RoomId);
 
         appointment.StaffUserId = staffUserId;
         appointment.StartUtc = startUtc;
         appointment.EndUtc = endUtc;
+        appointment.ClinicSessionId = place.ClinicSessionId;
+        appointment.RoomId = place.RoomId;
         _staffUsername = bookedStaffUsername;
+
+        Add("clinicSessionId", place.ClinicSessionId);
+        Add("roomId", place.RoomId);
 
         if (wasBooked)
         {
@@ -71,7 +88,11 @@ public sealed class AppointmentChange(
         appointment.Status = Booked;
         appointment.BookedAtUtc = nowUtc;
         appointment.BookedByUserId = actor.UserId;
-        Record(AppointmentEventAction.Booked);
+        Record(
+            AppointmentEventAction.Booked,
+            place.ClinicSessionId is null && place.RoomId is null
+                ? null
+                : new { clinicSessionId = place.ClinicSessionId, roomId = place.RoomId });
     }
 
     /// <summary>
@@ -138,9 +159,37 @@ public sealed class AppointmentChange(
         appointment.Status = outcome;
         appointment.OutcomeAtUtc = nowUtc;
         appointment.OutcomeByUserId = actor.UserId;
+        // A follow-up applies to a Did not attend only: corrected to Attended, it's cleared (the history keeps it).
+        if (outcome != DidNotAttend)
+            ClearDnaFollowUp();
         Record(
             outcome == Attended ? AppointmentEventAction.Attended : AppointmentEventAction.DidNotAttend,
             new { previousStatus = previous.ToString() });
+    }
+
+    /// <summary>
+    /// Records what booking staff decided after a Did not attend (centre plan decision 132), with an optional detail of
+    /// free text (kept on the appointment and in the history, which shows it to admins only). Nothing happens if the same
+    /// decision and detail are recorded again. It changes nothing else: never the pathway.
+    /// </summary>
+    public void RecordDnaFollowUp(DnaFollowUpDecision decision, string? detail)
+    {
+        if (appointment.DnaFollowUp == decision && appointment.DnaFollowUpDetail == detail)
+            return;
+
+        appointment.DnaFollowUp = decision;
+        appointment.DnaFollowUpDetail = detail;
+        appointment.DnaFollowUpAtUtc = nowUtc;
+        appointment.DnaFollowUpByUserId = actor.UserId;
+        Record(AppointmentEventAction.DnaFollowUpRecorded, new { decision = decision.ToString(), detail });
+    }
+
+    private void ClearDnaFollowUp()
+    {
+        appointment.DnaFollowUp = null;
+        appointment.DnaFollowUpDetail = null;
+        appointment.DnaFollowUpAtUtc = null;
+        appointment.DnaFollowUpByUserId = null;
     }
 
     /// <summary>Cancels it with a reason, by someone or by the app (<paramref name="automatic"/>).</summary>

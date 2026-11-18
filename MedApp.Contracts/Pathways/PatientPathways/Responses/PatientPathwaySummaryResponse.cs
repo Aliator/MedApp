@@ -1,3 +1,5 @@
+using MedApp.Contracts.Referrals.Responses;
+
 namespace MedApp.Contracts.Pathways.PatientPathways.Responses;
 
 /// <summary>A pathway as a table row: lists, a patient's pathways, and task lists.</summary>
@@ -14,6 +16,9 @@ public sealed class PatientPathwaySummaryResponse
     public string Status { get; set; } = string.Empty;
     public bool IsOverdue { get; set; }
     public int CompletedStageCount { get; set; }
+
+    /// <summary>How many stages were skipped (an optional stage, or another branch chosen).</summary>
+    public int SkippedStageCount { get; set; }
     public int StageCount { get; set; }
 
     /// <summary>The name of the stage being worked on, or null when every stage is finished.</summary>
@@ -21,4 +26,7 @@ public sealed class PatientPathwaySummaryResponse
 
     public List<string> Assignees { get; set; } = [];
     public DateTime LastUpdated { get; set; }
+
+    /// <summary>Its referral's waiting-time clock, for the Wait column; null for a pathway started without a referral.</summary>
+    public WaitingClockResponse? Clock { get; set; }
 }

@@ -1,13 +1,16 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using FluentAssertions;
 using MediatR;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Queries.SearchRetentionReview;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
+using MedApp.Application.Referrals.Common;
 using MedApp.Contracts.Pathways.Insights.Responses;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
@@ -17,6 +20,7 @@ using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using MedApp.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -479,7 +483,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     {
         var patients = await Query(db => db.Patients.AsNoTracking()
             .Select(p => new { p.Id, p.CreatedAt, p.AnonymisedAtUtc }).ToDictionaryAsync(p => p.Id));
-        var views = new[] { ActivityAction.PatientViewed, ActivityAction.PatientListed, ActivityAction.PathwayViewed };
+        var views = new[] { ActivityAction.PatientViewed, ActivityAction.PatientListed, ActivityAction.PathwayViewed, ActivityAction.ReferralViewed };
 
         var activity = await Query(db => db.ActivityEntries.AsNoTracking()
             .Where(a => a.PatientId != null).Select(a => new { a.Id, PatientId = a.PatientId!.Value, a.AtUtc, a.Action }).ToListAsync());
@@ -554,6 +558,198 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
         noteAudit.Count(e => e.Action == PatientPathwayAuditAction.NoteEdited)
             .Should().Be(versions.Count(v => v.Version > 1), "every edit is audited once");
+    }
+
+    /// <summary>
+    /// Every referral keeps the app's rules: received on or before the day it was registered (and not over a year
+    /// before), registered while its patient existed, decided after it was registered and before now, its history in
+    /// order from its registration, and every triage decision (accept, reject, redirect) by someone who holds Triage
+    /// referrals and belongs to the specialty it was in then. An accepted one's pathway names it.
+    /// </summary>
+    [Test]
+    public async Task Referrals_AreRegisteredAndTriagedByTheRules_AndNothingHappensAfterNow()
+    {
+        var (referrals, events, patients, members, triagers, created) = await Query(async db => (
+            await db.Referrals.AsNoTracking().ToListAsync(),
+            await db.ReferralEvents.AsNoTracking().ToListAsync(),
+            await db.Patients.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.CreatedAt),
+            await db.StaffSpecialties.AsNoTracking().Select(s => new { s.UserId, s.SpecialtyId }).ToListAsync(),
+            await db.UserRoles.Join(db.RolePermissions, ur => ur.RoleId, rp => rp.RoleId, (ur, rp) => new { ur.UserId, rp.Permission })
+                .Where(x => x.Permission == nameof(Permission.TriageReferrals)).Select(x => x.UserId).Distinct().ToListAsync(),
+            await db.PatientPathwayAuditEntries.AsNoTracking().Where(a => a.Action == PatientPathwayAuditAction.Created)
+                .ToDictionaryAsync(a => a.PatientPathwayId, a => a.Details)));
+
+        referrals.Should().HaveCountGreaterThan(400);
+        var membership = members.Select(m => (m.UserId, m.SpecialtyId)).ToHashSet();
+        var history = events.ToLookup(e => e.ReferralId);
+        foreach (var referral in referrals)
+        {
+            var registeredOn = UkTime.DateOf(referral.RegisteredAtUtc);
+            referral.ReceivedOn.Should().BeOnOrBefore(registeredOn).And.BeOnOrAfter(registeredOn.AddYears(-1));
+            referral.RegisteredAtUtc.Should().BeOnOrAfter(patients[referral.PatientId], "a referral is registered on a patient already in MedApp");
+            referral.RegisteredAtUtc.Should().BeOnOrBefore(Now);
+            (referral.Status == ReferralStatus.AwaitingTriage).Should().Be(referral.DecidedAtUtc is null);
+            if (referral.DecidedAtUtc is { } decided)
+                decided.Should().BeAfter(referral.RegisteredAtUtc).And.BeOnOrBefore(Now);
+
+            var own = history[referral.Id].OrderBy(e => e.AtUtc).ToList();
+            own[0].Action.Should().Be(ReferralEventAction.Registered);
+            own.Should().OnlyContain(e => e.AtUtc >= referral.RegisteredAtUtc && e.AtUtc <= Now && e.PatientId == referral.PatientId);
+
+            if (referral.Status == ReferralStatus.Accepted && referral.PathwayId is { } pathwayId)
+                created[pathwayId].Should().Contain(referral.Id.ToString(), "the pathway's Created entry names the referral it was accepted from");
+        }
+
+        // Triage decisions, by a triager of the specialty it was in: the one it was moved from, for a redirection here.
+        foreach (var decision in events.Where(e => e.Action is ReferralEventAction.Accepted or ReferralEventAction.Rejected
+                                                       or ReferralEventAction.RedirectedElsewhere or ReferralEventAction.SpecialtyChanged))
+        {
+            using var details = JsonDocument.Parse(decision.Details);
+            var specialty = details.RootElement.GetProperty(decision.Action == ReferralEventAction.SpecialtyChanged ? "previousSpecialtyId" : "specialtyId").GetGuid();
+            membership.Should().Contain((decision.UserId!.Value, specialty), $"{decision.Username} triaged a referral in their own specialty");
+            triagers.Should().Contain(decision.UserId!.Value, $"{decision.Username} holds Triage referrals");
+        }
+    }
+
+    /// <summary>
+    /// Every clock's stored dates agree with its pauses (decision 28): the wait counts from the day it was received plus
+    /// the days paused, its target that many days on; a pause starts after the referral was accepted and ends after it
+    /// started, with a review date at most 90 days ahead; at most one is open, and it's the clock's. An open pathway's
+    /// target date is its clock's while the clock runs, and the review date while it's paused (decision 32).
+    /// </summary>
+    [Test]
+    public async Task Clocks_AgreeWithTheirPauses_AndSetTheirPathwaysTargetDates()
+    {
+        var (referrals, pathways, stopStages) = await Query(async db => (
+            await db.Referrals.AsNoTracking().Include(r => r.Pauses).ToListAsync(),
+            await db.PatientPathways.AsNoTracking().ToDictionaryAsync(p => p.Id),
+            await db.PatientPathwayStages.AsNoTracking().Where(s => s.StopsClock)
+                .Select(s => new { s.PatientPathwayId, s.IsCompleted }).ToListAsync()));
+
+        foreach (var referral in referrals)
+        {
+            var finished = referral.Pauses.Where(p => p.ResumedOn is not null).ToList();
+            referral.PausedDays.Should().Be(finished.Sum(p => p.Days));
+            referral.WaitStartOn.Should().Be(referral.ReceivedOn.AddDays(referral.PausedDays));
+            referral.TargetOn.Should().Be(referral.WaitStartOn.AddDays(referral.TargetDays));
+
+            var open = referral.Pauses.Where(p => p.ResumedAtUtc is null).ToList();
+            open.Should().HaveCountLessThanOrEqualTo(1);
+            (referral.PausedSinceOn is not null).Should().Be(open.Count == 1);
+            if (open.Count == 1)
+            {
+                referral.PausedSinceOn.Should().Be(open[0].PausedOn);
+                referral.PauseReviewOn.Should().Be(open[0].ReviewOn);
+                referral.StoppedOn.Should().BeNull("a stopped clock isn't paused");
+            }
+
+            foreach (var pause in referral.Pauses)
+            {
+                referral.Status.Should().Be(ReferralStatus.Accepted, "only an accepted referral's clock is paused");
+                pause.PausedOn.Should().BeOnOrAfter(UkTime.DateOf(referral.DecidedAtUtc!.Value));
+                pause.ReviewOn.Should().BeAfter(pause.PausedOn).And.BeOnOrBefore(pause.PausedOn.AddDays(ReferralClockPause.MaxReviewDays));
+                pause.PausedAtUtc.Should().BeOnOrBefore(Now);
+                if (pause.ResumedOn is { } resumed)
+                    resumed.Should().BeOnOrAfter(pause.PausedOn);
+                if (referral.StoppedOn is { } stoppedOn && pause.ResumedOn is { } ended)
+                    ended.Should().BeOnOrBefore(stoppedOn);
+            }
+
+            if (referral.Status != ReferralStatus.Accepted)
+            {
+                referral.StopReason.Should().Be(WaitingClock.StopReasonFor(referral.Status), "a referral closed without a pathway stops its clock");
+                continue;
+            }
+
+            // (A pathway deleted since, once cancelled, has let go of its referral.)
+            if (referral.StopReason == ClockStopReason.StopStageFinished && referral.PathwayId is { } stopped)
+                stopStages.Should().Contain(s => s.PatientPathwayId == stopped && s.IsCompleted, "its clock-stop stage was finished");
+            if (referral.PathwayId is { } id && pathways[id] is var pathway && PathwayWorkflow.IsOpen(pathway.Status)
+                && WaitingClock.PathwayTargetOn(referral) is { } target)
+                DueDates.ToUkDate(pathway.DueDateUtc).Should().Be(target, "the clock sets an open pathway's target date while it runs or is paused");
+        }
+    }
+
+    /// <summary>
+    /// The referral story's cases: an inbox now in every specialty, some past their target, one moved here and one
+    /// specialty nobody can triage; every rejection reason, redirections both ways, withdrawals and one entered in error;
+    /// about ten paused clocks (one past its review date); breaches open and stopped; pathways made without a referral;
+    /// one clock-stop stage on every template; and the registrant told of triage decisions, without patient details.
+    /// </summary>
+    [Test]
+    public async Task Referrals_TellTheirStory()
+    {
+        var today = UkTime.DateOf(Now);
+        var (referrals, events, triagers, members, notifications, patients, stopMaps, unreferred) = await Query(async db => (
+            await db.Referrals.AsNoTracking().Include(r => r.Specialty).Include(r => r.Pauses).ToListAsync(),
+            await db.ReferralEvents.AsNoTracking().ToListAsync(),
+            await db.UserRoles.Join(db.RolePermissions, ur => ur.RoleId, rp => rp.RoleId, (ur, rp) => new { ur.UserId, rp.Permission })
+                .Where(x => x.Permission == nameof(Permission.TriageReferrals)).Select(x => x.UserId).Distinct().ToListAsync(),
+            await db.StaffSpecialties.AsNoTracking().Select(s => new { s.UserId, s.SpecialtyId }).ToListAsync(),
+            await db.Notifications.AsNoTracking().Where(n => n.Kind == NotificationKind.ReferralTriaged).ToListAsync(),
+            await db.Patients.AsNoTracking().Select(p => new { p.FirstName, p.LastName }).ToListAsync(),
+            await db.PathwayTemplates.AsNoTracking().Select(t => t.Maps.Count(m => m.StopsClock)).ToListAsync(),
+            await db.PatientPathways.CountAsync(p => p.TemplateId != null && !db.Referrals.Any(r => r.PathwayId == p.Id))));
+
+        var awaiting = referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage).ToList();
+        awaiting.Should().HaveCountGreaterThanOrEqualTo(15);
+        awaiting.Select(r => r.SpecialtyId).Distinct().Should().HaveCountGreaterThanOrEqualTo(6, "every specialty has referrals waiting");
+        awaiting.Count(r => WaitingClock.IsBreached(r, today)).Should().BeGreaterThanOrEqualTo(2, "a few are past their target");
+        var canTriage = members.Where(m => triagers.Contains(m.UserId)).Select(m => m.SpecialtyId).ToHashSet();
+        awaiting.Where(r => !canTriage.Contains(r.SpecialtyId)).Select(r => r.Specialty.Name).Distinct()
+            .Should().Equal([DemoSpecialties.NewService], "only the new service has referrals nobody can triage");
+        awaiting.Should().Contain(r => events.Any(e => e.ReferralId == r.Id && e.Action == ReferralEventAction.SpecialtyChanged),
+            "one was moved here from another specialty and still awaits triage");
+
+        referrals.Where(r => r.Status == ReferralStatus.Rejected).Select(r => r.RejectionReason!.Value).Distinct()
+            .Should().BeEquivalentTo(Enum.GetValues<ReferralRejectionReason>(), "every rejection reason is used");
+        referrals.Count(r => r.Status == ReferralStatus.Rejected).Should().BeInRange(30, 120, "about one in ten");
+        referrals.Should().Contain(r => r.Status == ReferralStatus.RedirectedElsewhere && r.RedirectedTo != null);
+        referrals.Should().Contain(r => r.Status == ReferralStatus.Withdrawn);
+        referrals.Count(r => r.Status == ReferralStatus.EnteredInError).Should().Be(1);
+        events.Count(e => e.Action == ReferralEventAction.SpecialtyChanged).Should().BeGreaterThanOrEqualTo(3);
+
+        var accepted = referrals.Where(r => r.Status == ReferralStatus.Accepted).ToList();
+        accepted.Count(WaitingClock.IsPaused).Should().BeInRange(6, 14, "about ten clocks are paused now");
+        accepted.Count(r => WaitingClock.IsReviewOverdue(r, today)).Should().BeGreaterThanOrEqualTo(1, "a pause past its review date (H-42)");
+        accepted.Should().Contain(r => !WaitingClock.IsStopped(r) && WaitingClock.IsBreached(r, today), "an open wait is breached");
+        accepted.Should().Contain(r => WaitingClock.IsStopped(r) && WaitingClock.IsBreached(r, today), "a finished wait breached");
+        accepted.Should().Contain(r => r.Pauses.Any(p => p.ResumedOn > p.PausedOn), "a clock was paused and resumed");
+        unreferred.Should().BePositive("recalls and courses asked for in clinic are made without a referral");
+        stopMaps.Should().OnlyContain(n => n == 1, "every template has one clock-stop stage");
+
+        notifications.Should().NotBeEmpty();
+        var registrants = referrals.ToDictionary(r => r.Id, r => r.RegisteredByUserId);
+        foreach (var notification in notifications)
+        {
+            notification.Title.Should().Be(ReferralNotifications.TriagedTitle);
+            notification.UserId.Should().Be(registrants[notification.ReferralId!.Value], "the person who registered it is told");
+            notification.CreatedAtUtc.Should().BeOnOrBefore(Now);
+            patients.Should().NotContain(p => notification.Message.Contains($"{p.FirstName} {p.LastName}"), "a notification never names the patient");
+        }
+    }
+
+    /// <summary>The referrals the summary's tour names are each there: the specialty, the patient and the date received.</summary>
+    [Test]
+    public async Task Summary_NamesReferralsThatExist()
+    {
+        var referrals = await Query(db => db.Referrals.AsNoTracking()
+            .Select(r => new { Specialty = r.Specialty.Name, r.Patient.FirstName, r.Patient.LastName, r.ReceivedOn, r.Status }).ToListAsync());
+        var named = referrals.Select(r => $"{r.Specialty} referral for {r.FirstName} {r.LastName}, received {r.ReceivedOn.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)}")
+            .ToHashSet();
+
+        var tour = JsonSerializer.SerializeToElement(Summary["tour"]).GetProperty("referrals");
+        var mentioned = Strings(tour).Where(s => s.Contains(" referral for ")).ToList();
+        mentioned.Should().HaveCountGreaterThan(10);
+        mentioned.Should().OnlyContain(s => named.Contains(s));
+
+        static IEnumerable<string> Strings(JsonElement element) => element.ValueKind switch
+        {
+            JsonValueKind.String => [element.GetString()!],
+            JsonValueKind.Array => element.EnumerateArray().SelectMany(Strings),
+            JsonValueKind.Object => element.EnumerateObject().SelectMany(p => Strings(p.Value)),
+            _ => [],
+        };
     }
 
     [Test]

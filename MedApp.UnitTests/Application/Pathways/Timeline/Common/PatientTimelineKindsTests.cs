@@ -15,6 +15,9 @@ public sealed class PatientTimelineKindsTests
     [TestCase(Action.StageStarted, PatientTimelineKind.Stages)]
     [TestCase(Action.StageFinished, PatientTimelineKind.Stages)]
     [TestCase(Action.StageUnlocked, PatientTimelineKind.Stages)]
+    [TestCase(Action.StageSkipped, PatientTimelineKind.Stages)]
+    [TestCase(Action.BranchChosen, PatientTimelineKind.Stages)]
+    [TestCase(Action.StageReinstated, PatientTimelineKind.Stages)]
     [TestCase(Action.StageNotesUpdated, PatientTimelineKind.Notes)]
     [TestCase(Action.Assigned, PatientTimelineKind.Assignments)]
     [TestCase(Action.Unassigned, PatientTimelineKind.Assignments)]
@@ -116,7 +119,7 @@ public sealed class PatientTimelineKindsTests
     [Test]
     public void Names_ListsEveryKind()
     {
-        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Appointments, Files, Referrals, Specimens");
+        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Appointments, Files, Referrals, WaitingTime, Specimens");
     }
 
     /// <summary>

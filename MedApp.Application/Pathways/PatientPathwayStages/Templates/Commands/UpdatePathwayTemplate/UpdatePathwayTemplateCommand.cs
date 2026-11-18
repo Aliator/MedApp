@@ -5,11 +5,16 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 
 /// <summary>
 /// Renames a template, moves it to another specialty and/or replaces its stage list; null fields are left as they
-/// are. Pathways already created from it keep their stages and their specialty.
+/// are. Pathways already created from it keep their stages, their clock-stop stage and their specialty.
+/// <paramref name="ClockStopStageOrder"/> goes with the stage list (positions mean nothing without it): the position
+/// of the stage that stops the waiting-time clock, or null for none.
+/// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
 /// </summary>
 public sealed record UpdatePathwayTemplateCommand(
     Guid TemplateId,
     string? Name,
     Guid? SpecialtyId,
-    IReadOnlyList<Guid>? StageDefinitionIdsInOrder)
+    IReadOnlyList<Guid>? StageDefinitionIdsInOrder,
+    int? ClockStopStageOrder = null,
+    IReadOnlyList<TemplateStageOptions>? StageOptions = null)
     : IRequest<PathwayTemplateResponse>;

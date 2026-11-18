@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Referrals;
@@ -51,7 +52,7 @@ public static class ReferralsTestConstants
     {
         patient ??= PatientsTestConstants.CreateValidPatient();
         specialty ??= SpecialtiesTestConstants.CreateSpecialty();
-        return new Referral
+        var referral = new Referral
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
@@ -71,5 +72,9 @@ public static class ReferralsTestConstants
             Version = version,
             LastUpdated = NowUtc.AddDays(-7)
         };
+
+        // Its waiting-time clock, started as registering starts it: High's target, from the day received.
+        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority));
+        return referral;
     }
 }

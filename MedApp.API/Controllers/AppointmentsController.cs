@@ -5,13 +5,17 @@ using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
+using MedApp.Application.Appointments.Commands.RecordDnaFollowUp;
 using MedApp.Application.Appointments.Commands.RecordPastAppointment;
+using MedApp.Application.PatientMessages.Queries.GetAppointmentMessages;
+using MedApp.Application.PatientMessages.Queries.GetPatientMessagingStatus;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.Contracts.Appointments.Requests;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.PatientMessages.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,7 +49,9 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.Notes,
-            User.ToPathwayActor()), ct);
+            User.ToPathwayActor(),
+            request.ClinicSessionId,
+            request.RoomId), ct);
 
         return Created($"/api/appointments/{appointment.Id}", appointment);
     }
@@ -101,9 +107,13 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.Statuses,
             request.From,
             request.To,
-            request.Search), ct));
+            request.Search,
+            request.View), ct));
 
-    /// <summary>Books a Requested appointment, or moves a Booked one to another time or member of staff.</summary>
+    /// <summary>
+    /// Books a Requested appointment, or moves a Booked one to another time or member of staff: optionally into a clinic
+    /// session's slot (<c>clinicSessionId</c>: its clinician, one of its slots exactly) or a room (<c>roomId</c>).
+    /// </summary>
     [HttpPost("{id:guid}/book")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -117,7 +127,10 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.ExpectedStatus,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(),
+            request.ClinicSessionId,
+            request.RoomId,
+            request.TellPatient), ct));
 
     /// <summary>Records Attended or DidNotAttend, once the appointment has started (or corrects it).</summary>
     [HttpPost("{id:guid}/outcome")]
@@ -150,7 +163,35 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new CancelAppointmentCommand(id, request.Reason, User.ToPathwayActor()), ct));
+        Ok(await mediator.Send(new CancelAppointmentCommand(id, request.Reason, User.ToPathwayActor(), request.TellPatient), ct));
+
+    /// <summary>
+    /// Records what booking staff decided after a Did not attend: Rebook, ClinicianToReview or NoFurtherAppointment, with a
+    /// detail (required for NoFurtherAppointment). It changes nothing else: never the pathway.
+    /// </summary>
+    [HttpPost("{id:guid}/dna-follow-up")]
+    [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
+    public async Task<IActionResult> RecordDnaFollowUp(Guid id, [FromBody] RecordDnaFollowUpRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new RecordDnaFollowUpCommand(id, request.Decision, request.Detail, User.ToPathwayActor()), ct));
+
+    /// <summary>The texts and emails about an appointment, newest first: what was sent, to where, and what became of it.</summary>
+    [HttpGet("{id:guid}/messages")]
+    [ProducesResponseType(typeof(List<PatientMessageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ViewPatients)]
+    public async Task<IActionResult> GetAppointmentMessages(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetAppointmentMessagesQuery(id), ct));
+
+    /// <summary>Whether patients are texted and emailed here (and how), for the dialogs that offer to tell them.</summary>
+    [HttpGet("patient-messages/status")]
+    [ProducesResponseType(typeof(PatientMessagingStatusResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.UseApp)]
+    public async Task<IActionResult> GetPatientMessagingStatus(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientMessagingStatusQuery(), ct));
 
     [HttpPut("{id:guid}/notes")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]

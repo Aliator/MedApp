@@ -51,6 +51,10 @@ public static class ServiceExtensions
         services.AddHttpClient(SsrPages.ClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
             .RemoveAllResilienceHandlers();
+        // GOV.UK Notify (patient messages, Live): a retried POST could send a message twice, as Notify has no idempotency
+        // key, so its client has no resilience handler; the job decides what's tried again (a timeout never is).
+        services.AddHttpClient(MedApp.Infrastructure.PatientMessages.NotifyPatientMessageTransport.ClientName)
+            .RemoveAllResilienceHandlers();
 #pragma warning restore EXTEXP0001
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();

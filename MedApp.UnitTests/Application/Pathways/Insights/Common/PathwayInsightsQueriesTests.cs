@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Insights.Common;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.InsightsTestConstants;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
@@ -138,6 +139,23 @@ public sealed class PathwayInsightsQueriesTests
         };
 
         CountsAt([pathway], audit).Should().Equal(Count(Status.Assigned, 1, isPastDue: true));
+    }
+
+    [Test]
+    public void StatusCountsAt_DueDateMovedByTheWaitingClockSince_IsReadAsAHandEditIs()
+    {
+        // Due (by its referral's clock) the day before the moment; the clock was paused since, so its target date is
+        // now the review date: the entry the clock wrote ("source":"clock") says it was past due then.
+        var pathway = CreatePathway(Status.InProgress, dueDateUtc: DueDates.EndOfDayUtc(MomentDay.AddDays(-1)));
+        var referral = ReferralsTestConstants.CreateReferral(patient: pathway.Patient, status: MedApp.Domain.Referrals.ReferralStatus.Accepted);
+        referral.ReceivedOn = MomentDay.AddDays(-29);
+        MedApp.Application.Referrals.Common.WaitingClock.Start(referral, 28);
+        pathway.Referral = referral;
+        var change = new PathwayChange(pathway, Staff, Moment.AddHours(1));
+        change.PauseClock(MedApp.Domain.Referrals.ClockPauseReason.PatientChoseToWait, null, MomentDay.AddDays(40));
+
+        change.AuditEntries.Single().Details.Should().Contain("\"source\":\"clock\"");
+        CountsAt([pathway], change.AuditEntries).Should().Equal(Count(Status.InProgress, 1, isPastDue: true));
     }
 
     [Test]

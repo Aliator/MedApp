@@ -40,10 +40,14 @@ public sealed class FinishPathwayStageHandler(
                 pathway, stage, await specimenRepository.GetOpenForPathwayAsync(pathway.Id, cancellationToken)) is { } gate)
             throw new ConflictException(gate);
 
-        // The finished stage's appointments, and the next stage's (which becomes current and may need its visit asked for).
-        var next = StageFinishing.NextStage(pathway, stage);
+        // A branch point finished for the first time needs one of its branches, chosen by the clinician (never assumed).
+        if (PathwayWorkflow.WhyBranchChoiceInvalid(pathway, stage, request.Branch) is { } branchProblem)
+            throw new ValidationException([new ValidationFailure(nameof(request.Branch), branchProblem)]);
+
+        // The finished stage's appointments, those of any stage the branch choice skips, and the next stage's (which
+        // becomes current and may need its visit asked for).
         var appointments = await appointmentRepository.GetForStagesForUpdateAsync(
-            next is null ? [stage.Id] : [stage.Id, next.Id], cancellationToken);
+            StageFinishing.StagesTouchedByFinish(pathway, stage, request.Branch).ToList(), cancellationToken);
         var stageAppointments = appointments.Where(a => a.StageId == stage.Id).ToList();
 
         // A Required visit: only an admin can finish without it, on purpose and with a reason.
@@ -56,7 +60,7 @@ public sealed class FinishPathwayStageHandler(
                 throw new ValidationException([new ValidationFailure(nameof(request.Reason), ReasonRequired)]);
         }
 
-        StageFinishing.Finish(change, stage, appointments, request.Reason);
+        StageFinishing.Finish(change, stage, appointments, request.Reason, request.Branch);
 
         if (change.HasChanges)
         {

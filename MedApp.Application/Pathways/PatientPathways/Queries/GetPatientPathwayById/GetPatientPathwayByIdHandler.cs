@@ -27,12 +27,14 @@ public sealed class GetPatientPathwayByIdHandler(
 
         await activityLog.RecordViewsAsync(ActivityAction.PathwayViewed, [pathway.PatientId], cancellationToken, pathway.Id);
 
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var response = await PathwayMapper.ToResponseAsync(
-            pathway, identityReadService, timeProvider.GetUtcNow().UtcDateTime, cancellationToken, viewerId: request.ViewerId, viewerPermissions: request.ViewerPermissions);
+            pathway, identityReadService, now, cancellationToken, viewerId: request.ViewerId, viewerPermissions: request.ViewerPermissions);
 
-        // The referral it was accepted from, if any, for a link back to it.
+        // The referral it was accepted from, if any, for a link back to it and its waiting-time clock.
         if (await referralRepository.GetForPathwayAsync(pathway.Id, cancellationToken) is { } referral)
-            response.Referral = ReferralMapper.ToPathwayReferral(referral);
+            response.Referral = ReferralMapper.ToPathwayReferral(
+                referral, new PathwayActor(request.ViewerId ?? Guid.Empty, string.Empty, request.ViewerPermissions), DueDates.ToUkDate(now));
         return response;
     }
 }

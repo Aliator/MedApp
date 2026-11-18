@@ -2,13 +2,16 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.PatientMessages.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
+using MedApp.Domain.PatientMessages;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.BookAppointment;
@@ -17,8 +20,10 @@ public sealed class BookAppointmentHandler(
     IAppointmentRepository repository,
     ICalendarRepository calendarRepository,
     ICalendarLock calendarLock,
+    IClinicRepository clinicRepository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    IPatientMessageOutbox patientMessages,
     TimeProvider timeProvider)
     : IRequestHandler<BookAppointmentCommand, AppointmentResponse>
 {
@@ -36,7 +41,8 @@ public sealed class BookAppointmentHandler(
         // appointment's: two requests booking one appointment with different people don't wait for each other. The
         // expected status refuses a stale request that comes second, and the appointment's row version refuses the
         // later save of two that overlap (both 409), so neither silently overwrites the other.
-        var result = await calendarLock.RunAsync([request.StaffUserId], async ct =>
+        var locks = AppointmentPlaces.Locks(request.StaffUserId, request.ClinicSessionId, request.RoomId);
+        var result = await calendarLock.RunAsync(locks, async ct =>
         {
             var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, ct);
 
@@ -50,16 +56,26 @@ public sealed class BookAppointmentHandler(
                     ? AppointmentWorkflow.BookedMeanwhileMessage
                     : AppointmentWorkflow.ChangedMeanwhileMessage);
 
-            var before = new Before(appointment.Status, appointment.StaffUserId, appointment.StartUtc);
+            var before = new Before(appointment.Status, appointment.StaffUserId, appointment.StartUtc, appointment.RoomId);
+
+            // A clinic session's slot (its clinician and room) or a room, checked under the locks they need.
+            var place = await AppointmentPlaces.CheckAsync(
+                clinicRepository, request.StaffUserId, start, end, request.ClinicSessionId, request.RoomId, appointment, ct);
 
             var date = UkTime.DateOf(start);
             var data = await calendarRepository.GetCalendarDataAsync(request.StaffUserId, date, date, ct);
-            if (CalendarClashes.Find(data, start, end, ignoreAppointmentId: appointment.Id) is { } clash)
+            if (CalendarClashes.Find(data, start, end, ignoreAppointmentId: appointment.Id, ignoreSessionId: place.ClinicSessionId) is { } clash)
                 throw new ConflictException(clash);
 
             var previousStaffUsername = await identityReadService.GetStaffUsernameAsync(appointment, ct);
             var change = new AppointmentChange(appointment, request.Actor, now, previousStaffUsername);
-            change.Book(request.StaffUserId, staffUsername, start, end);
+            change.Book(request.StaffUserId, staffUsername, start, end, place);
+
+            // Telling the patient of a move to another time or place, saved with the move (the job sends it).
+            if (request.TellPatient
+                && before.Status == AppointmentStatus.Booked
+                && (before.StartUtc != appointment.StartUtc || before.RoomId != appointment.RoomId))
+                await patientMessages.StageAsync(appointment, PatientMessageKind.AppointmentMoved, request.Actor.UserId, now, ct);
 
             if (change.HasChanges)
                 await repository.SaveAsync(change.Events, ct);
@@ -84,5 +100,5 @@ public sealed class BookAppointmentHandler(
             nowUtc);
 
     /// <summary>Where the appointment was before it was booked or moved.</summary>
-    private sealed record Before(AppointmentStatus Status, Guid? StaffUserId, DateTime? StartUtc);
+    private sealed record Before(AppointmentStatus Status, Guid? StaffUserId, DateTime? StartUtc, Guid? RoomId);
 }

@@ -65,6 +65,7 @@ public sealed class TimelineStaffCanaryTests
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
                 Action.AttachmentAdded, Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
+                Action.StageSkipped, Action.StageReinstated,
             ]);
         foreach (var row in withText)
             Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
@@ -198,7 +199,16 @@ public sealed class TimelineStaffCanaryTests
             AttachmentAudit.Entry(pathwayFile, onPathway, Staff, Action.AttachmentDownloaded, Now),
         };
 
-        return change.AuditEntries.Concat(files).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+        // As FinishPathwayStageHandler, SkipPathwayStageHandler and ReinstatePathwayStageHandler: a branch chosen, an
+        // optional stage skipped with the canary as its detail, and a stage reinstated with the canary as the reason.
+        var branching = CreateBranchingPathway();
+        branching.Title = Canary;
+        var branchChange = new PathwayChange(branching, Staff, Now);
+        branchChange.FinishStage(branching.StageAt(1), branch: TreatmentBranch);
+        branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
+        branchChange.ReinstateStage(branching.StageAt(2), Canary);
+
+        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
     }
 
     /// <summary>A specimen whose free text (site, request notes, the detail it closed with) is all the canary.</summary>
@@ -297,7 +307,7 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ToResponse_StaffFinishedWithoutVisit_SaysSoButNotTheReason()
     {
-        var finished = EntriesHoldingTheCanary().Single(e => e.Action == Action.StageFinished);
+        var finished = EntriesHoldingTheCanary().Single(e => e.Action == Action.StageFinished && e.Details.Contains(Canary));
 
         var response = TimelineMapper.ToResponse(new PatientTimelineRow(finished, CurrentTitle), isAdmin: false);
 
@@ -316,10 +326,13 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ToResponse_AdminAppointmentEntries_CarryTheFreeText()
     {
-        // The entries whose details hold free text: the cancellation's reason, the notes saved (old and new), and why a walk-in was withdrawn.
+        // The entries whose details hold free text: the cancellation's reason, the notes saved (old and new), why a walk-in was
+        // withdrawn, and a Did not attend's follow-up detail.
         var withText = AppointmentEventsHoldingTheCanary().Where(e => e.Details.Contains(Canary)).ToList();
 
-        withText.Select(e => e.Action).Should().BeEquivalentTo([AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled, AppointmentEventAction.EnteredInError]);
+        withText.Select(e => e.Action).Should().BeEquivalentTo([
+            AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled, AppointmentEventAction.EnteredInError,
+            AppointmentEventAction.DnaFollowUpRecorded]);
         foreach (var entry in withText)
             Serialised(entry, isAdmin: true).Should().Contain(Canary, entry.Action.ToString());
     }
@@ -371,13 +384,8 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ReferralRowsHoldingTheCanary_CoverEveryActionWrittenSoFar()
     {
-        // The waiting-time clock adds the rest; add them here when they're written.
-        ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Should().BeEquivalentTo(
-        [
-            ReferralEventAction.Registered, ReferralEventAction.DetailsEdited, ReferralEventAction.Withdrawn,
-            ReferralEventAction.EnteredInError, ReferralEventAction.SpecialtyChanged, ReferralEventAction.Accepted,
-            ReferralEventAction.Rejected, ReferralEventAction.RedirectedElsewhere
-        ]);
+        ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Distinct()
+            .Should().BeEquivalentTo(Enum.GetValues<ReferralEventAction>());
     }
 
     [Test]
@@ -446,9 +454,18 @@ public sealed class TimelineStaffCanaryTests
         var sent = new ReferralChange(sentReferral, ReferralsTestConstants.Triager, Now);
         sent.RedirectElsewhere(Canary, Canary);
 
+        // The waiting-time clock: the target re-read, paused (with the canary as the pause's detail) and resumed,
+        // paused again, then stopped by the pathway's discharge (which ends the pause).
+        var clock = new ReferralChange(triaged, Staff, Now.AddMinutes(2));
+        clock.ReTarget(triaged.Specialty, PatientPathwayPriority.Low);
+        var pause = clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
+        clock.ResumeClock(pause);
+        clock.PauseClock(ClockPauseReason.Other, Canary, ReferralsTestConstants.Today.AddDays(30));
+        clock.StopClock(ClockStopReason.PathwayDischarged);
+
         return change.Events.Concat(error.Events).Concat(accept.Events).Concat(accepted.Events)
-            .Concat(rejected.Events).Concat(sent.Events)
-            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary))
+            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events)
+            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary) { PauseDetail = Canary })
             .ToList();
     }
 
@@ -474,6 +491,8 @@ public sealed class TimelineStaffCanaryTests
         change.UpdateNotes($"{Canary} (edited)");
         change.RecordOutcome(AppointmentStatus.Attended);
         change.RecordOutcome(AppointmentStatus.DidNotAttend);
+        // As RecordDnaFollowUpHandler: the canary as the follow-up's detail.
+        change.RecordDnaFollowUp(DnaFollowUpDecision.ClinicianToReview, Canary);
 
         var other = pathwayChange.RequestVisit(pathway.StageAt(2));
         var cancel = new AppointmentChange(other, Staff, Now.AddMinutes(2), pathwayTitle: Canary);
@@ -487,5 +506,47 @@ public sealed class TimelineStaffCanaryTests
         recorded.MarkEnteredInError(Canary);
 
         return [.. pathwayChange.AppointmentEvents, .. change.Events, .. cancel.Events, .. recorded.Events];
+    }
+
+    [Test]
+    public void ToResponse_StaffStageSkipped_GivesTheReasonByNameButNotTheDetail()
+    {
+        var skipped = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.StageSkipped);
+
+        var staff = TimelineMapper.ToResponse(skipped, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(skipped, isAdmin: true);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.StageName.Should().Be(FollowUpStage);
+        staff.SkipReason.Should().Be(nameof(StageSkipReason.Other));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be(Canary);
+    }
+
+    [Test]
+    public void ToResponse_BranchChosen_EveryoneSeesTheBranchAndTheStagesItSkipped()
+    {
+        var chosen = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.BranchChosen);
+
+        var staff = TimelineMapper.ToResponse(chosen, isAdmin: false);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.StageName.Should().Be(ResultsStage);
+        staff.Branch.Should().Be(TreatmentBranch);
+        staff.SkippedStageNames.Should().Equal(BenignStage);
+    }
+
+    [Test]
+    public void ToResponse_StaffStageReinstated_GivesHowItWasSkippedButNotWhyItWasReinstated()
+    {
+        var reinstated = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.StageReinstated);
+
+        var staff = TimelineMapper.ToResponse(reinstated, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(reinstated, isAdmin: true);
+
+        staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
+        staff.SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be(Canary);
     }
 }

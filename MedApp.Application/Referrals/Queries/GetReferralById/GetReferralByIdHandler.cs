@@ -11,7 +11,7 @@ namespace MedApp.Application.Referrals.Queries.GetReferralById;
 /// One referral. Opening it is recorded against its patient as <see cref="ActivityAction.ReferralViewed"/>, with the
 /// referral's ID in the details (once per person and referral every few minutes); the log fails closed.
 /// </summary>
-public sealed class GetReferralByIdHandler(IReferralRepository repository, IActivityLog activityLog)
+public sealed class GetReferralByIdHandler(IReferralRepository repository, IActivityLog activityLog, TimeProvider timeProvider)
     : IRequestHandler<GetReferralByIdQuery, ReferralResponse>
 {
     public async Task<ReferralResponse> Handle(GetReferralByIdQuery request, CancellationToken cancellationToken)
@@ -21,6 +21,6 @@ public sealed class GetReferralByIdHandler(IReferralRepository repository, IActi
         await activityLog.RecordViewAsync(
             ActivityAction.ReferralViewed, referral.PatientId, new { referralId = referral.Id }, cancellationToken);
 
-        return await ReferralResponses.ForAsync(referral, repository, request.Viewer, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Viewer, timeProvider, cancellationToken);
     }
 }

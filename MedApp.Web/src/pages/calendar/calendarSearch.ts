@@ -80,8 +80,13 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
 export const REQUIRES_APPOINTMENT_SORTS = {Due: 'dueDate', Requested: 'requested', Patient: 'patient'} as const;
 export type RequiresAppointmentSortColumn = keyof typeof REQUIRES_APPOINTMENT_SORTS;
 
-/** Requires Appointment: its page, sort (target date, soonest first, by default) and a patient search. */
+/**
+ * Requires Appointment: which list (`view`: the appointments to book by default, or `didNotAttend`, the missed ones
+ * waiting for a follow-up), its page, sort (target date, soonest first, by default; the Did not attend list is always
+ * oldest first) and a patient search.
+ */
 export interface RequiresAppointmentSearch {
+  view?: 'didNotAttend';
   page?: number;
   sort?: RequiresAppointmentSortColumn;
   asc?: boolean;
@@ -93,9 +98,24 @@ export function parseRequiresAppointmentSearch(raw: Record<string, unknown>): Re
   const sort = Object.keys(REQUIRES_APPOINTMENT_SORTS).find((k) => k.toLowerCase() === text(raw.sort)?.toLowerCase()) as RequiresAppointmentSortColumn | undefined;
   const asc = text(raw.asc)?.toLowerCase();
   return compact({
+    view: text(raw.view)?.toLowerCase() === 'didnotattend' ? ('didNotAttend' as const) : undefined,
     page: Number.isInteger(page) && page > 1 ? page : undefined,
     sort,
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,
     patient: text(raw.patient),
   });
+}
+
+/**
+ * The Clinics page: the week shown (any date in it; this week by default), a site to narrow it to, and a session to
+ * open in its dialog.
+ */
+export interface ClinicsSearch {
+  date?: string;
+  site?: string;
+  session?: string;
+}
+
+export function parseClinicsSearch(raw: Record<string, unknown>): ClinicsSearch {
+  return compact({date: date(raw.date), site: id(raw.site), session: id(raw.session)});
 }

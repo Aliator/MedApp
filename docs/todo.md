@@ -14,14 +14,14 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 **Phase 2: the front door.**
 - **Referrals and triage:** a referral record (the referring GP practice, when it arrived, the letter, the specialty asked for), an inbox of new referrals, and a clinician's triage decision (accept, reject or redirect, with a reason). Accepting creates the pathway: the clinician decides, the app records.
   - **Referrals and triage are built** (PR 5, `feature/referrals`, and PR 6, `feature/triage`: `docs/agents/referrals.md`). **Referrals mustn't be used with patients until the CSO has verified the triage controls** (hazards H-40, H-41, H-44).
-  - **The accepted pathway's target date is typed by the triager** until the waiting-time clock (PR 7) sets it from the referral's target: PR 7 drops `dueDate` from the accept request (or ignores it) and moves the form's field.
+  - **The waiting-time clock is built** (PR 7, `feature/waiting-clock`: `docs/agents/referrals.md`). Left for later: a notification or monitoring rule when a breach happens or a pause's review date passes (Phase 4, needing a scheduled job: hazards H-42 and H-43); an accepted pathway still open when the clock's migration ran keeps the target date it had until its clock next moves it (a pause, a resume, a new priority); and an API copy from before the clock, during a rollout, registers referrals with no clock (target 0 days, counted from 1 January 0001), which the clock's PR can't fix by itself: deploy the API before anyone registers a referral, or correct those referrals' clock columns (`TargetDays`, `WaitStartOn`, `TargetOn`) afterwards.
   - **A referral redirected between specialties more than once keeps only the latest redirect's detail** (`Referral.RedirectDetail`); the history records every move, without text. A table of redirections would keep each, if that's ever needed.
   - **Register Referral is shown to everyone signed in** (the Referrals page's button and the patient page's Referrals card, `TODO(useCan)` in both) until `useCan` lands (PR 3); the server refuses anyone without `RegisterReferrals` with a 403. The referral page's own actions already follow the response's flags (`CanEdit`, `CanClose`, `CanAttachFiles`).
   - **The inbox opens on every specialty:** the search takes `mine` and `specialtyIds`, and the side nav's count is already the viewer's specialties', but the page has no specialty filter yet (PR 8).
   - **Two people registering the same letter at the same moment** both pass the duplicate check (it reads before either saves). The second shows on the patient's Referrals card and is marked entered in error, or rejected as a duplicate at triage (H-44). A lock or a unique index would close it, if it's ever seen.
   - **The clinical safety case report** (`docs/clinical-safety/clinical-safety-case-report.md`) lists H-40 to H-44 but still lacks H-37 to H-39, and its summary's counts are from hazard log version 0.9: bring it up to date with the hazard log before the first release.
 - **Specialties:** every pathway type, clinic and member of staff belongs to one, with filters, worklists and Insights by specialty.
-- **A waiting-time clock:** days since referral, the target date, and pauses with reasons; lists by longest wait, with breaches flagged. It replaces today's single target date.
+- **A waiting-time clock:** built (PR 7, above).
 - **Roles and permissions, the rest** (the policy layer is built: `docs/agents/auth.md`):
   - **`GET api/auth/roles` (every role's name), kept one release** after the Roles and Permissions page so a page loaded before it still works during a rollout: remove it (and `GetAllRolesQuery`, `IIdentityReadService.GetRoleNamesAsync`) in the next release. The Users page reads `GET api/roles`.
   - **The roles page, later:** step-up (the admin's password again) before a role change, as for other admin actions (ASVS 7.5.3); a preview of exactly whose access changes (today it says how many hold the role, though someone with another role granting the same permission isn't affected).
@@ -29,7 +29,6 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 
 **Phase 3: clinic to lab to result to letter.**
 - **Contact details, practices and staff details are built** (PR 12, `feature/patient-contact-gp`: `docs/agents/privacy.md`). Left from it:
-  - **The reminder channel** (`Patient.ReminderChannel`) is stored, always None: the patient form shows it with reminders (PR 26).
   - **The offline demographics stub gives no GP practice**, as it knows no ODS codes; the real PDS gives one, to match against the directory when PDS is wired in.
   - **Demo data** for practices, contact details and staff names comes with Phase 3's demo data (PR 17).
   - **Looking practices up in the national ODS service** stays for later (plan, section 8): the directory is typed.
@@ -40,12 +39,30 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **A label printer format:** the label and request sheet are printable pages, laid out for A4, today (`/specimens/{id}/print`). Add a layout for a label printer (a small label of the number, its QR code and the patient's identifiers), so the label fits the pot.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
+  - **Letter templates and the PDF engine are built** (PR 15, `feature/letter-templates`: `docs/agents/letters.md`). Left from it:
+    - **PDF/A:** letters are made in PDFsharp's PDF/A-1a mode and pass veraPDF 1.30 while every character is Windows-1252, but one with other characters (Ł, ł, ş, ğ, common in Polish and Turkish names) fails clause 6.3.5, as PDFsharp 6.2 writes no CIDSet for the extra font it then embeds. Before claiming PDF/A: add the CIDSet (a fix upstream, a post-processing step, or a font without the second encoding), and check again with veraPDF (`verapdf/cli`, `--flavour 1a`). GP systems accept plain PDF meanwhile (plan, decision 98).
+    - **Tags are coarse:** each page's text is one paragraph element, so headings and lists aren't tagged as such (PDFsharp can't tag what MigraDoc lays out). A screen reader reads the text in order; finer tags need per-element rendering or another library.
+    - **PDFsharp and MigraDoc stay on 6.2.x:** 6.5.0 and later are AGPL-3.0 (Dependabot ignores them). If 6.2 stops getting fixes, decide between buying empira's commercial licence, staying on 6.2 with the NuGet audit as the alarm, or another MIT library.
+    - **Deleting an unused template** comes with letters (PR 16), which know whether one was used; until then templates are only archived.
+    - **The letter font covers Latin scripts only:** PR 16 must refuse (with `FindUnsupportedCharacters`) a patient's name, address or body text it can't show, naming the characters, rather than print `?`.
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
+  - **Built** (PR 20, `feature/branching-pathways`: `docs/agents/pathways.md`). **Not to be used with patients until the CSO has verified H-51's controls.** Left for later:
+    - **Reinstating** needs `OverrideStages` until PR 24 splits it; then `UnlockStages`.
+    - **Demo data** gets its branches, optional stages and skips in PR 28.
+    - **During a rollout,** an API copy from before this release doesn't know stages can be skipped: it shows a skipped stage as the current one, and would let staff finish it. Make no template with optional stages or branches until every copy runs this release (the chart's two-release rule).
 - **Clinics, rooms and longer hours:** clinic sessions with a set number of slots, in a named room at a named site; evening and weekend clinics; working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday, except closed days).
 - **Roles that limit what people see:** the starting roles (Clinician, Nurse, Booking, Lab, Manager) limit what each does since Phase 2, but every role still sees every patient. The privacy items naming roles (hiding restricted patients from lists, an `Auditor` read permission) build on it.
-- **Patient reminders:** texts or emails before an appointment, and the rule for a missed one. A job on the scheduled job runner (`docs/agents/jobs.md`).
+- **Patient reminders and the Did not attend list are built** (PR 26, `feature/patient-reminders`: `docs/agents/calendar.md`, Patient reminders). Left from it:
+  - **Turning the real sender on** is the customer's: their own GOV.UK Notify service (or another provider's adapter, for a customer Notify won't serve), its two templates (`((message))`; `((subject))` and `((message))`), the API key in the secret store as `PatientMessages__Notify__ApiKey`, the sub-processor notice (`docs/governance/sub-processors.md`) and `PatientMessages:Mode=Live`. Try it against Notify's test key (messages accepted, never delivered) before a live one.
+  - **The chart sets no mode,** so kind and Azure are Off: kind should be Offline into its Mailpit (`PatientMessages__Mode`, `PatientMessages__SenderName` in the chart's values) and Azure Live once a customer has a Notify service. A deploy change, tried on kind before it merges (`docs/agents/deploy.md`).
+  - **Telling the patient when a calendar drag moves an appointment:** the booking dialog offers it; a drag on the grid doesn't (it moves without asking).
+  - **A session's room moved** moves its Booked appointments' room (perhaps to another site) without offering to tell the patients.
+  - **Messages about a cancelled pathway's or a closed day's appointments:** cancelling a pathway leaves Booked appointments for staff to cancel (and tell); closing a day tells nobody yet.
+  - **Video appointment links** in reminders come with video appointments (PR 34).
+  - **A message's content kept for as long as the record:** messages are part of the patient record and kept with it; whether their text and destination should be purged sooner (a few months) is the DPO's decision (`docs/governance/retention-schedule.md`).
+  - **Demo data:** offline messages for past appointments, some not sent and some failed, follow-ups recorded and three waiting (PR 28).
 - **Adjusted with them:**
   - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked, a specimen days past its expected turnaround at the lab (hazard H-45's service alert, PR 25).
   - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin.
@@ -273,6 +290,14 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **The aim:** run areas such as pathways, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
+
+## Clinic sessions (centre plan PR 23)
+
+- **Telling a cancelled session's patients by text or email is built** (PR 26: `tellPatients`); the call list stays for phoning those with no choice or no contact.
+- **An account's upcoming sessions** with no bookings stay when the account is deleted or loses its staff roles (sessions with bookings stop that, through their appointments): cancel them with it, or refuse it as for appointments.
+- **Closing a day** counts and tells of appointments, blocks and meetings, but not clinic sessions on it; a session on a day closed later stays, unflagged.
+- **Demo data:** patterns, sessions for the 18 months and the next 6 weeks, appointments in their slots and one cancelled session (PR 28).
+- **A session's own page or Calendar view of sessions by room** (the plan's "Clinics view, sessions by day and room"): today Clinics is a week's list, by day, time and room.
 
 ## Working hours (centre plan PR 22)
 

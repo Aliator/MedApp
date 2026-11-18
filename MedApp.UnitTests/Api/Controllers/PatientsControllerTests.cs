@@ -38,7 +38,7 @@ public sealed class PatientsControllerTests
 
         mediator.Request.Should().BeEquivalentTo(new CreatePatientCommand(
             request.FirstName, request.LastName, request.DateOfBirth, request.Email, request.NhsNumber,
-            request.AddressLines, request.Postcode, request.MobilePhone, request.PracticeId));
+            request.AddressLines, request.Postcode, request.MobilePhone, request.PracticeId, request.ReminderChannel));
         var created = result.Should().BeOfType<CreatedAtActionResult>().Subject;
         created.ActionName.Should().Be(nameof(PatientsController.GetPatientById));
         created.RouteValues!["id"].Should().Be(patient.Id);
@@ -100,7 +100,7 @@ public sealed class PatientsControllerTests
 
         mediator.Request.Should().BeEquivalentTo(new UpdatePatientCommand(
             RecordId, request.FirstName, request.LastName, request.DateOfBirth, request.Email, request.NhsNumber,
-            request.AddressLines, request.Postcode, request.MobilePhone, request.PracticeId));
+            request.AddressLines, request.Postcode, request.MobilePhone, request.PracticeId, request.ReminderChannel));
         updated.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(patient);
         missing.Should().BeOfType<NotFoundResult>();
     }

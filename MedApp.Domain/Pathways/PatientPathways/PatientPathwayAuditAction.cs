@@ -61,5 +61,22 @@ public enum PatientPathwayAuditAction
     SpecimenEnteredInError = 22,
 
     /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
-    SpecimenDetailsEdited = 23
+    SpecimenDetailsEdited = 23,
+
+    // 24 to 34 are kept for Phase 3's results and letters (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// A stage was skipped: an optional stage, by hand, with a reason (<c>skipReason</c> by name, and a <c>detail</c>
+    /// for Other). Stages skipped because another branch was chosen are listed in that <see cref="BranchChosen"/> entry.
+    /// </summary>
+    StageSkipped = 35,
+
+    /// <summary>
+    /// Finishing a branch point chose one of its branches (<c>branch</c>); the other branches' stages after it were
+    /// skipped (<c>skippedStageIds</c>, <c>skippedStages</c>). Written on the branch point, after its StageFinished.
+    /// </summary>
+    BranchChosen = 36,
+
+    /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
+    StageReinstated = 37
 }

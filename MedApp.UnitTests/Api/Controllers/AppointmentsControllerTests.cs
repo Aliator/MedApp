@@ -4,6 +4,9 @@ using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
+using MedApp.Application.Appointments.Commands.RecordDnaFollowUp;
+using MedApp.Application.PatientMessages.Queries.GetAppointmentMessages;
+using MedApp.Application.PatientMessages.Queries.GetPatientMessagingStatus;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
@@ -15,6 +18,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Requests;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.PatientMessages.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
@@ -61,7 +65,8 @@ public sealed class AppointmentsControllerTests
         var result = await Controller.CreateAppointment(request, _cts.Token);
 
         _mediator.Request.Should().Be(new CreateAppointmentCommand(
-            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor));
+            request.PatientId, request.PathwayId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc, request.Notes, Actor,
+            request.ClinicSessionId, request.RoomId));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/appointments/{_appointment.Id}");
@@ -124,7 +129,7 @@ public sealed class AppointmentsControllerTests
 
         _mediator.Request.Should().BeOfType<SearchAppointmentsQuery>().Which.Should().BeEquivalentTo(new SearchAppointmentsQuery(
             request.Page, request.PageSize, request.Sort, request.Ascending, request.PatientId, request.PathwayId, request.StageId,
-            request.StaffUserId, request.Statuses, request.From, request.To, request.Search));
+            request.StaffUserId, request.Statuses, request.From, request.To, request.Search, request.View));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
@@ -145,7 +150,9 @@ public sealed class AppointmentsControllerTests
         var request = _fixture.Create<BookAppointmentRequest>();
 
         ExpectSentAndOk(
-            new BookAppointmentCommand(RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, request.ExpectedStatus, Actor),
+            new BookAppointmentCommand(
+                RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, request.ExpectedStatus, Actor, request.ClinicSessionId, request.RoomId,
+                request.TellPatient),
             await Controller.BookAppointment(RecordId, request, _cts.Token));
     }
 
@@ -160,6 +167,43 @@ public sealed class AppointmentsControllerTests
         ExpectSentAndOk(
             new CancelAppointmentCommand(RecordId, "Synthetic reason.", Actor),
             await Controller.CancelAppointment(RecordId, new CancelAppointmentRequest { Reason = "Synthetic reason." }, _cts.Token));
+
+    [Test]
+    public async Task CancelAppointment_TellingThePatient_SaysSo() =>
+        ExpectSentAndOk(
+            new CancelAppointmentCommand(RecordId, "Synthetic reason.", Actor, TellPatient: true),
+            await Controller.CancelAppointment(RecordId, new CancelAppointmentRequest { Reason = "Synthetic reason.", TellPatient = true }, _cts.Token));
+
+    [Test]
+    public async Task RecordDnaFollowUp_RecordsAsTheUser() =>
+        ExpectSentAndOk(
+            new RecordDnaFollowUpCommand(RecordId, "Rebook", "Synthetic detail.", Actor),
+            await Controller.RecordDnaFollowUp(RecordId, new RecordDnaFollowUpRequest { Decision = "Rebook", Detail = "Synthetic detail." }, _cts.Token));
+
+    [Test]
+    public async Task GetAppointmentMessages_ReturnsThem()
+    {
+        var messages = new List<PatientMessageResponse> { _fixture.Create<PatientMessageResponse>() };
+        _mediator = new RecordingMediator(_ => messages);
+
+        var result = await Controller.GetAppointmentMessages(RecordId, _cts.Token);
+
+        _mediator.Request.Should().Be(new GetAppointmentMessagesQuery(RecordId));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(messages);
+    }
+
+    [Test]
+    public async Task GetPatientMessagingStatus_ReturnsIt()
+    {
+        var status = _fixture.Create<PatientMessagingStatusResponse>();
+        _mediator = new RecordingMediator(_ => status);
+
+        var result = await Controller.GetPatientMessagingStatus(_cts.Token);
+
+        _mediator.Request.Should().Be(new GetPatientMessagingStatusQuery());
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(status);
+    }
 
     [Test]
     public async Task UpdateNotes_SavesThemAsTheUser() =>

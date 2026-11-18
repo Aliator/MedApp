@@ -24,6 +24,9 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
         builder.Property(x => x.CancelReason)
             .HasMaxLength(500);
 
+        builder.Property(x => x.DnaFollowUpDetail)
+            .HasMaxLength(500);
+
         builder.Property(x => x.CreatedAtUtc)
             .IsRequired();
 
@@ -52,6 +55,17 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
             .HasForeignKey(x => x.StageId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // A session or room an appointment names is never deleted (sessions are cancelled, rooms archived).
+        builder.HasOne<MedApp.Domain.Clinics.ClinicSession>()
+            .WithMany()
+            .HasForeignKey(x => x.ClinicSessionId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne<MedApp.Domain.Sites.Room>()
+            .WithMany()
+            .HasForeignKey(x => x.RoomId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         // No foreign keys to the users table (staff, creator, booker), as with pathway assignments.
 
         // A calendar's appointments in a range of dates.
@@ -67,7 +81,20 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
         builder.HasIndex(x => x.StageId, OpenPerStageIndex)
             .IsUnique()
             .HasFilter(OpenPerStageFilter);
+        // One patient per slot of a clinic session (decision 124): checked under the clinician's calendar lock, and
+        // enforced here too. Slots have fixed starts, so one appointment on the calendar per session and start.
+        builder.HasIndex(x => new { x.ClinicSessionId, x.StartUtc }, SessionSlotIndex)
+            .IsUnique()
+            .HasFilter(SessionSlotFilter);
+        // A room's appointments over a range (rooms are clash-checked).
+        builder.HasIndex(x => new { x.RoomId, x.StartUtc });
     }
+
+    /// <summary>The unique index that allows one appointment on the calendar per slot of a clinic session.</summary>
+    public const string SessionSlotIndex = "IX_Appointments_ClinicSessionId_StartUtc_OnCalendar";
+
+    private static readonly string SessionSlotFilter =
+        $"[ClinicSessionId] IS NOT NULL AND [Status] IN ({(int)AppointmentStatus.Booked}, {(int)AppointmentStatus.Attended}, {(int)AppointmentStatus.DidNotAttend})";
 
     /// <summary>The unique index that allows one open appointment per stage.</summary>
     public const string OpenPerStageIndex = "IX_Appointments_StageId_Open";

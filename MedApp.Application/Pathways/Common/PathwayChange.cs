@@ -1,6 +1,8 @@
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using Action = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
 using static MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
@@ -15,11 +17,19 @@ namespace MedApp.Application.Pathways.Common;
 /// the appointments it adds and their history entries are saved with the change too
 /// (<c>IPatientPathwayRepository.SaveAsync(PathwayChange, ...)</c>), in one save.
 /// </para>
+/// <para>
+/// A pathway accepted from a referral has its waiting-time clock (<see cref="WaitingClock"/>): the referral is loaded
+/// with it (<see cref="PatientPathway.Referral"/>), and this stops the clock when the clock-stop stage is finished or
+/// the pathway is discharged or cancelled, re-reads its target when the priority changes, and moves the pathway's
+/// target date with it (<see cref="FollowClock"/>), writing the referral's history entries to save in the same save
+/// (<see cref="ReferralEvents"/>).
+/// </para>
 /// </summary>
 public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, DateTime nowUtc)
 {
     public const string StageFinishedReason = "The stage was finished.";
     public const string PathwayCancelledReason = "The pathway was cancelled.";
+    public const string StageSkippedReason = "The stage was skipped.";
 
     private readonly List<PatientPathwayAuditEntry> _auditEntries = [];
     private readonly List<Appointment> _newAppointments = [];
@@ -27,6 +37,8 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     private readonly List<PatientPathwayNote> _newNotes = [];
     private readonly List<PatientPathwayNoteVersion> _noteVersions = [];
     private readonly List<PatientPathwayNote> _deletedNotes = [];
+    private readonly List<ReferralClockPause> _newPauses = [];
+    private ReferralChange? _clock;
 
     public PatientPathway Pathway => pathway;
 
@@ -52,8 +64,86 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     /// <summary>Notes the change deleted (soft: marked deleted, and kept).</summary>
     public IReadOnlyList<PatientPathwayNote> DeletedNotes => _deletedNotes;
 
-    /// <summary>Whether anything changed (every change is audited, or recorded in an appointment's history).</summary>
-    public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0;
+    /// <summary>History entries the change wrote for the referral the pathway was accepted from (its clock), to add with it.</summary>
+    public IReadOnlyList<ReferralEvent> ReferralEvents => _clock?.Events ?? [];
+
+    /// <summary>Clock pauses the change started, to add with it.</summary>
+    public IReadOnlyList<ReferralClockPause> NewPauses => _newPauses;
+
+    /// <summary>
+    /// Whether anything changed (every change is audited, or recorded in an appointment's or the referral's history).
+    /// </summary>
+    public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0 || ReferralEvents.Count > 0;
+
+    /// <summary>The referral's change, for its clock, if the pathway was accepted from one (loaded with it).</summary>
+    private ReferralChange? Clock =>
+        pathway.Referral is { } referral ? _clock ??= new ReferralChange(referral, actor, nowUtc) : null;
+
+    /// <summary>
+    /// Moves the pathway's target date to where its referral's clock says it should be (<see cref="WaitingClock.PathwayTargetOn"/>):
+    /// the clock's target while it runs, the pause's review date while it's paused. A DetailsUpdated entry records it as a
+    /// hand edit's is recorded (<c>changes.dueDate</c>, from and to), with <c>"source":"clock"</c>, so Insights and the
+    /// timeline read it alike. Nothing for a pathway without a referral, a stopped clock, or no change.
+    /// </summary>
+    public void FollowClock()
+    {
+        if (pathway.Referral is not { } referral || WaitingClock.PathwayTargetOn(referral) is not { } target)
+            return;
+
+        var current = DueDates.ToUkDate(pathway.DueDateUtc);
+        if (current == target)
+            return;
+
+        pathway.DueDateUtc = DueDates.EndOfDayUtc(target);
+        Audit(Action.DetailsUpdated, new
+        {
+            changes = new Dictionary<string, object> { ["dueDate"] = new { from = current, to = target } },
+            source = WaitingClock.AuditSource
+        });
+    }
+
+    /// <summary>
+    /// After the pathway's priority changed: its clock (running or paused) re-reads the target for the new priority
+    /// from the specialty's table, and the target date follows a running clock.
+    /// </summary>
+    public void PriorityChanged()
+    {
+        if (Clock is not { } clock || pathway.Referral?.Specialty is not { } specialty)
+            return;
+
+        if (clock.ReTarget(specialty, pathway.Priority))
+            FollowClock();
+    }
+
+    /// <summary>
+    /// Pauses the referral's clock today, for a delay the patient chose or caused, until <paramref name="reviewOn"/>; the
+    /// pathway's target date becomes the review date. The handler checks first that it may
+    /// (<see cref="WaitingClock.WhyCantPause"/>).
+    /// </summary>
+    public ReferralClockPause PauseClock(ClockPauseReason reason, string? detail, DateOnly reviewOn)
+    {
+        var clock = Clock ?? throw new InvalidOperationException("The pathway has no referral, so no waiting-time clock.");
+        var pause = clock.PauseClock(reason, detail, reviewOn);
+        _newPauses.Add(pause);
+        FollowClock();
+        return pause;
+    }
+
+    /// <summary>
+    /// Resumes the referral's paused clock today: the paused days move its target on, and the pathway's target date
+    /// follows it. The handler checks first that it may (<see cref="WaitingClock.WhyCantResume"/>).
+    /// </summary>
+    public void ResumeClock()
+    {
+        var clock = Clock ?? throw new InvalidOperationException("The pathway has no referral, so no waiting-time clock.");
+        var pause = WaitingClock.OpenPause(clock.Referral)
+                    ?? throw new InvalidOperationException("The waiting-time clock isn't paused.");
+        clock.ResumeClock(pause);
+        FollowClock();
+    }
+
+    /// <summary>Stops the referral's clock, if the pathway has one still running or paused.</summary>
+    private void StopClock(ClockStopReason reason) => Clock?.StopClock(reason);
 
     /// <summary>
     /// Records an audit entry. Entries one change writes (a stage started, its notes saved, the status that followed,
@@ -238,12 +328,26 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     }
 
     /// <summary>
-    /// Finishes and locks a stage. Once every stage is finished, the pathway goes to InReview. Finishing a stage
-    /// that involves a visit without an attended one (<paramref name="withoutVisit"/>) records that, the requirement
-    /// and the reason given, in the StageFinished entry.
+    /// Finishes and locks a stage. Once every stage is finished (or skipped), the pathway goes to InReview. Finishing a
+    /// stage that involves a visit without an attended one (<paramref name="withoutVisit"/>) records that, the
+    /// requirement and the reason given, in the StageFinished entry.
+    /// <para>
+    /// Finishing a branch point for the first time with the clinician's <paramref name="branch"/> (checked first with
+    /// <see cref="PathwayWorkflow.WhyBranchChoiceInvalid"/>) skips the other branches' stages after it, with reason
+    /// <see cref="StageSkipReason.BranchNotChosen"/>, and records one BranchChosen entry listing them.
+    /// </para>
     /// </summary>
-    public void FinishStage(PatientPathwayStage stage, FinishedWithoutVisit? withoutVisit = null)
+    /// <returns>The stages the branch choice skipped (none without one).</returns>
+    public IReadOnlyList<PatientPathwayStage> FinishStage(
+        PatientPathwayStage stage, FinishedWithoutVisit? withoutVisit = null, string? branch = null)
     {
+        var skipped = stage.ChoosesBranch && !stage.IsCompleted
+            ? PathwayWorkflow.StagesSkippedByBranch(pathway, stage, branch)
+            : [];
+        var chosen = stage.ChoosesBranch && !stage.IsCompleted && !string.IsNullOrWhiteSpace(branch)
+            ? PathwayWorkflow.Branches(pathway, stage).FirstOrDefault(b => PathwayWorkflow.SameBranch(b.Name, branch))?.Name
+            : null;
+
         StartStage(stage);
         stage.IsCompleted = true;
         stage.IsLocked = true;
@@ -257,8 +361,80 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
                 : new { withoutVisit = true, visitRequirement = withoutVisit.Requirement.ToString(), reason = withoutVisit.Reason },
             stage);
 
+        // The template's clock-stop stage: the wait ends here (once: a stopped clock never restarts).
+        if (stage.StopsClock)
+            StopClock(ClockStopReason.StopStageFinished);
+
+        if (chosen is not null)
+        {
+            foreach (var other in skipped)
+                MarkSkipped(other, StageSkipReason.BranchNotChosen, null);
+
+            Audit(Action.BranchChosen, new
+            {
+                branch = chosen,
+                skippedStageIds = skipped.Select(s => s.Id).ToList(),
+                skippedStages = skipped.Select(s => s.Name).ToList()
+            }, stage);
+        }
+
         if (PathwayWorkflow.AllStagesFinished(pathway))
             SetStatus(InReview, null, automatic: true);
+
+        return chosen is null ? [] : skipped;
+    }
+
+    /// <summary>
+    /// Skips an optional stage by hand, with a reason (never <see cref="StageSkipReason.BranchNotChosen"/>) and its
+    /// detail: a StageSkipped entry with the reason by name (<c>skipReason</c>) and the <c>detail</c>. Skipping is work
+    /// on the pathway, so an unstarted one goes to InProgress; once every stage is finished or skipped, to InReview.
+    /// Handlers check first that it can be skipped (<see cref="PathwayWorkflow.WhySkipNotAllowed"/>).
+    /// </summary>
+    public void SkipStage(PatientPathwayStage stage, StageSkipReason reason, string? detail)
+    {
+        MarkSkipped(stage, reason, detail);
+        // A Required visit skipped says so, as a finish without the visit does.
+        Audit(Action.StageSkipped, new
+        {
+            skipReason = reason.ToString(),
+            detail = stage.SkipDetail,
+            visitRequirement = PathwayWorkflow.SkipNeedsOverride(stage) ? stage.VisitRequirement.ToString() : null
+        }, stage);
+
+        if (pathway.Status is Unassigned or Assigned)
+            SetStatus(InProgress, null, automatic: true);
+
+        if (PathwayWorkflow.AllStagesFinished(pathway))
+            SetStatus(InReview, null, automatic: true);
+    }
+
+    /// <summary>
+    /// Reinstates a skipped stage, with a reason: it's to do again, in its place, so if it's before the current stage it
+    /// becomes current, as unlocking reopens one. A StageReinstated entry records the reason and how it had been
+    /// skipped (<c>skipReason</c>). An InReview or Completed pathway goes back to InProgress. Handlers check first that
+    /// it can be reinstated (<see cref="PathwayWorkflow.CanReinstateStage"/>).
+    /// </summary>
+    public void ReinstateStage(PatientPathwayStage stage, string reason)
+    {
+        var previous = stage.SkipReason;
+        stage.SkippedAtUtc = null;
+        stage.SkippedByUserId = null;
+        stage.SkipReason = null;
+        stage.SkipDetail = null;
+        stage.LastUpdated = nowUtc;
+        Audit(Action.StageReinstated, new { reason, skipReason = previous?.ToString() }, stage);
+
+        if (pathway.Status is InReview or Completed)
+            SetStatus(InProgress, null, automatic: true);
+    }
+
+    private void MarkSkipped(PatientPathwayStage stage, StageSkipReason reason, string? detail)
+    {
+        stage.SkippedAtUtc = nowUtc;
+        stage.SkippedByUserId = actor.UserId;
+        stage.SkipReason = reason;
+        stage.SkipDetail = string.IsNullOrWhiteSpace(detail) ? null : detail.Trim();
+        stage.LastUpdated = nowUtc;
     }
 
     /// <summary>Reopens a finished stage for editing; an InReview or Completed pathway goes back to InProgress.</summary>
@@ -297,6 +473,12 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
         pathway.BlockedFromStatus = to == Blocked ? from : null;
         pathway.Status = to;
         Audit(Action.StatusChanged, new { from = from.ToString(), to = to.ToString(), reason, automatic });
+
+        // Discharged or cancelled before the clock-stop stage (or with none): the wait ends. On hold doesn't pause it.
+        if (to == Completed)
+            StopClock(ClockStopReason.PathwayDischarged);
+        else if (to == Cancelled)
+            StopClock(ClockStopReason.PathwayCancelled);
     }
 
     // Unassigned and Assigned only say whether someone is assigned. Once work starts, the status follows the stages.

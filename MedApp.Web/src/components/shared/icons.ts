@@ -6,6 +6,8 @@ import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
+  RiChatFollowUpLine,
+  RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
   RiFirstAidKitLine,
@@ -44,6 +46,7 @@ import {
   RiFileHistoryLine,
   RiDeleteBinLine,
   RiDoorClosedLine,
+  RiDraftLine,
   RiDoorOpenLine,
   RiEqualizerLine,
   RiEraserLine,
@@ -78,8 +81,11 @@ import {
   RiNotification3Line,
   RiPaintBrushLine,
   RiPaletteLine,
+  RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
+  RiSkipForwardLine,
+  RiGitBranchLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -101,6 +107,8 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiStopCircleLine,
+  RiTimeLine,
   RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
@@ -110,6 +118,8 @@ import {
   RiUserHeartLine,
   RiPushpinLine,
   RiStethoscopeLine,
+  RiRepeatLine,
+  RiCalendarEventLine,
   RiUnpinLine,
   RiUpload2Line,
   RiUserLine,
@@ -255,6 +265,8 @@ export const AppIcon = {
   ActivityTypes: remix(RiPriceTag3Line),
   /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
   Specialties: remix(RiHospitalLine),
+  /** Letter templates (admin): the letterhead, body and closing letters start from. */
+  LetterTemplates: remix(RiDraftLine),
   /** Roles and Permissions (admin): what each role lets the people who hold it do. */
   Roles: remix(RiShieldUserLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */
@@ -263,6 +275,10 @@ export const AppIcon = {
   Sites: remix(RiBuilding2Line),
   /** A site's rooms. */
   Rooms: remix(RiDoorOpenLine),
+  /** Clinic sessions: a clinician's time in a room for a specialty, cut into slots. */
+  Clinics: remix(RiCalendarEventLine),
+  /** Clinic patterns: clinics that repeat, which make sessions when asked. */
+  ClinicPatterns: remix(RiRepeatLine),
   /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
   RecordPast: remix(RiFileHistoryLine),
   /** An appointment recorded after the event, withdrawn as entered in error (it didn't happen, or is on the wrong patient). */
@@ -295,6 +311,18 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Pathways that branch: skipping an optional stage, and a branch point (where the clinician chooses a branch)
+  Skip: remix(RiSkipForwardLine),
+  Branch: remix(RiGitBranchLine),
+  // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
+  Wait: remix(RiTimeLine),
+  PauseClock: remix(RiPauseCircleLine),
+  ResumeClock: remix(RiPlayCircleLine),
+  ClockStopped: remix(RiStopCircleLine),
+  /** A text or email to a patient about an appointment (a reminder, a move, a cancellation, a missed appointment). */
+  PatientMessage: remix(RiMessage2Line),
+  /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */
+  DnaFollowUp: remix(RiChatFollowUpLine),
   // Specimens: taken at a stage, sent to the lab and back with its report
   Specimens: remix(RiTestTubeLine),
   /** The lab's worklist (the side nav's Lab), and the specimen types and labs (setup). */

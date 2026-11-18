@@ -28,6 +28,10 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     public const string RequestedPriorityField = "requestedPriority";
     public const string ReasonField = "reason";
 
+    /// <summary>Why a clock's target was re-read (<see cref="ReferralEventAction.TargetChanged"/>'s <c>cause</c>).</summary>
+    public const string TargetCausePriority = "priority";
+    public const string TargetCauseSpecialty = "specialty";
+
     /// <summary>The practice chosen from the directory (by its ID; the typed practice is <see cref="ReferrerPracticeField"/>).</summary>
     public const string DirectoryPracticeField = "directoryPractice";
 
@@ -39,17 +43,26 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
 
     public bool HasChanges => _events.Count > 0;
 
-    /// <summary>Records a new referral (its <see cref="Referral.Version"/> is 1), with the specialty and priority asked for.</summary>
+    /// <summary>The UK date of the change: what the clock counts in.</summary>
+    public DateOnly Today { get; } = DueDates.ToUkDate(nowUtc);
+
+    /// <summary>
+    /// Records a new referral (its <see cref="Referral.Version"/> is 1), with the specialty and priority asked for, and
+    /// starts its waiting-time clock on the day it was received, with the specialty's target for that priority.
+    /// </summary>
     public void Register(Specialty specialty)
     {
         referral.Version = 0;
+        WaitingClock.Start(referral, WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority));
         Record(ReferralEventAction.Registered, new
         {
             status = referral.Status.ToString(),
             specialtyId = specialty.Id,
             specialtyName = specialty.Name,
             receivedOn = referral.ReceivedOn.ToString("yyyy-MM-dd"),
-            requestedPriority = referral.RequestedPriority.ToString()
+            requestedPriority = referral.RequestedPriority.ToString(),
+            targetDays = referral.TargetDays,
+            targetOn = Date(referral.TargetOn)
         });
     }
 
@@ -136,13 +149,24 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
             return false;
 
         Record(ReferralEventAction.DetailsEdited, new { fields, changes });
+
+        // A correction of what registration copied the target from (the specialty or the priority asked for) re-reads
+        // it; a corrected date received moves the dates it counts from.
+        if (fields.Contains(SpecialtyField) || fields.Contains(RequestedPriorityField))
+            ChangeTarget(
+                WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority),
+                fields.Contains(SpecialtyField) ? TargetCauseSpecialty : TargetCausePriority);
+        if (fields.Contains(ReceivedOnField))
+            WaitingClock.Recalculate(referral);
         return true;
     }
 
     /// <summary>
     /// Accepts it into <paramref name="pathway"/>, a new pathway made from <paramref name="templateName"/> with the
     /// triager's <paramref name="priority"/>, saved with it. The history records the specialty, the template, the
-    /// priority chosen and the one asked for, and the pathway; never free text.
+    /// priority chosen and the one asked for, and the pathway; never free text. Its clock keeps running; re-read its
+    /// target for the priority chosen first (<see cref="ReTarget"/>), as the pathway's target date is the clock's
+    /// <see cref="Referral.TargetOn"/>.
     /// </summary>
     public void Accept(Guid pathwayId, string templateName, PatientPathwayPriority priority)
     {
@@ -177,6 +201,7 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
             specialtyName = referral.Specialty?.Name,
             rejectionReason = reason.ToString()
         });
+        StopClock(ClockStopReason.Rejected);
     }
 
     /// <summary>
@@ -196,12 +221,14 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
             specialtyId = referral.SpecialtyId,
             specialtyName = referral.Specialty?.Name
         });
+        StopClock(ClockStopReason.RedirectedElsewhere);
     }
 
     /// <summary>
     /// Redirects it to another specialty here: it stays awaiting triage, in <paramref name="specialty"/>'s inbox, from
     /// the same date received. The detail is kept on the referral (<see cref="Referral.RedirectDetail"/>); the history
-    /// records the specialties before and after.
+    /// records the specialties before and after. Its clock keeps running from the same day, with the target re-read
+    /// from the new specialty's table.
     /// </summary>
     public void RedirectToSpecialty(Specialty specialty, string detail)
     {
@@ -217,6 +244,7 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
             previousSpecialtyId = previousId,
             previousSpecialtyName = previousName
         });
+        ChangeTarget(WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority), TargetCauseSpecialty);
     }
 
     /// <summary>Withdraws it (the referrer or the patient withdrew it), with a detail kept on the referral.</summary>
@@ -231,7 +259,120 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         Decide(status);
         referral.DecisionDetail = detail;
         Record(action, new { from = previous.ToString(), to = status.ToString() });
+        if (WaitingClock.StopReasonFor(status) is { } stopReason)
+            StopClock(stopReason);
     }
+
+    /// <summary>
+    /// Re-reads the clock's target for <paramref name="priority"/> from <paramref name="specialty"/>'s table (a
+    /// <see cref="ReferralEventAction.TargetChanged"/> entry, if the days differ): when the triager chooses the priority,
+    /// and when a running or paused clock's pathway changes priority. Nothing once the clock has stopped.
+    /// </summary>
+    public bool ReTarget(Specialty specialty, PatientPathwayPriority priority) =>
+        ChangeTarget(WaitingClock.TargetDaysFor(specialty, priority), TargetCausePriority);
+
+    /// <summary>Sets the clock's target in days, recording the old and new (nothing if unchanged or stopped).</summary>
+    private bool ChangeTarget(int targetDays, string cause)
+    {
+        if (WaitingClock.IsStopped(referral) || targetDays == referral.TargetDays)
+            return false;
+
+        var previous = referral.TargetDays;
+        referral.TargetDays = targetDays;
+        WaitingClock.Recalculate(referral);
+        Record(ReferralEventAction.TargetChanged, new
+        {
+            fromDays = previous,
+            toDays = targetDays,
+            targetOn = Date(referral.TargetOn),
+            cause
+        });
+        return true;
+    }
+
+    /// <summary>
+    /// Pauses the clock today, for a reason the patient chose or caused, until <paramref name="reviewOn"/>. The handler
+    /// checks first that it may (<see cref="WaitingClock.WhyCantPause"/>). The history records the reason by name and
+    /// the review date, never the detail, which is kept on the pause.
+    /// </summary>
+    public ReferralClockPause PauseClock(ClockPauseReason reason, string? detail, DateOnly reviewOn)
+    {
+        var pause = new ReferralClockPause
+        {
+            Id = Guid.NewGuid(),
+            ReferralId = referral.Id,
+            PatientId = referral.PatientId,
+            PausedOn = Today,
+            PausedAtUtc = nowUtc,
+            PausedByUserId = actor.UserId,
+            PausedByUsername = actor.Username,
+            Reason = reason,
+            Detail = detail,
+            ReviewOn = reviewOn
+        };
+        referral.Pauses.Add(pause);
+        referral.PausedSinceOn = Today;
+        referral.PauseReviewOn = reviewOn;
+        Record(ReferralEventAction.ClockPaused, new
+        {
+            pauseId = pause.Id,
+            pauseReason = reason.ToString(),
+            pausedOn = Date(Today),
+            reviewOn = Date(reviewOn)
+        });
+        return pause;
+    }
+
+    /// <summary>
+    /// Ends the open pause today: its days are added to the paused days, so the wait counts from later and the target
+    /// moves on as far. <paramref name="automatic"/> when the clock stopping ended it.
+    /// </summary>
+    public void ResumeClock(ReferralClockPause pause, bool automatic = false)
+    {
+        pause.ResumedOn = Today;
+        pause.ResumedAtUtc = nowUtc;
+        pause.ResumedByUserId = actor.UserId;
+        pause.ResumedByUsername = actor.Username;
+
+        referral.PausedDays += pause.Days;
+        referral.PausedSinceOn = null;
+        referral.PauseReviewOn = null;
+        WaitingClock.Recalculate(referral);
+        Record(ReferralEventAction.ClockResumed, new
+        {
+            pauseId = pause.Id,
+            pauseReason = pause.Reason.ToString(),
+            pausedDays = pause.Days,
+            targetOn = Date(referral.TargetOn),
+            automatic = automatic ? true : (bool?)null
+        });
+    }
+
+    /// <summary>
+    /// Stops the clock today, for good (nothing if it has stopped already). An open pause ends first, so its days don't
+    /// count. The history records why, the days waited, the target and whether it was breached.
+    /// </summary>
+    public void StopClock(ClockStopReason reason)
+    {
+        if (WaitingClock.IsStopped(referral))
+            return;
+
+        if (WaitingClock.IsPaused(referral) && WaitingClock.OpenPause(referral) is { } open)
+            ResumeClock(open, automatic: true);
+
+        referral.StoppedOn = Today;
+        referral.StopReason = reason;
+        Record(ReferralEventAction.ClockStopped, new
+        {
+            stopReason = reason.ToString(),
+            stoppedOn = Date(Today),
+            daysWaited = WaitingClock.DaysWaited(referral, Today),
+            targetDays = referral.TargetDays,
+            breached = WaitingClock.IsBreached(referral, Today)
+        });
+    }
+
+    private static string Date(DateOnly date) => date.ToString("yyyy-MM-dd");
 
     /// <summary>Moves it out of Awaiting triage, by the actor, now.</summary>
     private void Decide(ReferralStatus status)

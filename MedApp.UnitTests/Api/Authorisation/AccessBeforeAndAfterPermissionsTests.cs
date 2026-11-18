@@ -61,7 +61,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AppointmentsController.CancelAppointment 00011
         AppointmentsController.CreateAppointment 00011
         AppointmentsController.GetAppointmentById 00011
+        AppointmentsController.GetAppointmentMessages 00011
+        AppointmentsController.GetPatientMessagingStatus 00011
         AppointmentsController.MarkEnteredInError 00011
+        AppointmentsController.RecordDnaFollowUp 00011
         AppointmentsController.RecordOutcome 00011
         AppointmentsController.RecordPastAppointment 00011
         AppointmentsController.SearchAppointments 00011
@@ -136,6 +139,15 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarSetupController.UpdateActivityType 00001
         CalendarSetupController.UpdateDayTemplate 00011
         CalendarSetupController.UpdateWeekTemplate 00011
+        ClinicsController.CancelSession 00001
+        ClinicsController.CreatePattern 00001
+        ClinicsController.CreateSession 00001
+        ClinicsController.CreateSessions 00001
+        ClinicsController.GetPatterns 00001
+        ClinicsController.GetSession 00011
+        ClinicsController.SearchSessions 00011
+        ClinicsController.UpdatePattern 00001
+        ClinicsController.UpdateSession 00001
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
@@ -143,6 +155,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.SearchPatients 00011
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LetterTemplatesController.ArchiveLetterTemplate 00001
+        LetterTemplatesController.CreateLetterTemplate 00001
+        LetterTemplatesController.GetLetterTemplate 00011
+        LetterTemplatesController.GetLetterTemplates 00011
+        LetterTemplatesController.GetMergeFields 00011
+        LetterTemplatesController.PreviewLetterTemplate 00001
+        LetterTemplatesController.RestoreLetterTemplate 00001
+        LetterTemplatesController.UpdateLetterTemplate 00001
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -189,8 +209,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientPathwaysController.FinishPathwayStage 00011
         PatientPathwaysController.GetPatientPathwayById 00011
         PatientPathwaysController.GetPatientPathwayLabels 00011
+        PatientPathwaysController.ReinstatePathwayStage 00001
         PatientPathwaysController.RequestNoteDeletion 00011
         PatientPathwaysController.SearchPatientPathways 00011
+        PatientPathwaysController.SkipPathwayStage 00011
         PatientPathwaysController.StartPathwayStage 00011
         PatientPathwaysController.UnassignPatientPathway 00001
         PatientPathwaysController.UnlockPathwayStage 00001
@@ -223,9 +245,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011
         ReferralsController.MarkEnteredInError 00011
+        ReferralsController.PauseClock 00011
         ReferralsController.RedirectReferral 00000
         ReferralsController.RegisterReferral 00011
         ReferralsController.RejectReferral 00000
+        ReferralsController.ResumeClock 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
         RolesController.ArchiveRole 00001

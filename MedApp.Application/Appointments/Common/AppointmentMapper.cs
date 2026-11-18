@@ -3,6 +3,7 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Appointments.Common;
 
@@ -10,7 +11,11 @@ public static class AppointmentMapper
 {
     /// <summary>Every user an appointment's response names: who asked for it, booked it, recorded its outcome, and who it's with.</summary>
     public static IEnumerable<Guid> UserIds(Appointment appointment) =>
-        new[] { appointment.CreatedByUserId, appointment.StaffUserId, appointment.BookedByUserId, appointment.OutcomeByUserId }
+        new[]
+            {
+                appointment.CreatedByUserId, appointment.StaffUserId, appointment.BookedByUserId, appointment.OutcomeByUserId,
+                appointment.DnaFollowUpByUserId
+            }
             .OfType<Guid>()
             .Distinct();
 
@@ -66,6 +71,8 @@ public static class AppointmentMapper
             StartUtc = appointment.StartUtc,
             EndUtc = appointment.EndUtc,
             DurationMinutes = appointment is { StartUtc: { } start, EndUtc: { } end } ? (int)(end - start).TotalMinutes : null,
+            ClinicSessionId = appointment.ClinicSessionId,
+            RoomId = appointment.RoomId,
             Notes = appointment.Notes,
             CancelReason = appointment.CancelReason,
             IsAutomatic = appointment.IsAutomatic,
@@ -76,12 +83,18 @@ public static class AppointmentMapper
             BookedByUsername = Username(usernames, appointment.BookedByUserId),
             OutcomeAtUtc = appointment.OutcomeAtUtc,
             OutcomeByUsername = Username(usernames, appointment.OutcomeByUserId),
+            PatientReminderChannel = (appointment.Patient?.ReminderChannel ?? ReminderChannel.None).ToString(),
+            DnaFollowUp = appointment.DnaFollowUp?.ToString(),
+            DnaFollowUpDetail = appointment.DnaFollowUpDetail,
+            DnaFollowUpAtUtc = appointment.DnaFollowUpAtUtc,
+            DnaFollowUpByUsername = Username(usernames, appointment.DnaFollowUpByUserId),
             LastUpdated = appointment.LastUpdated,
             CanBook = canChange && AppointmentWorkflow.CanBook(appointment),
             CanReschedule = canChange && AppointmentWorkflow.CanReschedule(appointment),
             CanRecordOutcome = canChange && AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
             CanCancel = canPause && AppointmentWorkflow.CanCancel(appointment),
             CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment),
+            CanRecordDnaFollowUp = canChange && AppointmentWorkflow.CanRecordDnaFollowUp(appointment),
             CanMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: true),
             CanRecorderMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: false)
         };

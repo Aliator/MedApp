@@ -1,8 +1,10 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatDateTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
+import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
-import {referralFieldWords, rejectionReasonWords} from './referrals';
+import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
+import {skipReasonLabel} from './stageSkips';
 import {specimenStatusLabel} from './specimens';
 import {api, unwrap, type Schemas} from './client';
 
@@ -21,21 +23,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = [
-  'Created',
-  'Stages',
-  'Appointments',
-  'Referrals',
-  'Specimens',
-  'Notes',
-  'Assignments',
-  'Blocks',
-  'Status',
-  'DueDates',
-  'Details',
-  'Files',
-  'Deleted',
-] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -43,6 +31,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Stages: 'Stages',
   Appointments: 'Appointments',
   Referrals: 'Referrals',
+  WaitingTime: 'Waiting time',
   Specimens: 'Specimens',
   Notes: 'Notes',
   Assignments: 'Assignments',
@@ -198,6 +187,23 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
         : {title: `Finished ${stage}`, detail: ''};
     case 'StageUnlocked':
       return {title: `Unlocked ${stage}`, detail: ''};
+    // Skipping: the reason is a fixed choice, for everyone; its detail (in `reason`) is free text, for admins only.
+    case 'StageSkipped':
+      return {title: `Skipped ${stage}`, detail: sentences(skipReasonLabel(entry.skipReason), entry.reason)};
+    // The clinician's choice at a branch point, and the other branches' stages it skipped (names the template's author wrote).
+    case 'BranchChosen': {
+      const skipped = entry.skippedStageNames ?? [];
+      return {
+        title: entry.branch ? `Chose the ${entry.branch} branch at ${stage}` : `Chose a branch at ${stage}`,
+        detail: skipped.length > 0 ? `Skipped: ${skipped.join(', ')}` : '',
+      };
+    }
+    // How it had been skipped, for everyone; why it's reinstated (free text), for admins only.
+    case 'StageReinstated':
+      return {
+        title: `Reinstated ${stage}`,
+        detail: sentences(entry.skipReason ? `Had been skipped: ${skipReasonLabel(entry.skipReason)}` : null, entry.reason),
+      };
     case 'StageNotesUpdated':
       return {title: `Saved notes on ${stage}`, detail: changes.filter(hasValues).map(describeChange).join('; ')};
     // Staff are told that a note was added or edited, and by whom; only admins get its text.
@@ -224,9 +230,10 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Unassigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'StatusChanged':
       return describeStatusChange(entry);
+    // A target date the waiting-time clock moved (a pause's review date, or back to the clock's target) says so.
     case 'DetailsUpdated':
       return {
-        title: entry.kind === 'DueDates' ? 'Target date changed' : 'Details edited',
+        title: entry.fromClock ? 'Target date set by the waiting-time clock' : entry.kind === 'DueDates' ? 'Target date changed' : 'Details edited',
         detail: changes.map(describeChange).join('; '),
       };
     case 'Deleted':
@@ -303,7 +310,8 @@ function describeSpecimenEntry(entry: TimelineEntry): TimelineWording {
 }
 
 /** Whether an entry is from a referral's history (its action is "Referral" and what happened). */
-export const isReferralEntry = (entry: TimelineEntry) => entry.kind === 'Referrals' || (entry.action ?? '').startsWith('Referral');
+export const isReferralEntry = (entry: TimelineEntry) =>
+  entry.kind === 'Referrals' || entry.kind === 'WaitingTime' || (entry.action ?? '').startsWith('Referral');
 
 /** A referral's changed field in words, with its values where the API sends them (dates, priorities, specialties). */
 function describeReferralChange(change: TimelineChange): string {
@@ -369,6 +377,39 @@ function describeReferralEntry(entry: TimelineEntry): TimelineWording {
       return {title: `${referral} withdrawn`, detail: reason ?? ''};
     case 'ReferralEnteredInError':
       return {title: `${referral} marked entered in error`, detail: reason ?? ''};
+    // The waiting-time clock: the pause reason is a fixed choice (everyone); its detail (`reason`) only to admins.
+    case 'ReferralClockPaused':
+      return {
+        title: 'Waiting-time clock paused',
+        detail: sentences(
+          [pauseReasonWords(entry.pauseReason) || null, entry.reviewOn ? `review ${date(entry.reviewOn)}` : null].filter(Boolean).join(', '),
+          reason,
+        ),
+      };
+    case 'ReferralClockResumed':
+      return {
+        title: 'Waiting-time clock resumed',
+        detail: entry.isAutomatic ? 'Resumed automatically, as the clock stopped' : '',
+      };
+    case 'ReferralClockStopped':
+      return {
+        title: 'Waiting-time clock stopped',
+        detail: [
+          stopReasonWords(entry.stopReason) || null,
+          entry.daysWaited != null ? `day ${entry.daysWaited}${entry.targetDays != null ? ` of ${entry.targetDays}` : ''}` : null,
+          entry.breached ? 'breached' : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      };
+    case 'ReferralTargetChanged':
+      return {
+        title: 'Waiting-time target changed',
+        detail:
+          entry.targetDays != null
+            ? `${entry.previousTargetDays != null ? `${entry.previousTargetDays} → ` : ''}${entry.targetDays} days${entry.priority ? ` (${words(entry.priority)} priority)` : ''}`
+            : '',
+      };
     default:
       return {
         title: `${referral} changed`,
@@ -440,6 +481,12 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
     // A walk-in withdrawn: it didn't happen, or is on the wrong patient. Why comes only to admins, as for cancelling.
     case 'AppointmentEnteredInError':
       return {title: `Appointment marked entered in error${about}`, detail: sentences(slot, entry.reason)};
+    // After a Did not attend, what happens next. Its detail (free text) comes only to admins, as the reason.
+    case 'AppointmentDnaFollowUpRecorded':
+      return {
+        title: `Did not attend follow-up recorded${about}: ${dnaFollowUpLabel(entry.dnaFollowUp) || 'unknown'}`,
+        detail: sentences(slot, entry.reason),
+      };
     case 'AppointmentNotesUpdated': {
       const changes = (entry.changes ?? []).filter(hasValues).map(describeChange);
       return {title: `Appointment notes changed${about}`, detail: changes.join('; ')};

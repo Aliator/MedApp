@@ -25,6 +25,8 @@ public sealed class CreateSpecialtyHandler(ISpecialtyRepository repository, Time
             CreatedAt = now,
             LastUpdated = now
         };
+        SpecialtyValidation.ApplyTargets(
+            specialty, request.TargetDaysUrgent, request.TargetDaysHigh, request.TargetDaysMedium, request.TargetDaysLow);
 
         await repository.AddAsync(specialty, cancellationToken);
 

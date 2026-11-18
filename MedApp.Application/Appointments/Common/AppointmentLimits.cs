@@ -5,4 +5,5 @@ public static class AppointmentLimits
 {
     public const int MaxNotesLength = 2000;
     public const int MaxCancelReasonLength = 500;
+    public const int MaxDnaFollowUpDetailLength = 500;
 }

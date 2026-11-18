@@ -29,6 +29,12 @@ public sealed class Appointment
     public DateTime? StartUtc { get; set; }
     public DateTime? EndUtc { get; set; }
 
+    /// <summary>The clinic session it's booked into, if any: it then fills one of the session's slots.</summary>
+    public Guid? ClinicSessionId { get; set; }
+
+    /// <summary>The room it's in, if any: its session's, or one chosen for an appointment outside a session.</summary>
+    public Guid? RoomId { get; set; }
+
     public AppointmentStatus Status { get; set; }
 
     /// <summary>Free text about the patient, treated like pathway notes.</summary>
@@ -57,6 +63,19 @@ public sealed class Appointment
     /// <summary>When and by whom Attended or Did not attend was last recorded.</summary>
     public DateTime? OutcomeAtUtc { get; set; }
     public Guid? OutcomeByUserId { get; set; }
+
+    /// <summary>
+    /// After a Did not attend, what booking staff decided (centre plan decision 132), or null. Kept until the outcome
+    /// changes; the history keeps every one recorded.
+    /// </summary>
+    public DnaFollowUpDecision? DnaFollowUp { get; set; }
+
+    /// <summary>Free text about the follow-up (500 characters), treated like the notes.</summary>
+    public string? DnaFollowUpDetail { get; set; }
+
+    public DateTime? DnaFollowUpAtUtc { get; set; }
+
+    public Guid? DnaFollowUpByUserId { get; set; }
 
     public DateTime LastUpdated { get; set; }
 

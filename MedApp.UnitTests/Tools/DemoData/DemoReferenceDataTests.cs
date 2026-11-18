@@ -3,6 +3,7 @@ using MedApp.Application.Attachments.Common;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using MedApp.Domain.Terminology;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 
@@ -41,14 +42,18 @@ public sealed class DemoReferenceDataTests
             stage.VisitMinutes.Should().BePositive($"{stage.Definition} needs a visit, so the seed books one");
     }
 
-    /// <summary>Every definition is used by a pathway, but the retired one; and the archived pathway is the only archived one.</summary>
+    /// <summary>
+    /// Every live definition is used by a pathway; the retired ones (the paper triage form, and the Referral received and
+    /// Triage stages that referrals replaced, decision 26) by none; and the archived pathway is the only archived one.
+    /// </summary>
     [Test]
-    public void PathwayKinds_UseEveryLiveDefinition_AndOneIsArchived()
+    public void PathwayKinds_UseEveryLiveDefinition_AndNoneOfTheRetiredOnes()
     {
         var used = DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Select(s => s.Definition).ToHashSet();
 
         DemoPathwayKinds.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).Should().BeEquivalentTo(used);
-        DemoPathwayKinds.Definitions.Should().ContainSingle(d => d.IsArchived);
+        DemoPathwayKinds.Definitions.Where(d => d.IsArchived).Select(d => d.Name)
+            .Should().BeEquivalentTo([DemoPathwayKinds.ReferralReceived, DemoPathwayKinds.Triage, "Paper triage form (retired)"]);
         DemoPathwayKinds.PathwayKinds.Should().ContainSingle(p => p.IsArchived).Which.PathwayKind.Should().Be(PathwayKind.SkinLesion2024);
         DemoPathwayKinds.PathwayKinds.Select(p => p.TemplateName).Should().OnlyHaveUniqueItems();
     }
@@ -68,6 +73,72 @@ public sealed class DemoReferenceDataTests
             .Should().OnlyContain(name => visits[name] == VisitRequirement.Suggested);
         new[] { DemoPathwayKinds.ReferralReceived, DemoPathwayKinds.Triage, DemoPathwayKinds.Histology, DemoPathwayKinds.LabTests, DemoPathwayKinds.DischargeLetter }
             .Should().OnlyContain(name => visits[name] == VisitRequirement.None);
+    }
+
+    /// <summary>
+    /// Every template has a clock-stop stage (decision 36): one of its own stages, where the patient is seen (the first
+    /// clinic visit, or the diabetes clinic review), so the wait ends with being seen.
+    /// </summary>
+    [Test]
+    public void PathwayKinds_EachHasAClockStopStage_WhereThePatientIsSeen()
+    {
+        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
+
+        foreach (var kind in DemoPathwayKinds.PathwayKinds)
+        {
+            kind.ClockStopIndex.Should().BeGreaterThanOrEqualTo(0, kind.TemplateName);
+            visits[kind.ClockStop].Should().Be(VisitRequirement.Required, kind.TemplateName);
+        }
+    }
+
+    /// <summary>
+    /// Each specialty's waiting-time targets are ones the app accepts (1 to 365 days), shorter for higher priorities;
+    /// the new service, which nobody belongs to, isn't one of the centre's original five.
+    /// </summary>
+    [Test]
+    public void Specialties_TargetsAreValid_AndTheNewServiceHasNoMembers()
+    {
+        foreach (var name in DemoSpecialties.Names.Append(DemoSpecialties.NewService))
+        {
+            var (urgent, high, medium, low) = DemoSpecialties.Targets(name);
+            new[] { urgent, high, medium, low }.Should().OnlyContain(days => days >= 1 && days <= 365, name);
+            urgent.Should().BeLessThanOrEqualTo(high);
+            high.Should().BeLessThanOrEqualTo(medium);
+            medium.Should().BeLessThanOrEqualTo(low);
+        }
+
+        DemoSpecialties.Names.Should().NotContain(DemoSpecialties.NewService);
+        Enum.GetValues<StaffKind>().Should().OnlyContain(kind => !DemoSpecialties.For(kind).Contains(DemoSpecialties.NewService));
+    }
+
+    /// <summary>What staff "type" on referrals fits the app's limits, and the practices are distinct invented names.</summary>
+    [Test]
+    public void ReferralTexts_FitTheAppsLimits()
+    {
+        var random = new Random(Seed);
+        var kinds = DemoPathwayKinds.PathwayKinds.SelectMany(p => ProcedureKinds.For(p.PathwayKind)).Append(null).ToList();
+
+        for (var i = 0; i < 200; i++)
+        {
+            ReferralTexts.Reason(kinds[i % kinds.Count], random).Length.Should().BeInRange(20, Referral.MaxReasonLength);
+            ReferralTexts.Clinician(random)?.Length.Should().BeLessThanOrEqualTo(Referral.MaxClinicianLength);
+            foreach (var reason in Enum.GetValues<ReferralRejectionReason>())
+                ReferralTexts.RejectionDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(Referral.MaxDetailLength);
+            foreach (var reason in Enum.GetValues<ClockPauseReason>())
+                ReferralTexts.PauseDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(ReferralClockPause.MaxDetailLength);
+            foreach (var specialty in DemoSpecialties.Names)
+            {
+                var (elsewhere, detail) = ReferralTexts.Elsewhere(specialty, random);
+                elsewhere.Length.Should().BeLessThanOrEqualTo(Referral.MaxRedirectedToLength);
+                detail.Length.Should().BeInRange(1, Referral.MaxDetailLength);
+            }
+        }
+
+        ReferralTexts.RejectionDetail(ReferralRejectionReason.Other, random).Should().NotBeNullOrWhiteSpace("Other needs a detail");
+        ReferralTexts.PauseDetail(ClockPauseReason.Other, random).Should().NotBeNullOrWhiteSpace("Other needs a detail");
+        ReferralTexts.WithdrawalDetail(random).Length.Should().BeInRange(1, Referral.MaxDetailLength);
+        ReferralTexts.EnteredInErrorDetail.Length.Should().BeInRange(1, Referral.MaxDetailLength);
+        ReferralTexts.Practices.Should().OnlyHaveUniqueItems().And.OnlyContain(p => p.Length <= Referral.MaxPracticeLength);
     }
 
     /// <summary>The two pathways that see only women, or only men, see only adults old enough; children only where the story says.</summary>

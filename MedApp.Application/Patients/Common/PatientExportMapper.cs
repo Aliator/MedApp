@@ -35,11 +35,16 @@ public static class PatientExportMapper
         record.Pathways.SelectMany(PathwayMapper.UserIds)
             .Concat(record.Appointments.SelectMany(AppointmentUserIds))
             .Concat(ExportedNotifications(record).Select(n => n.UserId))
+            .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
             .Distinct();
 
     private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
-        new[] { appointment.StaffUserId, appointment.CreatedByUserId, appointment.BookedByUserId, appointment.OutcomeByUserId }
+        new[]
+            {
+                appointment.StaffUserId, appointment.CreatedByUserId, appointment.BookedByUserId, appointment.OutcomeByUserId,
+                appointment.DnaFollowUpByUserId
+            }
             .OfType<Guid>();
 
     public static PatientExportResponse ToResponse(
@@ -97,7 +102,12 @@ public static class PatientExportMapper
                             StartedAtUtc = s.StartedAtUtc,
                             StartedBy = s.StartedByUserId is null ? null : Username(s.StartedByUserId),
                             FinishedAtUtc = s.CompletedAtUtc,
-                            FinishedBy = s.CompletedByUserId is null ? null : Username(s.CompletedByUserId)
+                            FinishedBy = s.CompletedByUserId is null ? null : Username(s.CompletedByUserId),
+                            SkippedAtUtc = s.SkippedAtUtc,
+                            SkippedBy = s.SkippedByUserId is null ? null : Username(s.SkippedByUserId),
+                            SkipReason = s.SkipReason?.ToString(),
+                            SkipDetail = s.SkipDetail,
+                            Branch = s.Branch
                         })
                         .ToList()
                 })
@@ -164,7 +174,28 @@ public static class PatientExportMapper
                     BookedAtUtc = a.BookedAtUtc,
                     BookedBy = a.BookedByUserId is null ? null : Username(a.BookedByUserId),
                     OutcomeAtUtc = a.OutcomeAtUtc,
-                    OutcomeBy = a.OutcomeByUserId is null ? null : Username(a.OutcomeByUserId)
+                    OutcomeBy = a.OutcomeByUserId is null ? null : Username(a.OutcomeByUserId),
+                    DnaFollowUp = a.DnaFollowUp?.ToString(),
+                    DnaFollowUpDetail = a.DnaFollowUpDetail,
+                    DnaFollowUpAtUtc = a.DnaFollowUpAtUtc,
+                    DnaFollowUpBy = a.DnaFollowUpByUserId is null ? null : Username(a.DnaFollowUpByUserId)
+                })
+                .ToList(),
+            Messages = record.PatientMessages
+                .Select(m => new ExportedPatientMessageResponse
+                {
+                    AppointmentId = m.AppointmentId,
+                    Kind = m.Kind.ToString(),
+                    Channel = m.Channel.ToString(),
+                    Destination = m.Destination,
+                    Body = m.Body,
+                    AppointmentStartUtc = m.AppointmentStartUtc,
+                    Status = m.Status.ToString(),
+                    StatusReason = m.StatusReason,
+                    RequestedBy = m.RequestedByUserId is null ? null : Username(m.RequestedByUserId),
+                    CreatedAtUtc = m.CreatedAtUtc,
+                    SentAtUtc = m.SentAtUtc,
+                    StatusAtUtc = m.StatusAtUtc
                 })
                 .ToList(),
             // As the pathways' history: staff by the username recorded at the time.
@@ -250,7 +281,26 @@ public static class PatientExportMapper
                     DecisionDetail = r.DecisionDetail,
                     RedirectedTo = r.RedirectedTo,
                     RedirectDetail = r.RedirectDetail,
-                    PathwayId = r.PathwayId
+                    PathwayId = r.PathwayId,
+                    TargetDays = r.TargetDays,
+                    WaitStartOn = r.WaitStartOn,
+                    TargetOn = r.TargetOn,
+                    PausedDays = r.PausedDays,
+                    StoppedOn = r.StoppedOn,
+                    StopReason = r.StopReason?.ToString(),
+                    Pauses = r.Pauses
+                        .OrderBy(p => p.PausedAtUtc).ThenBy(p => p.Id)
+                        .Select(p => new ExportedClockPauseResponse
+                        {
+                            PausedOn = p.PausedOn,
+                            PausedBy = p.PausedByUsername,
+                            Reason = p.Reason.ToString(),
+                            Detail = p.Detail,
+                            ReviewOn = p.ReviewOn,
+                            ResumedOn = p.ResumedOn,
+                            ResumedBy = p.ResumedByUsername
+                        })
+                        .ToList()
                 })
                 .ToList(),
             ReferralHistory = record.ReferralHistory
@@ -362,6 +412,7 @@ public static class PatientExportMapper
         AddressLines = PostalAddress.Split(patient.AddressLines).ToList(),
         Postcode = patient.Postcode,
         MobilePhone = patient.MobilePhone,
+        ReminderChannel = patient.ReminderChannel.ToString(),
         PracticeName = practice?.Id == patient.PracticeId ? practice?.Name : null,
         PracticeOdsCode = practice?.Id == patient.PracticeId ? practice?.OdsCode : null,
         CreatedAt = patient.CreatedAt,

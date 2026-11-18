@@ -56,6 +56,21 @@ async function openFirstSpecimen(page: Page) {
 }
 
 /**
+ * Opens the pathway of the first referral on the waiting list (accepted, its clock not yet stopped), through the
+ * referral's "Open its pathway" link, as the parity data names none: React only, and only when there is one (otherwise
+ * the screen is the list or the referral). Ends on the pathway's page, with its Referral and wait section.
+ */
+async function openFirstWaitingPathway(page: Page) {
+  await openFirstReferral(page);
+  const pathway = page.getByRole('link', { name: 'Open its pathway' });
+  if (await pathway.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+    await pathway.click();
+    await page.getByRole('heading', { name: 'Referral and wait' }).waitFor();
+    await settle(page);
+  }
+}
+
+/**
  * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
  * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
  */
@@ -182,6 +197,69 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-book-clinic-slots',
+    title: 'Book Appointment from New, on Clinic slots: the sessions with free slots in the next four weeks (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('button', { name: 'Clinic slots' }).click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-week',
+    title: "Clinics: this week's clinic sessions by day, time and room, with how full each is",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinics', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-session-dialog',
+    title: "A clinic session's dialog: its details and each slot, free or with its patient (the first session this week, if any)",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      const open = page.getByRole('button', { name: /^Open the / }).first();
+      if (await open.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+        await open.click();
+        await waitVisible(page, DIALOG);
+      }
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-new-session-dialog',
+    title: 'New Clinic Session: clinician, day, start and end in their working day, slot length, room and specialty (not saved)',
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Session' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-patterns',
+    title: 'Clinic Patterns: clinics that repeat, each with Edit and Create Sessions',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinic Patterns', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-pattern-dialog',
+    title: 'New Clinic Pattern: clinician, day and times, slots, how often, from and until, room and specialty (not saved)',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Pattern' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-record-past-dialog',
     title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
     path: '/calendar',
@@ -258,6 +336,11 @@ export const screens: Screen[] = [
     },
   },
   { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
+  {
+    name: 'requires-appointment-dna',
+    title: 'Requires Appointment, Did not attend: missed appointments with no later one, oldest first, with their follow-up',
+    path: '/calendar/requires-appointment?view=didNotAttend',
+  },
   { name: 'my-tasks', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
@@ -348,6 +431,16 @@ export const screens: Screen[] = [
   },
   { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
+    name: 'referrals-waiting',
+    title: 'Referrals: the waiting list (accepted, the clock not stopped), longest wait first, with each wait and target date',
+    path: '/referrals?view=waiting',
+  },
+  {
+    name: 'referrals-paused',
+    title: 'Referrals: the paused clocks, by review date, past ones flagged Review overdue (hazard H-42)',
+    path: '/referrals?view=paused',
+  },
+  {
     name: 'referral-register',
     title: 'Register referral for a patient: the banner, their referrals awaiting triage, and the details from the letter',
     path: (d) => `/referrals/new?patientId=${d.patientId}`,
@@ -400,6 +493,28 @@ export const screens: Screen[] = [
         await waitVisible(page, DIALOG);
       }
       await settle(page);
+    },
+  },
+  {
+    name: 'pathway-referral-wait',
+    title:
+      "A pathway from a referral: its Referral and wait section, with the clock (day N of the target, Breached, Paused), the pauses and Pause or Resume Clock (the waiting list's first)",
+    path: '/referrals?view=waiting',
+    prepare: async (page) => openFirstWaitingPathway(page),
+  },
+  {
+    name: 'pathway-pause-clock',
+    title:
+      "Pausing a referral's waiting-time clock from its pathway: the patient, why (a fixed choice), a detail and the review date (only opened, never confirmed)",
+    path: '/referrals?view=waiting',
+    prepare: async (page) => {
+      await openFirstWaitingPathway(page);
+      const pause = page.getByRole('button', { name: 'Pause Clock' });
+      if (await pause.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await pause.click();
+        await waitVisible(page, DIALOG);
+        await settle(page);
+      }
     },
   },
   {
@@ -508,6 +623,26 @@ export const screens: Screen[] = [
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Appointments' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'pathway-branches',
+    title: "Pathway page of a template that branches: its stages' Optional, Branch point and Branch tokens, and skipped ones struck through with the reason",
+    path: (d) => `/pathways/${d.branchingPathwayId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingPathwayId, 'No pathway from a template that branches (the demo data has them from PR 28).');
+      await page.getByRole('heading', { name: 'Stages' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'template-branches',
+    title: 'Template editor: Optional and Branch point on each stage, a Branch name after a branch point, branches indented',
+    path: (d) => `/admin/pathway-templates/${d.branchingTemplateId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingTemplateId, 'No template that branches (the demo data has them from PR 28).');
+      await page.getByRole('list', { name: 'Stages in order' }).waitFor();
       await settle(page);
     },
   },
@@ -708,10 +843,10 @@ export const screens: Screen[] = [
   { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },
   {
     name: 'specialty-dialog',
-    title: 'Rename specialty dialog (not saved)',
+    title: 'Edit specialty dialog, with its waiting-time targets (not saved)',
     path: '/admin/specialties',
     prepare: async (page) => {
-      await rowAction(page, /rename specialty/i).click();
+      await rowAction(page, /edit specialty/i).click();
       await waitVisible(page, DIALOG);
     },
   },
@@ -743,6 +878,27 @@ export const screens: Screen[] = [
     path: '/admin/pathway-templates/new',
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'letter-templates-list',
+    title: "Letter templates (admin), archived ones shown too: every specialty's first, then by specialty",
+    path: '/admin/letter-templates?status=any',
+  },
+  {
+    name: 'letter-template-new',
+    title: 'New letter template: details, text and preview, beside the merge fields',
+    path: '/admin/letter-templates/new',
+  },
+  {
+    name: 'letter-template-edit',
+    title: 'Edit a letter template (needs at least one)',
+    path: '/admin/letter-templates?status=any',
+    prepare: async (page) => {
+      // Edit is a link to the template's page.
+      await page.getByRole('table').getByRole('link', { name: /edit letter template/i }).first().click();
+      await page.getByRole('heading', { name: 'Edit Letter Template' }).waitFor();
       await settle(page);
     },
   },

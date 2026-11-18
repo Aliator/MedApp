@@ -46,7 +46,7 @@ public static class PrivacyTestConstants
         NoteDeletionRequests = record.NoteDeletionRequests,
         Activity = record.Activity,
         Appointments = record.Appointments,
-        AppointmentHistory = record.AppointmentHistory,
+        AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
         Notifications = record.Notifications,
         Attachments = record.Attachments,
         Referrals = [],
@@ -64,7 +64,7 @@ public static class PrivacyTestConstants
         NoteDeletionRequests = requests,
         Activity = record.Activity,
         Appointments = record.Appointments,
-        AppointmentHistory = record.AppointmentHistory,
+        AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
         Notifications = record.Notifications,
         Attachments = record.Attachments,
         Referrals = [],
@@ -115,6 +115,7 @@ public static class PrivacyTestConstants
             ],
             Appointments = appointments,
             AppointmentHistory = appointments.SelectMany(a => CreateAppointmentHistory(a, pathways[0])).ToList(),
+            PatientMessages = [],
             Notifications = pathways
                 .Select(p => new Notification
                 {

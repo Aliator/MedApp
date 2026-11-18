@@ -99,6 +99,30 @@ public static class TimelineMapper
                 response.Changes = [Change("stageNotes", details, isAdmin)];
                 break;
 
+            // The reason is a fixed choice, for everyone; its detail is free text, for admins only.
+            case StageSkipped:
+                response.SkipReason = Text(details, "skipReason");
+                response.Reason = isAdmin ? Text(details, "detail") : null;
+                break;
+
+            // The branch and the stages skipped are names the template's author wrote: everyone sees them.
+            case BranchChosen:
+                response.Branch = Text(details, "branch");
+                response.SkippedStageNames = details.TryGetValue("skippedStages", out var skippedStages)
+                                             && skippedStages.ValueKind == JsonValueKind.Array
+                    ? skippedStages.EnumerateArray()
+                        .Where(s => s.ValueKind == JsonValueKind.String)
+                        .Select(s => s.GetString()!)
+                        .ToList()
+                    : [];
+                break;
+
+            // Why it was reinstated is free text, for admins only; how it had been skipped is a fixed choice.
+            case StageReinstated:
+                response.SkipReason = Text(details, "skipReason");
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
             // The entry holds only the note's ID and version; its text, from the note versions, is for admins only.
             case NoteAdded or NoteEdited:
                 response.Changes =
@@ -131,6 +155,8 @@ public static class TimelineMapper
                 response.Changes = changes.EnumerateObject()
                     .Select(c => Change(c.Name, ObjectOf(c.Value), isAdmin || PublicValueFields.Contains(c.Name)))
                     .ToList();
+                // A target date the waiting-time clock moved, rather than someone by hand.
+                response.FromClock = Text(details, "source") == Referrals.Common.WaitingClock.AuditSource;
                 break;
 
             case Deleted:
@@ -271,6 +297,12 @@ public static class TimelineMapper
             case AppointmentEventAction.NotesUpdated:
                 response.Changes = [Change("appointmentNotes", details, isAdmin)];
                 break;
+
+            case AppointmentEventAction.DnaFollowUpRecorded:
+                // The decision is a fixed choice; its detail is free text, for admins only.
+                response.DnaFollowUp = Text(details, "decision");
+                response.Reason = isAdmin ? Text(details, "detail") : null;
+                break;
         }
 
         return response;
@@ -292,7 +324,7 @@ public static class TimelineMapper
         var response = new PatientTimelineEntryResponse
         {
             Id = entry.Id,
-            Kind = nameof(PatientTimelineKind.Referrals),
+            Kind = Queries.GetPatientTimeline.ReferralTimelineSearch.KindOf(entry.Action).ToString(),
             Action = ReferralAction + entry.Action,
             AtUtc = entry.AtUtc,
             Username = entry.Username,
@@ -349,6 +381,30 @@ public static class TimelineMapper
                 response.PreviousSpecialtyName = details.PreviousSpecialtyName;
                 // The referral keeps the latest redirection's detail only.
                 response.Reason = isAdmin ? row.RedirectDetail : null;
+                break;
+
+            // The waiting-time clock: reasons by name, dates and days; a pause's detail is free text, for admins only.
+            case Domain.Referrals.ReferralEventAction.ClockPaused:
+                response.PauseReason = details.PauseReason;
+                response.ReviewOn = details.ReviewOn;
+                response.Reason = isAdmin ? row.PauseDetail : null;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.ClockResumed:
+                response.PauseReason = details.PauseReason;
+                response.IsAutomatic = details.Automatic;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.ClockStopped:
+                response.StopReason = details.StopReason;
+                response.DaysWaited = details.DaysWaited;
+                response.TargetDays = details.TargetDays;
+                response.Breached = details.Breached;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.TargetChanged:
+                response.PreviousTargetDays = details.PreviousTargetDays;
+                response.TargetDays = details.TargetDays;
                 break;
 
             default:

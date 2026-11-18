@@ -42,6 +42,12 @@ public sealed class PatientExportResponse
     /// <summary>Every change to the patient's appointments, oldest first.</summary>
     public List<ExportedAppointmentHistoryEntryResponse> AppointmentHistory { get; set; } = [];
 
+    /// <summary>
+    /// Every text and email to the patient about their appointments, oldest first: where it went, what it said and what
+    /// became of it, and those that couldn't go, with why.
+    /// </summary>
+    public List<ExportedPatientMessageResponse> Messages { get; set; } = [];
+
     /// <summary>Who viewed, changed or exported the record, oldest first (this export included).</summary>
     public List<ExportedAccessEntryResponse> AccessLog { get; set; } = [];
 
@@ -134,6 +140,9 @@ public sealed class ExportedPatientResponse
 
     /// <summary>A UK mobile in international form (<c>+447…</c>), or null.</summary>
     public string? MobilePhone { get; set; }
+
+    /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail.</summary>
+    public string ReminderChannel { get; set; } = "None";
 
     /// <summary>The GP practice they're registered with, by name, or null.</summary>
     public string? PracticeName { get; set; }
@@ -264,6 +273,15 @@ public sealed class ExportedStageResponse
     public string? StartedBy { get; set; }
     public DateTime? FinishedAtUtc { get; set; }
     public string? FinishedBy { get; set; }
+
+    /// <summary>When it was skipped, by whom, why (NotNeeded, PatientDeclined, Other or BranchNotChosen) and the detail given.</summary>
+    public DateTime? SkippedAtUtc { get; set; }
+    public string? SkippedBy { get; set; }
+    public string? SkipReason { get; set; }
+    public string? SkipDetail { get; set; }
+
+    /// <summary>The branch it belongs to, if any (a name the template's author wrote).</summary>
+    public string? Branch { get; set; }
 }
 
 /// <summary>One change to one of the patient's pathways, as the export gives it.</summary>
@@ -377,6 +395,45 @@ public sealed class ExportedAppointmentResponse
     public string? BookedBy { get; set; }
     public DateTime? OutcomeAtUtc { get; set; }
     public string? OutcomeBy { get; set; }
+
+    /// <summary>After a Did not attend, the follow-up recorded: Rebook, ClinicianToReview or NoFurtherAppointment.</summary>
+    public string? DnaFollowUp { get; set; }
+
+    public string? DnaFollowUpDetail { get; set; }
+    public DateTime? DnaFollowUpAtUtc { get; set; }
+    public string? DnaFollowUpBy { get; set; }
+}
+
+/// <summary>A text or email to the patient, as the export gives it. Who asked for it by username.</summary>
+public sealed class ExportedPatientMessageResponse
+{
+    public Guid AppointmentId { get; set; }
+
+    /// <summary>AppointmentReminder, AppointmentMoved, AppointmentCancelled or MissedAppointment.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>Text or Email.</summary>
+    public string Channel { get; set; } = string.Empty;
+
+    /// <summary>The mobile or email address it went to; empty when it couldn't go.</summary>
+    public string Destination { get; set; } = string.Empty;
+
+    /// <summary>The text as sent; empty when it couldn't go.</summary>
+    public string Body { get; set; } = string.Empty;
+
+    public DateTime AppointmentStartUtc { get; set; }
+
+    /// <summary>Pending, Sent, Delivered, Failed, Cancelled or NotSent.</summary>
+    public string Status { get; set; } = string.Empty;
+
+    public string? StatusReason { get; set; }
+
+    /// <summary>Who asked for it, or null for a reminder the app sent.</summary>
+    public string? RequestedBy { get; set; }
+
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime? SentAtUtc { get; set; }
+    public DateTime? StatusAtUtc { get; set; }
 }
 
 /// <summary>One change to one of the patient's appointments, as the export gives it.</summary>
@@ -428,6 +485,29 @@ public sealed class ExportedReferralResponse
 
     /// <summary>The pathway it was accepted into, if any.</summary>
     public Guid? PathwayId { get; set; }
+
+    /// <summary>Its waiting-time clock: the target in days, the day the wait counts from, the target date, the days paused, and when and why it stopped.</summary>
+    public int TargetDays { get; set; }
+    public DateOnly WaitStartOn { get; set; }
+    public DateOnly TargetOn { get; set; }
+    public int PausedDays { get; set; }
+    public DateOnly? StoppedOn { get; set; }
+    public string? StopReason { get; set; }
+
+    /// <summary>The clock's pauses, with who started and ended each (by username only).</summary>
+    public List<ExportedClockPauseResponse> Pauses { get; set; } = [];
+}
+
+/// <summary>A pause of a referral's waiting-time clock, in the export.</summary>
+public sealed class ExportedClockPauseResponse
+{
+    public DateOnly PausedOn { get; set; }
+    public string PausedBy { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string? Detail { get; set; }
+    public DateOnly ReviewOn { get; set; }
+    public DateOnly? ResumedOn { get; set; }
+    public string? ResumedBy { get; set; }
 }
 
 /// <summary>One change to a referral in a patient's export, by the username recorded at the time.</summary>

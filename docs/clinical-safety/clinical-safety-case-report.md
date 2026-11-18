@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.10, draft |
+| **Version** | 0.11, draft |
 | **Date** | 16 November 2026 |
 | **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56), with file attachments (branch `feature/file-attachments`) added in version 0.4. |
 | **Manufacturer** | [Manufacturer name] |
@@ -126,7 +126,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Every change to an appointment is kept in its history | `AppointmentChange`, `AppointmentEvent`; decision 19 |
 | Tests | Unit tests for `WorkingHours`, `TemplateHistory`, `CalendarProjection` (with a clock change), `CalendarClashes`, `AppointmentWorkflow` and the visit rule; integration tests for clashes (with two bookings racing), the visit rule and the admin bypass, projection across a clock change, and the status changes (plan, section 7) |
 
-**Limits:** MedApp doesn't contact patients, so cancellations and changes rely on the organisation (H-36); nothing flags a Requested appointment that has waited too long (H-30); a template change can overlap appointments already booked, which is shown but not resolved (H-31, H-35).
+**Limits:** MedApp contacts patients only if the organisation turns texts and emails on, and only those who chose them, so cancellations and changes still rely on the organisation (H-36; messages are a courtesy, H-54); nothing flags a Requested appointment that has waited too long (H-30); a template change can overlap appointments already booked, which is shown but not resolved (H-31, H-35).
 
 ### Claim 7: The residual risk of the release is acceptable
 
@@ -248,7 +248,8 @@ This report holds only if each deploying organisation:
 - **books and follows up visits:** reviews the Requires Appointment list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
 - **handles referrals safely** (once it uses them): gives the permission to register referrals, and later to triage them, only to the right people, with a triager for every specialty; checks the referral inbox every working day; keeps a paper or downtime process for referrals received when MedApp is unavailable, or refused for a restricted patient (the letter goes to an admin); and, once the waiting-time clock exists, sets its targets and reviews its waiting list;
 - **handles specimens safely** (once it uses them): gives the permissions to record and to process specimens only to the right people; sets each specimen type's expected turnaround with its lab; checks the lab worklist every working day; checks each label against the patient before a specimen leaves; and keeps a downtime process for lab work;
-- **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp doesn't contact patients;
+- **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp's texts and emails, if turned on, are a courtesy on top of it;
+- **follows up missed appointments:** someone owns the Did not attend view and works it on a set schedule;
 - **reviews stages finished without a visit,** and limits the admin bypass to cases with a recorded reason;
 - **trains its staff** in MedApp, including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist must be set to all open work to show everything assigned to them;
 - **has at least two admins,** so assignment and unlocking never wait on one person;
@@ -287,4 +288,5 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.7 | 16 November 2026 | Staff calendars and appointments: what's in the release, a claim for booking times, clashes and the visit rule, the draft hazards H-30 to H-36 (ratings left for the CSO), and the assumptions about calendar setup, visits and telling patients. On merging file attachments: H-23 to H-29 with the calendar hazards in the count and the tables. On merging email and two-factor sign-in (#86): the hazard log's version 0.9 cited, with no change to the hazards or counts | AI coding agent, for review |
 | 0.8 | 18 November 2026 | Referrals (branch `feature/referrals`, Phase 2's PR 5): what's in the release, the draft hazards H-40 to H-44 in the summary, the hazard table and the outstanding hazards (ratings left for the CSO), triage not yet built as a known defect, and the deploying organisation's duties for referrals. H-37 to H-39 are still to be added | AI coding agent, for review |
 | 0.9 | 18 November 2026 | Triage (branch `feature/triage`, Phase 2's PR 6): the summary, H-40 and H-41 in the hazard table (triage, the registrant told, the Specialties warning, the confirmations and narrowed choices built, to verify), and the known defect now "not yet verified" rather than "not built" | AI coding agent, for review |
-| 0.10 | 18 November 2026 | Specimens (branch `feature/specimens`, Phase 3's PR 13): what's in the release, the draft hazards H-45 and H-47 in the summary, the hazard table and the outstanding hazards (ratings left for the CSO), two known defects (no correction yet for a report on the wrong specimen; no result made from a report until PR 14), and the deploying organisation's duties for specimens | AI coding agent, for review |
+| 0.10 | 18 November 2026 | Patient reminders and the Did not attend view (branch `feature/patient-reminders`, Phase 4's PR 26): the calendar limits and the organisation's duties now say MedApp texts and emails patients only if turned on, as a courtesy, and add following up missed appointments | AI coding agent, for review |
+| 0.11 | 18 November 2026 | Specimens (branch `feature/specimens`, Phase 3's PR 13): what's in the release, the draft hazards H-45 and H-47 in the summary, the hazard table and the outstanding hazards (ratings left for the CSO), two known defects (no correction yet for a report on the wrong specimen; no result made from a report until PR 14), and the deploying organisation's duties for specimens | AI coding agent, for review |

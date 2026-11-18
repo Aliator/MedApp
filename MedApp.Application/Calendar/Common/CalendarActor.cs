@@ -22,6 +22,9 @@ public sealed record CalendarActor(Guid UserId, string Username, IReadOnlySet<Pe
     /// </summary>
     public bool CanSetHours => Has(Permission.ManageClinics) || Has(Permission.ManageAnyCalendar);
 
+    /// <summary>Whether they may add, change and cancel clinic sessions and patterns (centre plan decision 125).</summary>
+    public bool CanManageClinics => Has(Permission.ManageClinics);
+
     /// <summary>Whether they may arrange, change and cancel meetings.</summary>
     public bool CanArrangeMeetings => Has(Permission.ArrangeMeetings);
 

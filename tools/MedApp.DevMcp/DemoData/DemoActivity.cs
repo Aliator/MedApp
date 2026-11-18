@@ -8,6 +8,7 @@ using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Referrals;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
@@ -20,7 +21,8 @@ namespace MedApp.DevMcp.DemoData;
 /// The activity log over the last 60 days, in its own format, written with the app's writer (<see cref="IActivityLog"/>,
 /// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and pathways
 /// by the people working on them (once per view window, <see cref="ActivityOptions.ViewWindowMinutes"/>, as the app
-/// records them), the patients each list showed, and searches by their filter names
+/// records them), the referrals they registered and triaged (<c>ReferralViewed</c>, with the referral's ID), the
+/// patients each list showed (the referral inbox among them), and searches by their filter names
 /// (<see cref="PatientSearch.FiltersUsed"/>) and counts, never the terms. A patient is seen only while they're on the
 /// system: from their registration, and not after they were anonymised. Today's sign-ins go through the app's own
 /// sign-in command instead, so they come with live sessions; so does the locked account's run of wrong passwords.
@@ -48,6 +50,9 @@ public static class DemoActivity
     /// <summary>What a wrong password writes (<c>LoginHandler</c>): by the account tried if it exists, else by the name typed.</summary>
     public static (ActivityAction Action, object Details) RefusedSignIn { get; } =
         (ActivityAction.SignInFailed, new { reason = "InvalidCredentials" });
+
+    /// <summary>What opening a referral records with its <c>ReferralViewed</c> entry (<c>GetReferralByIdHandler</c>): its ID only.</summary>
+    public static object ReferralViewDetails(Guid referralId) => new { referralId };
 
     /// <summary>A patient search's entry details (<c>SearchPatientsHandler</c>): the filters used, and how many it found.</summary>
     public static object SearchDetails(IReadOnlyList<string> filters, int resultCount) => new { filters, resultCount };
@@ -101,7 +106,7 @@ public static class DemoActivity
         var random = world.Random;
         var timeline = world.Timeline;
         var lastView = new Dictionary<(Guid, ActivityAction, Guid, Guid?), DateTime>();
-        var active = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting).ToList();
+        var active = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting or PatientRole.ReferredOnly).ToList();
         var byId = patients.ToDictionary(p => p.Id);
         var openPatients = world.Pathways.Where(p => PathwayWorkflow.IsOpen(p.Status)).Select(p => p.PatientId).Distinct().ToList();
         var dueForReview = patients.Where(p => p.Role == PatientRole.ImportedDue).Select(p => p.Id).ToList();
@@ -120,17 +125,30 @@ public static class DemoActivity
             entries.Add(log.Entry(action, patientId, details, pathwayId: pathwayId, actor: actor ?? by!.ActivityActor));
         }
 
-        // A view, unless the same person saw the same thing within the view window (ActivityLog.RecordViewsAsync); and
-        // only of a patient on the system then (registered, and not yet anonymised).
-        void View(DateTime at, ActivityAction action, StaffMember by, Guid patientId, Guid? pathwayId = null)
+        // A view, unless the same person saw the same thing within the view window (ActivityLog.RecordViewsAsync, and
+        // RecordViewAsync for a referral, keyed by its ID); and only of a patient on the system then (registered, and not
+        // yet anonymised).
+        void View(DateTime at, ActivityAction action, StaffMember by, Guid patientId, Guid? pathwayId = null, Guid? referralId = null)
         {
             if (!byId[patientId].IsOnSystemAt(at))
                 return;
-            var key = (by.Id, action, patientId, pathwayId);
+            var key = (by.Id, action, patientId, pathwayId ?? referralId);
             if (lastView.TryGetValue(key, out var last) && at - last < viewWindow && at >= last)
                 return;
             lastView[key] = at;
-            Add(at, action, by, patientId, pathwayId: pathwayId);
+            Add(at, action, by, patientId, referralId is { } id ? ReferralViewDetails(id) : null, pathwayId: pathwayId);
+        }
+
+        // The referral inbox (awaiting triage, longest wait first), as each person opens it: the coordinator sees every
+        // specialty's, a triager their own specialties'.
+        var specialtyNames = world.Specialties.ToDictionary(s => s.Key, s => s.Value.Name);
+        IEnumerable<Guid> Inbox(StaffMember member, DateTime at)
+        {
+            var mine = DemoSpecialties.For(member.Kind);
+            return world.Referrals
+                .Where(r => r.RegisteredAtUtc <= at && (r.DecidedAtUtc is null || r.DecidedAtUtc > at)
+                            && (member.Kind == StaffKind.BookingCoordinator || mine.Contains(specialtyNames[r.SpecialtyId])))
+                .OrderBy(r => r.ReceivedOn).Take(25).Select(r => r.PatientId);
         }
 
         var first = UkTime.DateOf(timeline.ActivityFromUtc);
@@ -174,6 +192,11 @@ public static class DemoActivity
                     foreach (var patientId in openPatients.OrderBy(_ => random.Next()).Take(random.Next(4, 11)))
                         View(signIn.AddMinutes(4), ActivityAction.PatientListed, member, patientId);
 
+                // The coordinator and the triagers look at the referral inbox first thing.
+                if (member.Kind == StaffKind.BookingCoordinator || world.Specialties.Values.Any(s => DemoReferrals.CanTriage(member, s.Name, signIn)))
+                    foreach (var patientId in Inbox(member, signIn.AddMinutes(3)))
+                        View(signIn.AddMinutes(3), ActivityAction.PatientListed, member, patientId);
+
                 // Searches: by filter names and the count found, never what was typed.
                 var searches = member.Kind == StaffKind.BookingCoordinator ? random.Next(2, 6) : random.Next(0, 2);
                 for (var s = 0; s < searches; s++)
@@ -190,6 +213,13 @@ public static class DemoActivity
                 // Every change they made, they made from the record: the patient's page, then the pathway's.
                 foreach (var touch in touches)
                 {
+                    // A referral's page, which opens once it's registered, and shows the triage decision once made.
+                    if (touch.ReferralId is { } referralId)
+                    {
+                        View(touch.AtUtc.AddSeconds(random.Next(5, 90)), ActivityAction.ReferralViewed, member, touch.PatientId, referralId: referralId);
+                        continue;
+                    }
+
                     View(touch.AtUtc.AddMinutes(-random.Next(2, 6)), ActivityAction.PatientViewed, member, touch.PatientId);
                     if (touch.PathwayId is { } pathwayId)
                         View(touch.AtUtc.AddSeconds(-random.Next(20, 110)), ActivityAction.PathwayViewed, member, touch.PatientId, pathwayId);

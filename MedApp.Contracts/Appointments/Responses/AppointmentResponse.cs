@@ -39,6 +39,12 @@ public sealed class AppointmentResponse
 
     public int? DurationMinutes { get; set; }
 
+    /// <summary>The clinic session it's booked into, if any.</summary>
+    public Guid? ClinicSessionId { get; set; }
+
+    /// <summary>The room it's in, if any (its session's, or one chosen for it).</summary>
+    public Guid? RoomId { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     public string? CancelReason { get; set; }
@@ -65,6 +71,27 @@ public sealed class AppointmentResponse
 
     public string? OutcomeByUsername { get; set; }
 
+    /// <summary>
+    /// How the patient wants appointment messages (None, Text, Email or TextAndEmail), so the dialogs can offer to tell
+    /// them of a move or cancellation.
+    /// </summary>
+    public string PatientReminderChannel { get; set; } = "None";
+
+    /// <summary>After a Did not attend, the follow-up recorded: Rebook, ClinicianToReview or NoFurtherAppointment.</summary>
+    public string? DnaFollowUp { get; set; }
+
+    public string? DnaFollowUpDetail { get; set; }
+
+    public DateTime? DnaFollowUpAtUtc { get; set; }
+
+    public string? DnaFollowUpByUsername { get; set; }
+
+    /// <summary>
+    /// In the Did not attend view only: how many appointments were missed on its pathway (for one not for a pathway,
+    /// among the patient's others not for one), it included.
+    /// </summary>
+    public int? MissedOnPathwayCount { get; set; }
+
     public DateTime LastUpdated { get; set; }
 
     /// <summary>It's Requested: it can be booked.</summary>
@@ -78,6 +105,9 @@ public sealed class AppointmentResponse
 
     /// <summary>It's Requested or Booked.</summary>
     public bool CanCancel { get; set; }
+
+    /// <summary>It's Did not attend, and its record can change: a follow-up can be recorded.</summary>
+    public bool CanRecordDnaFollowUp { get; set; }
 
     /// <summary>It isn't Cancelled or Entered in error.</summary>
     public bool CanEditNotes { get; set; }

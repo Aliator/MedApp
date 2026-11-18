@@ -1,6 +1,11 @@
+using MedApp.Contracts.Referrals.Responses;
+
 namespace MedApp.Contracts.Pathways.PatientPathways.Responses;
 
-/// <summary>The referral a pathway was accepted from, for a link from the pathway's page.</summary>
+/// <summary>
+/// The referral a pathway was accepted from, for the pathway's page: a link back, and its waiting-time clock (the
+/// "Referral and wait" card), with what the viewer may do to the clock.
+/// </summary>
 public sealed class PathwayReferralResponse
 {
     public Guid Id { get; set; }
@@ -10,4 +15,19 @@ public sealed class PathwayReferralResponse
 
     /// <summary>The referral's specialty.</summary>
     public string SpecialtyName { get; set; } = string.Empty;
+
+    /// <summary>Pass back as <c>expectedVersion</c> to pause or resume the clock.</summary>
+    public int Version { get; set; }
+
+    /// <summary>The waiting-time clock.</summary>
+    public WaitingClockResponse? Clock { get; set; }
+
+    /// <summary>The clock's pauses, oldest first.</summary>
+    public List<ClockPauseResponse> Pauses { get; set; } = [];
+
+    /// <summary>The viewer may pause the clock: it runs, the referral was accepted, and they can work on pathways.</summary>
+    public bool CanPauseClock { get; set; }
+
+    /// <summary>The viewer may resume it: it's paused, the record can change, and they can work on pathways.</summary>
+    public bool CanResumeClock { get; set; }
 }

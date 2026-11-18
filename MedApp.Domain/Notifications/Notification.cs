@@ -69,7 +69,7 @@ public sealed class Notification
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
     /// "Appointment booked", the meeting kinds' "Meeting invitation"; the monitoring kinds' "Stage finished"; the note
-    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; and "Scheduled job failing"), rather than the
+    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; "Clinic session cancelled"; and "Scheduled job failing"), rather than the
     /// pathway's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
@@ -78,6 +78,7 @@ public sealed class Notification
             or NotificationKind.ReferralTriaged
             or NotificationKind.SpecimenRejectedByLab
             or NotificationKind.SpecimenLost
+            or NotificationKind.ClinicSessionCancelled
             or NotificationKind.ScheduledJobFailing
         || IsMonitoring(kind)
         || IsNoteDeletion(kind);

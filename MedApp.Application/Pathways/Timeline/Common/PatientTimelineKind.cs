@@ -10,7 +10,7 @@ public enum PatientTimelineKind
     /// <summary>A pathway was created.</summary>
     Created,
 
-    /// <summary>A stage was started, finished or unlocked.</summary>
+    /// <summary>A stage was started, finished, unlocked, skipped or reinstated, or a branch chosen.</summary>
     Stages,
 
     /// <summary>A stage's notes were saved, or a note was added to a pathway or edited.</summary>
@@ -47,10 +47,16 @@ public enum PatientTimelineKind
     Files,
 
     /// <summary>
-    /// A referral was registered, edited, withdrawn or marked entered in error (from referrals' history, not the audit
-    /// log, so no audit entry is of this kind).
+    /// A referral was registered, edited, triaged, withdrawn or marked entered in error (from referrals' history, not
+    /// the audit log, so no audit entry is of this kind).
     /// </summary>
     Referrals,
+
+    /// <summary>
+    /// A referral's waiting-time clock was paused, resumed or stopped, or its target re-read (from referrals' history,
+    /// so no audit entry is of this kind; the target date it moves is a DueDates entry).
+    /// </summary>
+    WaitingTime,
 
     /// <summary>A specimen was taken, sent, received, reported, rejected, lost, entered in error or edited.</summary>
     Specimens

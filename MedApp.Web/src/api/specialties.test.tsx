@@ -5,10 +5,13 @@ import {AppProviders} from '../app/AppProviders';
 import {calls, json, mockApi} from '../test/render';
 import {setupKeys} from './pathwaySetup';
 import {
+  DEFAULT_SPECIALTY_TARGETS,
   mySpecialtiesQuery,
   specialtiesQuery,
   specialtyKeys,
   specialtyNames,
+  specialtyTargets,
+  targetsWords,
   userSpecialtiesQuery,
   useSaveSpecialty,
   useSetUserSpecialties,
@@ -90,6 +93,18 @@ describe('specialty changes', () => {
     await expectSpecialtiesRefreshed(queryClient, {templates: true});
   });
 
+  it('sends the waiting-time targets given, adding or changing one, and leaves out any not given', async () => {
+    const fetch = mockApi({'POST /api/specialties': () => json(DERMATOLOGY, 201), 'PUT /api/specialties/s1': () => json(DERMATOLOGY)});
+    const {wrapper} = cachedClient();
+    const {result} = renderHook(() => useSaveSpecialty(), {wrapper});
+
+    await result.current.mutateAsync({name: 'Dermatology', targets: DEFAULT_SPECIALTY_TARGETS});
+    await result.current.mutateAsync({id: 's1', name: 'Skin', targets: {urgent: 7, high: null, medium: 90, low: 120}, expectedVersion: 3});
+
+    expect(await bodyOf(fetch, 0)).toEqual({name: 'Dermatology', targetDaysUrgent: 14, targetDaysHigh: 28, targetDaysMedium: 126, targetDaysLow: 126});
+    expect(await bodyOf(fetch, 1)).toEqual({name: 'Skin', targetDaysUrgent: 7, targetDaysMedium: 90, targetDaysLow: 120, expectedVersion: 3});
+  });
+
   it('archives, restores and deletes one, archiving and restoring from the version shown', async () => {
     const fetch = mockApi({
       'POST /api/specialties/s1/archive': () => json({...DERMATOLOGY, isArchived: true}),
@@ -141,6 +156,16 @@ describe('specialty changes', () => {
 
     expect(await bodyOf(fetch)).toEqual({specialtyIds: ['s1']});
     await expectSpecialtiesRefreshed(queryClient, {templates: false});
+  });
+});
+
+describe('specialty targets', () => {
+  it("reads a specialty's targets, and says them in words, most urgent first", () => {
+    const specialty = {targetDaysUrgent: 7, targetDaysHigh: 21, targetDaysMedium: 90, targetDaysLow: 120};
+    expect(specialtyTargets(specialty)).toEqual({urgent: 7, high: 21, medium: 90, low: 120});
+    expect(specialtyTargets({})).toEqual({urgent: null, high: null, medium: null, low: null});
+    expect(targetsWords(specialty)).toBe('Urgent 7, High 21, Medium 90, Low 120 days');
+    expect(targetsWords({targetDaysUrgent: 7})).toBe('Urgent 7, High ?, Medium ?, Low ? days');
   });
 });
 
