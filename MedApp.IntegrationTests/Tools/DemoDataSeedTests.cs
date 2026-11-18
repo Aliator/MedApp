@@ -6,21 +6,29 @@ using MediatR;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Clinics.Common;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Queries.SearchRetentionReview;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 using MedApp.Application.Referrals.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Contracts.Pathways.Insights.Responses;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
+using MedApp.Domain.Consent;
+using MedApp.Domain.Letters;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Results;
+using MedApp.Domain.Specimens;
 using MedApp.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -193,7 +201,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             {
                 var (start, end) = (appointment.StartUtc!.Value, appointment.EndUtc!.Value);
                 WorkingHours.WhyOutside(start, end, data.ClosedDays).Should().BeNull($"appointment {appointment.Id}");
-                CalendarClashes.Find(On(start), start, end, ignoreAppointmentId: appointment.Id).Should().BeNull($"appointment {appointment.Id}");
+                // One booked into a clinic session sits in its slot, as the app books it.
+                CalendarClashes.Find(On(start), start, end, ignoreAppointmentId: appointment.Id, ignoreSessionId: appointment.ClinicSessionId).Should().BeNull($"appointment {appointment.Id}");
             }
 
             foreach (var block in blocks.Where(b => b.StaffUserId == person))
@@ -750,6 +759,81 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             JsonValueKind.Object => element.EnumerateObject().SelectMany(p => Strings(p.Value)),
             _ => [],
         };
+    }
+
+    /// <summary>
+    /// Phases 3 to 5 as the app's rules have them: each specimen's steps in order and none after now; each report one
+    /// result; no discharged pathway with a specimen still at the lab or a result awaiting sign-off; every finished stage
+    /// that needs consent has it, and every one that needs a letter has one approved and sent to every recipient; a
+    /// branch point's pathway runs one branch; an MDT outcome recorded once its meeting had started; appointments in a
+    /// clinic session on its slots, no room with two sessions at once; one reminder per appointment and channel.
+    /// </summary>
+    [Test]
+    public async Task PhasesThreeToFive_FollowTheAppsRules()
+    {
+        var specimens = await Query(db => db.Specimens.AsNoTracking().ToListAsync());
+        var results = await Query(db => db.Results.AsNoTracking().ToListAsync());
+        specimens.Should().HaveCountGreaterThan(50);
+        foreach (var s in specimens)
+        {
+            s.TakenAtUtc.Should().BeOnOrBefore(s.RecordedAtUtc, s.Number);
+            s.RecordedAtUtc.Should().BeOnOrBefore(Now, s.Number);
+            if (s.SentAtUtc is { } sent)
+                sent.Should().BeOnOrAfter(s.TakenAtUtc, s.Number);
+            if (s.ReceivedAtUtc is { } received)
+                received.Should().BeOnOrAfter(s.SentAtUtc!.Value, s.Number);
+            if (s.ReportedAtUtc is { } reported)
+                reported.Should().BeOnOrAfter(s.ReceivedAtUtc!.Value, s.Number).And.BeOnOrBefore(Now, s.Number);
+        }
+
+        specimens.Where(s => s.Status == SpecimenStatus.Reported)
+            .Should().OnlyContain(s => results.Count(r => r.SpecimenId == s.Id && r.Status != ResultStatus.EnteredInError) == 1);
+
+        var closed = (await Query(db => db.PatientPathways.AsNoTracking()
+            .Where(p => p.Status == PatientPathwayStatus.Completed || p.Status == PatientPathwayStatus.Archived)
+            .Select(p => p.Id).ToListAsync())).ToHashSet();
+        specimens.Where(s => SpecimenWorkflow.IsOpen(s.Status) && closed.Contains(s.PathwayId)).Should().BeEmpty();
+        results.Where(r => r.IsAwaitingSignOff && r.PathwayId is { } id && closed.Contains(id)).Should().BeEmpty();
+
+        var gated = await Query(db => db.PatientPathwayStages.AsNoTracking()
+            .Where(s => s.IsCompleted && (s.NeedsConsent || s.NeedsLetterKind != null)).ToListAsync());
+        var consented = (await Query(db => db.ConsentRecords.AsNoTracking()
+            .Where(c => c.Status == ConsentStatus.Valid).Select(c => c.StageId).ToListAsync())).ToHashSet();
+        var letters = await Query(db => db.Letters.AsNoTracking().Include(l => l.Recipients).ToListAsync());
+        gated.Should().Contain(s => s.NeedsConsent).And.Contain(s => s.NeedsLetterKind != null);
+        foreach (var stage in gated)
+        {
+            if (stage.NeedsConsent)
+                consented.Should().Contain(stage.Id, $"stage {stage.Id} needed consent to be finished");
+            if (stage.NeedsLetterKind is { } kind)
+                letters.Should().Contain(l => l.PathwayId == stage.PatientPathwayId && l.Kind == kind
+                                              && l.Status == LetterStatus.Approved && l.IsSentToEveryone,
+                    $"stage {stage.Id} needed its letter sent to be finished");
+        }
+
+        var branched = await Query(db => db.PatientPathwayStages.AsNoTracking()
+            .Where(s => s.Branch != null && db.PatientPathwayStages.Any(b => b.PatientPathwayId == s.PatientPathwayId && b.ChoosesBranch && b.IsCompleted))
+            .ToListAsync());
+        branched.Should().NotBeEmpty();
+        branched.GroupBy(s => s.PatientPathwayId).Should().OnlyContain(g =>
+            g.GroupBy(s => s.Branch).Count(b => b.Any(s => s.SkipReason != StageSkipReason.BranchNotChosen)) == 1);
+
+        var items = await Query(db => db.MdtItems.AsNoTracking().Include(i => i.Meeting).ToListAsync());
+        items.Should().Contain(i => i.Status == MdtItemStatus.Discussed);
+        items.Where(i => i.Status == MdtItemStatus.Discussed)
+            .Should().OnlyContain(i => i.Meeting!.IsMdt && i.OutcomeAtUtc >= i.Meeting.StartUtc && i.OutcomeAtUtc <= Now);
+
+        var sessions = await Query(db => db.ClinicSessions.AsNoTracking().ToListAsync());
+        var inSessions = await Query(db => db.Appointments.AsNoTracking().Where(a => a.ClinicSessionId != null).ToListAsync());
+        sessions.Should().NotBeEmpty();
+        inSessions.Should().OnlyContain(a => ClinicRules.IsSlot(sessions.Single(s => s.Id == a.ClinicSessionId), a.StartUtc!.Value, a.EndUtc!.Value));
+        var planned = sessions.Where(s => s.Status == ClinicSessionStatus.Planned).ToList();
+        planned.Should().OnlyContain(s => !planned.Any(o => o.Id != s.Id && o.RoomId == s.RoomId && o.StartUtc < s.EndUtc && s.StartUtc < o.EndUtc));
+
+        var messages = await Query(db => db.PatientMessages.AsNoTracking().ToListAsync());
+        messages.Should().NotBeEmpty();
+        messages.GroupBy(m => (m.AppointmentId, m.Kind, m.Channel)).Should().OnlyContain(g => g.Count() == 1);
+        messages.Should().OnlyContain(m => m.CreatedAtUtc <= Now);
     }
 
     [Test]
