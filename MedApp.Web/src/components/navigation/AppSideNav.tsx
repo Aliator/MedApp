@@ -17,19 +17,18 @@ import {
   useRef,
   useState,
   type FocusEvent,
-  type MouseEvent,
   type ReactNode,
 } from 'react';
 import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
 import {useColorMode} from '../../app/colorMode';
-import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {can, useCurrentUser, useLogout} from '../../auth/auth';
 import {rolesSummary} from '../../auth/roles';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
+import {HALF_VIEW_HREF, useCtrlClickWords} from './HalfViewClicks';
 import {AppIcon} from '../shared/icons';
 import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
 import {pathwayNavLabel} from './navLabels';
@@ -100,11 +99,21 @@ function AlwaysShownButtons({children}: {children: ReactNode}) {
   return <ActiveRowsContext.Provider value={() => true}>{children}</ActiveRowsContext.Provider>;
 }
 
+/** Beside a menu item: the click on the nav item that does much the same (HalfViewClicks). */
+const clickHint = (words: string) => (
+  <Text type="supporting" color="secondary">
+    {words}
+  </Text>
+);
+/** Shift-click opens the page in the half view, on the right. */
+const SHIFT_CLICK_HINT = clickHint('Shift-click');
+
 /** The half-view part of a row's menu: open its page beside this one, or on either side while a half view is open. */
 function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
   const halfViews = useHalfViews();
   const router = useRouter();
   const pathname = useRouterState({select: (state) => state.location.pathname});
+  const ctrlClick = useCtrlClickWords();
   if (!halfViews) return [];
 
   // With a half view open, it opens on the left (the main view) or the right (the half view). Both are greyed out
@@ -119,6 +128,8 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
         description: already,
         icon: AppIcon.OpenLeft,
         isDisabled: openOn !== null,
+        // Ctrl-click opens it on the left too, moving the left's page to the right.
+        endContent: clickHint(ctrlClick),
         onClick: () => void router.navigate({href}),
       },
       {
@@ -127,6 +138,7 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
         description: already,
         icon: AppIcon.OpenRight,
         isDisabled: openOn !== null,
+        endContent: SHIFT_CLICK_HINT,
         onClick: () => halfViews.open(href),
       },
     ];
@@ -140,6 +152,7 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
       description: isOpen ? `${label} is already open` : undefined,
       icon: AppIcon.HalfView,
       isDisabled: isOpen,
+      endContent: SHIFT_CLICK_HINT,
       onClick: () => halfViews.open(href),
     },
   ];
@@ -629,18 +642,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const halfPath = halfViews?.openPath ?? null;
   const isHalfAt = (path: string) => halfPath !== null && isCurrentSection(halfPath, path) && !isAt(path);
 
-  // With a half view open, clicking a nav link (a row, or a row brought out of the folded nav) either opens its
-  // page on its own, closing the half view, or (Account Settings) just opens it on the left, as a link does. The
-  // row's buttons open it on either side. Modified clicks (new tab etc.) are left to the browser.
-  const {closesHalfView} = useNavSettings();
-  const openInFull = (event: MouseEvent<HTMLElement>) => {
-    if (!halfViews || halfPath === null || !closesHalfView) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const href = event.target instanceof Element ? event.target.closest('a[href]')?.getAttribute('href') : null;
-    if (!href?.startsWith('/')) return;
-    event.preventDefault();
-    halfViews.openFull(href);
-  };
+  // A nav link always opens its page in the main view (the left, with a half view open, keeping the half view); its
+  // row's menu opens it on either side, and Shift-click on the right and Ctrl-click on the left (`HalfViewClicks`).
 
   const patientPins = usePins('patients', user.username);
   const pathwayPins = usePins('pathways', user.username);
@@ -873,6 +876,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
               aria-pressed={notepad.isOpen}
               data-notepad-toggle=""
               data-nav-row={NOTEPAD_ROW}
+              // Shift-click (or Ctrl-click) opens the notepad in the half view, on the right (HalfViewClicks), as its menu does.
+              {...{[HALF_VIEW_HREF]: NOTEPAD_PATH}}
               onClick={toggleNotepad}
               // Beside the page, in the half view; never on the left, as its page isn't one of its own.
               actions={<RowMenu label="Notepad" href={NOTEPAD_ROW} isRightOnly />}
@@ -949,7 +954,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     <ActiveRowsContext.Provider value={isActiveRow}>
       <SideNav
         collapsible={collapsible}
-        onClickCapture={openInFull}
         onMouseOver={(event) => setHoveredRow(rowHref(event.target))}
         onMouseLeave={() => setHoveredRow(null)}
         onFocus={(event) => setFocusedRow(isKeyboardFocus(event.target) ? rowHref(event.target) : null)}

@@ -29,6 +29,11 @@ export interface HalfViews {
   openPath: string | null;
   /** Closes the half view and opens this page in full view (the main view, with the nav open again). */
   openFull: (path: string) => void;
+  /**
+   * Opens this page on the left (the main view), moving the page that was there to the right: beside it, or in place
+   * of the half view's page (Ctrl-click, `HalfViewClicks`).
+   */
+  openOnLeft: (path: string) => void;
   /** Closes the half view, leaving the main page on its own (with the nav open again). */
   close: () => void;
 }
