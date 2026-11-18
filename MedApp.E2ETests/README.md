@@ -56,7 +56,7 @@ The whole suite takes about a minute. The tests write to the database the app us
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
 - nothing from the meeting journey: it cancels its meeting, and its clean-up cancels it too if the test fails first
 - the triage journey's referral and its `E2E …` patient: referrals are never deleted, and a patient with one can't be (its pathway is deleted; its "Referral triaged" notification is marked read)
-- the letter journey's letter, its pathway (cancelled: a pathway with letters can't be deleted, as letters are clinical correspondence) and its `E2E …` patient, and its letter template (archived: one a letter was written from can't be deleted)
+- the letter journey's letter, its pathway (cancelled: a pathway with letters can't be deleted, as letters are clinical correspondence) and its `E2E …` patient, its letter template (archived: one a letter was written from can't be deleted), and its pathway template and stages (archived: a pathway still uses them)
 - the appointments they made, cancelled (the app never deletes appointments), with their history, and so the `E2E …` patients they were for: a patient who has had an appointment can't be deleted
 
 A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.
