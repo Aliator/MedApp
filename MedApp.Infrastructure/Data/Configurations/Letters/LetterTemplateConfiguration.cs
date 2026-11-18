@@ -30,9 +30,11 @@ public sealed class LetterTemplateConfiguration : IEntityTypeConfiguration<Lette
             .OnDelete(DeleteBehavior.Restrict);
 
         // Names are unique within a specialty, ignoring case (the column's collation). SQL Server's unique index treats
-        // nulls as equal, so this also keeps the names of the templates for every specialty unique.
+        // nulls as equal, so this also keeps the names of the templates for every specialty unique (no filter, which EF
+        // would otherwise add for a nullable column).
         builder.HasIndex(x => new { x.SpecialtyId, x.Name })
             .IsUnique()
+            .HasFilter(null)
             .HasDatabaseName(NameIndex);
 
         builder.Property(x => x.Letterhead)
