@@ -9,6 +9,10 @@ export interface FoldingSection {
   title: string;
   isOpen: boolean;
   onToggle: () => void;
+  /** False for a section that is always open: its bar has no chevron and doesn't fold it. True by default. */
+  canFold?: boolean;
+  /** Shown in the bar after the title (see PanelHeader's `summary`), whether the section is open or folded. */
+  summary?: ReactNode;
   /** The section's body, at its own height (the card's sections scroll together). Lay out its own padding. */
   children: ReactNode;
 }
@@ -35,11 +39,12 @@ export function FoldingCard({sections, footerActions}: FoldingCardProps) {
               <Fragment key={section.key}>
                 <PanelHeader
                   title={section.title}
+                  summary={section.summary}
                   // A line above every bar but the first, and below an open one.
                   dividers={[...(index > 0 ? (['top'] as const) : []), ...(section.isOpen ? (['bottom'] as const) : [])]}
                   // The whole bar folds the section; its chevron is the keyboard control, and its click reaches the bar.
-                  onClick={section.onToggle}
-                  actions={<CollapseButton name={section.title.toLowerCase()} isOpen={section.isOpen} />}
+                  onClick={section.canFold === false ? undefined : section.onToggle}
+                  actions={section.canFold === false ? undefined : <CollapseButton name={section.title.toLowerCase()} isOpen={section.isOpen} />}
                 />
                 {section.isOpen && section.children}
               </Fragment>
