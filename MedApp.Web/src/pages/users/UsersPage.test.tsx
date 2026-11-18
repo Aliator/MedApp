@@ -151,6 +151,25 @@ describe('UsersPage', () => {
     expect((await within(openDialog()!).findAllByText('The user could not be created. Please try again.')).length).toBeGreaterThan(0);
   });
 
+  it("sets a user's specialties, their own admin's too, and says it's done", async () => {
+    const {user, fetch} = renderUsers(
+      {},
+      {
+        'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
+        [`GET /api/auth/users/${adminUser.username}/specialties`]: () => json([]),
+        [`PUT /api/auth/users/${adminUser.username}/specialties`]: () => json([{id: 's1', name: 'Dermatology', isArchived: false}]),
+      },
+    );
+
+    await user.click(within(await rowOf(adminUser.username)).getByRole('button', {name: 'Edit specialties'}));
+    await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'Dermatology'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Save Specialties'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await bodies(fetch, 'PUT')).toEqual([{specialtyIds: ['s1']}]);
+    expect(await screen.findByText(`${adminUser.username}'s specialties have been saved.`)).toBeInTheDocument();
+  });
+
   it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {
     const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/roles': () => new Response(null, {status: 204})});
 

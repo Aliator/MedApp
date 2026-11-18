@@ -48,6 +48,11 @@ describe('saveProblem', () => {
     );
   });
 
+  it('names specialties, in the plural too', () => {
+    expect(saveProblem(new ApiError(403), 'save', 'specialty').message).toBe('You do not have permission to change specialties.');
+    expect(saveProblem(new ApiError(404), 'archive', 'specialty').message).toBe('Specialty not found. It may have been deleted.');
+  });
+
   it('shows the reason the API gives for a conflict', () => {
     const conflict = new ApiError(409, undefined, "This patient has 2 pathways, so they can't be deleted.");
 
