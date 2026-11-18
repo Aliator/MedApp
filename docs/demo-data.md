@@ -70,6 +70,8 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 
 **Roles:** everyone has the starting role for their job, never "All staff (before roles)": the consultants, the GPs with a special interest, the podiatrist and the pharmacist **Clinician**; the nurse specialists, the healthcare assistant and the new starter **Nurse**; the booking coordinator **Booking**; the biomedical scientist **Lab**; the service manager **Manager** (and Admin, later). Each run puts the standard roles' permissions back as they start.
 
+**Roles shaped to the centre** (Roles and Permissions, `/admin/roles`, made through the role commands, so each step is in the activity log as `RoleCreated` and `RoleChanged`): eight weeks ago the lead made **Locum cover** (patients, pathways, appointments and files) and four weeks ago archived it, so it shows Restore. The same afternoon the lead made **Visiting consultant** (Clinician without overriding stages) and gave it to the visiting consultants, `f.linton` and `o.penhale`, in place of Clinician (two `RolesChanged` entries). Each run deletes the two from the last run first; a kept account holding one stops the reset, saying so.
+
 **Signing in as someone:** use the password from the summary. For `j.whitlock`, type the summary's `authenticatorKey` into an authenticator app, or use one of the `recoveryCodes`. The passwords are new each run, so they're not written here.
 
 ### Specialties
