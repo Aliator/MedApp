@@ -65,6 +65,32 @@ describe('CalendarGrid', () => {
     expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(200);
   });
 
+  it('greys a closed day like a weekend, but at full width and named, with nothing to select and what is on it flagged', async () => {
+    atMondayMorning();
+    const days = week().map((d) => (d.date === '2026-11-25' ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
+    const appointment = appointmentItem(testAppointment({date: '2026-11-25', start: '09:00', end: '10:00'}));
+    const onDayOpen = vi.fn();
+    const {user} = renderGrid({days, items: [appointment], onDayOpen});
+
+    const closed = await screen.findByRole('group', {name: 'Wednesday 25 November, closed: Staff training day'});
+    expect(closed).toHaveTextContent('Closed: Staff training day');
+    expect(closed).toHaveAttribute('data-weekend');
+    expect(closed).toHaveAttribute('data-closed');
+    expect(closed).not.toHaveAttribute('data-narrow');
+    expect(within(closed).queryAllByRole('button', {name: /, free$/})).toHaveLength(0);
+    // Only the other four working days have free time.
+    expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(160);
+    // What was there before it closed still shows, flagged, and says so.
+    const card = within(closed).getByRole('button', {name: 'Test Patient, Knee review: Assessment, 09:00 to 10:00, Booked, on a closed day'});
+    expect(card.closest('[data-kind]')!.querySelector('svg')).not.toBeNull();
+    // Its name reads across the column, not up it as a weekend's does.
+    expect(document.querySelector('.medapp-calendar style')!.textContent).toMatch(/\.mc-col\[data-closed\] \.mc-weekend-text \{ writing-mode: horizontal-tb/);
+    // Its heading still opens the day, and a compact week keeps it.
+    await user.click(screen.getByRole('button', {name: 'Wed 25: show the day'}));
+    expect(onDayOpen).toHaveBeenCalledWith('2026-11-25');
+    expect(dayColumns(days, [], {weekdaysOnly: true}).map((c) => c.date)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
+  });
+
   it('shows appointments and blocks, which open when clicked or pressed', async () => {
     atMondayMorning();
     const appointment = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '10:00'}));

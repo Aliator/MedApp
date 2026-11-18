@@ -46,15 +46,19 @@ describe('NotificationBell', () => {
     const appointmentId = '0000000c-0000-0000-0000-000000000009';
     const booked = {...unread, id: '0000000c-0000-0000-0000-000000000004', kind: 'AppointmentBooked', title: 'Knee review', message: 'test.admin booked an appointment with you for Monday 23 November at 10:00.', appointmentId};
     const cancelled = {...read, id: '0000000c-0000-0000-0000-000000000005', kind: 'AppointmentCancelled', title: 'Appointment', procedureId: null, appointmentId};
+    const recordedId = '0000000c-0000-0000-0000-000000000010';
+    const recorded = {...read, id: '0000000c-0000-0000-0000-000000000006', kind: 'AppointmentRecorded', title: 'Appointment recorded', message: 'test.admin recorded an appointment with you on Monday 16 November at 10:00, after the event.', procedureId: null, appointmentId: recordedId};
     const fetch = mockApi({
-      'GET /api/notifications': () => json({items: [booked, cancelled], unreadCount: 1}),
+      'GET /api/notifications': () => json({items: [booked, cancelled, recorded], unreadCount: 1}),
       'POST /api/notifications/*': () => new Response(null, {status: 204}),
     });
     const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
 
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
-    expect(list.getByRole('link', {name: /^Appointment/})).toHaveAttribute('href', `/calendar?appointment=${appointmentId}`);
+    expect(list.getByRole('link', {name: /^Appointmenttest/})).toHaveAttribute('href', `/calendar?appointment=${appointmentId}`);
+    // One recorded after the event opens on the calendar too.
+    expect(list.getByRole('link', {name: /^Appointment recorded/})).toHaveAttribute('href', `/calendar?appointment=${recordedId}`);
     // Each kind has its icon.
     expect(list.getAllByRole('listitem').every((item) => item.querySelector('svg'))).toBe(true);
     await user.click(list.getByRole('link', {name: /Knee review/}));

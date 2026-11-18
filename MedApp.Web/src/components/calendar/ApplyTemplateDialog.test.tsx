@@ -93,6 +93,20 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29&WithoutAppointments=true');
   });
 
+  it("shows a closed day, saying so, but won't tick it, even as the start day", async () => {
+    const calendar = week();
+    calendar.days = calendar.days!.map((d) => (d.date === WEDNESDAY ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
+    const {user} = renderDialog({}, {'GET /api/calendar': () => json(calendar)});
+
+    const days = await dialog().findByRole('group', {name: /Days/});
+    expect(within(days).getAllByRole('checkbox')).toHaveLength(5);
+    expect(dialog().getByText('Closed: Staff training day')).toBeInTheDocument();
+    expect(isDisabled(day(/^Wed 25/))).toBe(true);
+    expect(day(/^Wed 25/)).not.toBeChecked();
+    await user.click(day(/^Wed 25/));
+    expect(day(/^Wed 25/)).not.toBeChecked();
+  });
+
   it('reads the week again each time it opens', async () => {
     const fetch = mockApi({
       'GET /api/calendar': () => json(week()),

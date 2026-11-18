@@ -66,6 +66,31 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('says an appointment was recorded after the event, by whom and when, rather than booked', async () => {
+    const walkIn = testAppointment({
+      id: 'walk-in',
+      status: 'Attended',
+      isRecordedAfterEvent: true,
+      createdAtUtc: '2026-11-20T11:00:00Z',
+      createdByUsername: 'test-user',
+      bookedAtUtc: '2026-11-20T11:00:00Z',
+      bookedByUsername: 'test-user',
+    });
+    const {unmount} = renderDialog(walkIn);
+
+    expect(await dialog().findByText('Recorded after the event')).toBeInTheDocument();
+    expect(dialog().getAllByText('By test-user, 20 Nov 2026, 11:00').length).toBeGreaterThan(0);
+    // A walk-in was never asked for.
+    expect(dialog().queryByText('Requested')).not.toBeInTheDocument();
+    unmount();
+
+    // A visit waiting in Needs booking, recorded later: it was asked for first.
+    renderDialog({...walkIn, isAutomatic: true, createdAtUtc: '2026-11-10T10:00:00Z'});
+    expect(await dialog().findByText('Recorded after the event')).toBeInTheDocument();
+    expect(dialog().getByText('Requested')).toBeInTheDocument();
+    expect(dialog().getByText('Automatically, 10 Nov 2026, 10:00')).toBeInTheDocument();
+  });
+
   it('saves its notes', async () => {
     withAnnouncements();
     const appointment = testAppointment({id: 'appt-1'});

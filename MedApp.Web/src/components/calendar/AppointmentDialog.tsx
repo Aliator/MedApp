@@ -11,7 +11,7 @@ import {appointmentQuery, useAppointmentActions, type Appointment} from '../../a
 import {ApiValidationError, fieldStatus, problemMessage} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {useAnnounce} from '../../app/announcements';
-import {formatCalendarDay, formatTimeRange} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatTimeRange, sameMoment} from '../../utils/calendarSlots';
 import {formatDateTime, ukDay} from '../../utils/dates';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
@@ -139,16 +139,25 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   const canBookAnother = (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
   const purpose = appointmentPurpose(appointment);
 
-  const history: {label: string; value: string}[] = [
-    {
-      label: 'Requested',
-      value: appointment.isAutomatic
-        ? `Automatically, ${formatDateTime(appointment.createdAtUtc ?? '')}`
-        : `By ${appointment.createdByUsername ?? 'someone'}, ${formatDateTime(appointment.createdAtUtc ?? '')}`,
-    },
-  ];
+  // One recorded after the event (a walk-in) was never asked for, unless it was a visit waiting in Needs booking (asked
+  // for earlier); it was recorded, not booked.
+  const isWalkIn = appointment.isRecordedAfterEvent === true;
+  const wasRequested = !isWalkIn || !sameMoment(appointment.createdAtUtc, appointment.bookedAtUtc);
+  const history: {label: string; value: string}[] = wasRequested
+    ? [
+        {
+          label: 'Requested',
+          value: appointment.isAutomatic
+            ? `Automatically, ${formatDateTime(appointment.createdAtUtc ?? '')}`
+            : `By ${appointment.createdByUsername ?? 'someone'}, ${formatDateTime(appointment.createdAtUtc ?? '')}`,
+        },
+      ]
+    : [];
   if (appointment.bookedAtUtc) {
-    history.push({label: 'Booked', value: `By ${appointment.bookedByUsername ?? 'someone'}, ${formatDateTime(appointment.bookedAtUtc)}`});
+    history.push({
+      label: isWalkIn ? 'Recorded after the event' : 'Booked',
+      value: `By ${appointment.bookedByUsername ?? 'someone'}, ${formatDateTime(appointment.bookedAtUtc)}`,
+    });
   }
   if (appointment.outcomeAtUtc) {
     history.push({label: 'Outcome recorded', value: `By ${appointment.outcomeByUsername ?? 'someone'}, ${formatDateTime(appointment.outcomeAtUtc)}`});

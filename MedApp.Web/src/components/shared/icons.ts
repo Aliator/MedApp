@@ -36,7 +36,9 @@ import {
   RiCornerDownRightLine,
   RiDownload2Line,
   RiFileCopyLine,
+  RiFileHistoryLine,
   RiDeleteBinLine,
+  RiDoorClosedLine,
   RiEqualizerLine,
   RiErrorWarningLine,
   RiEyeLine,
@@ -230,6 +232,10 @@ export const AppIcon = {
   /** Suggested meeting times. */
   Suggestion: remix(RiLightbulbLine),
   ActivityTypes: remix(RiPriceTag3Line),
+  /** Closed days (admin): bank holidays and other days the clinic is closed. */
+  ClosedDays: remix(RiDoorClosedLine),
+  /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
+  RecordPast: remix(RiFileHistoryLine),
   // Attached files: adding and downloading them, and each type's icon where there's no thumbnail
   Attachment: remix(RiAttachment2),
   Upload: remix(RiUpload2Line),

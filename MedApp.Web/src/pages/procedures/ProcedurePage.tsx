@@ -25,6 +25,7 @@ import {userSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
+import {RecordPastAppointmentDialog} from '../../components/calendar/RecordPastAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
 import {AttachmentsFold} from '../../components/attachments/AttachmentsFold';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
@@ -118,6 +119,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const appointments = appointmentsQuery.data?.items ?? [];
   const appointmentActions = useAppointmentActions();
   const [booking, setBooking] = useState<Booking | null>(null);
+  // A stage whose visit has already happened (a walk-in), being recorded.
+  const [recordingPast, setRecordingPast] = useState<ProcedureStage | null>(null);
   const [withoutVisitReason, setWithoutVisitReason] = useState('');
   const navigate = useNavigate();
   const announce = useAnnounce();
@@ -264,6 +267,10 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         isBusy={isBusy || appointmentsQuery.isPending}
         onBook={(requested) => setBooking({stage, appointment: requested})}
         onReschedule={(booked) => setBooking({stage, appointment: booked})}
+        onRecordPast={() => {
+          setActionError(null);
+          setRecordingPast(stage);
+        }}
         onOutcome={(appointment, outcome) => {
           setActionError(null);
           appointmentActions.recordOutcome.mutate(
@@ -436,6 +443,16 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
               stage={booking?.stage && {id: booking.stage.id ?? '', name: booking.stage.name ?? ''}}
               appointment={booking?.appointment}
               suggestedStaffUserId={onlyAssignee}
+            />
+          )}
+          {procedure && (
+            <RecordPastAppointmentDialog
+              isOpen={recordingPast !== null}
+              onClose={() => setRecordingPast(null)}
+              patient={{...procedure.patient, ...procedure.patientFlags, id: procedure.patientId ?? ''}}
+              procedure={{id: procedure.id ?? '', title: procedure.title ?? ''}}
+              stage={recordingPast ? {id: recordingPast.id ?? '', name: recordingPast.name ?? ''} : undefined}
+              staffUserId={onlyAssignee}
             />
           )}
           <ConfirmDialog

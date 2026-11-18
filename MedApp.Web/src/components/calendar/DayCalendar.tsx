@@ -14,7 +14,7 @@ import {formatCalendarDay, nextWeekday, ukToday} from '../../utils/calendarSlots
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {PanelHeader} from '../views/PanelCard';
-import {CalendarGrid, dayColumns} from './CalendarGrid';
+import {CalendarGrid, dayColumns, notWorkingWords} from './CalendarGrid';
 import {appointmentKey, calendarItems, type CalendarGridItem} from './calendarItems';
 
 /** One day of someone's calendar (no `staffUserId`: the signed-in user's), the query Home preloads. */
@@ -100,7 +100,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
             {!hasAppointments && (
               <Section variant="transparent" paddingInline={6} paddingBlock={2} dividers={['bottom']}>
                 <Text type="body" color="secondary">
-                  {day.isWorkingDay ? 'Nothing booked' : 'Not a working day'}
+                  {day.isWorkingDay ? 'Nothing booked' : notWorkingWords(day)}
                 </Text>
               </Section>
             )}

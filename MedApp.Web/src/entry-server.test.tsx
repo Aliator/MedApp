@@ -644,4 +644,21 @@ describe('server rendering', () => {
     expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
     expect(html).not.toContain('recharts-surface');
   });
+
+  it('renders Closed Days for an admin with the year’s list in it', async () => {
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/closed-days': [{id: '0000003c-0000-0000-0000-000000000001', date: '2027-12-27', name: 'Christmas Day', isPast: false}],
+    });
+
+    const response = await page('/admin/closed-days?year=2027', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Christmas Day');
+    expect(html).toContain('Mon 27 Dec 2027');
+    expect(requests.map((r) => new URL(r.url).search).filter((q) => q.includes('From'))).toEqual(['?From=2027-01-01&To=2027-12-31']);
+  });
 });

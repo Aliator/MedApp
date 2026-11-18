@@ -137,6 +137,17 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-record-past-dialog',
+    title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Record past appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-block-dialog',
     title: 'Block Time from New: activity, day, start, end and note (not saved)',
     path: '/calendar',
@@ -505,6 +516,16 @@ export const screens: Screen[] = [
     path: '/admin/activity-types',
     prepare: async (page) => {
       await rowAction(page, /edit activity type/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'closed-days', title: "Closed days (admin): this year's bank holidays and other days the clinic is closed", path: '/admin/closed-days' },
+  {
+    name: 'closed-day-dialog',
+    title: 'Add Closed Day dialog: a date from today on, and a name (not saved)',
+    path: '/admin/closed-days',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Closed Day' }).click();
       await waitVisible(page, DIALOG);
     },
   },

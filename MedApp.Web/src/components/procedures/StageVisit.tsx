@@ -91,15 +91,21 @@ export interface StageVisitProps {
   onReschedule: (booked: Appointment) => void;
   /** Record whether the patient came, once the visit has started. */
   onOutcome: (booked: Appointment, outcome: 'Attended' | 'DidNotAttend') => void;
+  /**
+   * Record a visit that has already happened (a walk-in, or one booked outside MedApp), with its outcome: offered while
+   * nothing is booked (none, Needs booking, or after one the patient didn't attend). Left out, it isn't offered.
+   */
+  onRecordPast?: () => void;
 }
 
 /**
  * The Visit part of the current stage's work (`StageWork`'s `visit`), for a stage that involves one: where its visit
  * stands, and the next thing to do. Needs booking, or none: **Book Visit**. Booked: when and with whom,
  * **Reschedule**, and once it has started **Attended** and **Did not attend**. Did not attend: **Book Another**.
- * Attended: when, and nothing more to do. Each appointment links to the Calendar, where it can also be cancelled.
+ * Attended: when, and nothing more to do. While nothing is booked, **Record Past Visit** records one that has already
+ * happened (a walk-in). Each appointment links to the Calendar, where it can also be cancelled.
  */
-export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, onOutcome}: StageVisitProps) {
+export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, onOutcome, onRecordPast}: StageVisitProps) {
   const visit = stageVisit(stage.id, appointments);
   const {appointment} = visit;
   const what =
@@ -164,6 +170,9 @@ export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, o
         )}
         {visit.status === 'DidNotAttend' && (
           <Button label="Book Another" variant="secondary" icon={<Icon icon={AppIcon.Book} />} isDisabled={isBusy} onClick={() => onBook()} />
+        )}
+        {onRecordPast && (visit.status === 'Requested' || visit.status === 'None' || visit.status === 'DidNotAttend') && (
+          <Button label="Record Past Visit" variant="ghost" icon={<Icon icon={AppIcon.RecordPast} />} isDisabled={isBusy} onClick={onRecordPast} />
         )}
       </HStack>
     </VStack>

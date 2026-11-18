@@ -33,6 +33,7 @@ const KIND_ICONS: Record<string, IconType> = {
   AppointmentBooked: AppIcon.AppointmentBooked,
   AppointmentRescheduled: AppIcon.Book,
   AppointmentCancelled: AppIcon.StatusCancelled,
+  AppointmentRecorded: AppIcon.RecordPast,
   MeetingInvited: AppIcon.Meeting,
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,

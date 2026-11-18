@@ -101,6 +101,24 @@ export function useCreateAppointment() {
   });
 }
 
+/**
+ * An appointment that has already happened (a walk-in, or one booked outside MedApp), recorded after the event with its
+ * outcome: in the last 30 days, on a working day, inside the working day, started by now, and not over another of the
+ * member of staff's appointments. For a stage whose visit is in Needs booking, that appointment is the one recorded.
+ */
+export type PastAppointment = Schemas['RecordPastAppointmentRequest'];
+
+/** How far back a past appointment can be recorded, in days (the API's limit). */
+export const PAST_APPOINTMENT_DAYS = 30;
+
+export function useRecordPastAppointment() {
+  const refresh = useRefreshAppointments();
+  return useMutation({
+    mutationFn: (body: PastAppointment) => unwrap(api.POST('/api/appointments/past', {body})),
+    onSuccess: refresh,
+  });
+}
+
 const APPOINTMENT = '/api/appointments/{id}';
 
 /**

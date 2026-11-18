@@ -152,6 +152,12 @@ interface ColumnLayout {
   unavailable: boolean[];
 }
 
+/** An item on a closed day: flagged, and saying so in its accessible name and tooltip. */
+const onClosedDay = (item: CalendarGridItem): CalendarGridItem => ({...item, isFlagged: true, description: `${item.description}, on a closed day`});
+
+/** What a day that isn't a working day says at the top of its column: "Closed: Christmas Day", or "Not a working day". */
+export const notWorkingWords = (day: Pick<CalendarDay, 'closedDayName'>) => (day.closedDayName ? `Closed: ${day.closedDayName}` : 'Not a working day');
+
 /** Where an item sits in its column: rows from the top, and its share of the width beside items it overlaps. */
 interface PlacedItem {
   item: CalendarGridItem;
@@ -278,7 +284,9 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
  * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
  * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
- * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
+ * edge. A week's weekends show as narrow greyed columns that do nothing. A closed day (`closedDayName`: a bank holiday)
+ * is greyed too, but keeps its width, headed "Closed: Christmas Day": nothing can be selected on it, and anything on it
+ * (put there before it closed) is flagged, "on a closed day". A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
  * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put. A compact grid
  * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow card: Monday to Friday, a narrower hour
@@ -317,8 +325,10 @@ export function CalendarGrid({
 
   const layouts = useMemo<ColumnLayout[]>(
     () =>
-      columns.map((column) => {
-        const {day} = column;
+      columns.map((given) => {
+        const {day} = given;
+        // On a closed day, whatever is there (put there before it closed) is flagged, as an overlapping block is.
+        const column = day.closedDayName ? {...given, items: given.items.map(onClosedDay)} : given;
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
         const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
@@ -339,7 +349,8 @@ export function CalendarGrid({
           day,
           date: column.date,
           name: column.label ? `${column.label}, ${dayName}` : dayName,
-          isNarrow: !day.isWorkingDay && !column.label,
+          // A closed weekday keeps its width: it may hold what was there before it closed.
+          isNarrow: !day.isWorkingDay && !day.closedDayName && !column.label,
           start,
           rows,
           slot: SLOT,
@@ -711,7 +722,7 @@ export function CalendarGrid({
   const hasFocusable =
     tabStop !== null ||
     (onItemOpen !== undefined && columns.some((c) => c.items.some((i) => !i.isReadOnly))) ||
-    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => l.day.isWorkingDay && !isOneDay && !l.column.label));
+    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => !l.isNarrow && !isOneDay && !l.column.label));
 
   return (
     <VStack
@@ -732,7 +743,6 @@ export function CalendarGrid({
           <div className="mc-head">
             <div className="mc-gutter" aria-hidden />
             {layouts.map((l) => {
-              const weekend = !l.day.isWorkingDay;
               // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
               const name = l.column.label ?? (isOneDay ? formatWeekday(l.date) : formatShortDay(l.date));
               const headingName = `${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`;
@@ -743,7 +753,7 @@ export function CalendarGrid({
                   data-narrow={l.isNarrow || undefined}
                   data-labelled={l.column.label ? true : undefined}
                   data-today={(l.day.isToday && !l.column.label) || undefined}>
-                  {onDayOpen && !weekend && !isOneDay && !l.column.label ? (
+                  {onDayOpen && !l.isNarrow && !isOneDay && !l.column.label ? (
                     <Button
                       // Compact, its content is its own (below), and Astryx names it by its label.
                       label={isCompact ? headingName : name}
@@ -804,9 +814,10 @@ export function CalendarGrid({
                 }}
                 className="mc-col"
                 role="group"
-                aria-label={weekend ? `${l.name}, not a working day` : `${l.name}${l.day.isToday ? ', today' : ''}`}
+                aria-label={weekend ? `${l.name}, ${l.day.closedDayName ? `closed: ${l.day.closedDayName}` : 'not a working day'}` : `${l.name}${l.day.isToday ? ', today' : ''}`}
                 data-narrow={l.isNarrow || undefined}
                 data-weekend={weekend || undefined}
+                data-closed={l.day.closedDayName ? true : undefined}
                 data-labelled={l.column.label ? true : undefined}
                 data-today={l.day.isToday || undefined}
                 data-past={l.day.isPast || undefined}
@@ -821,7 +832,7 @@ export function CalendarGrid({
                 {weekend ? (
                   <span className="mc-weekend-text">
                     <Text type="supporting" color="secondary">
-                      Not a working day
+                      {notWorkingWords(l.day)}
                     </Text>
                   </span>
                 ) : (
@@ -1222,6 +1233,7 @@ const GRID_CSS = `
 .medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: flex-start; justify-content: center; padding-block-start: var(--spacing-2); box-sizing: border-box; }
 .medapp-calendar .mc-col[data-today] { background: color-mix(in srgb, var(--color-accent) 5%, transparent); }
 .medapp-calendar .mc-weekend-text { position: sticky; top: calc(var(--spacing-12) + var(--spacing-1)); writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.medapp-calendar .mc-col[data-closed] .mc-weekend-text { writing-mode: horizontal-tb; transform: none; white-space: normal; text-align: center; padding-inline: var(--spacing-1); }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
 .medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }

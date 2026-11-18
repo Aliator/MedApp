@@ -261,6 +261,12 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Marked Attended${about}`, detail: sentences(slot, correction(entry))};
     case 'AppointmentDidNotAttend':
       return {title: `Marked Did not attend${about}`, detail: sentences(slot, correction(entry))};
+    case 'AppointmentRecordedAfterEvent':
+      // A walk-in, or one booked outside MedApp, recorded with its outcome; or a visit that was waiting in Needs booking.
+      return {
+        title: `Appointment recorded after the event${about}: ${entry.toStatus === 'DidNotAttend' ? 'did not attend' : 'attended'}`,
+        detail: sentences(slot, entry.fromStatus === 'Requested' ? 'Was in Needs booking' : null),
+      };
     case 'AppointmentCancelled':
       return {title: `Appointment cancelled${about}`, detail: sentences(slot, entry.isAutomatic ? 'Cancelled automatically' : null, entry.reason)};
     case 'AppointmentNotesUpdated': {

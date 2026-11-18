@@ -16,6 +16,7 @@ import {ToggleButton} from '@astryxdesign/core/ToggleButton';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useRef, useState, type ReactNode, type RefObject} from 'react';
 import {availabilityQuery, calendarKeys, staffQuery, useMeetingActions, type Meeting} from '../../api/calendar';
+import {closedDaysQuery} from '../../api/closedDays';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
@@ -179,8 +180,11 @@ interface Problem {
 
 const NO_PROBLEM: Problem = {validation: null, message: null};
 
-/** A day can be chosen when it's a weekday (the date comes in this browser's local time, at midnight). */
-const WEEKDAYS_ONLY = [(date: Date) => date.getDay() >= 1 && date.getDay() <= 5];
+/** A date the picker offers (this browser's local time, at midnight) as `yyyy-mm-dd`. */
+const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+/** A day can be chosen when it's a weekday and the clinic isn't closed then. */
+const workingDaysOnly = (closed: ReadonlyMap<string, string>) => [(date: Date) => date.getDay() >= 1 && date.getDay() <= 5 && !closed.has(localDate(date))];
 
 interface MeetingFormProps {
   isOpen: boolean;
@@ -224,6 +228,10 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
 
   const staff = useQuery({...staffQuery, enabled: isOpen});
   const myId = staff.data?.find((s) => s.username === me.username)?.userId;
+  // The days the clinic is closed from today on (bank holidays): the day picker leaves them out, and says so of one
+  // already chosen (a meeting arranged before the day closed).
+  const closedDays = useQuery({...closedDaysQuery({from: today}), enabled: isOpen});
+  const closed = new Map((closedDays.data ?? []).map((d) => [d.date ?? '', d.name ?? '']));
 
   // On a new meeting the organiser (the signed-in user) goes unless they untick "I'm going too", so they aren't in
   // Who. Starting from given people (the team view's), they go when they're among them; otherwise they go.
@@ -268,8 +276,9 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
       : undefined;
   const busy = times && dayAvailability.data ? busyLines(dayAvailability.data.busy ?? [], times.startUtc, times.endUtc) : undefined;
 
+  const closedName = date !== undefined ? closed.get(date) : undefined;
   const isSaving = actions.create.isPending || actions.save.isPending;
-  const canSave = title.trim() !== '' && attendees.length > 0 && times !== undefined && !isSaving;
+  const canSave = title.trim() !== '' && attendees.length > 0 && times !== undefined && closedName === undefined && !isSaving;
 
   const fail = (error: unknown) => {
     if (error instanceof ApiValidationError) {
@@ -425,7 +434,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
               value={date as ISODateString | undefined}
               onChange={(value) => setDate(value)}
               min={today as ISODateString}
-              dateConstraints={WEEKDAYS_ONLY}
+              dateConstraints={workingDaysOnly(closed)}
               weekStartsOn={WEEK_STARTS_ON}
               format="date_weekday"
             />
@@ -447,8 +456,10 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
             />
           </StackItem>
         </HStack>
-        {times && attendees.length > 0 && (
-          <BusyThen busy={busy} isError={dayAvailability.isError} />
+        {closedName !== undefined ? (
+          <AlertMessage status="warning" message={`The clinic is closed then: ${closedName}. Choose another day.`} />
+        ) : (
+          times && attendees.length > 0 && <BusyThen busy={busy} isError={dayAvailability.isError} />
         )}
       </VStack>
     </VStack>
