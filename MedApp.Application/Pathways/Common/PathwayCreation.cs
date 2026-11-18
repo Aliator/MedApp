@@ -54,6 +54,7 @@ public static class PathwayCreation
                     VisitRequirement = map.StageDefinition.VisitRequirement,
                     NeedsLetterKind = map.StageDefinition.NeedsLetterKind,
                     WaitsForResults = map.StageDefinition.WaitsForResults,
+                    NeedsConsent = map.StageDefinition.NeedsConsent,
                     IsOptional = map.IsOptional,
                     ChoosesBranch = map.ChoosesBranch,
                     Branch = map.Branch,

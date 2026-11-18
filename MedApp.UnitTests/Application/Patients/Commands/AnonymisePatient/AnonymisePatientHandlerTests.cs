@@ -137,7 +137,8 @@ public sealed class AnonymisePatientHandlerTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
-            MdtItems = []
+            MdtItems = [],
+            ConsentRecords = []
         });
 
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);

@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
@@ -19,6 +20,7 @@ public sealed class FinishPathwayStageHandler(
     ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
     MedApp.Application.Results.Repositories.IResultRepository resultRepository,
+    IConsentRepository consentRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -73,6 +75,11 @@ public sealed class FinishPathwayStageHandler(
         if (stage.NeedsLetterKind is not null
             && StageGates.WhyLetterMissing(stage, await letterRepository.GetForPathwayAsync(pathway.Id, cancellationToken)) is { } needsLetter)
             throw new ConflictException(needsLetter);
+
+        // A stage that needs consent: a Valid consent record for it (no override: recording it is the action).
+        if (stage.NeedsConsent
+            && StageGates.WhyConsentMissing(stage, await consentRepository.GetForStageAsync(stage.Id, cancellationToken)) is { } needsConsent)
+            throw new ConflictException(needsConsent);
 
         StageFinishing.Finish(change, stage, appointments, request.Reason, request.Branch);
 

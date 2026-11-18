@@ -3,7 +3,7 @@ import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
 const NOT_FOR_ADMIN: readonly Permission[] = [
-  'TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens', 'WriteLetters', 'ApproveLetters', 'SendLetters',
+  'TriageReferrals', 'FinishWithoutVisit', 'RecordConsent', 'RecordSpecimens', 'ProcessSpecimens', 'WriteLetters', 'ApproveLetters', 'SendLetters',
   'RecordMdtOutcomes', 'SignOffResults',
 ];
 
@@ -21,17 +21,17 @@ export const ROLE_PERMISSIONS = {
   ],
   Clinician: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'RecordMdtOutcomes', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters', 'ApproveLetters',
+    'UnlockStages', 'FinishWithoutVisit', 'RecordMdtOutcomes', 'RecordConsent', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters', 'ApproveLetters',
     'SendLetters',
   ],
   'Senior clinician': [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'RecordMdtOutcomes', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters', 'ApproveLetters',
+    'UnlockStages', 'FinishWithoutVisit', 'RecordMdtOutcomes', 'RecordConsent', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters', 'ApproveLetters',
     'SendLetters',
   ],
   Nurse: [
-    'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles',
-    'RecordSpecimens', 'WriteLetters', 'SendLetters',
+    'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'RecordConsent', 'BookAppointments',
+    'AttachFiles', 'RecordSpecimens', 'WriteLetters', 'SendLetters',
   ],
   Booking: [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar',

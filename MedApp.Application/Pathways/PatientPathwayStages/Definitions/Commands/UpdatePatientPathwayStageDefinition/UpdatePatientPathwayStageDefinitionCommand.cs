@@ -16,5 +16,7 @@ public sealed record UpdatePatientPathwayStageDefinitionCommand(
     // A letter kind's name, "None" to remove it, or null to leave it as it is.
     string? NeedsLetterKind = null,
     // Whether it waits for results, or null to leave it as it is.
-    bool? WaitsForResults = null)
+    bool? WaitsForResults = null,
+    // Whether the stage needs a Valid consent record before it can be finished, or null to leave it as it is.
+    bool? NeedsConsent = null)
     : IRequest<PatientPathwayStageDefinitionResponse>;

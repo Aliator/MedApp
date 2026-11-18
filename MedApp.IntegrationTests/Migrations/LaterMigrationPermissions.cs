@@ -16,6 +16,7 @@ internal static class LaterMigrationPermissions
         ("20261118175544_AddedSpecimens", [Permission.RecordSpecimens, Permission.ProcessSpecimens]),
         ("20261118181632_AddedMdtItems", [Permission.RecordMdtOutcomes]),
         ("20261118182523_AddedResults", [Permission.SignOffResults]),
+        ("20261118183559_AddedConsentRecords", [Permission.RecordConsent]),
     ];
 
     /// <summary>The permissions migrations later than this one add (migration IDs sort by their timestamp).</summary>

@@ -1,3 +1,4 @@
+import {CheckboxInput} from '@astryxdesign/core/CheckboxInput';
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -55,6 +56,7 @@ const EMPTY: StageDefinitionInput = {
   visitRequirement: 'None',
   needsLetterKind: 'None',
   waitsForResults: false,
+  needsConsent: false,
 };
 
 /** The "Needs a letter" choices: none, or a kind of letter (decision 105). */
@@ -121,6 +123,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             visitRequirement: visitRequirementOf(definition),
             needsLetterKind: definition.needsLetterKind || 'None',
             waitsForResults: definition.waitsForResults ?? false,
+            needsConsent: definition.needsConsent ?? false,
           }
         : EMPTY,
     );
@@ -311,6 +314,12 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 description="It can't be finished while any of the pathway's results awaits sign-off by its responsible clinician."
                 value={form.waitsForResults}
                 onChange={(isOn) => setForm((current) => ({...current, waitsForResults: isOn}))}
+              />
+              <CheckboxInput
+                label="Needs consent"
+                description="The patient's consent to this stage must be recorded before it can be finished. MedApp records the consent; it doesn't assess it."
+                value={form.needsConsent}
+                onChange={(value: boolean) => setForm((current) => ({...current, needsConsent: value}))}
               />
             </VStack>
           </ConfirmDialog>

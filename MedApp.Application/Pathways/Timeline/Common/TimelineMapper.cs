@@ -194,6 +194,10 @@ public static class TimelineMapper
                     ? present.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.String).Select(p => p.GetString()!).ToList()
                     : [];
                 break;
+
+            case ConsentRecorded or ConsentWithdrawn or ConsentEnteredInError:
+                Consent(response, entry.Action, details, isAdmin ? row.ConsentRecord : null);
+                break;
         }
 
         return response;
@@ -352,6 +356,33 @@ public static class TimelineMapper
                 response.Reason = result.ErrorDetail;
                 break;
         }
+    }
+
+    /// <summary>
+    /// A consent entry: which record, the form's name and version (admin-written), who signed (by kind), the date signed,
+    /// the status before and after, and the scan's file. Never free text for staff: a withdrawal's or correction's detail
+    /// is for admins only, read from the record (<paramref name="record"/>, given only for admins), as the audit holds
+    /// none.
+    /// </summary>
+    private static void Consent(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Consent.ConsentRecord? record)
+    {
+        response.ConsentRecordId = Guid.TryParse(Text(details, "consentRecordId"), out var recordId) ? recordId : null;
+        response.ConsentFormName = Text(details, "formName");
+        response.ConsentFormVersion = Text(details, "formVersion");
+        response.ConsentSignedBy = Text(details, "signedBy");
+        response.ConsentSignedOn = DateOnly.TryParse(Text(details, "signedOn"), System.Globalization.CultureInfo.InvariantCulture, out var signedOn)
+            ? signedOn
+            : null;
+        response.AttachmentId = Guid.TryParse(Text(details, "scanAttachmentId"), out var scanId) ? scanId : null;
+        response.FromStatus = Text(details, "from");
+        response.ToStatus = Text(details, "to");
+
+        if (action is ConsentWithdrawn or ConsentEnteredInError && record is not null)
+            response.Reason = record.StatusDetail;
     }
 
     /// <summary>A GUID a JSON object's property holds, or null (for details that aren't JSON, or lack it).</summary>

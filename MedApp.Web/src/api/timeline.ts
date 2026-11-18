@@ -7,6 +7,7 @@ import {dispatchMethodWords, letterKindWords, recipientKindWords} from './letter
 import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
 import {skipReasonLabel} from './stageSkips';
 import {resultActionLabel, resultStatusLabel} from './results';
+import {consentFormLabel, signedByLabel} from './consent';
 import {specimenStatusLabel} from './specimens';
 import {api, unwrap, type Schemas} from './client';
 
@@ -25,7 +26,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Results', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Mdt', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Results', 'Consent', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Mdt', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -36,6 +37,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   WaitingTime: 'Waiting time',
   Specimens: 'Specimens',
   Results: 'Results',
+  Consent: 'Consent',
   Letters: 'Letters',
   Notes: 'Notes',
   Assignments: 'Assignments',
@@ -268,9 +270,37 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
     default:
       if (isResultEntry(entry)) return describeResultEntry(entry);
       if (isSpecimenEntry(entry)) return describeSpecimenEntry(entry);
+      if (isConsentEntry(entry)) return describeConsentEntry(entry);
       if (isLetterEntry(entry)) return describeLetterEntry(entry);
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+  }
+}
+
+/** Whether an entry is about consent (its action is "Consent" and what happened). */
+export const isConsentEntry = (entry: TimelineEntry) => entry.kind === 'Consent' || (entry.action ?? '').startsWith('Consent');
+
+/**
+ * A consent entry in words: the form and its version (admin-written), who signed and when (structured, which staff
+ * see). What was said when it was withdrawn, or what was wrong, comes only to admins (`reason`). MedApp records consent;
+ * nothing here says whether it was valid.
+ */
+function describeConsentEntry(entry: TimelineEntry): TimelineWording {
+  const form = consentFormLabel(entry.consentFormName, entry.consentFormVersion) || 'a consent form';
+  const signed = sentences(
+    entry.consentSignedOn ? `Signed ${formatShortDate(entry.consentSignedOn)}` : null,
+    entry.consentSignedBy ? `By: ${signedByLabel(entry.consentSignedBy).toLowerCase()}` : null,
+  );
+  const reason = entry.reason?.trim();
+  switch (entry.action) {
+    case 'ConsentRecorded':
+      return {title: `Consent recorded on ${form}`, detail: sentences(signed, entry.attachmentId ? 'Scan attached' : 'No scan')};
+    case 'ConsentWithdrawn':
+      return {title: `Consent withdrawn (${form})`, detail: sentences(signed, reason)};
+    case 'ConsentEnteredInError':
+      return {title: `Consent record marked entered in error (${form})`, detail: sentences(signed, reason)};
+    default:
+      return {title: 'Consent changed', detail: signed};
   }
 }
 

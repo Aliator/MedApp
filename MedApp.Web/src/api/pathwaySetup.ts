@@ -33,6 +33,8 @@ export interface StageDefinitionInput {
    * false clears it on a save.
    */
   waitsForResults: boolean;
+  /** Whether a Valid consent record for the stage is needed before it can be finished. Always sent. */
+  needsConsent: boolean;
   snomedCode: string;
   snomedTerm: string;
 }

@@ -29,6 +29,18 @@ public sealed class PatientPathwayStageResponse
     /// </summary>
     public bool WaitsForResults { get; set; }
 
+    /// <summary>
+    /// Copied from the stage definition: whether a Valid consent record for the stage is needed before it can be finished
+    /// (no override: recording the consent is the action).
+    /// </summary>
+    public bool NeedsConsent { get; set; }
+
+    /// <summary>
+    /// Whether the viewer can record consent to it now: they hold RecordConsent, the record can change, the pathway is
+    /// open and the stage is neither finished nor skipped.
+    /// </summary>
+    public bool CanRecordConsent { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Copied from the template: whether it can be skipped, with a reason, while it's current.</summary>

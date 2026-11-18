@@ -28,6 +28,7 @@ public sealed class RolePermissionsMigrationTests
     private static readonly Permission[] LetterPermissions = [Permission.WriteLetters, Permission.ApproveLetters, Permission.SendLetters];
 
     private const string SpecimensMigration = "20261118175544_AddedSpecimens";
+    private const string ConsentMigration = "20261118183559_AddedConsentRecords";
 
     private const string ResultsMigration = "20261118182523_AddedResults";
 
@@ -143,6 +144,22 @@ public sealed class RolePermissionsMigrationTests
         await _context.GetService<IMigrator>().MigrateAsync(SpecimensMigration);
 
         (await _context.Database.SqlQuery<int>($"SELECT COUNT(*) AS Value FROM RolePermissions WHERE Permission = 'SignOffResults'").SingleAsync())
+            .Should().Be(0);
+    }
+
+    [Test]
+    public async Task Consent_UpGivesRecordConsentToTheStartingRoles_AndDownTakesItAway()
+    {
+        await _context.GetService<IMigrator>().MigrateAsync(ConsentMigration);
+
+        foreach (var role in StandardRoles.Starting)
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, ConsentMigration), role.Name);
+        (await PermissionsOfAsync(StandardRoles.Nurse.Id)).Should().Contain(nameof(Permission.RecordConsent));
+        (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().NotContain(nameof(Permission.RecordConsent));
+
+        await _context.GetService<IMigrator>().MigrateAsync(SpecimensMigration);
+
+        (await _context.Database.SqlQuery<int>($"SELECT COUNT(*) AS Value FROM RolePermissions WHERE Permission = 'RecordConsent'").SingleAsync())
             .Should().Be(0);
     }
 
