@@ -16,7 +16,14 @@ function routePatterns(): RegExp[] {
 const pathOf = (href: string) => href.split('?')[0];
 
 /** The records a tour link opens, by the kind of page: `/pathways/<id>` is a pathway. */
-const COLLECTIONS = {patients: 'patients', pathways: 'pathways', referrals: 'referrals'} as const;
+const COLLECTIONS = {
+  patients: 'patients',
+  pathways: 'pathways',
+  referrals: 'referrals',
+  results: 'results',
+  specimens: 'specimens',
+  letters: 'letters',
+} as const;
 
 describe('the Read Me tour', () => {
   const links = TOUR.flatMap((step) => [step.path, ...(step.halfView ? [step.halfView] : [])]);
@@ -48,6 +55,7 @@ describe('the Read Me tour', () => {
     expect(byKey('triage').whyNot!(state)).toBeNull();
     expect(byKey('finish-stage').whyNot!(state)).toBeNull();
     expect(byKey('book').whyNot!(state)).toBeNull();
+    for (const key of ['sign-off', 'consent', 'branch', 'mdt']) expect(byKey(key).whyNot!(state), key).toBeNull();
 
     state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
     state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)!.stages[2].completedAtUtc = '2026-11-18T10:00:00.000Z';
@@ -55,6 +63,14 @@ describe('the Read Me tour', () => {
     expect(byKey('triage').whyNot!(state)).toMatch(/already/);
     expect(byKey('finish-stage').whyNot!(state)).toMatch(/already/);
     expect(byKey('book').whyNot!(state)).toMatch(/already/);
+  });
+
+  it('opens this morning’s MDT, at an item still to discuss', () => {
+    const state = seed();
+    const mdt = TOUR.find((step) => step.key === 'mdt')!;
+    const meetingId = new URLSearchParams(mdt.path.split('?')[1]).get('meeting');
+    expect(state.meetings.find((m) => m.id === meetingId)?.isMdt).toBe(true);
+    expect(state.mdtItems.some((i) => i.meetingId === meetingId && i.status === 'Listed')).toBe(true);
   });
 
   it('has the staff member triage in her own specialty, and the admin see Insights', () => {

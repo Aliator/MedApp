@@ -5,6 +5,7 @@ import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
   MEETINGS,
+  MORE_APPOINTMENTS,
   PATHWAYS,
   PATIENTS,
   REFERRALS,
@@ -15,7 +16,10 @@ import {
   TEMPLATES,
   USERS,
 } from './ids';
-import type {DemoPathway, DemoReferral, DemoStage, DemoState} from './state';
+import {seedClinical} from './slices/clinical';
+import {seedLab} from './slices/lab';
+import {seedSetup} from './slices/setup';
+import type {BaseState, DemoPathway, DemoReferral, DemoStage, DemoStageDefinition, DemoState} from './state';
 import {daysFrom, thisWeek, today, ukTime} from './time';
 
 /**
@@ -26,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 1;
+export const SEED_VERSION = 2;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -43,24 +47,65 @@ export const ROOM_LIST = [
   {id: ROOMS.procedureRoom, name: 'Procedure room'},
 ];
 
-/** The stage library: each definition's name, what it involves, and whether it needs a visit. */
-const LIBRARY: Record<keyof typeof STAGES, {name: string; description: string; visit: DemoStage['visitRequirement']}> = {
+/**
+ * The stage library: each definition's name, what it involves, whether it needs a visit, and its gates (a letter of a
+ * kind sent, a consent record, the results signed off), as the full demo clinic has them.
+ */
+const LIBRARY: Record<
+  keyof typeof STAGES,
+  {name: string; description: string; visit: DemoStage['visitRequirement']; letter?: string; consent?: boolean; results?: boolean}
+> = {
   firstClinicVisit: {name: 'First clinic visit', description: 'See the patient in clinic and examine them.', visit: 'Required'},
   biopsyOrSample: {name: 'Biopsy or sample', description: 'Take a biopsy or sample for the lab.', visit: 'Required'},
   histology: {name: 'Histology (lab)', description: 'The lab reports on the sample.', visit: 'None'},
-  resultsAndTeamReview: {name: 'Results and team review', description: 'Review the results, with the team if needed.', visit: 'Suggested'},
-  treatment: {name: 'Treatment', description: 'Treat the lesion: excision or other treatment.', visit: 'Required'},
+  resultsAndTeamReview: {
+    name: 'Results and team review',
+    description: 'Review the results, with the team if needed.',
+    visit: 'Suggested',
+    results: true,
+  },
+  treatment: {name: 'Treatment', description: 'Treat the lesion: excision or other treatment.', visit: 'Required', consent: true},
   followUp: {name: 'Follow-up', description: 'Check how the patient is doing.', visit: 'Suggested'},
-  dischargeLetter: {name: 'Discharge letter to GP', description: "Write to the patient's GP and discharge.", visit: 'None'},
+  dischargeLetter: {
+    name: 'Discharge letter to GP',
+    description: "Write to the patient's GP and discharge.",
+    visit: 'None',
+    letter: 'DischargeSummary',
+  },
   medicinesReview: {name: 'Medicines review', description: 'Review the patient’s medicines with the pharmacist.', visit: 'Suggested'},
   bloodAndUrineTests: {name: 'Blood and urine tests', description: 'Take blood and urine samples.', visit: 'Required'},
-  labTests: {name: 'Lab tests (lab)', description: 'The lab runs the tests.', visit: 'None'},
+  labTests: {name: 'Lab tests (lab)', description: 'The lab runs the tests.', visit: 'None', results: true},
   clinicReview: {name: 'Clinic review', description: 'Review the results with the patient in clinic.', visit: 'Required'},
+  excision: {
+    name: 'Excision',
+    description: 'Remove the lesion in the minor surgery list, without a biopsy first.',
+    visit: 'Required',
+    consent: true,
+  },
 };
 
 type StageKey = keyof typeof STAGES;
 
-const TEMPLATE_SPECS: {id: string; name: string; specialtyId: string; stages: StageKey[]}[] = [
+/** The stage library as the state keeps it. */
+export const stageDefinitionList = (): DemoStageDefinition[] =>
+  (Object.keys(STAGES) as StageKey[]).map((key) => ({
+    id: STAGES[key],
+    name: LIBRARY[key].name,
+    description: LIBRARY[key].description,
+    instructions: null,
+    snomedCode: null,
+    snomedTerm: null,
+    visitRequirement: LIBRARY[key].visit,
+    needsLetterKind: LIBRARY[key].letter ?? null,
+    needsConsent: LIBRARY[key].consent ?? false,
+    waitsForResults: LIBRARY[key].results ?? false,
+    isArchived: false,
+  }));
+
+/** A template's stage: its definition, and whether it's optional, a branch point or in a branch. */
+type TemplateStageSpec = StageKey | {key: StageKey; optional?: boolean; choosesBranch?: boolean; branch?: string};
+
+const TEMPLATE_SPECS: {id: string; name: string; specialtyId: string; stages: TemplateStageSpec[]}[] = [
   {
     id: TEMPLATES.skinLesion,
     name: 'Skin lesion pathway',
@@ -85,7 +130,22 @@ const TEMPLATE_SPECS: {id: string; name: string; specialtyId: string; stages: St
     specialtyId: SPECIALTIES.diabetes,
     stages: ['bloodAndUrineTests', 'labTests', 'clinicReview', 'medicinesReview', 'followUp', 'dischargeLetter'],
   },
+  {
+    id: TEMPLATES.suspectedSkinCancer,
+    name: 'Suspected skin cancer (biopsy or treat)',
+    specialtyId: SPECIALTIES.dermatology,
+    stages: [
+      {key: 'firstClinicVisit', choosesBranch: true},
+      {key: 'biopsyOrSample', branch: 'Biopsy first'},
+      {key: 'histology', branch: 'Biopsy first'},
+      {key: 'excision', branch: 'Treat directly'},
+      {key: 'followUp', optional: true},
+      'dischargeLetter',
+    ],
+  },
 ];
+
+const stageSpec = (spec: TemplateStageSpec) => (typeof spec === 'string' ? {key: spec} : spec);
 
 const SPECIALTY_NAMES: [string, string][] = [
   [SPECIALTIES.dermatology, 'Dermatology'],
@@ -97,20 +157,41 @@ const SPECIALTY_NAMES: [string, string][] = [
 
 export const specialtyName = (id: string | null | undefined) => SPECIALTY_NAMES.find(([key]) => key === id)?.[1] ?? null;
 
-/** A template's stages, in order, for a new pathway made from it. */
-export function templateStages(template: Schemas['PathwayTemplateResponse']): Omit<DemoStage, 'id'>[] {
-  return (template.stages ?? []).map((stage) => ({
-    stageDefinitionId: stage.stageDefinitionId ?? '',
-    stageOrder: stage.stageOrder ?? 0,
-    name: stage.name ?? '',
-    description: stage.description ?? null,
-    visitRequirement: (stage.visitRequirement as DemoStage['visitRequirement']) ?? 'None',
-    notes: null,
-    startedAtUtc: null,
-    startedByUserId: null,
-    completedAtUtc: null,
-    completedByUserId: null,
-  }));
+/**
+ * A template's stages, in order, for a new pathway made from it: the template's options (optional, branches) and the
+ * definition's gates, copied onto each stage as the API's `PathwayCreation` does.
+ */
+export function templateStages(
+  template: Schemas['PathwayTemplateResponse'],
+  definitions: DemoStageDefinition[],
+): Omit<DemoStage, 'id'>[] {
+  return (template.stages ?? []).map((stage) => {
+    const definition = definitions.find((d) => d.id === stage.stageDefinitionId);
+    return {
+      stageDefinitionId: stage.stageDefinitionId ?? '',
+      stageOrder: stage.stageOrder ?? 0,
+      name: stage.name ?? '',
+      description: stage.description ?? null,
+      visitRequirement: (stage.visitRequirement as DemoStage['visitRequirement']) ?? 'None',
+      needsLetterKind: definition?.needsLetterKind ?? null,
+      needsConsent: definition?.needsConsent ?? false,
+      waitsForResults: definition?.waitsForResults ?? false,
+      isOptional: stage.isOptional ?? false,
+      choosesBranch: stage.choosesBranch ?? false,
+      branch: stage.branch ?? null,
+      chosenBranch: null,
+      unlocked: false,
+      notes: null,
+      startedAtUtc: null,
+      startedByUserId: null,
+      completedAtUtc: null,
+      completedByUserId: null,
+      skippedAtUtc: null,
+      skippedByUserId: null,
+      skipReason: null,
+      skipDetail: null,
+    };
+  });
 }
 
 /** The patients: synthetic names, dates of birth and 999-range NHS numbers (each with a valid check digit). */
@@ -127,6 +208,8 @@ const PATIENT_SPECS: [string, string, string, string][] = [
   [PATIENTS.aishaKhoury, 'Aisha', 'Khoury', '1975-10-19'],
   [PATIENTS.ruthPenrose, 'Ruth', 'Penrose', '1956-08-27'],
   [PATIENTS.callumAshby, 'Callum', 'Ashby', '1970-05-05'],
+  [PATIENTS.harrietQuill, 'Harriet', 'Quill', '1949-01-22'],
+  [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09'],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
@@ -143,6 +226,8 @@ export const NHS_NUMBERS = [
   '9991016449',
   '9991019189',
   '9991020551',
+  '9991022007',
+  '9991023372',
 ];
 
 /** A stage's ID within a seeded pathway: fixed, as everything in the seed is. */
@@ -172,13 +257,13 @@ interface PathwaySpec {
   notes?: {authorUserId: string; text: string; daysAgo: number}[];
 }
 
-function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateResponse'][]): DemoPathway {
+function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateResponse'][], definitions: DemoStageDefinition[]): DemoPathway {
   const template = templates.find((t) => t.id === spec.templateId)!;
   const created = ago(spec.createdDaysAgo, 9, 15);
   const doer = spec.assignee ?? ADMIN.id;
   // Finished stages are spread between the pathway's start and a couple of days ago.
   const step = Math.max(1, Math.floor((spec.createdDaysAgo - 2) / Math.max(1, spec.done)));
-  const stages = templateStages(template).map((stage, i): DemoStage => {
+  const stages = templateStages(template, definitions).map((stage, i): DemoStage => {
     const finishedDaysAgo = spec.createdDaysAgo - step * (i + 1);
     const isDone = i < spec.done;
     const isStarted = isDone || (i === spec.done && spec.started === true);
@@ -216,6 +301,8 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
       createdAtUtc: ago(note.daysAgo, 11, 5),
       lastEditedAtUtc: null,
       version: 1,
+      deleted: null,
+      pendingRequestId: null,
     })),
     statusChanges:
       spec.status === 'Blocked'
@@ -302,6 +389,7 @@ const weekdayBack = (n: number) => {
 /** Builds the light demo's data as of today. Everyone starts signed out. */
 export function seed(): DemoState {
   const on = today();
+  const stageDefinitions = stageDefinitionList();
   const templates: Schemas['PathwayTemplateResponse'][] = TEMPLATE_SPECS.map((spec) => ({
     id: spec.id,
     name: spec.name,
@@ -311,19 +399,22 @@ export function seed(): DemoState {
     retentionClass: 'Adult',
     pathwayCount: 0,
     clockStopStageOrder: 1,
-    stageDefinitionIdsInOrder: spec.stages.map((key) => STAGES[key]),
-    stages: spec.stages.map((key, i) => ({
-      stageOrder: i + 1,
-      stageDefinitionId: STAGES[key],
-      name: LIBRARY[key].name,
-      description: LIBRARY[key].description,
-      isArchived: false,
-      visitRequirement: LIBRARY[key].visit,
-      isOptional: false,
-      choosesBranch: false,
-      branch: null,
-      stopsClock: i === 0,
-    })),
+    stageDefinitionIdsInOrder: spec.stages.map((s) => STAGES[stageSpec(s).key]),
+    stages: spec.stages.map((s, i) => {
+      const {key, optional, choosesBranch, branch} = stageSpec(s);
+      return {
+        stageOrder: i + 1,
+        stageDefinitionId: STAGES[key],
+        name: LIBRARY[key].name,
+        description: LIBRARY[key].description,
+        isArchived: false,
+        visitRequirement: LIBRARY[key].visit,
+        isOptional: optional ?? false,
+        choosesBranch: choosesBranch ?? false,
+        branch: branch ?? null,
+        stopsClock: i === 0,
+      };
+    }),
   }));
 
   const pathways = (
@@ -369,8 +460,19 @@ export function seed(): DemoState {
         title: 'Psoriasis, new treatment', dueIn: 25, priority: 'Medium', done: 2, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 45,
       },
+      {
+        n: 9, id: PATHWAYS.consentToRecord, patientId: PATIENTS.harrietQuill, templateId: TEMPLATES.skinLesion,
+        title: 'Basal cell carcinoma, left temple', dueIn: 12, priority: 'High', done: 4, started: true, status: 'InProgress',
+        assignee: STAFF.id, createdDaysAgo: 40,
+        notes: [{authorUserId: STAFF.id, text: 'Team review: excise with a 4 mm margin.', daysAgo: 6}],
+      },
+      {
+        n: 10, id: PATHWAYS.branchToChoose, patientId: PATIENTS.felixMoreton, templateId: TEMPLATES.suspectedSkinCancer,
+        title: 'Suspicious lesion, right shin', dueIn: 35, priority: 'High', done: 0, started: true, status: 'InProgress',
+        assignee: STAFF.id, createdDaysAgo: 6,
+      },
     ] satisfies PathwaySpec[]
-  ).map((spec) => makePathway(spec as PathwaySpec, templates));
+  ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
 
   const referrals = [
@@ -402,6 +504,7 @@ export function seed(): DemoState {
     minute: number,
     minutes: number,
     status: 'Requested' | 'Booked' | 'Attended',
+    roomId: string = ROOMS.clinicRoom1,
   ): Schemas['AppointmentResponse'] => {
     const p = pathway(pathwayId);
     const stage = p.stages[stageIndex];
@@ -422,7 +525,7 @@ export function seed(): DemoState {
       startUtc,
       endUtc: startUtc ? new Date(new Date(startUtc).getTime() + minutes * 60000).toISOString() : null,
       durationMinutes: minutes,
-      roomId: date ? ROOMS.clinicRoom1 : null,
+      roomId: date ? roomId : null,
       notes: null,
       isAutomatic: false,
       createdAtUtc: ago(10, 12, 0),
@@ -442,6 +545,10 @@ export function seed(): DemoState {
     appointment(APPOINTMENTS.priyaFirstVisit, PATHWAYS.histologyToFinish, 0, STAFF, weekdayBack(20), 9, 0, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaBiopsy, PATHWAYS.histologyToFinish, 1, STAFF, weekdayBack(12), 11, 0, 30, 'Attended'),
     appointment(APPOINTMENTS.daniyalBloods, PATHWAYS.notStarted, 0, ADMIN, null, 0, 0, 15, 'Requested'),
+    appointment(MORE_APPOINTMENTS.harrietFirstVisit, PATHWAYS.consentToRecord, 0, STAFF, weekdayBack(36), 10, 0, 30, 'Attended'),
+    appointment(MORE_APPOINTMENTS.harrietBiopsy, PATHWAYS.consentToRecord, 1, STAFF, weekdayBack(28), 11, 30, 30, 'Attended', ROOMS.procedureRoom),
+    appointment(MORE_APPOINTMENTS.harrietExcision, PATHWAYS.consentToRecord, 4, STAFF, weekdayBack(0), 9, 0, 45, 'Attended', ROOMS.procedureRoom),
+    appointment(MORE_APPOINTMENTS.felixFirstVisit, PATHWAYS.branchToChoose, 0, STAFF, weekdayBack(1), 14, 0, 30, 'Attended'),
   ];
   // Pathways whose stage visits were attended had those stages started by the visit.
   pathway(PATHWAYS.followUpBooked).stages[2].startedAtUtc = ago(2, 9, 0);
@@ -538,14 +645,16 @@ export function seed(): DemoState {
     lastUpdated: ago(120),
   }));
 
-  return {
+  const base: BaseState = {
     version: SEED_VERSION,
     seededOn: on,
     user: null,
     patients,
     specialties,
+    stageDefinitions,
     templates,
     pathways,
+    noteDeletionRequests: [],
     referrals,
     appointments,
     blocks,
@@ -587,4 +696,7 @@ export function seed(): DemoState {
     notepads: {},
     settings: {},
   };
+  // Each area's slice seeds after the base, reading (or adding to) its records.
+  const state: DemoState = {...base, ...seedLab(base), ...seedClinical(base), ...seedSetup(base)};
+  return state;
 }

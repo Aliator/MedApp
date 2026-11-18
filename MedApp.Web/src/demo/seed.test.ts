@@ -1,4 +1,9 @@
 import {ALL_IDS} from './ids';
+import {CONSENT, LETTERS, LETTER_TEMPLATES, MDT_ITEMS, MDT_MEETINGS} from './slices/clinical';
+import {LABORATORIES, RESULTS, SPECIMEN_TYPES, SPECIMENS} from './slices/lab';
+
+const LAB_ID_GROUPS = {LABORATORIES, RESULTS, SPECIMEN_TYPES, SPECIMENS};
+const CLINICAL_ID_GROUPS = {CONSENT, LETTERS, LETTER_TEMPLATES, MDT_ITEMS, MDT_MEETINGS};
 import {NHS_NUMBERS, seed} from './seed';
 import {thisWeek, today} from './time';
 
@@ -20,7 +25,9 @@ describe('the light demo seed', () => {
   });
 
   it('has every fixed ID once', () => {
-    const ids = Object.values(ALL_IDS).flatMap((group) => Object.values(group));
+    const ids = [ALL_IDS, LAB_ID_GROUPS, CLINICAL_ID_GROUPS].flatMap((groups) =>
+      Object.values(groups).flatMap((group) => Object.values(group) as string[]),
+    );
     expect(new Set(ids).size).toBe(ids.length);
   });
 
