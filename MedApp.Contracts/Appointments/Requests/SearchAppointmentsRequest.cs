@@ -34,4 +34,10 @@ public sealed class SearchAppointmentsRequest
 
     /// <summary>The patient's full name contains this, ignoring case.</summary>
     public string? Search { get; set; }
+
+    /// <summary>
+    /// <c>didNotAttend</c>: the Did not attend list, appointments marked Did not attend with no later appointment for the
+    /// same stage (or pathway) and no decision of no further appointment, each with how many were missed on its pathway.
+    /// </summary>
+    public string? View { get; set; }
 }

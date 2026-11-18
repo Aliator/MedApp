@@ -8,4 +8,7 @@ public sealed class CancelClinicSessionRequest
 
     /// <summary>The session's <c>lastUpdated</c> as the caller last read it: a 409 if it has changed since.</summary>
     public DateTime? ExpectedLastUpdated { get; set; }
+
+    /// <summary>Text or email each patient whose appointment is cancelled, as they chose (only when patient messages are on).</summary>
+    public bool TellPatients { get; set; }
 }

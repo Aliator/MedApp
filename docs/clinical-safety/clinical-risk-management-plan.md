@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-01, clinical risk management plan (DCB0129) |
-| **Version** | 0.4, draft |
+| **Version** | 0.5, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, from `main` at `88dc1fa` (the merge of #56) onwards |
 | **Manufacturer** | [Manufacturer name] |
@@ -27,7 +27,7 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 
 - **Each customer's deployment:** how a customer configures, trains for and uses MedApp is their own clinical risk management under DCB0160. The manufacturer supports it (`dcb0160-deploying-organisations.md`).
 - **The content of templates and stage instructions:** customers write them, and are responsible for their clinical accuracy, including which stages involve a visit. The hazards that the software adds to that content (for example, how changes reach pathways) are in scope.
-- **Contacting patients about appointments:** MedApp doesn't contact patients; how a customer tells them about bookings, changes and cancellations is its own process, under DCB0160.
+- **Contacting patients about appointments:** how a customer tells patients about bookings, changes and cancellations is its own process, under DCB0160. MedApp's texts and emails to patients (PR 26), if the customer turns them on, are a courtesy on top of it (H-53 to H-55); the customer's messaging provider is outside MedApp.
 - **Medical device regulation:** MedApp isn't a medical device as it stands (`intended-purpose-and-device-decision.md`). If that changes, ISO 14971 and UK MDR 2002 apply too, and this plan has to be revised.
 
 ### Current state
@@ -266,3 +266,4 @@ Once a year, the CSO checks that the process was followed: that every clinical-i
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table; the go-live rule on the "at first live use" rating; the release gate for every change under `MedApp.*` or `deploy/`, starting when a CSO is appointed, with the device question in `AGENTS.md` now | AI coding agent, for review |
 | 0.3 | 16 November 2026 | File attachments added to the scope | AI coding agent, for review |
 | 0.4 | 16 November 2026 | Staff calendars, appointments and stage visits in scope; contacting patients about appointments left to customers; the calendar and appointment rules added to where hazards are looked for | AI coding agent, for review |
+| 0.5 | 18 November 2026 | Patient reminders (branch `feature/patient-reminders`, Phase 4's PR 26): contacting patients is still the customer's own process; MedApp's texts and emails, if turned on, are a courtesy on top of it | AI coding agent, for review |

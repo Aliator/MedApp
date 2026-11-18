@@ -46,6 +46,15 @@ describe('ViewPatientPage', () => {
     expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
     // The NHS number, mobile, address and GP practice.
     expect(screen.getAllByText('Not given')).toHaveLength(4);
+    // No reminder choice yet: the API's default.
+    expect(screen.getByText('No reminders')).toBeInTheDocument();
+  });
+
+  it("shows the patient's reminder choice in words", async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, reminderChannel: 'TextAndEmail'}), ...timeline});
+    renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
+
+    expect(await screen.findByText('Text and email')).toBeInTheDocument();
   });
 
   it("shows the patient's mobile and address, and their GP practice from the directory", async () => {
@@ -361,6 +370,25 @@ describe('AddPatientPage', () => {
     });
   });
 
+  it('sends the reminder choice when one is chosen, warning without blocking when there is no mobile for texts', async () => {
+    const fetch = mockApi({'POST /api/patients': () => json(freya, 201)});
+    const {user} = renderWithApp(<AddPatientPage />, {path: '/patients/add', user: adminUser});
+
+    await user.type(await screen.findByLabelText(/^first name/i), 'Freya');
+    await user.type(screen.getByLabelText(/^last name/i), 'Ahmed');
+    await user.type(screen.getByLabelText(/^email address/i), 'freya.ahmed18@example.com');
+    const reminders = screen.getByRole('combobox', {name: /^Reminders/});
+    expect(reminders).toHaveAccessibleDescription(/Texts can't be replied to/);
+    await user.click(reminders);
+    await user.click(await screen.findByRole('option', {name: 'Text and email'}));
+    expect(reminders).toHaveAccessibleDescription(/Texts can’t be sent without a mobile number/);
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
+    expect(await bodyOf(fetch, 'POST')).toMatchObject({reminderChannel: 'TextAndEmail'});
+  });
+
   it("shows the API's validation errors on the fields and in a summary", async () => {
     mockApi({
       'POST /api/patients': () =>
@@ -535,6 +563,27 @@ describe('EditPatientPage', () => {
     expect(unchanged).not.toHaveProperty('postcode');
     expect(unchanged).not.toHaveProperty('mobilePhone');
     expect(unchanged).not.toHaveProperty('practiceId');
+    expect(unchanged).not.toHaveProperty('reminderChannel');
+  });
+
+  it("starts from the patient's reminder choice, and sends it only once it's changed", async () => {
+    const withChoice = {...freya, mobilePhone: '+447700900123', reminderChannel: 'Text'};
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(withChoice),
+      [`PATCH /api/patients/${id}`]: () => json(withChoice),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {path: `/patients/${id}/edit`, user: adminUser});
+
+    const reminders = await screen.findByRole('combobox', {name: /^Reminders/});
+    expect(reminders).toHaveTextContent('Text');
+    // The patient asked for no more texts.
+    await user.click(reminders);
+    await user.click(await screen.findByRole('option', {name: 'No reminders'}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`PATCH /api/patients/${id}`));
+    expect(await bodyOf(fetch, 'PATCH')).toMatchObject({reminderChannel: 'None'});
   });
 
   it('removes the practice with the empty ID, and the address and postcode as empty', async () => {

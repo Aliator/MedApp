@@ -212,7 +212,7 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
         var withFiles = new PatientRecord
         {
             Patient = record.Patient, Pathways = record.Pathways, PathwayHistory = record.PathwayHistory,
-            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
+            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
             NoteVersions = [],
             NoteDeletionRequests = [],

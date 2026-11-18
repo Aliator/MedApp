@@ -19,7 +19,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {formatDate} from '../../utils/dates';
 import {formatMobile} from '../../utils/contactDetails';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
-import {PatientContactFields, PatientPracticeField} from './PatientContactFields';
+import {PatientContactFields, PatientPracticeField, PatientReminderField} from './PatientContactFields';
 
 export const EMPTY_PATIENT: PatientInput = {
   firstName: '',
@@ -31,6 +31,7 @@ export const EMPTY_PATIENT: PatientInput = {
   postcode: '',
   mobilePhone: '',
   practiceId: '',
+  reminderChannel: 'None',
 };
 
 /** The fields shown, whose errors show on them (so the page's banner leaves them out). */
@@ -300,6 +301,7 @@ export function PatientFormFields({value, onChange, lookUp, errors, isDisabled =
           status={fieldStatus(errors, 'email')}
         />
         <PatientContactFields value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} />
+        <PatientReminderField value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} />
       </FormSection>
       <FormSection title="Registered GP Practice" useGrid={false}>
         <PatientPracticeField value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} currentPractice={currentPractice} />

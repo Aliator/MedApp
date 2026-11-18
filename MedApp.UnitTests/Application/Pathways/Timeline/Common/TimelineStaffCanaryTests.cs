@@ -229,10 +229,13 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ToResponse_AdminAppointmentEntries_CarryTheFreeText()
     {
-        // The entries whose details hold free text: the cancellation's reason, the notes saved (old and new), and why a walk-in was withdrawn.
+        // The entries whose details hold free text: the cancellation's reason, the notes saved (old and new), why a walk-in was
+        // withdrawn, and a Did not attend's follow-up detail.
         var withText = AppointmentEventsHoldingTheCanary().Where(e => e.Details.Contains(Canary)).ToList();
 
-        withText.Select(e => e.Action).Should().BeEquivalentTo([AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled, AppointmentEventAction.EnteredInError]);
+        withText.Select(e => e.Action).Should().BeEquivalentTo([
+            AppointmentEventAction.NotesUpdated, AppointmentEventAction.Cancelled, AppointmentEventAction.EnteredInError,
+            AppointmentEventAction.DnaFollowUpRecorded]);
         foreach (var entry in withText)
             Serialised(entry, isAdmin: true).Should().Contain(Canary, entry.Action.ToString());
     }
@@ -391,6 +394,8 @@ public sealed class TimelineStaffCanaryTests
         change.UpdateNotes($"{Canary} (edited)");
         change.RecordOutcome(AppointmentStatus.Attended);
         change.RecordOutcome(AppointmentStatus.DidNotAttend);
+        // As RecordDnaFollowUpHandler: the canary as the follow-up's detail.
+        change.RecordDnaFollowUp(DnaFollowUpDecision.ClinicianToReview, Canary);
 
         var other = pathwayChange.RequestVisit(pathway.StageAt(2));
         var cancel = new AppointmentChange(other, Staff, Now.AddMinutes(2), pathwayTitle: Canary);

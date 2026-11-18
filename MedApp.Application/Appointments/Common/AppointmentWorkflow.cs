@@ -53,6 +53,9 @@ public static partial class AppointmentWorkflow
 
     public static bool CanCancel(Appointment appointment) => IsOpen(appointment.Status);
 
+    /// <summary>Marked Did not attend: a follow-up can be recorded (decision 132).</summary>
+    public static bool CanRecordDnaFollowUp(Appointment appointment) => appointment.Status == DidNotAttend;
+
     public static bool CanEditNotes(Appointment appointment) => appointment.Status is not (Cancelled or EnteredInError);
 
     /// <summary>

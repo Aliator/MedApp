@@ -16,15 +16,31 @@ public static class AppointmentSearch
 
     public static readonly IReadOnlyList<string> SortColumns = [SortByStart, SortByRequested, SortByDueDate, SortByPatient];
 
+    /// <summary>The Did not attend list (centre plan decision 132).</summary>
+    public const string DidNotAttendView = "didNotAttend";
+
+    public static readonly IReadOnlyList<string> Views = [DidNotAttendView];
+
+    public static bool IsView(string view) => Views.Contains(view, StringComparer.OrdinalIgnoreCase);
+
+    public static bool IsDidNotAttendView(string? view) => string.Equals(view, DidNotAttendView, StringComparison.OrdinalIgnoreCase);
+
     public static string StatusNames => string.Join(", ", Enum.GetNames<AppointmentStatus>());
 
     public static bool IsSortColumn(string sort) => SortColumns.Contains(sort, StringComparer.OrdinalIgnoreCase);
 
     public static bool IsStatus(string? value) => PathwayEnums.TryParse<AppointmentStatus>(value, out _);
 
-    /// <summary>Appointments matching every filter given.</summary>
-    public static IQueryable<Appointment> Filter(this IQueryable<Appointment> appointments, SearchAppointmentsQuery query)
+    /// <summary>
+    /// Appointments matching every filter given. The Did not attend view needs <paramref name="all"/>, every appointment,
+    /// to look for later ones (<see cref="AwaitingFollowUp"/>).
+    /// </summary>
+    public static IQueryable<Appointment> Filter(
+        this IQueryable<Appointment> appointments, SearchAppointmentsQuery query, IQueryable<Appointment>? all = null)
     {
+        if (IsDidNotAttendView(query.View))
+            appointments = appointments.AwaitingFollowUp(all ?? appointments);
+
         if (query.PatientId is { } patientId)
             appointments = appointments.Where(a => a.PatientId == patientId);
         if (query.PathwayId is { } pathwayId)
@@ -63,6 +79,28 @@ public static class AppointmentSearch
 
         return appointments;
     }
+
+    /// <summary>
+    /// The Did not attend list (centre plan decision 132, hazard H-55): appointments marked Did not attend with no later
+    /// appointment for the same thing (another not cancelled or entered in error, starting after it, or still to be
+    /// booked and asked for after it), and no decision of No further appointment. "The same thing" is the stage, for an
+    /// appointment for one; else the pathway; else the patient's appointments not for a pathway. Rebook and Clinician to
+    /// review stay on the list until the later appointment exists, so neither can be forgotten. Nothing here ever
+    /// changes a pathway.
+    /// </summary>
+    public static IQueryable<Appointment> AwaitingFollowUp(this IQueryable<Appointment> appointments, IQueryable<Appointment> all) =>
+        appointments.Where(a =>
+            a.Status == AppointmentStatus.DidNotAttend
+            && a.DnaFollowUp != DnaFollowUpDecision.NoFurtherAppointment
+            && !all.Any(o =>
+                o.Id != a.Id
+                && o.PatientId == a.PatientId
+                && o.Status != AppointmentStatus.Cancelled
+                && o.Status != AppointmentStatus.EnteredInError
+                && ((a.StageId != null && o.StageId == a.StageId)
+                    || (a.StageId == null && a.PathwayId != null && o.PathwayId == a.PathwayId)
+                    || (a.StageId == null && a.PathwayId == null && o.PathwayId == null))
+                && (o.StartUtc != null ? o.StartUtc > a.StartUtc : o.CreatedAtUtc > a.StartUtc)));
 
     /// <summary>
     /// Sorts by start (the default; Requested ones, which have none, last, by when they were asked for), when they

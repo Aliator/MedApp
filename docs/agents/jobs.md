@@ -39,6 +39,10 @@ Jobs the API runs on a schedule, inside its own process (`MedApp.Application/Job
 
 **It ships as a dry run** (`Retention:Operational:DryRun`, true by default): it counts what it would delete and deletes nothing, because the periods are for the customer's DPO to confirm. Turning it off is a deploy setting (`docs/todo.md`).
 
+## Patient reminders
+
+`PatientRemindersJob` (`patient-reminders`, every 15 minutes) makes, sends and follows the delivery of texts and emails to patients while `PatientMessages:Mode` isn't Off: see [Calendar and appointments](calendar.md), Patient reminders. It changes only its own rows (`PatientMessages`), each saved as it goes, so a run cut short sends nothing twice; it logs counts and exception type names only.
+
 ## Adding a job
 
 1. A class implementing `IScheduledJob` (in its area's `Application` folder), registered with `services.AddScoped<IScheduledJob, YourJob>()` in `AddApplication`. Pick a name that's never reused.
