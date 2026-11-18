@@ -263,10 +263,11 @@ describe('the light demo handlers', () => {
     expect((await call('GET', '/api/data-requests/search?Status=Sent')).body.totalCount).toBe(1);
   });
 
-  it('lets a clinician review data requests, but not log or answer one', async () => {
-    // A Clinician signs off results, so reviews a data request's pack (the API's reviewers); only ManagePrivacy logs one.
+  it('keeps data requests to admins: a clinician can neither see, log nor review one', async () => {
+    // Only ManagePrivacy deals with data requests (the owner's decision), as in the API.
     startLightDemo(STAFF);
-    expect((await call('GET', '/api/data-requests/search')).status).toBe(200);
+    expect((await call('GET', '/api/data-requests/search')).status).toBe(403);
     expect((await call('POST', '/api/data-requests', {patientId: PATIENTS.ellisVarden, receivedOn: '2026-01-01', requestedByPatient: true})).status).toBe(403);
+    expect((await call('PUT', '/api/data-requests/any/review', {withheld: [], expectedVersion: 1})).status).toBe(403);
   });
 });

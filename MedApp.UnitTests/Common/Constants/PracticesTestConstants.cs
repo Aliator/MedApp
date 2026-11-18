@@ -22,6 +22,12 @@ public static class PracticesTestConstants
     public const string Phone = "01632 960000";
     public const string SecureEmail = "testbrook.surgery@nhs.net";
 
+    /// <summary>A practice that isn't in the directory, as typed on a patient ("Not listed here").</summary>
+    public const string UnlistedName = "Nowhereville Health Centre";
+    public const string UnlistedLine = "2 Pretend Road";
+    public const string UnlistedPostcode = "ZZ9 9ZZ";
+    public const string UnlistedPhone = "01632 960111";
+
     /// <summary>A mobile from the drama range, as typed and as stored.</summary>
     public const string MobileAsTyped = "07700 900123";
     public const string Mobile = "+447700900123";

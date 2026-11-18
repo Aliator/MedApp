@@ -3,6 +3,8 @@ import {DATA_REQUEST_ID} from '../test/dataRequests';
 import {
   attachmentFileName,
   dataRequestStatusWords,
+  dataRequestViewLabel,
+  type DataRequestView,
   downloadDataRequestPack,
   identityCheckMethodWords,
   packProblem,
@@ -29,6 +31,14 @@ describe('dataRequests', () => {
     expect(reviewItemKindWords('MdtItem')).toBe('MDT item');
     expect(reviewItemKindWords('Something')).toBe('Something');
     expect(sendMethodWords(null)).toBe('');
+    expect(sendMethodWords('Pigeon')).toBe('Pigeon');
+    expect(dataRequestStatusWords('Lost')).toBe('Lost');
+    expect(dataRequestStatusWords(undefined)).toBe('');
+    expect(identityCheckMethodWords('Fingerprint')).toBe('Fingerprint');
+    expect(identityCheckMethodWords(null)).toBe('');
+    expect(reviewItemKindWords(null)).toBe('');
+    expect(dataRequestViewLabel('AwaitingReview')).toBe('Awaiting review');
+    expect(dataRequestViewLabel('Other' as DataRequestView)).toBe('Other');
   });
 
   it("reads a download's file name from its Content-Disposition", () => {
@@ -60,10 +70,10 @@ describe('dataRequests', () => {
   });
 
   it("says why the pack can't be made in the API's words, or apologises", async () => {
-    mockApi({[`GET /api/data-requests/${DATA_REQUEST_ID}/pack`]: () => json({title: 'A clinician must review the record first.'}, 409)});
+    mockApi({[`GET /api/data-requests/${DATA_REQUEST_ID}/pack`]: () => json({title: 'Review the record first.'}, 409)});
     const refused = await downloadDataRequestPack(DATA_REQUEST_ID).catch((e: unknown) => e);
     expect(refused).toBeInstanceOf(ApiError);
-    expect(packProblem(refused)).toBe('A clinician must review the record first.');
+    expect(packProblem(refused)).toBe('Review the record first.');
     expect(packProblem(new ApiError(501, undefined, "The data-request pack isn't in the light demo."))).toBe(
       "The data-request pack isn't in the light demo.",
     );

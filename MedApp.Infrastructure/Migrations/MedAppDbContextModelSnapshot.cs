@@ -2644,6 +2644,24 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<string>("UnlistedPracticeAddressLines")
+                        .HasMaxLength(302)
+                        .HasColumnType("nvarchar(302)");
+
+                    b.Property<string>("UnlistedPracticeName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnlistedPracticePhone")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("UnlistedPracticePostcode")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NhsNumber")
@@ -2652,7 +2670,10 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("PracticeId");
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Patients_OnePractice", "[PracticeId] IS NULL OR [UnlistedPracticeName] IS NULL");
+                        });
                 });
 
             modelBuilder.Entity("MedApp.Domain.Practices.Practice", b =>

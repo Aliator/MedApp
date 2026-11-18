@@ -12,6 +12,7 @@ import {
   openDialog,
   renderWithApp,
   staffUser,
+  userWithRoles,
   withAnnouncements,
 } from '../../test/render';
 import {MeetingDialog, type MeetingDialogProps} from './MeetingDialog';
@@ -397,6 +398,22 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       // The version it was changed from: the API refuses the change if anyone has changed the meeting since.
       expectedLastUpdated: MEETING.lastUpdated,
     });
+  });
+
+  it("opens an MDT's list from the meeting, for those who can view patients; another meeting has no such link", async () => {
+    const mdt = {...MEETING, isMdt: true, specialtyId: '00000000-0000-0000-0000-00000000f001'};
+    const first = renderDialog({meeting: mdt});
+    expect(await dialog().findByRole('link', {name: 'Open MDT List'})).toHaveAttribute('href', `/mdt?meeting=${MEETING.id}`);
+    first.unmount();
+
+    const plain = renderDialog({meeting: MEETING});
+    expect(await dialog().findByRole('button', {name: 'Change'})).toBeInTheDocument();
+    expect(dialog().queryByRole('link', {name: 'Open MDT List'})).not.toBeInTheDocument();
+    plain.unmount();
+
+    renderDialog({meeting: {...mdt, canEdit: false}}, {user: userWithRoles('test-nobody')});
+    expect(await dialog().findByText('Team huddle')).toBeInTheDocument();
+    expect(dialog().queryByRole('link', {name: 'Open MDT List'})).not.toBeInTheDocument();
   });
 
   it("keeps an MDT's archived specialty when changing it, and sends the specialty chosen", async () => {

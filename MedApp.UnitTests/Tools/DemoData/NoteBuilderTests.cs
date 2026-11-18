@@ -62,8 +62,13 @@ public sealed class NoteBuilderTests
                 kind.SampleNotes.Should().NotBeEmpty(why);
             if (stages.Contains(DemoPathwayKinds.ResultsAndTeamReview))
                 kind.Team.Should().NotBeEmpty(why);
-            if (stages.Contains(DemoPathwayKinds.Treatment))
+            // On a branched pathway an outcome without a treatment takes the Benign branch (PathwayReplay.BranchFor),
+            // so only a Treatment stage on every route needs one from every outcome.
+            var treatment = pathwayKind.Stages.Where(s => s.Definition == DemoPathwayKinds.Treatment).ToList();
+            if (treatment.Any(s => s.Branch is null))
                 kind.Outcomes.Should().OnlyContain(o => o.Treatment.Length > 0, why);
+            else if (treatment.Count > 0)
+                kind.Outcomes.Should().Contain(o => o.Treatment.Length > 0, why);
             if (stages.Contains(DemoPathwayKinds.FollowUp))
                 kind.FollowUps.Should().NotBeEmpty(why);
             if (stages.Contains(DemoPathwayKinds.MedicinesReview))
@@ -105,7 +110,8 @@ public sealed class NoteBuilderTests
             Note(DemoPathwayKinds.BiopsyOrSample).Should().Contain("from the left temple");
             Note(DemoPathwayKinds.Histology).Should().Contain(expected.Result);
             Note(DemoPathwayKinds.ResultsAndTeamReview).Should().Contain(expected.Result).And.Contain("the skin cancer team meeting");
-            Note(DemoPathwayKinds.Treatment).Should().Contain("Site: left temple.").And.Contain(expected.Treatment);
+            if (expected.Treatment.Length > 0)
+                Note(DemoPathwayKinds.Treatment).Should().Contain("Site: left temple.").And.Contain(expected.Treatment);
             Note(DemoPathwayKinds.DischargeLetter).Should().Contain(expected.Result);
         }
     }

@@ -1,5 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
+import type {CurrentUser} from '../../auth/auth';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {
   ANOTHER_PATIENTS_DETAILS,
@@ -14,6 +15,7 @@ import {
   PatientExportPage,
   referralChangeLabel,
   referralName,
+  unlistedPracticeText,
 } from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
@@ -149,9 +151,9 @@ const data: PatientExport = {
   ],
 };
 
-function renderExport(body: unknown = data, status = 200, strict = false) {
+function renderExport(body: unknown = data, status = 200, strict = false, user: CurrentUser = adminUser) {
   const fetch = mockApi({[`GET ${EXPORT}`]: () => json(body, status)});
-  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user: adminUser, strict})};
+  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user, strict})};
 }
 
 describe('PatientExportPage', () => {
@@ -766,6 +768,85 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/ by s\.brightwell$/)).toBeInTheDocument();
     expect(screen.getByText(`Note withheld (${noteId})`)).toBeInTheDocument();
     expect(screen.getByText('Synthetic serious harm reason')).toBeInTheDocument();
+  });
+
+  it('shows data requests only to admins (ManagePrivacy): someone who can only export sees the rest', async () => {
+    const exporter: CurrentUser = {...adminUser, permissions: adminUser.permissions.filter((p) => p !== 'ManagePrivacy')};
+    renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}, dataRequests: []}, 200, false, exporter);
+
+    expect(await screen.findByText('No texts or emails to the patient.')).toBeInTheDocument();
+    expect(screen.queryByText('Data Requests (0)')).not.toBeInTheDocument();
+  });
+
+  it('shows a GP practice that is not in the directory, with its address and phone', async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {
+        id,
+        firstName: 'Oriel',
+        unlistedPractice: {name: 'Nowhereville Health Centre', addressLines: ['2 Pretend Road'], postcode: 'ZZ9 9ZZ', phone: '01632 960111'},
+      },
+    });
+
+    expect(await screen.findByText('Nowhereville Health Centre (not in the directory), 2 Pretend Road, ZZ9 9ZZ, 01632 960111')).toBeInTheDocument();
+    expect(unlistedPracticeText({name: 'Nowhereville Health Centre'})).toBe('Nowhereville Health Centre (not in the directory)');
+  });
+
+  it("lists a refused data request, one the patient made, and one with only what's required, in words for what's missing", async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      dataRequests: [
+        {
+          id: '000000d1-0000-0000-0000-000000000011',
+          receivedOn: '2026-10-01',
+          requestedByPatient: false,
+          requesterName: null,
+          requesterRelationship: null,
+          identityCheckedOn: '2026-10-02',
+          identityCheckedBy: null,
+          identityCheckMethod: 'Other',
+          identityCheckDetail: 'Synthetic video call',
+          dueOn: '2026-12-01',
+          extensionMonths: 2,
+          extensionReason: null,
+          status: 'Refused',
+          refusalReason: 'Synthetic manifestly excessive',
+          sentOn: '2026-11-20',
+          sendMethod: null,
+          closedAtUtc: '2026-11-20T10:00:00Z',
+          closedBy: null,
+          reviewedAtUtc: '2026-11-10T14:00:00Z',
+          reviewedBy: null,
+          withheld: null,
+          createdAtUtc: '2026-10-01T09:00:00Z',
+          createdBy: null,
+        },
+        {
+          id: '000000d1-0000-0000-0000-000000000012',
+          receivedOn: null,
+          requestedByPatient: true,
+          dueOn: null,
+          extensionMonths: 0,
+          status: 'Open',
+        },
+      ],
+    });
+
+    expect(await screen.findByText('Data Requests (2)')).toBeInTheDocument();
+    expect(screen.getByText('Someone on their behalf')).toBeInTheDocument();
+    expect(screen.getByText('2 October 2026, other, by unknown: Synthetic video call')).toBeInTheDocument();
+    expect(screen.getByText('1 December 2026, extended by 2 months')).toBeInTheDocument();
+    expect(screen.getByText('20 November 2026')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic manifestly excessive')).toBeInTheDocument();
+    expect(screen.getAllByText(/ by unknown$/).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByRole('heading', {name: 'Received —'})).toBeInTheDocument();
+    expect(screen.getByText('The patient')).toBeInTheDocument();
+    expect(screen.getByText('Not checked')).toBeInTheDocument();
+    expect(screen.getByText('Not reviewed')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('says when no messages were sent', async () => {

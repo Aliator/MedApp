@@ -25,7 +25,7 @@ public static class DataRequestRules
 
     public const string AnonymisedMessage = "This patient's record has been anonymised, so its data requests can't change.";
 
-    public const string CantReadMessage = "Only holders of ManagePrivacy, or clinicians who review data requests (SignOffResults), can see data requests.";
+    public const string CantHandleMessage = "Only holders of ManagePrivacy (admins) can see or handle data requests.";
 
     /// <summary>
     /// One calendar month from receipt, plus any extension: the same day of the month, or its last day when there's no
@@ -38,14 +38,18 @@ public static class DataRequestRules
 
     public static bool IsOverdue(DataRequest request, DateOnly today) => request.IsOpen && today > request.DueOn;
 
-    /// <summary>Whether the caller may read data requests: holders of ManagePrivacy, or of SignOffResults (the reviewers).</summary>
-    public static bool CanRead(PathwayActor actor) =>
-        actor.Has(Permission.ManagePrivacy) || actor.Has(Permission.SignOffResults);
+    /// <summary>
+    /// Whether the caller may read or handle data requests: only holders of ManagePrivacy (admins), who log, review
+    /// and answer them (the owner's decision: requests reach the company by email or its website and go straight to
+    /// admins; only admins deal with them).
+    /// </summary>
+    public static bool CanHandle(PathwayActor actor) => actor.Has(Permission.ManagePrivacy);
 
-    public static void EnsureCanRead(PathwayActor actor)
+    /// <summary>Every data-request handler's first check (403 otherwise), besides the endpoint's own.</summary>
+    public static void EnsureCanHandle(PathwayActor actor)
     {
-        if (!CanRead(actor))
-            throw new ForbiddenException(CantReadMessage);
+        if (!CanHandle(actor))
+            throw new ForbiddenException(CantHandleMessage);
     }
 
     public static void EnsureVersion(DataRequest request, int expectedVersion)
@@ -74,7 +78,7 @@ public static class DataRequestRules
     public static string? WhyNoPack(DataRequest request) =>
         WhyCantChange(request) is { } why ? why
         : !request.IsIdentityChecked ? "Record the requester's identity check before making the pack."
-        : !request.IsReviewed ? "A clinician must review the record (and withhold anything that meets the serious harm test) before the pack is made."
+        : !request.IsReviewed ? "Review the record (and withhold anything that meets the serious harm test) before the pack is made."
         : null;
 
     /// <summary>Why a date can't be the receipt date, or null: not in the future, at most a year back.</summary>

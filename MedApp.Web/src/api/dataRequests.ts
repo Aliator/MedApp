@@ -5,9 +5,9 @@ import type {paths} from './schema';
 
 /**
  * Patients' data requests (subject access, UK GDPR Article 15; docs/centre-phases-3-5-plan.md, decisions 160 to 163):
- * logged by a holder of ManagePrivacy with the date it was received (due one calendar month on), the requester's
- * identity checked, reviewed by a clinician (a holder of SignOffResults) who withholds only what meets the serious harm
- * test, and answered with a pack (a ZIP: the report as a PDF, the record as JSON and the files) made on request and
+ * handled only by holders of ManagePrivacy (admins): logged with the date it was received (due one calendar month on),
+ * the requester's identity checked, reviewed (withholding only what meets the serious harm test, on an appropriate
+ * health professional's opinion taken outside MedApp), and answered with a pack (a ZIP: the report as a PDF, the record as JSON and the files) made on request and
  * never stored. Every change carries the version the page showed (`expectedVersion`), so one made meanwhile is a 409.
  * What the caller may do is in the response's `can...` flags: pages show nothing they don't allow.
  */

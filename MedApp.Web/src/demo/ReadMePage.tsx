@@ -14,6 +14,7 @@ import {AppIcon} from '../components/shared/icons';
 import {CardSection} from '../components/views/CardSection';
 import {ViewCard} from '../components/views/ViewCard';
 import {ADMIN, DEMO_ACCOUNTS, STAFF} from './accounts';
+import {DemoBanner} from './DemoBanner';
 import {markReadMeSeen} from './readMeSeen';
 import {resetDemo, switchAccount} from './session';
 import {db} from './store';
@@ -31,7 +32,7 @@ export function whyStepCantOpen(step: TourStep): string | null {
   for (const path of [step.path, step.halfView]) {
     const [, kind, id] = (path ?? '').split(/[/?]/);
     if (id && RECORDS[kind] && !RECORDS[kind](id))
-      return 'That record isn’t in your copy of the demo any more. Reset (in the banner at the top) brings it back.';
+      return 'That record isn’t in your copy of the demo any more. Reset (in the banner at the top of the Read Me) brings it back.';
   }
   return step.whyNot?.(db()) ?? null;
 }
@@ -39,7 +40,7 @@ export function whyStepCantOpen(step: TourStep): string | null {
 /**
  * The light demo's Read Me (the demo build only): what this is, the two accounts, a guided tour whose buttons open the
  * exact page or record (switching account first when the step needs it), and what the full version does that this one
- * doesn't. Shown on the first visit (`DemoBanner`), and in the side nav.
+ * doesn't, with the demo's banner at the top. Shown on the first visit (`DemoFirstVisit`), and in the side nav.
  */
 export function ReadMePage() {
   const me = useCurrentUser();
@@ -73,6 +74,7 @@ export function ReadMePage() {
   return (
     <Page title="Read Me" subtitle="The light version of MedApp, for trying it out">
       <VStack gap={6}>
+        <DemoBanner />
         <ViewCard
           footerActions={
             <Button label="Start Using MedApp" variant="primary" icon={<Icon icon={AppIcon.Home} />} onClick={() => void navigate({to: '/'})} />
@@ -81,7 +83,7 @@ export function ReadMePage() {
             <List listStyle="disc" edge="flush" density="compact">
               <ListItem label="A light version of MedApp, a patient and pathway app, with no server: it runs entirely in your browser." />
               <ListItem label="The data is synthetic: made-up patients, staff and NHS numbers (from a range never issued). Don’t enter real patient details." />
-              <ListItem label="Your changes stay in this browser only. Reset, in the banner at the top, puts everything back as it started." />
+              <ListItem label="Your changes stay in this browser only. Reset, in the banner at the top of this page, puts everything back as it started." />
               <ListItem label="The rules are simplified: the full version checks every change on its server." />
             </List>
           </CardSection>
@@ -108,7 +110,7 @@ export function ReadMePage() {
                 ))}
               </List>
               <Text type="body">
-                Switch between them from the banner at the top of every page. The admin can do everything, including the
+                Switch between them with the button below, or let the tour’s buttons switch for you. The admin can do everything, including the
                 setup pages and Insights; {STAFF.fullName} can’t, so each sees MedApp as that role does.
               </Text>
             </VStack>

@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {isDisabled, json, mockApi, openDialog, renderWithApp, seniorClinicianUser} from '../../test/render';
+import {isDisabled, json, mockApi, openDialog, renderWithApp, adminUser} from '../../test/render';
 import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, FILE_ID, NOTE_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
 import {DataRequestReviewDialog, startingChoices, withheldOf} from './DataRequestReviewDialog';
 
@@ -19,7 +19,7 @@ function render(handlers: Parameters<typeof mockApi>[0] = {}, onDone = vi.fn()) 
     fetch,
     onDone,
     ...renderWithApp(<DataRequestReviewDialog request={request} patient={DATA_REQUEST_PATIENT} onCancel={vi.fn()} onDone={onDone} />, {
-      user: seniorClinicianUser,
+      user: adminUser,
     }),
   };
 }
@@ -96,4 +96,17 @@ describe('DataRequestReviewDialog', () => {
     render({[`GET ${BASE}/review-items`]: () => json({title: 'Boom'}, 500)});
     expect(await screen.findByText("The record's items could not be loaded. Please try again.")).toBeInTheDocument();
   });
+
+  it("shows a 400's messages, and an item with no date or author by its title only", async () => {
+    const {user} = render({
+      [`GET ${BASE}/review-items`]: () => json([{...testReviewItems()[0], atUtc: null, by: null}]),
+      [`PUT ${BASE}/review`]: () => json({title: 'Invalid', status: 400, errors: {'Withheld[0].ItemId': ["That item isn't in this patient's record."]}}, 400),
+    });
+    const dialog = within(await dialogOpen());
+
+    expect(await dialog.findByRole('group', {name: 'Note: Skin check'})).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Save Review'}));
+    expect(await dialog.findByText("That item isn't in this patient's record.")).toBeInTheDocument();
+  });
 });
+
