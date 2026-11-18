@@ -41,7 +41,8 @@ describe('DataRequestPage', () => {
     render(testDataRequest({isOverdue: true}));
 
     expect(await screen.findByRole('heading', {name: 'Data Request', level: 1})).toBeInTheDocument();
-    expect(screen.getByText('Freya Ahmed · Open')).toBeInTheDocument();
+    // The heading shows while the request loads; the subtitle only once it has.
+    expect(await screen.findByText('Freya Ahmed · Open')).toBeInTheDocument();
     expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getByText('The patient')).toBeInTheDocument();
     expect(screen.getAllByText('2 December 2026').length).toBeGreaterThan(0);
