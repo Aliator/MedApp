@@ -179,6 +179,7 @@ export const AppIcon = {
   Alert: remix(RiAlertLine),
   Success: remix(RiCheckboxCircleLine),
   Warning: remix(RiErrorWarningLine),
+  Error: remix(RiCloseCircleLine),
   Info: remix(RiInformationLine),
   UserPlus: remix(RiUserAddLine),
   UserMinus: remix(RiUserMinusLine),

@@ -18,8 +18,8 @@ describe('PatientFlagBanners', () => {
       <PatientFlagBanners patient={{isRestricted: true, restrictionReason: 'Synthetic accuracy check', restrictedAtUtc: at}} />,
     );
 
-    const label = await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'});
-    expect(label).toHaveTextContent(/^Restricted record: changes paused$/);
+    await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'});
+    expect(screen.getByText('Restricted record: changes paused')).toBeInTheDocument();
     // Still an alert, with the whole message.
     expect(screen.getByRole('alert')).toHaveTextContent(/^Restricted record: nothing about this patient.*Reason: Synthetic accuracy check/);
 
@@ -32,8 +32,8 @@ describe('PatientFlagBanners', () => {
   it('shows "Disputed record: <what is disputed>" when that is short, with it over the page too', async () => {
     const {user} = renderWithApp(<PatientFlagBanners patient={{isDisputed: true, disputeReason: ' Synthetic date of birth ', disputedAtUtc: at}} />);
 
-    const label = await screen.findByRole('button', {name: 'Disputed record: Synthetic date of birth, show details'});
-    expect(label).toHaveTextContent(/^Disputed record: Synthetic date of birth$/);
+    await screen.findByRole('button', {name: 'Disputed record: Synthetic date of birth, show details'});
+    expect(screen.getByText('Disputed record: Synthetic date of birth')).toBeInTheDocument();
     const details = await openAlertDetails(user, 'Disputed record');
     expect(within(details).getByText('Disputed: the patient disputes something in this record.')).toBeInTheDocument();
     expect(within(details).getByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
@@ -44,8 +44,8 @@ describe('PatientFlagBanners', () => {
     const long = 'x'.repeat(DISPUTE_IN_LABEL_MAX + 1);
     const {user} = renderWithApp(<PatientFlagBanners patient={{isDisputed: true, disputeReason: long}} />);
 
-    const label = await screen.findByRole('button', {name: 'Disputed record, show details'});
-    expect(label).toHaveTextContent(/^Disputed record$/);
+    await screen.findByRole('button', {name: 'Disputed record, show details'});
+    expect(screen.getByText('Disputed record')).toBeInTheDocument();
     const details = await openAlertDetails(user, 'Disputed record');
     expect(within(details).getByText(`What's disputed: ${long}`)).toBeInTheDocument();
   });
@@ -55,7 +55,8 @@ describe('PatientFlagBanners', () => {
 
     expect(await screen.findByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Disputed record, show details'})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Anonymised record, show details'})).toHaveTextContent(/^Anonymised record$/);
+    expect(screen.getByRole('button', {name: 'Anonymised record, show details'})).toBeInTheDocument();
+    expect(screen.getByText('Anonymised record')).toBeInTheDocument();
 
     const details = await openAlertDetails(user, 'Anonymised record');
     expect(within(details).getByText(/^This record has been anonymised/)).toBeInTheDocument();

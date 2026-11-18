@@ -213,11 +213,11 @@ export async function findAlert(text: string | RegExp) {
   });
 }
 
-/** A `SummaryAlert`'s label button, found by its label ("Restricted record"), with or without its summary after it. */
+/** A `SummaryAlert`'s button (the status icon after its label), found by its label ("Restricted record"), with or without its summary after it. */
 export const alertLabelName = (label: string) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(: .+)?, show details$`);
 
 /**
- * Opens a `SummaryAlert`'s whole message (a click on its label, e.g. "Restricted record") and returns the overlay, to
+ * Opens a `SummaryAlert`'s whole message (a click on the icon after its label, e.g. "Restricted record") and returns the overlay, to
  * look inside with `within`. `scope` narrows where the label is looked for (a dialog, when a page shows the same one).
  */
 export async function openAlertDetails(user: ReturnType<typeof userEvent.setup>, label: string, scope: HTMLElement = document.body) {
