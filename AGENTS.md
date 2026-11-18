@@ -23,6 +23,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Notepad | `notepad.md` | Kept on the server only, never in browser storage. |
 | Monitoring | `monitoring.md` | Every pathway command calls `IPathwayMonitor.NotifyAsync(change)` after saving. Clinical follow-up never relies on it. |
 | Attachments | `attachments.md` | Types come from the contents (`FileTypeSniffer`), never the name; SVG and HTML are refused. Files leave only through the API, as downloads. |
+| Scheduled jobs, the operational purge | `jobs.md` | A job is idempotent, logs counts only, and runs under the lease (`IScheduledJobRunner`), never on its own timer. Patient records are never deleted by a job. |
 | Activity log and patient privacy | `privacy.md` | See the privacy rules below. |
 | Insights | `insights.md` | It rebuilds history from the audit details' formats (`{"from":…,"to":…}`): keep them. |
 | NHS number, FHIR, SNOMED CT, PDS | `nhs-fhir-snomed.md` | Keep the NHS number out of new URLs. FHIR errors are OperationOutcomes, never ProblemDetails. |
@@ -34,7 +35,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Deploying (kind, Argo CD, Azure, Publish) | `deploy.md` | The chart is locked down: a new container, port or connection needs a matching change. Never run Azure's `deploy.sh` or `bootstrap.sh` unasked. Never commit to an `env/*` branch by hand except in an emergency. |
 | Integration and E2E tests | `testing.md` | An account an admin made must change its generated password before any other `/api` call (`CreateStaffAsync` does). E2E tests make their own data through the API and register every clean-up. |
 
-**Stored enum numbers are never renumbered:** `PatientPathwayStatus`, `PatientPathwayAuditAction` (with the attachment actions), `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction`, `MeetingReply` and `TwoFactorMethod`. Add new values with new numbers.
+**Stored enum numbers are never renumbered:** `PatientPathwayStatus`, `PatientPathwayAuditAction` (with the attachment actions), `NoteDeletionReason`, `NoteDeletionRequestStatus`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction`, `VisitRequirement`, `MonitoringEvent`, `ActivityAction`, `MeetingReply`, `TwoFactorMethod` and `ScheduledJobOutcome`. Add new values with new numbers.
 
 **Privacy rules for every area** (`privacy.md`):
 - **Every read and change of patient data is logged** in the activity log (`IActivityLog`: `RecordViewsAsync` for reads; a change passes its entry to the repository's save). It fails closed. Classify a new GET endpoint in `EndpointCoverageTests`.

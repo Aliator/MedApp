@@ -48,6 +48,7 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
+    expect(screen.getByRole('link', {name: 'Scheduled Jobs'})).toHaveAttribute('href', '/admin/jobs');
     expect(screen.getByRole('link', {name: /activity log/i})).toHaveAttribute('href', '/admin/activity');
     expect(screen.getByRole('link', {name: /retention review/i})).toHaveAttribute('href', '/admin/retention');
     expect(screen.getByRole('link', {name: 'Admin Settings'})).toHaveAttribute('href', '/admin/settings');
@@ -64,6 +65,7 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /activity log/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /retention review/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Admin Settings'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Scheduled Jobs'})).not.toBeInTheDocument();
     expect(screen.getByText('User')).toBeInTheDocument();
   });
 

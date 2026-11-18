@@ -3,6 +3,7 @@ using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Jobs;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
@@ -64,6 +65,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
 
     /// <summary>Times are stored as UTC, and read back marked as UTC (<see cref="UtcDateTimeConverter"/>).</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

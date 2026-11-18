@@ -83,5 +83,11 @@ public enum NotificationKind
     /// one, so the stage is finished without its visit. Sent to the pathway's assignees and the admins, never to
     /// whoever withdrew it.
     /// </summary>
-    StageVisitWithdrawn = 22
+    StageVisitWithdrawn = 22,
+
+    /// <summary>
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 23 to 39 are
+    /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// </summary>
+    ScheduledJobFailing = 40
 }

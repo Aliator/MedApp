@@ -1,4 +1,5 @@
 using MedApp.API.Common.Extensions;
+using MedApp.API.Jobs;
 using MedApp.Application.Common.Extensions;
 using MedApp.Infrastructure.Common.Extensions;
 using MedApp.Infrastructure.Common.Identity;
@@ -17,6 +18,10 @@ var app = builder.Build();
 // exit, without starting the web server.
 if (args is [FirstAdminSetup.Command])
     return await FirstAdminSetup.RunCommandAsync(app.Services, CancellationToken.None);
+
+// Runs one scheduled job now (taking its lease like any run), then exits: for running a job by hand.
+if (args is [RunJobCommand.Command, var jobName])
+    return await RunJobCommand.RunAsync(app.Services, jobName, CancellationToken.None);
 
 app.MapDefaultEndpoints();
 app.UseApi();

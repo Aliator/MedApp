@@ -72,6 +72,7 @@ import {
   RiPaintBrushLine,
   RiPaletteLine,
   RiPlayCircleLine,
+  RiPlayLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -92,6 +93,7 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
   RiUserFollowLine,
@@ -260,4 +262,7 @@ export const AppIcon = {
   LookUp: remix(RiUserSearchLine),
   // Monitoring (admin): rules for being told what staff do
   Monitoring: remix(RiRadarLine),
+  // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
+  ScheduledJobs: remix(RiTimerLine),
+  RunNow: remix(RiPlayLine),
 } as const satisfies Record<string, IconType>;

@@ -2,10 +2,12 @@
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
 using MedApp.API.Fhir;
+using MedApp.API.Jobs;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Jobs.Common;
 using MedApp.Application.Notepads.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
@@ -61,7 +63,9 @@ public static class ServiceExtensions
         // The activity log's actor is the request's signed-in user and address; its settings, and the retention
         // schedule's periods, come from configuration.
         services.AddHttpContextAccessor();
-        services.AddScoped<IActivityContext, HttpActivityContext>();
+        // A scheduled job's scope (ScheduledJobScope) acts as the system instead ("medapp-jobs").
+        services.AddScoped<HttpActivityContext>();
+        services.AddScoped(ActivityContextFor);
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
         services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
         // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
@@ -70,12 +74,23 @@ public static class ServiceExtensions
             .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
             .ValidateOnStart();
 
+        // Scheduled jobs run inside the API, on a timer (unless Jobs:Enabled is false), one copy at a time each; /health
+        // is Degraded while one is overdue.
+        services.AddHostedService<ScheduledJobHost>();
+        services.AddHealthChecks().AddCheck<ScheduledJobsHealthCheck>(ScheduledJobsHealthCheck.Name);
+
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
         services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);
         services.AddLoginThrottling();
 
         return services;
     }
+
+    /// <summary>The activity log's actor in a scope: the system in a scheduled job's run, otherwise the request's user.</summary>
+    public static IActivityContext ActivityContextFor(IServiceProvider provider) =>
+        provider.GetRequiredService<ScheduledJobScope>().IsJob
+            ? SystemActivityContext.Instance
+            : provider.GetRequiredService<HttpActivityContext>();
 
     private static IServiceCollection AddApiAuthentication(
         this IServiceCollection services)

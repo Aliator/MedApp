@@ -5264,6 +5264,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ScheduledJobResponse"][];
+                        "application/json": components["schemas"]["ScheduledJobResponse"][];
+                        "text/json": components["schemas"]["ScheduledJobResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{name}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ScheduledJobResponse"];
+                        "application/json": components["schemas"]["ScheduledJobResponse"];
+                        "text/json": components["schemas"]["ScheduledJobResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login/two-factor": {
         parameters: {
             query?: never;
@@ -11133,6 +11231,27 @@ export interface components {
         };
         SaveSettingsRequest: {
             settings?: string | null;
+        };
+        ScheduledJobResponse: {
+            name?: string | null;
+            title?: string | null;
+            description?: string | null;
+            schedule?: string | null;
+            enabled?: boolean;
+            isRunning?: boolean;
+            isOverdue?: boolean;
+            /** Format: date-time */
+            nextRunUtc?: string | null;
+            /** Format: date-time */
+            lastStartedAtUtc?: string | null;
+            /** Format: date-time */
+            lastFinishedAtUtc?: string | null;
+            lastOutcome?: string | null;
+            /** Format: int32 */
+            lastCount?: number | null;
+            /** Format: int32 */
+            consecutiveFailures?: number;
+            lastErrorType?: string | null;
         };
         SecuritySettingsResponse: {
             requireTwoFactorForAdmins?: boolean;

@@ -15,6 +15,7 @@ The detail behind the root `AGENTS.md`, one file per area, read on demand. `AGEN
 | [notepad.md](notepad.md) | Each member of staff's notepad |
 | [monitoring.md](monitoring.md) | Admins' monitoring rules |
 | [attachments.md](attachments.md) | File attachments |
+| [jobs.md](jobs.md) | Scheduled jobs: the runner, the lease, and the operational purge |
 | [privacy.md](privacy.md) | The activity log, restriction, export, anonymisation and retention |
 | [insights.md](insights.md) | Admins' Insights page |
 | [nhs-fhir-snomed.md](nhs-fhir-snomed.md) | The NHS number, FHIR, SNOMED CT and the demographics lookup |
