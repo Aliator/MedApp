@@ -47,6 +47,9 @@ const COUNT = {
   insetInlineEnd: 0,
   translate: '45% -45%',
   pointerEvents: 'none',
+  // Thin: no padding above or below the number, and a little either side.
+  paddingBlock: 0,
+  paddingInline: 'var(--spacing-1)',
 } as const;
 
 /** The bell's label: what it is, and how many are unread. */

@@ -475,12 +475,13 @@ describe('AppSideNav folded, and its menus', () => {
       return strip!;
     });
     expect(bridge).toHaveAttribute('aria-hidden', 'true');
-    // From the button's end to the menu's start, as tall as both.
-    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '100px', width: '72px', height: '120px'});
+    // From the button's end 24px into the menu (whatever's under the menu never takes the pointer), and 8px above and
+    // below both: 228 to 324 across, 92 to 228 down.
+    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '92px', width: '96px', height: '136px'});
 
     // On the strip, past the time a menu waits before closing once the pointer has left it: still open.
     await user.hover(bridge);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(button).toHaveAttribute('aria-expanded', 'true');
 
     // Off it, onto the page: it closes, and the strip goes with it.

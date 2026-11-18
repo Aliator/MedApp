@@ -22,8 +22,10 @@ const STORAGE_KEY = 'medapp.halfView';
 /**
  * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
  * scrolls (see `STABLE_SCROLLBAR`), so the divider between the halves stays put, in the middle, when either starts to.
+ * `flexBasis: 0` and `minWidth: 0` keep the halves equal: otherwise each starts from its content's width and won't
+ * shrink below its narrowest, so a page with a wide part (the notepad's editor toolbar) took more than half.
  */
-const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges'} as const;
+const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges', flexBasis: 0, minWidth: 0} as const;
 
 /** A wrapper that takes no part in the layout: its children are laid out as if it weren't there. */
 const CONTENTS = {display: 'contents'} as const;
