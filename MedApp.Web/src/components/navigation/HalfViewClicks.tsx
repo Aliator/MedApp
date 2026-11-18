@@ -27,10 +27,15 @@ export function halfViewHref(target: EventTarget | null, basepath?: string): str
   if (marked) return marked.getAttribute(HALF_VIEW_HREF);
   const link = target.closest('a[href]');
   if (!link || link.hasAttribute('download') || link.getAttribute('aria-disabled') === 'true') return null;
+  // A control inside the link (a button, a field) keeps its own Shift- or Ctrl-click.
+  const control = target.closest('button, input, textarea, select, [contenteditable]');
+  if (control && control !== link && link.contains(control)) return null;
   const opensIn = link.getAttribute('target');
   if (opensIn && opensIn !== '_self') return null;
   const href = link.getAttribute('href')!;
-  if (!href.startsWith('/') || href.startsWith('//')) return null;
+  // Same-app paths only: `//host` and `/\host` (which browsers read as `//host`) leave the site, so they're refused.
+  if (!href.startsWith('/') || href.startsWith('//') || href.startsWith('/\\')) return null;
+  if (typeof window !== 'undefined' && new URL(href, window.location.origin).origin !== window.location.origin) return null;
   return withoutBase(href, basepath);
 }
 

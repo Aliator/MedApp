@@ -188,6 +188,7 @@ describe('halfViewHref', () => {
     for (const html of [
       '<a href="https://example.org/">External</a>',
       '<a href="//example.org/">Protocol-relative</a>',
+      '<a href="/\\example.org/">Backslash, which browsers read as protocol-relative</a>',
       '<a href="mailto:someone@example.org">Email</a>',
       '<a href="#main">Skip</a>',
       '<a href="/api/files/1" download>Download</a>',
@@ -197,6 +198,14 @@ describe('halfViewHref', () => {
     ])
       expect(halfViewHref(element(html)), html).toBeNull();
     expect(halfViewHref(null)).toBeNull();
+  });
+
+  it('leaves a control inside a link (a button or a field) its own Shift- or Ctrl-click', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<a href="/patients"><button>Pin</button><input aria-label="Note"></a>';
+    expect(halfViewHref(host.querySelector('button'))).toBeNull();
+    expect(halfViewHref(host.querySelector('input'))).toBeNull();
+    expect(halfViewHref(host.querySelector('a'))).toBe('/patients');
   });
 
   it("takes the router's base path off (the light demo's)", () => {
