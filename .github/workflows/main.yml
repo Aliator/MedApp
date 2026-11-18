@@ -74,10 +74,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Claude Code loads at most 150,000 characters of AGENTS.md (AGENTS.md, Keeping this file small).
-      - name: Check AGENTS.md is under Claude Code's limit
+      # AGENTS.md is loaded into every agent session, so its core stays small (AGENTS.md, Keeping this file small).
+      - name: Check AGENTS.md is at most 40,000 characters
         working-directory: .
-        run: python3 -c "import sys; n = len(open('AGENTS.md', encoding='utf-8').read()); print(f'AGENTS.md has {n:,} characters (limit 150,000)'); sys.exit(n > 150000)"
+        run: python3 -c "import sys; n = len(open('AGENTS.md', encoding='utf-8').read()); print(f'AGENTS.md has {n:,} characters (limit 40,000)'); sys.exit(n > 40000)"
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -90,7 +90,7 @@ jobs:
 
       # A known high or critical advisory in any installed package fails the pull request. Dev dependencies too: they
       # run here, in CI, and in the image's build stage. Moderate and low ones are left to Dependabot.
-      # An advisory with no fixed version yet can be accepted for a short, dated time (AGENTS.md, Supply chain rules),
+      # An advisory with no fixed version yet can be accepted for a short, dated time (docs/agents/ci.md, Supply chain rules),
       # by its GitHub advisory ID in ACCEPTED, with a docs/todo.md entry it expires with. Only those IDs are let through;
       # any other high or critical advisory still fails, and after ACCEPTED_UNTIL the audit counts them all again.
       #   GHSA-fc5q-39xc-vjpf (picomatch ReDoS, high; failing the audit from 17 November 2026): every picomatch up to

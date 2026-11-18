@@ -1,0 +1,16 @@
+# Patient timeline
+
+The patient timeline, and what staff and admins may each see in it: read before changing it or the audit details it reads.
+
+The patient page's **timeline** is one feed of what happened to the patient's procedures and appointments, from the procedure audit log and appointment history (`AppointmentEvent`) (`MedApp.Application/Procedures/Timeline`).
+- **Endpoints, for staff:** `GET api/patients/{id}/timeline` (newest first, `Kinds` and `ProcedureIds` filters, `Before` cursor) and `GET api/patients/{id}/timeline/overview` (open and blocked procedures, soonest due first, overdue flagged, and the procedures to filter by). Both 404 for an unknown patient.
+- **Kinds** (`PatientTimelineKind`): Created, Stages, Notes (stage and procedure notes), Assignments, Blocks (cancelling a blocked procedure is Status), Status, DueDates, Details, Deleted, Files (attached or deleted, never downloads) and Appointments (every history entry). `PatientTimelineKinds` computes them alike in memory and SQL, from markers in the JSON details. Not stored, so they can be regrouped; a change to `ProcedureAudit`'s details must keep its tests passing.
+- **Two feeds, merged** by time with the same filters, so one cursor pages through both. An appointment entry's `ProcedureId` and `ProcedureTitle` are null when it isn't for a procedure.
+- **What each person sees is decided on the server** (`GetPatientTimelineQuery.IsAdmin`, from the role), because the audit log is admin-only and keeps old values:
+  - **Staff** see entries only for existing procedures: kind, who (the username then, a deleted account's too), when, the procedure (a link) and structured old and new values (due dates, priorities, statuses, template, assignees). For appointments: status, time, member of staff, stage; nothing for a deleted procedure's. **Never free text:** no note text, titles, block or cancel reasons, file names, appointment notes, or the reason for finishing without a visit; only which field changed (a procedure note's is `note`, with no values).
+  - A file on the patient themselves has procedure ID `PatientProcedureAuditEntry.NoProcedure` (all zeros) and an empty title.
+  - **Admins** see everything: deleted procedures' entries (labelled, with the title then), file names, appointment notes and reasons, finishing-without-visit reasons, deletion reasons and details, and note text from the versions (before an edit, and a deleted note's) (`GetPatientTimelineHandler`, `PatientTimelineRow.NoteText`).
+  - **Adding a field to `PatientTimelineEntryResponse`:** audit free text goes to admins only (`TimelineMapper`'s `PublicValueFields` allowlists edited fields). `TimelineStaffCanaryTests` records every action with one string as all free text and checks no staff response holds it; add any new action or free-text field there.
+  - `docs/governance/` states this rule; change both together.
+- An entry shows the procedure's current title, or once deleted the title recorded then (so a rename before deletion shows under both).
+- **Order:** `AtUtc` then `Id`, newest first. One change's entries are each a tick (100 ns) apart (`ProcedureChange.Audit`), so they sort in order; older entries sharing a time fall back to ID.

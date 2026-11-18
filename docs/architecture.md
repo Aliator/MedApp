@@ -158,7 +158,7 @@ None of the following has been assessed, and nothing in the repository claims co
 ### 2.4 Conventions
 
 The conventions are part of the architecture, because the code relies on them being followed:
-- `AGENTS.md`: backend feature slices, validation and errors, lists and paging, mapping, data access, procedures, notifications, migrations, auth, testing, CI and the git workflow.
+- `AGENTS.md`: the core every change needs (backend feature slices, validation and errors, lists and paging, mapping, data access, migrations, testing, CI and the git workflow), with a table of which area guide in `docs/agents/` (procedures, calendar, privacy, auth and the rest) to read before changing each area.
 - `MedApp.Web/AGENTS.md`: Astryx only, shared composites, routes and pages, server rendering rules, list pages, colours, forms, tests and accessibility.
 - `MedApp.Web/README.md`, `deploy/*/README.md` and `tools/*/README.md`: how each part is run.
 
