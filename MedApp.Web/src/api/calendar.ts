@@ -338,15 +338,21 @@ export function useMeetingActions() {
 /**
  * The signed-in member of staff accepts or declines a meeting they're going to (its `canReply`), changing an earlier
  * reply if they like. The API refuses someone not going (403), a cancelled meeting (404), one that has ended (409),
- * and accepting again after declining once that time has been used (409, naming what's there). It isn't a change to
- * the meeting, so it sends no version. The calendars are refreshed after it, or after a 404 or 409: a decline frees
+ * and accepting again while something else is on their calendar then (409, naming it). It isn't a change to the
+ * meeting, so it sends no version; but it's about the time the person saw (`startUtc` and `endUtc`, sent as
+ * `expectedStartUtc` and `expectedEndUtc`), so it's a 409 if the meeting has moved since. The calendars are refreshed after it, or after a 404 or 409: a decline frees
  * the time, and a refusal means what was shown is out of date.
  */
 export function useMeetingReply() {
   const onSuccess = useRefreshCalendars();
   return useMutation({
-    mutationFn: ({id, reply}: {id: string; reply: Exclude<MeetingReply, 'NoReply'>}) =>
-      unwrap(api.PUT('/api/calendar/meetings/{id}/reply', {params: {path: {id}}, body: {reply}})),
+    mutationFn: ({id, reply, startUtc, endUtc}: {id: string; reply: Exclude<MeetingReply, 'NoReply'>; startUtc: string; endUtc: string}) =>
+      unwrap(
+        api.PUT('/api/calendar/meetings/{id}/reply', {
+          params: {path: {id}},
+          body: {reply, expectedStartUtc: startUtc, expectedEndUtc: endUtc},
+        }),
+      ),
     onSuccess,
     onError: (error) => {
       if (error instanceof ApiError && (error.status === 404 || error.status === 409)) void onSuccess();

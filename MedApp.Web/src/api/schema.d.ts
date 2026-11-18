@@ -9307,6 +9307,10 @@ export interface components {
         };
         MeetingReplyRequest: {
             reply?: string | null;
+            /** Format: date-time */
+            expectedStartUtc?: string | null;
+            /** Format: date-time */
+            expectedEndUtc?: string | null;
         };
         MeetingRequest: {
             title?: string | null;
@@ -9389,6 +9393,8 @@ export interface components {
             appointmentId?: string | null;
             /** Format: date */
             calendarDate?: string | null;
+            /** Format: uuid */
+            meetingId?: string | null;
         };
         NotificationsResponse: {
             items?: components["schemas"]["NotificationResponse"][] | null;

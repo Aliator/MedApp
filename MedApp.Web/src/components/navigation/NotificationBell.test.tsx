@@ -110,16 +110,16 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.href).toBe('/calendar?date=2026-11-24&view=day'));
   });
 
-  it("links a decline to the meeting's day, with an icon of its own", async () => {
+  it("opens a declined meeting itself, on its day, with an icon of its own", async () => {
     const meetingBase = {...unread, procedureId: null, appointmentId: null, calendarDate: '2026-11-24'};
     const invited = {...meetingBase, id: '0000000c-0000-0000-0000-000000000021', kind: 'MeetingInvited', title: 'Meeting invitation', isRead: true};
-    const declined = {...meetingBase, id: '0000000c-0000-0000-0000-000000000022', kind: 'MeetingDeclined', title: 'Meeting declined', message: 'k.ashford declined Team huddle, Tuesday 24 November, 10:00 to 11:00.'};
+    const declined = {...meetingBase, id: '0000000c-0000-0000-0000-000000000022', kind: 'MeetingDeclined', title: 'Meeting declined', meetingId: '0000000d-0000-0000-0000-000000000001', message: 'k.ashford declined Team huddle, Tuesday 24 November, 10:00 to 11:00.'};
     mockApi({'GET /api/notifications': () => json({items: [invited, declined], unreadCount: 1})});
     const {user} = renderWithApp(<NotificationBell />, {user: staffUser});
 
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
-    expect(list.getByRole('link', {name: /^Meeting declined/})).toHaveAttribute('href', '/calendar?date=2026-11-24&view=day');
+    expect(list.getByRole('link', {name: /^Meeting declined/})).toHaveAttribute('href', '/calendar?date=2026-11-24&view=day&meeting=0000000d-0000-0000-0000-000000000001');
     const [inviteIcon, declineIcon] = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
     expect(declineIcon).toBeDefined();
     expect(declineIcon).not.toBe(inviteIcon);

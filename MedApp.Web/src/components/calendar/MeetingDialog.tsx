@@ -18,6 +18,7 @@ import {useRef, useState, type ReactNode, type RefObject} from 'react';
 import {
   availabilityQuery,
   calendarKeys,
+  meetingQuery,
   staffQuery,
   useMeetingActions,
   useMeetingReply,
@@ -95,6 +96,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
   const announce = useAnnounce();
   const {cancel} = useMeetingActions();
   const replyTo = useMeetingReply();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('view');
   const [problem, setProblem] = useState<string | null>(null);
   // The meeting as the last reply returned it, until the dialog closes (the calendar behind refreshes too).
@@ -106,16 +108,30 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
   const reply = (answer: ReplyAnswer) => {
     if (answer === meeting.myReply || replyTo.isPending) return;
     setProblem(null);
+    // The reply is about the time shown here: if the meeting has moved since, the API refuses it (409).
     replyTo.mutate(
-      {id: meeting.id ?? '', reply: answer},
+      {id: meeting.id ?? '', reply: answer, startUtc: meeting.startUtc ?? '', endUtc: meeting.endUtc ?? ''},
       {
         onSuccess: (saved) => {
           setReplied(saved);
           announce(answer === 'Accepted' ? 'Meeting accepted' : 'Meeting declined');
         },
-        onError: (error) => setProblem(problemMessage(error, 'Your reply could not be saved. Please try again.')),
+        onError: (error) => {
+          setProblem(problemMessage(error, 'Your reply could not be saved. Please try again.'));
+          // Moved or changed since this was opened: show the meeting as it is now, to reply to that.
+          if (error instanceof ApiError && error.status === 409) void showLatest();
+        },
       },
     );
+  };
+
+  /** Reads the meeting again and shows it, as it is now; if it can't be read (cancelled), the problem shown stays. */
+  const showLatest = async () => {
+    try {
+      setReplied(await queryClient.fetchQuery({...meetingQuery(meeting.id ?? ''), staleTime: 0}));
+    } catch {
+      // The message already shown says what went wrong.
+    }
   };
 
   const cancelMeeting = () => {
@@ -327,9 +343,13 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const isReady = isOpen && staff.data !== undefined && attendees.length > 0;
   const isEveryone = everyone.length > 0 && everyone.every((id) => others.includes(id));
 
-  // Suggested times: two weeks from `from`, for everyone going, the meeting being changed left out of their time.
+  // Suggested times: two weeks from `from`, for everyone going, the meeting being changed left out of their time. Those
+  // who declined it aren't going: what they have on never stops a change (the API skips them too), so they're left out,
+  // unless nobody else is.
+  const declined = new Set((meeting?.attendees ?? []).filter((a) => a.reply === 'Declined').map((a) => a.userId));
+  const going = attendees.filter((id) => !declined.has(id));
   const range = suggestionRange(from);
-  const forWhom = {staffUserIds: attendees, durationMinutes: length, exceptMeetingId: meeting?.id};
+  const forWhom = {staffUserIds: going.length > 0 ? going : attendees, durationMinutes: length, exceptMeetingId: meeting?.id};
   const suggestions = useQuery({...availabilityQuery({...forWhom, ...range}), enabled: isReady});
   const suggested = (suggestions.data?.suggestions ?? []).flatMap((s) => (s.startUtc && s.endUtc ? [{startUtc: s.startUtc, endUtc: s.endUtc}] : []));
 

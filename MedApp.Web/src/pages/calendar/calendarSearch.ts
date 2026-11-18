@@ -52,6 +52,8 @@ export interface CalendarSearch {
   view?: CalendarView;
   staff?: string;
   appointment?: string;
+  /** A meeting to open in its dialog (a meeting notification's link: `/calendar?date=…&view=day&meeting=<id>`). */
+  meeting?: string;
   who?: string[];
   /**
    * The grid's row length: 5-minute rows, written when they're chosen, or 15, which a link can name; left out, the
@@ -68,6 +70,7 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
     view: view === 'day' || view === 'week' || view === 'team' ? view : undefined,
     staff: id(raw.staff),
     appointment: id(raw.appointment),
+    meeting: id(raw.meeting),
     who: ids(raw.who),
     rows: text(raw.rows) === '5' ? 5 : text(raw.rows) === '15' ? 15 : undefined,
   });
