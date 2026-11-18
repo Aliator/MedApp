@@ -87,6 +87,7 @@ import {
   RiShieldCheckLine,
   RiShieldKeyholeLine,
   RiShieldLine,
+  RiShieldUserLine,
   RiSortAsc,
   RiSortDesc,
   RiStarLine,
@@ -244,6 +245,8 @@ export const AppIcon = {
   ActivityTypes: remix(RiPriceTag3Line),
   /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
   Specialties: remix(RiHospitalLine),
+  /** Roles and Permissions (admin): what each role lets the people who hold it do. */
+  Roles: remix(RiShieldUserLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */
   ClosedDays: remix(RiDoorClosedLine),
   /** Sites (admin): the places the centre works from. */

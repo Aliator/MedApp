@@ -44,6 +44,7 @@ import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
  */
 const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon]; href: string; permission: Permission}[] = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users', permission: 'ManageUsers'},
+  {label: 'Roles and Permissions', icon: AppIcon.Roles, href: '/admin/roles', permission: 'ManageRoles'},
   {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
   {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
   {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},

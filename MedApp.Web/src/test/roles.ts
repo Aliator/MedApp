@@ -1,3 +1,4 @@
+import type {Role} from '../api/roles';
 import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /**
@@ -8,18 +9,68 @@ import {PERMISSIONS, type Permission} from '../auth/permissions';
 export const ROLE_PERMISSIONS = {
   Admin: PERMISSIONS.filter((p) => p !== 'TriageReferrals'),
   'All staff (before roles)': [
-    'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways',
-    'BookAppointments', 'AttachFiles',
+    'UseApp',
+    'ViewPatients',
+    'EditPatients',
+    'DeletePatients',
+    'RegisterReferrals',
+    'CreatePathways',
+    'WorkPathways',
+    'BookAppointments',
+    'AttachFiles',
   ],
   Clinician: [
-    'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'OverrideStages', 'BookAppointments', 'AttachFiles',
+    'UseApp',
+    'ViewPatients',
+    'EditPatients',
+    'RegisterReferrals',
+    'TriageReferrals',
+    'CreatePathways',
+    'WorkPathways',
+    'OverrideStages',
+    'BookAppointments',
+    'AttachFiles',
   ],
-  Nurse: ['UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles'],
+  Nurse: [
+    'UseApp',
+    'ViewPatients',
+    'EditPatients',
+    'RegisterReferrals',
+    'CreatePathways',
+    'WorkPathways',
+    'BookAppointments',
+    'AttachFiles',
+  ],
   Booking: [
-    'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar',
+    'UseApp',
+    'ViewPatients',
+    'EditPatients',
+    'DeletePatients',
+    'RegisterReferrals',
+    'BookAppointments',
+    'ManageAnyCalendar',
     'AttachFiles',
   ],
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles'],
   Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ViewInsights', 'ManageMonitoring'],
 } satisfies Record<string, Permission[]>;
+
+/**
+ * A role as `GET api/roles` sends it, for mocking: `name`'s standard permissions when it's a standard role (without
+ * UseApp, which the API doesn't list), editable unless it's Admin, held by nobody, at version `v1`.
+ */
+export const roleResponse = (name: string, extra: Partial<Role> = {}): Role => ({
+  id: `role-${name.toLowerCase().replace(/[^a-z]+/g, '-')}`,
+  name,
+  description: `Synthetic ${name} role.`,
+  isBuiltIn: name === 'Admin',
+  isArchived: false,
+  permissions: ((ROLE_PERMISSIONS as Record<string, readonly string[]>)[name] ?? []).filter((p) => p !== 'UseApp'),
+  holderCount: 0,
+  version: 'v1',
+  canEdit: name !== 'Admin',
+  canDelete: name !== 'Admin',
+  createdAt: '2026-11-02T09:00:00Z',
+  lastUpdated: '2026-11-02T09:00:00Z',
+  ...extra,
+});

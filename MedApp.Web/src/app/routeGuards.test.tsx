@@ -2,6 +2,7 @@ import {screen, waitFor} from '@testing-library/react';
 import {adminUser, json, managerUser, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
 import {authenticatorSetup} from '../test/twoFactor';
 import {insights, templates} from '../test/insights';
+import {roleResponse} from '../test/roles';
 
 describe('route guards', () => {
   it('sends a signed-out visitor to the login page', async () => {
@@ -104,10 +105,28 @@ describe('route guards', () => {
     expect(await screen.findByText('Dermatology')).toBeInTheDocument();
   });
 
+  it.each(['/admin/roles', '/admin/roles/new', '/admin/roles/role-nurse'])(
+    'sends someone without ManageRoles away from %s, without asking for roles',
+    async (path) => {
+      const fetch = mockApi({'GET /api/roles': () => json([roleResponse('Admin')]), 'GET /api/roles/role-nurse': () => json(roleResponse('Nurse'))});
+      const {router} = renderApp({path, user: managerUser});
+      await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+      expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.startsWith('/api/roles'))).toBe(false);
+    },
+  );
+
+  it('lets an admin into Roles and Permissions, and a role', async () => {
+    mockApi({'GET /api/roles': () => json([roleResponse('Admin'), roleResponse('Nurse')]), 'GET /api/roles/role-nurse': () => json(roleResponse('Nurse'))});
+    renderApp({path: '/admin/roles', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Roles and Permissions', level: 1})).toBeInTheDocument();
+    expect(await screen.findByText('Nurse')).toBeInTheDocument();
+  });
+
   it('lets an admin into the admin pages', async () => {
     mockFetch((request) =>
-      new URL(request.url).pathname === '/api/auth/roles'
-        ? json(['Admin', 'User'])
+      new URL(request.url).pathname === '/api/roles'
+        ? json([roleResponse('Admin'), roleResponse('User')])
         : json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
     );
     renderApp({path: '/admin/users', user: adminUser});

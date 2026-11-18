@@ -39,6 +39,7 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByRole('link', {name: 'Roles and Permissions'})).toHaveAttribute('href', '/admin/roles');
     expect(screen.getByRole('link', {name: 'Specialties'})).toHaveAttribute('href', '/admin/specialties');
     expect(screen.getByRole('link', {name: 'Stage Library'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: 'Pathway Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
