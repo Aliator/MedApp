@@ -9,9 +9,11 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// App settings saved with accounts, in the web app's own keys and shapes (<c>src/app/settingsStore.ts</c>: each a
 /// string under a <c>medapp.</c> key): the lead's rows per page, saved searches on the pathways and patients lists
-/// (one the pathways list starts on, and "Waiting for histology" by the stage reached; stored under the lists' old
-/// keys, procedures), and pins; saved searches for two members of staff. Saved through the
-/// app's command.
+/// (one the pathways list starts on, "Waiting for histology" by the stage reached, and "Breached waits"; stored under
+/// the lists' old keys, procedures) and on the Referrals page ("Longest waits", the waiting list in order of wait, and
+/// "Paused clocks"), and pins; saved searches for two members of staff (the coordinator's referral views, the
+/// dermatologist's own inbox). Saved through the app's command. (A saved search keeps the filters, not the order, so
+/// "Longest waits" is the waiting list, whose own order is the longest wait first.)
 /// </summary>
 public static class DemoSettings
 {
@@ -25,6 +27,8 @@ public static class DemoSettings
         var bleeding = world.TemplateIds[PathwayKind.PostMenopausalBleeding].ToString();
         // The stage reached, by its stage definition, as the pathways list's URL keeps it (lower case).
         var histology = world.Definitions[DemoPathwayKinds.Histology].Id.ToString();
+        var dermatology = world.Specialty(DemoSpecialties.Dermatology).Id.ToString();
+        var urology = world.Specialty(DemoSpecialties.Urology).Id.ToString();
         var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
 
         var mine = world.Pathways
@@ -47,8 +51,17 @@ public static class DemoSettings
                         Favourite("Overdue prostate assessments", new() { ["templateId"] = prostate, ["overdue"] = true }),
                         Favourite("Blocked", new() { ["status"] = "Blocked" }),
                         Favourite("Waiting for histology", new() { ["stage"] = histology }),
+                        Favourite("Breached waits", new() { ["breached"] = true }),
                     },
                     startId = myWork.id,
+                },
+                ["referrals"] = new
+                {
+                    saved = new[]
+                    {
+                        Favourite("Longest waits", new() { ["view"] = "waiting" }),
+                        Favourite("Paused clocks", new() { ["view"] = "paused" }),
+                    },
                 },
                 ["patients"] = new
                 {
@@ -77,6 +90,15 @@ public static class DemoSettings
                     {
                         Favourite("Skin lesions in progress", new() { ["templateId"] = skinLesion, ["status"] = "InProgress" }),
                         Favourite("Urgent bleeding referrals", new() { ["templateId"] = bleeding, ["priority"] = "Urgent" }),
+                        Favourite("Breached urology waits", new() { ["breached"] = true, ["specialty"] = urology }),
+                    },
+                },
+                ["referrals"] = new
+                {
+                    saved = new[]
+                    {
+                        Favourite("Paused clocks", new() { ["view"] = "paused" }),
+                        Favourite("Closed referrals", new() { ["view"] = "closed" }),
                     },
                 },
             }),
@@ -89,6 +111,7 @@ public static class DemoSettings
             ["medapp.favourites"] = Json(new Dictionary<string, object>
             {
                 ["procedures"] = new { saved = new[] { Favourite("My overdue", new() { ["mine"] = true, ["overdue"] = true }) } },
+                ["referrals"] = new { saved = new[] { Favourite("Dermatology inbox", new() { ["specialty"] = dermatology }) } },
             }),
         };
 
