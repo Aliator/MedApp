@@ -37,7 +37,8 @@ public sealed class NotificationPreferencesTests
                             || k.ToString().StartsWith("NoteDeletion")
                             || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
-                            || k == NotificationKind.StageVisitWithdrawn));
+                            || k == NotificationKind.StageVisitWithdrawn
+                            || k == NotificationKind.ScheduledJobFailing));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }
 

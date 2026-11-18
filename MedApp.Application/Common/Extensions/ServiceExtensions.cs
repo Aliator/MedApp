@@ -6,6 +6,8 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
+using MedApp.Application.Jobs.Common;
+using MedApp.Application.Jobs.OperationalPurge;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notepads.Common;
 using MedApp.Application.Patients.Common;
@@ -59,6 +61,14 @@ public static class ServiceExtensions
         services.AddOptions<RetentionOptions>();
         // How long a notepad is kept without a change (the host binds it, the Notepad section).
         services.AddOptions<NotepadOptions>();
+
+        // Scheduled jobs: the runner (the host decides whether to run it on a timer), each job (scoped: a scope per
+        // run), and their settings, which the host binds (Jobs, Retention:Operational).
+        services.AddSingleton<IScheduledJobRunner, ScheduledJobRunner>();
+        services.AddScoped<ScheduledJobScope>();
+        services.AddScoped<IScheduledJob, OperationalPurgeJob>();
+        services.AddOptions<JobsOptions>();
+        services.AddOptions<OperationalRetentionOptions>();
 
         return services;
     }

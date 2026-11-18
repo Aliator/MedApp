@@ -235,6 +235,18 @@ describe('route guards', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(path));
   });
 
+  it('sends someone without ManageSetup away from Scheduled Jobs', async () => {
+    const {router} = renderApp({path: '/admin/jobs', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+  });
+
+  it('lets an admin into Scheduled Jobs', async () => {
+    mockApi({'GET /api/jobs': () => json([])});
+    renderApp({path: '/admin/jobs', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Scheduled Jobs', level: 1})).toBeInTheDocument();
+  });
+
   it('sends someone without ManageSecuritySettings away from Admin Settings', async () => {
     const {router} = renderApp({path: '/admin/settings', user: staffUser});
 
