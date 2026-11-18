@@ -48,6 +48,10 @@ public sealed class PatientSeed
     public int Pathways { get; set; }
     public bool Restricted { get; set; }
 
+    /// <summary>How they agreed to be reminded of appointments, and whether they gave a mobile.</summary>
+    public ReminderChannel ReminderChannel { get; set; }
+    public bool HasMobile { get; set; }
+
     /// <summary>When the record was anonymised (the retention review), if it was: from then on nobody sees it.</summary>
     public DateTime? AnonymisedUtc { get; set; }
 
@@ -249,19 +253,24 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
     /// registered them, at that moment), then dates the record as it was registered: imported ones keep the older
     /// system's dates.
     /// </summary>
-    public async Task CreateAsync(SeedServices services, IReadOnlyList<StaffMember> staff, CancellationToken ct)
+    public async Task CreateAsync(SeedServices services, IReadOnlyList<StaffMember> staff, CentreSetup setup, CancellationToken ct)
     {
         var coordinator = DemoStaff.Get(staff, DemoStaff.CoordinatorUsername);
         var manager = DemoStaff.Get(staff, DemoStaff.ManagerUsername);
 
-        foreach (var patient in All)
+        for (var index = 0; index < All.Count; index++)
         {
+            var patient = All[index];
+            var contact = Contact(index, setup);
             var imported = patient.Role is PatientRole.ImportedDue or PatientRole.ImportedNotDue;
             // Imported records were brought over by the service manager when the centre started; the rest registered
             // by the booking coordinator as referrals came in.
             services.At(imported ? timeline.AppStartUtc.AddDays(-2) : patient.CreatedUtc, imported ? manager.ActivityActor : coordinator.ActivityActor);
             var created = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
-                new CreatePatientCommand(patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email, patient.NhsNumber), ct)));
+                new CreatePatientCommand(patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email, patient.NhsNumber,
+                    contact.Address, contact.Postcode, contact.Mobile, contact.PracticeId, contact.Reminders.ToString()), ct)));
+            patient.ReminderChannel = contact.Reminders;
+            patient.HasMobile = contact.Mobile is not null;
             patient.Id = created.Id;
         }
 
@@ -274,6 +283,28 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
                     .SetProperty(p => p.CreatedAt, patient.CreatedUtc)
                     .SetProperty(p => p.LastUpdated, patient.LastUpdatedUtc), ct);
         });
+    }
+
+    /// <summary>
+    /// A patient's contact details (Phase 3's demo data): an address on an invented street with a postcode in the
+    /// <c>ZZ</c> area (none exists), a mobile from Ofcom's drama range (07700 900000 to 900999) for most, a registered
+    /// practice from the directory, and how they agreed to be reminded (a quarter gave no consent). From their place in
+    /// the list, so a patient's details are the same however the rest of the story goes.
+    /// </summary>
+    private static (string[] Address, string Postcode, string? Mobile, Guid PracticeId, ReminderChannel Reminders) Contact(int index, CentreSetup setup)
+    {
+        var random = new Random(7919 * (index + 1));
+        var street = DemoCentreSetup.Streets[random.Next(DemoCentreSetup.Streets.Length)];
+        var town = DemoCentreSetup.Towns[random.Next(DemoCentreSetup.Towns.Length)];
+        var postcode = $"ZZ{random.Next(1, 10)} {random.Next(1, 10)}{(char)('A' + random.Next(26))}{(char)('A' + random.Next(26))}";
+        var mobile = random.NextDouble() < 0.9 ? $"07700 900{index % 1000:000}" : null;
+        var practice = setup.Practices[random.Next(setup.Practices.Count)].Id;
+        var roll = random.NextDouble();
+        var reminders = roll < 0.25 ? ReminderChannel.None
+            : roll < 0.7 ? ReminderChannel.Text
+            : roll < 0.85 ? ReminderChannel.Email
+            : ReminderChannel.TextAndEmail;
+        return ([$"{random.Next(1, 120)} {street}", town], postcode, mobile, practice, reminders);
     }
 
     /// <summary>

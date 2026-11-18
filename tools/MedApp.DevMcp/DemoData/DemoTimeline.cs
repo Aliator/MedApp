@@ -34,6 +34,7 @@ public sealed class DemoTimeline
         LocumRoleCreatedUtc = WorkingMoment(NowUtc.AddDays(-56), 11, 30);
         RolesRefinedUtc = WorkingMoment(NowUtc.AddDays(-28), 14, 0);
         NewServiceAddedUtc = WorkingMoment(NowUtc.AddDays(-24), 10, 30);
+        LabAndLettersFromUtc = WorkingMoment(NowUtc.AddDays(-70), 8, 30);
         NotificationsFromUtc = NowUtc.AddDays(-30);
         ActivityFromUtc = NowUtc.AddDays(-60);
 
@@ -83,6 +84,14 @@ public sealed class DemoTimeline
 
     /// <summary>When the lead added the new service (Respiratory), whose referrals nobody can triage yet.</summary>
     public DateTime NewServiceAddedUtc { get; }
+
+    /// <summary>
+    /// When the centre started tracking specimens, results, consent, letters and the MDT list in MedApp (Phases 3 to 5),
+    /// ten weeks ago: specimens are taken on stages started from then, and pathways created from then carry the stage
+    /// rules that came with them (a lab stage waits for results, the biopsy needs consent, the discharge letter stage
+    /// needs a discharge summary). Older records were done on paper, with reports attached as files.
+    /// </summary>
+    public DateTime LabAndLettersFromUtc { get; }
 
     /// <summary>Notifications are made for what happened from here on (30 days).</summary>
     public DateTime NotificationsFromUtc { get; }

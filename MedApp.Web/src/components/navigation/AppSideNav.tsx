@@ -31,43 +31,18 @@ import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {can, useCurrentUser, useLogout} from '../../auth/auth';
-import type {Permission} from '../../auth/permissions';
 import {rolesSummary} from '../../auth/roles';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
 import {AppIcon} from '../shared/icons';
 import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
 import {pathwayNavLabel} from './navLabels';
+import {ADMIN_CATEGORIES, useNavCategories, type AdminCategory, type AdminPage} from './navCategories';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 import {readMeNavEntry} from '../../demo/readMeNav';
 import {READ_ME_PATH as READ_ME} from '../../demo/readMeSeen';
-
-/**
- * The Administration section's pages, each shown only to people whose roles grant its permission (the page's route
- * checks the same: `requirePermission`). The section is left out when none are.
- */
-const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon]; href: string; permission: Permission}[] = [
-  {label: 'Users', icon: AppIcon.Users, href: '/admin/users', permission: 'ManageUsers'},
-  {label: 'Roles and Permissions', icon: AppIcon.Roles, href: '/admin/roles', permission: 'ManageRoles'},
-  {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
-  {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
-  {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
-  {label: 'Letter Templates', icon: AppIcon.LetterTemplates, href: '/admin/letter-templates', permission: 'ManageSetup'},
-  {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
-  {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
-  {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},
-  {label: 'Specimen Types and Labs', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
-  {label: 'Consent Forms', icon: AppIcon.Consent, href: '/admin/consent-forms', permission: 'ManageSetup'},
-  {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
-  {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights', permission: 'ViewInsights'},
-  {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
-  {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention', permission: 'ManagePrivacy'},
-  {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring', permission: 'ManageMonitoring'},
-  {label: 'Scheduled Jobs', icon: AppIcon.ScheduledJobs, href: '/admin/jobs', permission: 'ManageSetup'},
-  {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings', permission: 'ManageSecuritySettings'},
-];
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */
 export function isCurrentSection(pathname: string, path: string): boolean {
@@ -603,6 +578,48 @@ function PinnableSection({
   );
 }
 
+interface AdminCategoryRowProps {
+  category: AdminCategory;
+  /** The pages in it this person can see (at least one). */
+  pages: AdminPage[];
+  isOpen: boolean;
+  onToggle: () => void;
+  /** It holds the current page, or the half view's. */
+  holdsCurrent: boolean;
+  holdsHalfView: boolean;
+  /** In the folded nav's flyout: always open, as the pinned items under Patients are there. */
+  isAlwaysOpen: boolean;
+  pageRow: (page: AdminPage) => ReactNode;
+}
+
+/**
+ * An admin category: a row that opens with a click (or Enter) to show its pages indented under it, as the pinned items
+ * show under Patients. The row is Astryx's own toggle (`aria-expanded`). Holding the current page (or the half
+ * view's), it has a dot at its end, said as "has the current page".
+ */
+function AdminCategoryRow({category, pages, isOpen, onToggle, holdsCurrent, holdsHalfView, isAlwaysOpen, pageRow}: AdminCategoryRowProps) {
+  const holds = holdsCurrent ? 'has the current page' : holdsHalfView ? 'has the page in the half view' : null;
+  return (
+    <SideNavItem
+      label={category.label}
+      icon={category.icon}
+      data-nav-category={category.key}
+      collapsible={isAlwaysOpen ? false : {isCollapsed: !isOpen, onCollapsedChange: onToggle}}
+      endContent={
+        holds && (
+          <>
+            <Icon icon={AppIcon.HoldsCurrent} size="xsm" color={holdsCurrent ? 'accent' : 'secondary'} aria-hidden />
+            <VisuallyHidden>{`, ${holds}`}</VisuallyHidden>
+          </>
+        )
+      }>
+      {pages.map((page) => (
+        <Fragment key={page.href}>{pageRow(page)}</Fragment>
+      ))}
+    </SideNavItem>
+  );
+}
+
 /**
  * The Letters item's count: the signed-in person's letters to approve, and every approved letter still to send, as a
  * badge (nothing when there are none). Seen as the number; heard as "2 to approve, 3 to send", after the item's name.
@@ -909,24 +926,49 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
       ),
     },
   ];
-  const admin: NavRailEntry[] = ADMIN_PAGES.filter((page) => can(user, page.permission)).map((page) => ({
-    key: page.href,
-    label: page.label,
-    icon: page.icon,
-    href: page.href,
-    isSelected: isAt(page.href),
-    isHalfView: isHalfAt(page.href),
-    row: (
-      <SideNavItem
-        label={page.label}
-        icon={page.icon}
-        href={page.href}
-        isSelected={isAt(page.href)}
-        ref={halfViewRow(isHalfAt(page.href))}
-        actions={<RowMenu label={page.label} href={page.href} />}
-      />
-    ),
-  }));
+  // The admin pages, in categories that open with a click; one shows only if the person can see a page in it.
+  const isFolded = typeof collapsible === 'object' && collapsible.isCollapsed === true;
+  const adminCategories = useNavCategories(`${pathname} ${halfPath ?? ''}`);
+  const adminPageRow = (page: AdminPage) => (
+    <SideNavItem
+      label={page.label}
+      icon={page.icon}
+      href={page.href}
+      isSelected={isAt(page.href)}
+      ref={halfViewRow(isHalfAt(page.href))}
+      actions={<RowMenu label={page.label} href={page.href} />}
+    />
+  );
+  const admin: NavRailEntry[] = ADMIN_CATEGORIES.flatMap((category) => {
+    const pages = category.pages.filter((page) => can(user, page.permission));
+    if (pages.length === 0) return [];
+    const holdsCurrent = pages.some((page) => isAt(page.href));
+    const holdsHalfView = pages.some((page) => isHalfAt(page.href));
+    const holds = holdsCurrent || holdsHalfView;
+    return [
+      {
+        key: `category:${category.key}`,
+        label: category.label,
+        icon: category.icon,
+        // Not a page: its icon is filled while it holds the current page, but announced as holding it, not as it.
+        isSelected: false,
+        holdsCurrent,
+        isHalfView: holdsHalfView,
+        row: (
+          <AdminCategoryRow
+            category={category}
+            pages={pages}
+            isOpen={adminCategories.isOpen(category.key, holds)}
+            onToggle={() => adminCategories.toggle(category.key, holds)}
+            holdsCurrent={holdsCurrent}
+            holdsHalfView={holdsHalfView}
+            isAlwaysOpen={isFolded}
+            pageRow={adminPageRow}
+          />
+        ),
+      },
+    ];
+  });
   // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
   const notepad = useNotepad();
   const toggleNotepad = () => {
@@ -1025,7 +1067,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     },
   ];
   const trackRow = (row: ReactNode) => <AlwaysShownButtons>{row}</AlwaysShownButtons>;
-  const isFolded = typeof collapsible === 'object' && collapsible.isCollapsed === true;
   const rows = (entries: NavRailEntry[]) => entries.map((entry) => <Fragment key={entry.key}>{entry.row}</Fragment>);
 
   return (

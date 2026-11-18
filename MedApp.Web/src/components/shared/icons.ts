@@ -141,6 +141,11 @@ import {
   RiQuillPenLine,
   RiTruckLine,
   RiFileUserLine,
+  RiUserSettingsLine,
+  RiFlowChart,
+  RiLock2Line,
+  RiCheckboxBlankCircleFill,
+  RiDashboard3Line,
 } from '@remixicon/react';
 
 /**
@@ -210,6 +215,14 @@ export const AppIcon = {
   Favourite: remix(RiStarLine),
   /** A sub-item in the side nav, e.g. the open patient under Patients. */
   SubItem: remix(RiCornerDownRightLine),
+  // The side nav's admin categories, which open with a click to show their pages
+  AdminPeople: remix(RiUserSettingsLine),
+  AdminPathwaySetup: remix(RiFlowChart),
+  AdminClinics: remix(RiCalendar2Line),
+  AdminOversight: remix(RiDashboard3Line),
+  AdminPrivacy: remix(RiLock2Line),
+  /** A side nav category that holds the current page (or the half view's): a small dot at the end of its row. */
+  HoldsCurrent: remix(RiCheckboxBlankCircleFill),
   /** Copying a value, e.g. a generated password. */
   Copy: remix(RiFileCopyLine),
   Pin: remix(RiPushpinLine),

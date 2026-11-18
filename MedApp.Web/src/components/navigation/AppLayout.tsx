@@ -1,6 +1,6 @@
-import {AppShell} from '@astryxdesign/core/AppShell';
+import {AppShell, useAppShellMobile} from '@astryxdesign/core/AppShell';
 import {Divider} from '@astryxdesign/core/Divider';
-import {HStack, StackItem} from '@astryxdesign/core/Stack';
+import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useSideNavRenderMode} from '@astryxdesign/core/SideNav';
 import {Theme} from '@astryxdesign/core/theme';
 import {Outlet, useRouter} from '@tanstack/react-router';
@@ -22,6 +22,24 @@ const STORAGE_KEY = 'medapp.halfView';
 
 /** The light demo's banner, above every page in its build only (docs/agents/light-demo.md). */
 const DemoBanner = __LIGHT_DEMO__ ? lazy(() => import('../../demo/DemoBanner').then((m) => ({default: m.DemoBanner}))) : null;
+
+/**
+ * Where the light demo's banner goes: over the whole window on a wide one (AppShell's `banner`), but under the top bar
+ * on a phone, at the top of the page. Above the top bar, its several lines pushed the bar, and the menu button on it,
+ * a long way down the screen, away from where it is in the full app and from the drawer's close button that replaces
+ * it. Each place asks AppShell which layout it's in, so exactly one shows it.
+ */
+export function DemoBannerSlot({place}: {place: 'window' | 'page'}) {
+  const {isMobile} = useAppShellMobile();
+  if (!DemoBanner || isMobile !== (place === 'page')) return null;
+  const banner = (
+    <Suspense fallback={null}>
+      <DemoBanner />
+    </Suspense>
+  );
+  // On the page, spaced from the page's heading below it.
+  return place === 'page' ? <VStack style={{marginBlockEnd: 'var(--spacing-4)'}}>{banner}</VStack> : banner;
+}
 
 /**
  * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
@@ -206,7 +224,7 @@ function MainLayout() {
         <PermissionMissingWatcher />
         <style data-medapp-layout="">{STABLE_SCROLLBAR}</style>
         <AppShell
-          banner={DemoBanner && <Suspense fallback={null}><DemoBanner /></Suspense>}
+          banner={DemoBanner && <DemoBannerSlot place="window" />}
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
             <SideNavTheme>
@@ -221,6 +239,7 @@ function MainLayout() {
           }
           // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
           contentPadding={half || isNotepadDocked ? 0 : 6}>
+          {DemoBanner && <DemoBannerSlot place="page" />}
           {/*
             The page always sits in the same two wrappers, whether or not the notepad is docked beside it, so opening
             or closing the notepad never moves the page in the tree: React would otherwise rebuild it from scratch,
