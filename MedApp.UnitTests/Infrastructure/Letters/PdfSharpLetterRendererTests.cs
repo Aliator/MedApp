@@ -209,6 +209,81 @@ public sealed class PdfSharpLetterRendererTests
     }
 
     [Test]
+    public void Markdown_ThousandsOfNestedQuotes_AreShownAsTheirPlainText_WithoutThrowing()
+    {
+        var section = new Document().AddSection();
+        var markdown = new string('>', 5000) + " Deep";
+
+        MarkdownToMigraDoc.AddTo(section, markdown);
+
+        Paragraphs(section).Select(TextOf).Should().Equal(markdown);
+    }
+
+    [Test]
+    public void Markdown_DozensOfNestedQuotes_StopIndentingAtTheCap()
+    {
+        var section = new Document().AddSection();
+
+        MarkdownToMigraDoc.AddTo(section, new string('>', 60) + " Deep");
+        var paragraphs = Paragraphs(section);
+
+        paragraphs.Select(TextOf).Should().Equal("Deep");
+        paragraphs[0].Format.LeftIndent.Should().Be(MarkdownToMigraDoc.Indent * MarkdownToMigraDoc.MaxDepth);
+    }
+
+    [Test]
+    public void Markdown_ThousandsOfNestedListItems_RenderWithoutThrowing_WithinTheCap()
+    {
+        var section = new Document().AddSection();
+        var markdown = string.Concat(Enumerable.Repeat("- ", 5000)) + "Deep";
+
+        MarkdownToMigraDoc.AddTo(section, markdown);
+        var paragraphs = Paragraphs(section);
+
+        paragraphs.Select(TextOf).Should().Contain(t => t.EndsWith("Deep"));
+        paragraphs.Should().OnlyContain(p =>
+            p.Format.LeftIndent.Point <= (MarkdownToMigraDoc.Indent * MarkdownToMigraDoc.MaxDepth).Point + 0.01);
+    }
+
+    [Test]
+    public void Markdown_NestedListsWithText_IndentUpToTheCap()
+    {
+        var section = new Document().AddSection();
+        var markdown = string.Join("\n", Enumerable.Range(0, 12).Select(i => new string(' ', i * 2) + $"- Level {i}"));
+
+        MarkdownToMigraDoc.AddTo(section, markdown);
+        var paragraphs = Paragraphs(section);
+
+        paragraphs.Select(TextOf).Should().Equal(Enumerable.Range(0, 12).Select(i => i <= MarkdownToMigraDoc.MaxDepth ? $"•\tLevel {i}" : $"Level {i}"));
+        paragraphs[^1].Format.LeftIndent.Should().Be(MarkdownToMigraDoc.Indent * MarkdownToMigraDoc.MaxDepth);
+    }
+
+    [Test]
+    public void Markdown_DeeplyNestedEmphasis_IsShownAsPlainTextPastTheCap()
+    {
+        var section = new Document().AddSection();
+        var open = string.Concat(Enumerable.Range(0, 40).Select(i => i % 2 == 0 ? "*a " : "_b "));
+        var close = string.Concat(Enumerable.Range(0, 40).Reverse().Select(i => i % 2 == 0 ? " a*" : " b_"));
+
+        MarkdownToMigraDoc.AddTo(section, open + "deep" + close);
+        var paragraph = Paragraphs(section).Single();
+
+        TextOf(paragraph).Should().Contain("deep");
+        FormattingDepth(paragraph.Elements).Should().BeLessThanOrEqualTo(MarkdownToMigraDoc.MaxInlineDepth + 1);
+    }
+
+    private static int FormattingDepth(ParagraphElements elements) =>
+        elements.OfType<FormattedText>().Select(f => 1 + FormattingDepth(f.Elements)).DefaultIfEmpty(0).Max();
+
+    [Test]
+    public void Render_AFullBodyOfNestedQuotes_StillRenders()
+    {
+        var bytes = PdfSharpLetterRenderer.Render(Letter(new string('>', 19990) + " Deep"));
+
+        PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import).PageCount.Should().Be(1);
+    }
+
+    [Test]
     public void Fonts_ResolveEveryFamilyToTheBundledFaces()
     {
         LetterFonts.Instance.ResolveTypeface("Arial", bold: true, italic: true).FaceName.Should().Be("AtkinsonHyperlegible-BoldItalic");

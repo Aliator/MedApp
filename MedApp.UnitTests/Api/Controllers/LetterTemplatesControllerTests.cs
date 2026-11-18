@@ -153,6 +153,13 @@ public sealed class LetterTemplatesControllerTests
         controller.Response.ContentLength.Should().Be(4);
     }
 
+    [TestCase(nameof(LetterTemplatesController.CreateLetterTemplate))]
+    [TestCase(nameof(LetterTemplatesController.UpdateLetterTemplate))]
+    [TestCase(nameof(LetterTemplatesController.PreviewLetterTemplate))]
+    public void TextSendingActions_LimitTheRequestSize(string action) =>
+        typeof(LetterTemplatesController).GetMethod(action)!
+            .GetCustomAttributes(typeof(RequestSizeLimitAttribute), false).Should().ContainSingle();
+
     [Test]
     public async Task Changes_NeedManageSetup()
     {

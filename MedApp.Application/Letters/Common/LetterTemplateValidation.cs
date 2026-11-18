@@ -49,7 +49,9 @@ public static class LetterTemplateValidation
         string label,
         int maxLength)
     {
+        // Stop at the length: the merge field and font checks scan the whole text, so they run only on text in bounds.
         validator.RuleFor(text)
+            .Cascade(CascadeMode.Stop)
             .Must(value => LetterTemplateRules.Tidy(value).Length <= maxLength)
             .WithMessage($"{label} must not exceed {maxLength:N0} characters.")
             .Custom((value, context) =>

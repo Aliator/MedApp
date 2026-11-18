@@ -4,6 +4,7 @@ using MedApp.Application.Letters.Commands.UpdateLetterTemplate;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Queries.PreviewLetterTemplate;
 using MedApp.Domain.Letters;
+using Moq;
 using static MedApp.UnitTests.Common.Constants.LettersTestConstants;
 
 namespace MedApp.UnitTests.Application.Letters.Commands;
@@ -66,6 +67,19 @@ public sealed class LetterTemplateValidatorsTests
 
         errors.Select(e => e.PropertyName).Should().BeEquivalentTo("Letterhead", "BodySkeleton", "Closing");
         errors.Single(e => e.PropertyName == "BodySkeleton").ErrorMessage.Should().Be("Body skeleton must not exceed 20,000 characters.");
+    }
+
+    [Test]
+    public void Create_TextTooLong_IsNotScannedForMergeFieldsOrCharacters()
+    {
+        var renderer = RendererMissing();
+
+        var errors = new CreateLetterTemplateValidator(renderer.Object)
+            .Validate(Create(body: "{{x}} " + new string('a', LetterTemplate.MaxBodyLength))).Errors;
+
+        errors.Should().ContainSingle(e => e.PropertyName == "BodySkeleton").Which.ErrorMessage.Should().Contain("must not exceed");
+        renderer.Verify(r => r.FindUnsupportedCharacters(It.Is<string?>(t => t != null && t.Length > LetterTemplate.MaxBodyLength)),
+            Times.Never);
     }
 
     [Test]

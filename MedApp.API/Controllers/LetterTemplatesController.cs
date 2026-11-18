@@ -27,6 +27,12 @@ namespace MedApp.API.Controllers;
 [Tags("Letter templates")]
 public sealed class LetterTemplatesController(IMediator mediator) : ControllerBase
 {
+    /// <summary>
+    /// The largest body a template's change or preview may send: room for its 22,200 characters of text, JSON-escaped
+    /// and in UTF-8, and no more (a larger one is a 413 before it's read).
+    /// </summary>
+    public const int MaxRequestBytes = 256 * 1024;
+
     [HttpGet]
     [RequirePermission(Permission.UseApp)]
     [ProducesResponseType(typeof(IReadOnlyList<LetterTemplateResponse>), StatusCodes.Status200OK)]
@@ -49,6 +55,7 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
 
     [HttpPost]
     [RequirePermission(Permission.ManageSetup)]
+    [RequestSizeLimit(MaxRequestBytes)]
     [ProducesResponseType(typeof(LetterTemplateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -68,6 +75,7 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
     /// <summary>Replaces a template's details; letters already started from it keep their copy.</summary>
     [HttpPut("{id:guid}")]
     [RequirePermission(Permission.ManageSetup)]
+    [RequestSizeLimit(MaxRequestBytes)]
     [ProducesResponseType(typeof(LetterTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -109,6 +117,7 @@ public sealed class LetterTemplatesController(IMediator mediator) : ControllerBa
     /// </summary>
     [HttpPost("preview")]
     [RequirePermission(Permission.ManageSetup)]
+    [RequestSizeLimit(MaxRequestBytes)]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, LetterPdf.ContentType)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PreviewLetterTemplate(
