@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   'UnlockStages',
   'FinishWithoutVisit',
   'RecordMdtOutcomes',
+  'RecordConsent',
   'DeletePathways',
   'BookAppointments',
   'ManageAnyCalendar',
@@ -89,6 +90,7 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
     group: 'Pathways',
     description: "Record a multidisciplinary team meeting's (MDT) outcome on a pathway listed for it.",
   },
+  RecordConsent: {group: 'Pathways', description: "Record a patient's consent to a stage, withdraw it, and attach the signed form."},
   DeletePathways: {group: 'Pathways', description: 'Delete a cancelled or archived pathway.'},
   BookAppointments: {
     group: 'AppointmentsAndCalendars',

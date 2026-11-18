@@ -35,6 +35,8 @@ public sealed class UpdatePatientPathwayStageDefinitionHandler(IPatientPathwaySt
             definition.NeedsLetterKind = StageLetterKinds.Parse(request.NeedsLetterKind);
         if (request.WaitsForResults is { } waits)
             definition.WaitsForResults = waits;
+        if (request.NeedsConsent is { } needsConsent)
+            definition.NeedsConsent = needsConsent;
 
         await repository.UpdateStageDefinitionAsync(definition, cancellationToken);
 

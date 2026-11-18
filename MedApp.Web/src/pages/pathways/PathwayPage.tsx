@@ -49,6 +49,7 @@ import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ReferralWaitCard} from '../../components/referrals/ReferralWaitCard';
+import {PathwayConsent} from '../../components/consent/PathwayConsent';
 import {PathwaySpecimens} from '../../components/specimens/PathwaySpecimens';
 import {PathwayResults} from '../../components/results/PathwayResults';
 import {AlertMessage} from '../../components/shared/AlertMessage';
@@ -215,6 +216,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     files: !isNarrow,
     specimens: !isNarrow,
     results: !isNarrow,
+    consent: !isNarrow,
     letters: !isNarrow,
     stages: false,
     patientInfo: true,
@@ -993,6 +995,24 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * Its consent records (decisions 145 to 147), with Record Consent for holders of RecordConsent while a stage can take
+   * it: MedApp records the clinician's statement and never assesses it.
+   */
+  function consentSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'consent',
+      title: 'Consent',
+      isOpen: open.consent,
+      onToggle: () => toggle('consent'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayConsent pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * The pathway's own files (not its stages'). They can change unless it's cancelled or archived, as its details
    * can; admins can delete any.
    */
@@ -1056,6 +1076,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               currentStageSection(pathway),
               specimensSection(pathway),
               resultsSection(pathway),
+              consentSection(pathway),
               filesSection(pathway),
               lettersSection(pathway),
             ]}
@@ -1087,6 +1108,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           currentStageSection(pathway),
           specimensSection(pathway),
           resultsSection(pathway),
+          consentSection(pathway),
           filesSection(pathway),
           lettersSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},

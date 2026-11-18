@@ -20,6 +20,7 @@ import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
 import {describeSkipReason} from '../../api/stageSkips';
 import {resultActionLabel, resultSourceLabel, resultStatusLabel} from '../../api/results';
+import {consentFormLabel, consentStatusLabel, signedByLabel} from '../../api/consent';
 import {rejectionReasonLabel, specimenStatusLabel} from '../../api/specimens';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
@@ -455,6 +456,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const results = data.results ?? [];
   // Pathways put forward for a multidisciplinary team meeting, with the question and the team's outcome as written.
   const mdtItems = data.mdtItems ?? [];
+  // What the patient consented to, and any withdrawal or correction; scans under Files.
+  const consents = data.consentRecords ?? [];
   // Each referral by its specialty and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
@@ -676,6 +679,32 @@ function ExportContent({data}: {data: PatientExport}) {
                       <MetadataListItem label="Entered in Error">{`${when(result.enteredInErrorAtUtc)} by ${result.enteredInErrorBy ?? 'unknown'}`}</MetadataListItem>
                     )}
                     {result.errorDetail && <MetadataListItem label="What Was Wrong">{result.errorDetail}</MetadataListItem>}
+                  </MetadataList>
+                </VStack>
+              ))}
+            </VStack>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Consent (${consents.length})`}>
+        {consents.length === 0
+          ? nothing('No consent recorded.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {consents.map((consent) => (
+                <VStack key={consent.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{consentFormLabel(consent.formName, consent.formVersion)}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Status">{consentStatusLabel(consent.status)}</MetadataListItem>
+                    <MetadataListItem label="Pathway">{pathwayTitles.get(consent.pathwayId) || 'A deleted pathway'}</MetadataListItem>
+                    <MetadataListItem label="Signed">{`${consent.signedOn ? formatDate(consent.signedOn) : '—'}, ${signedByLabel(consent.signedBy).toLowerCase()}`}</MetadataListItem>
+                    <MetadataListItem label="Recorded">{`${when(consent.recordedAtUtc)} by ${consent.recordedBy ?? 'unknown'}`}</MetadataListItem>
+                    <MetadataListItem label="Scan">{consent.scanAttachmentId ? 'Under Files' : 'No scan'}</MetadataListItem>
+                    {consent.withdrawnOn && <MetadataListItem label="Withdrawn">{formatDate(consent.withdrawnOn)}</MetadataListItem>}
+                    {consent.statusChangedAtUtc && (
+                      <MetadataListItem label="Changed">{`${when(consent.statusChangedAtUtc)} by ${consent.statusChangedBy ?? 'unknown'}`}</MetadataListItem>
+                    )}
+                    {consent.statusDetail && <MetadataListItem label="Detail">{consent.statusDetail}</MetadataListItem>}
                   </MetadataList>
                 </VStack>
               ))}

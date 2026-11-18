@@ -19,6 +19,7 @@ public static class StageDefinitionMapper
         VisitRequirement = definition.VisitRequirement.ToString(),
         NeedsLetterKind = definition.NeedsLetterKind?.ToString(),
         WaitsForResults = definition.WaitsForResults,
+        NeedsConsent = definition.NeedsConsent,
         IsArchived = definition.IsArchived,
         TemplateCount = usage.TemplateCount,
         CanBeDeleted = !usage.InUse

@@ -34,6 +34,7 @@ import { Route as AppAdminActivityTypesRouteImport } from './routes/_app/admin/a
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminCalendarTemplatesRouteImport } from './routes/_app/admin/calendar-templates'
 import { Route as AppAdminClosedDaysRouteImport } from './routes/_app/admin/closed-days'
+import { Route as AppAdminConsentFormsRouteImport } from './routes/_app/admin/consent-forms'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
 import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
 import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
@@ -207,6 +208,11 @@ const AppAdminCalendarTemplatesRoute =
 const AppAdminClosedDaysRoute = AppAdminClosedDaysRouteImport.update({
   id: '/admin/closed-days',
   path: '/admin/closed-days',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminConsentFormsRoute = AppAdminConsentFormsRouteImport.update({
+  id: '/admin/consent-forms',
+  path: '/admin/consent-forms',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
@@ -492,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
+  '/admin/consent-forms': typeof AppAdminConsentFormsRoute
   '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -567,6 +574,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
+  '/admin/consent-forms': typeof AppAdminConsentFormsRoute
   '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -644,6 +652,7 @@ export interface FileRoutesById {
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/_app/admin/closed-days': typeof AppAdminClosedDaysRoute
+  '/_app/admin/consent-forms': typeof AppAdminConsentFormsRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
   '/_app/admin/jobs': typeof AppAdminJobsRoute
   '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -721,6 +730,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/calendar-templates'
     | '/admin/closed-days'
+    | '/admin/consent-forms'
     | '/admin/insights'
     | '/admin/jobs'
     | '/admin/monitoring'
@@ -796,6 +806,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/calendar-templates'
     | '/admin/closed-days'
+    | '/admin/consent-forms'
     | '/admin/insights'
     | '/admin/jobs'
     | '/admin/monitoring'
@@ -872,6 +883,7 @@ export interface FileRouteTypes {
     | '/_app/admin/audit'
     | '/_app/admin/calendar-templates'
     | '/_app/admin/closed-days'
+    | '/_app/admin/consent-forms'
     | '/_app/admin/insights'
     | '/_app/admin/jobs'
     | '/_app/admin/monitoring'
@@ -1110,6 +1122,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/closed-days'
       fullPath: '/admin/closed-days'
       preLoaderRoute: typeof AppAdminClosedDaysRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/consent-forms': {
+      id: '/_app/admin/consent-forms'
+      path: '/admin/consent-forms'
+      fullPath: '/admin/consent-forms'
+      preLoaderRoute: typeof AppAdminConsentFormsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/insights': {
@@ -1475,6 +1494,7 @@ interface AppRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminCalendarTemplatesRoute: typeof AppAdminCalendarTemplatesRoute
   AppAdminClosedDaysRoute: typeof AppAdminClosedDaysRoute
+  AppAdminConsentFormsRoute: typeof AppAdminConsentFormsRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
   AppAdminJobsRoute: typeof AppAdminJobsRoute
   AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
@@ -1544,6 +1564,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminCalendarTemplatesRoute: AppAdminCalendarTemplatesRoute,
   AppAdminClosedDaysRoute: AppAdminClosedDaysRoute,
+  AppAdminConsentFormsRoute: AppAdminConsentFormsRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
   AppAdminJobsRoute: AppAdminJobsRoute,
   AppAdminMonitoringRoute: AppAdminMonitoringRoute,

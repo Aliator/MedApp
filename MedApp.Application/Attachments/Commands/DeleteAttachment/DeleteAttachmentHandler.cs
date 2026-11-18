@@ -1,6 +1,8 @@
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Consent.Common;
+using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -19,6 +21,7 @@ public sealed class DeleteAttachmentHandler(
     ILetterRepository letters,
     ISpecimenRepository specimens,
     MedApp.Application.Results.Repositories.IResultRepository results,
+    IConsentRepository consents,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
 {
@@ -37,6 +40,10 @@ public sealed class DeleteAttachmentHandler(
         // A letter's approved PDF is the record of what was sent (decision 71): withdraw the letter instead.
         if (await letters.IsPdfAsync(attachment.Id, cancellationToken))
             throw new ConflictException(LetterPdfMessage);
+
+        // A consent form's scan goes only with the record's own correction (entered in error), never on its own (decision 71).
+        if (await consents.IsScanAsync(attachment.Id, cancellationToken))
+            throw new ConflictException(ConsentWorkflow.ScanFileMessage);
 
         var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, attachments, cancellationToken);
         // A restricted or anonymised record can't change, for admins too (an admin lifts the restriction first).

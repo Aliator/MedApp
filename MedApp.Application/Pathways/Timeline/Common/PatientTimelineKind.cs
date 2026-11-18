@@ -68,5 +68,8 @@ public enum PatientTimelineKind
     Results,
 
     /// <summary>The pathway was listed for an MDT, deferred, withdrawn, or the team's outcome recorded (never its text).</summary>
-    Mdt
+    Mdt,
+
+    /// <summary>Consent to a stage was recorded, withdrawn or marked entered in error.</summary>
+    Consent
 }

@@ -214,6 +214,7 @@ const ORDER = [
   'CreatePathways',
   'WorkPathways',
   'AssignPathways',
+  'RecordConsent',
   'BookAppointments',
   'AttachFiles',
   'RecordSpecimens',

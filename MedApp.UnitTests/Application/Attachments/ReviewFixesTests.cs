@@ -220,7 +220,8 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
-            MdtItems = []
+            MdtItems = [],
+            ConsentRecords = []
         };
 
         var entries = PatientAnonymiser.Apply(withFiles, Now, ActivityTestConstants.Actor);

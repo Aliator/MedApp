@@ -33,7 +33,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     /// Who could call each endpoint before permissions (the Staff policy and Roles = "Admin"); for an endpoint added
     /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
     /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74), and so
-    /// do seeing, signing off and reassigning results (SignOffResults).
+    /// do seeing, signing off and reassigning results (SignOffResults), and recording, withdrawing and
+    /// scanning consent (RecordConsent).
     /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
@@ -149,6 +150,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ClinicsController.SearchSessions 00011
         ClinicsController.UpdatePattern 00001
         ClinicsController.UpdateSession 00001
+        ConsentController.ArchiveConsentForm 00001
+        ConsentController.AttachConsentScan 00000
+        ConsentController.CreateConsentForm 00001
+        ConsentController.DeleteConsentForm 00001
+        ConsentController.GetConsentForms 00011
+        ConsentController.GetPathwayConsentRecords 00011
+        ConsentController.MarkConsentEnteredInError 00011
+        ConsentController.RecordConsent 00000
+        ConsentController.RestoreConsentForm 00001
+        ConsentController.UpdateConsentForm 00001
+        ConsentController.WithdrawConsent 00000
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
@@ -473,7 +485,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
         // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
-        // The clinical permissions that came later (specimens, letters, MDT outcomes) were never Admin's.
+        // The clinical permissions that came later (specimens, letters, MDT outcomes, consent) were never Admin's.
         var cameLater = Permissions.NotForAdmin.Except([Permission.TriageReferrals, Permission.FinishWithoutVisit]).ToHashSet();
         var adminBefore = Enum.GetValues<Permission>()
             .Where(p => p != Permission.TriageReferrals && !cameLater.Contains(p))

@@ -29,6 +29,9 @@ public abstract class PathwayHandlerTestBase
     /// <summary>Attached files: none, unless a test says otherwise.</summary>
     protected Mock<IAttachmentRepository> Attachments { get; private set; } = null!;
 
+    /// <summary>Consent records: none, unless a test says otherwise (a loose mock: no records, no scans, a count of 0).</summary>
+    protected Mock<MedApp.Application.Consent.Repositories.IConsentRepository> Consents { get; private set; } = null!;
+
     /// <summary>Specimens: none, unless a test says otherwise.</summary>
     protected Mock<ISpecimenRepository> Specimens { get; private set; } = null!;
 
@@ -113,6 +116,10 @@ public abstract class PathwayHandlerTestBase
         Fixture.Inject(Attachments.Object);
         Fixture.Inject(Specimens.Object);
         Fixture.Inject(Results.Object);
+        Consents = new Mock<MedApp.Application.Consent.Repositories.IConsentRepository>();
+        Consents.Setup(c => c.GetForStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        Consents.Setup(c => c.GetForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        Fixture.Inject(Consents.Object);
         // No letters, unless a test says so: none stops a pathway's deletion or a stage's finish.
         Letters = new Mock<MedApp.Application.Letters.Repositories.ILetterRepository>();
         Letters.Setup(l => l.GetForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
