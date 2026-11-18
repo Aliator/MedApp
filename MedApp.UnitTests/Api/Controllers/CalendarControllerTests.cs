@@ -1,3 +1,5 @@
+using MedApp.Application.Calendar.Hours.Queries.GetStaffHours;
+using MedApp.Application.Calendar.Hours.Commands.SetStaffHours;
 using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
@@ -240,6 +242,29 @@ public sealed class CalendarControllerTests
         await Controller(mediator, "Admin").GetAvailability(request, _cts.Token);
 
         mediator.Request.Should().BeOfType<GetAvailabilityQuery>().Which.StaffUserIds.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetStaffHours_SendsWhoAndWhoIsAsking()
+    {
+        await ExpectOk(_fixture.Create<StaffHoursResponse>(),
+            new GetStaffHoursQuery(OtherId, StaffActor),
+            c => c.GetStaffHours(OtherId, _cts.Token));
+    }
+
+    [Test]
+    public async Task SetStaffHours_SendsEachDay()
+    {
+        var response = _fixture.Create<StaffHoursResponse>();
+        var mediator = new RecordingMediator(_ => response);
+        var day = new StaffHoursDayRequest { DayOfWeek = "Saturday", Starts = new TimeOnly(9, 0), Ends = new TimeOnly(13, 0), SiteId = RecordId };
+
+        var result = await Controller(mediator).SetStaffHours(OtherId, new StaffHoursRequest { Days = [day] }, _cts.Token);
+
+        mediator.Request.Should().BeEquivalentTo(new SetStaffHoursCommand(
+            OtherId, [new StaffHoursDay("Saturday", new TimeOnly(9, 0), new TimeOnly(13, 0), RecordId)], StaffActor));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }
 
     private static readonly string[] AdminOnlyActions =

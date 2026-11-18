@@ -131,7 +131,7 @@ public sealed class CalendarAccessTests : IntegrationTest
         (await early.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)
             .Should().Contain(WorkingHours.OutsideWorkingDay);
         (await weekend.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)
-            .Should().Contain(WorkingHours.Weekend);
+            .Should().Contain(WorkingHours.NotWorking(DayOfWeek.Saturday));
         (await offBoundary.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)
             .Should().Contain(WorkingHours.NotOnBoundary);
         (await backwards.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)

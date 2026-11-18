@@ -35,12 +35,12 @@ import {
   formatTimeRange,
   freeStartsByDay,
   isMorning,
-  isWeekday,
   minutesBetween,
   sameMoment,
   SLOT_MINUTES,
   ukToday,
   weekStart,
+  worksThatDay,
 } from '../../utils/calendarSlots';
 import {formatShortDate, formatTime, parseUtc, ukDay} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
@@ -231,7 +231,7 @@ function BookingForm({
     [calendar.data, length, now, appointment?.id, stepMinutes, isFine],
   );
   // Monday to Friday: a closed one (a bank holiday) shows as closed, so the days stay under their weekdays.
-  const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && isWeekday(d.date ?? '')));
+  const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && worksThatDay(d)));
   const firstFreeDay = weekDays.find((d) => (free[d.date ?? '']?.length ?? 0) > 0)?.date;
 
   // Nothing free this week when it opens (a Friday evening, a full week): look a few weeks on for the first free day.

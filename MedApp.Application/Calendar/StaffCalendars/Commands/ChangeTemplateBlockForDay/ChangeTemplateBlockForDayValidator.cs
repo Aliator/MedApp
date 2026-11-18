@@ -15,7 +15,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 
         RuleFor(x => x.ActivityTypeId).NotEmpty().WithMessage("Activity type is required.");
 
-        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
+        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, x => x.StaffUserId, workingDays);
 
         RuleFor(x => x.Note)
             .MaximumLength(CalendarLimits.MaxNoteLength)
@@ -23,7 +23,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 
         RuleFor(x => x.StartUtc)
             .Must((x, start) => UkTime.DateOf(start) == x.Date)
-            .When(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc, ClosedDaySet.None) is null)
+            .When(x => WorkingHours.WhyBadShape(x.StartUtc, x.EndUtc) is null)
             .WithMessage(SameDay);
     }
 }

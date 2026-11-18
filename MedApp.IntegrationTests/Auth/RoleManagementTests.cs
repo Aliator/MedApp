@@ -9,6 +9,10 @@ using MedApp.Contracts.Common;
 using MedApp.Contracts.Roles.Requests;
 using MedApp.Contracts.Roles.Responses;
 using MedApp.IntegrationTests.Common;
+using MedApp.Infrastructure.Data;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -139,6 +143,35 @@ public sealed class RoleManagementTests : IntegrationTest
         await (await _admin.PutAsJsonAsync($"{Roles}/{role.Id}", Update(role, "BookAppointments"))).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         await (await holder.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task DeletingARole_WhileAnotherAdminIsGivingItToSomeone_WaitsForThem_AndKeepsTheirGrant()
+    {
+        var role = await CreateRoleAsync("Synthetic contested role", "ViewPatients");
+        var staff = await CreateStaffAsync("Nurse");
+        var connectionString = await RunInScopeAsync(sp =>
+            Task.FromResult(sp.GetRequiredService<MedAppDbContext>().Database.GetConnectionString()!));
+
+        // Another admin's grant, saved but not yet committed.
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var grant = (SqlTransaction)await connection.BeginTransactionAsync();
+        await using (var insert = new SqlCommand("INSERT INTO AspNetUserRoles (UserId, RoleId) VALUES (@user, @role)", connection, grant))
+        {
+            insert.Parameters.AddWithValue("@user", staff.UserId);
+            insert.Parameters.AddWithValue("@role", role.Id);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        var delete = _admin.DeleteAsync($"{Roles}/{role.Id}");
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        delete.IsCompleted.Should().BeFalse("the delete waits for the grant being saved, rather than reading past it");
+
+        await grant.CommitAsync();
+        await (await delete).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        var kept = await (await _admin.GetAsync($"{Roles}/{role.Id}")).ReadAsAsync<RoleResponse>();
+        kept.Holders.Should().ContainSingle(h => h.UserId == staff.UserId);
     }
 
     [Test]

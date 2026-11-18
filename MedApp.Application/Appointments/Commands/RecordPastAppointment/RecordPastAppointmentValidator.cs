@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 
@@ -7,7 +8,7 @@ namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
 
 public sealed class RecordPastAppointmentValidator : AbstractValidator<RecordPastAppointmentCommand>
 {
-    public RecordPastAppointmentValidator(TimeProvider timeProvider)
+    public RecordPastAppointmentValidator(TimeProvider timeProvider, WorkingDays workingDays)
     {
         RuleFor(x => x.PatientId).NotEmpty().WithMessage("Patient is required.");
 
@@ -24,10 +25,12 @@ public sealed class RecordPastAppointmentValidator : AbstractValidator<RecordPas
             .WithMessage($"Outcome must be one of: {AppointmentWorkflow.OutcomeNames}.");
 
         RuleFor(x => x.StartUtc)
-            .Custom((start, context) =>
+            .CustomAsync(async (start, context, ct) =>
             {
-                // No closed-day lookup: a walk-in may be on a closed day (decision 74).
-                if (BookingTimes.WhyNotRecorded(start, context.InstanceToValidate.EndUtc, timeProvider.GetUtcNow().UtcDateTime) is { } why)
+                // Inside the person's working day, but a closed day doesn't count: a walk-in may be on one (decision 74).
+                var command = context.InstanceToValidate;
+                if (await BookingTimes.WhyNotRecordedAsync(
+                        workingDays, command.StaffUserId, start, command.EndUtc, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
                     context.AddFailure(why);
             });
 

@@ -20,8 +20,8 @@ function compact<T extends object>(search: T): T {
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as T;
 }
 
-/** The page's tabs: Day templates (when the URL has none), Week templates, and the person's Default week. */
-export const CALENDAR_TEMPLATE_TABS = ['day', 'week', 'default'] as const;
+/** The page's tabs: Day templates (when the URL has none), Week templates, the person's Default week and Working hours. */
+export const CALENDAR_TEMPLATE_TABS = ['day', 'week', 'default', 'hours'] as const;
 export type CalendarTemplatesTab = (typeof CALENDAR_TEMPLATE_TABS)[number];
 
 /** The editors: whose template a new one is, and whose list Back goes to. */
@@ -37,6 +37,7 @@ export interface CalendarTemplatesSearch extends SetupListSearch, CalendarTempla
 function tab(value: unknown): CalendarTemplatesSearch['tab'] {
   const t = typeof value === 'string' ? value.trim().toLowerCase() : undefined;
   if (t === 'week') return 'week';
+  if (t === 'hours') return 'hours';
   // `staff` was the admin page's tab of everyone's default weeks, which this tab replaces.
   return t === 'default' || t === 'staff' ? 'default' : undefined;
 }

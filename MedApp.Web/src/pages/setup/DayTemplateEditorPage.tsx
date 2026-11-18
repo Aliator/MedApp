@@ -32,9 +32,10 @@ import {
   clockTime,
   count,
   dayParts,
+  EARLIEST,
+  LATEST,
   quarterHours,
   WORK_END,
-  WORK_START,
   type BlockRow,
 } from './calendarSetup';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
@@ -93,7 +94,7 @@ export function DayTemplateEditorPage({id, staff}: {id?: string; staff?: string}
   );
 }
 
-const TIMES = quarterHours();
+const TIMES = quarterHours(EARLIEST, LATEST);
 
 /** The times a block can start or end at, with its own time too if that's off the 15-minute steps. */
 const timeOptions = (times: string[], current: string) =>
@@ -238,7 +239,7 @@ function DayTemplateEditor({
   const blockRows = (
     <VStack gap={4}>
       <Text type="supporting" color="secondary">
-        {`Blocks are staff time, between ${WORK_START} and ${WORK_END}: keep patient details out of their notes.`}
+        {`Blocks are staff time, between ${EARLIEST} and ${LATEST}, and show on the days someone works: keep patient details out of their notes.`}
       </Text>
       {rows.length === 0 ? (
         <EmptyState title="No blocks yet" description="A day with no blocks is free for appointments all day." isCompact />

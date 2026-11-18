@@ -6,10 +6,12 @@ using MedApp.Application.Sites.Commands.DeleteRoom;
 using MedApp.Application.Sites.Commands.DeleteSite;
 using MedApp.Application.Sites.Commands.SetRoomArchived;
 using MedApp.Application.Sites.Commands.SetSiteArchived;
+using MedApp.Application.Sites.Commands.SetSiteHours;
 using MedApp.Application.Sites.Commands.UpdateRoom;
 using MedApp.Application.Sites.Commands.UpdateSite;
 using MedApp.Application.Sites.Queries.GetRooms;
 using MedApp.Application.Sites.Queries.GetSiteById;
+using MedApp.Application.Sites.Queries.GetSiteHours;
 using MedApp.Application.Sites.Queries.GetSites;
 using MedApp.Contracts.Sites.Requests;
 using MedApp.Contracts.Sites.Responses;
@@ -168,4 +170,28 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
         await mediator.Send(new DeleteRoomCommand(id), ct);
         return NoContent();
     }
+
+    /// <summary>A site's opening hours today: its own, or the default (Monday to Friday, 08:00 to 18:00) when it has none.</summary>
+    [HttpGet("sites/{id:guid}/hours")]
+    [ProducesResponseType(typeof(SiteHoursResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Tags(SitesTag)]
+    public async Task<IActionResult> GetSiteHours(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetSiteHoursQuery(id), ct));
+
+    /// <summary>
+    /// Sets a site's opening hours from today (past days keep theirs): one entry per day it's open (an evening clinic is
+    /// a Tuesday until 20:00); none puts it back on the default. Refused (409) for an archived site, or while anyone's
+    /// working hours there would fall outside them.
+    /// </summary>
+    [HttpPut("sites/{id:guid}/hours")]
+    [ProducesResponseType(typeof(SiteHoursResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ManageSetup)]
+    [Tags(SitesTag)]
+    public async Task<IActionResult> SetSiteHours(Guid id, [FromBody] SiteHoursRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetSiteHoursCommand(
+            id, request.Days?.Select(d => new SiteHoursDay(d.DayOfWeek, d.Opens, d.Closes)).ToList()), ct));
 }

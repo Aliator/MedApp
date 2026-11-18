@@ -131,10 +131,19 @@ public sealed class RoleRepository(MedAppDbContext context) : IRoleRepository
 
     public async Task<bool> DeleteIfUnheldAsync(Guid roleId, CancellationToken ct)
     {
-        // Its permissions go with it (the foreign key's cascade). Nobody holding it is checked in the same statement.
-        var deleted = await context.Roles
-            .Where(r => r.Id == roleId && !r.IsBuiltIn && !context.UserRoles.Any(userRole => userRole.RoleId == roleId))
-            .ExecuteDeleteAsync(ct);
+        // Its permissions go with it (the foreign key's cascade), and so would its holders' memberships: so nobody may
+        // hold it, checked in the same statement with locks. A plain NOT EXISTS reads the last committed rows (the
+        // database uses read committed snapshot), so it would miss a grant another admin is saving at that moment, and
+        // the cascade would then silently take it away. UPDLOCK waits for that grant to commit (and then sees it);
+        // HOLDLOCK keeps the role's range of AspNetUserRoles locked until the transaction ends, so a grant made after
+        // the check waits, then fails on the role being gone, rather than being cascaded away.
+        var deleted = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             DELETE FROM [AspNetRoles]
+             WHERE [Id] = {roleId} AND [IsBuiltIn] = CAST(0 AS bit)
+               AND NOT EXISTS (SELECT 1 FROM [AspNetUserRoles] WITH (UPDLOCK, HOLDLOCK) WHERE [RoleId] = {roleId})
+             """,
+            ct);
         return deleted == 1;
     }
 

@@ -19,6 +19,7 @@ describe('rolePermissions', () => {
     expect(groups.map((g) => g.title)).toEqual(PERMISSION_GROUPS.map((g) => g.title));
     expect(groups.at(-1)?.title).toBe('Administrator only');
     expect(groups.flatMap((g) => g.permissions)).toEqual(PERMISSIONS.filter((p) => p !== 'UseApp'));
+    expect(groups.find((g) => g.group === 'AppointmentsAndCalendars')?.permissions).toContain('ManageClinics');
   });
 
   it('filters by name, words or description, ignoring case, leaving out empty groups', () => {

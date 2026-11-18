@@ -1,6 +1,6 @@
 import {within} from '@testing-library/react';
 import {renderWithApp, pickFavourite, searchBar} from '../../test/render';
-import {dayFromToday, filtersFrom, ListFilterBar, valuesFrom, type ListFilterField} from './ListFilterBar';
+import {configFor, dayFromToday, filtersFrom, ListFilterBar, valuesFrom, type ListFilterField} from './ListFilterBar';
 
 const fields: ListFilterField[] = [
   {kind: 'text', key: 'title', label: 'Pathway'},
@@ -78,6 +78,15 @@ describe('ListFilterBar', () => {
     await pickFavourite(user, 'Blocked');
 
     expect(onChange).toHaveBeenCalledWith({title: undefined, status: 'Blocked', dueFrom: undefined, dueTo: undefined, overdue: undefined});
+  });
+
+  it('offers "is not any of" on a multiple choice, unless told it can not exclude', () => {
+    const operators = (field: ListFilterField) => configFor([field]).fields[0].operators.map((o) => o.label);
+    const options = [{value: 'a', label: 'A'}];
+
+    expect(operators({kind: 'choice', key: 'x', label: 'X', options, isMultiple: true})).toEqual(['is', 'is any of', 'is not any of']);
+    expect(operators({kind: 'choice', key: 'x', label: 'X', options, isMultiple: true, canExclude: false})).toEqual(['is', 'is any of']);
+    expect(operators({kind: 'choice', key: 'x', label: 'X', options})).toEqual(['is']);
   });
 
   it('gives a day as the URL keeps it, from today', () => {

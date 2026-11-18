@@ -72,4 +72,15 @@ public sealed class CalendarActorTests
         new CalendarActor(StaffUserId, StaffUsername).Should().Be(new CalendarActor(StaffUserId, StaffUsername, new HashSet<MedApp.Application.Common.Identity.Permission>()));
         StaffActor.Equals(null).Should().BeFalse();
     }
+
+    [Test]
+    public void CanSetHours_WithManageClinicsOrManageAnyCalendar_Only()
+    {
+        StaffActor.CanSetHours.Should().BeFalse("nobody sets their own hours without one of the two");
+        AdminActor.CanSetHours.Should().BeTrue();
+        (StaffActor with { Permissions = new HashSet<MedApp.Application.Common.Identity.Permission> { MedApp.Application.Common.Identity.Permission.ManageClinics } })
+            .CanSetHours.Should().BeTrue();
+        (StaffActor with { Permissions = new HashSet<MedApp.Application.Common.Identity.Permission> { MedApp.Application.Common.Identity.Permission.ManageAnyCalendar } })
+            .CanSetHours.Should().BeTrue();
+    }
 }

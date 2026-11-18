@@ -146,7 +146,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         (await evening.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)
             .Should().Contain(WorkingHours.OutsideWorkingDay);
         (await weekend.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Values.SelectMany(e => e)
-            .Should().Contain(WorkingHours.Weekend);
+            .Should().Contain(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]

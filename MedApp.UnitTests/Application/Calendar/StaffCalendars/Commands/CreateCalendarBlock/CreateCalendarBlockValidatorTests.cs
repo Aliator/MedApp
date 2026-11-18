@@ -33,6 +33,14 @@ public sealed class CreateCalendarBlockValidatorTests
         _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end }).IsValid.Should().BeTrue();
     }
 
+    [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.OutsideTheDefaultDay))]
+    public void ValidateOutsideTheirDay(DateTime start, DateTime end, string message)
+    {
+        // Their working day is the default's (they have no hours of their own).
+        _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end })
+            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(message);
+    }
+
     [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.Invalid))]
     public void Validate(DateTime start, DateTime end, string message)
     {

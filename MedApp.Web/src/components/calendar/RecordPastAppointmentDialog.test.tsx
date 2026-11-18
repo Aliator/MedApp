@@ -353,6 +353,18 @@ describe('pastStarts', () => {
     expect(pastStarts(day, 30, new Date('2026-11-18T07:59:00Z'))).toEqual([]);
   });
 
+  it('offers a weekend day they work, inside their hours, and nothing on a weekday they do not', () => {
+    const saturday = {
+      ...calendarDay('2026-11-14', TODAY),
+      isWorkingDay: true,
+      hasHours: true,
+      workStartUtc: ukTime('2026-11-14', '09:00'),
+      workEndUtc: ukTime('2026-11-14', '13:00'),
+    };
+    expect(pastStarts(saturday, 60, now).map((s) => s.slice(11, 16))).toEqual(['09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '12:00']);
+    expect(pastStarts({...calendarDay('2026-11-16', TODAY), isWorkingDay: false, hasHours: false}, 30, now)).toEqual([]);
+  });
+
   it('names a day, today and a closed one', () => {
     expect(pastDayLabel(day, TODAY)).toBe('Today, Wednesday 18 November');
     expect(pastDayLabel({...calendarDay('2026-11-16', TODAY), closedDayName: 'Staff training day'}, TODAY)).toBe(

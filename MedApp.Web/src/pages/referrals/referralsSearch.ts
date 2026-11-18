@@ -1,7 +1,8 @@
 import {CLOSED_REFERRAL_STATUSES, OPEN_REFERRAL_STATUSES, type ReferralStatus} from '../../api/referrals';
+import {parseIdChoice} from '../listSearch';
 
 /**
- * The Referrals page's address: its view, page, sort and the patient's name searched for. The view is Awaiting triage
+ * The Referrals page's address: its view, page, sort, the patient's name searched for and the specialties. The view is Awaiting triage
  * (the inbox) unless the URL says `view=closed` or `view=all`, so the inbox's own link has no search at all.
  */
 
@@ -21,6 +22,8 @@ export interface ReferralsListSearch {
   view?: Exclude<ReferralView, 'awaiting'>;
   /** The patient's name contains this. */
   patient?: string;
+  /** Specialty IDs: an ID choice (see `parseIdChoice`). */
+  specialty?: string;
 }
 
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
@@ -41,6 +44,7 @@ export function parseReferralsSearch(raw: Record<string, unknown>): ReferralsLis
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,
     view: view === 'awaiting' ? undefined : view,
     patient: text(raw.patient),
+    specialty: parseIdChoice(raw.specialty),
   };
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as ReferralsListSearch;
 }

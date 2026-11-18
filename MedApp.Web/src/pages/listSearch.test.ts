@@ -8,7 +8,9 @@ import {
   hasPathwayFilters,
   hasTaskFilters,
   hasUserFilters,
+  idChoiceValues,
   parseAuditSearch,
+  parseIdChoice,
   parseTasksSearch,
   parsePatientsSearch,
   parsePathwaysSearch,
@@ -46,6 +48,28 @@ describe('choiceValues', () => {
   it('gives nothing for no choice, or one that leaves none', () => {
     expect(choiceValues(undefined, options)).toBeUndefined();
     expect(choiceValues('!Low,Medium,High', options)).toBeUndefined();
+  });
+});
+
+describe('parseIdChoice', () => {
+  const a = '0000005A-0000-0000-0000-0000000000AA';
+  const b = '0000005a-0000-0000-0000-0000000000bb';
+
+  it('reads one ID or a comma list, in lower case, without repeats', () => {
+    expect(parseIdChoice(a)).toBe(a.toLowerCase());
+    expect(parseIdChoice(` ${a} , ${b},${a.toLowerCase()}`)).toBe(`${a.toLowerCase()},${b}`);
+  });
+
+  it('drops what is not an ID, and "not any of", which the API has no way to ask', () => {
+    expect(parseIdChoice(`${a},Dermatology`)).toBe(a.toLowerCase());
+    expect(parseIdChoice('Dermatology')).toBeUndefined();
+    expect(parseIdChoice(`!${a}`)).toBeUndefined();
+    expect(parseIdChoice(undefined)).toBeUndefined();
+  });
+
+  it('gives the IDs for the API, or none', () => {
+    expect(idChoiceValues(`${a},${b}`)).toEqual([a, b]);
+    expect(idChoiceValues(undefined)).toBeUndefined();
   });
 });
 
@@ -154,6 +178,13 @@ describe('parseTasksSearch', () => {
   it('knows when the list is filtered beyond its progress', () => {
     expect(hasTaskFilters({page: 2, sort: 'Due', progress: 'started'})).toBe(false);
     expect(hasTaskFilters({overdue: true})).toBe(true);
+    expect(hasTaskFilters({specialty: 'x'})).toBe(true);
+    expect(hasTaskFilters({stage: 'x'})).toBe(true);
+  });
+
+  it('reads specialties and the stage reached as IDs', () => {
+    const id = '0000000D-0000-0000-0000-000000000001';
+    expect(parseTasksSearch({specialty: id, stage: `${id},lab`})).toEqual({specialty: id.toLowerCase(), stage: id.toLowerCase()});
   });
 });
 
@@ -212,6 +243,18 @@ describe('parsePathwaysSearch', () => {
   it('knows when the list is filtered', () => {
     expect(hasPathwayFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasPathwayFilters({closed: true})).toBe(true);
+    expect(hasPathwayFilters({specialty: 'x'})).toBe(true);
+    expect(hasPathwayFilters({stage: 'x'})).toBe(true);
+  });
+
+  it('reads specialties and the stage reached as IDs ("Waiting for histology")', () => {
+    const histology = '0000000D-0000-0000-0000-000000000001';
+    const skin = '0000005a-0000-0000-0000-0000000000aa';
+    expect(parsePathwaysSearch({stage: histology, specialty: `${skin},Dermatology`})).toEqual({
+      stage: histology.toLowerCase(),
+      specialty: skin,
+    });
+    expect(parsePathwaysSearch({stage: `!${histology}`})).toEqual({});
   });
 
   it('asks for the statuses chosen; for "not any of", the other open ones (or all, with closed ones included)', () => {
@@ -287,8 +330,13 @@ describe('parseInsightsSearch', () => {
     expect(parseInsightsSearch({weeks: '12'})).toEqual({});
   });
 
-  it('drops a period it does not offer, and a template that is not an ID', () => {
-    expect(parseInsightsSearch({weeks: '5', template: 'knee'})).toEqual({});
+  it('reads a specialty by its ID', () => {
+    const specialty = '0000005A-0000-0000-0000-0000000000AA';
+    expect(parseInsightsSearch({specialty})).toEqual({specialty: specialty.toLowerCase()});
+  });
+
+  it('drops a period it does not offer, and a template or specialty that is not an ID', () => {
+    expect(parseInsightsSearch({weeks: '5', template: 'knee', specialty: 'Dermatology'})).toEqual({});
     expect(parseInsightsSearch({})).toEqual({});
   });
 });
