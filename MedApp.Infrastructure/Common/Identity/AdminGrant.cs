@@ -61,7 +61,19 @@ public sealed class AdminGrant(
                 return IdentityResult.Success;
             }
 
-            return await userManager.AddToRoleAsync(user, AppRoles.Admin);
+            var added = await userManager.AddToRoleAsync(user, AppRoles.Admin);
+            if (!added.Succeeded)
+                return added;
+
+            // In the same transaction as the grant: kept or lost together.
+            await securityEvents.RecordAsync(
+                new SecurityEvent(
+                    SecurityEventKind.AdminGrantedByCommand,
+                    user.Id,
+                    user.UserName,
+                    Details: new Dictionary<string, object?> { ["added"] = AppRoles.Admin, ["via"] = Command }),
+                ct);
+            return added;
         }, ct);
 
         if (!result.Succeeded)
@@ -80,13 +92,6 @@ public sealed class AdminGrant(
         }
 
         logger.LogWarning("Gave {Username} the Admin role with the {Command} command.", user!.UserName, Command);
-        await securityEvents.RecordAsync(
-            new SecurityEvent(
-                SecurityEventKind.AdminGrantedByCommand,
-                user.Id,
-                user.UserName,
-                Details: new Dictionary<string, object?> { ["added"] = AppRoles.Admin, ["via"] = Command }),
-            ct);
         return AdminGrantOutcome.Granted;
     }
 }

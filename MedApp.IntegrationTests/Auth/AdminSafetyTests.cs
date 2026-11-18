@@ -106,6 +106,26 @@ public sealed class AdminSafetyTests : IntegrationTest
     }
 
     [Test]
+    public async Task RevokeRole_TwoAdminsRevokingEachOthersAdminAtOnce_LeaveOneAdmin()
+    {
+        // Two admins only: each takes Admin from the other at the same moment. The guard's lock lets one through, and
+        // the other then finds the last active admin and is refused.
+        var first = await SignInAsAdminAsync();
+        var second = await CreateStaffAsync(AdminRole);
+
+        var responses = await Task.WhenAll(
+            first.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(second.Username, AppRoles.Admin)),
+            second.Client.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(AdminUsername, AppRoles.Admin)));
+
+        responses.Count(r => r.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
+        var admins = 0;
+        foreach (var username in new[] { AdminUsername, second.Username })
+            if ((await RolesOfAsync(username)).Contains(AppRoles.Admin))
+                admins++;
+        admins.Should().Be(1);
+    }
+
+    [Test]
     public async Task DeleteRole_Admin_Is409()
     {
         var admin = await SignInAsAdminAsync();

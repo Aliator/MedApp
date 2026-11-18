@@ -8,9 +8,9 @@ namespace MedApp.Application.Common.Identity;
 public interface ILastAdminGuard
 {
     /// <summary>
-    /// Whether taking the Admin role from this user, or deleting them, would leave no active admin. Called inside the
-    /// change's transaction, it holds a lock until the transaction ends, so two admins removing each other at once
-    /// can't both succeed.
+    /// Whether taking the Admin role from this user, or deleting them, would leave no active admin. It must be called
+    /// inside the change's transaction (on SQL Server it throws otherwise): it holds a lock until the transaction ends,
+    /// so two admins removing each other at once can't both succeed.
     /// </summary>
     Task<bool> WouldLeaveNoAdminAsync(Guid userId, CancellationToken ct);
 }

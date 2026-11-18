@@ -8,12 +8,15 @@ namespace MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 
 /// <summary>
 /// Takes a role from a user; the activity log records it as a roles change. Refused (null) for your own roles, as
-/// <c>SetUserRoles</c> refuses them, and for Admin from the last active admin (<see cref="ILastAdminGuard"/>).
+/// <c>SetUserRoles</c> refuses them, and for Admin from the last active admin (<see cref="ILastAdminGuard"/>). The check,
+/// the change and its log entry run in one transaction, which holds the guard's lock, so two admins revoking each
+/// other's Admin at once can't both succeed.
 /// </summary>
 public sealed class RevokeRoleHandler(
     IIdentityRoleService userRoleService,
     IIdentityReadService readService,
     ILastAdminGuard lastAdmin,
+    IIdentityTransactions transactions,
     IActivityLog activityLog)
     : IRequestHandler<RevokeRoleCommand, IdentityRole<Guid>?>
 {
@@ -24,20 +27,27 @@ public sealed class RevokeRoleHandler(
         if (string.Equals(request.Username, request.ActorUsername, StringComparison.OrdinalIgnoreCase))
             return null;
 
-        if (string.Equals(request.Role, AppRoles.Admin, StringComparison.OrdinalIgnoreCase)
-            && await readService.GetUserAsync(request.Username, ct) is { } user
-            && await lastAdmin.WouldLeaveNoAdminAsync(user.UserId, ct))
-            return null;
+        var user = string.Equals(request.Role, AppRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            ? await readService.GetUserAsync(request.Username, ct)
+            : null;
 
-        var role = await userRoleService.RevokeRoleAsync(
-            request.Username,
-            request.Role,
-            ct);
+        IdentityRole<Guid>? role = null;
+        // A retry runs it all again, from the database as it was.
+        await transactions.RunAsync(async () =>
+        {
+            role = null;
+            if (user is not null && await lastAdmin.WouldLeaveNoAdminAsync(user.UserId, ct))
+                return IdentityResult.Failed(IdentityErrors.LastAdmin);
 
-        if (role is not null)
+            role = await userRoleService.RevokeRoleAsync(request.Username, request.Role, ct);
+            if (role is null)
+                return IdentityResult.Failed(IdentityErrors.RoleNotFound);
+
             await activityLog.RecordAsync(
                 activityLog.Entry(ActivityAction.RolesChanged, targetUsername: request.Username, details: new { removed = role.Name }),
                 ct);
+            return IdentityResult.Success;
+        }, ct);
 
         return role;
     }
