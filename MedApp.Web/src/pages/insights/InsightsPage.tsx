@@ -1,6 +1,5 @@
 import {Grid} from '@astryxdesign/core/Grid';
 import {Heading} from '@astryxdesign/core/Text';
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useQuery} from '@tanstack/react-query';
 import {useRouter} from '@tanstack/react-router';
@@ -30,6 +29,7 @@ import {
   throughputSummary,
 } from './insightsText';
 import {insightsPageQuery} from './insightsPageQuery';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 export interface InsightsPageProps {
   /** The period and template, from the URL. */
@@ -89,7 +89,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
 
   const filters = (
     <HStack gap={4} vAlign="end" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-      <Selector
+      <AnchoredSelector
         label="Period"
         isLabelHidden
         options={INSIGHTS_WEEKS.map((w) => ({value: String(w), label: `Last ${w} weeks`}))}
@@ -100,7 +100,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
         variant="secondary"
         width={180}
       />
-      <Selector
+      <AnchoredSelector
         label="Template"
         isLabelHidden
         options={templateOptions}

@@ -1,7 +1,7 @@
-import {Selector} from '@astryxdesign/core/Selector';
 import type {ComponentProps} from 'react';
 import type {StaffMember} from '../../api/calendar';
 import {AppIcon} from '../shared/icons';
+import {AnchoredSelector} from '../forms/AnchoredSelector';
 
 /** The picker's choices: yours first, named `ownLabel`, then everyone else by username. */
 export function staffPickerOptions(staff: readonly StaffMember[] | undefined, myId: string | undefined, ownLabel: string) {
@@ -29,7 +29,7 @@ export interface StaffPickerProps {
   onChange: (staffUserId: string | undefined) => void;
   isLoading?: boolean;
   isDisabled?: boolean;
-  width?: ComponentProps<typeof Selector>['width'];
+  width?: ComponentProps<typeof AnchoredSelector>['width'];
 }
 
 /**
@@ -39,7 +39,7 @@ export interface StaffPickerProps {
 export function StaffPicker({label, staff, myId, ownLabel, value, onChange, isLoading, isDisabled, width}: StaffPickerProps) {
   const options = staffPickerOptions(staff, myId, ownLabel);
   return (
-    <Selector
+    <AnchoredSelector
       label={label}
       isLabelHidden
       value={value}

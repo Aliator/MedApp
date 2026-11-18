@@ -4,7 +4,6 @@ import {DateInput} from '@astryxdesign/core/DateInput';
 import {DropdownMenu, type DropdownMenuItemData, type DropdownMenuOption} from '@astryxdesign/core/DropdownMenu';
 import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
-import {MultiSelector} from '@astryxdesign/core/MultiSelector';
 import {Popover} from '@astryxdesign/core/Popover';
 import {SegmentedControl, SegmentedControlItem} from '@astryxdesign/core/SegmentedControl';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
@@ -56,6 +55,7 @@ import {useNarrowerThan} from '../../components/views/useNarrowerThan';
 import {addDays, formatCalendarDay, formatTimeRange, nextWeekday, ukToday, weekStart} from '../../utils/calendarSlots';
 import {formatDate, formatDayHeading, ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import type {CalendarSearch, CalendarView} from './calendarSearch';
+import {AnchoredMultiSelector} from '../../components/forms/AnchoredSelector';
 
 /** The toolbar's date and whose-calendar fields: enough for "Mon, 16 Nov 2026" and a username. */
 const TOOLBAR_FIELD_WIDTH = 175;
@@ -537,7 +537,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     </SegmentedControl>
   );
   const whoPicker = (
-    <MultiSelector
+    <AnchoredMultiSelector
       label="Who"
       isLabelHidden
       value={search.who ?? []}
