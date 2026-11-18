@@ -68,7 +68,8 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
   const [storedCloses, storeCloses] = useAppSetting(CLOSES_HALF_VIEW_KEY);
   const [storedDelay, storeDelay] = useAppSetting(FLYOUT_DELAY_KEY);
   const [storedStart, storeStart] = useAppSetting(START_PAGE_KEY);
-  const closesHalfView = storedCloses !== 'false';
+  // Off unless chosen (the owner's default, 18 November 2026): a nav item opens on the left, keeping the half view.
+  const closesHalfView = storedCloses === 'true';
   const flyoutDelay: FlyoutDelay = FLYOUT_DELAYS.find((option) => option.value === storedDelay)?.value ?? 'standard';
   const startPage: StartPage = START_PAGES.find((option) => option.value === storedStart)?.value ?? 'home';
 
@@ -93,7 +94,7 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
 }
 
 const DEFAULTS: NavSettingsContextValue = {
-  closesHalfView: true,
+  closesHalfView: false,
   setClosesHalfView: () => {},
   flyoutDelay: 'standard',
   flyoutDelayMs: delayMs('standard'),

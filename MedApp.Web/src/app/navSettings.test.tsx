@@ -24,18 +24,18 @@ describe('navSettings', () => {
   it('starts closing half views, with a half-second flyout, opening on Home', () => {
     renderSettings();
 
-    expect(screen.getByRole('status')).toHaveTextContent('true standard 500 home /');
+    expect(screen.getByRole('status')).toHaveTextContent('false standard 500 home /');
   });
 
   it('changes and remembers each setting', () => {
     renderSettings();
 
-    act(() => api.setClosesHalfView(false));
+    act(() => api.setClosesHalfView(true));
     act(() => api.setFlyoutDelay('long'));
     act(() => api.setStartPage('tasks'));
 
-    expect(screen.getByRole('status')).toHaveTextContent('false long 1000 tasks /tasks');
-    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('false');
+    expect(screen.getByRole('status')).toHaveTextContent('true long 1000 tasks /tasks');
+    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('true');
     expect(localStorage.getItem('medapp.navFlyoutDelay')).toBe('long');
     expect(localStorage.getItem('medapp.startPage')).toBe('tasks');
   });
@@ -45,17 +45,17 @@ describe('navSettings', () => {
     localStorage.setItem('medapp.startPage', 'nowhere');
     renderSettings();
 
-    expect(screen.getByRole('status')).toHaveTextContent('true standard 500 home /');
+    expect(screen.getByRole('status')).toHaveTextContent('false standard 500 home /');
   });
 
   it('has the defaults outside its provider (a part tested on its own), and changes nothing there', () => {
     const {result} = renderHook(() => useNavSettings());
 
-    result.current.setClosesHalfView(false);
+    result.current.setClosesHalfView(true);
     result.current.setFlyoutDelay('none');
     result.current.setStartPage('patients');
 
-    expect(result.current).toMatchObject({closesHalfView: true, flyoutDelayMs: 500, startPagePath: '/'});
+    expect(result.current).toMatchObject({closesHalfView: false, flyoutDelayMs: 500, startPagePath: '/'});
     expect(localStorage.length).toBe(0);
   });
 });

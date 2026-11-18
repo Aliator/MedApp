@@ -63,11 +63,12 @@ describe('AccountPage', () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
     const closes = await screen.findByRole('switch', {name: 'Nav items close the half view'});
-    expect(closes).toBeChecked();
+    // Off by default (the owner's choice).
+    expect(closes).not.toBeChecked();
     await user.click(closes);
 
-    expect(closes).not.toBeChecked();
-    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('false');
+    expect(closes).toBeChecked();
+    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('true');
   });
 
   it('changes the side nav hover delay in the Accessibility card, and remembers it', async () => {
