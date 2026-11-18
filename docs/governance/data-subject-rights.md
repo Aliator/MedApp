@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: the rights features of roadmap step 7; 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), 17 November 2026: meetings and personal calendar templates (review of #99) |
+| **Version** | 0.2 (draft), 16 November 2026: the rights features of roadmap step 7; 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), 17 November 2026: meetings and personal calendar templates (review of #99); 0.5 (draft), the same day: replies to meetings |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Next review** | When the rest of roadmap step 7 ships (archiving, the clinician review step, contact preferences); at least every 12 months |
 
@@ -68,7 +68,7 @@ For patients, the customer's admins now answer access, rectification, restrictio
    - notifications about their procedures and appointments
    - staff usernames for the IDs in all of these
 
-   For a **staff user**, the same for their account, roles, sessions, settings, notification choices (`NotificationPreferences`), notifications (meeting invitations, moves and cancellations among them), calendar blocks, default week templates and day overrides, their own day and week templates (`DayTemplates.OwnerUserId`, `WeekTemplates.OwnerUserId`, with their dated rows), the meetings they go to (`MeetingAttendees.StaffUserId`) or arranged (`Meetings.OrganiserUserId`), with each meeting's title, notes, time and the other attendees' usernames, appointments booked with them, and audit and appointment history entries by `UserId`, and the `Attachment` rows they uploaded or deleted (without the files, which are about patients); and for monitoring:
+   For a **staff user**, the same for their account, roles, sessions, settings, notification choices (`NotificationPreferences`), notifications (meeting invitations, moves, cancellations and declines among them), calendar blocks, default week templates and day overrides, their own day and week templates (`DayTemplates.OwnerUserId`, `WeekTemplates.OwnerUserId`, with their dated rows), the meetings they go to (`MeetingAttendees.StaffUserId`) or arranged (`Meetings.OrganiserUserId`), with each meeting's title, notes, time, the other attendees' usernames and everyone's replies (`MeetingAttendees.Reply`, `RepliedAtUtc`), appointments booked with them, and audit and appointment history entries by `UserId`, and the `Attachment` rows they uploaded or deleted (without the files, which are about patients); and for monitoring:
    - **rules that name them** (`MonitoringRules.SubjectUserId`), with the admin who owns each
    - **rules they own** (`MonitoringRules.OwnerUserId`), if they're an admin
    - **monitoring notifications about them:** these are stored under the admin told (`Notifications.UserId`), with the staff member only in the message text, so search the monitoring kinds (10 to 17) for their username in `Message`
