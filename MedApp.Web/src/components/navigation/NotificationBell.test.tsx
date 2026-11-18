@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {NotificationBell} from './NotificationBell';
 
 const pathwayId = '0000000c-0000-0000-0000-000000000001';
@@ -281,6 +281,37 @@ describe('NotificationBell', () => {
     await user.click(list.getByRole('link', {name: /^Note deletion requested/}));
     await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${requested.id}/read`));
     await waitFor(() => expect(router.state.location.href).toBe(href));
+  });
+
+  it("opens a failing scheduled job's notification on Scheduled Jobs, with the scheduled jobs icon", async () => {
+    const failing = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000031',
+      kind: 'ScheduledJobFailing',
+      title: 'Scheduled job failing',
+      message: 'Operational data purge has failed 3 times in a row.',
+      pathwayId: null,
+      appointmentId: null,
+    };
+    const assigned = {...read, id: '0000000c-0000-0000-0000-000000000032', title: 'Another pathway'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [failing, assigned], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Scheduled job failing/});
+    expect(link).toHaveAttribute('href', '/admin/jobs');
+    // Its own icon, not the assignment's.
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${failing.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
   });
 
   it('marks read only the unread notifications about the pathway opened', async () => {

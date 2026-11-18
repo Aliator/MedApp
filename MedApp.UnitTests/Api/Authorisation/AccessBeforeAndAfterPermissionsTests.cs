@@ -136,6 +136,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.Metadata 11111
         FhirController.ReadPatient 00011
         FhirController.SearchPatients 00011
+        JobsController.GetJobs 00001
+        JobsController.RunJob 00001
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
