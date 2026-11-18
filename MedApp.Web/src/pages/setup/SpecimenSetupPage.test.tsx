@@ -155,3 +155,31 @@ describe('SpecimenSetupPage', () => {
     expect(turnaroundWords(14)).toBe('Expected in 14 days');
   });
 });
+
+describe('SpecimenSetupPage, with entries missing their details', () => {
+  it('lists them with what it has, and archives and restores them', async () => {
+    withAnnouncements();
+    const fetch = mockApi({
+      'GET /api/specimen-types': () => json([{id: 'bare-type'}, {id: 'bare-archived-type', isArchived: true}]),
+      'GET /api/laboratories': () => json([{id: 'bare-lab'}, {id: 'bare-archived-lab', isArchived: true}]),
+      'POST /api/specimen-types/bare-type/archive': () => json({id: 'bare-type', isArchived: true}),
+      'POST /api/specimen-types/bare-archived-type/restore': () => json({id: 'bare-archived-type'}),
+      'POST /api/laboratories/bare-lab/archive': () => json({id: 'bare-lab', isArchived: true}),
+      'POST /api/laboratories/bare-archived-lab/restore': () => json({title: 'Synthetic restore refusal.', status: 409}, 409),
+    });
+    const {user} = renderWithApp(<SpecimenSetupPage />, {user: adminUser});
+
+    expect((await screen.findAllByText('Expected in 0 days')).length).toBe(2);
+    expect(screen.getAllByText("Doesn't use MedApp").length).toBe(2);
+    const archives = screen.getAllByRole('button', {name: /^Archive/});
+    await user.click(archives[0]);
+    await expectAnnounced('It archived');
+    await user.click(archives[1]);
+    await waitFor(() => expect(sent(fetch, 'POST').filter((r) => r.url.endsWith('/archive'))).toHaveLength(2));
+    const restores = screen.getAllByRole('button', {name: /^Restore/});
+    await user.click(restores[0]);
+    await expectAnnounced('It restored');
+    await user.click(restores[1]);
+    expect(await screen.findByText(/Synthetic restore refusal\./)).toBeInTheDocument();
+  });
+});

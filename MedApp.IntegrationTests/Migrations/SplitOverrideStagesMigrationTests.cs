@@ -71,7 +71,7 @@ public sealed class SplitOverrideStagesMigrationTests
             StandardRoles.SeniorClinician.Name, StandardRoles.SeniorClinician.Description, IsBuiltIn = false, IsArchived = false,
         });
         foreach (var role in StandardRoles.Starting)
-            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, Migration), role.Name);
     }
 
     [Test]

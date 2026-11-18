@@ -96,4 +96,12 @@ describe('PathwaySpecimens', () => {
     expect(groups.map((g) => g.stage.name)).toEqual(['Biopsy', 'Follow-up']);
     expect(specimensByStage([stage(CONSULT_ID, 'Consultation', false)], [])).toEqual([]);
   });
+
+  it('puts one with no time taken first', () => {
+    const untimed = testSummary({id: 'untimed', stageId: FOLLOW_UP_ID, takenAtUtc: undefined});
+    const timed = testSummary({id: 'timed', stageId: FOLLOW_UP_ID});
+    const later = testSummary({id: 'later', stageId: FOLLOW_UP_ID, takenAtUtc: undefined});
+    const [group] = specimensByStage([stage(FOLLOW_UP_ID, 'Follow-up', false)], [timed, untimed, later]);
+    expect(group.specimens.map((s) => s.id)).toEqual(['untimed', 'later', 'timed']);
+  });
 });
