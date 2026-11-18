@@ -6,6 +6,7 @@ import {
   findAlert,
   isDisabled,
   json,
+  managerUser,
   mockApi,
   openDialog,
   pickFavourite,
@@ -21,6 +22,7 @@ import type {CalendarTemplatesSearch} from './calendarTemplatesSearch';
 const ADMIN = {userId: '00000000-0000-0000-0000-0000000000a9', username: 'test-admin'};
 const ME = {userId: '00000000-0000-0000-0000-0000000000a1', username: 'test-user'};
 const OTHER = {userId: '00000000-0000-0000-0000-0000000000b2', username: 'b.staff'};
+const MANAGER = {userId: '00000000-0000-0000-0000-0000000000c3', username: 'test-manager'};
 
 const STAFF = '/api/calendar/staff';
 const DAYS = '/api/calendar/day-templates';
@@ -481,6 +483,17 @@ describe('CalendarTemplatesPage', () => {
 
       expect(await dialog.findByText('Main site is open 08:00 to 18:00 on Mondays: working hours there must be inside them.')).toBeInTheDocument();
       expect(saved).toEqual({days: []});
+    });
+
+    it('lets a holder of ManageClinics pick whose hours, but not whose templates', async () => {
+      renderPage({tab: 'hours'}, {[`GET ${STAFF}`]: () => json([ADMIN, ME, OTHER, MANAGER])}, {user: managerUser, owner: MANAGER.userId});
+      expect(await screen.findByRole('combobox', {name: 'Whose calendar templates'})).toBeInTheDocument();
+    });
+
+    it('offers a holder of ManageClinics alone no picker on the other tabs', async () => {
+      renderPage({}, {[`GET ${STAFF}`]: () => json([ADMIN, ME, OTHER, MANAGER])}, {user: managerUser, owner: MANAGER.userId});
+      await screen.findByText('Standard day');
+      expect(screen.queryByRole('combobox', {name: 'Whose calendar templates'})).not.toBeInTheDocument();
     });
 
     it('says so when the hours could not be loaded', async () => {
