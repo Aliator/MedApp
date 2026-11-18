@@ -426,7 +426,7 @@ public abstract class IntegrationTest
         await (await PostBookingAsync(client, patientId, staffUserId, startUtc, minutes, procedureId, stageId))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
-    /// <summary>Adds an appointment to Needs booking (no member of staff or time yet).</summary>
+    /// <summary>Adds an appointment to Requires Appointment (no member of staff or time yet).</summary>
     protected static async Task<AppointmentResponse> RequestAppointmentAsync(
         HttpClient client,
         Guid patientId,

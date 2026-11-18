@@ -6,7 +6,7 @@ namespace MedApp.Application.Appointments.Commands.CreateAppointment;
 public sealed class CreateAppointmentValidator : AbstractValidator<CreateAppointmentCommand>
 {
     public const string BookOrRequest =
-        "Give a member of staff, a start and an end to book it, or none of them to add it to Needs booking.";
+        "Give a member of staff, a start and an end to book it, or none of them to add it to Requires Appointment.";
 
     public CreateAppointmentValidator(TimeProvider timeProvider)
     {

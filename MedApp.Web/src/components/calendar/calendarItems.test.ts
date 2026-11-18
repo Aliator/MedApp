@@ -52,6 +52,23 @@ describe('calendarItems', () => {
     expect(appointmentItem(appointment).kind).toBe('appointment');
   });
 
+  it('makes blocks movable only when asked (Edit blocks), when they can change, and never on a past day', () => {
+    const today = testBlock(MONDAY, '12:00', '13:00', {blockId: 'today'});
+    const fixed = testBlock(MONDAY, '14:00', '15:00', {blockId: 'fixed', canEdit: false});
+    const template = testBlock(MONDAY, '15:00', '15:30', {isFromTemplate: true});
+    // The day before: past, whatever the block says.
+    const past = testBlock('2026-11-20', '12:00', '13:00', {blockId: 'past'});
+    const calendar = testCalendar({from: '2026-11-20', dayCount: 4, today: MONDAY, blocks: [today, fixed, template, past]});
+    const movable = (items: ReturnType<typeof calendarItems>) => items.filter((i) => i.isMovable).map((i) => i.key);
+
+    expect(movable(calendarItems(calendar))).toEqual([]);
+    expect(movable(calendarItems(calendar, {movableBlocks: true}))).toEqual(['block-today', `block-template-block-15:00-${MONDAY}`]);
+    expect(calendarItems(calendar, {movableBlocks: true}).find((i) => i.key.startsWith('block-template'))?.movesWithinDay).toBe(true);
+    expect(blockItem(today).isMovable).toBe(false);
+    expect(blockItem(today, {isMovable: true}).isMovable).toBe(true);
+    expect(blockItem(fixed, {isMovable: true}).isMovable).toBe(false);
+  });
+
   it('copes with blocks and appointments missing details', () => {
     expect(blockItem({})).toMatchObject({key: 'block-undefined-undefined', date: '', label: '', colour: 'gray', isMovable: false, movesWithinDay: false, isFlagged: false});
     expect(appointmentItem({})).toMatchObject({date: '', label: '', sublabel: null, colour: 'blue', isMovable: false});

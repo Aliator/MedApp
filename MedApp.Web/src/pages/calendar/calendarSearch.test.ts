@@ -1,4 +1,4 @@
-import {parseCalendarSearch, parseNeedsBookingSearch} from './calendarSearch';
+import {parseCalendarSearch, parseRequiresAppointmentSearch} from './calendarSearch';
 
 const ID = '00000000-0000-0000-0000-0000000000a1';
 
@@ -37,19 +37,19 @@ describe('parseCalendarSearch', () => {
   });
 });
 
-describe('parseNeedsBookingSearch', () => {
+describe('parseRequiresAppointmentSearch', () => {
   it('keeps a page, a sort, its direction and a patient search', () => {
-    expect(parseNeedsBookingSearch({page: '3', sort: 'patient', asc: 'false', patient: ' Sample '})).toEqual({
+    expect(parseRequiresAppointmentSearch({page: '3', sort: 'patient', asc: 'false', patient: ' Sample '})).toEqual({
       page: 3,
       sort: 'Patient',
       asc: false,
       patient: 'Sample',
     });
-    expect(parseNeedsBookingSearch({asc: 'TRUE'})).toEqual({asc: true});
+    expect(parseRequiresAppointmentSearch({asc: 'TRUE'})).toEqual({asc: true});
   });
 
   it('drops anything invalid', () => {
-    expect(parseNeedsBookingSearch({page: '1', sort: 'colour', asc: 'maybe', patient: ''})).toEqual({});
-    expect(parseNeedsBookingSearch({page: 'two'})).toEqual({});
+    expect(parseRequiresAppointmentSearch({page: '1', sort: 'colour', asc: 'maybe', patient: ''})).toEqual({});
+    expect(parseRequiresAppointmentSearch({page: 'two'})).toEqual({});
   });
 });

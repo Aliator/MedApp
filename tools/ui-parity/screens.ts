@@ -179,7 +179,7 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'needs-booking', title: 'Needs Booking: appointments asked for but not yet booked, soonest due first', path: '/calendar/needs-booking' },
+  { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
@@ -304,6 +304,17 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'notepad-half',
+    title: "The notepad in a half view (the side nav's Notepad row's menu), beside a procedure: the notepad filling the right half",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/notepad'));
+      await page.reload();
+      await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,
@@ -364,7 +375,8 @@ export const screens: Screen[] = [
   },
   {
     name: 'procedure-restricted',
-    title: "A restricted patient's procedure at 1366px: the long restricted banner beside the title, the actions on the same line",
+    title:
+      "A restricted patient's procedure at 1366px: the restricted label (\"Restricted record: changes paused\") beside the title, wrapping if it must, the actions on the same line",
     path: (d) => `/procedures/${d.restrictedProcedureId}`,
     prepare: async (page, { data }) => {
       test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
@@ -374,13 +386,38 @@ export const screens: Screen[] = [
   },
   {
     name: 'procedure-restricted-half',
-    title: "A restricted patient's procedure in a half view: the banner under the title, Close half view kept top right",
+    title: "A restricted patient's procedure in a half view: the restricted label under the title, Close half view kept top right",
     path: (d) => `/procedures/${d.restrictedProcedureId}`,
     prepare: async (page, { data }) => {
       test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
       await page.setViewportSize({ width: 1366, height: 768 });
       await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/admin/audit'));
       await page.reload();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-restricted-details',
+    title: "A restricted patient's procedure with the restricted label focused: the whole message (the reason, since when, what can still be done) over the page",
+    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      await page.setViewportSize({ width: 1366, height: 768 });
+      // Focus opens it, as the keyboard does; it stays open while nothing moves.
+      await page.getByRole('button', { name: /^Restricted record.*, show details$/ }).focus();
+      await page.getByRole('dialog', { name: 'Restricted record: details' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-restricted-phone',
+    title: "A restricted patient's procedure on a phone, with the restricted label tapped: the label wraps, and the message fits the screen",
+    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole('button', { name: /^Restricted record.*, show details$/ }).click();
+      await page.getByRole('dialog', { name: 'Restricted record: details' }).waitFor();
       await settle(page);
     },
   },

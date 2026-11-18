@@ -43,10 +43,11 @@ const CAPITALS = {textTransform: 'uppercase'} as const;
 /**
  * Who a page is about, above its content on every page about one patient: their name (family name first, in
  * capitals), date of birth with age, and NHS number, with small tokens when the record is restricted, disputed or
- * anonymised (the full `PatientFlagBanners` stay in the page's message). It's the app's control for the
- * wrong-patient hazards (H-01, H-02): the same details, in the same place and order, wherever someone is about to
- * read or change a patient's care. Follows NHS Digital's patient banner guidance where it fits: ages under 2 years
- * are in months, under 3 months in weeks and under 4 weeks in days (`ageDescription`).
+ * anonymised (`PatientFlagBanners`, in the page's message, name the state too, with the whole message over the
+ * page). It's the app's control for the wrong-patient hazards (H-01, H-02): the same details, in the same place and
+ * order, wherever someone is about to read or change a patient's care. Follows NHS Digital's patient banner
+ * guidance where it fits: ages under 2 years are in months, under 3 months in weeks and under 4 weeks in days
+ * (`ageDescription`).
  *
  * Give it to `Page` as its `banner`. It wraps onto more lines in a narrow window or a half view. To a screen reader
  * it's a region named for the patient ("Patient: Ahmed, Freya"), so two in half views are told apart, with the NHS

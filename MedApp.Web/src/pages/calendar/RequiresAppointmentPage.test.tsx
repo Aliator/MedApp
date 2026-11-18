@@ -1,12 +1,12 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testCalendar, testRequested} from '../../test/calendar';
 import {calls, json, mockApi, openDialog, pageOf, renderWithApp, searchBar, staffUser} from '../../test/render';
-import type {NeedsBookingSearch} from './calendarSearch';
-import {NeedsBookingPage, needsBookingQuery} from './NeedsBookingPage';
+import type {RequiresAppointmentSearch} from './calendarSearch';
+import {RequiresAppointmentPage, requiresAppointmentQuery} from './RequiresAppointmentPage';
 
 const MONDAY = '2026-11-23';
 
-function renderPage(search: NeedsBookingSearch = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
+function renderPage(search: RequiresAppointmentSearch = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
   const onSearchChange = vi.fn();
   const fetch = mockApi({
     'GET /api/appointments/search': () =>
@@ -22,24 +22,24 @@ function renderPage(search: NeedsBookingSearch = {}, handlers: Parameters<typeof
     'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
-  const result = renderWithApp(<NeedsBookingPage search={search} onSearchChange={onSearchChange} />, {user: staffUser});
+  const result = renderWithApp(<RequiresAppointmentPage search={search} onSearchChange={onSearchChange} />, {user: staffUser});
   return {...result, fetch, onSearchChange};
 }
 
-describe('NeedsBookingPage', () => {
+describe('RequiresAppointmentPage', () => {
   beforeEach(() => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });
 
   it('asks the API for Requested appointments, soonest due first', () => {
-    expect(needsBookingQuery({}, 20)).toEqual({Statuses: ['Requested'], Page: 1, PageSize: 20, Sort: 'dueDate', Ascending: true, Search: undefined});
-    expect(needsBookingQuery({page: 2, sort: 'Patient', asc: false, patient: 'Sam'})).toMatchObject({Page: 2, Sort: 'patient', Ascending: false, Search: 'Sam'});
+    expect(requiresAppointmentQuery({}, 20)).toEqual({Statuses: ['Requested'], Page: 1, PageSize: 20, Sort: 'dueDate', Ascending: true, Search: undefined});
+    expect(requiresAppointmentQuery({page: 2, sort: 'Patient', asc: false, patient: 'Sam'})).toMatchObject({Page: 2, Sort: 'patient', Ascending: false, Search: 'Sam'});
   });
 
-  it('lists what needs booking: who, what for, the visit, when it is due, and who asked', async () => {
+  it('lists what requires an appointment: who, what for, the visit, when it is due, and who asked', async () => {
     const {fetch} = renderPage();
 
-    expect(await screen.findByRole('heading', {name: 'Needs Booking', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Requires Appointment', level: 1})).toBeInTheDocument();
     expect(await screen.findByText('2 appointments to book')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
     expect(screen.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', '/procedures/procedure-1');
@@ -84,7 +84,7 @@ describe('NeedsBookingPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({page: 2});
   });
 
-  it('says when nothing matches a search, and when nothing needs booking', async () => {
+  it('says when nothing matches a search, and when nothing requires an appointment', async () => {
     const empty = {'GET /api/appointments/search': () => json(pageOf([]))};
     const {user, onSearchChange, unmount} = renderPage({patient: 'Nobody', sort: 'Patient'}, empty);
 
@@ -95,7 +95,7 @@ describe('NeedsBookingPage', () => {
     unmount();
 
     renderPage({}, empty);
-    expect(await screen.findByText('Nothing needs booking')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing requires an appointment')).toBeInTheDocument();
   });
 
   it('shows its patient search in the bar, and clears it', async () => {

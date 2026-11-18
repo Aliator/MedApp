@@ -239,8 +239,8 @@ describe('describeTimelineEntry', () => {
     const slot = 'Mon 23 Nov 2026, 10:00 to 10:30 with test.doctor';
 
     it.each([
-      [{action: 'AppointmentRequested', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested for Review', 'Requested automatically, as the stage involves a visit. Needs booking'],
-      [{action: 'AppointmentRequested', stageName: null, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested', 'Needs booking'],
+      [{action: 'AppointmentRequested', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested for Review', 'Requested automatically, as the stage involves a visit. Requires appointment'],
+      [{action: 'AppointmentRequested', stageName: null, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested', 'Requires appointment'],
       [{action: 'AppointmentBooked'}, 'Appointment booked for Review', slot],
       [{action: 'AppointmentAttended'}, 'Marked Attended for Review', slot],
       [{action: 'AppointmentAttended', fromStatus: 'DidNotAttend'}, 'Marked Attended for Review', `${slot}. Was marked Did not attend`],

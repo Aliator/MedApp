@@ -2,7 +2,7 @@ import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
-import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {calls, openAlertDetails, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {BookAppointmentDialog, shownStarts, type BookAppointmentDialogProps} from './BookAppointmentDialog';
 
 const MONDAY = '2026-11-23';
@@ -71,7 +71,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
 
     await user.click(within(morning).getByRole('button', {name: '09:00'}));
     expect(dialog().getByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
-    expect(dialog().queryByRole('button', {name: 'Add to Needs booking'})).not.toBeInTheDocument();
+    expect(dialog().queryByRole('button', {name: 'Add to Requires Appointment'})).not.toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Book'}));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(booked));
@@ -172,7 +172,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('option', {name: '1 hour 30 minutes'}));
 
     // 17:00 for an hour and a half would run past the end of the day.
-    expect(dialog().getByText('Choose a time, or add it to Needs booking to book later.')).toBeInTheDocument();
+    expect(dialog().getByText('Choose a time, or add it to Requires Appointment to book later.')).toBeInTheDocument();
     expect(within(dialog().getByRole('group', {name: /Afternoon times/})).queryByRole('button', {name: '17:00'})).not.toBeInTheDocument();
   });
 
@@ -280,7 +280,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     );
 
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
-    expect(isDisabled(dialog().getByRole('button', {name: 'Add to Needs booking'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Add to Requires Appointment'}))).toBe(true);
     await user.type(dialog().getByRole('combobox', {name: /Patient/}), 'al');
     // Each result with its date of birth and NHS number, to tell patients with the same name apart.
     expect(await screen.findByRole('option', {name: /Alex Sample/})).toHaveTextContent('Born 14 Mar 1980 · NHS No. 999 000 0026');
@@ -298,7 +298,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('option', {name: /Consent/}));
     expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
 
-    await user.click(dialog().getByRole('button', {name: 'Add to Needs booking'}));
+    await user.click(dialog().getByRole('button', {name: 'Add to Requires Appointment'}));
     await waitFor(async () =>
       expect(await bodyOf(fetch, 'POST', '/api/appointments')).toEqual({
         patientId: 'patient-9',
@@ -352,7 +352,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Book'}));
 
     expect(await dialog().findByText('That time overlaps an appointment, 09:00 to 09:30.')).toBeInTheDocument();
-    expect(dialog().getByText('Choose a time, or add it to Needs booking to book later.')).toBeInTheDocument();
+    expect(dialog().getByText('Choose a time, or add it to Requires Appointment to book later.')).toBeInTheDocument();
     await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('GET /api/calendar?'))).toHaveLength(2));
   });
 
@@ -451,7 +451,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
 
     expect(await dialog().findByRole('button', {name: 'Mon 23, 23 free times'})).toBeInTheDocument();
     expect(dialog().queryByRole('group', {name: /Morning times/})).not.toBeInTheDocument();
-    expect(dialog().getByText('Choose a time, or add it to Needs booking to book later.')).toBeInTheDocument();
+    expect(dialog().getByText('Choose a time, or add it to Requires Appointment to book later.')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_OTHER.userId}&From=2026-11-23&To=2026-11-27`);
   });
 
@@ -493,7 +493,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await waitFor(() => expect(openDialog()).toBeNull());
 
     await user.click(screen.getByRole('button', {name: 'Open'}));
-    expect(await dialog().findByText('Choose a time, or add it to Needs booking to book later.')).toBeInTheDocument();
+    expect(await dialog().findByText('Choose a time, or add it to Requires Appointment to book later.')).toBeInTheDocument();
   });
 
   it('books with Ctrl+S once a time is chosen, and not before', async () => {
@@ -527,9 +527,12 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await screen.findByRole('dialog');
     const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
-    expect(dialog().getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
-    expect(dialog().getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
-    expect(isDisabled(dialog().getByRole('button', {name: 'Add to Needs booking'}))).toBe(true);
+    // Why, on screen: the restricted banner above shows only its label and summary.
+    expect(dialog().getByText("This patient's record is restricted, so it can't be changed until an admin lifts the restriction.")).toBeInTheDocument();
+    const details = await openAlertDetails(user, 'Restricted record', openDialog()!);
+    expect(within(details).getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(within(details).getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Add to Requires Appointment'}))).toBe(true);
     await user.click(await dialog().findByRole('button', {name: '09:00'}));
     expect(isDisabled(dialog().getByRole('button', {name: 'Book'}))).toBe(true);
     fireEvent.keyDown(dialog().getByRole('button', {name: '09:00'}), {key: 's', ctrlKey: true});

@@ -56,7 +56,7 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
 
         // A calendar's appointments in a range of dates.
         builder.HasIndex(x => new { x.StaffUserId, x.StartUtc });
-        // What needs booking, and a patient's appointments.
+        // What requires an appointment (the Requires Appointment list), and a patient's appointments.
         builder.HasIndex(x => new { x.Status, x.CreatedAtUtc });
         builder.HasIndex(x => x.PatientId);
         builder.HasIndex(x => x.ProcedureId);

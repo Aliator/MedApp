@@ -198,7 +198,7 @@ const startTime = (a: Appointment) => (a.startUtc ? parseUtc(a.startUtc).getTime
 const lastChange = (a: Appointment) => (a.startUtc ? startTime(a) : parseUtc(a.lastUpdated ?? '').getTime() || 0);
 
 /**
- * The patient's appointments, in two parts: what's still to happen (Booked, soonest first, then Needs booking), then
+ * The patient's appointments, in two parts: what's still to happen (Booked, soonest first, then Requires appointment), then
  * the last few that are over (attended, missed or cancelled), newest first. Each opens on the Calendar.
  */
 export function splitAppointments(appointments: readonly Appointment[]) {

@@ -42,6 +42,29 @@ describe('NotificationBell', () => {
     expect(list.getByRole('link', {name: /Test procedure/})).toHaveAttribute('href', `/procedures/${procedureId}`);
   });
 
+  it("puts the count over the bell's corner, so the bell keeps its size, with the count said only by the bell's name", async () => {
+    mockApi({'GET /api/notifications': () => json({items: [unread], unreadCount: 120})});
+    renderWithApp(<NotificationBell />, {user: staffUser});
+
+    const bell = await screen.findByRole('button', {name: 'Notifications, 120 unread'});
+    const count = await screen.findByText('99+');
+    expect(count.closest('[aria-hidden="true"]')).not.toBeNull();
+    // Placed over the bell (taken out of the row), and letting a click through to it.
+    const badge = count.closest<HTMLElement>('[style*="absolute"]')!;
+    expect(badge.style.position).toBe('absolute');
+    expect(badge.style.pointerEvents).toBe('none');
+    expect(badge.parentElement).toContainElement(bell);
+    expect(badge.parentElement!.style.position).toBe('relative');
+  });
+
+  it('shows no count when nothing is unread', async () => {
+    mockApi({'GET /api/notifications': () => json({items: [read], unreadCount: 0})});
+    renderWithApp(<NotificationBell />, {user: staffUser});
+
+    expect(await screen.findByRole('button', {name: 'Notifications'})).toBeInTheDocument();
+    expect(document.querySelector('[style*="absolute"]')).toBeNull();
+  });
+
   it("opens an appointment's notification on the calendar, marking it read", async () => {
     const appointmentId = '0000000c-0000-0000-0000-000000000009';
     const booked = {...unread, id: '0000000c-0000-0000-0000-000000000004', kind: 'AppointmentBooked', title: 'Knee review', message: 'test.admin booked an appointment with you for Monday 23 November at 10:00.', appointmentId};
