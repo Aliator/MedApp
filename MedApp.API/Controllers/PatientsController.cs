@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MedApp.Application.Common.Identity;
+using Microsoft.AspNetCore.Mvc;
 using MedApp.Application.Patients.Commands.AnonymisePatient;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.Application.Patients.Commands.KeepPatientRecord;
@@ -28,7 +29,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.EditPatients)]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
         var command = new CreatePatientCommand(
@@ -57,14 +58,14 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("labels")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientLabelResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPatientLabelsQuery(ids ?? []), ct));
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientById(Guid id)
     {
         var query = new GetPatientByIdQuery(id);
@@ -84,7 +85,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<PatientResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> SearchPatients([FromQuery] SearchPatientsRequest request, CancellationToken cancellationToken)
     {
         var query = new SearchPatientsQuery(
@@ -104,7 +105,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<PatientResponse>), StatusCodes.Status200OK)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetAllPatients()
     {
         var query = new GetAllPatientsQuery();
@@ -118,7 +119,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.EditPatients)]
     public async Task<IActionResult> UpdatePatient(
         Guid id,
         [FromBody] UpdatePatientRequest request)
@@ -144,7 +145,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.DeletePatients)]
     public async Task<IActionResult> DeletePatient(Guid id)
     {
         var command = new DeletePatientCommand(id);
@@ -165,7 +166,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("{id:guid}/export")]
     [ProducesResponseType(typeof(PatientExportResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ExportPatientRecords)]
     public async Task<IActionResult> ExportPatient(Guid id, CancellationToken ct)
     {
         var export = await mediator.Send(new ExportPatientQuery(id), ct);
@@ -182,7 +183,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManagePrivacy)]
     public async Task<IActionResult> SetRestriction(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason, request.ConfirmOpenPathways), ct));
 
@@ -192,7 +193,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManagePrivacy)]
     public async Task<IActionResult> SetDispute(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Disputed, request.Set, request.Reason), ct));
 
@@ -206,7 +207,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManagePrivacy)]
     public async Task<IActionResult> AnonymisePatient(Guid id, [FromBody] AnonymisePatientRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new AnonymisePatientCommand(id, request.Reason ?? string.Empty, request.Note, request.Confirmation ?? string.Empty), ct));
 
@@ -217,7 +218,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("retention-review")]
     [ProducesResponseType(typeof(PagedResponse<RetentionReviewItemResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManagePrivacy)]
     public async Task<IActionResult> SearchRetentionReview([FromQuery] SearchRetentionReviewRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchRetentionReviewQuery(request.Page, request.PageSize, request.IncludeKept), ct));
 
@@ -227,7 +228,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManagePrivacy)]
     public async Task<IActionResult> KeepPatientRecord(Guid id, [FromBody] KeepPatientRecordRequest request, CancellationToken ct)
     {
         await mediator.Send(new KeepPatientRecordCommand(id, request.KeepUntil, request.Reason ?? string.Empty), ct);

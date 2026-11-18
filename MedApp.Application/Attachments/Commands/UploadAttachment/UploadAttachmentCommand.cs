@@ -16,5 +16,5 @@ public sealed record UploadAttachmentCommand(
     long? ContentLength,
     Stream Content,
     PathwayActor Actor,
-    bool IsAdmin)
+    bool CanCorrectRecords)
     : IRequest<AttachmentResponse>;

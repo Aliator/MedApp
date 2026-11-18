@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -38,6 +39,9 @@ public sealed class SessionAuthenticationHandler(
 
         foreach (var role in validation.Roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
+
+        foreach (var permission in (validation.Permissions ?? new HashSet<Permission>()).Order())
+            claims.Add(new Claim(SessionAuthenticationDefaults.PermissionClaim, permission.ToString()));
 
         if (validation.MustChangePassword)
             claims.Add(new Claim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true"));

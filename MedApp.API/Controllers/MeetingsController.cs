@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Calendar.Meetings.Commands.CancelMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.CreateMeeting;
@@ -20,21 +21,21 @@ namespace MedApp.API.Controllers;
 [ApiController]
 [Route("api/calendar/meetings")]
 [Tags("Calendar Meetings")]
-[Authorize(Policy = AuthPolicies.Staff)]
 public sealed class MeetingsController(IMediator mediator) : ControllerBase
 {
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetMeeting(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetMeetingByIdQuery(id, User.ToCalendarActor()), ct));
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ArrangeMeetings)]
     public async Task<IActionResult> CreateMeeting([FromBody] MeetingRequest request, CancellationToken ct)
     {
         var meeting = await mediator.Send(new CreateMeetingCommand(
@@ -53,11 +54,11 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
     /// caller last read it (<c>expectedLastUpdated</c>): a 409 if it has changed since.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ArrangeMeetings)]
     public async Task<IActionResult> UpdateMeeting(Guid id, [FromBody] MeetingRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateMeetingCommand(
             id,
@@ -82,16 +83,17 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> ReplyToMeeting(Guid id, [FromBody] MeetingReplyRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(
             new ReplyToMeetingCommand(id, request.Reply, request.ExpectedStartUtc, request.ExpectedEndUtc, User.ToCalendarActor()), ct));
 
     /// <summary>Cancels (deletes) a meeting; its attendees are told.</summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ArrangeMeetings)]
     public async Task<IActionResult> CancelMeeting(Guid id, CancellationToken ct)
     {
         await mediator.Send(new CancelMeetingCommand(id, User.ToCalendarActor()), ct);

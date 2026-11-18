@@ -21,7 +21,7 @@ public static class AttachmentSearch
             _ => attachments.Where(_ => false),
         };
 
-        return query.IncludeDeleted && query.IsAdmin
+        return query.IncludeDeleted && query.CanCorrectRecords
             ? filtered
             : filtered.Where(a => a.DeletedAtUtc == null);
     }

@@ -46,24 +46,27 @@ public sealed class SessionService(
         if (user is null)
             return null;
 
-        var roles = await userManager.GetRolesAsync(user);
+        // The roles and what they allow, in one query, on every request: a change to a role, or to who holds it, applies
+        // on each person's next request. No cache, so removing access is never delayed.
+        var access = await RolePermissionQueries.ForUserAsync(context, user.Id, ct);
 
         return new SessionValidationResult(
             user.Id,
             user.UserName ?? string.Empty,
-            roles.ToArray(),
+            access.Roles.ToArray(),
             user.MustChangePassword,
-            await MustSetUpTwoFactorAsync(user, roles, ct));
+            await MustSetUpTwoFactorAsync(user, access.IsAdmin, ct),
+            access.Permissions);
     }
 
     /// <summary>
-    /// Whether the user is an admin without an authenticator app (two-factor off, or on with codes by email, which the
+    /// Whether the user is an admin (holds the built-in Admin role) without an authenticator app (two-factor off, or on with codes by email, which the
     /// requirement doesn't accept) while admins must use it, so they're held to setting the app up
     /// (<c>TwoFactorSetupRequired</c>). The setting is read only for such an admin, so other requests cost nothing more.
     /// </summary>
-    private async Task<bool> MustSetUpTwoFactorAsync(ApplicationUser user, IList<string> roles, CancellationToken ct) =>
+    private async Task<bool> MustSetUpTwoFactorAsync(ApplicationUser user, bool isAdmin, CancellationToken ct) =>
         user.EffectiveTwoFactorMethod != TwoFactorMethod.Authenticator
-        && roles.Contains(FirstAdminSetup.AdminRole, StringComparer.OrdinalIgnoreCase)
+        && isAdmin
         && await context.SecuritySettings
             .AsNoTracking()
             .AnyAsync(settings => settings.Id == SecuritySettings.SingletonId && settings.RequireTwoFactorForAdmins, ct);

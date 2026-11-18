@@ -527,7 +527,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               textKey="username"
               favourites={[
                 {label: 'Admins', values: {role: 'Admin'}},
-                {label: 'Users', values: {role: 'User'}},
+                {label: 'All staff (before roles)', values: {role: 'All staff (before roles)'}},
               ]}
             />
           }

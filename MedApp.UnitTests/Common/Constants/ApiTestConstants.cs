@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using System.Security.Claims;
 
 namespace MedApp.UnitTests.Common.Constants;
@@ -18,13 +19,29 @@ public static class ApiTestConstants
     public const string TwoFactorChallenge = "synthetic-challenge-token";
     public const string AuthenticatorCode = "123456";
 
-    /// <summary>A signed-in user, as the session handler builds them.</summary>
+    /// <summary>
+    /// A signed-in user, as the session handler builds them: the roles, and the permissions they grant
+    /// (<see cref="TestPermissions.ForRoles"/>: "User" stands for the old role, "All staff (before roles)").
+    /// </summary>
     public static ClaimsPrincipal SignedIn(params string[] roles) =>
         new(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
                 new Claim(ClaimTypes.Name, Username),
                 .. roles.Select(role => new Claim(ClaimTypes.Role, role)),
+                .. TestPermissions.ForRoles(roles).Order().Select(permission =>
+                    new Claim(MedApp.API.Common.Authentication.SessionAuthenticationDefaults.PermissionClaim, permission.ToString())),
+            ],
+            "Session"));
+
+    /// <summary>A signed-in user whose roles grant exactly these permissions.</summary>
+    public static ClaimsPrincipal SignedInWith(params MedApp.Application.Common.Identity.Permission[] permissions) =>
+        new(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
+                new Claim(ClaimTypes.Name, Username),
+                .. permissions.Select(permission =>
+                    new Claim(MedApp.API.Common.Authentication.SessionAuthenticationDefaults.PermissionClaim, permission.ToString())),
             ],
             "Session"));
 

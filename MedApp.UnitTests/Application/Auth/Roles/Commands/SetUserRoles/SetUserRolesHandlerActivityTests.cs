@@ -22,6 +22,8 @@ public sealed class SetUserRolesHandlerActivityTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
+        // Not the last admin, unless a test says so.
+        _fixture.Inject(new Mock<ILastAdminGuard>().Object);
         _roles = new Mock<IIdentityRoleService>();
         _read = new Mock<IIdentityReadService>();
         _read.Setup(r => r.GetRolesForUserAsync("staff-user", It.IsAny<CancellationToken>())).ReturnsAsync(["User"]);

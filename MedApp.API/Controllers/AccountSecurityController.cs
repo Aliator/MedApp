@@ -62,6 +62,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [AllowAnonymous]
     public async Task<IActionResult> LoginTwoFactor(LoginTwoFactorRequest request)
     {
         var session = await mediator.Send(new LoginTwoFactorCommand(
@@ -91,6 +92,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [AllowAnonymous]
     public async Task<IActionResult> ResendSignInCode(ResendSignInCodeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new ResendSignInCodeCommand(request.Challenge ?? string.Empty), ct));
 
@@ -98,6 +100,7 @@ public sealed class AccountSecurityController(
     [HttpGet("features")]
     [Tags("Login")]
     [ProducesResponseType(typeof(AuthFeaturesResponse), StatusCodes.Status200OK)]
+    [AllowAnonymous]
     public async Task<IActionResult> GetFeatures(CancellationToken ct) =>
         Ok(await mediator.Send(new GetAuthFeaturesQuery(), ct));
 
@@ -114,6 +117,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken ct)
     {
         await mediator.Send(new ForgotPasswordCommand(request.UsernameOrEmail ?? string.Empty), ct);
@@ -132,6 +136,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(
@@ -147,12 +152,12 @@ public sealed class AccountSecurityController(
     /// another account a 400 with <c>WrongAccount</c>.
     /// </summary>
     [HttpPost("email/confirm")]
-    [Authorize]
     [Tags("Account")]
     [RequestSizeLimit(16 * 1024)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
+    [Authorize]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(new ConfirmEmailCommand(request.UserId, request.Token ?? string.Empty, User.GetUserId()), ct);
@@ -161,9 +166,9 @@ public sealed class AccountSecurityController(
 
     /// <summary>The signed-in account's email address, and any waiting to be confirmed.</summary>
     [HttpGet("me/email")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(typeof(EmailResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetMyEmail(CancellationToken ct) =>
         Ok(await mediator.Send(new GetMyEmailQuery(User.GetUserId()), ct));
 
@@ -176,13 +181,13 @@ public sealed class AccountSecurityController(
     /// 429 after three requests in 15 minutes.
     /// </summary>
     [HttpPut("me/email")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(typeof(EmailResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> ChangeMyEmail(ChangeEmailRequest request, CancellationToken ct) =>
         Accepted(await mediator.Send(
             new ChangeMyEmailCommand(User.GetUserId(), request.Email ?? string.Empty, request.Password ?? string.Empty, request.Code), ct));
@@ -192,12 +197,12 @@ public sealed class AccountSecurityController(
     /// account signs in with codes by email (turn two-factor off, or switch to the app, first).
     /// </summary>
     [HttpDelete("me/email")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> RemoveMyEmail([FromBody] RemoveEmailRequest request, CancellationToken ct)
     {
         await mediator.Send(new RemoveMyEmailCommand(User.GetUserId(), request.Password ?? string.Empty), ct);
@@ -210,11 +215,11 @@ public sealed class AccountSecurityController(
     /// A 404 for an unknown account; a 409 while it signs in with codes by email (reset its two-factor first).
     /// </summary>
     [HttpDelete("users/{username}/email")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> RemoveUserEmail(string username, CancellationToken ct)
     {
         var result = await mediator.Send(
@@ -227,9 +232,9 @@ public sealed class AccountSecurityController(
     /// recovery codes left, whether it must, and whether it could use codes by email (and why not).
     /// </summary>
     [HttpGet("me/two-factor")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(typeof(TwoFactorStatusResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetMyTwoFactor(CancellationToken ct) =>
         Ok(await mediator.Send(new GetMyTwoFactorStatusQuery(User.GetUserId()), ct));
 
@@ -238,10 +243,10 @@ public sealed class AccountSecurityController(
     /// by email, which the app then replaces) until a code confirms it. A 409 while it's on with the app.
     /// </summary>
     [HttpPost("me/two-factor/authenticator")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(typeof(AuthenticatorSetupResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> BeginAuthenticatorSetup(CancellationToken ct) =>
         Ok(await mediator.Send(new BeginAuthenticatorSetupCommand(User.GetUserId()), ct));
 
@@ -252,13 +257,13 @@ public sealed class AccountSecurityController(
     /// towards the lockout, a 423).
     /// </summary>
     [HttpPost("me/two-factor/enable")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> EnableTwoFactor(TwoFactorCodeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EnableTwoFactorCommand(
             User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty, User.GetSessionId(), request.CurrentCode), ct));
@@ -271,7 +276,6 @@ public sealed class AccountSecurityController(
     /// again is too soon or too often.
     /// </summary>
     [HttpPost("me/two-factor/email")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(EmailCodeSentResponse), StatusCodes.Status202Accepted)]
@@ -279,6 +283,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> BeginEmailCodesSetup(EmailCodesSetupRequest request, CancellationToken ct) =>
         Accepted(await mediator.Send(new BeginEmailCodesSetupCommand(User.GetUserId(), request.Password ?? string.Empty), ct));
 
@@ -288,13 +293,13 @@ public sealed class AccountSecurityController(
     /// two-factor is on; a 429 after too many codes for the account.
     /// </summary>
     [HttpPost("me/two-factor/email/enable")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> EnableEmailCodes(EmailCodeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EnableEmailCodesCommand(User.GetUserId(), request.Code ?? string.Empty, User.GetSessionId()), ct));
 
@@ -305,7 +310,6 @@ public sealed class AccountSecurityController(
     /// email can't go now; a 429 when sending again is too soon or too often. A held admin may call it, to switch to the app.
     /// </summary>
     [HttpPost("me/two-factor/email/code")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(EmailCodeSentResponse), StatusCodes.Status202Accepted)]
@@ -313,6 +317,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> SendTwoFactorEmailCode(SendEmailCodeRequest request, CancellationToken ct) =>
         Accepted(await mediator.Send(new SendTwoFactorEmailCodeCommand(User.GetUserId(), request.Password ?? string.Empty), ct));
 
@@ -322,13 +327,13 @@ public sealed class AccountSecurityController(
     /// end. A 409 for an account that must use it; wrong details are a 400, counting towards the lockout (a 423).
     /// </summary>
     [HttpPost("me/two-factor/disable")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> DisableTwoFactor(DisableTwoFactorRequest request, CancellationToken ct)
     {
         await mediator.Send(new DisableTwoFactorCommand(
@@ -342,13 +347,13 @@ public sealed class AccountSecurityController(
     /// count towards the account's limit, a 429).
     /// </summary>
     [HttpPost("me/two-factor/recovery-codes")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> RegenerateRecoveryCodes(TwoFactorCodeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RegenerateRecoveryCodesCommand(
             User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty), ct));
@@ -359,11 +364,11 @@ public sealed class AccountSecurityController(
     /// an unknown user, and a 400 for the admin's own account.
     /// </summary>
     [HttpPost("users/{username}/reset-two-factor")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> ResetUserTwoFactor(string username, CancellationToken ct)
     {
         var result = await mediator.Send(
@@ -380,9 +385,9 @@ public sealed class AccountSecurityController(
 
     /// <summary>The deployment's sign-in rules (Admin settings).</summary>
     [HttpGet("security-settings")]
-    [Authorize(Roles = "Admin")]
     [Tags("Admin settings")]
     [ProducesResponseType(typeof(SecuritySettingsResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.ManageSecuritySettings)]
     public async Task<IActionResult> GetSecuritySettings(CancellationToken ct) =>
         Ok(await mediator.Send(new GetSecuritySettingsQuery(), ct));
 
@@ -391,10 +396,10 @@ public sealed class AccountSecurityController(
     /// it; admins without it are then held to set it up.
     /// </summary>
     [HttpPut("security-settings")]
-    [Authorize(Roles = "Admin")]
     [Tags("Admin settings")]
     [ProducesResponseType(typeof(SecuritySettingsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.ManageSecuritySettings)]
     public async Task<IActionResult> SaveSecuritySettings(SaveSecuritySettingsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(
             new SaveSecuritySettingsCommand(request.RequireTwoFactorForAdmins, User.GetUserId(), User.Identity?.Name ?? string.Empty),

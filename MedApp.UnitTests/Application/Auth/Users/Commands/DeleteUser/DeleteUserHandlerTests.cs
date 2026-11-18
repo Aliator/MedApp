@@ -29,6 +29,8 @@ public sealed class DeleteUserHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
+        // Not the last admin, unless a test says so.
+        _fixture.Inject(new Mock<ILastAdminGuard>().Object);
 
         _service = new Mock<IIdentityUserService>();
         _fixture.Inject<IIdentityUserService>(_service.Object);
@@ -55,6 +57,23 @@ public sealed class DeleteUserHandlerTests
     /// <summary>Usernames[1] (an admin) deletes Usernames[0], confirming with their password.</summary>
     private static DeleteUserCommand Command() =>
         new(AuthTestConstants.Usernames[0], AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword);
+
+    [Test]
+    public async Task Handle_TheLastActiveAdmin_FailsWithLastAdmin_WithoutDeleting()
+    {
+        var target = new MedApp.Contracts.Authentication.Responses.UserResponse(Guid.NewGuid(), AuthTestConstants.Usernames[0], ["Admin"]);
+        _reader.Setup(r => r.GetUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>())).ReturnsAsync(target);
+        var guard = new Mock<ILastAdminGuard>();
+        guard.Setup(g => g.WouldLeaveNoAdminAsync(target.UserId, It.IsAny<CancellationToken>()))
+            .Callback(() => _transactions.IsRunning.Should().BeTrue())
+            .ReturnsAsync(true);
+        _fixture.Inject(guard.Object);
+
+        var result = await _fixture.Create<DeleteUserHandler>().Handle(Command(), CancellationToken.None);
+
+        result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.LastAdminCode);
+        _service.Verify(s => s.DeleteUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
     [Test]
     public async Task Handle_WrongPassword_ReturnsTheFailureWithoutDeleting()

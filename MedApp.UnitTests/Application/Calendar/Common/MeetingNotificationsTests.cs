@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Calendar;
@@ -137,7 +138,7 @@ public sealed class MeetingNotificationsTests
     [Test]
     public void AfterChanging_TheActor_IsNeverToldWhetherAddedTakenOffOrMoved()
     {
-        var actor = StaffActor with { IsAdmin = true };
+        var actor = StaffActor with { Permissions = TestPermissions.Admin };
         var moved = NewMeeting(At(Thursday, 9), At(Thursday, 10), [StaffUserId]);
 
         MeetingNotifications.AfterChanging(moved, [StaffUserId], At(NextMonday, 10), At(NextMonday, 11), actor, Now).Should().BeEmpty();

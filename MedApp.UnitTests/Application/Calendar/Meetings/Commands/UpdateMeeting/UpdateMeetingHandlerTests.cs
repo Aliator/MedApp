@@ -333,7 +333,7 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
     {
         var thursday = NextMonday.AddDays(3);
 
-        await _handler.Handle(Command(At(thursday, 9), At(thursday, 10), [OtherStaffUserId, AdminUserId], StaffActor with { IsAdmin = true }), Token);
+        await _handler.Handle(Command(At(thursday, 9), At(thursday, 10), [OtherStaffUserId, AdminUserId], StaffActor with { Permissions = TestPermissions.Admin }), Token);
 
         // The actor (calendar.staff, taken off) isn't told about their own change; the admin is invited, the other moved.
         Sent.Should().HaveCount(2);

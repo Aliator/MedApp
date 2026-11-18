@@ -23,8 +23,8 @@ public sealed class IdentityReadServiceAsyncTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             new Mock<IUserStore<ApplicationUser>>().Object, null!, null!, null!, null!, null!, null!, null!, null!);
         _userManager.SetupGet(u => u.Users).Returns(AsyncQueryable.Of([First, Second]));
-        var roleManager = new Mock<RoleManager<IdentityRole<Guid>>>(
-            new Mock<IRoleStore<IdentityRole<Guid>>>().Object, null!, null!, null!, null!);
+        var roleManager = new Mock<RoleManager<ApplicationRole>>(
+            new Mock<IRoleStore<ApplicationRole>>().Object, null!, null!, null!, null!);
         _service = new IdentityReadService(_userManager.Object, roleManager.Object);
     }
 

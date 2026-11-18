@@ -118,7 +118,7 @@ public sealed class UserTests : IntegrationTest
         var response = await _admin.PutAsJsonAsync($"/api/auth/users/{AdminUsername}/roles", new SetUserRolesRequest([UserRole]));
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
-        (await RolesOfAsync(AdminUsername)).Should().BeEquivalentTo([AdminRole, UserRole]);
+        (await RolesOfAsync(AdminUsername)).Should().BeEquivalentTo([AdminRole]);
     }
 
     [Test]
@@ -135,14 +135,14 @@ public sealed class UserTests : IntegrationTest
         var second = await CreateStaffAsync(UserRole);
         await CreateStaffAsync(AdminRole);
 
-        var page = await (await _admin.GetAsync("/api/auth/users/search?role=User&sort=username"))
+        var page = await (await _admin.GetAsync($"/api/auth/users/search?role={Uri.EscapeDataString(UserRole)}&sort=username"))
             .ReadAsAsync<PagedResponse<UserResponse>>();
 
-        // The first admin has User too.
+        // The first admin has Admin alone (its permissions include everything staff could do).
         page.Items.Select(u => u.Username).Should()
-            .BeEquivalentTo([AdminUsername, first.Username, second.Username])
+            .BeEquivalentTo([first.Username, second.Username])
             .And.BeInAscendingOrder(StringComparer.OrdinalIgnoreCase);
-        page.TotalCount.Should().Be(3);
+        page.TotalCount.Should().Be(2);
     }
 
     [Test]

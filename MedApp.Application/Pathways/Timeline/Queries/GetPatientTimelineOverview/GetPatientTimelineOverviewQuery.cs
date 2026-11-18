@@ -5,8 +5,8 @@ namespace MedApp.Application.Pathways.Timeline.Queries.GetPatientTimelineOvervie
 
 /// <summary>
 /// What sits above a patient's timeline: their pathways that aren't closed, soonest due first, and every pathway
-/// to filter the timeline by. Deleted pathways are listed only when <paramref name="IsAdmin"/> (see
+/// to filter the timeline by. Deleted pathways are listed only when <paramref name="FullView"/> (see
 /// <c>GetPatientTimelineQuery</c>).
 /// </summary>
-public sealed record GetPatientTimelineOverviewQuery(Guid PatientId, bool IsAdmin)
+public sealed record GetPatientTimelineOverviewQuery(Guid PatientId, bool FullView)
     : IRequest<PatientTimelineOverviewResponse>;

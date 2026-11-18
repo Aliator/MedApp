@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Attachments;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
@@ -22,7 +23,6 @@ namespace MedApp.API.Controllers;
 [ApiController]
 [Route("api/attachments")]
 [Tags("Attachments")]
-[Authorize(Policy = AuthPolicies.Staff)]
 public sealed class AttachmentsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
@@ -33,6 +33,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(AttachmentListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetAttachments([FromQuery] GetAttachmentsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAttachmentsQuery(
             request.PatientId,
@@ -40,7 +41,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             request.StageId,
             request.IncludeDeleted,
             User.GetUserId(),
-            IsAdmin), ct));
+            CanCorrectRecords), ct));
 
     /// <summary>
     /// Attaches a file to one patient, pathway or stage. The body is the file's bytes
@@ -59,6 +60,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status415UnsupportedMediaType)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    [RequirePermission(Permission.AttachFiles)]
     public async Task<IActionResult> Upload(
         [FromQuery] AttachmentTargetRequest target,
         [FromHeader(Name = AttachmentResponseHeaders.FileNameHeader)] string? fileName,
@@ -76,7 +78,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             Request.ContentLength,
             Request.Body,
             User.ToPathwayActor(),
-            IsAdmin), ct);
+            CanCorrectRecords), ct);
 
         return Created($"/api/attachments/{attachment.Id}/content", attachment);
     }
@@ -86,6 +88,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct) =>
         Send(await mediator.Send(new DownloadAttachmentCommand(id, User.ToPathwayActor()), ct));
 
@@ -94,6 +97,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> Thumbnail(Guid id, CancellationToken ct) =>
         Send(await mediator.Send(new GetAttachmentThumbnailQuery(id), ct));
 
@@ -103,9 +107,10 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.AttachFiles)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        await mediator.Send(new DeleteAttachmentCommand(id, User.ToPathwayActor(), IsAdmin), ct);
+        await mediator.Send(new DeleteAttachmentCommand(id, User.ToPathwayActor(), CanCorrectRecords), ct);
         return NoContent();
     }
 
@@ -117,5 +122,6 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
 
     private const string UploadContentType = "application/octet-stream";
 
-    private bool IsAdmin => User.IsInRole("Admin");
+    // Deleting anyone's file at any time, and listing deleted ones: holders of CorrectRecords.
+    private bool CanCorrectRecords => User.HasPermission(Permission.CorrectRecords);
 }

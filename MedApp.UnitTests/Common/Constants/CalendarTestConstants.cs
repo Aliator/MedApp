@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
@@ -66,13 +67,13 @@ public static class CalendarTestConstants
     public const string AdminUsername = "calendar.admin";
 
     /// <summary>The member of staff whose calendar the tests change, acting on it themselves.</summary>
-    public static readonly CalendarActor StaffActor = new(StaffUserId, StaffUsername, IsAdmin: false);
+    public static readonly CalendarActor StaffActor = new(StaffUserId, StaffUsername, TestPermissions.Staff);
 
     /// <summary>Another member of staff (not an admin), who may read but not change <see cref="StaffUserId"/>'s calendar.</summary>
-    public static readonly CalendarActor OtherStaffActor = new(OtherStaffUserId, OtherStaffUsername, IsAdmin: false);
+    public static readonly CalendarActor OtherStaffActor = new(OtherStaffUserId, OtherStaffUsername, TestPermissions.Staff);
 
     /// <summary>An admin, who may change anyone's calendar.</summary>
-    public static readonly CalendarActor AdminActor = new(AdminUserId, AdminUsername, IsAdmin: true);
+    public static readonly CalendarActor AdminActor = new(AdminUserId, AdminUsername, TestPermissions.Admin);
 
     /// <summary>Every member of staff, as the identity service lists them.</summary>
     public static readonly IReadOnlyList<(Guid UserId, string Username)> Staff =

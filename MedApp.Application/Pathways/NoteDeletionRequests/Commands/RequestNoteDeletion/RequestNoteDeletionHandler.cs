@@ -15,6 +15,7 @@ public sealed class RequestNoteDeletionHandler(
     INoteDeletionRequestRepository requests,
     IIdentityReadService identity,
     INotificationSender notifications,
+    IPermissionHolders permissionHolders,
     TimeProvider timeProvider)
     : IRequestHandler<RequestNoteDeletionCommand, PatientPathwayNoteResponse>
 {
@@ -51,7 +52,8 @@ public sealed class RequestNoteDeletionHandler(
         note.PendingDeletionRequestId = deletionRequest.Id;
         await requests.AddAsync(deletionRequest, cancellationToken);
 
-        var admins = await identity.GetAdminIdsAsync(cancellationToken);
+        // Told to whoever can decide it: holders of CorrectRecords (Admin alone, today).
+        var admins = await permissionHolders.GetUserIdsAsync(Permission.CorrectRecords, cancellationToken);
         foreach (var notification in NoteDeletionNotifications.AfterRequesting(deletionRequest, admins, now))
             await notifications.SendAsync(notification, cancellationToken);
 
@@ -63,6 +65,6 @@ public sealed class RequestNoteDeletionHandler(
             request.Actor.UserId,
             canChange: PathwayWorkflow.CanChangeNotes(pathway),
             recordCanChange: true,
-            viewerIsAdmin: request.Actor.IsAdmin);
+            viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
     }
 }

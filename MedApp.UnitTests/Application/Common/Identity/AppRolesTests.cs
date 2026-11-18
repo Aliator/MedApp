@@ -7,18 +7,17 @@ namespace MedApp.UnitTests.Application.Common.Identity;
 public sealed class AppRolesTests
 {
     [Test]
-    public void Staff_IsAdminAndUser()
+    public void Names_AdminAndAllStaffBeforeRoles()
     {
-        AppRoles.Staff.Should().Equal(AppRoles.Admin, AppRoles.User);
+        AppRoles.Admin.Should().Be("Admin");
+        AppRoles.AllStaffBeforeRoles.Should().Be("All staff (before roles)");
     }
 
     [TestCase(new[] { "Admin" }, true)]
-    [TestCase(new[] { "User" }, true)]
-    [TestCase(new[] { "user" }, true)]
-    [TestCase(new[] { "Auditor", "ADMIN" }, true)]
-    [TestCase(new[] { "Auditor" }, false)]
+    [TestCase(new[] { "Nurse" }, true)]
+    [TestCase(new[] { "Auditor" }, true)]
     [TestCase(new string[0], false)]
-    public void IncludesStaff_Roles_TrueWithAdminOrUserInAnyCase(string[] roles, bool expected)
+    public void IncludesStaff_AnyRoleAtAll(string[] roles, bool expected)
     {
         AppRoles.IncludesStaff(roles).Should().Be(expected);
     }

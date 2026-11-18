@@ -1,4 +1,5 @@
 using MedApp.API.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Sites.Commands.CreateRoom;
 using MedApp.Application.Sites.Commands.CreateSite;
 using MedApp.Application.Sites.Commands.DeleteRoom;
@@ -13,19 +14,18 @@ using MedApp.Application.Sites.Queries.GetSites;
 using MedApp.Contracts.Sites.Requests;
 using MedApp.Contracts.Sites.Responses;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Controllers;
 
 /// <summary>
 /// Sites (the places the centre works from) and their rooms: organisation-wide setup, which admins manage and staff
-/// read. One that has been used is archived, not deleted (it can't be chosen again, and what names it keeps it), and
+/// read (`ManageSetup` to change, `UseApp` to read). One that has been used is archived, not deleted (it can't be chosen again, and what names it keeps it), and
 /// restored. There's always at least one site that isn't archived; every database starts with "Main site".
 /// </summary>
 [ApiController]
 [Route("api")]
-[Authorize(Policy = AuthPolicies.Staff)]
+[RequirePermission(Permission.UseApp)]
 public sealed class SitesController(IMediator mediator) : ControllerBase
 {
     private const string SitesTag = "Sites";
@@ -50,7 +50,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(SiteResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(SitesTag)]
     public async Task<IActionResult> CreateSite([FromBody] SiteRequest request, CancellationToken ct)
     {
@@ -65,7 +65,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(SitesTag)]
     public async Task<IActionResult> UpdateSite(Guid id, [FromBody] SiteRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(
@@ -76,7 +76,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(SiteResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(SitesTag)]
     public async Task<IActionResult> ArchiveSite(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetSiteArchivedCommand(id, true), ct));
@@ -84,7 +84,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [HttpPost("sites/{id:guid}/restore")]
     [ProducesResponseType(typeof(SiteResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(SitesTag)]
     public async Task<IActionResult> RestoreSite(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetSiteArchivedCommand(id, false), ct));
@@ -94,7 +94,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(SitesTag)]
     public async Task<IActionResult> DeleteSite(Guid id, CancellationToken ct)
     {
@@ -119,7 +119,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(RoomsTag)]
     public async Task<IActionResult> CreateRoom([FromBody] CreateRoomRequest request, CancellationToken ct)
     {
@@ -133,7 +133,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(RoomsTag)]
     public async Task<IActionResult> UpdateRoom(Guid id, [FromBody] UpdateRoomRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateRoomCommand(id, request.Name), ct));
@@ -141,7 +141,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [HttpPost("rooms/{id:guid}/archive")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(RoomsTag)]
     public async Task<IActionResult> ArchiveRoom(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetRoomArchivedCommand(id, true), ct));
@@ -151,7 +151,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(RoomsTag)]
     public async Task<IActionResult> RestoreRoom(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetRoomArchivedCommand(id, false), ct));
@@ -161,7 +161,7 @@ public sealed class SitesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageSetup)]
     [Tags(RoomsTag)]
     public async Task<IActionResult> DeleteRoom(Guid id, CancellationToken ct)
     {

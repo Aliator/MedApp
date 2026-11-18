@@ -17,7 +17,7 @@ public sealed class MeetingTests : E2ETest
     public async Task NewMeeting_FromTheTeamViewAtASuggestedTime_ShowsOnAnAttendeesCalendarAndCanBeCancelled()
     {
         var staffUsername = E2EData.UniqueName("staff").Replace(' ', '-').ToLowerInvariant();
-        await Api.CreateUserAsync(staffUsername, "User");
+        await Api.CreateUserAsync(staffUsername, "All staff (before roles)");
         Data.OnCleanUp($"user {staffUsername}", () => Api.DeleteUserAsync(staffUsername, E2ESettings.Password!));
         var staffId = await Api.UserIdOfAsync(staffUsername);
         var meId = await Api.UserIdOfAsync(E2ESettings.Username!);

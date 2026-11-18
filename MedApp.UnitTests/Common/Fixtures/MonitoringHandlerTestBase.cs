@@ -34,11 +34,13 @@ public abstract class MonitoringHandlerTestBase
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
                 (IReadOnlyDictionary<Guid, string>)Usernames.Where(kv => ids.Contains(kv.Key)).ToDictionary());
 
-        // test.admin is an admin; the others aren't.
-        Identity
-            .Setup(i => i.GetRolesForUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string username, CancellationToken _) =>
-                username == Admin.Username ? ["Admin", "User"] : (IReadOnlyList<string>)["User"]);
+        // test.admin can override (unlock) stages, as an admin; the others can't.
+        var holders = new Mock<IPermissionHolders>();
+        holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), Permission.OverrideStages, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, Permission _, CancellationToken _) =>
+                (IReadOnlySet<Guid>)ids.Where(id => id == Admin.UserId).ToHashSet());
+        Fixture.Inject(holders.Object);
 
         Stages
             .Setup(s => s.GetPathwayTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
