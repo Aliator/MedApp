@@ -31,8 +31,10 @@ What each CI job does, coverage, CodeQL, Dependabot and the supply chain rules: 
 
 **Coverage** aims at everything with behaviour worth testing:
 - **.NET** counts handlers, validators, domain logic, Infrastructure services and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), and the services that are only SQL against the real database: `SessionService`, `IdentityTransactions`, and the role and permission queries (`RolePermissionQueries`, `PermissionHolders`, `LastAdminGuard`, `StandardRoleSetup`), covered by integration tests, uncounted.
-- **React** counts `src/` except generated code, the theme build, test helpers, thin route files and the browser entry. CI's `web-coverage` job (and `npm run coverage` locally) fails below `vite.config.ts`'s thresholds, just under today's figures (99% lines, statements and functions, 92% branches), in the full tier, so on `main` after every merge.
+- **React** counts `src/` except generated code, the theme build, test helpers, thin route files, the browser entry and the light demo (`src/demo`, never in the production build; it has its own tests). CI's `web-coverage` job (and `npm run coverage` locally) fails below `vite.config.ts`'s thresholds, just under today's figures (99% lines, statements and functions, 92% branches), in the full tier, so on `main` after every merge.
 - New code comes with tests. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
+
+`.github/workflows/pages.yml` builds the light demo (`npm run build:demo`) and deploys it to GitHub Pages on each push to `main` touching `MedApp.Web/**` (or itself), and by hand: `build` with `contents: read`, `deploy` with `pages: write` and `id-token: write`, one at a time (`pages` concurrency group). See `docs/agents/light-demo.md`.
 
 `.github/workflows/codeql.yml` runs CodeQL (C#, JavaScript and TypeScript, and the workflows) on PRs to `main`, pushes to `main` and weekly, into code scanning alerts.
 

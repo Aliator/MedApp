@@ -4,7 +4,7 @@ import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import {useSideNavRenderMode} from '@astryxdesign/core/SideNav';
 import {Theme} from '@astryxdesign/core/theme';
 import {Outlet, useRouter} from '@tanstack/react-router';
-import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
+import {lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {LiveNotifications} from '../../app/LiveNotifications';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -19,6 +19,9 @@ import {PermissionMissingWatcher} from './PermissionMissingWatcher';
 import {SessionTimeout} from './SessionTimeout';
 
 const STORAGE_KEY = 'medapp.halfView';
+
+/** The light demo's banner, above every page in its build only (docs/agents/light-demo.md). */
+const DemoBanner = __LIGHT_DEMO__ ? lazy(() => import('../../demo/DemoBanner').then((m) => ({default: m.DemoBanner}))) : null;
 
 /**
  * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
@@ -195,14 +198,15 @@ function MainLayout() {
         <SettingsSync />
         {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
         <KeyboardShortcuts />
-        {/* New notifications, as they happen (the bell is in the side nav). */}
-        <LiveNotifications />
+        {/* New notifications, as they happen (the bell is in the side nav). The light demo has no server to hear from. */}
+        {!__LIGHT_DEMO__ && <LiveNotifications />}
         {/* The warning before the session times out, and the way back to the login page when it has. */}
         <SessionTimeout />
         {/* A request refused for a permission the person's roles don't grant: say so, and hide what it allowed. */}
         <PermissionMissingWatcher />
         <style data-medapp-layout="">{STABLE_SCROLLBAR}</style>
         <AppShell
+          banner={DemoBanner && <Suspense fallback={null}><DemoBanner /></Suspense>}
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
             <SideNavTheme>

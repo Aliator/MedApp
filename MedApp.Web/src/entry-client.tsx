@@ -16,20 +16,26 @@ import {createSsrRouter} from './router';
 /**
  * The browser's start. A page the server rendered (`entry-server`) is taken over where it is (hydrated), with the
  * data it came with. The plain `index.html` (if the server rendering isn't running) has an empty `#root` to render
- * the app into, as before server rendering.
+ * the app into, as before server rendering (and the light demo, which has no server: docs/agents/light-demo.md).
  */
-const root = document.getElementById('root');
-if (root) {
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-} else {
-  hydrateRoot(
-    document,
-    <StrictMode>
-      <RouterClient router={createSsrRouter()} />
-    </StrictMode>,
-  );
+function start() {
+  const root = document.getElementById('root');
+  if (root) {
+    createRoot(root).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  } else {
+    hydrateRoot(
+      document,
+      <StrictMode>
+        <RouterClient router={createSsrRouter()} />
+      </StrictMode>,
+    );
+  }
 }
+
+// The light demo (GitHub Pages) first starts its stand-in for the API, in the browser. Other builds leave it out.
+if (__LIGHT_DEMO__) void import('./demo/install').then(({installLightDemo}) => installLightDemo()).then(start);
+else start();
