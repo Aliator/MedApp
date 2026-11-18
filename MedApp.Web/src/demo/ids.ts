@@ -3,7 +3,11 @@
  * record, and Reset brings back the same ones. Synthetic, like everything in the seed.
  */
 
-const id = (kind: number, n: number) =>
+/**
+ * A fixed ID: `kind` says what it is (one kind per group below, and per slice: the lab's are 0xe1 to 0xe5, letters,
+ * the MDT and consent 0xe6 to 0xeb, setup 0xf0 to 0xf8, pathways' extras 0xf9 to 0xfe), `n` which one.
+ */
+export const id = (kind: number, n: number) =>
   `${kind.toString(16).padStart(8, '0')}-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 
 export const USERS = {
@@ -28,10 +32,13 @@ export const TEMPLATES = {
   inflammatorySkin: id(0xd2, 2),
   postMenopausalBleeding: id(0xd2, 3),
   diabetesReview: id(0xd2, 4),
+  /** Branches at the first visit: biopsy first, or treat directly. */
+  suspectedSkinCancer: id(0xd2, 5),
 } as const;
 
 /** Stage definitions (the stage library), shared by the templates. */
 export const STAGES = {
+  /** Every definition below; the ones after `clinicReview` came with the light demo's second seed. */
   firstClinicVisit: id(0xd3, 1),
   biopsyOrSample: id(0xd3, 2),
   histology: id(0xd3, 3),
@@ -43,6 +50,8 @@ export const STAGES = {
   bloodAndUrineTests: id(0xd3, 9),
   labTests: id(0xd3, 10),
   clinicReview: id(0xd3, 11),
+  /** Excision straight away, without a biopsy first (the branching template's second branch). */
+  excision: id(0xd3, 12),
 } as const;
 
 export const PATIENTS = {
@@ -63,6 +72,10 @@ export const PATIENTS = {
   aishaKhoury: id(0xd4, 10),
   ruthPenrose: id(0xd4, 11),
   callumAshby: id(0xd4, 12),
+  /** Has the skin lesion pathway at Treatment: the excision was done, and its consent isn't recorded yet. */
+  harrietQuill: id(0xd4, 13),
+  /** Has the suspected skin cancer pathway at its branch point: biopsy first, or treat directly. */
+  felixMoreton: id(0xd4, 14),
 } as const;
 
 export const PATHWAYS = {
@@ -82,6 +95,10 @@ export const PATHWAYS = {
   unassigned: id(0xd5, 7),
   /** Inflammatory skin review, Ilona Petrova, Nadia Thornbury's: follow-up booked this week. */
   followUpBooked: id(0xd5, 8),
+  /** Skin lesion, Harriet Quill, Nadia Thornbury's: at Treatment, which needs a consent record before it's finished. */
+  consentToRecord: id(0xd5, 9),
+  /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at the first visit, a branch point (biopsy or treat). */
+  branchToChoose: id(0xd5, 10),
 } as const;
 
 export const REFERRALS = {
@@ -122,6 +139,15 @@ export const SITES = {
 export const ROOMS = {
   clinicRoom1: id(0xdb, 1),
   procedureRoom: id(0xdb, 2),
+} as const;
+
+/** Appointments added with the second seed (pathways' extras). */
+export const MORE_APPOINTMENTS = {
+  /** Harriet Quill's excision, attended this morning (its stage needs a consent record to finish). */
+  harrietExcision: id(0xf9, 1),
+  harrietFirstVisit: id(0xf9, 2),
+  harrietBiopsy: id(0xf9, 3),
+  felixFirstVisit: id(0xf9, 4),
 } as const;
 
 /** Every record ID in the seed, by kind (the tour's test checks its links against these). */

@@ -1,9 +1,12 @@
 import {registerAccount} from './account';
 import {registerCalendar} from './calendar';
+import {registerClinical} from './clinical';
 import {registerDataRequests} from './dataRequests';
+import {registerLab} from './lab';
 import {registerPathways} from './pathways';
 import {registerPatients} from './patients';
 import {registerReferrals} from './referrals';
+import {registerSetup} from './setup';
 
 let registered = false;
 
@@ -16,5 +19,8 @@ export function registerHandlers() {
   registerPathways();
   registerReferrals();
   registerCalendar();
+  registerLab();
+  registerClinical();
+  registerSetup();
   registerDataRequests();
 }
