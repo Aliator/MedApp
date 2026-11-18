@@ -19,7 +19,9 @@ import {PERMISSION_CATALOGUE, type Permission} from '../../auth/permissions';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
-import {Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
+import {TwoColumns} from '../../components/pages/TwoColumns';
+import {PanelCard} from '../../components/views/PanelCard';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
@@ -72,6 +74,7 @@ type Confirming = 'save' | 'archive' | 'delete' | null;
  */
 function RoleEditor({role}: {role: Role | null}) {
   const navigate = useNavigate();
+  const isNarrow = useIsNarrow();
   const queryClient = useQueryClient();
   const announce = useAnnounce();
   const save = useSaveRole();
@@ -186,6 +189,105 @@ function RoleEditor({role}: {role: Role | null}) {
     Boolean,
   ) as string[];
 
+  const holdersTitle = `People with this role (${holderCount})`;
+  const form = (
+    <FormCard
+      fill
+      showFooter={!isBuiltIn}
+      saveText={role ? 'Save' : 'Create Role'}
+      onSave={
+        isBuiltIn
+          ? undefined
+          : () => {
+              setProblem(NO_PROBLEM);
+              if (!name.trim()) {
+                setProblem({
+                  validation: {title: 'Name is required.', fields: {name: ['Name is required.']}, general: []},
+                  message: null,
+                });
+                return;
+              }
+              if (!hasChanges) {
+                setProblem({
+                  validation: null,
+                  message: 'Nothing has changed, so there is nothing to save.',
+                });
+                return;
+              }
+              setConfirming('save');
+            }
+      }
+      onCancel={backToList}
+      onDelete={role?.canDelete ? () => setConfirming('delete') : undefined}
+      deleteText="Delete Role"
+      footerActions={
+        role?.canEdit &&
+        (role.isArchived ? (
+          <Button
+            label="Restore"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Restore} />}
+            isDisabled={isBusy}
+            onClick={() => archiveOrRestore(false)}
+          />
+        ) : (
+          <Button
+            label="Archive"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Archive} />}
+            isDisabled={isBusy}
+            onClick={() => setConfirming('archive')}
+          />
+        ))
+      }
+      isProcessing={isBusy}>
+      <FormSection title="Details" useGrid={false}>
+        <TextInput
+          label="Name"
+          value={name}
+          onChange={setName}
+          placeholder="e.g. Visiting consultant"
+          autoComplete="off"
+          isRequired
+          isDisabled={isBusy}
+          isReadOnly={isBuiltIn}
+          status={fieldStatus(problem.validation, 'name')}
+        />
+        <TextArea
+          label="Description"
+          description="What the role is for, as the Users page shows it when giving roles. Not for patient details."
+          value={description}
+          onChange={setDescription}
+          rows={2}
+          isDisabled={isBusy}
+          isReadOnly={isBuiltIn}
+          maxLength={MAX_DESCRIPTION}
+          status={fieldStatus(problem.validation, 'description')}
+        />
+      </FormSection>
+      <FormSection title={`Permissions (${ticked.length})`} useGrid={false}>
+        <VStack gap={4}>
+          <Text type="supporting" color="secondary">
+            Every role also lets its holders use the app: {PERMISSION_CATALOGUE.UseApp.description.replace(/^Use the app: /, '')}
+          </Text>
+          <TextInput
+            label="Search permissions"
+            value={filter}
+            onChange={setFilter}
+            placeholder="e.g. calendar"
+            autoComplete="off"
+          />
+          {permissionLists}
+        </VStack>
+      </FormSection>
+      {role && isNarrow && (
+        <FormSection title={holdersTitle} useGrid={false}>
+          {holderList}
+        </FormSection>
+      )}
+    </FormCard>
+  );
+
   return (
     <Page
       title={title}
@@ -284,102 +386,7 @@ function RoleEditor({role}: {role: Role | null}) {
           </ConfirmDialog>
         </>
       }>
-      <FormCard
-        fill
-        showFooter={!isBuiltIn}
-        saveText={role ? 'Save' : 'Create Role'}
-        onSave={
-          isBuiltIn
-            ? undefined
-            : () => {
-                setProblem(NO_PROBLEM);
-                if (!name.trim()) {
-                  setProblem({
-                    validation: {title: 'Name is required.', fields: {name: ['Name is required.']}, general: []},
-                    message: null,
-                  });
-                  return;
-                }
-                if (!hasChanges) {
-                  setProblem({
-                    validation: null,
-                    message: 'Nothing has changed, so there is nothing to save.',
-                  });
-                  return;
-                }
-                setConfirming('save');
-              }
-        }
-        onCancel={backToList}
-        onDelete={role?.canDelete ? () => setConfirming('delete') : undefined}
-        deleteText="Delete Role"
-        footerActions={
-          role?.canEdit &&
-          (role.isArchived ? (
-            <Button
-              label="Restore"
-              variant="secondary"
-              icon={<Icon icon={AppIcon.Restore} />}
-              isDisabled={isBusy}
-              onClick={() => archiveOrRestore(false)}
-            />
-          ) : (
-            <Button
-              label="Archive"
-              variant="secondary"
-              icon={<Icon icon={AppIcon.Archive} />}
-              isDisabled={isBusy}
-              onClick={() => setConfirming('archive')}
-            />
-          ))
-        }
-        isProcessing={isBusy}>
-        <FormSection title="Details" useGrid={false}>
-          <TextInput
-            label="Name"
-            value={name}
-            onChange={setName}
-            placeholder="e.g. Visiting consultant"
-            autoComplete="off"
-            isRequired
-            isDisabled={isBusy}
-            isReadOnly={isBuiltIn}
-            status={fieldStatus(problem.validation, 'name')}
-          />
-          <TextArea
-            label="Description"
-            description="What the role is for, as the Users page shows it when giving roles. Not for patient details."
-            value={description}
-            onChange={setDescription}
-            rows={2}
-            isDisabled={isBusy}
-            isReadOnly={isBuiltIn}
-            maxLength={MAX_DESCRIPTION}
-            status={fieldStatus(problem.validation, 'description')}
-          />
-        </FormSection>
-        <FormSection title={`Permissions (${ticked.length})`} useGrid={false}>
-          <VStack gap={4}>
-            <Text type="supporting" color="secondary">
-              Every role also lets its holders use the app:{' '}
-              {PERMISSION_CATALOGUE.UseApp.description.replace(/^Use the app: /, '')}
-            </Text>
-            <TextInput
-              label="Search permissions"
-              value={filter}
-              onChange={setFilter}
-              placeholder="e.g. calendar"
-              autoComplete="off"
-            />
-            {permissionLists}
-          </VStack>
-        </FormSection>
-        {role && (
-          <FormSection title={`People with this role (${holderCount})`} useGrid={false}>
-            {holderList}
-          </FormSection>
-        )}
-      </FormCard>
+      {role && !isNarrow ? <TwoColumns start={form} end={<PanelCard title={holdersTitle}>{holderList}</PanelCard>} /> : form}
     </Page>
   );
 }
