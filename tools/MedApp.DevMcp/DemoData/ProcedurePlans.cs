@@ -42,7 +42,7 @@ public sealed class ProcedurePlan
     /// <summary>An old-pathway procedure still finishing long after the pathway was archived.</summary>
     public bool Straggler { get; set; }
 
-    /// <summary>A stage whose visit was asked for and never booked: it sits in Needs booking.</summary>
+    /// <summary>A stage whose visit was asked for and never booked: it sits in Requires Appointment.</summary>
     public int NeverBookStage { get; set; } = -1;
 
     /// <summary>A Required stage an admin finished without its visit, with a reason.</summary>

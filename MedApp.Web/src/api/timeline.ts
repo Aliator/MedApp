@@ -249,7 +249,7 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
     case 'AppointmentRequested':
       return {
         title: `Appointment requested${about}`,
-        detail: entry.isAutomatic ? 'Requested automatically, as the stage involves a visit. Needs booking' : 'Needs booking',
+        detail: entry.isAutomatic ? 'Requested automatically, as the stage involves a visit. Requires appointment' : 'Requires appointment',
       };
     case 'AppointmentBooked':
       return {title: `Appointment booked${about}`, detail: slot};

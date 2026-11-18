@@ -1,8 +1,8 @@
 import {act, render, renderHook, screen, waitFor} from '@testing-library/react';
-import {useState, type ReactNode} from 'react';
+import {StrictMode, useState, type ReactNode} from 'react';
 import type {Procedure} from '../../api/procedures';
 import {HalfViewContext} from '../pages/halfView';
-import {NOTEPAD_OPEN_KEY, NotepadProvider, useNotepad, useNotepadDocked, useOfferToNotepad} from './NotepadContext';
+import {NOTEPAD_OPEN_KEY, NotepadProvider, storeNotepadOpen, useNotepad, useNotepadDocked, useOfferToNotepad} from './NotepadContext';
 
 const wrapper = ({children}: {children: ReactNode}) => <NotepadProvider>{children}</NotepadProvider>;
 
@@ -167,5 +167,87 @@ describe('NotepadProvider', () => {
 
     act(() => result.current.notepad.open());
     expect(result.current.isDocked).toBe(true);
+  });
+});
+
+describe('NotepadProvider in a half view', () => {
+  afterEach(() => localStorage.clear());
+
+  const p2 = {id: 'p2', title: 'Synthetic hip review'} as Procedure;
+
+  function Offering({procedure: offered, side}: {procedure: Procedure; side?: 'left' | 'right'}) {
+    return (
+      <HalfViewContext.Provider value={{isHalf: side !== undefined, side}}>
+        <OfferOnly procedure={offered} />
+      </HalfViewContext.Provider>
+    );
+  }
+  function OfferOnly({procedure: offered}: {procedure: Procedure}) {
+    useOfferToNotepad(offered);
+    return null;
+  }
+  function Listed() {
+    const notepad = useNotepad()!;
+    return <p data-testid="listed">{notepad.openProcedures.map((open) => open.procedure.id).join(',')}</p>;
+  }
+
+  /** The half view's notepad, inside the signed-in layout's, with that layout's procedure pages offered beside it. */
+  function renderInHalf(onCloseHalf = vi.fn(), offered: Procedure[] = [procedure]) {
+    const result = render(
+      <StrictMode>
+        <NotepadProvider>
+          {offered.map((p) => (
+            <Offering key={p.id} procedure={p} side="left" />
+          ))}
+          <NotepadProvider onCloseHalf={onCloseHalf}>
+            <Listed />
+          </NotepadProvider>
+        </NotepadProvider>
+      </StrictMode>,
+    );
+    return {...result, onCloseHalf};
+  }
+
+  it("offers the signed-in layout's procedure pages, as they change", async () => {
+    const {rerender} = renderInHalf();
+    await waitFor(() => expect(screen.getByTestId('listed')).toHaveTextContent('p1'));
+
+    rerender(
+      <StrictMode>
+        <NotepadProvider>
+          <Offering procedure={p2} side="left" />
+          <NotepadProvider onCloseHalf={vi.fn()}>
+            <Listed />
+          </NotepadProvider>
+        </NotepadProvider>
+      </StrictMode>,
+    );
+    await waitFor(() => expect(screen.getByTestId('listed')).toHaveTextContent(/^p2$/));
+  });
+
+  it('is open, takes the focus as it starts, keeps nothing in this browser, and closing closes its half', () => {
+    const onCloseHalf = vi.fn();
+    const wrapHalf = ({children}: {children: ReactNode}) => <NotepadProvider onCloseHalf={onCloseHalf}>{children}</NotepadProvider>;
+    const {result} = renderHook(() => useNotepad()!, {wrapper: wrapHalf});
+    expect(result.current.isOpen).toBe(true);
+    expect(result.current.takeFocus()).toBe(true);
+    expect(result.current.takeFocus()).toBe(false);
+
+    act(() => result.current.open());
+    expect(localStorage.getItem(NOTEPAD_OPEN_KEY)).toBeNull();
+
+    act(() => result.current.requestClose());
+    expect(onCloseHalf).toHaveBeenCalledTimes(1);
+    expect(result.current.isOpen).toBe(true);
+  });
+
+  it('stays open in its half though the docked notepad was left open in this browser', async () => {
+    storeNotepadOpen(true);
+    const wrapHalf = ({children}: {children: ReactNode}) => <NotepadProvider onCloseHalf={vi.fn()}>{children}</NotepadProvider>;
+    const {result} = renderHook(() => useNotepad()!, {wrapper: wrapHalf});
+
+    act(() => result.current.close());
+    expect(result.current.isOpen).toBe(true);
+    expect(localStorage.getItem(NOTEPAD_OPEN_KEY)).toBe('true');
   });
 });

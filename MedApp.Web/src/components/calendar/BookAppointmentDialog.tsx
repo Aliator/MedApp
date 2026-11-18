@@ -46,7 +46,7 @@ import {formatShortDate, formatTime, parseUtc, ukDay} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
-import {useIsNarrow} from '../pages/Page';
+import {useIsNarrowWindow} from '../pages/Page';
 import {ValidationAlert, AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
@@ -54,7 +54,7 @@ import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatient
 export interface BookAppointmentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Called with the saved appointment (booked, or added to Needs booking). */
+  /** Called with the saved appointment (booked, or added to Requires Appointment). */
   onSaved?: (appointment: Appointment) => void;
   /** What's known already; the dialog asks for whatever isn't. The patient comes with who they are, for their banner. */
   patient?: AppointmentPatientDetails;
@@ -82,9 +82,9 @@ export interface BookAppointmentDialogProps {
  * already known (the patient, the procedure, a time picked on the calendar) is filled in, and everything else has a
  * default, so the common path is one click on a time, then Book.
  *
- * Without a time it can add the appointment to Needs booking instead (a Requested appointment). With `appointment`,
+ * Without a time it can add the appointment to Requires Appointment instead (a Requested appointment). With `appointment`,
  * it books a Requested appointment or reschedules a Booked one. Use it wherever an appointment is booked: the
- * calendar, Needs booking, the procedure and patient pages, and an appointment's own dialog.
+ * calendar, Requires Appointment, the procedure and patient pages, and an appointment's own dialog.
  *
  * Once the patient is known (given, the appointment's, or picked), their banner heads the dialog: name, date of birth
  * and NHS number, so staff can check who they're booking (hazard H-34). A patient whose record is restricted or
@@ -155,7 +155,8 @@ function BookingForm({
   stepMinutes,
 }: BookAppointmentDialogProps) {
   const me = useCurrentUser();
-  const isNarrow = useIsNarrow();
+  // Its size and layout follow the window, as a dialog sits over all of it (not a half view it was opened from).
+  const isNarrow = useIsNarrowWindow();
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const create = useCreateAppointment();
@@ -294,7 +295,7 @@ function BookingForm({
 
   const request = () => {
     setProblem(NO_PROBLEM);
-    create.mutate({...forWhom(), notes: notes.trim() || null}, {onSuccess: (saved) => succeed(saved, 'Added to Needs booking'), onError: fail});
+    create.mutate({...forWhom(), notes: notes.trim() || null}, {onSuccess: (saved) => succeed(saved, 'Added to Requires Appointment'), onError: fail});
   };
 
   function forWhom() {
@@ -514,7 +515,7 @@ function BookingForm({
       </Text>
     ) : (
       <Text type="body" color="secondary" aria-live="polite">
-        {appointment ? 'Choose a time.' : 'Choose a time, or add it to Needs booking to book later.'}
+        {appointment ? 'Choose a time.' : 'Choose a time, or add it to Requires Appointment to book later.'}
       </Text>
     );
 
@@ -531,7 +532,7 @@ function BookingForm({
         <>
           <Button label="Cancel" variant="secondary" isDisabled={isSaving} onClick={onClose} />
           {!appointment && start === undefined && (
-            <Button label="Add to Needs booking" variant="secondary" isDisabled={!canRequest} isLoading={create.isPending} onClick={request} />
+            <Button label="Add to Requires Appointment" variant="secondary" isDisabled={!canRequest} isLoading={create.isPending} onClick={request} />
           )}
           <Button
             label={isRescheduling ? 'Reschedule' : 'Book'}

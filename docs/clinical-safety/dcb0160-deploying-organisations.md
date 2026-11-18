@@ -55,7 +55,7 @@ The manufacturer's safety case holds only if you:
 - **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth, email and an optional NHS number, whose check digit it checks but which it doesn't trace with PDS, so check a number against your own records (for example your PAS) when you enter it;
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes, including which stages involve a visit and whether it's suggested or required;
 - **set up calendars:** activity types, day and week templates and each person's default week, and record staff absence in MedApp;
-- **book and follow up visits:** someone reviews the Needs booking list and Did not attend appointments on a set schedule;
+- **book and follow up visits:** someone reviews the Requires Appointment list and Did not attend appointments on a set schedule;
 - **tell patients about their appointments,** and about every cancellation and change, by your own process. MedApp doesn't contact patients;
 - **train staff,** including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks opens on work not yet started;
 - **have at least two admins** who are available while staff work;
@@ -92,7 +92,7 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-26 A file is deleted by mistake | A local rule: delete a file only if it was attached in error |
 | H-27 An out-of-date or duplicate document is relied on | A local rule for naming files (what it is and the document's date), and deleting superseded copies attached in error |
 | H-28 File storage is unavailable | Your downtime procedure says where to find documents when MedApp's files can't be opened |
-| H-30 A visit the patient needs doesn't happen | Who books from the Needs booking list, how often it's reviewed, and who follows up Did not attend |
+| H-30 A visit the patient needs doesn't happen | Who books from the Requires Appointment list, how often it's reviewed, and who follows up Did not attend |
 | H-31 A member of staff is double-booked | MedApp's calendar is the only diary for the appointments it holds |
 | H-32 A stage is finished without the visit it needed | Clinical sign-off of which stages need a visit; a review of stages finished without one; admins bypass a required visit only with a recorded reason |
 | H-34 The wrong patient or procedure is booked | Positive patient identification; check the patient's name, date of birth and NHS number, which the booking dialog shows, when booking |
@@ -128,7 +128,7 @@ Before anyone uses MedApp with patients, they need to know:
 - that notifications are a convenience, and My Tasks is the list to work from, with its filter set to all open work: it opens on "Not started", which hides work already under way, including overdue and blocked work;
 - how to attach a file to the right patient, procedure or stage, and what to do if it goes to the wrong one (H-23);
 - that files are only downloaded, never shown in the page, what "Not scanned" means, and to delete downloaded copies when finished;
-- how to book an appointment, check the patient, and find free time; that Needs booking lists the visits still to book; that a stage whose visit is required can't be finished until the appointment is marked Attended; and that MedApp doesn't tell patients anything, so a cancellation or change must be passed on;
+- how to book an appointment, check the patient, and find free time; that Requires Appointment (from the Calendar page) lists the visits still to book; that a stage whose visit is required can't be finished until the appointment is marked Attended; and that MedApp doesn't tell patients anything, so a cancellation or change must be passed on;
 - what to do when MedApp is unavailable;
 - how to report a problem or a safety incident.
 

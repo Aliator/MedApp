@@ -1,7 +1,8 @@
 import {Button} from '@astryxdesign/core/Button';
-import {screen, waitFor} from '@testing-library/react';
+import {screen, waitFor, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {Page, useIsNarrow} from './Page';
+import {DialogFrame} from '../modals/DialogFrame';
+import {Page, useIsNarrow, useIsNarrowWindow} from './Page';
 import {AlertMessage} from '../shared/AlertMessage';
 import {HalfViewContext} from './halfView';
 import {PageHeader} from './PageHeader';
@@ -140,5 +141,36 @@ describe('useIsNarrow', () => {
 
     expect(await screen.findByText('wide')).toBeInTheDocument();
     expect(screen.getByText('narrow')).toBeInTheDocument();
+  });
+
+  it("goes by the window alone in a dialog, which sits over the whole window, even one opened from a half view", async () => {
+    renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true}}>
+        <Shows />
+        <DialogFrame isOpen title="Synthetic dialog" onClose={() => {}}>
+          <Shows />
+        </DialogFrame>
+      </HalfViewContext.Provider>,
+    );
+
+    const dialog = await screen.findByRole('dialog', {name: 'Synthetic dialog'});
+    expect(within(dialog).getByText('wide')).toBeInTheDocument();
+    // The page behind it is still narrow, in its half.
+    expect(screen.getAllByText('narrow')).toHaveLength(1);
+  });
+});
+
+describe('useIsNarrowWindow', () => {
+  it('ignores a half view, for a dialog choosing its own size', async () => {
+    function Shows() {
+      return <output>{useIsNarrowWindow() ? 'narrow' : 'wide'}</output>;
+    }
+    renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true}}>
+        <Shows />
+      </HalfViewContext.Provider>,
+    );
+
+    expect(await screen.findByText('wide')).toBeInTheDocument();
   });
 });

@@ -24,13 +24,6 @@ import {useNotepad} from './NotepadContext';
 /** How long typing must pause before the notepad saves by itself. */
 export const AUTOSAVE_MS = 1500;
 
-/**
- * What the notepad says it's for, and how long it's kept (`keepDays`, from the API): the whole notepad is cleared only
- * once it has gone that long without any change, so text stays for as long as it's used.
- */
-export const notepadHint = (keepDays: number) =>
-  `For jottings. Anything about a patient belongs in their record: add it with Add Note to Procedure, then take it out of here. Text stays while you keep using the notepad: it's only cleared after ${keepDays} days with no changes at all.`;
-
 /** Said, and shown, when a note was added but the text selected couldn't be taken out of the notepad exactly. */
 export const NOT_REMOVED =
   'The note was added, but the selected text could not be taken out of the notepad exactly, as it changed meanwhile. Remove it yourself.';
@@ -48,9 +41,9 @@ type SaveState =
   | {kind: 'conflict'; message: string};
 
 /**
- * The notepad: a header with Close, what it's for, a rich text box, where saving has got to, and Clear and Add Note to
- * Procedure. It reads the notepad once as it opens; the box is its copy from then on. Reload (after a 409) reads it
- * afresh, replacing what the box says.
+ * The notepad: a header with Close, a rich text box, where saving has got to, and Clear and Add Note to Procedure. It
+ * reads the notepad once as it opens; the box is its copy from then on. Reload (after a 409) reads it afresh, replacing
+ * what the box says.
  */
 export function NotepadPane() {
   const notepad = useNotepad();
@@ -113,7 +106,6 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
   const announce = useAnnounce();
   const save = useSaveNotepad();
   const queryClient = useQueryClient();
-  const keepDays = notepad.keepDays ?? 30;
 
   // The text the box started from, and a key that starts it again when the text is replaced (cleared, or a note taken out).
   const [start, setStart] = useState({text: notepad.text ?? '', key: 0});
@@ -254,9 +246,16 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
       const editable = scroller.querySelector<HTMLElement>('[contenteditable]');
       if (!editable) return;
       const top = editable.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-      const padding = parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
+      // What sits below the writing area in the scroller: the bottom padding, border and margin of each box it's in
+      // (the editor's frame), and the scroller's own padding. Measured rather than guessed, so an empty notepad fits
+      // exactly and shows no scrollbar.
+      let below = parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
+      for (let element = editable.parentElement; element && element !== scroller; element = element.parentElement) {
+        const style = getComputedStyle(element);
+        below += (parseFloat(style.paddingBlockEnd) || 0) + (parseFloat(style.borderBlockEndWidth) || 0) + (parseFloat(style.marginBlockEnd) || 0);
+      }
       const least = 12 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-      const height = Math.max(least, Math.floor(scroller.clientHeight - top - padding - 2));
+      const height = Math.max(least, Math.floor(scroller.clientHeight - top - below));
       setFitted((current) => (current !== undefined && Math.abs(current - height) < 2 ? current : height));
     };
     const observer = new ResizeObserver(fit);
@@ -353,9 +352,6 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
   return (
     <>
       <VStack ref={box} gap={3} padding={4} hAlign="stretch" style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>
-        <Text type="supporting" color="secondary">
-          {notepadHint(keepDays)}
-        </Text>
         {notice && <AlertMessage message={notice} />}
         {/* A failed save shows below, never on the box, so it has no error line. */}
         <VStack gap={0} style={NO_FIELD_STATUS_LINE}>
@@ -366,7 +362,6 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
             isLabelHidden
             value={start.text}
             onChange={onChange}
-            placeholder="Jot something down"
             minHeight={fitted ?? '12rem'}
           />
         </VStack>

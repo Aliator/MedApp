@@ -75,17 +75,15 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
   });
 
-  it('has the calendar and Needs Booking for everyone, each marked current on its own page', async () => {
-    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar/needs-booking'});
-
-    expect(await screen.findByRole('link', {name: 'Needs Booking'})).toHaveAttribute('aria-current', 'page');
+  it('has the calendar for everyone, marked current on every page under it, Requires Appointment with no item of its own', async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar'});
+    expect(await screen.findByRole('link', {name: 'Calendar'})).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', {name: 'Calendar'})).toHaveAttribute('href', '/calendar');
-    expect(screen.getByRole('link', {name: 'Calendar'})).not.toHaveAttribute('aria-current');
     unmount();
 
-    renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar'});
+    renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar/requires-appointment'});
     expect(await screen.findByRole('link', {name: 'Calendar'})).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', {name: 'Needs Booking'})).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', {name: /requires appointment|needs booking/i})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {
@@ -406,7 +404,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it("opens a row's menu with a press of its button, and a second press leaves it open", async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -436,7 +434,7 @@ describe('AppSideNav folded, and its menus', () => {
       if (this.matches('[popover], [role="menu"]')) return new DOMRect(300, 90, 200, 120);
       return new DOMRect();
     });
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -451,6 +449,46 @@ describe('AppSideNav folded, and its menus', () => {
     await waitFor(() => expect(panel.style.translate).toBe(`${240 + 8 - 300}px ${100 - 90}px`));
     expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
   });
+
+  it('covers the gap between the menu button and its open menu, so the pointer crossing it keeps the menu open', async () => {
+    // jsdom has no layout: the menu button ends at 228 (its row at 100, 40 tall), and the menu starts at 300.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
+      return new DOMRect();
+    });
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    await rowMenuItem(user, 'My Tasks', 'Open in half view');
+    const button = screen.getByRole('button', {name: 'My Tasks options'});
+
+    const bridge = await waitFor(() => {
+      const strip = document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
+      expect(strip).not.toBeNull();
+      return strip!;
+    });
+    expect(bridge).toHaveAttribute('aria-hidden', 'true');
+    // From the button's end to the menu's start, as tall as both.
+    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '100px', width: '72px', height: '120px'});
+
+    // On the strip, past the time a menu waits before closing once the pointer has left it: still open.
+    await user.hover(bridge);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    // Off it, onto the page: it closes, and the strip goes with it.
+    await user.unhover(bridge);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+    expect(document.querySelector('[data-nav-bridge]')).toBeNull();
+  });
 });
 
 describe('AppSideNav with a half view open', () => {
@@ -461,7 +499,7 @@ describe('AppSideNav with a half view open', () => {
       'GET /api/patients/labels': patientLabels({[patientId]: 'Test Patient'}),
       'GET /api/procedures/patient-procedures/labels': procedureLabels({[procedureId]: {title: 'Test procedure', patientName: 'Test Patient'}}),
     });
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
     const result = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -482,12 +520,12 @@ describe('AppSideNav with a half view open', () => {
     expect(rowOf(screen.getByRole('link', {name: /^procedures$/i})).style.backgroundColor).toBe('');
   });
 
-  it("marks Needs Booking in the half view beside the calendar", async () => {
-    renderWithHalf('/calendar', '/calendar/needs-booking');
+  it("marks the calendar when Requires Appointment is in the half view", async () => {
+    renderWithHalf('/patients', '/calendar/requires-appointment');
 
-    const needsBooking = await screen.findByRole('link', {name: 'Needs Booking'});
-    expect(rowOf(needsBooking).style.backgroundColor).toBe(HALF_VIEW_SHADE);
-    expect(rowOf(screen.getByRole('link', {name: 'Calendar'})).style.backgroundColor).toBe('');
+    const calendar = await screen.findByRole('link', {name: 'Calendar'});
+    expect(rowOf(calendar).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    expect(calendar).not.toHaveAttribute('aria-current');
   });
 
   it("marks a patient whose page is in the half view under Patients, and a section whose list is", async () => {
@@ -553,5 +591,85 @@ describe('AppSideNav notepad', () => {
 
     await screen.findByRole('button', {name: 'Logout'});
     expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
+  });
+
+  /** The nav, its notepad, and a half view showing `openPath`. */
+  function renderWithHalfView(openPath: string) {
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const result = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <NotepadProvider>
+          <AppSideNav />
+          <NotepadShown />
+        </NotepadProvider>
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    return {...result, halfViews};
+  }
+
+  it('closes the half view showing the notepad before it docks the notepad, so it is not open twice side by side', async () => {
+    const {user, halfViews} = renderWithHalfView('/notepad');
+
+    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
+
+    expect(halfViews.close).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+  });
+
+  it('leaves a half view showing another page open as it docks the notepad', async () => {
+    const {user, halfViews} = renderWithHalfView('/tasks');
+
+    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
+
+    expect(halfViews.close).not.toHaveBeenCalled();
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+  });
+
+  /** The Notepad row's menu, opened from its button (the row is a button, not a link), and its items. */
+  async function notepadMenuItems(openPath: string | null) {
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <NotepadProvider>
+          <AppSideNav />
+        </NotepadProvider>
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    await user.hover(await screen.findByRole('button', {name: 'Notepad'}));
+    const button = await screen.findByRole('button', {name: 'Notepad options'});
+    await user.hover(button);
+    const menu = await waitFor(() => {
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+      return document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(button.id)}"]`)!;
+    });
+    return {user, halfViews, items: within(menu).getAllByRole('menuitem', {hidden: true})};
+  }
+
+  it('opens the notepad in the half view from its menu', async () => {
+    const {user, halfViews, items} = await notepadMenuItems(null);
+
+    expect(items.map((item) => item.textContent)).toEqual(['Open in half view']);
+    await user.click(items[0]);
+
+    expect(halfViews.open).toHaveBeenCalledWith('/notepad');
+  });
+
+  it('offers only the right with a half view open, as the notepad has no page of its own in the main view', async () => {
+    const {user, halfViews, items} = await notepadMenuItems('/tasks');
+
+    expect(items.map((item) => item.textContent)).toEqual(['Open on the right']);
+    await user.click(items[0]);
+
+    expect(halfViews.open).toHaveBeenCalledWith('/notepad');
+    expect(halfViews.openFull).not.toHaveBeenCalled();
+  });
+
+  it('greys out the right while the half view already shows the notepad', async () => {
+    const {items} = await notepadMenuItems('/notepad');
+
+    expect(isDisabled(items[0])).toBe(true);
+    expect(items[0]).toHaveAccessibleName(/Notepad is already open on the right/);
   });
 });

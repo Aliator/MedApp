@@ -125,7 +125,7 @@ public sealed class CreateAppointmentHandler(
         return appointment;
     }
 
-    /// <summary>The 409 for a stage that already has an open appointment, saying when and with whom (or that it's in Needs booking).</summary>
+    /// <summary>The 409 for a stage that already has an open appointment, saying when and with whom (or that it's in Requires Appointment).</summary>
     private async Task<ConflictException> StageHasOpenVisitAsync(Appointment? open, CancellationToken cancellationToken)
     {
         var staffUsername = open is null ? null : await identityReadService.GetStaffUsernameAsync(open, cancellationToken);

@@ -23,7 +23,7 @@ public sealed class StageVisitTests : E2ETest
         await OpenAsync($"/procedures/{procedure.Id}");
         var visit = Main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true });
         await Expect(visit).ToContainTextAsync("Visit required");
-        await Expect(visit).ToContainTextAsync("Needs booking");
+        await Expect(visit).ToContainTextAsync("Requires appointment");
         await Expect(visit).ToContainTextAsync("the stage can't be finished until then");
         await Expect(visit.GetByRole(AriaRole.Button, new() { Name = "Book Visit" })).ToBeVisibleAsync();
 
@@ -31,14 +31,14 @@ public sealed class StageVisitTests : E2ETest
         await Main.GetByRole(AriaRole.Button, new() { Name = "Finish Stage" }).ClickAsync();
         var confirm = Page.GetByRole(AriaRole.Dialog, new() { Name = "Finish without a visit?" });
         await Expect(confirm).ToContainTextAsync($"{stages[0].Name} requires a visit");
-        await Expect(confirm).ToContainTextAsync("Its visit comes off Needs booking.");
+        await Expect(confirm).ToContainTextAsync("Its visit comes off Requires Appointment.");
         var finish = confirm.GetByRole(AriaRole.Button, new() { Name = "Finish Without Visit" });
         await Expect(finish).ToBeDisabledAsync();
         await confirm.GetByRole(AriaRole.Textbox, new() { Name = "Reason" }).FillAsync(Reason);
         await finish.ClickAsync();
         await Expect(confirm).ToBeHiddenAsync();
 
-        // The procedure moves on to the second stage; the first is finished, and its visit no longer needs booking.
+        // The procedure moves on to the second stage; the first is finished, and its visit is off Requires Appointment.
         await Expect(Main).ToContainTextAsync($"2. {stages[1].Name}");
         await Expect(Main).ToContainTextAsync("1 of 2");
         await Expect(Main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true })).ToHaveCountAsync(0);
