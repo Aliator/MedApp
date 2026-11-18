@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Pathways.PatientPathways;
+namespace MedApp.Domain.Pathways.PatientPathways;
 
 /// <summary>
 /// One stage of a patient's pathway. Its name, description, instructions and SNOMED CT code are copied from the stage
@@ -27,6 +27,11 @@ public sealed class PatientPathwayStage
     /// <summary>Copied from the stage definition: whether the stage involves a visit (an appointment).</summary>
     public VisitRequirement VisitRequirement { get; set; }
 
+    /// <summary>
+    /// Copied from the stage definition: the kind of letter the stage needs (decision 105). It can't be finished until a
+    /// letter of that kind on the pathway is approved and sent to every recipient; null for none.
+    /// </summary>
+    public Letters.LetterKind? NeedsLetterKind { get; set; }
     /// <summary>Copied from the template: whether staff may skip it, with a reason, when it's current.</summary>
     public bool IsOptional { get; set; }
 

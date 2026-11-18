@@ -17,13 +17,17 @@ export const PERMISSIONS = [
   'CreatePathways',
   'WorkPathways',
   'AssignPathways',
-  'OverrideStages',
+  'UnlockStages',
+  'FinishWithoutVisit',
   'DeletePathways',
   'BookAppointments',
   'ManageAnyCalendar',
   'ArrangeMeetings',
   'ManageClinics',
   'AttachFiles',
+  'WriteLetters',
+  'ApproveLetters',
+  'SendLetters',
   'ViewInsights',
   'ManageMonitoring',
   'ManageSetup',
@@ -46,6 +50,7 @@ export type PermissionGroup =
   | 'Pathways'
   | 'AppointmentsAndCalendars'
   | 'Files'
+  | 'Letters'
   | 'Oversight'
   | 'Setup'
   | 'AdministratorOnly';
@@ -72,7 +77,8 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
     description: 'Work on pathways: stages, notes, details, hold, discharge and cancel; ask for a note to be deleted.',
   },
   AssignPathways: {group: 'Pathways', description: 'Assign staff to pathways, and unassign them.'},
-  OverrideStages: {group: 'Pathways', description: 'Unlock a finished stage, and finish a stage that requires a visit without one.'},
+  UnlockStages: {group: 'Pathways', description: 'Unlock a finished stage, and reinstate a skipped one.'},
+  FinishWithoutVisit: {group: 'Pathways', description: 'Finish, or skip, a stage that requires a visit without one, giving a reason.'},
   DeletePathways: {group: 'Pathways', description: 'Delete a cancelled or archived pathway.'},
   BookAppointments: {
     group: 'AppointmentsAndCalendars',
@@ -88,6 +94,12 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   },
   ManageClinics: {group: 'AppointmentsAndCalendars', description: 'Set staff working hours.'},
   AttachFiles: {group: 'Files', description: 'Attach files, and delete your own.'},
+  WriteLetters: {group: 'Letters', description: 'Write letters about patients from templates, and submit them for approval.'},
+  ApproveLetters: {group: 'Letters', description: 'Approve or return letters submitted to you, and approve your own.'},
+  SendLetters: {
+    group: 'Letters',
+    description: 'Send approved letters by secure email, or record them as posted or handed over.',
+  },
   ViewInsights: {group: 'Oversight', description: 'See Insights.'},
   ManageMonitoring: {group: 'Oversight', description: 'Set up your own monitoring rules.'},
   ManageSetup: {

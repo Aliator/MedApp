@@ -247,6 +247,25 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         ChangeTarget(WaitingClock.TargetDaysFor(specialty, referral.RequestedPriority), TargetCauseSpecialty);
     }
 
+    /// <summary>
+    /// A triager asked the referrer for more information (decision 106): it stays open, waiting in its own view. Not a
+    /// decision, so the decision columns stay empty.
+    /// </summary>
+    public void AskForInformation()
+    {
+        var previous = referral.Status;
+        referral.Status = InformationRequested;
+        Record(ReferralEventAction.InformationRequested, new { from = previous.ToString(), to = InformationRequested.ToString() });
+    }
+
+    /// <summary>The information asked for came: it's back awaiting triage.</summary>
+    public void InformationReceived()
+    {
+        var previous = referral.Status;
+        referral.Status = AwaitingTriage;
+        Record(ReferralEventAction.InformationReceived, new { from = previous.ToString(), to = AwaitingTriage.ToString() });
+    }
+
     /// <summary>Withdraws it (the referrer or the patient withdrew it), with a detail kept on the referral.</summary>
     public void Withdraw(string detail) => Close(Withdrawn, ReferralEventAction.Withdrawn, detail);
 

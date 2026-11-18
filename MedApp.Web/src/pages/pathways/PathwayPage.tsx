@@ -52,6 +52,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
+import {LettersAbout} from '../../components/letters/LettersAbout';
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {formatDate, formatDateTime} from '../../utils/dates';
@@ -90,7 +91,7 @@ export function progressWords(pathway: Pick<Pathway, 'completedStageCount' | 'sk
 export const NOT_ASSIGNED_MESSAGE = 'This pathway is not assigned to you, are you sure you want to make these changes?';
 
 /**
- * Why staff can't finish a stage that requires a visit until one is marked Attended (a holder of OverrideStages can,
+ * Why staff can't finish a stage that requires a visit until one is marked Attended (a holder of FinishWithoutVisit can,
  * with a reason).
  */
 export const NEEDS_VISIT_MESSAGE = 'Needs an attended visit first';
@@ -111,13 +112,13 @@ interface Booking {
  *
  * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive), as
  * their roles allow (WorkPathways: the API's flags say so); holders of AssignPathways also assign and unassign
- * staff, and of OverrideStages unlock finished stages. Anyone who can work on pathways can work on any, but if it
+ * staff, of UnlockStages unlock finished stages, and of FinishWithoutVisit finish one without its required visit. Anyone who can work on pathways can work on any, but if it
  * isn't assigned to you, the first change of the visit asks you to confirm.
  *
  * Pathways that branch (docs/centre-phases-3-5-plan.md, decisions 113 to 117): an optional current stage can be
  * skipped with a reason (`SkipStageDialog`, showing the patient: hazard H-51); finishing a branch point asks which
  * branch follows (`BranchChoice`: in the template's order, none chosen, Finish disabled until the clinician chooses),
- * and says which stages that skips; skipped stages are struck through with why; and a holder of OverrideStages can
+ * and says which stages that skips; skipped stages are struck through with why; and a holder of UnlockStages can
  * reinstate one (`ReinstateStageDialog`).
  *
  * A request to delete one of its notes in the address (`?deletionRequest=<id>`, from an admin's "Note deletion
@@ -169,7 +170,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   // What this person's roles allow here, beside what the pathway's own flags say (which the API also works out from
   // their permissions): assigning, unlocking and finishing without a visit, deleting, booking, and the audit log.
   const canAssignStaff = can(user, 'AssignPathways');
-  const canOverrideStages = can(user, 'OverrideStages');
+  const canUnlockStages = can(user, 'UnlockStages');
+  const canFinishWithoutVisit = can(user, 'FinishWithoutVisit');
   const canBook = can(user, 'BookAppointments');
   const canViewAudit = can(user, 'ViewAudit');
   const canWork = can(user, 'WorkPathways');
@@ -207,6 +209,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     notes: true,
     currentStage: true,
     files: !isNarrow,
+    letters: !isNarrow,
     stages: false,
     patientInfo: true,
     assignedStaff: !isNarrow,
@@ -261,7 +264,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     );
   /**
    * Finishing asks first: as it always has, or, for a stage that involves a visit with none marked Attended, whether
-   * to finish it without one (a holder of OverrideStages giving a reason for a required one; anyone else can't, as Finish
+   * to finish it without one (a holder of FinishWithoutVisit giving a reason for a required one; anyone else can't, as Finish
    * says). A branch point finished for the first time asks either way which branch follows, none chosen to begin with.
    */
   const finishStage = (stage: PathwayStage, notes: string) =>
@@ -313,7 +316,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       onFitNotes={isCurrentSection ? setNotesHeight : undefined}
       key={`${stage.id}:${stage.notes}`}
       stage={stage}
-      canUnlock={canOverrideStages}
+      canUnlock={canUnlockStages}
       isBusy={isBusy}
       onStart={() => startStage(stage)}
       onSaveNotes={(notes) => saveNotes(stage, notes)}
@@ -329,7 +332,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       }}
       visit={involvesVisit(stage) && visitFor(stage)}
       finishDisabledReason={
-        !canOverrideStages && stage.visitRequirement === 'Required' && finishesWithoutVisit(stage, stageVisit(stage.id, appointments))
+        !canFinishWithoutVisit && stage.visitRequirement === 'Required' && finishesWithoutVisit(stage, stageVisit(stage.id, appointments))
           ? NEEDS_VISIT_MESSAGE
           : undefined
       }
@@ -862,7 +865,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Every stage, each opening when clicked. Finished stages can be unlocked (OverrideStages) and then edited here. The
+   * Every stage, each opening when clicked. Finished stages can be unlocked (UnlockStages) and then edited here. The
    * current stage is worked on in the Current stage section while that's open; when it's folded, here.
    */
   function stageList(pathway: Pathway) {
@@ -955,6 +958,29 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * The pathway's letters (decision 108), each linking to its page, and Write Letter for holders of WriteLetters while
+   * the record can change and the pathway isn't cancelled or archived.
+   */
+  function lettersSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'letters',
+      title: 'Letters',
+      isOpen: open.letters,
+      onToggle: () => toggle('letters'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <LettersAbout
+            about={{pathwayId: pathway.id ?? ''}}
+            specialtyId={pathway.specialtyId}
+            patient={pathway.patient}
+            isLocked={Boolean(pathway.readOnlyReason) || !(pathway.canEditDetails ?? false)}
+          />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage and Files, each
    * folding and sharing the left card, and all the stages on the right.
    */
@@ -969,6 +995,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               notesSection(pathway),
               currentStageSection(pathway),
               filesSection(pathway),
+              lettersSection(pathway),
             ]}
             footerActions={footer(pathway)}
           />
@@ -996,6 +1023,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           notesSection(pathway),
           currentStageSection(pathway),
           filesSection(pathway),
+          lettersSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},
         ]}
       />

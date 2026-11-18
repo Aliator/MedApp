@@ -119,7 +119,7 @@ export const staffQuery = queryOptions({
 /**
  * The staff whose roles grant `permission` (`GET api/calendar/staff?permission=`), for choosing someone who can do a
  * thing: who can be assigned a pathway (WorkPathways), or the person a "Stage unlocked" monitoring rule follows
- * (OverrideStages). Open to anyone signed in, unlike the Users page's list.
+ * (UnlockStages). Open to anyone signed in, unlike the Users page's list.
  */
 export function staffWithPermissionQuery(permission: Permission) {
   return queryOptions({

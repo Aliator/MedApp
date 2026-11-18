@@ -86,7 +86,7 @@ function problemOf(error: unknown, action: 'save' | 'add' | 'delete' | 'switch')
 export function MonitoringPage() {
   const rules = useQuery(monitoringRulesQuery);
   const people = useQuery(monitoringPeopleQuery);
-  // Only holders of OverrideStages unlock stages, so "Stage unlocked" offers only them.
+  // Only holders of UnlockStages unlock stages, so "Stage unlocked" offers only them.
   const unlockers = useQuery(monitoringUnlockersQuery);
   const templates = useQuery(allTemplatesQuery);
   const stages = useQuery(stageDefinitionsQuery);
@@ -169,7 +169,7 @@ export function MonitoringPage() {
   // them), and a rule's own choice stays offered even when it's no longer in a list.
   const withChosen = (options: {value: string; label: string}[], id: string | null, label: string) =>
     id && !options.some((o) => sameId(o.value, id)) ? [...options, {value: id.toLowerCase(), label}] : options;
-  // Only holders of OverrideStages unlock stages, so "Stage unlocked" offers only them (the API refuses anyone else).
+  // Only holders of UnlockStages unlock stages, so "Stage unlocked" offers only them (the API refuses anyone else).
   const onlyUnlockers = form.event === 'StageUnlocked';
   const personOptions = withChosen(
     [

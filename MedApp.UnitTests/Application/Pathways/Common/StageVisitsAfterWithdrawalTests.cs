@@ -49,8 +49,8 @@ public sealed class StageVisitsAfterWithdrawalTests
         again.Should().BeFalse();
         finishedWithoutVisit.Should().BeTrue();
         message.Should().Be(
-            $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, an admin can unlock it, and then book one. " +
-            "The pathway's assignees and the admins are told.");
+            $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, someone who can unlock stages can unlock it, and then book one. " +
+            "The pathway's assignees and those who can finish a stage without its visit are told.");
     }
 
     [Test]
@@ -60,7 +60,7 @@ public sealed class StageVisitsAfterWithdrawalTests
         stage.IsCompleted = true;
 
         StageVisits.AfterVisitWithdrawn(pathway, stage, [withdrawn]).Should().Be((false,
-            $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, an admin can unlock it, and then book one.",
+            $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, someone who can unlock stages can unlock it, and then book one.",
             false));
     }
 

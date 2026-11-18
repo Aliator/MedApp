@@ -9,5 +9,6 @@ public sealed record CreatePatientPathwayStageDefinitionCommand(
     string Instructions,
     string? SnomedCode = null,
     string? SnomedTerm = null,
-    string VisitRequirement = "None")
+    string VisitRequirement = "None",
+    string? NeedsLetterKind = null)
     : IRequest<PatientPathwayStageDefinitionResponse>;

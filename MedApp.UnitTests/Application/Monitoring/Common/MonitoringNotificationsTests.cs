@@ -50,6 +50,7 @@ public sealed class MonitoringNotificationsTests
     [TestCase(MonitoringEvent.PathwayAssigned, NotificationKind.MonitoredPathwayAssigned, "Staff assigned", "test.staff assigned themselves to a High priority Test template pathway.")]
     [TestCase(MonitoringEvent.StageUnlocked, NotificationKind.MonitoredStageUnlocked, "Stage unlocked", "test.staff unlocked a stage on a High priority Test template pathway.")]
     [TestCase(MonitoringEvent.DueDateChanged, NotificationKind.MonitoredDueDateChanged, "Target date changed", "test.staff changed the target date of a High priority Test template pathway.")]
+    [TestCase(MonitoringEvent.StageFinishedWithoutVisit, NotificationKind.MonitoredStageFinishedWithoutVisit, "Stage finished without visit", "test.staff finished a stage on a High priority Test template pathway without its required visit.")]
     public void Create_EachEvent_HasItsKindAFixedTitleAndAPlainMessage(MonitoringEvent monitoringEvent, NotificationKind kind, string title, string message)
     {
         var notification = MonitoringNotifications.Create(OwnerId, ByStaff(monitoringEvent), _pathway, Now);

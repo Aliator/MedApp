@@ -38,6 +38,7 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
                             || k == NotificationKind.StageVisitWithdrawn
+                            || k.ToString().StartsWith("Letter")
                             || k == NotificationKind.ReferralTriaged
                             || k == NotificationKind.ClinicSessionCancelled
                             || k == NotificationKind.ScheduledJobFailing));
@@ -51,6 +52,8 @@ public sealed class NotificationPreferencesTests
         Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingDeclined).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MonitoredPathwayCreated).Should().BeTrue();
+        Notification.IsMonitoring(NotificationKind.MonitoredStageFinishedWithoutVisit).Should().BeTrue();
+        Notification.HasFixedTitle(NotificationKind.MonitoredStageFinishedWithoutVisit).Should().BeTrue();
         Notification.IsMonitoring(NotificationKind.NoteDeletionRequested).Should().BeFalse();
     }
 

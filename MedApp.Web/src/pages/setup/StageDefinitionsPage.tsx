@@ -20,7 +20,9 @@ import {
   type StageDefinitionInput,
   type VisitRequirement,
 } from '../../api/pathwaySetup';
+import {LETTER_KINDS, letterKindWords} from '../../api/letters';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
@@ -43,7 +45,21 @@ type DialogState =
   | {kind: 'archive' | 'delete'; definition: StageDefinition}
   | null;
 
-const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: '', snomedCode: '', snomedTerm: '', visitRequirement: 'None'};
+const EMPTY: StageDefinitionInput = {
+  name: '',
+  description: '',
+  instructions: '',
+  snomedCode: '',
+  snomedTerm: '',
+  visitRequirement: 'None',
+  needsLetterKind: 'None',
+};
+
+/** The "Needs a letter" choices: none, or a kind of letter (decision 105). */
+const LETTER_CHOICES = [
+  {value: 'None', label: 'None'},
+  ...LETTER_KINDS.map((kind) => ({value: kind, label: letterKindWords(kind)})),
+];
 
 /** The Visit choices, each saying what it means for staff finishing the stage (decisions 22 to 25). */
 const VISIT_CHOICES: {value: VisitRequirement; label: string; description: string}[] = [
@@ -101,6 +117,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             snomedCode: definition.snomedCode ?? '',
             snomedTerm: definition.snomedTerm ?? '',
             visitRequirement: visitRequirementOf(definition),
+            needsLetterKind: definition.needsLetterKind || 'None',
           }
         : EMPTY,
     );
@@ -278,6 +295,14 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                   <RadioListItem key={choice.value} value={choice.value} label={choice.label} description={choice.description} />
                 ))}
               </RadioList>
+              <AnchoredSelector
+                label="Needs a letter"
+                description="A kind of letter that must be approved and sent to every recipient before the stage can be finished, such as a discharge summary to the GP."
+                options={LETTER_CHOICES}
+                value={form.needsLetterKind}
+                onChange={(value: string) => setForm((current) => ({...current, needsLetterKind: value}))}
+                status={fieldStatus(problem.validation, 'needsLetterKind')}
+              />
             </VStack>
           </ConfirmDialog>
 

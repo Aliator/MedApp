@@ -64,6 +64,8 @@ public static class ServiceExtensions
         services.AddOptions<RetentionOptions>();
         // Which email domains a practice's secure address may be in (the host binds it, the Letters section).
         services.AddOptions<LettersOptions>();
+        // What letters' handlers share: loading a letter with its record, its merge fields, recipients and response.
+        services.AddScoped<MedApp.Application.Letters.Common.LetterRecords>();
         // How long a notepad is kept without a change (the host binds it, the Notepad section).
         services.AddOptions<NotepadOptions>();
 

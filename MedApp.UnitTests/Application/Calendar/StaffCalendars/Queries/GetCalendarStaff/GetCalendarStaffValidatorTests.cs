@@ -10,7 +10,8 @@ public sealed class GetCalendarStaffValidatorTests
 
     [TestCase(null)]
     [TestCase("WorkPathways")]
-    [TestCase("OverrideStages")]
+    [TestCase("UnlockStages")]
+    [TestCase("FinishWithoutVisit")]
     public void Validate_NoneOrAPermissionsName_IsValid(string? permission) =>
         _validator.Validate(new GetCalendarStaffQuery(permission)).IsValid.Should().BeTrue();
 

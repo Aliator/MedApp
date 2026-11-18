@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`); H-51's controls built with branching pathways (`feature/branching-pathways`); H-53 to H-55 updated for patient reminders and the Did not attend view built, and H-30, H-36 and H-52 for what they add (`feature/patient-reminders`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`); H-51's controls built with branching pathways (`feature/branching-pathways`); H-53 to H-55 updated for patient reminders and the Did not attend view built, and H-30, H-36 and H-52 for what they add (`feature/patient-reminders`); H-29, H-32 and H-51 updated for the stage overrides split and the bypass monitored (`feature/stage-permissions`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -81,9 +81,9 @@
 | [H-45](#h-45-a-specimen-is-lost-or-its-report-never-comes-back) | A specimen is lost, or its report never comes back | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 13; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-46](#h-46-a-result-is-never-seen-or-acted-on) | A result is never seen or acted on | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-47](#h-47-a-report-is-attached-to-the-wrong-patient-or-specimen) | A report is attached to the wrong patient or specimen | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 13 and 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16: built) | Open, draft for the CSO |
+| [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16: built) | Open, draft for the CSO |
+| [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16: built) | Open, draft for the CSO |
 | [H-51](#h-51-a-branch-is-chosen-or-a-stage-skipped-in-error) | A branch is chosen, or a stage skipped, in error | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built** (PR 20, `feature/branching-pathways`: the confirmation, none pre-selected, reasons, reinstating, the audit, the template checks) | Open, draft for the CSO |
 | [H-52](#h-52-a-patient-is-booked-when-nobody-or-no-room-is-available-or-a-cancelled-clinics-patients-arent-told) | A patient is booked when nobody, or no room, is available, or a cancelled clinic's patients aren't told | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 21 to 23 and 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-53](#h-53-a-reminder-reaches-the-wrong-person-or-says-too-much) | A reminder reaches the wrong person or says too much | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, with the feature (PR 26; built, to verify) | Open, draft for the CSO |
@@ -1145,7 +1145,7 @@ Each removes the pathway from the open lists, where it would otherwise be seen.
 **Causes:**
 - **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`PathwayMonitor`).
 - **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
-- **Only eight actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires.
+- **Only nine actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires. Since PR 24 (decision 136 of `docs/centre-phases-3-5-plan.md`) a Required stage finished without its visit is one (`StageFinishedWithoutVisit`), but skipping a Required stage, which needs the same permission, isn't (`docs/todo.md`): a rule for it doesn't see every stage left without its visit, and the stages finished without a visit stay H-32's report, not this rule.
 - **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
 
 **Effect.** A blocked, cancelled or re-dated Urgent pathway isn't followed up by the person who expected to hear of it.
@@ -1265,7 +1265,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Description.** A stage whose definition says it involves a visit is finished although the patient wasn't seen: a required visit is bypassed in error, or a suggested one is skipped when it was needed.
 
 **Causes:**
-- **The admin bypass** (decision 24) is used without checking, or because an admin was asked to "just finish it".
+- **The bypass** (decision 24) is used without checking, or because someone who holds it was asked to "just finish it". Since PR 24 it's `FinishWithoutVisit` (Clinician and Senior clinician to start with), not the built-in Admin role (decision 138 of `docs/centre-phases-3-5-plan.md`).
 - **The suggested-visit confirmation** (decision 25) is clicked through. Confirmations people see often stop being read (H-06).
 - **An appointment is marked Attended in error:** the wrong appointment, the wrong patient (H-34), or a correction from Did not attend made wrongly. Attended satisfies the rule.
 - **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each pathway when it's created (decision 22), so a correction doesn't reach pathways already under way (as H-14).
@@ -1279,8 +1279,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Existing controls** (in the design):
 - **Required is enforced on the server,** not just the screen (`PathwayWorkflow.WhyStageNeedsVisit`): staff get a 409 that says to book the visit and mark it Attended (decision 24).
-- **Only admins can bypass it,** after a confirmation dialog that asks for a reason (decision 24).
-- **Every finish without a visit is recorded:** the `StageFinished` audit entry records `withoutVisit`, the requirement and, for an admin bypass, the reason (decisions 24 and 25). The patient's timeline shows that a stage was finished without a visit (to admins, with the reason; decision 27).
+- **Only holders of `FinishWithoutVisit` can bypass it** (Clinician and Senior clinician to start with; since PR 24, not the built-in Admin role: decision 138 of `docs/centre-phases-3-5-plan.md`), after a confirmation dialog that asks for a reason (decision 24). An organisation can keep it to its senior clinicians by taking it off Clinician (the release note says so; the demo does).
+- **Every finish without a visit is recorded:** the `StageFinished` audit entry records `withoutVisit`, the requirement and, for the bypass, the reason (decisions 24 and 25). An admin can be told of each bypass as it happens with a monitoring rule (`StageFinishedWithoutVisit`, PR 24), a convenience, never the control (H-29). The patient's timeline shows that a stage was finished without a visit (to admins, with the reason; decision 27).
 - **Attended can only be recorded once the appointment's start has passed** (decision 16).
 - **Existing stages and definitions are None** (decision 22), so nothing changes for pathways that were under way before.
 - **Transferred:** template governance (H-13) covers which stages need a visit.
@@ -1555,7 +1555,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The restriction guard** applies as for any appointment change: a restricted or anonymised record can't gain one (409). Protective; **built**.
 - **The outcome can be corrected** (Attended to Did not attend and back) as for any appointment. Corrective; **built**.
 - **A wrong walk-in can be withdrawn as entered in error** (it didn't happen, or it's on the wrong patient), with a reason, by whoever recorded it within 30 days of it, or by an admin at any time: it leaves the calendar, stops counting as a stage's visit, and stays in the history with the reason (admins see it); if it was a stage's visit, the stage's visit goes back to Requires Appointment when the stage would ask for one (not on a restricted record, which can't gain appointments), or the person is told why not. Corrective; **built** (after the review of #119; admins at any time after its follow-up review).
-- **A finished stage left without its visit is told to the people who can act on it:** when the walk-in withdrawn was the only attended visit of a finished stage that requires one, the pathway's assignees and every admin (not whoever withdrew it) get a "Stage visit withdrawn" notification linked to the pathway, saying which stage and that an admin can unlock it and book the visit, as finishing it again after an unlock doesn't ask for the visit. Without it, only the person withdrawing it was told, in a dialog they could close. Detective; **built** (after the follow-up review of #119). It relies on someone reading the notification: it doesn't mark the stage on the pathway page, which is a further control to consider.
+- **A finished stage left without its visit is told to the people who can act on it:** when the walk-in withdrawn was the only attended visit of a finished stage that requires one, the pathway's assignees and every holder of `FinishWithoutVisit` (every admin until PR 24; not whoever withdrew it) get a "Stage visit withdrawn" notification linked to the pathway, saying which stage and that someone who can unlock stages can unlock it and book the visit, as finishing it again after an unlock doesn't ask for the visit. Without it, only the person withdrawing it was told, in a dialog they could close. Detective; **built** (after the follow-up review of #119). It relies on someone reading the notification: it doesn't mark the stage on the pathway page, which is a further control to consider.
 - **The visit's own notes are kept** when a walk-in takes over a stage's waiting visit; the walk-in's notes are added after them, and the dialog shows them first. Protective; **built**.
 - **Transferred:** positive patient identification, and recording visits as they happen.
 
@@ -1903,7 +1903,12 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Follow-up the letter asks of the GP doesn't happen; a breach of confidentiality. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 16; the planned ones below, in place):
+- Recipients with their addresses on the letter's page, and again in the approval confirmation (with the patient banner) and the secure email confirmation (naming the address): the web app's Letter page.
+- The practice from the directory (`LetterRecords.RecipientsAsync`), a new letter starting with the patient's registered practice and the patient (`CreateLetterHandler.StartingRecipients`).
+- Names and addresses copied from the record again at approval (`LetterRecords.RefreshRecipientsAsync`); a recipient with no address, or a practice gone from the directory, stops approval.
+- Secure email only to an allowed domain, through a declared relay, never to a patient (`LetterWorkflow.WhyNoSecureEmail`).
+- Withdraw (approver or `CorrectRecords`, with a reason) and Write a correction (`WithdrawLetterHandler`, `WriteLetterCorrectionHandler`); the PDF stays on file.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
@@ -1938,7 +1943,11 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A delayed treatment or follow-up. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 16; the planned ones below, in place):
+- The To send view and the side navigation's count (`LetterSearch`, `GET api/letters/count`); Awaiting my approval and Returned to me views; the approver told when a letter is submitted, the author when it's approved or returned (`LetterNotifications`).
+- The `NeedsLetterKind` gate on a stage definition, copied onto the pathway's stage (`StageGates.WhyLetterMissing`, `FinishPathwayStageHandler`).
+- Secure email sent synchronously, marked Sent only when the relay accepts it; a refusal recorded as Failed and shown at once (`SendLetterHandler`).
+- A restricted record's letters refused with a message to ask an admin (`LetterWorkflow.RestrictedMessage`).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
@@ -1972,7 +1981,10 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Treatment changed for the wrong patient, or on wrong advice; a breach of confidentiality. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PRs 15 and 16; the planned ones below, in place):
+- Merge fields from the letter's own patient and record only (`LetterRecords.MergeValuesAsync`); approval refused naming any field without a value (`LetterRendering.MissingMessage`), and refused for characters the font can't print.
+- The patient's identifiers and "Page n of m" on every page (`PdfSharpLetterRenderer`); previews marked "Draft, not approved" on every page (`PreviewLetterHandler`).
+- Approval freezes the letter; only its approved PDF is sent by secure email, and that PDF can't be deleted on its own (`DeleteAttachmentHandler`).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
@@ -2005,7 +2017,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A missed or unnecessary treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** built with the feature (PR 20, branch `feature/branching-pathways`), as listed below. Reinstating needs `OverrideStages` until PR 24 splits it into `UnlockStages` and `FinishWithoutVisit`.
+**Existing controls:** built with the feature (PR 20, branch `feature/branching-pathways`), as listed below. Since PR 24, reinstating needs `UnlockStages`, and skipping a Required-visit stage `FinishWithoutVisit` (both halves of the old `OverrideStages`).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
@@ -2015,7 +2027,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 - **Reinstating:** a holder of `UnlockStages` reinstates a skipped stage with a reason; a branch is re-chosen by reinstating its stages (decision 115). Corrective.
 - **The audit:** `StageSkipped`, `BranchChosen` (the branch and the skipped stage IDs) and `StageReinstated`, on the timeline; skipped stages shown struck through with the reason. Detective.
 - **Template checks:** every branch point has at least two branches, and the last stage is never optional or in a branch (decision 117); a branch point is itself never optional or in a branch. Design.
-- **A stage whose visit is Required** can be skipped only by a holder of `OverrideStages`, with a detail, as finishing it without its visit needs (`PathwayWorkflow.SkipNeedsOverride`); the audit records the requirement. A branch not chosen still skips such a stage, as the clinician chose the other branch. Protective.
+- **A stage whose visit is Required** can be skipped only by a holder of `FinishWithoutVisit`, with a detail, as finishing it without its visit needs (`PathwayWorkflow.SkipNeedsOverride`); the audit records the requirement. A branch not chosen still skips such a stage, as the clinician chose the other branch. Protective.
 - **No branch assumed:** finishing a branch point without a branch is refused (400), and a branch can't be given again when it's finished after an unlock. Design.
 - **Transferred:** clinical sign-off of each template's branches and optional stages.
 
@@ -2491,3 +2503,4 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 | 0.19 | 18 November 2026 | Referrals built (branch `feature/referrals`, Phase 2's PR 5): H-40's built controls (the inbox, oldest received first, with its count in the side navigation; no closing without a named person's action and a detail; the restricted and anonymised messages telling staff to give the letter to an admin; archiving a specialty refused while referrals await triage; correcting the specialty by editing), and a note that referrals mustn't be used with patients before triage is built; H-41's (the patient banner on the referral pages and the closing confirmations, the letter beside the referral or "No letter attached yet.", two changes at once refused); H-44's (the duplicate check and its confirmation, entered in error, the patient's Referrals card); H-01's cause marked built. Still planned: triage, its confirmations and the `Duplicate` rejection reason (PR 6), the Specialties page's warning when nobody can triage (PR 6), the clock's days waited and breach badge (PR 7), and the DCB0160 duties. No draft estimate changed | AI coding agent, for review |
 | 0.20 | 18 November 2026 | Triage built (branch `feature/triage`, Phase 2's PR 6): H-40's controls now include triage with the registrant told of every outcome (`ReferralTriaged`), the Specialties page's warning when no member can triage a specialty, and the referral page saying why someone can't triage; "nobody can triage yet" removed. H-41's planned triage controls are built (the banner, specialty and template in every confirmation; only the specialty's templates, refused otherwise; nothing prefilled; the permission and membership checked on the server; who decided recorded, with the pathway's Created entry naming the referral; two decisions at once refused, the second told who; the patient's other referrals beside the decision). H-44's Duplicate rejection reason is built. No draft estimate changed | AI coding agent, for review |
 | 0.21 | 18 November 2026 | Patient reminders and the Did not attend view built (branch `feature/patient-reminders`, Phase 4's PR 26): H-53's, H-54's and H-55's planned controls recorded as existing ones, with their code names, for the CSO to verify (fixed wording with no clinical words, the patient's chosen channels, each message checked again just before sending to the contact then on the record, the stored copy and its delivery status, "No reminder" shown, retries then a visible failure, the job runner's watch; the Did not attend view, which keeps Rebook and Clinician to review listed until a later appointment exists, the recorded follow-up, and no automatic discharge); new causes (a sender or site name that names the service; the view seen only by those who open it), and H-55's "follow-up recorded but not done" now names Rebook and Clinician to review; H-30 and H-36 gain the reminders and "Tell the patient" as built controls, and H-36's cause "MedApp doesn't contact patients" now says it does only when turned on; H-52's cancelled session can text or email its patients. No draft estimate changed | AI coding agent, for review |
+| 0.22 | 18 November 2026 | Letters built (PR 16): H-48 to H-50 list their existing controls; the risk estimates stay drafts for the CSO | AI coding agent, for the CSO |

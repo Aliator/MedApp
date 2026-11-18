@@ -31,6 +31,8 @@ public sealed class UpdatePatientPathwayStageDefinitionHandler(IPatientPathwaySt
             (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
         if (request.VisitRequirement is not null)
             definition.VisitRequirement = PathwayEnums.Parse<VisitRequirement>(request.VisitRequirement);
+        if (request.NeedsLetterKind is not null)
+            definition.NeedsLetterKind = StageLetterKinds.Parse(request.NeedsLetterKind);
 
         await repository.UpdateStageDefinitionAsync(definition, cancellationToken);
 

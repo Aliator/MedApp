@@ -21,7 +21,7 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
    It builds the seeder, checks the database is a local one, applies any pending migrations, saves a `pre-reset-<timestamp>` snapshot, then **wipes the data** and replays the centre's history. It takes about a minute. Without `--confirm` it changes nothing.
 3. **Keep its summary** (`--out` writes it to a file; without it, it's printed). It holds:
    - the generated passwords (`accounts`), and the two-factor account's key and recovery codes (`twoFactor`)
-   - `tour`: the records named in this page (blocked pathways, the unlocked stage, the diary, and in `tour.calendar` the meetings, the team view's day and the personal templates), which depend on the day it runs
+   - `tour`: the records named in this page (blocked pathways, the unlocked stage, the diary, in `tour.calendar` the meetings, the team view's day and the personal templates, and in `tour.referrals` the inbox, triage outcomes and waiting-time clocks), which depend on the day it runs
    - `privacy`: the restricted, disputed, kept and due records
    - `today`: who signed in today, and the locked account
    - the counts
@@ -47,7 +47,7 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
 
 ## The centre
 
-A referral-led outpatient centre: GPs refer, a clinician triages, the patient is seen in clinic, and anything taken (a biopsy, bloods) goes to the centre's own lab. Results come back to a team meeting, then to the patient, and a discharge letter goes to the GP. Two consultants visit from the hospital for part of each week.
+A referral-led outpatient centre: GPs refer, the booking coordinator registers the referral, a clinician of its specialty triages it (accepting it into a pathway, rejecting it, or redirecting it), the patient is seen in clinic, and anything taken (a biopsy, bloods) goes to the centre's own lab. Results come back to a team meeting, then to the patient, and a discharge letter goes to the GP. Two consultants visit from the hospital for part of each week.
 
 ### The people
 
@@ -63,7 +63,7 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 | **A biomedical scientist** | `r.aldous` | The lab: works the Histology (lab) and Lab tests (lab) stages; no appointments |
 | **A podiatrist** | `s.winterburn` | Biomechanics courses; had a password reset three weeks ago |
 | **A pharmacist** | `d.quince` | Medicines reviews |
-| **The booking coordinator** | `h.marsh` | Records referrals, and makes most bookings |
+| **The booking coordinator** | `h.marsh` | Registers every referral (and is told of each triage decision), and makes most bookings |
 | **A healthcare assistant** | `c.dunmore` | Takes bloods and samples. Locked out after wrong passwords; no email address |
 | **A new starter** | `e.rowntree` | Must change the generated password at first sign-in; email not confirmed yet |
 | **A leaver** | `g.harrow` (deleted) | A GP with a special interest in skin who left 16 weeks ago. Appears only on closed pathways, as "Deleted user" |
@@ -76,35 +76,48 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 
 ### Specialties
 
-Five, as the centre's services, added by the clinical lead before it opened (Administration, then Specialties): **Dermatology** (the three skin templates, the archived one too), **Gynaecology**, **Urology**, **Diabetes** and **Biomechanics**. General, which every database starts with, is there too, with nothing in it.
+Five, as the centre's services, added by the clinical lead before it opened (Administration, then Specialties): **Dermatology** (the three skin templates, the archived one too), **Gynaecology**, **Urology**, **Diabetes** and **Biomechanics**. A sixth, **Respiratory**, is a new service the lead added about three weeks ago: its clinician hasn't started, so it has no templates and no members, and **nobody can triage its referrals** (the Specialties page warns, and its three referrals wait in the inbox). General, which every database starts with, is there too, with nothing in it.
 
-**Who belongs to which** (Users, then a person's Specialties; your own in Account Settings): `n.thornbury`, `t.hallworth` and `b.sandiford` Dermatology; `f.linton` Gynaecology; `o.penhale` Urology; `m.carrow` Diabetes; `s.winterburn` Biomechanics; `d.quince` Dermatology, Urology and Diabetes; `admin` every one. The manager, the booking coordinator, the lab and the healthcare assistant are in none. Each change is in the activity log (`StaffSpecialtiesChanged`).
+**Waiting-time targets** (days, by priority: the centre's own, not national rules):
+
+| Specialty | Urgent | High | Medium | Low |
+|---|---|---|---|---|
+| Dermatology | 14 | 28 | 126 | 126 |
+| Gynaecology | 14 | 28 | 63 | 126 |
+| Urology | 28 | 56 | 63 | 126 |
+| Diabetes | 14 | 42 | 84 | 126 |
+| Biomechanics | 14 | 28 | 84 | 84 |
+| Respiratory (new) | 14 | 28 | 126 | 126 (the app's defaults) |
+
+**Who belongs to which** (Users, then a person's Specialties; your own in Account Settings): `n.thornbury`, `t.hallworth` and `b.sandiford` Dermatology; `f.linton` Gynaecology; `o.penhale` Urology; `m.carrow` Diabetes; `s.winterburn` Biomechanics; `d.quince` Dermatology, Urology and Diabetes; `admin` the five original ones (not Respiratory). The manager, the booking coordinator, the lab and the healthcare assistant are in none. Each change is in the activity log (`StaffSpecialtiesChanged`).
+
+**Who triages** (the `TriageReferrals` permission, from Clinician or Visiting consultant, and membership of the specialty): `n.thornbury`, `t.hallworth` and `d.quince` Dermatology; `f.linton` Gynaecology; `o.penhale` and `d.quince` Urology; `admin` (mostly) and `d.quince` Diabetes, whose nurse specialist's role (Nurse) doesn't triage; `s.winterburn` Biomechanics; and `admin` any of the five. Usually the clinician who then leads the pathway. (Running `medapp-dev`'s `ensure_test_admin` afterwards adds `admin` to every specialty, Respiratory too, which ends that warning.)
 
 ### The pathway templates
 
-Seven, one archived. Each is an ordered list of stages from the stage library.
+Seven, one archived. Each is an ordered list of stages from the stage library, with one **clock-stop stage** (in bold): finishing it stops the waiting-time clock of a referral accepted into the pathway (the template editor's "The waiting-time clock stops when this stage is finished"). Referrals are records of their own now, so the "Referral received" and "Triage" stages have gone from every template (decision 26).
 
 | Pathway template | Stages | Led by |
 |---|---|---|
-| **Skin lesion pathway** | Referral received, Triage, First clinic visit, Biopsy or sample, Histology (lab), Results and team review, Treatment, Follow-up, Discharge letter to GP | `n.thornbury` or `t.hallworth` |
-| **Skin lesion pathway (2024)** (archived) | Referral received, First clinic visit, Biopsy or sample, Histology (lab), Follow-up | The same two, and the leaver |
-| **Inflammatory skin review** | Referral received, Triage, First clinic visit, Medicines review, Follow-up, Discharge letter to GP | `t.hallworth` mostly |
-| **Post-menopausal bleeding pathway** | Referral received, Triage, First clinic visit, Biopsy or sample, Histology (lab), Results and team review, Discharge letter to GP | `f.linton` |
-| **Prostate assessment** | Referral received, Triage, Blood and urine tests, Lab tests (lab), First clinic visit, Results and team review, Follow-up, Discharge letter to GP | `o.penhale` |
-| **Diabetes review** | Referral received, Blood and urine tests, Lab tests (lab), Clinic review, Medicines review, Follow-up, Discharge letter to GP | `m.carrow` or `admin` |
-| **Biomechanics course** | Referral received, First clinic visit, Biomechanics session (three times), Discharge letter to GP | `s.winterburn` |
+| **Skin lesion pathway** | **First clinic visit**, Biopsy or sample, Histology (lab), Results and team review, Treatment, Follow-up, Discharge letter to GP | `n.thornbury` or `t.hallworth` |
+| **Skin lesion pathway (2024)** (archived) | **First clinic visit**, Biopsy or sample, Histology (lab), Follow-up | The same two, and the leaver |
+| **Inflammatory skin review** | **First clinic visit**, Medicines review, Follow-up, Discharge letter to GP | `t.hallworth` mostly |
+| **Post-menopausal bleeding pathway** | **First clinic visit**, Biopsy or sample, Histology (lab), Results and team review, Discharge letter to GP | `f.linton` |
+| **Prostate assessment** | Blood and urine tests, Lab tests (lab), **First clinic visit**, Results and team review, Follow-up, Discharge letter to GP | `o.penhale` |
+| **Diabetes review** | Blood and urine tests, Lab tests (lab), **Clinic review**, Medicines review, Follow-up, Discharge letter to GP | `m.carrow` or `admin` |
+| **Biomechanics course** | **First clinic visit**, Biomechanics session (three times), Discharge letter to GP | `s.winterburn` |
 
-**Who works each stage:** the booking coordinator records the referral; the lead clinician triages, sees the patient and writes the letter; the healthcare assistant (or `b.sandiford`) takes bloods and samples; `r.aldous` does the lab's stages; `d.quince` the medicines reviews; a nurse specialist the follow-up on the skin lesion and diabetes pathways.
+**Who works each stage:** the lead clinician sees the patient and writes the letter; the healthcare assistant (or `b.sandiford`) takes bloods and samples; `r.aldous` does the lab's stages; `d.quince` the medicines reviews; a nurse specialist the follow-up on the skin lesion and diabetes pathways. Before any of that, the booking coordinator registers the referral and a clinician of its specialty (usually the lead) accepts it, which creates the pathway.
 
 ### The stage library
 
-Fourteen stage definitions in use, and a retired one ("Paper triage form (retired)", archived).
+Twelve stage definitions in use, and three retired (archived): "Referral received" and "Triage", which referrals replaced, and the much older "Paper triage form (retired)".
 
 | Visit | Stages |
 |---|---|
 | **Required** (the patient must be seen) | First clinic visit, Biopsy or sample, Treatment, Blood and urine tests, Clinic review, Biomechanics session |
 | **Suggested** (a phone call often does) | Results and team review, Medicines review, Follow-up |
-| **None** (the lab's work, and letters) | Referral received, Triage, Histology (lab), Lab tests (lab), Discharge letter to GP |
+| **None** (the lab's work, and letters) | Histology (lab), Lab tests (lab), Discharge letter to GP (and the retired Referral received and Triage) |
 
 **SNOMED CT codes** are on Referral received, Triage, First clinic visit, Biopsy or sample, Follow-up, Discharge letter to GP, Lab tests (lab) and Medicines review: the concepts certain enough to use. The others are blank, so both states show.
 
@@ -113,12 +126,13 @@ Fourteen stage definitions in use, and a retired one ("Paper triage form (retire
 ### Home and My Worklist (as `admin`)
 
 - **Assigned work:** the lead leads about four in ten diabetes reviews.
-- **Notifications:** a dozen or so unread from the last few days: assignments by the service manager, bookings made by the coordinator, monitoring alerts, and meetings the service manager arranged, moved or cancelled.
+- **Notifications:** a dozen or so unread from the last few days: assignments by the service manager, bookings made by the coordinator, monitoring alerts (a clock pausing moves a target date, which a rule watches), and meetings the service manager arranged, moved or cancelled.
 - **The side nav's pins:** two patients and one pathway record, from the lead's saved settings.
 
 ### The pathways list
 
-- **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments", "Blocked" and "Waiting for histology". `h.marsh` has "Skin lesions in progress" and "Urgent bleeding referrals"; `n.thornbury` has "My overdue".
+- **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments", "Blocked", "Waiting for histology" and "Breached waits" (Breached only). `h.marsh` has "Skin lesions in progress", "Urgent bleeding referrals" and "Breached urology waits" (Breached, with the Urology specialty); `n.thornbury` has "My overdue".
+- **The Wait column** ("Day 84 of 126", Breached, Paused) shows on every pathway from a referral; sort by it for the longest waits. Pathways made without a referral (`tour.referrals.clocks.createdWithoutAReferral`: diabetes recalls and biomechanics courses asked for in clinic) have no clock and a target date set by hand.
 - **Waiting for histology** is the **Stage reached** filter on Histology (lab): every open record whose current stage is the lab's, on both skin lesion pathways and the post-menopausal bleeding pathway alike, on hold ones included. Add **Specialty** to narrow it to Dermatology.
 - **Overdue work** comes from the slow parts, not at random: the waits for the visiting consultants' clinics (urgent post-menopausal bleeding referrals, due in three weeks, and prostate assessments), and skin lesions waiting for histology and treatment.
 - **Every status shows:** Unassigned and Assigned (the newest), In progress, Awaiting review, On hold, Discharged, Cancelled and Archived.
@@ -132,7 +146,7 @@ Open the ones named in the summary's `tour`:
 - **`finishedWithoutItsVisit`:** the two admin bypasses: a Required "Blood and urine tests" stage finished without a visit, because the samples were taken elsewhere, with the reason in the audit.
 - **`cancelledWithItsBookingCancelled`:** cancelled after its visit was booked; the coordinator then cancelled the booking by hand ("Pathway cancelled; patient informed by phone").
 - **`reassigned`:** a skin lesion that changed hands part-way: one skin clinician assigned, the other taken off.
-- **`dueDateOrPriorityChanged`:** target dates moved once the visiting clinic's date was known, or a bleeding referral raised to Urgent at triage by the clinician who read it.
+- **`dueDateChangedByHand`:** target dates moved by hand: on a pathway made without a referral, or once its clock has stopped (when the lead sets the target date for the rest of the pathway). While a clock runs or is paused, it sets the target date, and the Edit Pathway page shows it read-only.
 - **`visitNeverBooked`:** a visit asked for weeks ago and still in Requires Appointment.
 - **`oldPathwayStillFinishing`:** the archived skin lesion pathway's last three, whose histology took months.
 - **`missedAndRebooked`:** a visit the patient didn't attend, then a new one.
@@ -143,7 +157,8 @@ Open the ones named in the summary's `tour`:
 - **The audit log** has every change, by whoever made it.
 - **Each stage's visit** shows its appointment: requested by the app when the stage became current, booked (usually by `h.marsh`) with whoever is working on the stage, attended before the stage was finished.
 - **Suggested visits** (Results and team review, Medicines review, Follow-up) are often finished without one: the app's request is cancelled automatically, and the audit says "without visit".
-- **Notes on the record:** often a first note from whoever recorded the referral, and more added after stages; some edited by their authors.
+- **Notes on the record:** often a first note from the clinician who accepted the referral, and more added after stages; some edited by their authors.
+- **Referral and wait** (a card on every pathway from a referral): when it was received, the specialty, "Day N of target", Breached or Paused, **Pause clock** and **Resume clock**, and past pauses. Its target date shows "from the waiting-time clock" until the clock stops.
 
 ### A patient's page
 
@@ -153,12 +168,35 @@ Open the ones named in the summary's `tour`:
 - **Disputed:** two, with reasons; a banner only. The first was also exported for a subject access request.
 - **Children:** a few, on the inflammatory skin and biomechanics pathways only ("Children" saved search on the patients list). Most patients are older adults, as a centre like this sees: about half are 70 or over.
 - **Women only, or men only, where it matters:** the post-menopausal bleeding and prostate pathways take patients of 50 and over, with women's or men's first names.
-- **Registered, no pathways yet:** about 14 patients from the last four weeks.
+- **Referrals** (a card on the patient's page, with **Register referral**): every patient with a pathway from a referral has one; about 15 registered in the last four weeks have only a referral awaiting triage, and about 45 more only referrals that were rejected, redirected elsewhere, withdrawn or entered in error.
 - **Deleted pathways:** two, on the patients in `tour.deletedPathwaysOf`. Admins see them on the timeline, labelled deleted.
+
+### Referrals, triage and the waiting-time clock
+
+Every referral is registered by `h.marsh` from the letter, usually the day it arrived, and triaged by a clinician of its specialty: urgent ones within a day or so, routine ones within two weeks. About 700 in all over the 18 months; the summary's `counts.referrals` has the numbers and `tour.referrals` the records.
+
+- **The inbox** (Referrals, the side nav's count; as `admin`, or as a triager such as `n.thornbury`, who starts on their own specialties): about 20 awaiting triage now, in every specialty, longest wait first.
+  - **Past their target** (`tour.referrals.awaitingTriageBreached`): an urgent skin referral at 19 days (target 14), a high-priority bleeding one at 30 (target 28), and an urgent urology one at 31 (target 28): Breached, in red.
+  - **Nobody can triage** (`tour.referrals.nobodyCanTriage`): the new Respiratory service's three referrals. Open one: it says only members of Respiratory can triage it. Administration, Specialties warns about Respiratory.
+  - **Moved here** (`tour.referrals.redirectedHereAwaitingTriage`): registered under Gynaecology, moved to Dermatology by the gynaecologist three days ago (its history shows Specialty changed and the target re-read).
+  - **A confirmed duplicate** (`tour.referrals.duplicateAwaitingTriage`): registered yesterday on a patient with an open dermatology pathway. To see the warning, **Register referral** for that patient in Dermatology (`tour.referrals.registerAgainToSeeTheDuplicateWarning`): the form lists the open ones and asks to confirm.
+- **Triage** (as `n.thornbury`, on a dermatology referral in the inbox): the banner, the letter, "The referrer asked for: High" beside an empty priority, the specialty's templates by name; Accept, Reject or Redirect, each confirmed with the patient shown.
+- **Triaged before** (each a referral's page, with its history):
+  - **Accepted:** every pathway from a referral; `tour.referrals.acceptedAfterBeingRedirected` were moved first (bleeding referrals sent to urology, foot pain sent to diabetes), and `tour.referrals.raisedToUrgentAtTriage` were raised to Urgent by the clinician who read them.
+  - **Rejected** (about one in ten), one of each reason in `tour.referrals.rejected`; the duplicate (`tour.referrals.duplicateRejected`) was registered after its warning was confirmed, then rejected as a duplicate.
+  - **Redirected elsewhere** (`tour.referrals.redirectedElsewhere`), **withdrawn** (`tour.referrals.withdrawn`), and one **entered in error** (`tour.referrals.enteredInError`): registered on the wrong patient, marked within half an hour, then registered on the right one, whose pathway is under way.
+- **The coordinator's bell:** "Referral triaged" for each decision in the last 30 days ("n.thornbury accepted a Dermatology referral."), never naming the patient.
+- **Waiting-time clocks** (the Referrals page's views, and each pathway's Referral and wait card):
+  - **Waiting list** (accepted, clock running or paused), longest wait first. Every pathway's clock stops when its clock-stop stage (usually the first clinic visit) is finished.
+  - **Paused clocks** (`tour.referrals.clocks.paused`): about ten, each paused when the patient asked to wait (chose to wait, unavailable, or another reason with a detail), with a review date as the pathway's target date. One (`tour.referrals.clocks.pauseReviewOverdue`) is past its review date, so it's flagged and its pathway shows Overdue (hazard H-42).
+  - **Resumed** (`tour.referrals.clocks.resumed`): paused for some weeks, then resumed; the days paused moved the target on.
+  - **Breached** (`tour.referrals.clocks.breachedOpen`, open; `tour.referrals.clocks.breachedStopped`, stopped late): mostly urology, where the visiting consultant's clinic is the slowest to reach, and now and then an urgent skin or bleeding referral.
+- **Saved searches on the Referrals page:** `admin` has "Longest waits" (the waiting list, whose order is the longest wait first) and "Paused clocks"; `h.marsh` has "Paused clocks" and "Closed referrals"; `n.thornbury` has "Dermatology inbox".
+- **On the patient's timeline:** Referrals and Waiting time entries (registered, triaged, paused, resumed, stopped, target changed); staff never see the reason, the details or the referrer.
 
 ### Files
 
-On about 40 records: referral letters on patients; histology reports, blood and urine results, clinic letters and discharge letters on pathway records; a lesion's site map (the site its notes name) and a urine flow test's trace, both pictures with thumbnails; and a home programme and a phone note on stages under way. Each says it's synthetic. Two are deleted ("Show deleted", as an admin), and some have been downloaded (the audit and the access report show it).
+On about 60 records: referral letters on most referrals registered in the last two months (the rest show "no letter", as when a request is phoned in and the letter follows); histology reports, blood and urine results, clinic letters and discharge letters on pathway records; a lesion's site map (the site its notes name) and a urine flow test's trace, both pictures with thumbnails; and a home programme and a phone note on stages under way. Each says it's synthetic. Two are deleted ("Show deleted", as an admin): a second scan of a referral letter, by its uploader, and a letter on the wrong patient, by an admin. Some have been downloaded (the audit and the access report show it).
 
 ### The calendar
 
@@ -236,7 +274,7 @@ Each combination of period and template looks different. The **Specialty** choic
 - **The activity log** (60 days):
   - sign-ins and sign-outs on working days, some refused, and a few for names no account has
   - the locked account's run of wrong passwords
-  - patient and pathway views by the staff working on them, and lists and searches (filter names and counts, never the terms)
+  - patient and pathway views by the staff working on them, referral views (`ReferralViewed`) by whoever registered or triaged each, and lists and searches (the referral inbox each morning for the coordinator and the triagers; filter names and counts, never the terms)
   - two exports, the restrictions, disputes and anonymisation
   - the new starter's creation, the service manager made an admin, the password reset, two-factor turned on
   - file views and downloads, and the retention "keep" decisions
@@ -248,7 +286,11 @@ Six imported records are due: five adults last seen 9 to 12 years ago, and one c
 ## Choices made
 
 - **Seven templates:** the six pathways the centre runs, and one archived older template (the 2024 skin lesion pathway), kept because some of its records are still finishing.
-- **Size:** the weekly volumes decide it: about 660 pathway records, each going to someone already registered about two times in three (a patient with one is likelier to get another than one with three), with women only on one pathway and men only on another. With 14 waiting for a referral and 12 imported records, that's about 260 patients in all; it varies a little with the day it's run.
+- **Size:** the weekly volumes decide it: about 680 pathway records, each going to someone already registered about two times in three (a patient with one is likelier to get another than one with three), with women only on one pathway and men only on another. With about 20 referrals awaiting triage, the patients of referrals that weren't accepted (about half of them new), and 12 imported records, that's about 300 patients in all; it varies a little with the day it's run.
+- **Referrals:** every pathway from a template starts from a referral, but half the diabetes reviews (recalls the service sends itself) and half the biomechanics courses (asked for by a colleague in clinic), which are made directly, with no clock. The referral is registered before the patient's pathway exists, so a new patient is added minutes before their referral (decision 11). The accepting clinician is usually the pathway's lead; the pathway's target date is the clock's until it stops, then the lead's. Referrals that weren't accepted come at the pathways' own volumes (about one rejected for every ten accepted).
+- **Clock-stop stages** are where the patient is first seen (the first clinic visit, or the diabetes clinic review), so the wait ends with being seen. The skin lesion pathway's Treatment would have made nearly every urgent skin referral breach.
+- **Pauses** are asked for when an early stage is reached, by the lead (who holds Work pathways), as the app allows only after acceptance. No clock is paused before triage.
+- **Referrers** are invented practices and GPs (none is a real organisation in the NHS Organisation Data Service's directory), with no ODS codes and no link to the GP practice directory.
 - **History before the last 26 weeks** is at a fifth of the usual volume.
 - **The redesigned skin lesion pathway** launched 18 weeks ago and took six weeks to reach 8 a week (10 in summer); its 2024 predecessor ran at 5 to 6 a week until then. The old pathway's records were replayed until they all finished more than four weeks ago (but for three stragglers, made deliberately slow).
 - **The biomechanics service** started 20 weeks ago, when its podiatrist joined.

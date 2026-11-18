@@ -114,7 +114,7 @@ describe('StageWork', () => {
     expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
 
-  it('lets a holder of OverrideStages unlock a finished, locked stage', async () => {
+  it('lets a holder of UnlockStages unlock a finished, locked stage', async () => {
     const {user, onUnlock} = renderWork({canEdit: false, canUnlock: true, state: 'Completed', isLocked: true}, true);
 
     await user.click(await screen.findByRole('button', {name: 'Unlock Stage'}));

@@ -37,5 +37,8 @@ public sealed class UpdatePatientPathwayStageDefinitionValidator : AbstractValid
             .Must(PathwayEnums.IsVisitRequirement)
             .When(x => x.VisitRequirement is not null)
             .WithMessage($"Visit requirement must be one of: {PathwayEnums.VisitRequirementNames}.");
+        RuleFor(x => x.NeedsLetterKind)
+            .Must(StageLetterKinds.IsValid)
+            .WithMessage(StageLetterKinds.Message);
     }
 }

@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
@@ -20,6 +21,7 @@ public sealed class GetPatientTimelineHandler(
     IPathwayAuditRepository auditRepository,
     IAppointmentRepository appointmentRepository,
     IReferralRepository referralRepository,
+    ILetterRepository letterRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
 {
@@ -68,7 +70,10 @@ public sealed class GetPatientTimelineHandler(
 
         // Admins see the text of the notes added and edited, from the note versions (the audit holds none).
         if (request.FullView)
+        {
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
+            page = await WithLettersAsync(page, cancellationToken);
+        }
 
         return new PatientTimelinePageResponse
         {
@@ -136,6 +141,33 @@ public sealed class GetPatientTimelineHandler(
                         PreviousNoteText = key.Version > 1 ? versions.GetValueOrDefault(key with { Version = key.Version - 1 }) : null
                     }
                 }
+                : e)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The page with each letter entry's letter, for its free text (admins only): the audit holds none. Only letters of
+    /// this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithLettersAsync(List<Entry> page, CancellationToken ct)
+    {
+        var ids = page
+            .Select(e => e.Audit is { } audit && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Letters
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "letterId")
+                : null)
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var letters = (await letterRepository.GetByIdsAsync(ids, ct)).ToDictionary(l => l.Id);
+        return page
+            .Select(e => e.Audit is { } audit
+                         && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Letters
+                         && TimelineMapper.GuidIn(audit.Entry.Details, "letterId") is { } id
+                         && letters.TryGetValue(id, out var letter) && letter.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Letter = letter } }
                 : e)
             .ToList();
     }

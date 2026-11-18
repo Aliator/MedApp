@@ -340,7 +340,8 @@ public static class DemoStaff
         await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
             new SetRoleArchivedCommand(locum.Id, true, locum.Version, lead.Id, lead.Username), ct)));
 
-        var visiting = StandardRoles.Clinician.Permissions.Where(p => p != Permission.OverrideStages).ToHashSet();
+        var visiting = StandardRoles.Clinician.Permissions
+            .Where(p => p is not (Permission.UnlockStages or Permission.FinishWithoutVisit)).ToHashSet();
         services.At(timeline.RolesRefinedUtc.AddMinutes(5), lead.ActivityActor);
         await FreshRoleAsync(services, lead, VisitingConsultantRole,
             "Consultants who visit for clinics: as Clinician, but they don't unlock stages or finish one without its visit.",

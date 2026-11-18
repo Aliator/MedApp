@@ -1,8 +1,8 @@
-﻿namespace MedApp.Domain.Notifications;
+namespace MedApp.Domain.Notifications;
 
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
-/// kinds; the monitoring kinds (one of an admin's rules matched) are 10 to 17, one for each <c>MonitoringEvent</c>;
+/// kinds; the monitoring kinds (one of an admin's rules matched) are 10 to 17 and 32 to 38, one for each <c>MonitoringEvent</c>;
 /// 18 to 21 are about deleting a pathway's note; 22 is a stage's visit withdrawn.
 /// </summary>
 public enum NotificationKind
@@ -60,7 +60,7 @@ public enum NotificationKind
     /// <summary>Monitoring: someone was assigned to a pathway.</summary>
     MonitoredPathwayAssigned = 15,
 
-    /// <summary>Monitoring: an admin unlocked a stage.</summary>
+    /// <summary>Monitoring: someone unlocked a stage.</summary>
     MonitoredStageUnlocked = 16,
 
     /// <summary>Monitoring: someone changed a pathway's target date.</summary>
@@ -80,8 +80,8 @@ public enum NotificationKind
 
     /// <summary>
     /// Someone marked a walk-in entered in error that was the only attended visit of a finished stage that requires
-    /// one, so the stage is finished without its visit. Sent to the pathway's assignees and the admins, never to
-    /// whoever withdrew it.
+    /// one, so the stage is finished without its visit. Sent to the pathway's assignees and the holders of
+    /// FinishWithoutVisit, never to whoever withdrew it.
     /// </summary>
     StageVisitWithdrawn = 22,
 
@@ -92,14 +92,32 @@ public enum NotificationKind
     ReferralTriaged = 23,
 
     /// <summary>
+    /// A letter was submitted to the user to approve (decision 102). A fixed title ("Letter to approve"); the author's
+    /// username and the letter's kind. Its <see cref="Notification.SubjectId"/> is the letter.
+    /// </summary>
+    LetterAwaitingApproval = 29,
+
+    /// <summary>Someone else approved the user's letter. A fixed title ("Letter approved"); the letter is the subject.</summary>
+    LetterApproved = 30,
+
+    /// <summary>The approver returned the user's letter with a comment (never in the notification). A fixed title ("Letter returned").</summary>
+    LetterReturned = 31,
+
+    /// <summary>
+    /// Monitoring: someone finished a stage whose visit is Required without its visit. 32 to 37 are kept for the
+    /// service alerts' monitoring kinds (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// </summary>
+    MonitoredStageFinishedWithoutVisit = 38,
+
+    /// <summary>
     /// Someone else cancelled a clinic session of yours (sent to its clinician, with its day in
     /// <see cref="Notification.CalendarDate"/>): its booked appointments were cancelled with it.
     /// </summary>
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 38 are
-    /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 28 and 32 to 38
+    /// are taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40
 }

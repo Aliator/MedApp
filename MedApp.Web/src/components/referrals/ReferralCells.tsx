@@ -13,6 +13,7 @@ import {TableActions} from '../tables/TableActions';
 
 const STATUS_COLORS: Record<string, TokenColor> = {
   AwaitingTriage: 'blue',
+  InformationRequested: 'orange',
   Accepted: 'green',
   Rejected: 'gray',
   RedirectedElsewhere: 'purple',
@@ -22,6 +23,7 @@ const STATUS_COLORS: Record<string, TokenColor> = {
 
 const STATUS_ICONS: Record<string, IconType> = {
   AwaitingTriage: AppIcon.Referrals,
+  InformationRequested: AppIcon.Info,
   Accepted: AppIcon.Success,
   Rejected: AppIcon.StatusCancelled,
   RedirectedElsewhere: AppIcon.StatusChange,
@@ -30,7 +32,7 @@ const STATUS_ICONS: Record<string, IconType> = {
 };
 
 /**
- * A referral's status, in words ("Awaiting triage", "Redirected elsewhere", "Entered in error"), with its icon when
+ * A referral's status, in words ("Awaiting triage", "Information requested", "Redirected elsewhere", "Entered in error"), with its icon when
  * "Icons on statuses" is on. Use it wherever a referral's status shows.
  */
 export function ReferralStatusToken({status}: {status: string | null | undefined}) {

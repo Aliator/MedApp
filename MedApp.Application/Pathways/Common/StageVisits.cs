@@ -39,8 +39,8 @@ public static class StageVisits
     /// included (already withdrawn). Null message: nothing to say (the stage involves no visit).
     /// <para>
     /// <c>FinishedWithoutVisit</c>: the stage is finished, requires a visit, and now has no attended one, so the
-    /// pathway's assignees and the admins are told (<c>AppointmentNotifications.AfterStageVisitWithdrawn</c>): only an
-    /// admin can put it right, by unlocking it, and finishing it again won't ask for the visit.
+    /// pathway's assignees and the holders of FinishWithoutVisit are told (<c>AppointmentNotifications.AfterStageVisitWithdrawn</c>):
+    /// they decide whether it stands finished without its visit or is unlocked (finishing it again won't ask for the visit).
     /// </para>
     /// </summary>
     public static (bool RequestAgain, string? Message, bool FinishedWithoutVisit) AfterVisitWithdrawn(
@@ -59,8 +59,8 @@ public static class StageVisits
 
             var required = stage.VisitRequirement == VisitRequirement.Required;
             return (false,
-                $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, an admin can unlock it, and then book one." +
-                (required ? " The pathway's assignees and the admins are told." : ""),
+                $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, someone who can unlock stages can unlock it, and then book one." +
+                (required ? " The pathway's assignees and those who can finish a stage without its visit are told." : ""),
                 required);
         }
 

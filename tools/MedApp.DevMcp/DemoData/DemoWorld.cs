@@ -4,11 +4,16 @@ using MedApp.Domain.Appointments;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
+using MedApp.Domain.Specialties;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>Someone read a patient's record (and a pathway's) around a moment: the activity log's views come from these.</summary>
-public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? PathwayId);
+/// <summary>
+/// Someone read a patient's record (and a pathway's, or a referral's) around a moment: the activity log's views come
+/// from these.
+/// </summary>
+public sealed record Touch(Guid UserId, DateTime AtUtc, Guid PatientId, Guid? PathwayId, Guid? ReferralId = null);
 
 /// <summary>A monitoring rule as the seed matches it: when it was made, and when (if ever) it was switched off.</summary>
 public sealed record RuleState(MonitoringRule Rule, DateTime CreatedUtc, DateTime? DisabledUtc);
@@ -30,6 +35,11 @@ public sealed class DemoWorld
     public required IReadOnlyDictionary<string, PatientPathwayStageDefinition> Definitions { get; init; }
     public required IReadOnlyList<RuleState> Rules { get; init; }
 
+    /// <summary>The specialties as stored (with their waiting-time targets), by ID.</summary>
+    public required IReadOnlyDictionary<Guid, Specialty> Specialties { get; init; }
+
+    public Specialty Specialty(string name) => Specialties.Values.Single(s => s.Name == name);
+
     public ScheduleAllocator Allocator => Calendars.Allocator;
 
     public List<PatientPathway> Pathways { get; } = [];
@@ -41,6 +51,10 @@ public sealed class DemoWorld
     public List<AppointmentEvent> AppointmentEvents { get; } = [];
     public List<Notification> Notifications { get; } = [];
     public List<Touch> Touches { get; } = [];
+
+    /// <summary>Every referral (each with its clock's pauses), and their history.</summary>
+    public List<Referral> Referrals { get; } = [];
+    public List<ReferralEvent> ReferralEvents { get; } = [];
 
     /// <summary>Where on the body each record with a site is about (its notes name it), by the record's ID.</summary>
     public Dictionary<Guid, string> Sites { get; } = [];

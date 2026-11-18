@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, seniorClinicianUser, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage, progressWords} from './PathwayPage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
@@ -47,6 +47,20 @@ describe('PathwayPage', () => {
     const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('NHS No. 999 000 0026')).toBeInTheDocument();
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+  });
+
+  it("lists the pathway's letters, and says what a stage that needs one waits for", async () => {
+    const needsLetter = {...pathway, specialtyId: 'sp1', stages: [pathway.stages[0], {...pathway.stages[1], needsLetterKind: 'DischargeSummary'}]};
+    const fetch = mockApi({
+      [`GET /api/pathways/patient-pathways/${id}`]: () => json(needsLetter),
+      'GET /api/letters/search': () =>
+        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Discharge', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
+    });
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    expect(await screen.findByRole('link', {name: 'Discharge summary: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(screen.getAllByText('Needs a discharge summary, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
+    expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
   });
 
   it('opens a request to delete a note from the address for an admin, and closes it', async () => {
@@ -826,9 +840,17 @@ describe('PathwayPage: visits and appointments', () => {
     await waitFor(() => expect(openDialog()).toBeNull());
   });
 
-  it('lets an admin finish a required stage without a visit, giving a reason', async () => {
+  it("won't let an admin finish a stage that requires a visit without it: the built-in Admin role can't (decision 138)", async () => {
+    renderVisit(visiting(), [requested], adminUser);
+
+    expect(await screen.findByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
+  });
+
+  it('lets a senior clinician finish a required stage without a visit, giving a reason', async () => {
     withAnnouncements();
-    const {user, fetch} = renderVisit(visiting(), [requested], adminUser, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
+    // A senior clinician assigned to it (so not asked first whether to work on someone else's).
+    const {user, fetch} = renderVisit(visiting(), [requested], {...seniorClinicianUser, username: 'test-user'}, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
 
     await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
     const dialog = within(openDialog()!);

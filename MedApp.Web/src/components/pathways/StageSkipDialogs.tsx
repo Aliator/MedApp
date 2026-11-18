@@ -114,7 +114,7 @@ export interface ReinstateStageDialogProps {
 }
 
 /**
- * Reinstating a skipped stage (decision 115, holders of OverrideStages): the patient, the stage and how it was
+ * Reinstating a skipped stage (decision 115, holders of UnlockStages): the patient, the stage and how it was
  * skipped, and why it's to run again (required, 500 characters). A branch is re-chosen only this way: by reinstating
  * its stages. Mount it only while it's open, so the reason starts empty.
  */

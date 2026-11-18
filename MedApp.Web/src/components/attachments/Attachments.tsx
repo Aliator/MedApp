@@ -58,7 +58,7 @@ export const NOT_SCANNED_NOTE = "No malware scanner is set up yet, so files aren
  * The link a Download button renders: a plain `<a download>`, outside the router (which would try to open the API's
  * path as a page). The API sends every file as a download (`Content-Disposition: attachment`) too.
  */
-function DownloadLink({ref, ...props}: AnchorHTMLAttributes<HTMLAnchorElement> & {ref?: Ref<HTMLAnchorElement>}) {
+export function DownloadLink({ref, ...props}: AnchorHTMLAttributes<HTMLAnchorElement> & {ref?: Ref<HTMLAnchorElement>}) {
   return <a ref={ref} {...props} download />;
 }
 

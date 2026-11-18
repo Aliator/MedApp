@@ -50,8 +50,8 @@ public static class PathwayMapper
     /// A pathway's full response. Its <c>Can...</c> flags say what this viewer can do: what the pathway and its
     /// patient's record allow, and what <paramref name="viewerPermissions"/> (the viewer's, from their session) allow, as
     /// the endpoints check. Working on it (stages, details, notes, status changes) needs
-    /// <see cref="Permission.WorkPathways"/>, assignments <see cref="Permission.AssignPathways"/>, unlocking a stage
-    /// <see cref="Permission.OverrideStages"/>, deleting it <see cref="Permission.DeletePathways"/>, and deleting a note
+    /// <see cref="Permission.WorkPathways"/>, assignments <see cref="Permission.AssignPathways"/>, unlocking or reinstating a stage
+    /// <see cref="Permission.UnlockStages"/>, skipping one whose visit is Required <see cref="Permission.FinishWithoutVisit"/>, deleting it <see cref="Permission.DeletePathways"/>, and deleting a note
     /// <see cref="Permission.CorrectRecords"/>.
     /// <para>
     /// Null <paramref name="viewerPermissions"/> means no viewer is known: the flags then say only what the pathway and
@@ -128,6 +128,7 @@ public static class PathwayMapper
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
+                    NeedsLetterKind = s.NeedsLetterKind?.ToString(),
                     IsOptional = s.IsOptional,
                     ChoosesBranch = s.ChoosesBranch,
                     Branch = s.Branch,
@@ -145,11 +146,11 @@ public static class PathwayMapper
                     IsCurrent = s.Id == current?.Id,
                     IsLocked = s.IsLocked,
                     CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
-                    CanUnlock = Allows(viewerPermissions, Permission.OverrideStages)
+                    CanUnlock = Allows(viewerPermissions, Permission.UnlockStages)
                         && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
                     CanSkip = canWork && canChange
-                        && PathwayWorkflow.CanSkipStage(pathway, s, Allows(viewerPermissions, Permission.OverrideStages)),
-                    CanReinstate = Allows(viewerPermissions, Permission.OverrideStages)
+                        && PathwayWorkflow.CanSkipStage(pathway, s, Allows(viewerPermissions, Permission.FinishWithoutVisit)),
+                    CanReinstate = Allows(viewerPermissions, Permission.UnlockStages)
                         && canChange && PathwayWorkflow.CanReinstateStage(pathway, s),
                     SkippedAtUtc = s.SkippedAtUtc,
                     SkippedByUserId = s.SkippedByUserId,

@@ -62,13 +62,13 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
             await repository.SaveAsync(change.Events, cancellationToken);
         }
 
-        // A finished stage that requires a visit, left without one: only someone who can override stages (unlock it, or
-        // finish it without a visit) can put it right, so the pathway's assignees and they are told, not only the person
+        // A finished stage that requires a visit, left without one: the people who decide whether a stage may stand
+        // without its visit (holders of FinishWithoutVisit) and the pathway's assignees are told, not only the person
         // withdrawing it.
         if (stage.FinishedWithoutVisit is (var pathway, var finished))
         {
-            var admins = await permissionHolders.GetUserIdsAsync(Permission.OverrideStages, cancellationToken);
-            foreach (var notification in AppointmentNotifications.AfterStageVisitWithdrawn(appointment, pathway, finished, admins, request.Actor, now))
+            var deciders = await permissionHolders.GetUserIdsAsync(Permission.FinishWithoutVisit, cancellationToken);
+            foreach (var notification in AppointmentNotifications.AfterStageVisitWithdrawn(appointment, pathway, finished, deciders, request.Actor, now))
                 await notificationSender.SendAsync(notification, cancellationToken);
         }
 

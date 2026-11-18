@@ -40,6 +40,34 @@ public sealed class MonitoredActivityTests
     }
 
     [Test]
+    public void From_RequiredStageFinishedWithoutItsVisit_IsThatFirst_ThenStageFinished()
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 2);
+        var change = new PathwayChange(pathway, Staff, Now);
+        change.FinishStage(pathway.StageAt(3), new FinishedWithoutVisit(VisitRequirement.Required, WithoutVisitReason));
+
+        var activities = MonitoredActivity.From(pathway, change.AuditEntries);
+
+        activities.Should().Equal(
+            new MonitoredActivity(MonitoringEvent.StageFinishedWithoutVisit, Staff.Username, Staff.UserId, Staff.Username,
+                ConsultationDefinitionId, ConsultationStage),
+            new MonitoredActivity(MonitoringEvent.StageFinished, Staff.Username, Staff.UserId, Staff.Username,
+                ConsultationDefinitionId, ConsultationStage));
+    }
+
+    /// <summary>A Suggested visit can be left out by anyone, after confirming: that's not the bypass.</summary>
+    [Test]
+    public void From_SuggestedStageFinishedWithoutItsVisit_IsOnlyStageFinished()
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 2);
+        var change = new PathwayChange(pathway, Staff, Now);
+        change.FinishStage(pathway.StageAt(3), new FinishedWithoutVisit(VisitRequirement.Suggested, null));
+
+        MonitoredActivity.From(pathway, change.AuditEntries).Should().ContainSingle()
+            .Which.Event.Should().Be(MonitoringEvent.StageFinished);
+    }
+
+    [Test]
     public void From_StageUnlocked_CarriesTheStagesDefinition()
     {
         var pathway = CreatePathway(Status.InProgress, finishedStages: 2);

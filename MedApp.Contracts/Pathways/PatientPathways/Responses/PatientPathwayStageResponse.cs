@@ -17,6 +17,12 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Copied from the stage definition: None, Suggested or Required (a visit before it can be finished).</summary>
     public string VisitRequirement { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Copied from the stage definition: the kind of letter (by name) that must be approved and sent to everyone before
+    /// the stage can be finished, or null for none.
+    /// </summary>
+    public string? NeedsLetterKind { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Copied from the template: whether it can be skipped, with a reason, while it's current.</summary>
@@ -49,13 +55,13 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Whether its notes can be edited and it can be finished now.</summary>
     public bool CanEdit { get; set; }
 
-    /// <summary>Whether an admin can unlock it now: it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
+    /// <summary>Whether the viewer can unlock it now (UnlockStages): it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
     public bool CanUnlock { get; set; }
 
     /// <summary>Whether the viewer can skip it now: it's optional and the current stage of an open pathway.</summary>
     public bool CanSkip { get; set; }
 
-    /// <summary>Whether the viewer can reinstate it now (OverrideStages): it's skipped, and the pathway is open or discharged.</summary>
+    /// <summary>Whether the viewer can reinstate it now (UnlockStages): it's skipped, and the pathway is open or discharged.</summary>
     public bool CanReinstate { get; set; }
 
     /// <summary>When it was skipped, by whom, and why (NotNeeded, PatientDeclined, Other or BranchNotChosen); null unless skipped.</summary>

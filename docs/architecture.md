@@ -534,7 +534,7 @@ erDiagram
 | `UserSettings` | user, one JSON document, updated at | The account's settings, as the React app stores them. |
 | `ApplicationUser` | Identity's user (in Infrastructure) | Roles `Admin` and `User`. |
 
-**Stored enums.** `PatientPathwayStatus`, `PatientPathwayAuditAction`, `NotificationKind`, `MonitoringEvent`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientPathwayStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind`'s 1 to 3 are the appointment kinds, with 4 to 9 kept for the calendar; the monitoring kinds are 10 to 17.
+**Stored enums.** `PatientPathwayStatus`, `PatientPathwayAuditAction`, `NotificationKind`, `MonitoringEvent`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientPathwayStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind`'s 1 to 3 are the appointment kinds, with 4 to 9 kept for the calendar; the monitoring kinds are 10 to 17 and 38 (32 to 37 kept for the service alerts).
 
 **The status workflow** (`PathwayWorkflow`, `docs/pathways-ui-plan.md` section 4):
 
@@ -782,9 +782,9 @@ Each step is one API call. Each handler loads a tracked pathway, checks the rule
 | 3 | Staff | Open the pathway. If it isn't assigned to them, their first change asks "This pathway is not assigned to you, are you sure…" (a UI check, once per visit, not a permission) | `GET …/{id}` | Nothing | None |
 | 4 | Staff | Start the current stage | `POST …/{id}/stages/{stageId}/start` | Started at and by; status to `InProgress` | `StageStarted`, `StatusChanged` (automatic) |
 | 5 | Staff | Save the stage's notes (rich text, stored as Markdown); starts the stage if needed | `PUT …/{id}/stages/{stageId}/notes` | The notes | `StageNotesUpdated`, with the old and new text |
-| 6 | Staff | Finish the stage. If its visit is required, it needs an Attended appointment first, or an admin finishing it with a reason; if suggested, the UI asks for confirmation | `POST …/{id}/stages/{stageId}/finish` | Finished at and by; locked. After the last stage, status to `InReview`. Its Requested appointments are cancelled, and if the next stage involves a visit, a Requested appointment is added for it | `StageFinished` (with `withoutVisit` when finished without a visit), then `StatusChanged` (automatic) after the last; the appointments' own history entries |
+| 6 | Staff | Finish the stage. If its visit is required, it needs an Attended appointment first, or a holder of `FinishWithoutVisit` (a senior clinician; not the built-in Admin role) finishing it with a reason; if suggested, the UI asks for confirmation | `POST …/{id}/stages/{stageId}/finish` | Finished at and by; locked. After the last stage, status to `InReview`. Its Requested appointments are cancelled, and if the next stage involves a visit, a Requested appointment is added for it | `StageFinished` (with `withoutVisit` when finished without a visit), then `StatusChanged` (automatic) after the last; the appointments' own history entries |
 | 7 | Staff | Mark it complete | `POST …/{id}/status` | `Completed`, only from `InReview` with every stage finished and locked | `StatusChanged` |
-| 8 | Admin | Unlock a finished stage to correct it | `POST …/{id}/stages/{stageId}/unlock` | Unlocked (still finished); an `InReview` or `Completed` pathway goes back to `InProgress`. Finishing it again re-locks it | `StageUnlocked`, `StatusChanged` (automatic) |
+| 8 | Holder of `UnlockStages` | Unlock a finished stage to correct it | `POST …/{id}/stages/{stageId}/unlock` | Unlocked (still finished); an `InReview` or `Completed` pathway goes back to `InProgress`. Finishing it again re-locks it | `StageUnlocked`, `StatusChanged` (automatic) |
 | 9 | Staff | Archive it | `POST …/{id}/status` | `Archived` | `StatusChanged` |
 | 10 | Admin | Delete it (only `Cancelled` or `Archived`) | `DELETE …/{id}` | The pathway and its stages and assignments | `Deleted`, which outlives the pathway |
 

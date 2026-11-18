@@ -12,8 +12,9 @@ namespace MedApp.Application.Referrals.Common;
 /// The rules of a referral's life: which statuses are open, what can be done to it in each, and the messages for what
 /// can't. Handlers check here before changing a referral through <see cref="ReferralChange"/>.
 /// <list type="bullet">
-/// <item>Only <see cref="ReferralStatus.AwaitingTriage"/> is open. Its details can be edited, and it can be withdrawn or
-/// marked entered in error; once it's closed, it never changes again.</item>
+/// <item><see cref="ReferralStatus.AwaitingTriage"/> and <see cref="ReferralStatus.InformationRequested"/> (more
+/// information asked of the referrer, decision 106) are open. Their details can be edited, they can be triaged,
+/// withdrawn or marked entered in error; once closed, a referral never changes again.</item>
 /// <item>A restricted or anonymised record's referrals can't be registered or edited (<see cref="PatientRules"/>). So
 /// that care can be stopped safely, a restricted record's referral can still be withdrawn or marked entered in error,
 /// as its pathways can be cancelled; an anonymised one's can't (anonymising waits until none awaits triage).</item>
@@ -24,12 +25,12 @@ namespace MedApp.Application.Referrals.Common;
 /// </summary>
 public static class ReferralWorkflow
 {
-    /// <summary>The statuses in which a referral is open: only awaiting triage.</summary>
-    public static readonly IReadOnlyList<ReferralStatus> OpenStatuses = [AwaitingTriage];
+    /// <summary>The statuses in which a referral is open: awaiting triage, or more information asked for.</summary>
+    public static readonly IReadOnlyList<ReferralStatus> OpenStatuses = [AwaitingTriage, InformationRequested];
 
     /// <summary>The statuses in which a referral is closed.</summary>
     public static readonly IReadOnlyList<ReferralStatus> ClosedStatuses =
-        Enum.GetValues<ReferralStatus>().Where(s => s != AwaitingTriage).ToList();
+        Enum.GetValues<ReferralStatus>().Where(s => !OpenStatuses.Contains(s)).ToList();
 
     public const string ChangedMeanwhileMessage =
         "Someone else changed this referral while you had it open. Reload it to see their change, then try again.";
@@ -65,12 +66,18 @@ public static class ReferralWorkflow
     public const string EnteredInErrorFilesMessage =
         "Files can't be added to or removed from a referral that was entered in error.";
 
-    public static bool IsOpen(ReferralStatus status) => status == AwaitingTriage;
+    public static bool IsOpen(ReferralStatus status) => status is AwaitingTriage or InformationRequested;
+
+    public const string AlreadyAskedMessage =
+        "More information has been asked for already. When it comes, record that it was received.";
+
+    public const string NotAskedMessage = "No information was asked for on this referral, so there's nothing to record as received.";
 
     /// <summary>A status in words, for messages: "awaiting triage", "entered in error".</summary>
     public static string Describe(ReferralStatus status) => status switch
     {
         AwaitingTriage => "awaiting triage",
+        InformationRequested => "waiting for more information",
         Accepted => "accepted",
         Rejected => "rejected",
         RedirectedElsewhere => "redirected elsewhere",
@@ -80,7 +87,7 @@ public static class ReferralWorkflow
     };
 
     public static string ClosedMessage(ReferralStatus status) =>
-        $"This referral has been {Describe(status)}, so it can't be changed. Only a referral awaiting triage can be edited, withdrawn or marked entered in error.";
+        $"This referral has been {Describe(status)}, so it can't be changed. Only an open referral (awaiting triage, or waiting for more information) can be edited, withdrawn or marked entered in error.";
 
     /// <summary>
     /// What the second of two triagers is told: who decided, how and when (409). Also for a referral closed another way
