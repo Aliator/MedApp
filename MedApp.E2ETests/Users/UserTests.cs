@@ -110,7 +110,7 @@ public sealed class UserTests : E2ETest
     /// <summary>"User contains ..." in the list's filter bar.</summary>
     private async Task SearchUsersAsync(string username)
     {
-        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Search users" }).ClickAsync();
+        await (await OpenListSearchAsync("Search users")).ClickAsync();
         await Page.GetByRole(AriaRole.Option, new() { Name = "User", Exact = true }).ClickAsync();
         await Main.GetByRole(AriaRole.Textbox, new() { Name = "Value" }).FillAsync(username);
         await Main.GetByRole(AriaRole.Button, new() { Name = "Apply" }).ClickAsync();

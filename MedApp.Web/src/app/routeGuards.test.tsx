@@ -115,15 +115,21 @@ describe('route guards', () => {
 
   it('opens the Lab on To send for those who send specimens, asking for that view', async () => {
     const fetch = mockApi({
-      'GET /api/specimens/search': () => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
+      // The Lab's worklist is a POST since #200, so a specimen number typed into its search stays out of the address.
+      'POST /api/specimens/search': () => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
       'GET /api/laboratories': () => json([]),
     });
     renderApp({path: '/lab', user: nurseUser});
 
     expect(await screen.findByRole('heading', {name: 'Lab', level: 1})).toBeInTheDocument();
-    await waitFor(() =>
-      expect(fetch.mock.calls.map(([r]) => new URL((r as Request).url)).some((url) => url.pathname === '/api/specimens/search' && url.searchParams.get('View') === 'ToSend')).toBe(true),
-    );
+    const views = async () =>
+      Promise.all(
+        fetch.mock.calls
+          .map(([r]) => r as Request)
+          .filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/api/specimens/search')
+          .map(async (r) => ((await r.clone().json()) as {view?: string}).view),
+      );
+    await waitFor(async () => expect(await views()).toContain('ToSend'));
   });
 
   it('sends someone without ManageSetup away from Specialties, without asking for them', async () => {
