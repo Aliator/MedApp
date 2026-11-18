@@ -138,6 +138,32 @@ describe('NotepadPage in a half view', () => {
     await waitFor(() => expect(screen.getByText('docked closed')).toBeInTheDocument());
   });
 
+  it("keeps the focus in its box as the docked notepad closes, rather than the docked one's focus return taking it", async () => {
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
+    renderWithApp(
+      <NotepadProvider>
+        <DockedOpen />
+        <main>
+          <h1>Patients</h1>
+        </main>
+        <section aria-label="Right half">
+          <InHalfPaneContext.Provider value={true}>
+            <HalfViewContext.Provider value={{isHalf: true, side: 'right', onClose: vi.fn()}}>
+              <NotepadPage />
+            </HalfViewContext.Provider>
+          </InHalfPaneContext.Provider>
+        </section>
+      </NotepadProvider>,
+      {user: staffUser, strict: true},
+    );
+
+    const box = await screen.findByRole('textbox', {name: 'Notepad'});
+    await waitFor(() => expect(box).toHaveFocus());
+    // Past the docked notepad's second focus return (after its sheet's closing animation).
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(box).toHaveFocus();
+  });
+
   it("adds a note to the procedure page beside it (the signed-in layout's), after the same confirmation", async () => {
     const fetch = mockApi({
       [`GET ${NOTEPAD}`]: () => json(notepad()),

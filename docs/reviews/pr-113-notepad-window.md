@@ -201,6 +201,76 @@
 - **CI's web checks haven't run** on this branch (lint, coverage thresholds, the production build), because `npm audit` stops the job first.
 - **The DPIA and H-37 changes** (the explanation removed, the new window's cause) are drafts for the DPO and the CSO to confirm.
 
+## Follow-up review of the fixes
+
+**Checked:** 18 November 2026. Commits `8ec997f` (the notepad's own window removed, the notepad kept in a half view) and `d7c3403` (the old Needs booking address redirected), on the branch at `83bd58c`. That merge of `main` touches none of the same files.
+
+**Result:** finding 1, the high one, is fixed. Nothing high or critical remains or is new. Three new findings, all low: two in the code, one in the documents.
+
+### What was checked
+
+- **Nothing of the pop-out is left.** Searched `MedApp.Web/src`, `docs/`, both `AGENTS.md` files and `tools/ui-parity` for the window, the pop-out, `BroadcastChannel`, `notepadWindow`, `isWindow` and `beforeunload`. The button, `notepadWindow.ts`, `notepadChannel.ts`, the unload warning, the icon, the fake channel in the test setup and their tests are all gone. What's left is history: the hazard log's 0.10 row, the reviews of #110 and this one, and the reviews index (finding 11).
+- **The half view** (`NotepadPage.tsx`, `NotepadContext.tsx`):
+  - Add Note to Procedure offers the layout's own procedure pages (`openProcedures` from the provider it sits inside).
+  - Close saves, then closes the half. If the save fails, the half stays open.
+  - It closes the docked notepad as it opens. A ref makes that happen once, also under StrictMode. That includes a reload, where the layout reads `medapp.notepadOpen` only after mounting.
+  - The side nav's toggle closes a half view showing the notepad, then docks it.
+  - The half's provider never writes `medapp.notepadOpen`: `open` and `close` skip storage when it's in a half.
+  - Nothing reads `window` or storage while rendering. The half view isn't in the server's render at all, as its path is in `sessionStorage`.
+- **`/notepad` on its own:** the server renders only a spinner, in the account's settings, and doesn't read the notepad. The browser then stores the notepad as open and replaces the address with `/`, once, also under StrictMode (`NotepadPage.test.tsx`, `entry-server.test.tsx`). A held account still goes to its hold first.
+- **The redirect:** `/calendar/needs-booking` throws a redirect to `/calendar/requires-appointment` in `beforeLoad`, with its search parsed as the new page's. It replaces the history entry. On the server it's a 307 with the query kept. A half view kept at the old address follows it too.
+- **The documents:** DPIA risk 26 and version 0.10, the data inventory's `Notepad` row, and H-37's cause, control and 0.11 row now describe the half view, and say the window was removed and why. They match the code. `MedApp.Web/AGENTS.md` matches it too.
+- **Ran:**
+  - Vitest on the notepad folders, `NotepadPage`, `AppSideNav`, `AppLayout`, `routeGuards`, `entry-server` and `scrollbars`: 10 files, 196 tests passed.
+  - `npm run typecheck`: passes. ESLint on the changed source files: clean.
+  - Two throwaway tests, deleted afterwards, for findings 9 and 10 below.
+  - No Docker, AppHost, browser or full suite.
+
+### Are the "What happened to it" lines true?
+
+- **Findings 1, 2, 4, 5 and 8:** true. The window and the channel are gone. A notepad is now always inside the signed-in layout, with its sign-out, `SessionTimeout` and storage clearing.
+- **Finding 3:** true. The warning went with the window, and the toggle closes the half first. But the toggle closes the half without the half's own save-then-close, so a failed save there loses the text (finding 9).
+- **Finding 6:** true. It's documented, for the CSO.
+- **Finding 7:** true, with tests in both places it names.
+- **"Remaining risks" above:** the first two (the window's lifecycle, a half view without `BroadcastChannel`) no longer apply. The third mostly doesn't either: the half view offers only the page beside it.
+
+### New findings
+
+#### 9. Docking the notepad from the side nav, while it's in the half view, can lose what's typed there if that save fails
+
+- **Severity:** low. **Confidence:** high (reproduced in a throwaway test).
+- **What could go wrong:**
+  - The notepad is in the right half, and its saves are failing (the API is down for a moment, so the half shows "The notepad could not be saved." and Retry).
+  - The user presses the side nav's Notepad toggle. The half closes, and the docked notepad opens at once.
+  - The half's box saves as it unmounts. The docked box has already started from the copy cached before that. It ignores the copy the half puts in the cache, because that copy has the same version.
+  - The save fails, so the docked notepad shows the old text. What was typed in the half is gone, with no message.
+  - **Even when the save works,** the docked box shows the old text until it finishes. Typing in that moment gives a 409.
+- **Why:** the toggle calls `halfViews.close()` and `notepad.open()` in one click (`MedApp.Web/src/components/navigation/AppSideNav.tsx:652-661`). That bypasses the half's Close, which saves first and stays open if the save fails. The hand-over relies on the unmount clean-up (`NotepadPane.tsx:186-197`). Its comment says the pane taking over "starts from it". But that pane rendered before the clean-up ran, and the version check skips a copy with the same version (`NotepadPane.tsx:201-208`).
+- **Already there before this fix:** closing the left half while the notepad is on the right (`AppLayout.tsx:135-142`), and crossing between docked and sheet, hand over the same way. The toggle is a new way in.
+- **Fix:** have the toggle close the half's notepad through its own closer (save, then close; nothing docked if it fails). For example, the half's provider registers its `requestClose` with the layout's provider. Then do the same for closing the left half. Test that a failed save leaves the half open and the docked notepad closed.
+- **What happened to it:** documented. It's the same hand-over the notepad already makes when the left half closes or the window crosses between docked and sheet: the half's box saves as it goes, and only a save that fails at that moment loses what was typed. Recorded as a known limit; closing the half through its own save-then-close is a possible follow-up.
+
+#### 10. Opening the notepad in the half view, with the docked notepad open, takes the focus out of its box
+
+- **Severity:** low (focus order, WCAG 2.4.3). **Confidence:** high (reproduced in a throwaway test).
+- **What could go wrong:** a keyboard user has the docked notepad open, and chooses the Notepad row's half view. The half's box takes the focus. Then the docked notepad closes, and its focus return moves the focus to the side nav's Notepad item, or to the left page's title. They have to find their way back to the box.
+- **Why:** closing the docked notepad treats focus inside *any* region named Notepad as lost (`NotepadContext.tsx:138-156`). The half's pane is a region named Notepad too, and it's still on screen. `NotepadPage.test.tsx:133` checks that the docked notepad closes, but not where the focus ends up.
+- **Fix:** count only focus in the docked pane or the sheet as lost. For example, mark those two and check for the mark, or skip the focus return when the half view asked for the close. Add the focus check to that test.
+- **What happened to it:** fixed in the PR: the docked notepad's focus return no longer treats the notepad in the right half as its own (`NotepadContext.tsx`), so the half's box keeps the focus. A test in `NotepadPage.test.tsx` fails without the fix and passes with it.
+
+#### 11. The PR's description and the reviews index still describe the window
+
+- **Severity:** low (documents). **Confidence:** high.
+- **What could go wrong:** someone reading PR #113 or `docs/reviews/README.md` thinks the merged app has a notepad window kept in step over a `BroadcastChannel`.
+- **Evidence:** the PR description's notepad bullet, its browser checks and its axe list (`notepad-window`); `docs/reviews/README.md:56`. This review's "Say it like this" and "Detail" describe the fix that was planned, not the one made; this section records the change.
+- **Fix:** update the PR description and the index line before merging. Capture the new `notepad-half` parity screen, which replaces `notepad-window`, and run axe on it, if that hasn't been done.
+- **What happened to it:** fixed in the PR: the PR's description and this review's row in `docs/reviews/README.md` now describe the half view, not the window.
+
+### Remaining risks after the fixes
+
+- **Hand-overs between notepads** rely on an unmount save (finding 9). A half view replaced by another page loses an unsaved jotting the same way.
+- **The DPIA and H-37 changes** are still drafts for the DPO and the CSO.
+
 ## Say it like this
 
 "This PR let the notepad open in its own small window, kept in step with MedApp's other windows over the browser's BroadcastChannel, which needs no server change and stores nothing. The trade-off is that the window lives outside the signed-in layout, so it misses what that layout does for every page: it isn't told when someone signs out and never checks its session, which on a shared ward computer leaves the last user's jottings on screen. The fix is to broadcast sign-out to every window and give the notepad window the same session watcher as the rest of the app."

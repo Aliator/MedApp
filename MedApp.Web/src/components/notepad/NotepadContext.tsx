@@ -140,7 +140,9 @@ export function NotepadProvider({children, onCloseHalf}: NotepadProviderProps) {
     // sheet's closing animation is over, as its own focus return can't find the nav drawer's item either.
     const restore = () => {
       const active = document.activeElement;
-      const isLost = !active || active === document.body || !active.isConnected || active.closest('[role="region"][aria-label="Notepad"]');
+      // The notepad in a half view (the right half) is another notepad, whose box keeps the focus it took as it opened.
+      const isInThisPane = !!active?.closest('[role="region"][aria-label="Notepad"]') && !active?.closest('[aria-label="Right half"]');
+      const isLost = !active || active === document.body || !active.isConnected || isInThisPane;
       if (!isLost) return;
       const title = document.querySelector<HTMLElement>('main h1, [role="main"] h1');
       // The first that takes the focus (one that isn't shown can't).
