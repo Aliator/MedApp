@@ -44,6 +44,9 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
+                // Consent records hold their patients, pathways and forms (foreign keys), so they go first.
+                await db.ConsentRecords.ExecuteDeleteAsync(cancellationToken);
+                await db.ConsentForms.ExecuteDeleteAsync(cancellationToken);
                 // Specimens hold their pathways, types and labs (foreign keys), so they go first.
                 await db.Specimens.ExecuteDeleteAsync(cancellationToken);
                 await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);

@@ -25,6 +25,7 @@ public enum Permission
     AssignPathways,
     UnlockStages,
     FinishWithoutVisit,
+    RecordConsent,
     DeletePathways,
 
     BookAppointments,
@@ -115,6 +116,8 @@ public static class Permissions
             "Unlock a finished stage, and reinstate a skipped one."),
         new(Permission.FinishWithoutVisit, PermissionGroup.Pathways,
             "Finish, or skip, a stage that requires a visit without one, giving a reason."),
+        new(Permission.RecordConsent, PermissionGroup.Pathways,
+            "Record a patient's consent to a stage, withdraw it, and attach the signed form."),
         new(Permission.DeletePathways, PermissionGroup.Pathways,
             "Delete a cancelled or archived pathway."),
 
@@ -173,7 +176,7 @@ public static class Permissions
 
     /// <summary>
     /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
-    /// and 138): triage, finishing a stage without its visit, recording and processing specimens, and writing, approving
+    /// and 138): triage, finishing a stage without its visit, recording consent, recording and processing specimens, and writing, approving
     /// and sending letters. An admin who does that work holds a role that grants it too. Admin keeps
     /// <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
@@ -181,6 +184,7 @@ public static class Permissions
     {
         Permission.TriageReferrals,
         Permission.FinishWithoutVisit,
+        Permission.RecordConsent,
         Permission.RecordSpecimens,
         Permission.ProcessSpecimens,
         Permission.WriteLetters,

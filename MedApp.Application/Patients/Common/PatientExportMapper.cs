@@ -38,6 +38,7 @@ public static class PatientExportMapper
             .Concat(record.Letters.SelectMany(Letters.Common.LetterMapper.PeopleIn))
             .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
+            .Concat(record.ConsentRecords.SelectMany(Consent.Common.ConsentMapper.PeopleIn))
             .Distinct();
 
     private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
@@ -383,6 +384,27 @@ public static class PatientExportMapper
                     ClosedDetail = s.ClosedDetail,
                     ClosedAtUtc = s.ClosedAtUtc,
                     ClosedBy = s.ClosedByUserId is null ? null : Username(s.ClosedByUserId),
+                })
+                .ToList(),
+            // Consent records, with their details: the patient is entitled to them. Staff by username only.
+            ConsentRecords = record.ConsentRecords
+                .Select(c => new ExportedConsentRecordResponse
+                {
+                    Id = c.Id,
+                    PathwayId = c.PathwayId,
+                    StageId = c.StageId,
+                    FormName = c.FormName,
+                    FormVersion = c.FormVersion,
+                    SignedOn = c.SignedOn,
+                    SignedBy = c.SignedBy.ToString(),
+                    RecordedBy = Username(c.RecordedByUserId),
+                    RecordedAtUtc = c.RecordedAtUtc,
+                    ScanAttachmentId = c.ScanAttachmentId,
+                    Status = c.Status.ToString(),
+                    WithdrawnOn = c.WithdrawnOn,
+                    StatusDetail = c.StatusDetail,
+                    StatusChangedAtUtc = c.StatusChangedAtUtc,
+                    StatusChangedBy = c.StatusChangedByUserId is null ? null : Username(c.StatusChangedByUserId),
                 })
                 .ToList()
         };

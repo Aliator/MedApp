@@ -15814,6 +15814,670 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pathways/{id}/consent-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"][];
+                        "application/json": components["schemas"]["ConsentRecordResponse"][];
+                        "text/json": components["schemas"]["ConsentRecordResponse"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RecordConsentRequest"];
+                    "text/json": components["schemas"]["RecordConsentRequest"];
+                    "application/*+json": components["schemas"]["RecordConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["WithdrawConsentRequest"];
+                    "text/json": components["schemas"]["WithdrawConsentRequest"];
+                    "application/*+json": components["schemas"]["WithdrawConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/entered-in-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                    "text/json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                    "application/*+json": components["schemas"]["MarkConsentEnteredInErrorRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-records/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AttachConsentScanRequest"];
+                    "text/json": components["schemas"]["AttachConsentScanRequest"];
+                    "application/*+json": components["schemas"]["AttachConsentScanRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentRecordResponse"];
+                        "application/json": components["schemas"]["ConsentRecordResponse"];
+                        "text/json": components["schemas"]["ConsentRecordResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"][];
+                        "application/json": components["schemas"]["ConsentFormResponse"][];
+                        "text/json": components["schemas"]["ConsentFormResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ConsentFormRequest"];
+                    "text/json": components["schemas"]["ConsentFormRequest"];
+                    "application/*+json": components["schemas"]["ConsentFormRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ConsentFormRequest"];
+                    "text/json": components["schemas"]["ConsentFormRequest"];
+                    "application/*+json": components["schemas"]["ConsentFormRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consent-forms/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConsentFormResponse"];
+                        "application/json": components["schemas"]["ConsentFormResponse"];
+                        "text/json": components["schemas"]["ConsentFormResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/specimen-types": {
         parameters: {
             query?: never;
@@ -17109,6 +17773,12 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        AttachConsentScanRequest: {
+            /** Format: uuid */
+            attachmentId?: string;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         AttachmentListResponse: {
             items?: components["schemas"]["AttachmentResponse"][] | null;
             /** Format: int32 */
@@ -17460,6 +18130,60 @@ export interface components {
             userId?: string;
             token?: string | null;
         };
+        ConsentFormRequest: {
+            name?: string | null;
+            formVersion?: string | null;
+        };
+        ConsentFormResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            formVersion?: string | null;
+            isArchived?: boolean;
+            canBeDeleted?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
+        ConsentRecordResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            /** Format: uuid */
+            pathwayId?: string;
+            /** Format: uuid */
+            stageId?: string;
+            stageName?: string | null;
+            /** Format: uuid */
+            consentFormId?: string;
+            formName?: string | null;
+            formVersion?: string | null;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            /** Format: uuid */
+            recordedByUserId?: string;
+            recordedByUsername?: string | null;
+            /** Format: date-time */
+            recordedAtUtc?: string;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
+            status?: string | null;
+            /** Format: date */
+            withdrawnOn?: string | null;
+            statusDetail?: string | null;
+            statusChangedByUsername?: string | null;
+            /** Format: date-time */
+            statusChangedAtUtc?: string | null;
+            withdrawnAfterStageFinished?: boolean;
+            /** Format: int32 */
+            version?: number;
+            canWithdraw?: boolean;
+            canMarkEnteredInError?: boolean;
+            canAttachScan?: boolean;
+        };
         CreateActivityTypeRequest: {
             name?: string | null;
             colour?: string | null;
@@ -17547,6 +18271,7 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
         };
         CreatePatientRequest: {
             firstName?: string | null;
@@ -17853,6 +18578,31 @@ export interface components {
             /** Format: date */
             resumedOn?: string | null;
             resumedBy?: string | null;
+        };
+        ExportedConsentRecordResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            pathwayId?: string;
+            /** Format: uuid */
+            stageId?: string;
+            formName?: string | null;
+            formVersion?: string | null;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            recordedBy?: string | null;
+            /** Format: date-time */
+            recordedAtUtc?: string;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
+            status?: string | null;
+            /** Format: date */
+            withdrawnOn?: string | null;
+            statusDetail?: string | null;
+            /** Format: date-time */
+            statusChangedAtUtc?: string | null;
+            statusChangedBy?: string | null;
         };
         ExportedHistoryEntryResponse: {
             /** Format: date-time */
@@ -18500,6 +19250,11 @@ export interface components {
         LookUpDemographicsRequest: {
             nhsNumber?: string | null;
         };
+        MarkConsentEnteredInErrorRequest: {
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         MarkEnteredInErrorRequest: {
             reason?: string | null;
         };
@@ -18764,6 +19519,7 @@ export interface components {
             referralHistory?: components["schemas"]["ExportedReferralHistoryEntryResponse"][] | null;
             letters?: components["schemas"]["ExportedLetterResponse"][] | null;
             specimens?: components["schemas"]["ExportedSpecimenResponse"][] | null;
+            consentRecords?: components["schemas"]["ExportedConsentRecordResponse"][] | null;
         };
         PatientFlagsResponse: {
             isRestricted?: boolean;
@@ -18939,6 +19695,7 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
             isArchived?: boolean;
             /** Format: int32 */
             templateCount?: number;
@@ -18958,6 +19715,8 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean;
+            canRecordConsent?: boolean;
             notes?: string | null;
             isOptional?: boolean;
             choosesBranch?: boolean;
@@ -19149,6 +19908,13 @@ export interface components {
             specimenNumber?: string | null;
             specimenTypeName?: string | null;
             laboratoryName?: string | null;
+            /** Format: uuid */
+            consentRecordId?: string | null;
+            consentFormName?: string | null;
+            consentFormVersion?: string | null;
+            consentSignedBy?: string | null;
+            /** Format: date */
+            consentSignedOn?: string | null;
         };
         PatientTimelineOverviewResponse: {
             upcoming?: components["schemas"]["PatientTimelineUpcomingResponse"][] | null;
@@ -19268,6 +20034,17 @@ export interface components {
         };
         RecordAppointmentOutcomeRequest: {
             outcome?: string | null;
+        };
+        RecordConsentRequest: {
+            /** Format: uuid */
+            stageId?: string;
+            /** Format: uuid */
+            consentFormId?: string;
+            /** Format: date */
+            signedOn?: string;
+            signedBy?: string | null;
+            /** Format: uuid */
+            scanAttachmentId?: string | null;
         };
         RecordDnaFollowUpRequest: {
             decision?: string | null;
@@ -20080,6 +20857,7 @@ export interface components {
             snomedTerm?: string | null;
             visitRequirement?: string | null;
             needsLetterKind?: string | null;
+            needsConsent?: boolean | null;
         };
         UpdatePatientRequest: {
             firstName?: string | null;
@@ -20240,6 +21018,13 @@ export interface components {
             mustChangePassword?: boolean;
             mustSetUpTwoFactor?: boolean;
             permissions?: string[] | null;
+        };
+        WithdrawConsentRequest: {
+            /** Format: date */
+            withdrawnOn?: string;
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         WithdrawLetterRequest: {
             reason?: string | null;

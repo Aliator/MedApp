@@ -30,6 +30,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     /// </summary>
     public Specimen? Specimen { get; init; }
 
+    /// <summary>
+    /// For a consent entry (only for admins), the consent record as it is now, for its free text (the withdrawal or
+    /// correction detail): the audit entry itself holds none.
+    /// </summary>
+    public Domain.Consent.ConsentRecord? ConsentRecord { get; init; }
+
     /// <summary>About a file attached to the patient themselves, not to one of their pathways.</summary>
     public bool IsAboutPatient => Entry.PatientPathwayId == PatientPathwayAuditEntry.NoPathway;
 }

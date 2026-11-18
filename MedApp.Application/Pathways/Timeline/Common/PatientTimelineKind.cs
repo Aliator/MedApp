@@ -62,5 +62,8 @@ public enum PatientTimelineKind
     Letters,
 
     /// <summary>A specimen was taken, sent, received, reported, rejected, lost, entered in error or edited.</summary>
-    Specimens
+    Specimens,
+
+    /// <summary>Consent to a stage was recorded, withdrawn or marked entered in error.</summary>
+    Consent
 }

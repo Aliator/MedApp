@@ -50,6 +50,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Referrals: AppIcon.Referrals,
   WaitingTime: AppIcon.Wait,
   Specimens: AppIcon.Specimens,
+  Consent: AppIcon.Consent,
   Letters: AppIcon.Letters,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,

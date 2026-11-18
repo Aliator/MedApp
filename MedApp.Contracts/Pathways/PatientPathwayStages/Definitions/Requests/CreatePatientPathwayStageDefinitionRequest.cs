@@ -19,4 +19,7 @@ public sealed class CreatePatientPathwayStageDefinitionRequest
     /// <c>None</c>) for none.
     /// </summary>
     public string? NeedsLetterKind { get; set; }
+
+    /// <summary>Whether the stage needs a Valid consent record before it can be finished (false by default).</summary>
+    public bool NeedsConsent { get; set; }
 }

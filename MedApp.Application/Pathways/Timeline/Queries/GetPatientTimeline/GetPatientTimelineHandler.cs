@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -24,6 +25,7 @@ public sealed class GetPatientTimelineHandler(
     IReferralRepository referralRepository,
     ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
+    IConsentRepository consentRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
 {
@@ -76,6 +78,7 @@ public sealed class GetPatientTimelineHandler(
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
             page = await WithLettersAsync(page, cancellationToken);
             page = await WithSpecimensAsync(page, cancellationToken);
+            page = await WithConsentAsync(page, cancellationToken);
         }
 
         return new PatientTimelinePageResponse
@@ -195,6 +198,30 @@ public sealed class GetPatientTimelineHandler(
             .Select(e => e.Audit is { } audit && SpecimenIdOf(audit) is { } id
                          && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
                 ? e with { Audit = audit with { Specimen = specimen } }
+                : e)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The page with each consent entry's record, for its free text (admins only): the audit holds none. Only records of
+    /// this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithConsentAsync(List<Entry> page, CancellationToken ct)
+    {
+        static Guid? RecordIdOf(PatientTimelineRow audit) =>
+            PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Consent
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "consentRecordId")
+                : null;
+
+        var ids = page.Select(e => e.Audit is { } audit ? RecordIdOf(audit) : null).OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var records = (await consentRepository.GetByIdsAsync(ids, ct)).ToDictionary(r => r.Id);
+        return page
+            .Select(e => e.Audit is { } audit && RecordIdOf(audit) is { } id
+                         && records.TryGetValue(id, out var record) && record.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { ConsentRecord = record } }
                 : e)
             .ToList();
     }

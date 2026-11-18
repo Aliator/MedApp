@@ -134,6 +134,7 @@ import {
   RiQrScanLine,
   RiSendPlaneLine,
   RiTestTubeLine,
+  RiQuillPenLine,
   RiTruckLine,
 } from '@remixicon/react';
 
@@ -339,4 +340,6 @@ export const AppIcon = {
   /** Finding a specimen by its number, typed or scanned from its label. */
   Scan: remix(RiQrScanLine),
   Print: remix(RiPrinterLine),
+  /** Consent to a stage: recorded, its form and the consent forms list (setup). */
+  Consent: remix(RiQuillPenLine),
 } as const satisfies Record<string, IconType>;

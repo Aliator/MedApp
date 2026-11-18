@@ -77,6 +77,32 @@ public sealed class PatientExportResponse
     /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
+
+    /// <summary>
+    /// The patient's consent records, oldest recorded first: the stage, the form, when and by whom it was signed, and
+    /// any withdrawal or correction. Their history is in <c>PathwayHistory</c>; their scans are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedConsentRecordResponse> ConsentRecords { get; set; } = [];
+}
+
+/// <summary>A consent record in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedConsentRecordResponse
+{
+    public Guid Id { get; set; }
+    public Guid PathwayId { get; set; }
+    public Guid StageId { get; set; }
+    public string FormName { get; set; } = string.Empty;
+    public string FormVersion { get; set; } = string.Empty;
+    public DateOnly SignedOn { get; set; }
+    public string SignedBy { get; set; } = string.Empty;
+    public string? RecordedBy { get; set; }
+    public DateTime RecordedAtUtc { get; set; }
+    public Guid? ScanAttachmentId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateOnly? WithdrawnOn { get; set; }
+    public string? StatusDetail { get; set; }
+    public DateTime? StatusChangedAtUtc { get; set; }
+    public string? StatusChangedBy { get; set; }
 }
 
 /// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>

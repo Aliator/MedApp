@@ -99,5 +99,19 @@ public enum PatientPathwayAuditAction
     BranchChosen = 36,
 
     /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
-    StageReinstated = 37
+    StageReinstated = 37,
+
+    // 38 to 41 are kept for the MDT list (docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// Consent to a stage was recorded. Consent entries (42 to 44) hold the record's ID, the form's name and version
+    /// (admin-written), who signed by name, the date signed and whether there's a scan; never a detail typed (decision 70).
+    /// </summary>
+    ConsentRecorded = 42,
+
+    /// <summary>Consent was withdrawn, on a date (the detail only on the record).</summary>
+    ConsentWithdrawn = 43,
+
+    /// <summary>A consent record was marked entered in error (the detail only on the record).</summary>
+    ConsentEnteredInError = 44
 }

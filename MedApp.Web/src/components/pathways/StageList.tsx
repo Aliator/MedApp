@@ -148,6 +148,12 @@ export function StageDetails({stage, work, instructions, files}: StageDetailsPro
           {needsLetterWords(stage.needsLetterKind)}
         </Text>
       )}
+      {/* A stage that needs consent (decision 146): it can't be finished until a Valid consent record is recorded for it. */}
+      {stage.needsConsent && (
+        <Text type="body" weight="semibold">
+          Needs consent recorded before it can be finished
+        </Text>
+      )}
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
       {work ?? <StageNotes notes={stage.notes ?? ''} />}

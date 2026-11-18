@@ -45,7 +45,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
+            UnlockStages, FinishWithoutVisit, RecordConsent, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
         });
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
+            UnlockStages, FinishWithoutVisit, RecordConsent, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
         });
 
     public static readonly StandardRole Nurse = new(
@@ -70,7 +70,7 @@ public static class StandardRoles
         "Nurses and healthcare assistants who work on pathways.",
         new HashSet<Permission>
         {
-            UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments,
+            UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, RecordConsent, BookAppointments,
             AttachFiles, RecordSpecimens, WriteLetters, SendLetters,
         });
 
