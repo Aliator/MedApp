@@ -6,6 +6,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import type {InputStatus} from '@astryxdesign/core/Field';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {pixel} from '@astryxdesign/core/Table';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
@@ -221,6 +222,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       key: 'actions',
       header: 'Actions',
       align: 'end',
+      // Eight buttons: a column sized to fit them all, so none is covered by the cell beside it.
+      width: pixel(300),
       renderCell: (u) => {
         const username = u.username ?? '';
         const roles = [...(u.roles ?? [])];
