@@ -41,7 +41,7 @@
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
       <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
       <!-- Thumbnails of uploaded images (MIT licence). The Linux build has no dependencies on the image's libraries. -->
-      <PackageReference Include="SkiaSharp" Version="3.119.4" />
+      <PackageReference Include="SkiaSharp" Version="4.155.0" />
       <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
     </ItemGroup>
 
