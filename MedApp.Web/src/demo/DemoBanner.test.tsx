@@ -14,7 +14,7 @@ describe('DemoBanner', () => {
     renderWithApp(<DemoBanner />, {user: asCurrentUser(ADMIN), path: '/patients'});
 
     expect(await screen.findByText('Light demo: synthetic data, kept only in this browser')).toBeInTheDocument();
-    expect(screen.getByText(/Don’t enter real patient details\. You’re signed in as Clinical lead \(admin\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Don’t enter real patient details\. You’re signed in as Centre administrator \(admin\)/)).toBeInTheDocument();
     // Only Reset: the Read Me it sits on has the account switch, and is the Read Me.
     expect(screen.queryByRole('link', {name: 'Read Me'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name: `Switch to ${STAFF.fullName}`})).not.toBeInTheDocument();

@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
-import {PERMISSIONS, type Permission} from '../../auth/permissions';
+import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, PEOPLE, STAFF} from '../accounts';
+import {ADMIN, PEOPLE, STAFF, type DemoMembership} from '../accounts';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, STAGES, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
@@ -227,8 +227,8 @@ export interface SetupSlice {
   usedTemplateIds: string[];
   clinicPatterns: DemoClinicPattern[];
   clinicSessions: DemoClinicSession[];
-  /** Each person's teams, by user ID. */
-  memberships: Record<string, string[]>;
+  /** Each person's teams and their role in each, by user ID. */
+  memberships: Record<string, DemoMembership[]>;
   roles: DemoRole[];
   monitoringRules: DemoMonitoringRule[];
   activityLog: DemoActivityEntry[];
@@ -259,7 +259,12 @@ export const clock = (hours: number, minutes = 0) => `${String(hours).padStart(2
 
 /** The API's starting roles (`StandardRoles`): each one's name, description and permissions. */
 const ROLE_SPECS: [keyof typeof ROLES, string, string, readonly Permission[]][] = [
-  ['admin', 'Admin', 'Runs MedApp: accounts, roles, setup and privacy. Built in, with fixed permissions.', PERMISSIONS],
+  [
+    'admin',
+    'Admin',
+    'Runs MedApp: accounts, roles, setup, privacy and oversight, reading every team’s records; no clinical changes. Built in, with fixed permissions.',
+    ADMIN_PERMISSIONS,
+  ],
   ['clinician', 'Clinician', 'Clinicians who triage referrals and lead pathways.', STAFF.permissions],
   [
     'seniorClinician',
@@ -560,7 +565,7 @@ export function seedSetup(state: BaseState): SetupSlice {
     templateExceptions: [],
     usedTemplateIds: [DAY_TEMPLATES.adminEarlyTriage, WEEK_TEMPLATES.adminUsualWeek],
     ...seedClinics(),
-    memberships: Object.fromEntries(PEOPLE.map((person) => [person.id, [...person.teamIds]])),
+    memberships: Object.fromEntries(PEOPLE.map((person) => [person.id, person.teams.map((t) => ({...t}))])),
     roles: ROLE_SPECS.map(([key, name, description, permissions]) => ({
       id: ROLES[key],
       name,

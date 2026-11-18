@@ -13,9 +13,10 @@ import {useRef, useState} from 'react';
 import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSettings';
 import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
+import {ACCOUNT_TYPE_DESCRIPTIONS, ACCOUNT_TYPE_LABELS} from '../../auth/accountTypes';
 import {sortRoles} from '../../auth/roles';
 import {myTeamsQuery, teamNames} from '../../api/teams';
-import {useCurrentUser} from '../../auth/auth';
+import {accountTypeOfUser, useCurrentUser} from '../../auth/auth';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page} from '../../components/pages/Page';
 import {AppIcon} from '../../components/shared/icons';
@@ -85,6 +86,10 @@ export function AccountPage() {
           }>
           <ViewSection title="Account">
             <MetadataListItem label="Username">{me.username}</MetadataListItem>
+            {/* Admin, clinic admin or staff (decision 182): from their roles and teams. */}
+            <MetadataListItem label="Account type">
+              {`${ACCOUNT_TYPE_LABELS[accountTypeOfUser(me)]}: ${ACCOUNT_TYPE_DESCRIPTIONS[accountTypeOfUser(me)]}`}
+            </MetadataListItem>
             {/* Your roles, read only: admins give them on the Users page. */}
             <MetadataListItem label={me.roles.length === 1 ? 'Role' : 'Roles'}>
               {me.roles.length > 0 ? sortRoles(me.roles).join(', ') : 'No role'}

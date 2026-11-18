@@ -7,7 +7,7 @@ import type {DemoClockPause, DemoReferralExtra} from '../slices/lab';
 import type {DemoReferral} from '../state';
 import {db} from '../store';
 import {daysFrom, nowUtc, today, ukDateOf} from '../time';
-import {can, contains, flag, list, me, paged, patientName, requirePermission, sorted} from './common';
+import {can, contains, flag, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {ensureVersion, optionalText, patientBanner, patientFlags, whyRecordCantChange} from './labCommon';
 import {createPathway, pathwayResponse} from './pathways';
 
@@ -159,7 +159,7 @@ function whyCantTriage(referral: DemoReferral): string | null {
   if (!can('TriageReferrals'))
     return 'Only clinicians who can triage referrals (their roles give them the Triage referrals permission) can accept, reject or redirect a referral.';
   const name = team(referral.teamId)?.name ?? 'its team';
-  if (!me().teamIds.includes(referral.teamId))
+  if (!teamIdsOf(me()).includes(referral.teamId))
     return `Only members of ${name} can triage this referral. If you should, ask an admin to add you to ${name}.`;
   return whyRecordCantChange(referral.patientId);
 }
@@ -360,7 +360,7 @@ export function registerReferrals() {
       return (
         (statuses.length === 0 || statuses.includes(r.status)) &&
         (teamIds.length === 0 || teamIds.includes(r.teamId)) &&
-        (!mine || viewer.teamIds.length === 0 || viewer.teamIds.includes(r.teamId)) &&
+        (!mine || teamIdsOf(viewer).length === 0 || teamIdsOf(viewer).includes(r.teamId)) &&
         (!query.get('PatientId') || r.patientId === query.get('PatientId')) &&
         (flag(query, 'BreachedOnly') !== true || clock.isBreached === true) &&
         (paused === undefined || paused === (clock.state === 'Paused')) &&
@@ -394,9 +394,10 @@ export function registerReferrals() {
   on('get', '/api/referrals/awaiting-triage/count', () => {
     const viewer = me();
     const awaiting = db().referrals.filter((r) => r.status === 'AwaitingTriage');
-    const inMine = viewer.teamIds.length > 0;
+    const mine = teamIdsOf(viewer);
+    const inMine = mine.length > 0;
     return {
-      count: (inMine ? awaiting.filter((r) => viewer.teamIds.includes(r.teamId)) : awaiting).length,
+      count: (inMine ? awaiting.filter((r) => mine.includes(r.teamId)) : awaiting).length,
       inYourTeams: inMine,
     };
   });

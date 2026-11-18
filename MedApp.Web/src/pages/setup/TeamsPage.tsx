@@ -160,7 +160,14 @@ export function TeamsPage({search, onSearchChange}: TeamsPageProps) {
         <SetupNameCell
           name={s.name ?? ''}
           secondary={teamUse(s)}
-          token={!s.isArchived && s.triagerCount === 0 ? <Token size="sm" label="Nobody can triage" color="orange" icon={<Icon icon={AppIcon.Warning} />} /> : undefined}
+          token={
+            // The lab (a team of its own kind) takes no referrals, so it needs nobody to triage them.
+            s.kind === 'Lab' ? (
+              <Token size="sm" label="The lab" color="blue" />
+            ) : !s.isArchived && s.triagerCount === 0 ? (
+              <Token size="sm" label="Nobody can triage" color="orange" icon={<Icon icon={AppIcon.Warning} />} />
+            ) : undefined
+          }
         />
       ),
     },

@@ -17,6 +17,7 @@ export const USERS = {
   sandiford: id(0xd0, 4),
   marsh: id(0xd0, 5),
   hallworth: id(0xd0, 6),
+  aldous: id(0xd0, 7),
 } as const;
 
 export const TEAMS = {
@@ -25,6 +26,7 @@ export const TEAMS = {
   urology: id(0xd1, 3),
   diabetes: id(0xd1, 4),
   biomechanics: id(0xd1, 5),
+  lab: id(0xd1, 6),
 } as const;
 
 export const TEMPLATES = {

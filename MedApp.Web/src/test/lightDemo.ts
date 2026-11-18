@@ -1,5 +1,5 @@
 import type {CurrentUser} from '../auth/auth';
-import {ADMIN, type DemoPerson} from '../demo/accounts';
+import {accountTypeOfPerson, ADMIN, type DemoPerson} from '../demo/accounts';
 import {answer} from '../demo/api/http';
 import {registerHandlers} from '../demo/handlers';
 import {seed} from '../demo/seed';
@@ -26,6 +26,8 @@ export const asCurrentUser = (person: DemoPerson): CurrentUser => ({
   permissions: person.permissions,
   mustChangePassword: false,
   mustSetUpTwoFactor: false,
+  accountType: accountTypeOfPerson(person),
+  teams: [],
 });
 
 /** Calls the stand-in API directly, as the app's client would, and reads the JSON answer. */

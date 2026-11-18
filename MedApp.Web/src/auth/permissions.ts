@@ -43,6 +43,7 @@ export const PERMISSIONS = [
   'ExportPatientRecords',
   'ManagePrivacy',
   'CorrectRecords',
+  'ViewAllTeams',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -143,7 +144,38 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
     group: 'AdministratorOnly',
     description: "Delete notes and decide deletion requests, delete anyone's file, and withdraw anyone's visit recorded after the event.",
   },
+  ViewAllTeams: {group: 'AdministratorOnly', description: "See every team's records, read only, and choose a team to look at."},
 };
+
+/**
+ * The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`): admins are read
+ * only (decisions 182 and 208 of `docs/multi-clinic-plan.md`), so only staff do clinical work.
+ */
+export const NOT_FOR_ADMIN: readonly Permission[] = [
+  'EditPatients',
+  'DeletePatients',
+  'RegisterReferrals',
+  'TriageReferrals',
+  'CreatePathways',
+  'WorkPathways',
+  'AssignPathways',
+  'UnlockStages',
+  'FinishWithoutVisit',
+  'RecordMdtOutcomes',
+  'RecordConsent',
+  'DeletePathways',
+  'BookAppointments',
+  'AttachFiles',
+  'RecordSpecimens',
+  'ProcessSpecimens',
+  'SignOffResults',
+  'WriteLetters',
+  'ApproveLetters',
+  'SendLetters',
+];
+
+/** The built-in Admin role's fixed permissions (the API's `Permissions.Admin`): every one but `NOT_FOR_ADMIN`. */
+export const ADMIN_PERMISSIONS: Permission[] = PERMISSIONS.filter((p) => !NOT_FOR_ADMIN.includes(p));
 
 /** Whether `name` is a permission this app knows (the API may know one this copy of the page doesn't yet). */
 export const isPermission = (name: unknown): name is Permission =>

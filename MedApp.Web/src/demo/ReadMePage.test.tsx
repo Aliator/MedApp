@@ -24,7 +24,7 @@ describe('ReadMePage', () => {
   // A place kept by one test's button isn't for the next test's Read Me.
   afterEach(() => sessionStorage.removeItem('medapp.readMePlace'));
 
-  it('says what the light version is, the two accounts, the tour and what it leaves out, and counts as seen', async () => {
+  it('says what the light version is, the three accounts, the tour and what it leaves out, and counts as seen', async () => {
     startLightDemo(ADMIN);
     renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
 
@@ -32,7 +32,9 @@ describe('ReadMePage', () => {
     // The demo's banner sits at the top of the Read Me (not above every page).
     expect(screen.getByText('Light demo: synthetic data, kept only in this browser')).toBeInTheDocument();
     expect(screen.getByText(/runs entirely in your browser/)).toBeInTheDocument();
-    expect(screen.getByText('Clinical lead (admin): you, now')).toBeInTheDocument();
+    expect(screen.getByText('Centre administrator (admin): you, now')).toBeInTheDocument();
+    expect(screen.getByText('Ravi Aldous (r.aldous)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Three accounts'})).toBeInTheDocument();
     expect(screen.getByText(`${STAFF.fullName} (${STAFF.username})`)).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: /Triage a referral/})).toBeInTheDocument();
     expect(screen.getByText('Real-time notifications')).toBeInTheDocument();

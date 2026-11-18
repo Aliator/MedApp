@@ -1,14 +1,29 @@
-import {DEMO_ACCOUNTS, personByUsername} from '../accounts';
+import {accountTypeOfPerson, DEMO_ACCOUNTS, personByUsername, type DemoPerson} from '../accounts';
 import {on, problem} from '../api/http';
 import {db} from '../store';
 import {nowUtc} from '../time';
 import {logActivity} from './adminLogs';
-import {me, signedIn} from './common';
+import {me, membershipsOf, signedIn} from './common';
 
 /**
  * Signing in, the session and the account's own settings. There's no real sign-in: the login page picks one of the
- * two demo accounts (any password works), and the session never runs out.
+ * three demo accounts (any password works), and the session never runs out.
  */
+
+/** Someone's teams with their kind and their role in each, as the API answers them (by name). */
+export function teamsOfPerson(person: DemoPerson) {
+  const mine = membershipsOf(person);
+  return db()
+    .teams.filter((t) => mine.some((m) => m.teamId === t.id))
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      isArchived: t.isArchived,
+      kind: t.kind ?? 'Clinic',
+      role: mine.find((m) => m.teamId === t.id)?.role ?? 'Member',
+    }))
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+}
 export function registerAccount() {
   on('get', '/api/auth/whoami', () => {
     const person = signedIn();
@@ -20,13 +35,15 @@ export function registerAccount() {
       permissions: person.permissions,
       mustChangePassword: false,
       mustSetUpTwoFactor: false,
+      accountType: accountTypeOfPerson(person, membershipsOf(person)),
+      teams: teamsOfPerson(person),
     };
   });
 
   on('post', '/api/auth/login', ({body}) => {
     const person = personByUsername(body.username);
     if (!person || !DEMO_ACCOUNTS.some((account) => account.id === person.id))
-      return problem(401, 'In the light demo, choose one of the two accounts on the login page.');
+      return problem(401, 'In the light demo, choose one of the three accounts on the login page.');
     db().user = person.username;
     logActivity('SignedIn', {userId: person.id});
     return {sessionId: person.id, expiresAtUtc: new Date(Date.now() + 8 * 3600_000).toISOString()};
@@ -69,13 +86,7 @@ export function registerAccount() {
   });
   on('put', '/api/auth/me/details', () => problem(409, 'The demo accounts’ names are fixed in the light demo.'));
 
-  on('get', '/api/auth/me/teams', () => {
-    const person = me();
-    const mine = db().memberships[person.id] ?? person.teamIds;
-    return db()
-      .teams.filter((s) => mine.includes(s.id ?? ''))
-      .map((s) => ({id: s.id, name: s.name, isArchived: s.isArchived}));
-  });
+  on('get', '/api/auth/me/teams', () => teamsOfPerson(me()));
 
   on('get', '/api/auth/me/email', () => {
     const person = me();
