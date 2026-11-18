@@ -2,7 +2,6 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
@@ -33,6 +32,7 @@ import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
 import {PatientPicker, visitWords, type PatientItem} from './BookAppointmentDialog';
+import {AnchoredSelector} from '../forms/AnchoredSelector';
 
 export interface RecordPastAppointmentDialogProps {
   isOpen: boolean;
@@ -277,7 +277,7 @@ function RecordPastForm({
         <PatientPicker value={pickedPatient} onChange={choosePatient} status={fieldStatus(problem.validation, 'patientId')} />
       )}
       {!isForFixed && patientId !== undefined && (
-        <Selector
+        <AnchoredSelector
           label="For"
           isOptional
           value={pathwayId}
@@ -298,7 +298,7 @@ function RecordPastForm({
         />
       )}
       {stage === undefined && chosenPathwayId !== undefined && (
-        <Selector
+        <AnchoredSelector
           label="Stage"
           isOptional
           value={stageId}
@@ -330,7 +330,7 @@ function RecordPastForm({
           </Text>
         )
       )}
-      <Selector
+      <AnchoredSelector
         label="With"
         value={staffId ?? ''}
         onChange={(id) => {
@@ -365,7 +365,7 @@ function RecordPastForm({
         <AlertMessage message="The calendar could not be loaded. Please try again." />
       ) : (
         <>
-          <Selector
+          <AnchoredSelector
             label="Day"
             description={`A weekday in the last ${PAST_APPOINTMENT_DAYS} days, or today; closed days too.`}
             value={day ?? ''}
@@ -381,7 +381,7 @@ function RecordPastForm({
           />
           <HStack gap={3} vAlign="start">
             <StackItem size="fill">
-              <Selector
+              <AnchoredSelector
                 label="Start"
                 value={start ?? ''}
                 placeholder="Choose a time"
@@ -393,7 +393,7 @@ function RecordPastForm({
               />
             </StackItem>
             <StackItem size="fill">
-              <Selector
+              <AnchoredSelector
                 label="Length"
                 value={String(length)}
                 onChange={(value) => {

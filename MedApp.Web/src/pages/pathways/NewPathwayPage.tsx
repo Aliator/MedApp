@@ -1,4 +1,3 @@
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
@@ -24,6 +23,7 @@ import {todayIso} from '../../utils/dates';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {EMPTY_PATHWAY_DETAILS, PATHWAY_DETAILS_FIELDS, PathwayDetailsFields} from './PathwayDetailsFields';
 import {SnomedConcept} from '../../components/pathways/SnomedConcept';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 const NEW_PATHWAY_FIELDS = ['templateId', ...PATHWAY_DETAILS_FIELDS];
 
@@ -90,7 +90,7 @@ export function NewPathwayPage({patientId}: NewPathwayPageProps) {
 
   const templateFields = (
     <VStack gap={4}>
-      <Selector
+      <AnchoredSelector
         label="Template"
         placeholder="Choose a template"
         options={usable.map((t) => ({value: t.id ?? '', label: t.name ?? ''}))}
