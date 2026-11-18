@@ -105,6 +105,36 @@ public sealed class SearchSpecimensRequest
     public Guid? PatientId { get; set; }
 }
 
+/// <summary>
+/// Body of <c>POST api/specimens/search</c>: the Lab page's worklist, searched and sorted. A body, not a query string,
+/// because the search may be a specimen number, which stays out of URLs (and so out of request logs).
+/// </summary>
+public sealed class SpecimenWorklistRequest
+{
+    public int Page { get; set; } = 1;
+
+    public int PageSize { get; set; } = 10;
+
+    /// <summary>As <see cref="SearchSpecimensRequest.View"/>.</summary>
+    public string? View { get; set; }
+
+    public Guid? LaboratoryId { get; set; }
+
+    /// <summary>
+    /// Text in the specimen's number (spaces ignored), the patient's name or NHS number, or the specimen type's name,
+    /// ignoring case. At most 200 characters.
+    /// </summary>
+    public string? Search { get; set; }
+
+    /// <summary>
+    /// <c>number</c>, <c>patient</c>, <c>lab</c>, <c>status</c> or <c>time</c> (the view's time: taken, sent,
+    /// received, expected by, closed or reported). Without one, the view's own order.
+    /// </summary>
+    public string? Sort { get; set; }
+
+    public bool Ascending { get; set; } = true;
+}
+
 /// <summary>Adding or changing a specimen type.</summary>
 public sealed class SpecimenTypeRequest
 {

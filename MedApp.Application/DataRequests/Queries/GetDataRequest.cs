@@ -83,7 +83,10 @@ public sealed record SearchDataRequestsQuery(
     string? Status,
     Guid? PatientId,
     bool AwaitingReview,
-    PathwayActor Actor) : IRequest<PagedResponse<DataRequestSummaryResponse>>;
+    PathwayActor Actor,
+    string? Search = null,
+    string? Sort = null,
+    bool Ascending = true) : IRequest<PagedResponse<DataRequestSummaryResponse>>;
 
 public sealed class SearchDataRequestsValidator : AbstractValidator<SearchDataRequestsQuery>
 {
@@ -99,6 +102,9 @@ public sealed class SearchDataRequestsValidator : AbstractValidator<SearchDataRe
             .Must(s => PathwayEnums.TryParse<DataRequestStatus>(s, out _))
             .When(x => !string.IsNullOrWhiteSpace(x.Status))
             .WithMessage(StatusMessage);
+        RuleFor(x => x.Search)
+            .MaximumLength(DataRequestSearch.MaxSearchLength)
+            .WithMessage($"Search must not exceed {DataRequestSearch.MaxSearchLength} characters.");
     }
 }
 
@@ -116,7 +122,9 @@ public sealed class SearchDataRequestsHandler(
         var status = string.IsNullOrWhiteSpace(request.Status) ? (DataRequestStatus?)null : PathwayEnums.Parse<DataRequestStatus>(request.Status);
         var today = UkTime.Today(timeProvider);
         var result = await repository.SearchAsync(
-            new DataRequestFilter(status, request.PatientId, request.AwaitingReview), request.Page, request.PageSize,
+            new DataRequestFilter(
+                status, request.PatientId, request.AwaitingReview, request.Search, request.Sort, request.Ascending),
+            request.Page, request.PageSize,
             cancellationToken);
 
         await activityLog.RecordViewsAsync(

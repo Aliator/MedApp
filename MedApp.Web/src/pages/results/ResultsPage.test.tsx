@@ -1,5 +1,5 @@
 import {screen} from '@testing-library/react';
-import {calls, json, mockApi, nurseUser, renderWithApp, seniorClinicianUser} from '../../test/render';
+import {calls, json, mockApi, nurseUser, pickFavourite, renderWithApp, searchBar, seniorClinicianUser} from '../../test/render';
 import {CARDIOLOGY_ID, RESULT_ID, RESULT_PATHWAY_ID, testResultSummary} from '../../test/results';
 import type {ResultsSearch} from './resultsSearch';
 import {ResultsPage} from './ResultsPage';
@@ -24,8 +24,7 @@ describe('ResultsPage', () => {
     const {fetch} = renderPage();
 
     expect(await screen.findByRole('heading', {name: 'Results', level: 1})).toBeInTheDocument();
-    expect(screen.getByRole('tab', {name: 'Awaiting my sign-off'})).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Results you are responsible for that await your sign-off, oldest report first.')).toBeInTheDocument();
+    expect(await screen.findByRole('tab', {name: 'Awaiting my sign-off', selected: true})).toBeInTheDocument();
     expect((await screen.findAllByRole('link', {name: 'Skin biopsy (punch) report'}))[0]).toHaveAttribute('href', `/results/${RESULT_ID}`);
     expect(screen.getAllByRole('link', {name: 'Freya Ahmed'}).length).toBe(2);
     expect(screen.getByText('NHS No. 999 000 0026')).toBeInTheDocument();
@@ -38,7 +37,7 @@ describe('ResultsPage', () => {
     expect(screen.getAllByText('test-senior')).toHaveLength(2);
     expect(screen.getAllByText('Needs a clinician').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Awaiting sign-off')).toHaveLength(2);
-    expect(screen.getByText('2 results')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting my sign-off: 2 results')).toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/results/search?View=AwaitingMine&Page=1&PageSize=10');
   });
 
@@ -47,7 +46,7 @@ describe('ResultsPage', () => {
 
     expect(await screen.findByRole('tab', {name: 'Awaiting sign-off (everyone)'})).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tab', {name: 'Awaiting my sign-off'})).not.toBeInTheDocument();
-    expect(await screen.findByText('2 results in Cardiology')).toBeInTheDocument();
+    expect(await screen.findByText('Awaiting sign-off (everyone): 2 results in Cardiology')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/results/search?View=Awaiting&SpecialtyId=${CARDIOLOGY_ID}&Page=1&PageSize=10`);
   });
 
@@ -61,21 +60,48 @@ describe('ResultsPage', () => {
     expect(screen.getByText('dr.synthetic, 6 Nov 2026, 09:30')).toBeInTheDocument();
   });
 
-  it('changes the view and the specialty in the address', async () => {
-    const {user, onSearchChange} = renderPage({specialty: CARDIOLOGY_ID});
+  it('changes the view from its tabs, and the specialty from the picker beside the title, in the address', async () => {
+    const {user, onSearchChange} = renderPage({specialty: CARDIOLOGY_ID, page: 2});
 
-    await user.click(await screen.findByRole('tab', {name: 'Needs a clinician'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'NeedsClinician', specialty: CARDIOLOGY_ID});
+    await pickFavourite(user, 'Needs a clinician');
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'NeedsClinician', specialty: CARDIOLOGY_ID, patient: undefined, sort: undefined, asc: undefined});
 
     await user.click(screen.getByRole('combobox', {name: /^Specialty/}));
     expect(screen.queryByRole('option', {name: 'Old clinic'})).not.toBeInTheDocument();
     await user.click(await screen.findByRole('option', {name: 'All specialties'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({view: undefined, specialty: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, specialty: undefined});
   });
 
-  it('says when a view is empty', async () => {
+  it('asks for the patient searched for, every result once the view is removed, and the column sorted by', async () => {
+    const {fetch} = renderPage({view: 'All', patient: 'Freya', sort: 'title', asc: false});
+
+    await screen.findAllByRole('link', {name: 'Freya Ahmed'});
+    expect(calls(fetch)).toContain('GET /api/results/search?View=All&Search=Freya&Sort=title&Ascending=false&Page=1&PageSize=10');
+    // No tab shows a search by name, so the search shows it.
+    expect(searchBar()).toHaveTextContent(/Patient: contains\s*Freya/);
+    expect(screen.getByText('All results: 2 results')).toBeInTheDocument();
+  });
+
+  it('sorts by a column, back to the first page', async () => {
+    const {user, onSearchChange} = renderPage({view: 'SignedOff', page: 2});
+
+    await screen.findAllByRole('link', {name: 'Freya Ahmed'});
+    await user.click(screen.getByRole('button', {name: /^Patient/}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'SignedOff', page: undefined, sort: 'patient', asc: true});
+  });
+
+  it('says when a view is empty, or nothing matches the search', async () => {
     renderPage({view: 'NeedsClinician'}, seniorClinicianUser, []);
     expect(await screen.findByText('Every result awaiting sign-off has a clinician')).toBeInTheDocument();
+  });
+
+  it('offers to clear a search that matches nothing', async () => {
+    const {user, onSearchChange} = renderPage({patient: 'Nobody'}, seniorClinicianUser, []);
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, patient: undefined});
   });
 });
 

@@ -6,7 +6,17 @@ using MedApp.Domain.Notifications;
 namespace MedApp.Application.DataRequests.Repositories;
 
 /// <summary>The filters of the data requests list (<see cref="IDataRequestRepository.SearchAsync"/>).</summary>
-public sealed record DataRequestFilter(DataRequestStatus? Status, Guid? PatientId, bool AwaitingReview);
+/// <summary>
+/// The list's filter and order: a status, a patient, the open ones not yet reviewed, a patient's name
+/// (<see cref="Search"/>), and a column to sort by (<see cref="Common.DataRequestSearch.SortColumns"/>).
+/// </summary>
+public sealed record DataRequestFilter(
+    DataRequestStatus? Status,
+    Guid? PatientId,
+    bool AwaitingReview,
+    string? Search = null,
+    string? Sort = null,
+    bool Ascending = true);
 
 /// <summary>Patients' data requests. Every change is saved with its activity log entry, in one save.</summary>
 public interface IDataRequestRepository

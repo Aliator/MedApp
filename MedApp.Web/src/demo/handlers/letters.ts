@@ -5,7 +5,7 @@ import {newId} from '../ids';
 import type {DemoLetter, DemoLetterRecipient, DemoLetterTemplate} from '../slices/clinical';
 import {db} from '../store';
 import {daysFrom, nowUtc, today, ukDateOf} from '../time';
-import {can, me, NO_FLAGS, paged, pathwayPatient, patientName, requirePermission} from './common';
+import {can, contains, me, NO_FLAGS, paged, pathwayPatient, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {findPathway} from './pathways';
 
 /**
@@ -222,6 +222,9 @@ const canBeCorrected = (letter: DemoLetter) => letter.status === 'Withdrawn' && 
 const isSentToEveryone = (letter: DemoLetter) => letter.recipients.length > 0 && letter.recipients.every((r) => r.dispatchStatus === 'Sent');
 
 /** A letter in a list (`LetterSummaryResponse`). */
+/** The statuses in the API's stored order, which its status sort follows. */
+const LETTER_STATUS_ORDER: DemoLetter['status'][] = ['Draft', 'AwaitingApproval', 'Approved', 'Withdrawn'];
+
 function letterSummary(letter: DemoLetter): Schemas['LetterSummaryResponse'] {
   const pathway = letter.pathwayId ? db().pathways.find((p) => p.id === letter.pathwayId) : undefined;
   return {
@@ -497,11 +500,17 @@ export function registerLetters() {
     const patientId = query.get('PatientId');
     const pathwayId = query.get('PathwayId');
     const referralId = query.get('ReferralId');
-    const views = ['MyDrafts', 'AwaitingMyApproval', 'ReturnedToMe', 'ToSend', 'Sent'];
+    const views = ['MyDrafts', 'AwaitingMyApproval', 'ReturnedToMe', 'ToSend', 'Sent', 'All'];
     if (view && !views.includes(view)) return invalid({view: [`View must be one of: ${views.join(', ')}.`]});
     if (!view && !patientId && !pathwayId && !referralId) return invalid({view: ['Choose a view, or a patient, pathway or referral.']});
+    const search = query.get('Search')?.trim() ?? '';
+    if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
     let letters = db().letters.filter(
-      (l) => (!patientId || l.patientId === patientId) && (!pathwayId || l.pathwayId === pathwayId) && (!referralId || l.referralId === referralId),
+      (l) =>
+        (!patientId || l.patientId === patientId) &&
+        (!pathwayId || l.pathwayId === pathwayId) &&
+        (!referralId || l.referralId === referralId) &&
+        contains(patientName(l.patientId), search),
     );
     const by = (key: (l: DemoLetter) => string | null, descending = false) => (a: DemoLetter, b: DemoLetter) =>
       ((key(a) ?? '').localeCompare(key(b) ?? '') || a.id.localeCompare(b.id)) * (descending ? -1 : 1);
@@ -524,7 +533,13 @@ export function registerLetters() {
       default:
         letters = letters.sort(by((l) => l.createdAt, true));
     }
-    return paged(letters.map(letterSummary), query);
+    const sorted = sortedBy(letters, query.get('Sort'), query.get('Ascending') !== 'false', {
+      patient: (l) => patientSortName(l.patientId),
+      letter: (l) => `${l.kind} ${l.templateName.toLowerCase()}`,
+      status: (l) => LETTER_STATUS_ORDER.indexOf(l.status),
+      latest: (l) => l.withdrawnAtUtc ?? l.approvedAtUtc ?? (l.status === 'AwaitingApproval' ? l.submittedAtUtc : null) ?? l.lastUpdated,
+    });
+    return paged((sorted ?? letters).map(letterSummary), query);
   });
   on('get', '/api/letters/count', () => {
     const viewer = me();

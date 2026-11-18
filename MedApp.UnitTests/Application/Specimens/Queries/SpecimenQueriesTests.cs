@@ -1,3 +1,5 @@
+using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Patients;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
@@ -157,5 +159,97 @@ public sealed class SearchSpecimensTests : SpecimenTestBase
         page.Items.Single(i => i.Status == "Received").IsOverdueAtLab.Should().BeTrue();
         activity.Views.Should().ContainSingle(v => v.Action == ActivityAction.PatientListed)
             .Which.PatientIds.Should().BeEquivalentTo(specimens.Select(s => s.PatientId).Distinct());
+    }
+
+    /// <summary>A specimen with its own number, patient, type and lab, for the Lab page's search and sort.</summary>
+    private static Specimen Named(string number, string first, string last, string? nhsNumber, SpecimenType type, Laboratory lab, SpecimenStatus status, int daysAgo)
+    {
+        var patient = new Patient { Id = Guid.NewGuid(), FirstName = first, LastName = last, NhsNumber = nhsNumber };
+        var template = CreateSpecimen(CreatePathway(PatientPathwayStatus.InProgress, patient: patient), status, Now.AddDays(-daysAgo));
+        return new Specimen
+        {
+            Id = template.Id,
+            Number = number,
+            PatientId = patient.Id,
+            Patient = patient,
+            PathwayId = template.PathwayId,
+            Pathway = template.Pathway,
+            StageId = template.StageId,
+            SpecimenType = type,
+            SpecimenTypeId = type.Id,
+            Laboratory = lab,
+            LaboratoryId = lab.Id,
+            Status = status,
+            TakenAtUtc = template.TakenAtUtc,
+            SentAtUtc = template.SentAtUtc,
+            ReceivedAtUtc = template.ReceivedAtUtc,
+            ReportedAtUtc = template.ReportedAtUtc,
+            ClosedAtUtc = template.ClosedAtUtc,
+        };
+    }
+
+    private static List<Specimen> Worklist() =>
+    [
+        Named("MA26-000101", "Ada", "Zephyr", "9990000026", Biopsy(), InHouseLab(), SpecimenStatus.Taken, 3),
+        Named("MA26-000102", "Bea", "Young", null, Urine(), PartnerLab(), SpecimenStatus.Sent, 1),
+        Named("MA26-000103", "Cal", "Xu", null, Biopsy(), new Laboratory { Id = Guid.NewGuid(), Name = "Abbey lab" }, SpecimenStatus.Received, 2),
+    ];
+
+    private static List<string> Numbers(SearchSpecimensQuery query) =>
+        Worklist().AsQueryable().Filter(query, Now).Sort(query.ParsedView, query.Sort, query.Ascending).Select(s => s.Number).ToList();
+
+    private static SearchSpecimensQuery Searched(string? search, string? sort = null, bool ascending = true, string? view = null) =>
+        new(1, 50, view, null, null, null, search, sort, ascending);
+
+    [TestCase("ma26-000102", "MA26-000102")]
+    [TestCase(" MA26 - 000103 ", "MA26-000103")]
+    [TestCase("bea young", "MA26-000102")]
+    [TestCase("ZEPHYR", "MA26-000101")]
+    [TestCase("999 000 0026", "MA26-000101")]
+    [TestCase("urine", "MA26-000102")]
+    public void Search_FindsTheNumberWithoutSpaces_ThePatientsNameOrNhsNumber_OrTheType(string search, string number)
+    {
+        Numbers(Searched(search)).Should().Equal(number);
+    }
+
+    [Test]
+    public void Search_NothingMatching_FindsNothing()
+    {
+        Numbers(Searched("MA26-999999")).Should().BeEmpty();
+        Numbers(Searched("   ")).Should().HaveCount(3);
+    }
+
+    [TestCase("number", true, "MA26-000101", "MA26-000102", "MA26-000103")]
+    [TestCase("patient", true, "MA26-000103", "MA26-000102", "MA26-000101")]
+    [TestCase("PATIENT", false, "MA26-000101", "MA26-000102", "MA26-000103")]
+    [TestCase("lab", true, "MA26-000103", "MA26-000101", "MA26-000102")]
+    [TestCase("status", false, "MA26-000103", "MA26-000102", "MA26-000101")]
+    [TestCase("time", true, "MA26-000101", "MA26-000103", "MA26-000102")]
+    [TestCase("site", true, "MA26-000102", "MA26-000103", "MA26-000101")]
+    public void Sort_ByAColumnInEitherDirection_OrTheViewsOwnOrder(string sort, bool ascending, params string[] numbers)
+    {
+        Numbers(Searched(null, sort, ascending)).Should().Equal(numbers);
+    }
+
+    [TestCase("Expected")]
+    [TestCase("InLab")]
+    [TestCase("Overdue")]
+    [TestCase("RejectedAndLost")]
+    [TestCase("Reported")]
+    [TestCase("ToSend")]
+    public void Sort_ByTime_UsesTheViewsOwnTime(string view)
+    {
+        var all = Specimens();
+        var query = Searched(null, "time", false, view);
+        var expected = all.AsQueryable().Filter(query, Now).Sort(query.ParsedView).Select(s => s.Id).Reverse().ToList();
+
+        all.AsQueryable().Filter(query, Now).Sort(query.ParsedView, "time", false).Select(s => s.Id).Should().Equal(expected);
+    }
+
+    [Test]
+    public void Validator_ASearchOver200Characters_IsRefused()
+    {
+        new SearchSpecimensValidator().Validate(Searched(new string('x', 201))).IsValid.Should().BeFalse();
+        new SearchSpecimensValidator().Validate(Searched(new string('x', 200))).IsValid.Should().BeTrue();
     }
 }

@@ -5983,6 +5983,9 @@ export interface paths {
                     Status?: string;
                     PatientId?: string;
                     AwaitingReview?: boolean;
+                    Search?: string;
+                    Sort?: string;
+                    Ascending?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -7979,6 +7982,9 @@ export interface paths {
                     PatientId?: string;
                     PathwayId?: string;
                     ReferralId?: string;
+                    Search?: string;
+                    Sort?: string;
+                    Ascending?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -14579,6 +14585,9 @@ export interface paths {
                     SpecialtyId?: string;
                     PathwayId?: string;
                     PatientId?: string;
+                    Search?: string;
+                    Sort?: string;
+                    Ascending?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -18231,7 +18240,45 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SpecimenWorklistRequest"];
+                    "text/json": components["schemas"]["SpecimenWorklistRequest"];
+                    "application/*+json": components["schemas"]["SpecimenWorklistRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecimenSummaryResponsePagedResponse"];
+                        "application/json": components["schemas"]["SpecimenSummaryResponsePagedResponse"];
+                        "text/json": components["schemas"]["SpecimenSummaryResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -22821,6 +22868,18 @@ export interface components {
             expectedTurnaroundDays?: number;
             isArchived?: boolean;
             canBeDeleted?: boolean;
+        };
+        SpecimenWorklistRequest: {
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            view?: string | null;
+            /** Format: uuid */
+            laboratoryId?: string | null;
+            search?: string | null;
+            sort?: string | null;
+            ascending?: boolean;
         };
         StaffDetailsRequest: {
             fullName?: string | null;

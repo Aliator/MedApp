@@ -37,8 +37,9 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'date', key: 'when', label: 'When', fromKey: 'from', toKey: 'to'},
 ];
 
-/** Quick look-ups: recent entries, and the kinds of change most looked for. */
+/** Its tabs: every entry (where it opens), recent entries, and the kinds of change most looked for. */
 const favourites = (): ListFilterFavourite[] => [
+  {label: 'All', values: {}},
   {label: 'Today', values: {from: dayFromToday()}},
   {label: 'Last 7 days', values: {from: dayFromToday({days: -6})}},
   {label: 'Status changes', values: {action: 'StatusChanged'}},
