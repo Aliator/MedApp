@@ -583,7 +583,7 @@ describe('AppSideNav folded, and its menus', () => {
 
   it("holds a folded nav's row out while its menu is pinned, and lets it go when the menu closes", async () => {
     localStorage.setItem('medapp.navFlyoutDelay', 'none');
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav collapsible={{isCollapsed: true}} />
@@ -624,7 +624,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it("pins a row's menu open with a press of its button, so the pointer leaving doesn't close it; a second press closes it", async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -659,7 +659,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it('pins a menu that the pointer resting opened, when its button is pressed', async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -690,7 +690,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it('keeps the button the menu\'s invoker through a press that pins it, so the browser\'s light dismiss leaves it open', async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -713,7 +713,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it('lets a menu go once a second click closes it, so resting on the button then opens it only for a while', async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -739,7 +739,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it("doesn't pin a menu that a press didn't open (a right-click)", async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -761,7 +761,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it('closes a pinned menu with Enter on its button', async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -779,7 +779,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it('pins a menu opened from the keyboard', async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -806,7 +806,7 @@ describe('AppSideNav folded, and its menus', () => {
       if (this.matches('[popover], [role="menu"]')) return new DOMRect(300, 90, 200, 120);
       return new DOMRect();
     });
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -835,7 +835,7 @@ describe('AppSideNav folded, and its menus', () => {
     const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
     prototype.getAnimations = () => [sliding];
     try {
-      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
       const {user} = renderWithApp(
         <HalfViewsContext.Provider value={halfViews}>
           <AppSideNav />
@@ -858,7 +858,7 @@ describe('AppSideNav folded, and its menus', () => {
 
   it("shows a row's buttons on hover alone in a browser without :focus-visible", async () => {
     // A half view to open is what gives a row its menu button.
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -897,7 +897,7 @@ describe('AppSideNav folded, and its menus', () => {
     const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
     prototype.getAnimations = () => [sliding, endless];
     try {
-      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
       const {user} = renderWithApp(
         <HalfViewsContext.Provider value={halfViews}>
           <AppSideNav />
@@ -927,7 +927,7 @@ describe('AppSideNav folded, and its menus', () => {
       if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
       return new DOMRect();
     });
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -968,7 +968,7 @@ describe('AppSideNav with a half view open', () => {
       'GET /api/patients/labels': patientLabels({[patientId]: 'Test Patient'}),
       'GET /api/pathways/patient-pathways/labels': pathwayLabels({[pathwayId]: {title: 'Test pathway', patientName: 'Test Patient'}}),
     });
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const result = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -1014,20 +1014,15 @@ describe('AppSideNav with a half view open', () => {
     expect(rowOf(pathways).style.backgroundColor).toBe(HALF_VIEW_SHADE);
   });
 
-  it('opens a clicked page on its own when that is chosen, but leaves a modified click to the browser', async () => {
-    // Off by default; this is the setting turned on (Account Settings).
-    localStorage.setItem('medapp.navClosesHalfView', 'true');
-    const {user, halfViews} = renderWithHalf('/pathways', '/admin/audit');
+  it('leaves a plain click on a nav item to the link, opening it in the main view and keeping the half view', async () => {
+    const {user, halfViews, router} = renderWithHalf('/pathways', '/admin/audit');
     await user.click(await categoryRow('Account Management'));
-    const users = await screen.findByRole('link', {name: /^users$/i});
 
-    await user.keyboard('{Control>}');
-    await user.click(users);
-    await user.keyboard('{/Control}');
+    await user.click(await screen.findByRole('link', {name: /^users$/i}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
     expect(halfViews.openFull).not.toHaveBeenCalled();
-
-    await user.click(users);
-    expect(halfViews.openFull).toHaveBeenCalledWith('/admin/users');
+    expect(halfViews.close).not.toHaveBeenCalled();
   });
 });
 
@@ -1085,7 +1080,7 @@ describe('AppSideNav notepad', () => {
 
   /** The nav, its notepad, and a half view showing `openPath`. */
   function renderWithHalfView(openPath: string) {
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const result = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <NotepadProvider>
@@ -1118,7 +1113,7 @@ describe('AppSideNav notepad', () => {
 
   /** The Notepad row's menu, opened from its button (the row is a button, not a link), and its items. */
   async function notepadMenuItems(openPath: string | null) {
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), openOnLeft: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <NotepadProvider>
@@ -1140,7 +1135,8 @@ describe('AppSideNav notepad', () => {
   it('opens the notepad in the half view from its menu', async () => {
     const {user, halfViews, items} = await notepadMenuItems(null);
 
-    expect(items.map((item) => item.textContent)).toEqual(['Open in half view']);
+    // With its hint: Shift-click on the item does the same.
+    expect(items.map((item) => item.textContent)).toEqual(['Open in half viewShift-click']);
     await user.click(items[0]);
 
     expect(halfViews.open).toHaveBeenCalledWith('/notepad');
@@ -1149,7 +1145,7 @@ describe('AppSideNav notepad', () => {
   it('offers only the right with a half view open, as the notepad has no page of its own in the main view', async () => {
     const {user, halfViews, items} = await notepadMenuItems('/tasks');
 
-    expect(items.map((item) => item.textContent)).toEqual(['Open on the right']);
+    expect(items.map((item) => item.textContent)).toEqual(['Open on the rightShift-click']);
     await user.click(items[0]);
 
     expect(halfViews.open).toHaveBeenCalledWith('/notepad');

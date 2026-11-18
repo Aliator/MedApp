@@ -38,7 +38,7 @@ function MySpecialties() {
  * address, security (two-factor authentication) and Change Password); their full name and job title for letters
  * (`StaffDetailsCard`, kept on the server); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
- * opens on, and what the side nav does while a half view is open); lists (rows per page, and where pathway lists
+ * opens on); lists (rows per page, and where pathway lists
  * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
  * `ACCESSIBILITY_SETTINGS`, with a link to the accessibility statement). All but the account and notifications are kept in this
  * browser and with the account.
@@ -47,7 +47,7 @@ export function AccountPage() {
   const me = useCurrentUser();
   const {mode, setMode} = useColorMode();
   const {textSize, setTextSize} = useTextSize();
-  const {closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay, startPage, setStartPage} = useNavSettings();
+  const {flyoutDelay, setFlyoutDelay, startPage, setStartPage} = useNavSettings();
   const {pageSize, setPageSize, startsOnMine, setStartsOnMine} = useListSettings();
   const accessibility = useAccessibility();
   // Rows per page, as typed: it takes effect on Apply, or Enter. (Enter commits the typed number and applies it in
@@ -127,12 +127,6 @@ export function AccountPage() {
                   <RadioListItem key={page.value} value={page.value} label={page.label} />
                 ))}
               </RadioList>
-              <Switch
-                label="Nav items close the half view"
-                description="On: clicking a side nav item while a half view is open shows its page on its own. Off: it opens on the left, beside the half view. Either way, the item's menu opens it on the left or the right."
-                value={closesHalfView}
-                onChange={setClosesHalfView}
-              />
             </VStack>
           </CardSection>
         </ViewCard>

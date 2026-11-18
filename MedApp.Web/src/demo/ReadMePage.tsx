@@ -15,7 +15,7 @@ import {CardSection} from '../components/views/CardSection';
 import {ViewCard} from '../components/views/ViewCard';
 import {ADMIN, DEMO_ACCOUNTS, STAFF} from './accounts';
 import {DemoBanner} from './DemoBanner';
-import {markReadMeSeen} from './readMeSeen';
+import {markReadMeSeen, READ_ME_PATH} from './readMeSeen';
 import {resetDemo, switchAccount} from './session';
 import {db} from './store';
 import {NOT_IN_THE_LIGHT_VERSION, TOUR, type TourStep} from './tour';
@@ -59,12 +59,13 @@ export function ReadMePage() {
       if (!step.whyNot?.(db())) return;
     }
     if (step.account && step.account !== me.username) {
-      await switchAccount(step.account, step.path);
+      await switchAccount(step.account, step.path ?? READ_ME_PATH);
       return;
     }
     // A half view left open from an earlier step closes, unless this step opens one.
     if (!step.halfView && halfViews?.openPath) halfViews.close();
-    await navigate({href: step.path} as Parameters<typeof navigate>[0]);
+    // A step with no page (the notepad's) stays on the Read Me.
+    if (step.path) await navigate({href: step.path} as Parameters<typeof navigate>[0]);
     if (step.halfView) halfViews?.open(step.halfView);
     if (step.opensNotepad) notepad?.open();
   };
