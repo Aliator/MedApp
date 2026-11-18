@@ -1,7 +1,6 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Card} from '@astryxdesign/core/Card';
 import {Icon} from '@astryxdesign/core/Icon';
-import {IconButton} from '@astryxdesign/core/IconButton';
 import {Section} from '@astryxdesign/core/Section';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
@@ -10,7 +9,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
 import {calendarQuery} from '../../api/calendar';
-import {formatCalendarDay, nextWeekday, ukToday} from '../../utils/calendarSlots';
+import {formatCalendarDay, ukToday} from '../../utils/calendarSlots';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {PanelHeader} from '../views/PanelCard';
@@ -33,14 +32,15 @@ export interface DayCalendarProps {
 
 /**
  * One person's day (decision 32): its appointments, blocked time and meetings on a read-only `CalendarGrid`, with
- * Previous day and Next day (working days), and Open Calendar, which opens the full calendar on the day shown. Clicking an appointment opens its pathway, or its patient when it
+ * Open Calendar, which opens the full calendar on that day (no buttons to other days, and no "Nothing booked" line: the
+ * owner's choice). Clicking an appointment opens its pathway, or its patient when it
  * isn't for one; blocks and meetings are only shown. It fills the height it's given, in a card. Use it where someone wants to see a day at a glance, like Home;
  * the Calendar page is where the time is changed.
  */
 export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProps) {
   const navigate = useNavigate();
   const [today] = useState(() => ukToday());
-  const [date, setDate] = useState(initialDate ?? today);
+  const [date] = useState(initialDate ?? today);
   const calendar = useQuery(dayCalendarQuery(date, staffUserId));
   const day = calendar.data?.days?.find((d) => d.date === date);
   // Only appointments open (their pathway or patient); blocked time and meetings are just shown (the Calendar page
@@ -64,21 +64,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
           title={heading}
           actions={
             <HStack gap={1} vAlign="center">
-              <IconButton
-                label="Previous day"
-                tooltip="Previous day"
-                variant="ghost"
-                icon={<Icon icon={AppIcon.ChevronLeft} />}
-                onClick={() => setDate(nextWeekday(date, -1))}
-              />
-              <IconButton
-                label="Next day"
-                tooltip="Next day"
-                variant="ghost"
-                icon={<Icon icon={AppIcon.ChevronRight} />}
-                onClick={() => setDate(nextWeekday(date, 1))}
-              />
-              {/* In place of a Today button (the owner's choice): it opens the full calendar on the day shown. */}
+              {/* No day-to-day buttons (the owner's choice): the full calendar is where other days are seen. */}
               <Button
                 label="Open Calendar"
                 variant="secondary"
@@ -104,10 +90,11 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
           </Section>
         ) : (
           <>
-            {!hasAppointments && (
+            {/* An empty working day says nothing (the owner's choice); a day off or a closed day still says so. */}
+            {!hasAppointments && !day.isWorkingDay && (
               <Section variant="transparent" paddingInline={6} paddingBlock={2} dividers={['bottom']}>
                 <Text type="body" color="secondary">
-                  {day.isWorkingDay ? 'Nothing booked' : notWorkingWords(day)}
+                  {notWorkingWords(day)}
                 </Text>
               </Section>
             )}
