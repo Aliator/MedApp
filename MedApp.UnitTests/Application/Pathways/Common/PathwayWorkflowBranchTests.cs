@@ -47,7 +47,7 @@ public sealed class PathwayWorkflowBranchTests
         pathway.Stages.Should().AllSatisfy(s =>
         {
             PathwayWorkflow.Branches(pathway, s).Should().BeEmpty();
-            PathwayWorkflow.CanSkipStage(pathway, s, canOverrideStages: true).Should().BeFalse();
+            PathwayWorkflow.CanSkipStage(pathway, s, canFinishWithoutVisit: true).Should().BeFalse();
             PathwayWorkflow.WhyBranchChoiceInvalid(pathway, s, null).Should().BeNull();
         });
     }
@@ -215,13 +215,13 @@ public sealed class PathwayWorkflowBranchTests
     [TestCase(VisitRequirement.Required, true, true)]
     [TestCase(VisitRequirement.Suggested, false, true)]
     [TestCase(VisitRequirement.None, false, true)]
-    public void CanSkipStage_RequiredVisit_NeedsOverrideStages(VisitRequirement requirement, bool canOverrideStages, bool expected)
+    public void CanSkipStage_RequiredVisit_NeedsFinishWithoutVisit(VisitRequirement requirement, bool canFinishWithoutVisit, bool expected)
     {
         var pathway = CreatePathway(Status.InProgress);
         pathway.StageAt(1).IsOptional = true;
         pathway.StageAt(1).VisitRequirement = requirement;
 
-        PathwayWorkflow.CanSkipStage(pathway, pathway.StageAt(1), canOverrideStages).Should().Be(expected);
+        PathwayWorkflow.CanSkipStage(pathway, pathway.StageAt(1), canFinishWithoutVisit).Should().Be(expected);
     }
 
     [Test]

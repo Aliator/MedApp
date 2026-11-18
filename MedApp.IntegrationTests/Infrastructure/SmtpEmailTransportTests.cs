@@ -77,7 +77,7 @@ public sealed class SmtpEmailTransportTests
         };
         var pdf = "%PDF-1.7 synthetic letter"u8.ToArray();
 
-        var reference = await new MedApp.Infrastructure.Letters.SecureEmailLetterTransport(Options.Create(options)).SendAsync(
+        var reference = await new MedApp.Infrastructure.Letters.SecureEmailLetterTransport(Options.Create(options), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" }).SendAsync(
             MedApp.Application.Letters.Common.SecureLetterEmails.For("practice@nhs.net", "Synthetic Specialist Centre", pdf),
             CancellationToken.None);
 

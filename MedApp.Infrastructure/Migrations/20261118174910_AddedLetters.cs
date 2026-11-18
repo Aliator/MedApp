@@ -10,7 +10,7 @@ namespace MedApp.Infrastructure.Migrations
     /// <c>NeedsLetterKind</c> on stage definitions and pathways' stages (null: none, so every stage behaves as before),
     /// and <c>Notifications.SubjectId</c> (decision 72). Nothing exists yet, so nothing changes on deploy. Also the new
     /// permissions, by the starting roles' fixed IDs (decision 74's table): <c>WriteLetters</c>, <c>ApproveLetters</c>
-    /// and <c>SendLetters</c> for Clinician; <c>WriteLetters</c> and <c>SendLetters</c> for Nurse; <c>SendLetters</c> for
+    /// and <c>SendLetters</c> for Clinician and Senior clinician; <c>WriteLetters</c> and <c>SendLetters</c> for Nurse; <c>SendLetters</c> for
     /// Booking. Admin doesn't get them: they're clinical. A role an admin made with one of those names is left alone. The
     /// values are written here, not read from <c>StandardRoles</c>, so the migration never changes.
     /// </summary>
@@ -19,12 +19,13 @@ namespace MedApp.Infrastructure.Migrations
         private const string ClinicianId = "7a3b0000-0000-4000-8000-000000000003";
         private const string NurseId = "7a3b0000-0000-4000-8000-000000000004";
         private const string BookingId = "7a3b0000-0000-4000-8000-000000000005";
+        private const string SeniorClinicianId = "7a3b0000-0000-4000-8000-000000000008";
 
         private static readonly (string Permission, string[] RoleIds)[] Grants =
         [
-            ("WriteLetters", [ClinicianId, NurseId]),
-            ("ApproveLetters", [ClinicianId]),
-            ("SendLetters", [ClinicianId, NurseId, BookingId]),
+            ("WriteLetters", [ClinicianId, SeniorClinicianId, NurseId]),
+            ("ApproveLetters", [ClinicianId, SeniorClinicianId]),
+            ("SendLetters", [ClinicianId, SeniorClinicianId, NurseId, BookingId]),
         ];
 
         /// <inheritdoc />

@@ -233,7 +233,7 @@ public sealed class LettersAcrossTheAppTests : PathwayHandlerTestBase
     [Test]
     public async Task Transport_WhenItIsntSetUp_IsUnavailable_AndRefusesToSend()
     {
-        var transport = new SecureEmailLetterTransport(Microsoft.Extensions.Options.Options.Create(new MedApp.Application.Practices.Common.LettersOptions()));
+        var transport = new SecureEmailLetterTransport(Microsoft.Extensions.Options.Options.Create(new MedApp.Application.Practices.Common.LettersOptions()), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
 
         transport.IsAvailable.Should().BeFalse();
         await FluentActions.Awaiting(() => transport.SendAsync(SecureLetterEmails.For("a@nhs.net", "x", []), CancellationToken.None))
@@ -246,9 +246,24 @@ public sealed class LettersAcrossTheAppTests : PathwayHandlerTestBase
         var transport = new SecureEmailLetterTransport(Microsoft.Extensions.Options.Options.Create(new MedApp.Application.Practices.Common.LettersOptions
         {
             SecureEmail = new() { Host = "127.0.0.1", Port = 1, Security = "None", FromAddress = "c@nhs.net", RelayMeetsDcb1596 = true, TimeoutSeconds = 2 },
-        }));
+        }), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
 
         await FluentActions.Awaiting(() => transport.SendAsync(SecureLetterEmails.For("a@nhs.net", "x", "%PDF"u8.ToArray()), CancellationToken.None))
             .Should().ThrowAsync<LetterTransportException>().Where(e => e.Category == "connection");
+    }
+
+    [TestCase("Development", "None", true)]
+    [TestCase("Production", "None", false)]
+    [TestCase("Production", "none ", false)]
+    [TestCase("Production", "StartTls", true)]
+    public void Transport_AnUnencryptedRelay_IsOnlyForDevelopment(string environment, string security, bool available)
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new MedApp.Application.Practices.Common.LettersOptions
+        {
+            SecureEmail = new() { Host = "relay.invalid", Security = security, FromAddress = "c@nhs.net", RelayMeetsDcb1596 = true },
+        });
+
+        new SecureEmailLetterTransport(options, new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = environment })
+            .IsAvailable.Should().Be(available);
     }
 }

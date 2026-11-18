@@ -4,6 +4,7 @@ using MailKit.Security;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Practices.Common;
 using MedApp.Infrastructure.Common.Email;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
@@ -13,17 +14,26 @@ namespace MedApp.Infrastructure.Letters;
 /// Sends letters by secure email (decision 103), straight to the relay in <c>Letters:SecureEmail</c> with MailKit,
 /// <b>synchronously</b>: unlike staff email (the best-effort queue), the caller learns at once whether the server
 /// accepted the letter, and a recipient is marked sent only then. Off (<see cref="IsAvailable"/> false) unless the relay
-/// is configured and declared to meet DCB1596. Nothing about the patient is in the email's words; the PDF is attached.
+/// is configured and declared to meet DCB1596, and, outside Development, unless it's encrypted (<c>Security</c> isn't
+/// <c>None</c>: that's only for a local catcher such as Mailpit). Nothing about the patient is in the email's words; the
+/// PDF is attached.
 /// </summary>
-public sealed class SecureEmailLetterTransport(IOptions<LettersOptions> options) : ILetterTransport
+public sealed class SecureEmailLetterTransport(IOptions<LettersOptions> options, IHostEnvironment environment) : ILetterTransport
 {
-    public bool IsAvailable => options.Value.SecureEmail.IsAvailable;
+    public bool IsAvailable =>
+        options.Value.SecureEmail.IsAvailable
+        && (environment.IsDevelopment() || !IsUnencrypted(options.Value.SecureEmail.Security));
+
+    /// <summary>Whether the relay's <c>Security</c> setting sends letters in the clear.</summary>
+    public static bool IsUnencrypted(string? security) =>
+        string.Equals(security?.Trim(), "None", StringComparison.OrdinalIgnoreCase);
 
     public async Task<string> SendAsync(SecureLetterEmail email, CancellationToken ct)
     {
         var settings = options.Value.SecureEmail;
-        if (!settings.IsAvailable)
-            throw new InvalidOperationException("Letters:SecureEmail isn't set up, or the relay isn't declared to meet DCB1596.");
+        if (!IsAvailable)
+            throw new InvalidOperationException(
+                "Letters:SecureEmail isn't set up, the relay isn't declared to meet DCB1596, or it's unencrypted outside Development.");
 
         var message = BuildMessage(email, settings);
         using var client = new SmtpClient();

@@ -23,7 +23,8 @@ public enum Permission
     CreatePathways,
     WorkPathways,
     AssignPathways,
-    OverrideStages,
+    UnlockStages,
+    FinishWithoutVisit,
     DeletePathways,
 
     BookAppointments,
@@ -107,8 +108,10 @@ public static class Permissions
             "Work on pathways: stages, notes, details, hold, discharge and cancel; ask for a note to be deleted."),
         new(Permission.AssignPathways, PermissionGroup.Pathways,
             "Assign staff to pathways, and unassign them."),
-        new(Permission.OverrideStages, PermissionGroup.Pathways,
-            "Unlock a finished stage, and finish a stage that requires a visit without one."),
+        new(Permission.UnlockStages, PermissionGroup.Pathways,
+            "Unlock a finished stage, and reinstate a skipped one."),
+        new(Permission.FinishWithoutVisit, PermissionGroup.Pathways,
+            "Finish, or skip, a stage that requires a visit without one, giving a reason."),
         new(Permission.DeletePathways, PermissionGroup.Pathways,
             "Delete a cancelled or archived pathway."),
 
@@ -162,20 +165,21 @@ public static class Permissions
         Catalogue.ToDictionary(p => p.Name, p => p.Permission, StringComparer.Ordinal);
 
     /// <summary>
-    /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decision 74):
-    /// triage, and writing, approving and sending letters. An admin who does that work holds a role that grants it too.
+    /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
+    /// and 138): triage, finishing a stage without its visit, and writing, approving and sending letters. An admin who
+    /// does that work holds a role that grants it too. Admin keeps <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
     {
         Permission.TriageReferrals,
+        Permission.FinishWithoutVisit,
         Permission.WriteLetters,
         Permission.ApproveLetters,
         Permission.SendLetters,
     };
 
     /// <summary>
-    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but the
-    /// clinical ones (<see cref="NotForAdmin"/>: triage, and letters).
+    /// The built-in Admin role's permissions, fixed in code: all of them but the clinical ones (<see cref="NotForAdmin"/>).
     /// </summary>
     public static readonly IReadOnlySet<Permission> Admin =
         Enum.GetValues<Permission>().Where(p => !NotForAdmin.Contains(p)).ToHashSet();

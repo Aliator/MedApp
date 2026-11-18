@@ -75,7 +75,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
         var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage($"The '{ConsultationStage}' stage needs a visit before it can be finished*An admin can finish it without one.");
+            .WithMessage($"The '{ConsultationStage}' stage needs a visit before it can be finished*Someone allowed to finish a stage without its visit, such as a senior clinician, can finish it without one.");
         VerifyNotSaved();
         pathway.StageAt(1).IsCompleted.Should().BeFalse();
     }
@@ -99,7 +99,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
         var pathway = GivenFirstStageWithVisit(VisitRequirement.Required);
 
         var act = () => Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, CanOverrideStages: true),
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, CanFinishWithoutVisit: true),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*needs a visit*");
@@ -114,7 +114,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
         var pathway = GivenFirstStageWithVisit(VisitRequirement.Required);
 
         var act = () => Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, WithoutVisit: true, Reason: reason, CanOverrideStages: true),
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, WithoutVisit: true, Reason: reason, CanFinishWithoutVisit: true),
             CancellationToken.None);
 
         var thrown = await act.Should().ThrowAsync<ValidationException>();
@@ -130,7 +130,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
         var pathway = GivenFirstStageWithVisit(VisitRequirement.Required);
 
         var response = await Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, WithoutVisit: true, Reason: $"  {WithoutVisitReason} ", CanOverrideStages: true),
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Admin, WithoutVisit: true, Reason: $"  {WithoutVisitReason} ", CanFinishWithoutVisit: true),
             CancellationToken.None);
 
         response.Stages[0].State.Should().Be("Completed");

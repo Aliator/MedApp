@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, seniorClinicianUser, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage, progressWords} from './PathwayPage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
@@ -840,9 +840,17 @@ describe('PathwayPage: visits and appointments', () => {
     await waitFor(() => expect(openDialog()).toBeNull());
   });
 
-  it('lets an admin finish a required stage without a visit, giving a reason', async () => {
+  it("won't let an admin finish a stage that requires a visit without it: the built-in Admin role can't (decision 138)", async () => {
+    renderVisit(visiting(), [requested], adminUser);
+
+    expect(await screen.findByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
+  });
+
+  it('lets a senior clinician finish a required stage without a visit, giving a reason', async () => {
     withAnnouncements();
-    const {user, fetch} = renderVisit(visiting(), [requested], adminUser, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
+    // A senior clinician assigned to it (so not asked first whether to work on someone else's).
+    const {user, fetch} = renderVisit(visiting(), [requested], {...seniorClinicianUser, username: 'test-user'}, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
 
     await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
     const dialog = within(openDialog()!);

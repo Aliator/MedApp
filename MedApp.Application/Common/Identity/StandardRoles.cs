@@ -7,9 +7,10 @@ public sealed record StandardRole(Guid Id, string Name, string Description, IRea
 
 /// <summary>
 /// The roles every database has: the built-in <c>Admin</c>; "All staff (before roles)", which was the old <c>User</c>
-/// role, with exactly what staff could do before roles; and the five starting roles (decision 68's table). The
-/// migration <c>AddedRolePermissions</c> writes them; the integration tests and the demo data put them back as they
-/// were. Every one but Admin stays editable.
+/// role, with exactly what staff could do before roles; and the starting roles (decision 68's table, with Senior
+/// clinician from decision 138 of the Phases 3 to 5 plan). The migration <c>AddedRolePermissions</c> writes them, and
+/// later ones change them (<c>AddedWorkingHours</c>, <c>SplitOverrideStages</c>); the integration tests and the demo
+/// data put them back as they were. Every one but Admin stays editable.
 /// <para>
 /// The IDs are fixed for the starting roles and for Admin and All staff where the migration made them; on a database
 /// that already had <c>Admin</c> and <c>User</c>, those keep their own IDs, so look them up by name.
@@ -44,7 +45,23 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            OverrideStages, BookAppointments, AttachFiles, WriteLetters, ApproveLetters, SendLetters,
+            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, WriteLetters, ApproveLetters, SendLetters,
+        });
+
+    /// <summary>
+    /// Clinician's permissions, with both stage overrides (decision 138 of <c>docs/centre-phases-3-5-plan.md</c>; the
+    /// migration <c>SplitOverrideStages</c> adds it). Clinician keeps both too, so nobody lost anything when
+    /// <c>OverrideStages</c> split; an organisation whose senior clinicians alone should unlock stages and finish one
+    /// without its visit gives them this role and takes the two off Clinician.
+    /// </summary>
+    public static readonly StandardRole SeniorClinician = new(
+        Guid.Parse("7a3b0000-0000-4000-8000-000000000008"),
+        "Senior clinician",
+        "Senior clinicians: as Clinician, and they unlock stages and finish one without its visit.",
+        new HashSet<Permission>
+        {
+            UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
+            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, WriteLetters, ApproveLetters, SendLetters,
         });
 
     public static readonly StandardRole Nurse = new(
@@ -82,8 +99,8 @@ public static class StandardRoles
             UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ManageClinics, ViewInsights, ManageMonitoring,
         });
 
-    /// <summary>The five starting roles, editable, in the order the page lists them.</summary>
-    public static readonly IReadOnlyList<StandardRole> Starting = [Clinician, Nurse, Booking, Lab, Manager];
+    /// <summary>The six starting roles, editable, in the order the page lists them.</summary>
+    public static readonly IReadOnlyList<StandardRole> Starting = [Clinician, SeniorClinician, Nurse, Booking, Lab, Manager];
 
     /// <summary>Every standard role: Admin, All staff (before roles), then the starting roles.</summary>
     public static readonly IReadOnlyList<StandardRole> All = [Admin, AllStaffBeforeRoles, .. Starting];

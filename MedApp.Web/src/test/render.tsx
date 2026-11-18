@@ -27,6 +27,8 @@ export const staffUser: CurrentUser = userWithRoles('test-user', 'All staff (bef
 export const managerUser: CurrentUser = userWithRoles('test-manager', 'Manager');
 /** A nurse: works on pathways and books, but can't assign, unlock or delete. */
 export const nurseUser: CurrentUser = userWithRoles('test-nurse', 'Nurse');
+/** A senior clinician: unlocks stages and finishes one without its required visit, which the built-in Admin role can't. */
+export const seniorClinicianUser: CurrentUser = userWithRoles('test-senior', 'Senior clinician');
 /** A staff member signed in with a password an admin gave them, which they must change before anything else. */
 export const mustChangePasswordUser: CurrentUser = {...staffUser, username: 'test-new-user', mustChangePassword: true};
 /** An admin held to setting up two-factor authentication, which Admin Settings requires of admins. */

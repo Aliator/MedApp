@@ -313,7 +313,7 @@ public sealed class AppointmentNotificationsTests
             n.Message.Should().Be(
                 $"calendar.colleague marked the visit on Friday 13 November at 10:00 for the '{StageName}' stage entered in error. " +
                 "The stage was finished on Friday 13 November and now has no attended visit, though it requires one. " +
-                "If it still needs its visit, an admin can unlock it, and then book one.");
+                "If it still needs its visit, someone who can unlock stages can unlock it, and then book one.");
             n.PathwayId.Should().Be(pathway.Id);
             n.AppointmentId.Should().BeNull("the appointment is off the calendar; the link is to the pathway");
             n.CreatedAtUtc.Should().Be(Now);
