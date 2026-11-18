@@ -106,7 +106,6 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
   if (!meeting) return <MeetingForm isOpen={isOpen} onClose={onClose} initial={initial} onSaved={onSaved} />;
 
   const reply = (answer: ReplyAnswer) => {
-    if (answer === meeting.myReply || replyTo.isPending) return;
     setProblem(null);
     // The reply is about the time shown here: if the meeting has moved since, the API refuses it (409).
     replyTo.mutate(

@@ -4,6 +4,7 @@ import {$setSelection, type LexicalEditor} from 'lexical';
 import {useEffect} from 'react';
 import type {Notepad} from '../../api/notepad';
 import type {Procedure} from '../../api/procedures';
+import {givenWidth} from '../../test/layout';
 import {isDisabled, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {richText, selectRichText, setRichText, typeRichText} from '../../test/richText';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
@@ -74,6 +75,19 @@ describe('NotepadPane', () => {
     expect(richText(box)).toBe('Synthetic jotting: ring the ward at 2pm.');
     // 10:32 UTC is 10:32 in the UK in November.
     expect(screen.getByText('Saved 10:32')).toBeInTheDocument();
+    // Unmeasured (no ResizeObserver here), the writing area keeps its least height as written.
+    expect(box.style.getPropertyValue('--x-minHeight')).toBe('12rem');
+  });
+
+  it('fits the writing area to the room in the pane, measured, and never under 12rem', async () => {
+    // jsdom lays out nothing (every box is 0 tall), so the room left is nothing and the area takes its least: 12rem of
+    // the 16px root font. Without a ResizeObserver it isn't measured at all, and stays at 12rem as written.
+    givenWidth();
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
+    renderPane();
+
+    const box = await screen.findByRole('textbox', {name: 'Notepad'});
+    await waitFor(() => expect(box.style.getPropertyValue('--x-minHeight')).toBe('192px'));
   });
 
   it('has no prompt or explanation in it (removed by the product owner, 17 November 2026)', async () => {
