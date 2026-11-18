@@ -19,6 +19,7 @@ import {
   sameMoment,
   ukToday,
   weekStart,
+  worksThatDay,
 } from './calendarSlots';
 import {formatTime} from './dates';
 
@@ -38,6 +39,14 @@ describe('calendar days', () => {
     expect(dayOfWeek('2026-11-29')).toBe(7);
     expect(isWeekday('2026-11-27')).toBe(true);
     expect(isWeekday('2026-11-28')).toBe(false);
+  });
+
+  it('knows whether someone works a day: their hours say, or a weekday without them', () => {
+    expect(worksThatDay({date: '2026-11-28', hasHours: true})).toBe(true);
+    expect(worksThatDay({date: MONDAY, hasHours: false})).toBe(false);
+    expect(worksThatDay({date: MONDAY})).toBe(true);
+    expect(worksThatDay({date: '2026-11-28'})).toBe(false);
+    expect(worksThatDay({})).toBe(false);
   });
 
   it('finds the Monday of a week', () => {

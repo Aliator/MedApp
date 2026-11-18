@@ -19,6 +19,8 @@ public sealed class RolePermissionsMigrationTests
 {
     private const string Before = "20261118075440_RenamedProceduresToPathways";
     private const string Migration = "20261118111735_AddedRolePermissions";
+    private const string BeforeWorkingHours = "20261118122751_AddedSites";
+    private const string WorkingHoursMigration = "20261118125541_AddedWorkingHours";
 
     private static readonly Guid AdminRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
     private static readonly Guid UserRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000002");
@@ -81,8 +83,26 @@ public sealed class RolePermissionsMigrationTests
         foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
         {
             roles[role.Id].Should().Be((role.Name, role.Name.ToUpperInvariant(), false, false));
-            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
+            // ManageClinics came later, with AddedWorkingHours.
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(
+                role.Permissions.Where(p => p != Permission.ManageClinics).Select(p => p.ToString()), role.Name);
         }
+    }
+
+    [Test]
+    public async Task WorkingHours_UpGivesManageClinicsToBookingAndManager_AndDownTakesItAway()
+    {
+        await SeedOldRolesAsync();
+        await _context.GetService<IMigrator>().MigrateAsync(WorkingHoursMigration);
+
+        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
+        (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty("a role an admin made with a starting role's name is left alone");
+
+        await _context.GetService<IMigrator>().MigrateAsync(BeforeWorkingHours);
+
+        (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().NotContain(nameof(Permission.ManageClinics));
+        (await PermissionsOfAsync(StandardRoles.Manager.Id)).Should().NotContain(nameof(Permission.ManageClinics));
     }
 
     [Test]

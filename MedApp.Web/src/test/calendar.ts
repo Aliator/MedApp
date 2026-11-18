@@ -38,7 +38,7 @@ export function ukTime(date: string, time: string): string {
   return new Date(Date.UTC(year, month - 1, day, hour - ukOffsetHours(date), minute)).toISOString().replace('.000Z', 'Z');
 }
 
-/** A calendar day, working Monday to Friday, 08:00 to 18:00 UK time; past and today relative to `today`. */
+/** A calendar day on the default hours, working Monday to Friday, 08:00 to 18:00 UK time; past and today relative to `today`. */
 export function calendarDay(date: string, today: string, overrides: Partial<CalendarDay> = {}): CalendarDay {
   return {
     date,
@@ -47,6 +47,10 @@ export function calendarDay(date: string, today: string, overrides: Partial<Cale
     isToday: date === today,
     workStartUtc: ukTime(date, '08:00'),
     workEndUtc: ukTime(date, '18:00'),
+    hasHours: isWeekday(date),
+    siteId: null,
+    gridStartUtc: ukTime(date, '08:00'),
+    gridEndUtc: ukTime(date, '18:00'),
     dayTemplateId: null,
     dayTemplateName: null,
     isDayTemplateOverridden: false,

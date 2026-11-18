@@ -12,12 +12,17 @@ export type Site = Schemas['SiteResponse'];
 export type Room = Schemas['RoomResponse'];
 /** A site's details, for adding one or replacing an existing one's: an address, postcode or phone left out is removed. */
 export type SiteInput = Schemas['SiteRequest'];
+/** A site's opening hours today: its own (`hasOwnHours`), or the default (Monday to Friday, 08:00 to 18:00). */
+export type SiteHours = Schemas['SiteHoursResponse'];
+/** One day a site is open, to save: the day by name ("Tuesday") and "08:00" clock times. */
+export type SiteHoursDayInput = Schemas['SiteHoursDayRequest'];
 
 /** Every site and room query is under ['sites'], so one change refreshes them all. */
 export const siteKeys = {
   all: ['sites'] as const,
   list: (includeArchived: boolean) => ['sites', 'list', includeArchived] as const,
   rooms: (siteId: string | undefined, includeArchived: boolean) => ['sites', 'rooms', siteId ?? null, includeArchived] as const,
+  hours: (siteId: string) => ['sites', 'hours', siteId] as const,
 };
 
 /** Every site by name, each with its rooms by name; archived sites and rooms only with `includeArchived`. */
@@ -33,6 +38,14 @@ export function roomsQuery({siteId, includeArchived = false}: {siteId?: string; 
   return queryOptions({
     queryKey: siteKeys.rooms(siteId, includeArchived),
     queryFn: () => unwrap(api.GET('/api/rooms', {params: {query: {siteId, includeArchived}}})),
+  });
+}
+
+/** A site's opening hours today. */
+export function siteHoursQuery(siteId: string) {
+  return queryOptions({
+    queryKey: siteKeys.hours(siteId),
+    queryFn: () => unwrap(api.GET('/api/sites/{id}/hours', {params: {path: {id: siteId}}})),
   });
 }
 
@@ -103,4 +116,22 @@ export function useRoomActions() {
     restore: useMutation({mutationFn: (id: string) => unwrap(api.POST('/api/rooms/{id}/restore', path(id))), onSuccess}),
     remove: useMutation({mutationFn: (id: string) => unwrap(api.DELETE('/api/rooms/{id}', path(id))), onSuccess}),
   };
+}
+
+/**
+ * Sets a site's opening hours from today (admins; none: back on the default). A 409 when the site is archived, or while
+ * anyone's working hours there would fall outside them (it names who). Calendars refresh too: their days follow it.
+ */
+export function useSaveSiteHours() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({siteId, days}: {siteId: string; days: SiteHoursDayInput[]}) =>
+      unwrap(api.PUT('/api/sites/{id}/hours', {params: {path: {id: siteId}}, body: {days}})),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({queryKey: siteKeys.all}),
+        queryClient.invalidateQueries({queryKey: ['calendar']}),
+      ]);
+    },
+  });
 }

@@ -3,8 +3,10 @@ import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
 
 /**
- * Staff calendars (docs/calendar-plan.md): an 08:00 to 18:00 working day, UK time, Monday to Friday, with blocked
- * time and appointments. Template blocks come from the person's default week template (or a day template applied to
+ * Staff calendars (docs/calendar-plan.md): each person's working day (their own hours, or the default 08:00 to 18:00,
+ * UK time, Monday to Friday; centre plan decision 119), with blocked time and appointments. Each day says whether it's
+ * worked (`isWorkingDay`, `hasHours`), its working hours (`workStartUtc` to `workEndUtc`) and the grid shown
+ * (`gridStartUtc` to `gridEndUtc`, the same clock times on every day of one calendar). Template blocks come from the person's default week template (or a day template applied to
  * that day), worked out by the API when the calendar is read. Times are UTC; parse them with `parseUtc`.
  *
  * Anyone can read any calendar; a calendar's blocks, day templates and default week are changed by its owner or an
@@ -18,6 +20,11 @@ export type CalendarDay = Schemas['CalendarDayResponse'];
 export type CalendarBlock = Schemas['CalendarBlockResponse'];
 export type StaffMember = Schemas['StaffMemberResponse'];
 export type StaffWeekTemplate = Schemas['StaffWeekTemplateResponse'];
+/** A person's working hours today: their own (`hasOwnHours`), or the default; `canEdit` for ManageClinics or ManageAnyCalendar. */
+export type StaffHours = Schemas['StaffHoursResponse'];
+export type StaffHoursDay = Schemas['StaffHoursDayResponse'];
+/** One day of someone's hours to save: the day by name ("Saturday"), "09:00" clock times, and the site. */
+export type StaffHoursDayInput = Schemas['StaffHoursDayRequest'];
 export type ActivityType = Schemas['ActivityTypeResponse'];
 export type DayTemplate = Schemas['DayTemplateResponse'];
 export type DayTemplateBlock = Schemas['DayTemplateBlockResponse'];
@@ -56,6 +63,7 @@ export const calendarKeys = {
   calendar: (staffUserId: string | undefined, from: string, to: string) => ['calendar', 'days', staffUserId ?? 'me', from, to] as const,
   staff: ['calendar', 'staff'] as const,
   weekTemplateOf: (userId: string) => ['calendar', 'weekTemplate', userId] as const,
+  hoursOf: (userId: string) => ['calendar', 'hours', userId] as const,
   team: (date: string, staffUserIds: readonly string[]) => ['calendar', 'team', date, [...staffUserIds].sort()] as const,
   availability: (input: AvailabilityInput) =>
     ['calendar', 'availability', [...input.staffUserIds].sort(), input.from, input.to, input.durationMinutes, input.exceptMeetingId ?? null] as const,
@@ -112,6 +120,14 @@ export function staffWeekTemplateQuery(userId: string) {
   return queryOptions({
     queryKey: calendarKeys.weekTemplateOf(userId),
     queryFn: () => unwrap(api.GET('/api/calendar/staff/{userId}/week-template', {params: {path: {userId}}})),
+  });
+}
+
+/** A person's working hours today (anyone signed in can read them). */
+export function staffHoursQuery(userId: string) {
+  return queryOptions({
+    queryKey: calendarKeys.hoursOf(userId),
+    queryFn: () => unwrap(api.GET('/api/calendar/staff/{userId}/hours', {params: {path: {userId}}})),
   });
 }
 
@@ -254,6 +270,15 @@ export function useCalendarActions() {
     clearDayTemplate: useMutation({
       mutationFn: ({userId, date}: {userId: string; date: string}) =>
         unwrap(api.DELETE(`${DAY}/day-template`, {params: {path: {userId, date}}})),
+      onSuccess,
+    }),
+    /**
+     * Sets a person's working hours from today (none: back on the default). Holders of ManageClinics or
+     * ManageAnyCalendar only; hours outside their site's opening hours are a 409.
+     */
+    setHours: useMutation({
+      mutationFn: ({userId, days}: {userId: string; days: StaffHoursDayInput[]}) =>
+        unwrap(api.PUT('/api/calendar/staff/{userId}/hours', {params: {path: {userId}}, body: {days}})),
       onSuccess,
     }),
     /** Sets (or, with null, removes) a person's default week template, from today. */

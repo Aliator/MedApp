@@ -8,7 +8,7 @@ import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
 import {memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, worksThatDay} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
@@ -60,8 +60,9 @@ export interface CalendarColumn {
 
 /**
  * One person's days as columns, each with the items on its date: a day (one column) or a week. With `weekdaysOnly`
- * (a compact week), Saturday and Sunday are left out: nothing can be booked, blocked or met on them, and templates put
- * nothing there, so they're always empty. One that somehow has something on it is kept, so nothing is ever hidden.
+ * (a compact week), the days they don't work (by default Saturday and Sunday) are left out: nothing can be booked,
+ * blocked or met on them, and templates put nothing there, so they're always empty. One that somehow has something on
+ * it is kept, so nothing is ever hidden; a weekend they work is kept too.
  */
 export function dayColumns(days: CalendarDay[], items: CalendarGridItem[], {weekdaysOnly = false}: {weekdaysOnly?: boolean} = {}): CalendarColumn[] {
   return days
@@ -69,7 +70,7 @@ export function dayColumns(days: CalendarDay[], items: CalendarGridItem[], {week
       const date = day.date ?? '';
       return {key: date, date, day, items: items.filter((i) => i.date === date)};
     })
-    .filter((column) => !weekdaysOnly || isWeekday(column.date) || column.items.length > 0);
+    .filter((column) => !weekdaysOnly || worksThatDay(column.day) || column.items.length > 0);
 }
 
 export interface CalendarGridProps {
@@ -279,12 +280,14 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
 }
 
 /**
- * A member of staff's time as a grid (docs/calendar-plan.md, decisions 28 and 68): 08:00 to 18:00 in 15-minute rows
+ * A member of staff's time as a grid (docs/calendar-plan.md, decisions 28 and 68; centre plan decision 120): each
+ * day's `gridStartUtc` to `gridEndUtc` (the same clock times on every column, so rows line up; 08:00 to 18:00 by
+ * default), with the times outside the person's working day (`workStartUtc` to `workEndUtc`) unavailable, in 15-minute rows
  * (or 5-minute ones, `rowMinutes`), hour labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
  * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
  * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
- * edge. A week's weekends show as narrow greyed columns that do nothing. A closed day (`closedDayName`: a bank holiday)
+ * edge. A day the person doesn't work (a weekend, unless their hours include it) shows as a narrow greyed column that does nothing. A closed day (`closedDayName`: a bank holiday)
  * is greyed too, but keeps its width, headed "Closed: Christmas Day": nothing can be selected on it, and anything on it
  * (put there before it closed) is flagged, "on a closed day". A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
@@ -329,15 +332,22 @@ export function CalendarGrid({
         const {day} = given;
         // On a closed day, whatever is there (put there before it closed) is flagged, as an overlapping block is.
         const column = day.closedDayName ? {...given, items: given.items.map(onClosedDay)} : given;
-        const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
-        const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
+        // The grid (the same clock times on every column, so rows line up) and, inside it, the person's working day.
+        const gridStart = day.gridStartUtc ?? day.workStartUtc;
+        const gridEnd = day.gridEndUtc ?? day.workEndUtc;
+        const start = gridStart ? parseUtc(gridStart).getTime() : 0;
+        const end = gridEnd ? parseUtc(gridEnd).getTime() : start + DEFAULT_DAY;
+        const workStart = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : start;
+        const workEnd = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : end;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
         // A faded item (a meeting this calendar's owner declined) isn't busy time, as the server sees it.
         const busy = column.items.filter((i) => !i.isFaded).map((i) => intervalOf(i.startUtc, i.endUtc));
         const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
         const unavailable = Array.from({length: rows}, (_, row) => {
-          if (!free) return false;
           const slot = {start: start + row * SLOT, end: start + (row + 1) * SLOT};
+          // Outside the person's hours (a longer day elsewhere in the week, or a team member's).
+          if (slot.start < workStart || slot.end > workEnd) return true;
+          if (!free) return false;
           return !free.some((f) => f.start <= slot.start && slot.end <= f.end);
         });
         const taken = Array.from({length: rows}, (_, row) => {
