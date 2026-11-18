@@ -15,8 +15,8 @@ public sealed class PatientProcedureNote
     /// <summary>The longest a note's text can be.</summary>
     public const int MaxTextLength = 4000;
 
-    /// <summary>The longest a reason for deleting a note, or for asking to, can be.</summary>
-    public const int MaxDeletionReasonLength = 500;
+    /// <summary>The longest the detail beside a reason for deleting a note, or for asking to, can be.</summary>
+    public const int MaxDeletionDetailLength = 500;
 
     public Guid Id { get; init; }
 
@@ -46,8 +46,11 @@ public sealed class PatientProcedureNote
     /// <summary>The admin who deleted it.</summary>
     public Guid? DeletedByUserId { get; set; }
 
-    /// <summary>Why it was deleted (free text, at most <see cref="MaxDeletionReasonLength"/> characters).</summary>
-    public string? DeletionReason { get; set; }
+    /// <summary>Why it was deleted: a fixed choice. Null while it isn't deleted.</summary>
+    public NoteDeletionReason? DeletionReason { get; set; }
+
+    /// <summary>More about why (free text, at most <see cref="MaxDeletionDetailLength"/> characters), if the admin gave any.</summary>
+    public string? DeletionDetail { get; set; }
 
     /// <summary>
     /// The member of staff's request to delete it that's waiting for an admin, if any: at most one at a time. Set and

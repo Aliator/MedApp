@@ -56,7 +56,8 @@ public sealed class GetNoteDeletionRequestHandlerTests : ProcedureHandlerTestBas
         {
             request.Id,
             Status = "Pending",
-            Reason = DeletionReason,
+            Reason = "WrongPatient",
+            Detail = DeletionDetail,
             RequestedByUsername = Staff.Username,
             request.RequestedAtUtc,
             DecidedByUsername = (string?)null,

@@ -21,9 +21,9 @@ public sealed class ProcedureNoteDeletionRequestConfiguration : IEntityTypeConfi
             .IsRequired()
             .HasMaxLength(256);
 
-        builder.Property(x => x.Reason)
-            .IsRequired()
-            .HasMaxLength(PatientProcedureNote.MaxDeletionReasonLength);
+        // A fixed choice, stored as its number; the detail is free text.
+        builder.Property(x => x.Reason).IsRequired();
+        builder.Property(x => x.Detail).HasMaxLength(PatientProcedureNote.MaxDeletionDetailLength);
 
         builder.Property(x => x.RequestedAtUtc).IsRequired();
         builder.Property(x => x.Status).IsRequired();

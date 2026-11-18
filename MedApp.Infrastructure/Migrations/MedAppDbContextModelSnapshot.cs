@@ -1144,9 +1144,12 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid?>("DeletedByUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("DeletionReason")
+                    b.Property<string>("DeletionDetail")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DeletionReason")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("LastEditedAtUtc")
                         .HasColumnType("datetime2");
@@ -1430,6 +1433,10 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<Guid>("NoteId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1439,10 +1446,8 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                    b.Property<int>("Reason")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("RequestedAtUtc")
                         .HasColumnType("datetime2");

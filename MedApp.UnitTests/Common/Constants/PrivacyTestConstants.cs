@@ -120,7 +120,10 @@ public static class PrivacyTestConstants
                     ProcedureId = p.Id,
                     CreatedAtUtc = ProceduresTestConstants.Now.AddDays(-6)
                 })
-                .ToList()
+                .ToList(),
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
     }
 

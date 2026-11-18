@@ -25,8 +25,11 @@ public sealed class ProcedureNoteDeletionRequest
     /// <summary>The requester's username at the time, kept even if the account is later deleted.</summary>
     public string RequestedByUsername { get; init; } = string.Empty;
 
-    /// <summary>Why they asked (free text, at most <see cref="PatientProcedureNote.MaxDeletionReasonLength"/> characters).</summary>
-    public string Reason { get; set; } = string.Empty;
+    /// <summary>Why they asked: a fixed choice.</summary>
+    public NoteDeletionReason Reason { get; init; }
+
+    /// <summary>More about why (free text, at most <see cref="PatientProcedureNote.MaxDeletionDetailLength"/> characters), if any.</summary>
+    public string? Detail { get; set; }
 
     public DateTime RequestedAtUtc { get; init; }
 

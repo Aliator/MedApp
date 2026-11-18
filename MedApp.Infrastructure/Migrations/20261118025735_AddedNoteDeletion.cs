@@ -24,10 +24,16 @@ namespace MedApp.Infrastructure.Migrations
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "DeletionReason",
+                name: "DeletionDetail",
                 table: "PatientProcedureNotes",
                 type: "nvarchar(500)",
                 maxLength: 500,
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "DeletionReason",
+                table: "PatientProcedureNotes",
+                type: "int",
                 nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
@@ -52,7 +58,8 @@ namespace MedApp.Infrastructure.Migrations
                     PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RequestedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RequestedByUsername = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    Reason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Reason = table.Column<int>(type: "int", nullable: false),
+                    Detail = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     RequestedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     DecidedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -95,6 +102,10 @@ namespace MedApp.Infrastructure.Migrations
 
             migrationBuilder.DropColumn(
                 name: "DeletedByUserId",
+                table: "PatientProcedureNotes");
+
+            migrationBuilder.DropColumn(
+                name: "DeletionDetail",
                 table: "PatientProcedureNotes");
 
             migrationBuilder.DropColumn(

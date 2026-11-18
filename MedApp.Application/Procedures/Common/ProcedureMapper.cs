@@ -38,10 +38,11 @@ public static class ProcedureMapper
         DateTime nowUtc,
         CancellationToken ct,
         string? patientName = null,
-        Guid? viewerId = null)
+        Guid? viewerId = null,
+        bool viewerIsAdmin = false)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(procedure), ct);
-        return ToResponse(procedure, usernames, nowUtc, patientName, viewerId: viewerId);
+        return ToResponse(procedure, usernames, nowUtc, patientName, viewerId: viewerId, viewerIsAdmin: viewerIsAdmin);
     }
 
     public static PatientProcedureResponse ToResponse(
@@ -50,7 +51,8 @@ public static class ProcedureMapper
         DateTime nowUtc,
         string? patientName = null,
         Patient? patient = null,
-        Guid? viewerId = null)
+        Guid? viewerId = null,
+        bool viewerIsAdmin = false)
     {
         // The patient comes with the procedure when it was loaded with them, or separately for one just created.
         patient ??= procedure.Patient;
@@ -132,7 +134,7 @@ public static class ProcedureMapper
                 .ToList(),
             Notes = ProcedureNoteMapper.FirstNoteText(procedure),
             NoteList = ProcedureNoteMapper.ToResponses(
-                procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure), canChange)
+                procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure), canChange, viewerIsAdmin)
         };
     }
 

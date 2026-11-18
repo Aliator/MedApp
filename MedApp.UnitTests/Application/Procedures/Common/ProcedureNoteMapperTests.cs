@@ -142,13 +142,24 @@ public sealed class ProcedureNoteMapperTests
     }
 
     [Test]
-    public void ToResponse_NoteWithoutARequest_CanBeDeletedOrItsDeletionAskedFor()
+    public void ToResponse_ForStaff_CanBeAskedForButNotDeleted()
     {
+        // The flags say what the signed-in user can do: staff ask, admins delete.
         var note = CreateProcedure().AddNote(OtherUserId);
 
         var response = ProcedureNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: true);
 
-        response.Should().BeEquivalentTo(new { CanDelete = true, CanRequestDeletion = true, DeletionRequestId = (Guid?)null });
+        response.Should().BeEquivalentTo(new { CanDelete = false, CanRequestDeletion = true, DeletionRequestId = (Guid?)null });
+    }
+
+    [Test]
+    public void ToResponse_ForAnAdmin_CanBeDeletedButNotAskedFor()
+    {
+        var note = CreateProcedure().AddNote(OtherUserId);
+
+        var response = ProcedureNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerIsAdmin: true);
+
+        response.Should().BeEquivalentTo(new { CanDelete = true, CanRequestDeletion = false });
     }
 
     [Test]
@@ -158,9 +169,10 @@ public sealed class ProcedureNoteMapperTests
         var note = procedure.AddNote();
         var request = procedure.RequestDeletion(note);
 
-        var response = ProcedureNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: true);
-
-        response.Should().BeEquivalentTo(new { CanDelete = true, CanRequestDeletion = false, DeletionRequestId = (Guid?)request.Id });
+        ProcedureNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: true)
+            .Should().BeEquivalentTo(new { CanDelete = false, CanRequestDeletion = false, DeletionRequestId = (Guid?)request.Id });
+        ProcedureNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: true, viewerIsAdmin: true)
+            .Should().BeEquivalentTo(new { CanDelete = true, DeletionRequestId = (Guid?)request.Id });
     }
 
     [Test]
@@ -169,9 +181,20 @@ public sealed class ProcedureNoteMapperTests
         // Deleting is a correction: allowed in any status, while the record itself can change.
         var note = CreateProcedure(Status.Cancelled).AddNote(Staff.UserId);
 
-        var response = ProcedureNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: false, recordCanChange: true);
+        ProcedureNoteMapper.ToResponse(note, Usernames, Staff.UserId, canChange: false, recordCanChange: true)
+            .Should().BeEquivalentTo(new { CanEdit = false, CanDelete = false, CanRequestDeletion = true });
+        ProcedureNoteMapper.ToResponse(note, Usernames, Admin.UserId, canChange: false, recordCanChange: true, viewerIsAdmin: true)
+            .Should().BeEquivalentTo(new { CanEdit = false, CanDelete = true, CanRequestDeletion = false });
+    }
 
-        response.Should().BeEquivalentTo(new { CanEdit = false, CanDelete = true, CanRequestDeletion = true });
+    [Test]
+    public void ProcedureMapper_ToResponse_PassesWhetherTheViewerIsAnAdmin()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.AddNote(OtherUserId);
+
+        ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Admin.UserId, viewerIsAdmin: true).NoteList.Single().CanDelete.Should().BeTrue();
+        ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Staff.UserId).NoteList.Single().CanDelete.Should().BeFalse();
     }
 
     [Test]
@@ -180,7 +203,7 @@ public sealed class ProcedureNoteMapperTests
         var procedure = CreateProcedure();
         var kept = procedure.AddNote();
         var deleted = procedure.AddNote(text: "Synthetic note on the wrong record.");
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, DeletionReason);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail);
 
         ProcedureNoteMapper.ToResponses(procedure.Notes, Usernames, Staff.UserId, canChange: true)
             .Should().ContainSingle().Which.Id.Should().Be(kept.Id);
@@ -195,10 +218,10 @@ public sealed class ProcedureNoteMapperTests
         var second = procedure.AddNote(text: "Synthetic second note.", createdAt: Now.AddDays(-2));
         var change = new ProcedureChange(procedure, Admin, Now);
 
-        change.DeleteNote(first, DeletionReason);
+        change.DeleteNote(first, NoteDeletionReason.WrongPatient, DeletionDetail);
         ProcedureNoteMapper.FirstNoteText(procedure).Should().Be("Synthetic second note.");
 
-        change.DeleteNote(second, DeletionReason);
+        change.DeleteNote(second, NoteDeletionReason.WrongPatient, DeletionDetail);
         ProcedureNoteMapper.FirstNoteText(procedure).Should().BeEmpty("the old field's text was copied into the deleted note");
     }
 
@@ -207,7 +230,7 @@ public sealed class ProcedureNoteMapperTests
     {
         var procedure = CreateProcedure(Status.InProgress);
         var deleted = procedure.AddNote();
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, DeletionReason);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail);
 
         ProcedureMapper.UserIds(procedure).Should().Contain(Admin.UserId);
         ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Staff.UserId).NoteList.Should().BeEmpty();

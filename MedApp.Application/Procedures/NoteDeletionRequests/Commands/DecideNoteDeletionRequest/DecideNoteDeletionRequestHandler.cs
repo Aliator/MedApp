@@ -6,6 +6,7 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.NoteDeletionRequests.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.NoteDeletionRequests.Responses;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MediatR;
 
@@ -35,18 +36,29 @@ public sealed class DecideNoteDeletionRequestHandler(
                    ?? throw new NotFoundException($"Note '{deletionRequest.NoteId}' was not found on this procedure.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        IReadOnlyList<Notification> toTell;
         if (request.DeleteNote)
         {
             if (note.IsDeleted)
                 throw new ConflictException(ProcedureNotes.DeletedMessage);
 
+            // The admin must have read the text they're deleting.
+            if (note.Version != request.ExpectedVersion)
+                throw new ConflictException(ProcedureNotes.EditedSinceOpenedMessage);
+
+            // The admin's reason, or with none, the requester's (and their detail).
+            var (reason, detail) = request.Reason is null
+                ? (deletionRequest.Reason, request.Detail is null ? deletionRequest.Detail : NoteDeletionReasons.CleanDetail(request.Detail))
+                : (ProcedureEnums.Parse<NoteDeletionReason>(request.Reason), NoteDeletionReasons.CleanDetail(request.Detail));
+
             var change = new ProcedureChange(procedure, request.Actor, now);
-            change.DeleteNote(note, request.Reason?.Trim() ?? deletionRequest.Reason, deletionRequest.Id);
+            change.DeleteNote(note, reason, detail, deletionRequest.Id);
             deletionRequest.Close(NoteDeletionRequestStatus.Approved, request.Actor.UserId, request.Actor.Username, now);
 
             // The request shares the DbContext, so it's saved with the change.
             await procedures.SaveAsync(change, cancellationToken);
             await procedureMonitor.NotifyAsync(change, cancellationToken);
+            toTell = NoteDeletionNotifications.AfterDeleting(note, deletionRequest, request.Actor, now);
         }
         else
         {
@@ -56,10 +68,11 @@ public sealed class DecideNoteDeletionRequestHandler(
 
             // The note shares the DbContext, so it's saved with the request.
             await requests.SaveAsync(cancellationToken);
+            toTell = NoteDeletionNotifications.AfterDeciding(deletionRequest, now) is { } told ? [told] : [];
         }
 
-        if (NoteDeletionNotifications.AfterDeciding(deletionRequest, now) is { } told)
-            await notifications.SendAsync(told, cancellationToken);
+        foreach (var notification in toTell)
+            await notifications.SendAsync(notification, cancellationToken);
 
         var usernames = await identity.GetUsernamesByIdAsync(
             NoteDeletionRequestMapper.UserIds(deletionRequest, procedure), cancellationToken);

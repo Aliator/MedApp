@@ -41,7 +41,9 @@ public sealed class RequestNoteDeletionHandler(
             PatientId = procedure.PatientId,
             RequestedByUserId = request.Actor.UserId,
             RequestedByUsername = request.Actor.Username,
-            Reason = request.Reason.Trim(),
+            // The validator has checked the reason's name.
+            Reason = ProcedureEnums.Parse<NoteDeletionReason>(request.Reason),
+            Detail = NoteDeletionReasons.CleanDetail(request.Detail),
             RequestedAtUtc = now
         };
 
@@ -60,6 +62,7 @@ public sealed class RequestNoteDeletionHandler(
             usernames,
             request.Actor.UserId,
             canChange: ProcedureWorkflow.CanChangeNotes(procedure),
-            recordCanChange: true);
+            recordCanChange: true,
+            viewerIsAdmin: request.Actor.IsAdmin);
     }
 }

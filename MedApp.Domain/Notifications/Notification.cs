@@ -57,7 +57,7 @@ public sealed class Notification
             || IsMonitoring(kind)
             || IsNoteDeletion(kind);
 
-    /// <summary>Whether it's about a request to delete a procedure's note (asked for, or decided).</summary>
+    /// <summary>Whether it's about deleting a procedure's note (a request asked for or decided, or an author told).</summary>
     public static bool IsNoteDeletion(NotificationKind kind) =>
-        kind is >= NotificationKind.NoteDeletionRequested and <= NotificationKind.NoteDeletionDeclined;
+        kind is >= NotificationKind.NoteDeletionRequested and <= NotificationKind.AuthorsNoteDeleted;
 }

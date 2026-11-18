@@ -9,6 +9,11 @@ public sealed class RequestNoteDeletionValidator : AbstractValidator<RequestNote
     {
         RuleFor(x => x.ProcedureId).NotEmpty().WithMessage("Procedure id is required.");
         RuleFor(x => x.NoteId).NotEmpty().WithMessage("Note id is required.");
-        RuleFor(x => x.Reason).DeletionReason();
+        RuleFor(x => (string?)x.Reason).DeletionReason().OverridePropertyName(nameof(RequestNoteDeletionCommand.Reason));
+        RuleFor(x => x.Detail).DeletionDetail();
+        RuleFor(x => x.Detail)
+            .Must(detail => !string.IsNullOrWhiteSpace(detail))
+            .When(x => NoteDeletionReasons.IsOther(x.Reason))
+            .WithMessage(NoteDeletionReasons.OtherNeedsDetailMessage);
     }
 }

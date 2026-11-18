@@ -158,9 +158,11 @@ public sealed class PatientProceduresControllerTests
     {
         var noteId = Guid.NewGuid();
 
-        var result = await Controller.DeleteProcedureNote(RecordId, noteId, new DeleteProcedureNoteRequest { Reason = "Synthetic reason." }, _cts.Token);
+        var request = new DeleteProcedureNoteRequest { Reason = "Other", Detail = "Synthetic detail.", ExpectedVersion = 3 };
 
-        _mediator.Request.Should().Be(new DeleteProcedureNoteCommand(RecordId, noteId, "Synthetic reason.", Actor));
+        var result = await Controller.DeleteProcedureNote(RecordId, noteId, request, _cts.Token);
+
+        _mediator.Request.Should().Be(new DeleteProcedureNoteCommand(RecordId, noteId, "Other", "Synthetic detail.", 3, Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<NoContentResult>();
     }
@@ -172,9 +174,10 @@ public sealed class PatientProceduresControllerTests
         _mediator = new RecordingMediator(_ => note);
         var noteId = Guid.NewGuid();
 
-        var result = await Controller.RequestNoteDeletion(RecordId, noteId, new RequestNoteDeletionRequest { Reason = "Synthetic reason." }, _cts.Token);
+        var result = await Controller.RequestNoteDeletion(
+            RecordId, noteId, new RequestNoteDeletionRequest { Reason = "Duplicate", Detail = "Synthetic detail." }, _cts.Token);
 
-        _mediator.Request.Should().Be(new RequestNoteDeletionCommand(RecordId, noteId, "Synthetic reason.", Actor));
+        _mediator.Request.Should().Be(new RequestNoteDeletionCommand(RecordId, noteId, "Duplicate", "Synthetic detail.", Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/procedures/note-deletion-requests/{note.DeletionRequestId}");
@@ -235,7 +238,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await controller.FinishProcedureStage(RecordId, OtherId, request, _cts.Token);
 
-        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor with { IsAdmin = isAdmin }, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
     }
 
     [Test]
@@ -245,7 +248,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await controller.FinishProcedureStage(RecordId, OtherId, null, _cts.Token);
 
-        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, IsAdmin: true), result);
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor with { IsAdmin = true }, WithoutVisit: false, Reason: null, IsAdmin: true), result);
     }
 
     [Test]

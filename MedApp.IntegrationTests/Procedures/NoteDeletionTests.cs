@@ -29,8 +29,8 @@ namespace MedApp.IntegrationTests.Procedures;
 public sealed class NoteDeletionTests : IntegrationTest
 {
     private const string NoteText = "Synthetic note: written on the wrong record.";
-    private const string RequestReason = "Synthetic reason: this belongs to another procedure.";
-    private const string AdminReason = "Synthetic reason: confirmed with the author.";
+    private const string RequestDetail = "Synthetic detail: this belongs to another procedure.";
+    private const string AdminDetail = "Synthetic detail: confirmed with the author.";
 
     private HttpClient _admin = null!;
     private StaffAccount _staff = null!;
@@ -46,14 +46,17 @@ public sealed class NoteDeletionTests : IntegrationTest
 
     private static string RequestUrl(Guid requestId) => $"/api/procedures/note-deletion-requests/{requestId}";
 
-    private static Task<HttpResponseMessage> DeleteAsync(HttpClient client, Guid procedureId, Guid noteId, string reason = AdminReason) =>
-        client.PostAsJsonAsync($"{NoteUrl(procedureId, noteId)}/delete", new DeleteProcedureNoteRequest { Reason = reason });
+    private static Task<HttpResponseMessage> DeleteAsync(HttpClient client, Guid procedureId, Guid noteId, int expectedVersion = 1) =>
+        client.PostAsJsonAsync($"{NoteUrl(procedureId, noteId)}/delete",
+            new DeleteProcedureNoteRequest { Reason = "WrittenInError", Detail = AdminDetail, ExpectedVersion = expectedVersion });
 
     private static Task<HttpResponseMessage> RequestAsync(HttpClient client, Guid procedureId, Guid noteId) =>
-        client.PostAsJsonAsync($"{NoteUrl(procedureId, noteId)}/deletion-requests", new RequestNoteDeletionRequest { Reason = RequestReason });
+        client.PostAsJsonAsync($"{NoteUrl(procedureId, noteId)}/deletion-requests",
+            new RequestNoteDeletionRequest { Reason = "WrongPatient", Detail = RequestDetail });
 
-    private static Task<HttpResponseMessage> DecideAsync(HttpClient client, Guid requestId, bool deleteNote, string? reason = null) =>
-        client.PostAsJsonAsync($"{RequestUrl(requestId)}/decision", new DecideNoteDeletionRequestRequest { DeleteNote = deleteNote, Reason = reason });
+    private static Task<HttpResponseMessage> DecideAsync(HttpClient client, Guid requestId, bool deleteNote, int? expectedVersion = 1) =>
+        client.PostAsJsonAsync($"{RequestUrl(requestId)}/decision",
+            new DecideNoteDeletionRequestRequest { DeleteNote = deleteNote, ExpectedVersion = deleteNote ? expectedVersion : null });
 
     private static async Task<PatientProcedureResponse> GetProcedureAsync(HttpClient client, Guid procedureId) =>
         await (await client.GetAsync(ProcedureUrl(procedureId))).ReadAsAsync<PatientProcedureResponse>();
@@ -98,15 +101,24 @@ public sealed class NoteDeletionTests : IntegrationTest
                 await db.PatientProcedureAuditEntries.AsNoTracking()
                     .SingleAsync(e => e.PatientProcedureId == procedure.Id && e.Action == PatientProcedureAuditAction.NoteDeleted));
         });
-        stored.Should().BeEquivalentTo(new { Text = NoteText, DeletionReason = AdminReason, PendingDeletionRequestId = (Guid?)null });
+        stored.Should().BeEquivalentTo(new
+        {
+            Text = NoteText, DeletionReason = (NoteDeletionReason?)NoteDeletionReason.WrittenInError, DeletionDetail = AdminDetail,
+            PendingDeletionRequestId = (Guid?)null
+        });
         stored.DeletedAtUtc.Should().NotBeNull();
-        audit.Details.Should().Contain(AdminReason).And.NotContain(NoteText).And.Contain(note.Id.ToString());
+        audit.Details.Should().Contain(AdminDetail).And.Contain("WrittenInError").And.NotContain(NoteText).And.Contain(note.Id.ToString());
 
         var export = await (await _admin.GetAsync($"/api/patients/{procedure.PatientId}/export")).ReadAsAsync<PatientExportResponse>();
         export.Procedures.Single().Notes.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            note.Id, Text = NoteText, DeletedBy = AdminUsername, DeletionReason = AdminReason
+            note.Id, Text = NoteText, DeletedBy = AdminUsername, DeletionReason = "WrittenInError", DeletionDetail = AdminDetail,
+            IsAboutAnotherPatient = false
         });
+
+        // The author is told their note went.
+        (await NotificationsAsync(_staff.Client)).Should().ContainSingle(n => n.Kind == "AuthorsNoteDeleted")
+            .Which.Message.Should().Be($"{AdminUsername} deleted a note you wrote on a procedure.");
 
         // Deleting it again, or editing it, is refused.
         await (await DeleteAsync(_admin, procedure.Id, note.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
@@ -126,11 +138,41 @@ public sealed class NoteDeletionTests : IntegrationTest
         var adminPage = await (await _admin.GetAsync(url)).ReadAsAsync<PatientTimelinePageResponse>();
 
         var raw = await staffBody.Content.ReadAsStringAsync();
-        raw.Should().Contain("NoteDeleted").And.NotContain(NoteText).And.NotContain(AdminReason);
+        raw.Should().Contain("NoteDeleted").And.NotContain(NoteText).And.NotContain(AdminDetail).And.NotContain("Written in error");
         var deleted = adminPage.Items.First();
         deleted.Action.Should().Be("NoteDeleted");
-        deleted.Reason.Should().Be(AdminReason);
+        deleted.Reason.Should().Be($"Written in error: {AdminDetail}");
         deleted.Changes.Single().From.Should().Be(NoteText);
+    }
+
+    [Test]
+    public async Task DeleteAndDecide_NoteEditedSinceTheAdminOpenedIt_Are409AndKeepIt()
+    {
+        var (procedure, note) = await ProcedureWithNoteAsync();
+        var requested = await (await RequestAsync(_staff.Client, procedure.Id, note.Id)).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+        // The author edits it after the admin has read version 1.
+        await (await _staff.Client.PutAsJsonAsync(NoteUrl(procedure.Id, note.Id), new EditProcedureNoteRequest { Text = "Synthetic correction.", ExpectedVersion = 1 }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        (await (await DecideAsync(_admin, requested.DeletionRequestId!.Value, true, expectedVersion: 1)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+            .Title.Should().Contain("edited after you opened it");
+        await (await DeleteAsync(_admin, procedure.Id, note.Id, expectedVersion: 1)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+
+        var kept = (await GetProcedureAsync(_admin, procedure.Id)).NoteList.Single();
+        kept.Text.Should().Be("Synthetic correction.");
+        var request = await (await _admin.GetAsync(RequestUrl(requested.DeletionRequestId.Value))).ReadAsAsync<NoteDeletionRequestResponse>();
+        request.Should().BeEquivalentTo(new { Status = "Pending", Note = new { Version = 2 } });
+        request.Note!.LastEditedAtUtc.Should().BeAfter(request.RequestedAtUtc);
+        await (await DecideAsync(_admin, request.Id, true, expectedVersion: 2)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Flags_SayWhatTheSignedInUserCanDo()
+    {
+        var (procedure, note) = await ProcedureWithNoteAsync();
+
+        (await GetProcedureAsync(_staff.Client, procedure.Id)).NoteList.Single().Should().BeEquivalentTo(new { CanDelete = false, CanRequestDeletion = true });
+        (await GetProcedureAsync(_admin, procedure.Id)).NoteList.Single().Should().BeEquivalentTo(new { CanDelete = true, CanRequestDeletion = false });
     }
 
     [Test]
@@ -192,12 +234,13 @@ public sealed class NoteDeletionTests : IntegrationTest
         request.Should().BeEquivalentTo(new
         {
             Status = "Pending",
-            Reason = RequestReason,
+            Reason = "WrongPatient",
+            Detail = RequestDetail,
             RequestedByUsername = _staff.Username,
             ProcedureId = procedure.Id,
             ProcedureTitle = procedure.Title,
             Patient = new { Id = procedure.PatientId },
-            Note = new { note.Id, Text = NoteText, AuthorUsername = _staff.Username },
+            Note = new { note.Id, Text = NoteText, AuthorUsername = _staff.Username, Version = 1 },
             CanDecide = true
         });
 
@@ -208,7 +251,7 @@ public sealed class NoteDeletionTests : IntegrationTest
             Status = "Approved",
             DecidedByUsername = AdminUsername,
             CanDecide = false,
-            Note = new { DeletionReason = RequestReason, DeletedByUsername = AdminUsername }
+            Note = new { DeletionReason = "WrongPatient", DeletionDetail = RequestDetail, DeletedByUsername = AdminUsername }
         });
         (await GetProcedureAsync(_staff.Client, procedure.Id)).NoteList.Should().BeEmpty();
         (await NotificationsAsync(_staff.Client)).Should().ContainSingle(n => n.Kind == "NoteDeletionApproved")
@@ -221,8 +264,11 @@ public sealed class NoteDeletionTests : IntegrationTest
         var export = await (await _admin.GetAsync($"/api/patients/{procedure.PatientId}/export")).ReadAsAsync<PatientExportResponse>();
         export.NoteDeletionRequests.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            Id = requestId, NoteId = note.Id, RequestedBy = _staff.Username, Reason = RequestReason, Status = "Approved", DecidedBy = AdminUsername
+            Id = requestId, NoteId = note.Id, RequestedBy = _staff.Username, Reason = "WrongPatient", Detail = RequestDetail,
+            Status = "Approved", DecidedBy = AdminUsername
         });
+        // Deleted as on the wrong patient: flagged for whoever checks the export before it's released.
+        export.Procedures.Single().Notes.Single().IsAboutAnotherPatient.Should().BeTrue();
     }
 
     [Test]
@@ -249,7 +295,10 @@ public sealed class NoteDeletionTests : IntegrationTest
         await (await DeleteAsync(_admin, procedure.Id, note.Id)).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         var request = await (await _admin.GetAsync(RequestUrl(requested.DeletionRequestId!.Value))).ReadAsAsync<NoteDeletionRequestResponse>();
-        request.Should().BeEquivalentTo(new { Status = "Approved", DecidedByUsername = AdminUsername, Note = new { DeletionReason = AdminReason } });
+        request.Should().BeEquivalentTo(new
+        {
+            Status = "Approved", DecidedByUsername = AdminUsername, Note = new { DeletionReason = "WrittenInError", DeletionDetail = AdminDetail }
+        });
         (await NotificationsAsync(_staff.Client)).Should().ContainSingle(n => n.Kind == "NoteDeletionApproved");
     }
 
@@ -298,7 +347,7 @@ public sealed class NoteDeletionTests : IntegrationTest
 
         var request = await (await _admin.GetAsync(RequestUrl(requested.DeletionRequestId!.Value))).ReadAsAsync<NoteDeletionRequestResponse>();
         request.Status.Should().Be("Closed");
-        request.Reason.Should().NotContain("another procedure");
+        request.Detail.Should().NotContain("another procedure");
         (await GetProcedureAsync(_admin, procedure.Id)).NoteList.Single().DeletionRequestId.Should().BeNull();
     }
 }

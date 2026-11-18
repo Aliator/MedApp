@@ -127,7 +127,10 @@ public sealed class PatientExportMapperTests
             Activity = [withAddress],
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
-            Notifications = record.Notifications
+            Notifications = record.Notifications,
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
 
         var json = System.Text.Json.JsonSerializer.Serialize(
@@ -173,6 +176,9 @@ public sealed class PatientExportMapperTests
                     ProcedureId = procedure.Id, CreatedAtUtc = Now,
                 },
             ],
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
 
         var export = PatientExportMapper.ToResponse(withMonitoring, Usernames, Now, "exporter");
@@ -294,7 +300,10 @@ public sealed class PatientExportMapperTests
                     Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = NotificationKind.AppointmentBooked, Title = "Appointment",
                     Message = "test.admin booked an appointment with you.", AppointmentId = appointmentId, CreatedAtUtc = Now
                 }
-            ]
+            ],
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
 
         var export = PatientExportMapper.ToResponse(withAppointment, Usernames, Now, "exporter");
@@ -355,7 +364,10 @@ public sealed class PatientExportMapperTests
                     Details = $$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUserId":"{{Staff.UserId}}","previousStaffUsername":"{{Staff.Username}}"}"""
                 }
             ],
-            Notifications = record.Notifications
+            Notifications = record.Notifications,
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         };
 
         var export = PatientExportMapper.ToResponse(withIds, Usernames, Now, "exporter");
@@ -405,7 +417,7 @@ public sealed class PatientExportMapperTests
         var deleted = procedure.AddNote();
         var kept = procedure.AddNote(text: "Synthetic second note.", createdAt: Now.AddDays(-1));
         var approved = procedure.RequestDeletion(deleted);
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, DeletionReason, approved.Id);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
         approved.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
         var declined = procedure.RequestDeletion(kept, new ProcedureActor(OtherUserId, OtherUsername));
         declined.Close(NoteDeletionRequestStatus.Declined, Admin.UserId, Admin.Username, Now);
@@ -418,20 +430,28 @@ public sealed class PatientExportMapperTests
         // The deleted note is still exported, saying it was deleted; the kept one isn't.
         export.Procedures.Single().Notes.Should().BeEquivalentTo(
         [
-            new { deleted.Id, Text = NoteText, DeletedAtUtc = (DateTime?)Now, DeletedBy = (string?)Admin.Username, DeletionReason = (string?)DeletionReason },
-            new { kept.Id, Text = "Synthetic second note.", DeletedAtUtc = (DateTime?)null, DeletedBy = (string?)null, DeletionReason = (string?)null },
+            new
+            {
+                deleted.Id, Text = NoteText, DeletedAtUtc = (DateTime?)Now, DeletedBy = (string?)Admin.Username,
+                DeletionReason = (string?)"WrongPatient", DeletionDetail = (string?)DeletionDetail, IsAboutAnotherPatient = true
+            },
+            new
+            {
+                kept.Id, Text = "Synthetic second note.", DeletedAtUtc = (DateTime?)null, DeletedBy = (string?)null,
+                DeletionReason = (string?)null, DeletionDetail = (string?)null, IsAboutAnotherPatient = false
+            },
         ]);
         export.NoteDeletionRequests.Should().BeEquivalentTo(
         [
             new
             {
                 approved.Id, NoteId = deleted.Id, ProcedureId = procedure.Id, RequestedBy = Staff.Username,
-                approved.RequestedAtUtc, Reason = DeletionReason, Status = "Approved", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
+                approved.RequestedAtUtc, Reason = "WrongPatient", Detail = DeletionDetail, Status = "Approved", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
             },
             new
             {
                 declined.Id, NoteId = kept.Id, ProcedureId = procedure.Id, RequestedBy = OtherUsername,
-                declined.RequestedAtUtc, Reason = DeletionReason, Status = "Declined", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
+                declined.RequestedAtUtc, Reason = "WrongPatient", Detail = DeletionDetail, Status = "Declined", DecidedBy = Admin.Username, DecidedAtUtc = (DateTime?)Now
             },
         ], o => o.WithStrictOrdering());
     }

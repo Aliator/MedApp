@@ -203,10 +203,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
         // and a request from staff to delete the first, with a reason naming it, still waiting when the record is anonymised.
         var deletedNote = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes", new AddProcedureNoteRequest { Text = $"Wrong record: {Canary}" }))
             .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
-        (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{deletedNote.Id}/delete", new DeleteProcedureNoteRequest { Reason = $"Deleted for {Canary}" }))
+        (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{deletedNote.Id}/delete", new DeleteProcedureNoteRequest { Reason = "Other", Detail = $"Deleted for {Canary}", ExpectedVersion = 1 }))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
         var deletionRequest = await (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{note.Id}/deletion-requests",
-                new RequestNoteDeletionRequest { Reason = $"Asked for {Canary}" }))
+                new RequestNoteDeletionRequest { Reason = "Other", Detail = $"Asked for {Canary}" }))
             .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
         // Another admin watching cancellations, so they have a monitoring notification about this procedure too.
         var watcher = await CreateStaffAsync(AdminRole, UserRole);

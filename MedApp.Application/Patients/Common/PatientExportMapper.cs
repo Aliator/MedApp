@@ -6,6 +6,7 @@ using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -77,7 +78,9 @@ public static class PatientExportMapper
                             // A deleted note is hidden from the procedure page, but kept: the export says when, who and why.
                             DeletedAtUtc = n.DeletedAtUtc,
                             DeletedBy = n.DeletedByUserId is null ? null : Username(n.DeletedByUserId),
-                            DeletionReason = n.DeletionReason
+                            DeletionReason = n.DeletionReason?.ToString(),
+                            DeletionDetail = n.DeletionDetail,
+                            IsAboutAnotherPatient = n.DeletionReason == NoteDeletionReason.WrongPatient
                         })
                         .ToList(),
                     AssignedTo = p.Assignments.OrderBy(a => a.AssignedAtUtc).Select(a => Username(a.UserId)).ToList(),
@@ -130,7 +133,8 @@ public static class PatientExportMapper
                     ProcedureId = r.PatientProcedureId,
                     RequestedBy = r.RequestedByUsername,
                     RequestedAtUtc = r.RequestedAtUtc,
-                    Reason = r.Reason,
+                    Reason = r.Reason.ToString(),
+                    Detail = r.Detail,
                     Status = r.Status.ToString(),
                     DecidedBy = r.DecidedByUsername,
                     DecidedAtUtc = r.DecidedAtUtc

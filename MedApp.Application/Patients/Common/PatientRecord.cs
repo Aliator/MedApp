@@ -9,9 +9,10 @@ namespace MedApp.Application.Patients.Common;
 
 /// <summary>
 /// Everything MedApp holds about one patient, from every table: what a subject access export contains, and what
-/// anonymising the patient changes.
+/// anonymising the patient changes. Every list is required, so code that builds one can't leave a table out; to change
+/// one list, copy the rest with a <c>with</c> expression.
 /// </summary>
-public sealed class PatientRecord
+public sealed record PatientRecord
 {
     public required Patient Patient { get; init; }
 
@@ -25,13 +26,13 @@ public sealed class PatientRecord
     /// Every version of every note on the patient's procedures, oldest first, including those of procedures since
     /// deleted (versions have no foreign keys and outlive them).
     /// </summary>
-    public IReadOnlyList<PatientProcedureNoteVersion> NoteVersions { get; init; } = [];
+    public required IReadOnlyList<PatientProcedureNoteVersion> NoteVersions { get; init; }
 
     /// <summary>
     /// Requests from staff to delete notes on the patient's procedures, oldest first, with their reasons, including those
     /// about procedures since deleted (they have no foreign keys).
     /// </summary>
-    public IReadOnlyList<ProcedureNoteDeletionRequest> NoteDeletionRequests { get; init; } = [];
+    public required IReadOnlyList<ProcedureNoteDeletionRequest> NoteDeletionRequests { get; init; }
 
     /// <summary>The activity log entries about the patient, oldest first.</summary>
     public required IReadOnlyList<ActivityEntry> Activity { get; init; }
@@ -49,5 +50,5 @@ public sealed class PatientRecord
     /// The files attached to the patient, their procedures and stages, oldest first, deleted ones included (their
     /// records, and bytes, are kept until the purge). Their bytes are in the file store, not here.
     /// </summary>
-    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+    public required IReadOnlyList<Attachment> Attachments { get; init; }
 }

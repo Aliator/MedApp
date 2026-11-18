@@ -81,7 +81,7 @@ public sealed class ProcedureNotesTests
         var change = new ProcedureChange(procedure, Staff, Now);
         var note = change.AddNote("First.");
         change.EditNote(note, "Second.");
-        change.DeleteNote(note, DeletionReason);
+        change.DeleteNote(note, NoteDeletionReason.WrongPatient, DeletionDetail);
 
         change.AuditEntries.Select(PatientTimelineKinds.Of).Should().AllBeEquivalentTo(PatientTimelineKind.Notes);
         change.AuditEntries.AsQueryable().WhereKindIn(new HashSet<PatientTimelineKind> { PatientTimelineKind.Notes })
@@ -106,14 +106,15 @@ public sealed class ProcedureNotesTests
         note.PendingDeletionRequestId = requestId;
         var change = new ProcedureChange(procedure, Admin, Now);
 
-        change.DeleteNote(note, DeletionReason, requestId);
+        change.DeleteNote(note, NoteDeletionReason.WrongPatient, DeletionDetail, requestId);
 
         note.Should().BeEquivalentTo(new
         {
             IsDeleted = true,
             DeletedAtUtc = (DateTime?)Now,
             DeletedByUserId = (Guid?)Admin.UserId,
-            DeletionReason,
+            DeletionReason = (NoteDeletionReason?)NoteDeletionReason.WrongPatient,
+            DeletionDetail,
             PendingDeletionRequestId = (Guid?)null,
             Text = NoteText,
             Version = 2
@@ -126,9 +127,42 @@ public sealed class ProcedureNotesTests
         var entry = change.AuditEntries.Should().ContainSingle().Subject;
         entry.Action.Should().Be(Action.NoteDeleted);
         entry.UserId.Should().Be(Admin.UserId);
-        entry.Details.Should().Be($$"""{"noteId":"{{note.Id}}","version":2,"reason":"{{DeletionReason}}","requestId":"{{requestId}}"}""")
+        entry.Details.Should().Be($$"""{"noteId":"{{note.Id}}","version":2,"deletionReason":"WrongPatient","detail":"{{DeletionDetail}}","requestId":"{{requestId}}"}""")
             .And.NotContain(NoteText);
         ProcedureNotes.VersionOf(entry).Should().Be(new NoteVersionKey(note.Id, 2));
+    }
+
+    [Test]
+    public void DeleteNote_TheOldestNote_ClearsTheOldNotesFieldItWasCopiedFrom()
+    {
+        // #110's migration copied the old single field into the procedure's first note and kept the column: deleting
+        // that note must not leave its text there, to come back when the column is dropped.
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.LegacyNotes = NoteText;
+        var first = procedure.AddNote(createdAt: Now.AddDays(-5));
+        procedure.AddNote(text: "Synthetic later note.", createdAt: Now.AddDays(-1));
+        var change = new ProcedureChange(procedure, Admin, Now);
+
+        change.DeleteNote(first, NoteDeletionReason.WrongPatient, null);
+
+        procedure.LegacyNotes.Should().BeEmpty();
+        change.AuditEntries.Single().Details.Should().Contain("\"oldNotesFieldCleared\":true");
+        ProcedureNoteMapper.FirstNoteText(procedure).Should().Be("Synthetic later note.");
+    }
+
+    [Test]
+    public void DeleteNote_ALaterNote_LeavesTheOldNotesField()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.LegacyNotes = NoteText;
+        procedure.AddNote(createdAt: Now.AddDays(-5));
+        var later = procedure.AddNote(text: "Synthetic later note.", createdAt: Now.AddDays(-1));
+        var change = new ProcedureChange(procedure, Admin, Now);
+
+        change.DeleteNote(later, NoteDeletionReason.Duplicate, null);
+
+        procedure.LegacyNotes.Should().Be(NoteText);
+        change.AuditEntries.Single().Details.Should().NotContain("oldNotesFieldCleared");
     }
 
     [Test]

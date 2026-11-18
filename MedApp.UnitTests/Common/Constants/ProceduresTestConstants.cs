@@ -139,8 +139,8 @@ public static class ProceduresTestConstants
         return note;
     }
 
-    /// <summary>Synthetic reason for deleting a note, or asking to.</summary>
-    public const string DeletionReason = "Synthetic reason: written on the wrong record.";
+    /// <summary>Synthetic detail beside the reason for deleting a note, or asking to.</summary>
+    public const string DeletionDetail = "Synthetic detail: belongs to another procedure.";
 
     /// <summary>
     /// A pending request, by <paramref name="requester"/> (default <see cref="Staff"/>), to delete a note on the
@@ -158,7 +158,8 @@ public static class ProceduresTestConstants
             PatientId = procedure.PatientId,
             RequestedByUserId = requester.UserId,
             RequestedByUsername = requester.Username,
-            Reason = DeletionReason,
+            Reason = NoteDeletionReason.WrongPatient,
+            Detail = DeletionDetail,
             RequestedAtUtc = Now.AddDays(-1)
         };
         note.PendingDeletionRequestId = request.Id;

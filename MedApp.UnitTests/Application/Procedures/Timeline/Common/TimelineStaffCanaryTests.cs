@@ -90,7 +90,7 @@ public sealed class TimelineStaffCanaryTests
         staff.Reason.Should().BeNull();
         staff.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
             new { Field = TimelineMapper.NoteField, From = (string?)null, To = (string?)null });
-        admin.Reason.Should().Be(Canary);
+        admin.Reason.Should().Be($"Other: {Canary}");
         admin.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
             new { Field = TimelineMapper.NoteField, From = $"{Canary} (edited)", To = (string?)null });
     }
@@ -148,7 +148,7 @@ public sealed class TimelineStaffCanaryTests
         var note = change.AddNote(Canary);
         change.EditNote(note, $"{Canary} (edited)");
         // As DeleteProcedureNoteHandler and DecideNoteDeletionRequestHandler: the canary as the admin's reason.
-        change.DeleteNote(note, Canary, Guid.NewGuid());
+        change.DeleteNote(note, NoteDeletionReason.Other, Canary, Guid.NewGuid());
         change.UpdateStageNotes(procedure.StageAt(1), $"{Canary} (edited)");
         // As FinishProcedureStageHandler records an admin finishing a Required stage without its visit.
         change.FinishStage(procedure.StageAt(1), new FinishedWithoutVisit(VisitRequirement.Required, Canary));

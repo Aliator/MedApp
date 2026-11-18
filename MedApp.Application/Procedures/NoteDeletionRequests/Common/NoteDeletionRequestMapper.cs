@@ -35,7 +35,8 @@ public static class NoteDeletionRequestMapper
         {
             Id = request.Id,
             Status = request.Status.ToString(),
-            Reason = request.Reason,
+            Reason = request.Reason.ToString(),
+            Detail = request.Detail,
             RequestedByUsername = request.RequestedByUsername,
             RequestedAtUtc = request.RequestedAtUtc,
             DecidedByUsername = request.DecidedByUsername,
@@ -52,11 +53,13 @@ public static class NoteDeletionRequestMapper
                     AuthorUsername = ProcedureNoteMapper.AuthorName(note.AuthorUserId, usernames),
                     CreatedAtUtc = note.CreatedAtUtc,
                     LastEditedAtUtc = note.LastEditedAtUtc,
+                    Version = note.Version,
                     DeletedAtUtc = note.DeletedAtUtc,
                     DeletedByUsername = note.DeletedByUserId is { } deletedBy
                         ? usernames.GetValueOrDefault(deletedBy, ProcedureMapper.DeletedUser)
                         : null,
-                    DeletionReason = note.DeletionReason
+                    DeletionReason = note.DeletionReason?.ToString(),
+                    DeletionDetail = note.DeletionDetail
                 },
             CanDecide = request.IsPending && note is not null && !note.IsDeleted && whyCantDecide is null,
             WhyCantDecide = whyCantDecide

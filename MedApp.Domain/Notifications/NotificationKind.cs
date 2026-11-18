@@ -3,7 +3,7 @@
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
 /// kinds; the monitoring kinds (one of an admin's rules matched) are 10 to 17, one for each <c>MonitoringEvent</c>;
-/// 18 to 20 are about requests to delete a procedure's note.
+/// 18 to 21 are about deleting a procedure's note.
 /// </summary>
 public enum NotificationKind
 {
@@ -59,5 +59,8 @@ public enum NotificationKind
     NoteDeletionApproved = 19,
 
     /// <summary>An admin kept the note the user asked to be deleted.</summary>
-    NoteDeletionDeclined = 20
+    NoteDeletionDeclined = 20,
+
+    /// <summary>An admin deleted a note the user wrote (unless they deleted it themselves, or asked for it).</summary>
+    AuthorsNoteDeleted = 21
 }

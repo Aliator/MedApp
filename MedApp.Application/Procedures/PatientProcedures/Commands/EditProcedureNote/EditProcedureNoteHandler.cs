@@ -45,6 +45,6 @@ public sealed class EditProcedureNoteHandler(
         }
 
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return ProcedureNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true);
+        return ProcedureNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true, viewerIsAdmin: request.Actor.IsAdmin);
     }
 }

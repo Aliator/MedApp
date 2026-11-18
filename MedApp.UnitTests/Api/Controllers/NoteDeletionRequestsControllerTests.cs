@@ -15,7 +15,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class NoteDeletionRequestsControllerTests
 {
-    private static readonly ProcedureActor Actor = new(UserId, Username);
+    // Signed in as an admin, so the actor says so.
+    private static readonly ProcedureActor Actor = new(UserId, Username, IsAdmin: true);
     private NoteDeletionRequestResponse _response = null!;
     private RecordingMediator _mediator = null!;
     private CancellationTokenSource _cts = null!;
@@ -43,15 +44,15 @@ public sealed class NoteDeletionRequestsControllerTests
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(_response);
     }
 
-    [TestCase(true, "Synthetic reason.")]
-    [TestCase(false, null)]
-    public async Task DecideNoteDeletionRequest_SendsTheDecisionAsTheUser(bool deleteNote, string? reason)
+    [TestCase(true, 2, "WrittenInError", "Synthetic detail.")]
+    [TestCase(false, null, null, null)]
+    public async Task DecideNoteDeletionRequest_SendsTheDecisionAsTheUser(bool deleteNote, int? version, string? reason, string? detail)
     {
-        var request = new DecideNoteDeletionRequestRequest { DeleteNote = deleteNote, Reason = reason };
+        var request = new DecideNoteDeletionRequestRequest { DeleteNote = deleteNote, ExpectedVersion = version, Reason = reason, Detail = detail };
 
         var result = await Controller.DecideNoteDeletionRequest(RecordId, request, _cts.Token);
 
-        _mediator.Request.Should().Be(new DecideNoteDeletionRequestCommand(RecordId, deleteNote, reason, Actor));
+        _mediator.Request.Should().Be(new DecideNoteDeletionRequestCommand(RecordId, deleteNote, version, reason, detail, Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(_response);
     }

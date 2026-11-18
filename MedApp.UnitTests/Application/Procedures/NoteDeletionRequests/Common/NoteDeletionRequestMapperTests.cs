@@ -25,7 +25,8 @@ public sealed class NoteDeletionRequestMapperTests
         {
             request.Id,
             Status = "Pending",
-            Reason = DeletionReason,
+            Reason = "WrongPatient",
+            Detail = DeletionDetail,
             RequestedByUsername = Staff.Username,
             request.RequestedAtUtc,
             DecidedByUsername = (string?)null,
@@ -40,9 +41,11 @@ public sealed class NoteDeletionRequestMapperTests
                 AuthorUsername = OtherUsername,
                 note.CreatedAtUtc,
                 note.LastEditedAtUtc,
+                Version = 2,
                 DeletedAtUtc = (DateTime?)null,
                 DeletedByUsername = (string?)null,
-                DeletionReason = (string?)null
+                DeletionReason = (string?)null,
+                DeletionDetail = (string?)null
             },
             CanDecide = true,
             WhyCantDecide = (string?)null
@@ -55,7 +58,7 @@ public sealed class NoteDeletionRequestMapperTests
         var procedure = CreateProcedure(Status.InProgress);
         var note = procedure.AddNote();
         var request = procedure.RequestDeletion(note);
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(note, DeletionReason, request.Id);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(note, NoteDeletionReason.Duplicate, DeletionDetail, request.Id);
         request.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
 
         var response = NoteDeletionRequestMapper.ToResponse(request, procedure, procedure.Patient, Usernames);
@@ -66,7 +69,7 @@ public sealed class NoteDeletionRequestMapperTests
             DecidedByUsername = Admin.Username,
             DecidedAtUtc = (DateTime?)Now,
             CanDecide = false,
-            Note = new { DeletedAtUtc = (DateTime?)Now, DeletedByUsername = Admin.Username, DeletionReason }
+            Note = new { DeletedAtUtc = (DateTime?)Now, DeletedByUsername = Admin.Username, DeletionReason = "Duplicate", DeletionDetail }
         });
     }
 
@@ -76,7 +79,7 @@ public sealed class NoteDeletionRequestMapperTests
         var procedure = CreateProcedure(Status.InProgress);
         var note = procedure.AddNote();
         var request = procedure.RequestDeletion(note);
-        new ProcedureChange(procedure, new ProcedureActor(Guid.NewGuid(), "gone.admin"), Now).DeleteNote(note, DeletionReason);
+        new ProcedureChange(procedure, new ProcedureActor(Guid.NewGuid(), "gone.admin"), Now).DeleteNote(note, NoteDeletionReason.WrongPatient, null);
 
         NoteDeletionRequestMapper.ToResponse(request, procedure, procedure.Patient, Usernames).Note!.DeletedByUsername
             .Should().Be(ProcedureMapper.DeletedUser);
@@ -129,9 +132,20 @@ public sealed class NoteDeletionRequestMapperTests
         var procedure = CreateProcedure(Status.InProgress);
         var note = procedure.AddNote(OtherUserId);
         var request = procedure.RequestDeletion(note);
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(note, DeletionReason);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(note, NoteDeletionReason.WrongPatient, null);
 
         NoteDeletionRequestMapper.UserIds(request, procedure).Should().BeEquivalentTo([OtherUserId, Admin.UserId]);
         NoteDeletionRequestMapper.UserIds(request, null).Should().BeEmpty();
     }
+
+    [TestCase(NoteDeletionReason.WrongPatient, null, "Wrong patient")]
+    [TestCase(NoteDeletionReason.WrittenInError, " ", "Written in error")]
+    [TestCase(NoteDeletionReason.Duplicate, "Of the 3 June note.", "Duplicate: Of the 3 June note.")]
+    [TestCase(NoteDeletionReason.Other, "Test entry.", "Other: Test entry.")]
+    public void Describe_EachReason_InWords(NoteDeletionReason reason, string? detail, string expected) =>
+        NoteDeletionReasons.Describe(reason, detail).Should().Be(expected);
+
+    [Test]
+    public void NoteDeletionReason_KeepsItsStoredNumbers() =>
+        Enum.GetValues<NoteDeletionReason>().Select(r => (int)r).Should().Equal(0, 1, 2, 3);
 }

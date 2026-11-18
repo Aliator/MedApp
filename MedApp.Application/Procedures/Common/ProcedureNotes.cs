@@ -51,13 +51,12 @@ public static class ProcedureNotes
         };
     }
 
-    /// <summary>Why a note is being deleted, or should be: not blank, and at most 500 characters.</summary>
-    public static IRuleBuilderOptions<T, string> DeletionReason<T>(this IRuleBuilder<T, string> rule) =>
-        rule
-            .Must(reason => !string.IsNullOrWhiteSpace(reason))
-            .WithMessage("Say why the note should be deleted.")
-            .MaximumLength(PatientProcedureNote.MaxDeletionReasonLength)
-            .WithMessage($"A reason must not exceed {PatientProcedureNote.MaxDeletionReasonLength} characters.");
+    /// <summary>
+    /// Deleting a note from a version other than the one the admin saw: it was edited after they opened it, so they
+    /// haven't read what they'd delete.
+    /// </summary>
+    public const string EditedSinceOpenedMessage =
+        "This note was edited after you opened it. Read it again before deleting it.";
 
     /// <summary>The note's text: not blank, and at most <see cref="PatientProcedureNote.MaxTextLength"/> characters.</summary>
     public static IRuleBuilderOptions<T, string> NoteText<T>(this IRuleBuilder<T, string> rule) =>

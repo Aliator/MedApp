@@ -61,7 +61,7 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> GetPatientProcedureById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientProcedureByIdQuery(id, User.GetUserId()), ct));
+        Ok(await mediator.Send(new GetPatientProcedureByIdQuery(id, User.GetUserId(), User.IsInRole("Admin")), ct));
 
     /// <summary>
     /// Procedures' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
@@ -165,7 +165,8 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteProcedureNote(Guid id, Guid noteId, [FromBody] DeleteProcedureNoteRequest request, CancellationToken ct)
     {
-        await mediator.Send(new DeleteProcedureNoteCommand(id, noteId, request.Reason, User.ToProcedureActor()), ct);
+        await mediator.Send(new DeleteProcedureNoteCommand(
+            id, noteId, request.Reason, request.Detail, request.ExpectedVersion, User.ToProcedureActor()), ct);
         return NoContent();
     }
 
@@ -183,7 +184,7 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> RequestNoteDeletion(Guid id, Guid noteId, [FromBody] RequestNoteDeletionRequest request, CancellationToken ct)
     {
-        var note = await mediator.Send(new RequestNoteDeletionCommand(id, noteId, request.Reason, User.ToProcedureActor()), ct);
+        var note = await mediator.Send(new RequestNoteDeletionCommand(id, noteId, request.Reason, request.Detail, User.ToProcedureActor()), ct);
         return Created($"/api/procedures/note-deletion-requests/{note.DeletionRequestId}", note);
     }
 

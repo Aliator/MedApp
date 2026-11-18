@@ -32,9 +32,9 @@ public static class ClaimsPrincipalExtensions
     public static bool MustSetUpTwoFactor(this ClaimsPrincipal user) =>
         user.HasClaim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true");
 
-    /// <summary>The signed-in user, as procedure changes record them.</summary>
+    /// <summary>The signed-in user, as procedure changes record them, and whether they're an admin.</summary>
     public static ProcedureActor ToProcedureActor(this ClaimsPrincipal user) =>
-        new(user.GetUserId(), user.Identity?.Name ?? string.Empty);
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.IsInRole("Admin"));
 
     /// <summary>The signed-in user, for calendar changes: their own calendar, or anyone's for an admin.</summary>
     public static CalendarActor ToCalendarActor(this ClaimsPrincipal user) =>

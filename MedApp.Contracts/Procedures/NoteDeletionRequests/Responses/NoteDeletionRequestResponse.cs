@@ -13,8 +13,11 @@ public sealed class NoteDeletionRequestResponse
     /// <summary>Pending, Approved (the note was deleted), Declined (it was kept) or Closed (its procedure was deleted, or the record anonymised).</summary>
     public string Status { get; set; } = string.Empty;
 
-    /// <summary>Why the member of staff asked.</summary>
+    /// <summary>Why the member of staff asked: WrongPatient, WrittenInError, Duplicate or Other.</summary>
     public string Reason { get; set; } = string.Empty;
+
+    /// <summary>More about why, if they gave any.</summary>
+    public string? Detail { get; set; }
 
     /// <summary>Who asked, by the username recorded at the time.</summary>
     public string RequestedByUsername { get; set; } = string.Empty;
@@ -57,7 +60,11 @@ public sealed class NoteDeletionRequestNoteResponse
 
     public DateTime CreatedAtUtc { get; set; }
 
+    /// <summary>When it was last edited; null if it never has been. After the request was made, the reason may be about other words.</summary>
     public DateTime? LastEditedAtUtc { get; set; }
+
+    /// <summary>Its version now: send it back as <c>expectedVersion</c> to delete it.</summary>
+    public int Version { get; set; }
 
     /// <summary>When an admin deleted it; null while it isn't deleted.</summary>
     public DateTime? DeletedAtUtc { get; set; }
@@ -65,6 +72,9 @@ public sealed class NoteDeletionRequestNoteResponse
     /// <summary>The admin who deleted it ("Deleted user" once their account is gone); null while it isn't deleted.</summary>
     public string? DeletedByUsername { get; set; }
 
-    /// <summary>Why it was deleted; null while it isn't deleted.</summary>
+    /// <summary>Why it was deleted (WrongPatient, WrittenInError, Duplicate or Other); null while it isn't deleted.</summary>
     public string? DeletionReason { get; set; }
+
+    /// <summary>More about why it was deleted, if the admin gave any.</summary>
+    public string? DeletionDetail { get; set; }
 }

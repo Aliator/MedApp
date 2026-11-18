@@ -145,7 +145,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         var note = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes",
             new AddProcedureNoteRequest { Text = "Synthetic note." })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
         var requested = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes/{note.Id}/deletion-requests",
-            new RequestNoteDeletionRequest { Reason = "Synthetic reason." })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+            new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {

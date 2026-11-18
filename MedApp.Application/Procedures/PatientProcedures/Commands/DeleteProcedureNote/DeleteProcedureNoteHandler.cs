@@ -28,6 +28,10 @@ public sealed class DeleteProcedureNoteHandler(
         if (note.IsDeleted)
             throw new ConflictException(ProcedureNotes.DeletedMessage);
 
+        // The admin must have read the text they're deleting.
+        if (note.Version != request.ExpectedVersion)
+            throw new ConflictException(ProcedureNotes.EditedSinceOpenedMessage);
+
         // A request waiting for the note is approved by this, in the same save (the request shares the DbContext).
         var pending = note.PendingDeletionRequestId is { } pendingId
             ? await requests.GetForUpdateAsync(pendingId, cancellationToken)
@@ -37,13 +41,14 @@ public sealed class DeleteProcedureNoteHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new ProcedureChange(procedure, request.Actor, now);
-        change.DeleteNote(note, request.Reason.Trim(), pending?.Id);
+        // The validator has checked the reason's name.
+        change.DeleteNote(note, ProcedureEnums.Parse<NoteDeletionReason>(request.Reason), NoteDeletionReasons.CleanDetail(request.Detail), pending?.Id);
         pending?.Close(NoteDeletionRequestStatus.Approved, request.Actor.UserId, request.Actor.Username, now);
 
         await repository.SaveAsync(change, cancellationToken);
         await procedureMonitor.NotifyAsync(change, cancellationToken);
 
-        if (pending is not null && NoteDeletionNotifications.AfterDeciding(pending, now) is { } told)
+        foreach (var told in NoteDeletionNotifications.AfterDeleting(note, pending, request.Actor, now))
             await notifications.SendAsync(told, cancellationToken);
     }
 }

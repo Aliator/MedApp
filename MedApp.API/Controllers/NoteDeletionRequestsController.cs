@@ -39,5 +39,6 @@ public sealed class NoteDeletionRequestsController(IMediator mediator) : Control
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DecideNoteDeletionRequest(Guid id, [FromBody] DecideNoteDeletionRequestRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new DecideNoteDeletionRequestCommand(id, request.DeleteNote, request.Reason, User.ToProcedureActor()), ct));
+        Ok(await mediator.Send(new DecideNoteDeletionRequestCommand(
+            id, request.DeleteNote, request.ExpectedVersion, request.Reason, request.Detail, User.ToProcedureActor()), ct));
 }

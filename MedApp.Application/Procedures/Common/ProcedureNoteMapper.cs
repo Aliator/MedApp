@@ -12,14 +12,16 @@ public static class ProcedureNoteMapper
     /// A note as the procedure page shows it. Only its author (<paramref name="viewerId"/>) can edit it, and only while
     /// <paramref name="canChange"/> (the procedure's notes can change, and its patient's record isn't restricted or
     /// anonymised). It can be deleted, or its deletion asked for, in any status, while <paramref name="recordCanChange"/>
-    /// (the patient's record isn't restricted or anonymised; <paramref name="canChange"/> when not given).
+    /// (the patient's record isn't restricted or anonymised; <paramref name="canChange"/> when not given): deleted only by
+    /// an admin (<paramref name="viewerIsAdmin"/>), and asked for by anyone else, so the flags say what this viewer can do.
     /// </summary>
     public static PatientProcedureNoteResponse ToResponse(
         PatientProcedureNote note,
         IReadOnlyDictionary<Guid, string> usernames,
         Guid? viewerId,
         bool canChange,
-        bool? recordCanChange = null) => new()
+        bool? recordCanChange = null,
+        bool viewerIsAdmin = false) => new()
     {
         Id = note.Id,
         AuthorUserId = note.AuthorUserId,
@@ -29,8 +31,8 @@ public static class ProcedureNoteMapper
         LastEditedAtUtc = note.LastEditedAtUtc,
         Version = note.Version,
         CanEdit = canChange && !note.IsDeleted && note.AuthorUserId is not null && note.AuthorUserId == viewerId,
-        CanDelete = (recordCanChange ?? canChange) && !note.IsDeleted,
-        CanRequestDeletion = (recordCanChange ?? canChange) && !note.IsDeleted && note.PendingDeletionRequestId is null,
+        CanDelete = viewerIsAdmin && (recordCanChange ?? canChange) && !note.IsDeleted,
+        CanRequestDeletion = !viewerIsAdmin && (recordCanChange ?? canChange) && !note.IsDeleted && note.PendingDeletionRequestId is null,
         DeletionRequestId = note.PendingDeletionRequestId
     };
 
@@ -40,12 +42,13 @@ public static class ProcedureNoteMapper
         IReadOnlyDictionary<Guid, string> usernames,
         Guid? viewerId,
         bool canChange,
-        bool? recordCanChange = null) =>
+        bool? recordCanChange = null,
+        bool viewerIsAdmin = false) =>
         notes
             .Where(n => !n.IsDeleted)
             .OrderByDescending(n => n.CreatedAtUtc)
             .ThenByDescending(n => n.Id)
-            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange))
+            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerIsAdmin))
             .ToList();
 
     /// <summary>

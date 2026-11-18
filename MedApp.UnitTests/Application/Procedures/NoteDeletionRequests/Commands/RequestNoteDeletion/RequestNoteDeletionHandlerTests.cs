@@ -44,13 +44,16 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
 
     private RequestNoteDeletionHandler Handler => Fixture.Create<RequestNoteDeletionHandler>();
 
+    private static RequestNoteDeletionCommand Command(PatientProcedure procedure, Guid noteId, string reason = "WrongPatient", string? detail = DeletionDetail) =>
+        new(procedure.Id, noteId, reason, detail, Staff);
+
     [Test]
     public async Task Handle_Note_AddsAPendingRequestThatTheNotePointsAt()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
         var note = procedure.AddNote(OtherUserId);
 
-        await Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, $" {DeletionReason} ", Staff), CancellationToken.None);
+        await Handler.Handle(Command(procedure, note.Id, "writtenInError", $" {DeletionDetail} "), CancellationToken.None);
 
         var request = _added.Should().ContainSingle().Subject;
         request.Should().BeEquivalentTo(new
@@ -60,7 +63,8 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
             procedure.PatientId,
             RequestedByUserId = Staff.UserId,
             RequestedByUsername = Staff.Username,
-            Reason = DeletionReason,
+            Reason = NoteDeletionReason.WrittenInError,
+            Detail = DeletionDetail,
             RequestedAtUtc = Now,
             Status = NoteDeletionRequestStatus.Pending,
             DecidedByUserId = (Guid?)null
@@ -71,12 +75,23 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_NoDetail_KeepsNone()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        var note = procedure.AddNote();
+
+        await Handler.Handle(Command(procedure, note.Id, "Duplicate", "  "), CancellationToken.None);
+
+        _added.Single().Detail.Should().BeNull();
+    }
+
+    [Test]
     public async Task Handle_TellsEveryAdminButTheRequester()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
         var note = procedure.AddNote();
 
-        await Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        await Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         var requestId = _added.Single().Id;
         _sent.Select(n => n.UserId).Should().BeEquivalentTo([Admin.UserId, OtherUserId]);
@@ -96,7 +111,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
         var note = procedure.AddNote(Staff.UserId);
 
-        var response = await Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        var response = await Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         response.Should().BeEquivalentTo(new
         {
@@ -104,6 +119,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
             AuthorUsername = Staff.Username,
             DeletionRequestId = (Guid?)_added.Single().Id,
             CanRequestDeletion = false,
+            CanDelete = false,
             CanEdit = true
         });
     }
@@ -116,7 +132,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var pending = procedure.RequestDeletion(note, new ProcedureActor(OtherUserId, OtherUsername));
         _requests.Setup(r => r.GetByIdAsync(pending.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pending);
 
-        var act = () => Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         // A day before Now (midday UTC in June): 13:00 BST.
         await act.Should().ThrowAsync<ConflictException>()
@@ -132,7 +148,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var note = procedure.AddNote();
         note.DeletedAtUtc = Now.AddDays(-1);
 
-        var act = () => Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(ProcedureNotes.DeletedMessage);
         _added.Should().BeEmpty();
@@ -146,7 +162,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress, patient: patient));
         var note = procedure.AddNote();
 
-        var act = () => Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
         _added.Should().BeEmpty();
@@ -160,7 +176,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var procedure = GivenProcedure(CreateProcedure(status));
         var note = procedure.AddNote();
 
-        var response = await Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), CancellationToken.None);
+        var response = await Handler.Handle(Command(procedure, note.Id), CancellationToken.None);
 
         _added.Should().ContainSingle();
         response.CanEdit.Should().BeFalse("notes can't be edited on a closed procedure");
@@ -171,7 +187,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
     {
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
 
-        var act = () => Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, Guid.NewGuid(), DeletionReason, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(Command(procedure, Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -183,7 +199,7 @@ public sealed class RequestNoteDeletionHandlerTests : ProcedureHandlerTestBase
         var note = procedure.AddNote();
         using var cts = new CancellationTokenSource();
 
-        await Handler.Handle(new RequestNoteDeletionCommand(procedure.Id, note.Id, DeletionReason, Staff), cts.Token);
+        await Handler.Handle(Command(procedure, note.Id), cts.Token);
 
         Repository.Verify(r => r.GetForUpdateAsync(procedure.Id, cts.Token), Times.Once);
         _requests.Verify(r => r.AddAsync(It.IsAny<ProcedureNoteDeletionRequest>(), cts.Token), Times.Once);

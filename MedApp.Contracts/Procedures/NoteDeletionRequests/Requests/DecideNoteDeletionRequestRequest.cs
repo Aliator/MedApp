@@ -7,8 +7,17 @@ public sealed class DecideNoteDeletionRequestRequest
     public bool DeleteNote { get; set; }
 
     /// <summary>
-    /// When deleting: the reason recorded with the deletion (at most 500 characters). Leave it out to use the
-    /// requester's reason. Ignored when keeping the note.
+    /// When deleting: the note's version the admin read (required); if it has been edited since, the decision is refused
+    /// (409). Ignored when keeping the note.
     /// </summary>
+    public int? ExpectedVersion { get; set; }
+
+    /// <summary>When deleting: the reason recorded (WrongPatient, WrittenInError, Duplicate or Other). Left out, the requester's.</summary>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// When deleting: more about why (at most 500 characters). Left out with the reason, the requester's; required when
+    /// the reason is Other.
+    /// </summary>
+    public string? Detail { get; set; }
 }
