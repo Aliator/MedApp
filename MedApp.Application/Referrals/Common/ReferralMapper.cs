@@ -2,6 +2,7 @@ using System.Text.Json;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Patients.Common;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Referrals.Responses;
 using MedApp.Domain.Referrals;
 
@@ -12,15 +13,18 @@ public static class ReferralMapper
 {
     /// <summary>
     /// A referral's page: the patient for the banner, its details, history and what <paramref name="viewer"/> may do.
-    /// The referral is loaded with its patient and specialty.
+    /// The referral is loaded with its patient and specialty. <paramref name="viewerIsMember"/> says whether the viewer
+    /// belongs to its specialty (triage needs it, with the permission).
     /// </summary>
     public static ReferralResponse ToResponse(
         Referral referral,
         IReadOnlyList<ReferralEvent> history,
         int letterCount,
-        PathwayActor viewer)
+        PathwayActor viewer,
+        bool viewerIsMember = false)
     {
         var canRegister = viewer.Has(Permission.RegisterReferrals);
+        var whyCantTriage = ReferralWorkflow.WhyCantTriage(referral, viewer, viewerIsMember);
         return new ReferralResponse
         {
             Id = referral.Id,
@@ -45,6 +49,7 @@ public static class ReferralMapper
             RejectionReason = referral.RejectionReason?.ToString(),
             DecisionDetail = referral.DecisionDetail,
             RedirectedTo = referral.RedirectedTo,
+            RedirectDetail = referral.RedirectDetail,
             PathwayId = referral.PathwayId,
             Version = referral.Version,
             LastUpdated = referral.LastUpdated,
@@ -55,8 +60,8 @@ public static class ReferralMapper
                              && PatientRules.CanChange(referral.Patient)
                              && ReferralWorkflow.WhyFilesCantChange(referral) is null,
             ReadOnlyReason = ReferralWorkflow.ReadOnlyReason(referral),
-            CanTriage = false,
-            WhyCantTriage = ReferralWorkflow.IsOpen(referral.Status) ? ReferralWorkflow.TriageNotAvailableMessage : null,
+            CanTriage = ReferralWorkflow.IsOpen(referral.Status) && whyCantTriage is null,
+            WhyCantTriage = whyCantTriage,
             History = history.OrderBy(e => e.AtUtc).ThenBy(e => e.Id).Select(ToResponse).ToList()
         };
     }
@@ -89,6 +94,14 @@ public static class ReferralMapper
         };
     }
 
+    /// <summary>The referral a pathway was accepted from, for the pathway's page (loaded with its specialty).</summary>
+    public static PathwayReferralResponse ToPathwayReferral(Referral referral) => new()
+    {
+        Id = referral.Id,
+        ReceivedOn = referral.ReceivedOn,
+        SpecialtyName = referral.Specialty?.Name ?? string.Empty
+    };
+
     /// <summary>One history entry, read from its structured details.</summary>
     public static ReferralEventResponse ToResponse(ReferralEvent entry)
     {
@@ -103,6 +116,10 @@ public static class ReferralMapper
             SpecialtyName = details.SpecialtyName,
             PreviousSpecialtyName = details.PreviousSpecialtyName,
             RequestedPriority = details.RequestedPriority,
+            Priority = details.Priority,
+            TemplateName = details.TemplateName,
+            PathwayId = details.PathwayId,
+            RejectionReason = details.RejectionReason,
             ChangedFields = details.ChangedFields.ToList()
         };
     }
@@ -110,8 +127,9 @@ public static class ReferralMapper
 
 /// <summary>
 /// What a referral history entry's details say, read from the JSON <see cref="ReferralChange"/> writes: the status
-/// after it, the specialty (and the one before, for an edit that moved it), the priority asked for, and the fields an
-/// edit changed with the structured ones' values before and after.
+/// after it, the specialty (and the one before, for an edit or a redirection that moved it), the priority asked for,
+/// the fields an edit changed with the structured ones' values before and after, and for triage the priority and
+/// template chosen, the pathway and the rejection reason.
 /// </summary>
 public sealed record ReferralEventDetails(
     string? ToStatus,
@@ -121,6 +139,18 @@ public sealed record ReferralEventDetails(
     IReadOnlyList<string> ChangedFields,
     IReadOnlyDictionary<string, (string? From, string? To)> Changes)
 {
+    /// <summary>Accepted: the pathway's priority, as the triager chose it.</summary>
+    public string? Priority { get; init; }
+
+    /// <summary>Accepted: the template the pathway was made from.</summary>
+    public string? TemplateName { get; init; }
+
+    /// <summary>Accepted: the pathway.</summary>
+    public Guid? PathwayId { get; init; }
+
+    /// <summary>Rejected: why, by name.</summary>
+    public string? RejectionReason { get; init; }
+
     public static ReferralEventDetails Parse(string json)
     {
         JsonElement root;
@@ -150,10 +180,16 @@ public sealed record ReferralEventDetails(
         return new ReferralEventDetails(
             ToStatus: Text(root, "to") ?? Text(root, "status"),
             SpecialtyName: Text(root, "specialtyName") ?? specialty.To,
-            PreviousSpecialtyName: specialty.From,
+            PreviousSpecialtyName: Text(root, "previousSpecialtyName") ?? specialty.From,
             RequestedPriority: Text(root, "requestedPriority"),
             ChangedFields: fields,
-            Changes: changes);
+            Changes: changes)
+        {
+            Priority = Text(root, "priority"),
+            TemplateName = Text(root, "templateName"),
+            PathwayId = Guid.TryParse(Text(root, "pathwayId"), out var pathwayId) ? pathwayId : null,
+            RejectionReason = Text(root, "rejectionReason")
+        };
     }
 
     private static string? Text(JsonElement element, string name) =>

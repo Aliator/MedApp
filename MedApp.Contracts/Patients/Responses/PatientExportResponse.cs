@@ -369,6 +369,9 @@ public sealed class ExportedReferralResponse
     public string? DecisionDetail { get; set; }
     public string? RedirectedTo { get; set; }
 
+    /// <summary>Why it was redirected here from another specialty (the latest such redirection).</summary>
+    public string? RedirectDetail { get; set; }
+
     /// <summary>The pathway it was accepted into, if any.</summary>
     public Guid? PathwayId { get; set; }
 }

@@ -2,7 +2,7 @@ import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
-import {referralFieldWords} from './referrals';
+import {referralFieldWords, rejectionReasonWords} from './referrals';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -265,6 +265,29 @@ function describeReferralEntry(entry: TimelineEntry): TimelineWording {
       };
     case 'ReferralDetailsEdited':
       return {title: `${referral}: details edited`, detail: (entry.changes ?? []).map(describeReferralChange).join('; ')};
+    // Triage: staff get the template, the priority chosen and the rejection reason (fixed choices); the detail
+    // (`reason`) and where else it went (`redirectedTo`) are free text, so only admins get them.
+    case 'ReferralAccepted':
+      return {
+        title: `${referral} accepted`,
+        detail: [entry.templateName ? `Pathway from ${entry.templateName}` : null, entry.priority ? `${words(entry.priority)} priority` : null]
+          .filter(Boolean)
+          .join(', '),
+      };
+    case 'ReferralRejected':
+      return {title: `${referral} rejected`, detail: sentences(rejectionReasonWords(entry.rejectionReason), reason)};
+    case 'ReferralRedirectedElsewhere': {
+      const to = entry.redirectedTo?.trim();
+      return {title: `${referral} redirected elsewhere`, detail: sentences(to ? `To ${to}` : null, reason)};
+    }
+    case 'ReferralSpecialtyChanged':
+      return {
+        title: 'Referral redirected to another specialty',
+        detail: sentences(
+          entry.specialtyName ? `Specialty ${entry.previousSpecialtyName ?? 'unknown'} → ${entry.specialtyName}` : null,
+          reason,
+        ),
+      };
     case 'ReferralWithdrawn':
       return {title: `${referral} withdrawn`, detail: reason ?? ''};
     case 'ReferralEnteredInError':

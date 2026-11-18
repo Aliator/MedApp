@@ -16,6 +16,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Calendar/MeetingTests` | Arranging a meeting: the admin opens the Calendar's team view narrowed to themselves and a new member of staff, takes the first suggested time in New Meeting, finds the meeting on the member of staff's calendar that day, and cancels it there. |
 | `Calendar/BlockTimeTests` | Selecting time with the mouse: dragging over free time on your Calendar (an hour, three weeks ahead), the menu that opens staying open, Block time blocking exactly that hour, and deleting the block again. jsdom can't show the menu closing itself, so this is the test for it. |
 | `Calendar/StageVisitTests` | The visit rule: a stage that requires a visit shows "Requires appointment"; an admin's Finish Stage asks "Finish without a visit?" with a reason; the stage finishes, its requested visit comes off Requires Appointment, and the patient's timeline says it was finished without a visit, and why. |
+| `Referrals/TriageTests` | Triage: the E2E admin registers a referral; a new Clinician of its specialty, in a browser of their own, accepts it, choosing the template, priority and target date (none prefilled), checks the patient, specialty and template, and lands on the new pathway, which links back to the referral; the admin is told. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a pathway: the bell's count goes up live (SignalR, no reload), and the notification opens the pathway and is marked read. |
 | `Security/ContentSecurityPolicyTests` | Each main page (home, patients, pathways, My Worklist, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
 
@@ -53,6 +54,7 @@ The whole suite takes about a minute. The tests write to the database the app us
 - the notification the bell test sends (marked read)
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
 - nothing from the meeting journey: it cancels its meeting, and its clean-up cancels it too if the test fails first
+- the triage journey's referral and its `E2E …` patient: referrals are never deleted, and a patient with one can't be (its pathway is deleted; its "Referral triaged" notification is marked read)
 - the appointments they made, cancelled (the app never deletes appointments), with their history, and so the `E2E …` patients they were for: a patient who has had an appointment can't be deleted
 
 A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.

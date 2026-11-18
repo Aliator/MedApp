@@ -314,6 +314,38 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
   });
 
+  it("opens a triaged referral's notification on the referral, with the referrals icon", async () => {
+    const referralId = '0000000c-0000-0000-0000-000000000041';
+    const triaged = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000040',
+      kind: 'ReferralTriaged',
+      title: 'Referral triaged',
+      message: 'k.ashford accepted a Dermatology referral.',
+      pathwayId,
+      referralId,
+    };
+    const assigned = {...read, id: '0000000c-0000-0000-0000-000000000042', title: 'Another pathway'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [triaged, assigned], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    // The referral, not the pathway it was accepted into: the registrant writes to the referrer from there.
+    const link = list.getByRole('link', {name: /^Referral triaged/});
+    expect(link).toHaveAttribute('href', `/referrals/${referralId}`);
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${triaged.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${referralId}`));
+  });
+
   it('marks read only the unread notifications about the pathway opened', async () => {
     const otherPathway = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other pathway', pathwayId: '0000000c-0000-0000-0000-000000000006'};
     const fetch = mockApi({

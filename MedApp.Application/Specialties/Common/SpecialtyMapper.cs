@@ -18,6 +18,7 @@ public static class SpecialtyMapper
         MemberCount = usage.MemberCount,
         ReferralCount = usage.ReferralCount,
         LetterTemplateCount = usage.LetterTemplateCount,
+        TriagerCount = usage.TriagerCount,
         CanBeDeleted = !usage.IsInUse,
         CreatedAt = specialty.CreatedAt,
         LastUpdated = specialty.LastUpdated

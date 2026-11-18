@@ -27,6 +27,12 @@ public sealed class SpecialtyResponse
     /// <summary>How many letter templates are for it.</summary>
     public int LetterTemplateCount { get; set; }
 
+    /// <summary>
+    /// How many of its members can triage its referrals (they hold the TriageReferrals permission). With none, nobody
+    /// can triage its referrals, and the Specialties page warns (hazard H-40).
+    /// </summary>
+    public int TriagerCount { get; set; }
+
     /// <summary>Whether it can be deleted: only while no template, pathway or member of staff has it.</summary>
     public bool CanBeDeleted { get; set; }
 

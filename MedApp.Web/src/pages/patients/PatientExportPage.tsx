@@ -15,11 +15,10 @@ import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
-import {referralFieldWords, referralStatusLabel} from '../../api/referrals';
+import {referralFieldWords, referralStatusLabel, rejectionReasonWords} from '../../api/referrals';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
-import {rejectionReasonWords} from '../referrals/ReferralPage';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
@@ -461,6 +460,9 @@ function ExportContent({data}: {data: PatientExport}) {
                     {referral.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonWords(referral.rejectionReason)}</MetadataListItem>}
                     {referral.redirectedTo && <MetadataListItem label="Redirected To">{referral.redirectedTo}</MetadataListItem>}
                     {referral.decisionDetail && <MetadataListItem label="Detail">{referral.decisionDetail}</MetadataListItem>}
+                    {referral.redirectDetail && (
+                      <MetadataListItem label="Redirected From Another Specialty">{referral.redirectDetail}</MetadataListItem>
+                    )}
                     {referral.pathwayId && (
                       <MetadataListItem label="Accepted Into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
                     )}

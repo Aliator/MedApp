@@ -86,7 +86,13 @@ public enum NotificationKind
     StageVisitWithdrawn = 22,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 23 to 39 are
+    /// A referral the user registered was triaged (accepted, rejected or redirected) by someone else: sent to whoever
+    /// registered it, so the booking team can tell the referrer. A fixed title ("Referral triaged").
+    /// </summary>
+    ReferralTriaged = 23,
+
+    /// <summary>
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 39 are
     /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40
