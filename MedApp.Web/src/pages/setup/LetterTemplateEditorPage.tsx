@@ -297,7 +297,15 @@ function LetterTemplateEditor({template, specialties}: {template: LetterTemplate
           </FormSection>,
         )
       ) : (
-        <TwoColumns start={form(null)} end={<PanelCard title="Merge Fields">{mergeFieldList}</PanelCard>} />
+        <TwoColumns
+          start={form(null)}
+          end={
+            // Nothing in the list takes focus, so the keyboard needs the body itself to scroll it (WCAG 2.1.1).
+            <PanelCard title="Merge Fields" isBodyKeyboardScrollable>
+              {mergeFieldList}
+            </PanelCard>
+          }
+        />
       )}
     </Page>
   );
