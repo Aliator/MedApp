@@ -7,6 +7,7 @@ import {
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
+  isSpecimenEntry,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
@@ -78,6 +79,7 @@ describe('timeline filters', () => {
       'Stages',
       'Appointments',
       'Referrals',
+      'Specimens',
       'Notes',
       'Assignments',
       'On hold',
@@ -392,5 +394,73 @@ describe('referral entries', () => {
     expect(
       describeTimelineEntry(entry({kind: 'Files', action: 'AttachmentAdded', attachedTo: 'Referral', referralId, pathwayId: NO_PATHWAY_ID, fileName: null})),
     ).toEqual({title: 'Attached a file', detail: 'To the referral'});
+  });
+});
+
+describe('specimen entries', () => {
+  const specimen = (fields: Partial<TimelineEntry>) =>
+    entry({kind: 'Specimens', specimenId: '00000051-0000-0000-0000-000000000001', specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', laboratoryName: 'Northgate pathology', ...fields});
+
+  it('says what happened to it, with its type and lab, which staff see', () => {
+    expect(isSpecimenEntry(specimen({action: 'SpecimenTaken'}))).toBe(true);
+    expect(isSpecimenEntry(entry({}))).toBe(false);
+    expect(describeTimelineEntry(specimen({action: 'SpecimenTaken', toStatus: 'Taken'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen taken',
+      detail: 'For Northgate pathology',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent'}))).toEqual({title: 'Skin biopsy (punch) specimen sent to Northgate pathology', detail: ''});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenReceived'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen received by Northgate pathology',
+      detail: '',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenReported'})).detail).toBe('The report from Northgate pathology is attached');
+    expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Received'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen rejected by Northgate pathology',
+      detail: 'Was received',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', fromStatus: 'Sent'}))).toEqual({title: 'Skin biopsy (punch) specimen marked lost', detail: 'Was sent'});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenEnteredInError', fromStatus: 'Taken'})).title).toBe(
+      'Skin biopsy (punch) specimen marked entered in error',
+    );
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSomethingNew', toStatus: 'RejectedByLab'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen changed',
+      detail: 'Now rejected by the lab',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent', specimenTypeName: null, laboratoryName: null})).title).toBe('Specimen specimen sent');
+  });
+
+  it("gives admins what the API sends them: the site and notes, a rejection's reason, what a loss said", () => {
+    expect(
+      describeTimelineEntry(
+        specimen({action: 'SpecimenTaken', changes: [{field: 'site', to: 'Left forearm'}, {field: 'requestNotes', to: 'Urgent'}]}),
+      ).detail,
+    ).toBe('For Northgate pathology. Site: Left forearm. Notes for the lab: Urgent');
+    expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Sent', reason: 'Leaked: lid off', laboratoryName: null}))).toEqual({
+      title: 'Skin biopsy (punch) specimen rejected by the lab',
+      detail: 'Was sent. Reason: Leaked: lid off',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', reason: 'Not in the batch'})).detail).toBe('Not in the batch');
+  });
+
+  it("says which details an edit changed, with values for the structured ones only", () => {
+    expect(
+      describeTimelineEntry(
+        specimen({
+          action: 'SpecimenDetailsEdited',
+          changes: [
+            {field: 'specimenType', from: 'Wound swab', to: 'Skin biopsy (punch)'},
+            {field: 'takenAtUtc', from: '2026-11-02T09:00:00Z', to: '2026-11-02T08:30:00Z'},
+            {field: 'requestingUser', from: null, to: 'dr.synthetic'},
+            {field: 'site'},
+            {field: 'requestNotes'},
+            {field: 'somethingNew'},
+          ],
+        }),
+      ),
+    ).toEqual({
+      title: 'Skin biopsy (punch) specimen: details edited',
+      detail:
+        'Type Wound swab → Skin biopsy (punch); Time taken 2 Nov 2026, 09:00 → 2 Nov 2026, 08:30; Requesting clinician none → dr.synthetic; Site changed; Notes for the lab changed; SomethingNew changed',
+    });
   });
 });

@@ -114,6 +114,12 @@ import {
   RiUserUnfollowLine,
   RiGroupLine,
   RiLightbulbLine,
+  RiFlaskLine,
+  RiMicroscopeLine,
+  RiPrinterLine,
+  RiQrScanLine,
+  RiTestTubeLine,
+  RiTruckLine,
 } from '@remixicon/react';
 
 /**
@@ -280,4 +286,13 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Specimens: taken at a stage, sent to the lab and back with its report
+  Specimens: remix(RiTestTubeLine),
+  /** The lab's worklist (the side nav's Lab), and the specimen types and labs (setup). */
+  Lab: remix(RiFlaskLine),
+  SpecimenSent: remix(RiTruckLine),
+  SpecimenReceived: remix(RiMicroscopeLine),
+  /** Finding a specimen by its number, typed or scanned from its label. */
+  Scan: remix(RiQrScanLine),
+  Print: remix(RiPrinterLine),
 } as const satisfies Record<string, IconType>;

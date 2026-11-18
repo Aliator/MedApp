@@ -46,6 +46,7 @@ import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageV
 import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
+import {PathwaySpecimens} from '../../components/specimens/PathwaySpecimens';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
@@ -183,6 +184,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     notes: true,
     currentStage: true,
     files: !isNarrow,
+    specimens: !isNarrow,
     stages: false,
     patientInfo: true,
     assignedStaff: !isNarrow,
@@ -801,6 +803,24 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * The specimens its stages took, by stage, with Record Specimen on each stage that can take one now (holders of
+   * RecordSpecimens): each opens its own page, with its label.
+   */
+  function specimensSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'specimens',
+      title: 'Specimens',
+      isOpen: open.specimens,
+      onToggle: () => toggle('specimens'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwaySpecimens pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * The pathway's own files (not its stages'). They can change unless it's cancelled or archived, as its details
    * can; admins can delete any.
    */
@@ -824,7 +844,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, Notes, the Current stage and Files, each folding and sharing the left card, and
+   * Two cards side by side: Details, Notes, the Current stage, Specimens and Files, each folding and sharing the left card, and
    * all the stages on the right.
    */
   function wideLayout(pathway: Pathway) {
@@ -832,7 +852,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       <TwoColumns
         start={
           <FoldingCard
-            sections={[detailsSection(pathway), notesSection(pathway), currentStageSection(pathway), filesSection(pathway)]}
+            sections={[detailsSection(pathway), notesSection(pathway), currentStageSection(pathway), specimensSection(pathway), filesSection(pathway)]}
             footerActions={footer(pathway)}
           />
         }
@@ -846,7 +866,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * One card of five folding sections: Details, Notes, Current stage, Files and Stages, scrolling together; the page
+   * One card of six folding sections: Details, Notes, Current stage, Specimens, Files and Stages, scrolling together; the page
    * never does. View Patient stays in the footer.
    */
   function narrowLayout(pathway: Pathway) {
@@ -857,6 +877,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           detailsSection(pathway),
           notesSection(pathway),
           currentStageSection(pathway),
+          specimensSection(pathway),
           filesSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},
         ]}

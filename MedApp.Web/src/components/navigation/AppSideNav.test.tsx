@@ -1,7 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nurseUser, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
@@ -47,6 +47,9 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');
     expect(screen.getByRole('link', {name: 'Closed Days'})).toHaveAttribute('href', '/admin/closed-days');
     expect(screen.getByRole('link', {name: 'Sites and Rooms'})).toHaveAttribute('href', '/admin/sites');
+    expect(screen.getByRole('link', {name: 'Specimen Types and Labs'})).toHaveAttribute('href', '/admin/specimen-setup');
+    // The lab's worklist is for those who record or process specimens, which the Admin role alone doesn't grant.
+    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
@@ -115,6 +118,21 @@ describe('AppSideNav', () => {
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
     expect(names.indexOf('/patients')).toBe(names.indexOf('/referrals') + 1);
+  });
+
+  it("has Lab after Referrals for those who record or process specimens, current on a specimen's pages too", async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: nurseUser, path: '/specimens/00000051-0000-0000-0000-000000000001'});
+
+    const lab = await screen.findByRole('link', {name: 'Lab'});
+    expect(lab).toHaveAttribute('href', '/lab');
+    expect(lab).toHaveAttribute('aria-current', 'page');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/lab')).toBe(names.indexOf('/referrals') + 1);
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: /Referrals/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
   });
 
   it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {

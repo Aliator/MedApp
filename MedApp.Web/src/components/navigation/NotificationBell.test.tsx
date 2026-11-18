@@ -314,6 +314,36 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
   });
 
+  it("opens a rejected or lost specimen's notification on the specimen, each with its own icon", async () => {
+    const specimenId = '00000051-0000-0000-0000-000000000001';
+    const rejected = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000041',
+      kind: 'SpecimenRejectedByLab',
+      title: 'Specimen rejected',
+      message: 'The lab rejected a Skin biopsy (punch) specimen.',
+      pathwayId,
+      subjectId: specimenId,
+    };
+    const lost = {...rejected, id: '0000000c-0000-0000-0000-000000000042', kind: 'SpecimenLost', title: 'Specimen lost', isRead: true};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [rejected, lost], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.getByRole('link', {name: /^Specimen lost/})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(list.getByRole('link', {name: /^Specimen rejected/}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${rejected.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/specimens/${specimenId}`));
+  });
+
   it('marks read only the unread notifications about the pathway opened', async () => {
     const otherPathway = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other pathway', pathwayId: '0000000c-0000-0000-0000-000000000006'};
     const fetch = mockApi({

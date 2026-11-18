@@ -168,6 +168,40 @@ describe('PatientTimeline', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Appointments`));
   });
 
+  it("shows specimens' steps, linking to the specimen by its number beside its pathway, and filters to them", async () => {
+    const specimenId = '00000051-0000-0000-0000-000000000001';
+    const specimen = (fields: Partial<TimelineEntry>) =>
+      entry({kind: 'Specimens', specimenId, specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', laboratoryName: 'Northgate pathology', ...fields});
+    const fetch = mockApi({
+      [`GET ${OVERVIEW}`]: () => json(overview),
+      [`GET ${TIMELINE}`]: () =>
+        json({
+          items: [
+            specimen({action: 'SpecimenTaken'}),
+            specimen({action: 'SpecimenSent'}),
+            specimen({action: 'SpecimenReceived'}),
+            specimen({action: 'SpecimenReported'}),
+            specimen({action: 'SpecimenRejected', fromStatus: 'Received'}),
+            specimen({action: 'SpecimenLost'}),
+            specimen({action: 'SpecimenEnteredInError'}),
+            specimen({action: 'SpecimenDetailsEdited', changes: [{field: 'site'}]}),
+          ],
+          nextCursor: null,
+        }),
+    });
+    renderWithApp(<Harness />, {user: staffUser});
+
+    const taken = within((await screen.findByText('Skin biopsy (punch) specimen taken')).closest('li')!);
+    expect(taken.getByRole('link', {name: 'Specimen MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    expect(taken.getByRole('link', {name: 'Knee assessment'})).toBeInTheDocument();
+    expect(screen.getByText('Skin biopsy (punch) specimen rejected by Northgate pathology')).toBeInTheDocument();
+    expect(screen.getByText('Site changed')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', {name: 'Specimen MA26-000123'})).toHaveLength(8);
+
+    screen.getByRole('button', {name: 'Specimens'}).click();
+    await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Specimens`));
+  });
+
   it('loads older entries after the last page, announces them, focuses the first, and stops when there are none', async () => {
     localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
     const fetch = mockApi({

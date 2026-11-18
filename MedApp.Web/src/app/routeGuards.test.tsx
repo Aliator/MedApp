@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, managerUser, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, managerUser, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, nurseUser, pageOf, renderApp, signedOutUser, staffUser} from '../test/render';
 import {authenticatorSetup} from '../test/twoFactor';
 import {insights, templates} from '../test/insights';
 
@@ -87,6 +87,30 @@ describe('route guards', () => {
 
     expect(await screen.findByRole('heading', {name: 'Sites and Rooms', level: 1})).toBeInTheDocument();
     expect(await screen.findByText('Main site')).toBeInTheDocument();
+  });
+
+  it('sends someone without ManageSetup away from Specimen Types and Labs, and lets an admin in', async () => {
+    const fetch = mockApi({'GET /api/specimen-types': () => json([]), 'GET /api/laboratories': () => json([])});
+    const {router, unmount} = renderApp({path: '/admin/specimen-setup', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('specimen'))).toBe(false);
+    unmount();
+
+    renderApp({path: '/admin/specimen-setup', user: adminUser});
+    expect(await screen.findByRole('heading', {name: 'Specimen Types and Labs', level: 1})).toBeInTheDocument();
+  });
+
+  it('opens the Lab on To send for those who send specimens, asking for that view', async () => {
+    const fetch = mockApi({
+      'GET /api/specimens/search': () => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
+      'GET /api/laboratories': () => json([]),
+    });
+    renderApp({path: '/lab', user: nurseUser});
+
+    expect(await screen.findByRole('heading', {name: 'Lab', level: 1})).toBeInTheDocument();
+    await waitFor(() =>
+      expect(fetch.mock.calls.map(([r]) => new URL((r as Request).url)).some((url) => url.pathname === '/api/specimens/search' && url.searchParams.get('View') === 'ToSend')).toBe(true),
+    );
   });
 
   it('sends someone without ManageSetup away from Specialties, without asking for them', async () => {

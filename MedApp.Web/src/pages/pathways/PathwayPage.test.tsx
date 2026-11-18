@@ -49,6 +49,28 @@ describe('PathwayPage', () => {
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
   });
 
+  it('lists the specimens its stages took, with Record Specimen on a stage that can take one', async () => {
+    const withSpecimens = {
+      ...pathway,
+      stages: [pathway.stages[0], {...pathway.stages[1], canRecordSpecimen: true}],
+    };
+    const fetch = mockApi({
+      [`GET /api/pathways/patient-pathways/${id}`]: () => json(withSpecimens),
+      'GET /api/specimens/search': () =>
+        json(
+          pageOf([
+            {id: 'sp-1', number: 'MA26-000123', stageId: 's1', specimenTypeName: 'Wound swab', laboratoryName: 'Riverside lab', status: 'Reported', takenAtUtc: '2026-11-01T10:00:00Z'},
+          ]),
+        ),
+    });
+    renderWithApp(<PathwayPage id={id} />, {user: nurseUser});
+
+    expect(await screen.findByRole('link', {name: 'MA26-000123'})).toHaveAttribute('href', '/specimens/sp-1');
+    expect(screen.getByRole('heading', {name: 'Consultation', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Record Specimen'})).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET /api/specimens/search?View=All&PathwayId=${id}&PageSize=100`);
+  });
+
   it('opens a request to delete a note from the address for an admin, and closes it', async () => {
     const requestId = '0000000d-0000-0000-0000-000000000001';
     const fetch = mockApi({

@@ -53,6 +53,7 @@ const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon];
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
   {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
   {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},
+  {label: 'Specimen Types and Labs', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights', permission: 'ViewInsights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
@@ -701,6 +702,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
+    // The lab's worklist, for whoever records or processes specimens; a specimen's page counts as under it.
+    ...(can(user, 'RecordSpecimens') || can(user, 'ProcessSpecimens')
+      ? [
+          {
+            key: 'lab',
+            label: 'Lab',
+            icon: AppIcon.Lab,
+            href: '/lab',
+            isSelected: isAt('/lab') || isAt('/specimens'),
+            isHalfView: isHalfAt('/lab') || isHalfAt('/specimens'),
+            row: (
+              <SideNavItem
+                label="Lab"
+                icon={AppIcon.Lab}
+                href="/lab"
+                isSelected={isAt('/lab') || isAt('/specimens')}
+                ref={halfViewRow(isHalfAt('/lab') || isHalfAt('/specimens'))}
+                actions={<RowMenu label="Lab" href="/lab" />}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'patients',
       label: 'Patients',

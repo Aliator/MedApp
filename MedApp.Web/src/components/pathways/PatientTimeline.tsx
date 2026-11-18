@@ -21,6 +21,7 @@ import {
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
+  isSpecimenEntry,
   MAX_TIMELINE_PATHWAYS,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
@@ -45,6 +46,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Stages: AppIcon.Success,
   Appointments: AppIcon.AppointmentBooked,
   Referrals: AppIcon.Referrals,
+  Specimens: AppIcon.Specimens,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,
   Blocks: AppIcon.StatusBlocked,
@@ -84,6 +86,20 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'StageUnlocked':
       return AppIcon.Unlock;
+    case 'SpecimenSent':
+      return AppIcon.SpecimenSent;
+    case 'SpecimenReceived':
+      return AppIcon.SpecimenReceived;
+    case 'SpecimenReported':
+      return AppIcon.Success;
+    case 'SpecimenRejected':
+      return AppIcon.StatusCancelled;
+    case 'SpecimenLost':
+      return AppIcon.Warning;
+    case 'SpecimenEnteredInError':
+      return AppIcon.EnteredInError;
+    case 'SpecimenDetailsEdited':
+      return AppIcon.Edit;
     case 'Unassigned':
       return AppIcon.Revoke;
     case 'AttachmentDeleted':
@@ -411,6 +427,12 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
           {/* A note's text (admins only), formatted as it is on the pathway's page. */}
           {noteText && <RichText>{noteText}</RichText>}
           <HStack gap={2} vAlign="center" wrap="wrap">
+            {/* A specimen's entry links to the specimen, by its number, beside its pathway. */}
+            {isSpecimenEntry(entry) && entry.specimenId && (
+              <Text type="supporting" maxLines={1}>
+                <Link href={`/specimens/${entry.specimenId}`}>{`Specimen ${entry.specimenNumber ?? ''}`.trim()}</Link>
+              </Text>
+            )}
             {/* A referral's entry, or its letter's, links to the referral. No pathway to link to: an appointment not for
                 one, or a patient's own file (its detail says "To the patient"). */}
             {(isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (

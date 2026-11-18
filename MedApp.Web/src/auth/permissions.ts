@@ -24,6 +24,8 @@ export const PERMISSIONS = [
   'ArrangeMeetings',
   'ManageClinics',
   'AttachFiles',
+  'RecordSpecimens',
+  'ProcessSpecimens',
   'ViewInsights',
   'ManageMonitoring',
   'ManageSetup',
@@ -46,6 +48,7 @@ export type PermissionGroup =
   | 'Pathways'
   | 'AppointmentsAndCalendars'
   | 'Files'
+  | 'Lab'
   | 'Oversight'
   | 'Setup'
   | 'AdministratorOnly';
@@ -88,6 +91,11 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   },
   ManageClinics: {group: 'AppointmentsAndCalendars', description: 'Set staff working hours.'},
   AttachFiles: {group: 'Files', description: 'Attach files, and delete your own.'},
+  RecordSpecimens: {group: 'Lab', description: "Record specimens taken, sent and lost, and edit them before they're sent."},
+  ProcessSpecimens: {
+    group: 'Lab',
+    description: 'Receive and reject specimens in the lab, mark them lost, and attach their reports.',
+  },
   ViewInsights: {group: 'Oversight', description: 'See Insights.'},
   ManageMonitoring: {group: 'Oversight', description: 'Set up your own monitoring rules.'},
   ManageSetup: {
