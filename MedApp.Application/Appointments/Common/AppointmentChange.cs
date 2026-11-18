@@ -112,6 +112,19 @@ public sealed class AppointmentChange(
                 : new { outcome = outcome.ToString() });
     }
 
+    /// <summary>
+    /// Withdraws an appointment recorded after the event as entered in error, with a reason (kept as its
+    /// <see cref="Appointment.CancelReason"/>, and in the history with the outcome it had). Handlers check it's allowed
+    /// (<see cref="AppointmentWorkflow.WhyCantMarkEnteredInError"/>) first.
+    /// </summary>
+    public void MarkEnteredInError(string reason)
+    {
+        var previous = appointment.Status;
+        appointment.Status = EnteredInError;
+        appointment.CancelReason = reason;
+        Record(AppointmentEventAction.EnteredInError, new { reason, previousStatus = previous.ToString() });
+    }
+
     /// <summary>Marks it Attended or Did not attend, or corrects one to the other. Nothing happens if it's already that.</summary>
     public void RecordOutcome(AppointmentStatus outcome)
     {

@@ -255,6 +255,7 @@ public sealed class PatientExportMapperTests
         exported.CreatedBy.Should().Be(Staff.Username);
         exported.BookedBy.Should().Be(Staff.Username);
         exported.OutcomeBy.Should().BeNull();
+        exported.IsRecordedAfterEvent.Should().BeFalse();
         export.AppointmentHistory.Select(e => e.Action).Should().Equal("NotesUpdated", "Cancelled");
         export.AppointmentHistory.Should().OnlyContain(e => e.AppointmentId == appointment.Id && e.Username == Staff.Username
                                                             && e.ProcedureTitle == procedure.Title);
@@ -408,4 +409,14 @@ public sealed class PatientExportMapperTests
         AtUtc = Now,
         Details = details
     };
+
+    [Test]
+    public void ToResponse_AnAppointmentRecordedAfterTheEvent_SaysSo()
+    {
+        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        record.Appointments.Single().IsRecordedAfterEvent = true;
+
+        PatientExportMapper.ToResponse(record, new Dictionary<Guid, string>(), Now, "exporter")
+            .Appointments.Single().IsRecordedAfterEvent.Should().BeTrue();
+    }
 }

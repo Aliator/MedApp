@@ -260,4 +260,17 @@ public sealed class AppointmentMapperTests
 
         AppointmentMapper.ToResponse(appointment, new Dictionary<Guid, string>(), Now).IsRecordedAfterEvent.Should().Be(recorded);
     }
+
+    [Test]
+    public void ToResponse_AWalkInWithinThirtyDays_CanBeMarkedEnteredInError_UnlessAnonymised()
+    {
+        var walkIn = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-2), 9));
+        walkIn.IsRecordedAfterEvent = true;
+
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now).CanMarkEnteredInError.Should().BeTrue();
+        walkIn.Patient.RestrictedAtUtc = Now;
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now).CanMarkEnteredInError.Should().BeTrue("withdrawing it is rectification");
+        walkIn.Patient.AnonymisedAtUtc = Now;
+        AppointmentMapper.ToResponse(walkIn, new Dictionary<Guid, string>(), Now).CanMarkEnteredInError.Should().BeFalse();
+    }
 }

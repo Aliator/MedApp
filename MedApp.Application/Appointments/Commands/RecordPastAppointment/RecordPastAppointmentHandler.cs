@@ -72,8 +72,13 @@ public sealed class RecordPastAppointmentHandler(
             }
         }
 
-        var staffUsername = await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId, cancellationToken);
         var start = UkTime.Utc(request.StartUtc);
+        if (procedure is not null && start < procedure.CreatedAt)
+            throw new ConflictException(AppointmentWorkflow.BeforeProcedureMessage(procedure.CreatedAt));
+        if (procedure is not null && stage is not null && AppointmentWorkflow.WhyStageNotReached(procedure, stage) is { } notReached)
+            throw new ConflictException(notReached);
+
+        var staffUsername = await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId, cancellationToken);
         var end = UkTime.Utc(request.EndUtc);
         var outcome = ProcedureEnums.Parse<AppointmentStatus>(request.Outcome);
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -96,12 +101,19 @@ public sealed class RecordPastAppointmentHandler(
 
                 var change = new AppointmentChange(visit, request.Actor, now);
                 change.RecordAfterEvent(request.StaffUserId, staffUsername, start, end, outcome, wasRequested: true);
-                if (!string.IsNullOrWhiteSpace(request.Notes))
-                    change.UpdateNotes(request.Notes);
+                // The visit's own notes ("Needs an interpreter") are kept; new ones go after them.
+                if (AppointmentWorkflow.KeepingNotes(visit.Notes, request.Notes) is { } notes)
+                    change.UpdateNotes(notes);
 
                 await repository.SaveAsync(change.Events, ct);
                 return visit;
             }
+
+            // A visit booked or requested for the stage since the check above (another request, or the stage just
+            // becoming current): refused, rather than leaving the stage with two (decision 77). Another person's
+            // booking takes their lock, not this one, so this narrows the window rather than closing it.
+            if (stage is not null && await repository.GetOpenForStageAsync(stage.Id, ct) is not null)
+                throw new ConflictException(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage);
 
             var appointment = New(request, now);
             var added = new AppointmentChange(appointment, request.Actor, now, procedureTitle: procedure?.Title, stageName: stage?.Name);

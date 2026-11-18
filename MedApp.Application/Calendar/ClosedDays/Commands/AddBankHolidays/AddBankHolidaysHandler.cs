@@ -1,12 +1,23 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Notifications.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Calendar;
 using MediatR;
 
 namespace MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
 
-public sealed class AddBankHolidaysHandler(IClosedDayRepository repository, TimeProvider timeProvider)
+/// <summary>
+/// Adds the year's bank holidays that are still to come and not already closed. As for one closed day, each added
+/// day's response says what was already booked on it, and the staff with something on it are told (decision 75).
+/// </summary>
+public sealed class AddBankHolidaysHandler(
+    IClosedDayRepository repository,
+    ICalendarRepository calendarRepository,
+    IIdentityReadService identityReadService,
+    INotificationSender notificationSender,
+    TimeProvider timeProvider)
     : IRequestHandler<AddBankHolidaysCommand, AddBankHolidaysResponse>
 {
     /// <summary>The date is in the list already (under any name).</summary>
@@ -48,7 +59,17 @@ public sealed class AddBankHolidaysHandler(IClosedDayRepository repository, Time
         if (added.Count > 0)
             await repository.AddAsync(added, cancellationToken);
 
-        response.Added = added.Select(d => ClosedDayMapper.ToResponse(d, today)).ToList();
+        foreach (var day in added)
+        {
+            var bookings = await calendarRepository.GetBookingsOnAsync(day.Date, cancellationToken);
+            foreach (var notification in ClosedDayBookings.Notifications(day.Date, day.Name, bookings, request.Actor, now))
+                await notificationSender.SendAsync(notification, cancellationToken);
+
+            var addedDay = ClosedDayMapper.ToResponse(day, today);
+            addedDay.Bookings = await ClosedDayBookings.ToResponseAsync(day.Date, bookings, identityReadService, cancellationToken);
+            response.Added.Add(addedDay);
+        }
+
         return response;
     }
 }

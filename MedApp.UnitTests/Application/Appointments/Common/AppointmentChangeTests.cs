@@ -378,4 +378,22 @@ public sealed class AppointmentChangeTests
         act.Should().Throw<InvalidOperationException>();
         change.HasChanges.Should().BeFalse();
     }
+
+    [Test]
+    public void MarkEnteredInError_KeepsTheReasonAndTheOutcomeItHad()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Attended);
+        appointment.IsRecordedAfterEvent = true;
+        var change = ChangeOf(appointment);
+
+        change.MarkEnteredInError("Wrong patient.");
+
+        appointment.Status.Should().Be(AppointmentStatus.EnteredInError);
+        appointment.CancelReason.Should().Be("Wrong patient.");
+        appointment.LastUpdated.Should().Be(Now);
+        var entry = change.Events.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(AppointmentEventAction.EnteredInError);
+        Details(entry).GetProperty("reason").GetString().Should().Be("Wrong patient.");
+        Details(entry).GetProperty("previousStatus").GetString().Should().Be("Attended");
+    }
 }

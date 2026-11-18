@@ -12,11 +12,11 @@ public sealed class WorkingDays(IClosedDayRepository closedDays)
     public async Task<ClosedDaySet> ClosedDaysAsync(DateOnly from, DateOnly to, CancellationToken ct) =>
         new(await closedDays.GetAsync(from, to, ct));
 
-    /// <summary>Why something can't be at these times (<see cref="WorkingHours.WhyOutside(DateTime, DateTime, ClosedDaySet?)"/>), or null if it can.</summary>
+    /// <summary>Why something can't be at these times (<see cref="WorkingHours.WhyOutside(DateTime, DateTime, ClosedDaySet)"/>), or null if it can.</summary>
     public async Task<string?> WhyOutsideAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct)
     {
         // The times' own rules first, so a bad time doesn't cost a query.
-        if (WorkingHours.WhyOutside(startUtc, endUtc) is { } why)
+        if (WorkingHours.WhyOutside(startUtc, endUtc, ClosedDaySet.None) is { } why)
             return why;
 
         var date = UkTime.DateOf(UkTime.Utc(startUtc));

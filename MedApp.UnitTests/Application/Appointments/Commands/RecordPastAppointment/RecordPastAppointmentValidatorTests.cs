@@ -14,11 +14,11 @@ public sealed class RecordPastAppointmentValidatorTests
     /// <summary>Thursday 12 November 2026, four days before the clock's Monday.</summary>
     private static readonly DateOnly LastThursday = new(2026, 11, 12);
 
-    /// <summary>Tuesday 10 November 2026, made a closed day here.</summary>
+    /// <summary>Tuesday 10 November 2026: a weekday, closed or not, it makes no difference here.</summary>
     private static readonly DateOnly ClosedTuesday = new(2026, 11, 10);
 
     private readonly RecordPastAppointmentValidator _validator =
-        new(new FixedTimeProvider(Now), InMemoryClosedDays.WorkingDays(CreateClosedDay(ClosedTuesday)));
+        new(new FixedTimeProvider(Now));
 
     private static RecordPastAppointmentCommand Valid() =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), StaffUserId, At(LastThursday, 10), At(LastThursday, 10, 30),
@@ -95,10 +95,19 @@ public sealed class RecordPastAppointmentValidatorTests
     }
 
     [Test]
-    public void Validate_ClosedDay_SaysTheClinicIsClosed()
+    public void Validate_OnADaySinceClosed_Passes()
     {
-        Errors(Valid() with { StartUtc = At(ClosedTuesday, 10), EndUtc = At(ClosedTuesday, 10, 30) })
-            .Should().Equal(WorkingHours.ClosedDay(ClosedTuesday, ClosedDayName));
+        // The validator doesn't look closed days up at all: a walk-in may be on one (decision 74).
+        _validator.ValidateNow(Valid() with { StartUtc = At(ClosedTuesday, 10), EndUtc = At(ClosedTuesday, 10, 30) })
+            .IsValid.Should().BeTrue();
+    }
+
+    [Test]
+    public void Validate_Weekend_StillFails()
+    {
+        var saturday = new DateOnly(2026, 11, 14);
+
+        Errors(Valid() with { StartUtc = At(saturday, 10), EndUtc = At(saturday, 10, 30) }).Should().Equal(WorkingHours.Weekend);
     }
 
     [Test]

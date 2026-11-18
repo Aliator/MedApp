@@ -4,6 +4,7 @@ using MedApp.API.Controllers;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
 using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
@@ -89,6 +90,21 @@ public sealed class AppointmentsControllerTests
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/appointments/{_appointment.Id}");
         created.Value.Should().Be(_appointment);
+    }
+
+    [TestCase("User", false)]
+    [TestCase("Admin", true)]
+    public async Task MarkEnteredInError_SendsTheReasonTheUserAndWhetherTheyreAnAdmin(string role, bool isAdmin)
+    {
+        var response = _fixture.Create<EnteredInErrorResponse>();
+        var mediator = new RecordingMediator(_ => response);
+
+        var result = await new AppointmentsController(mediator).WithRequest(SignedIn(role))
+            .MarkEnteredInError(RecordId, new MarkEnteredInErrorRequest { Reason = "Wrong patient." }, _cts.Token);
+
+        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor, isAdmin));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }
 
     [Test]

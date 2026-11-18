@@ -10,6 +10,7 @@ using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypes;
 using MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
 using MedApp.Application.Calendar.ClosedDays.Commands.CreateClosedDay;
 using MedApp.Application.Calendar.ClosedDays.Commands.DeleteClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDayBookings;
 using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDays;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.DayTemplates.Commands.CreateDayTemplate;
@@ -43,6 +44,7 @@ public sealed class CalendarSetupControllerTests
         nameof(CalendarSetupController.ArchiveActivityType),
         nameof(CalendarSetupController.RestoreActivityType),
         nameof(CalendarSetupController.DeleteActivityType),
+        nameof(CalendarSetupController.GetClosedDayBookings),
         nameof(CalendarSetupController.CreateClosedDay),
         nameof(CalendarSetupController.AddBankHolidays),
         nameof(CalendarSetupController.DeleteClosedDay),
@@ -329,6 +331,12 @@ public sealed class CalendarSetupControllerTests
         created.Location.Should().Be("/api/calendar/closed-days?from=2027-06-04&to=2027-06-04");
         created.Value.Should().Be(day);
     }
+
+    [Test]
+    public async Task GetClosedDayBookings_SendsTheDate() =>
+        await ExpectOk(_fixture.Create<DayBookingsResponse>(),
+            new GetClosedDayBookingsQuery(new DateOnly(2027, 6, 4)),
+            c => c.GetClosedDayBookings(new DateOnly(2027, 6, 4), _cts.Token));
 
     [Test]
     public async Task AddBankHolidays_SendsTheYearAndAdmin() =>

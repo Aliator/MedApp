@@ -1,7 +1,11 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Notifications.Common;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Calendar;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -17,6 +21,10 @@ public sealed class AddBankHolidaysHandlerTests
     private AddBankHolidaysHandler _handler = null!;
     private List<ClosedDay> _existing = null!;
     private List<IReadOnlyCollection<ClosedDay>> _adds = null!;
+    private Mock<ICalendarRepository> _calendar = null!;
+    private Mock<IIdentityReadService> _identity = null!;
+    private Dictionary<DateOnly, List<StaffBookings>> _bookings = null!;
+    private List<Notification> _sent = null!;
 
     [SetUp]
     public void SetUp()
@@ -31,6 +39,21 @@ public sealed class AddBankHolidaysHandlerTests
         _repository.Setup(r => r.AddAsync(It.IsAny<IReadOnlyCollection<ClosedDay>>(), It.IsAny<CancellationToken>()))
             .Callback((IReadOnlyCollection<ClosedDay> days, CancellationToken _) => _adds.Add(days))
             .Returns(Task.CompletedTask);
+        _calendar = new Mock<ICalendarRepository>();
+        _bookings = [];
+        _calendar.Setup(c => c.GetBookingsOnAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly date, CancellationToken _) => (IReadOnlyList<StaffBookings>)(_bookings.GetValueOrDefault(date) ?? []));
+        _identity = new Mock<IIdentityReadService>();
+        _identity.Setup(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, string> { [StaffUserId] = StaffUsername, [OtherStaffUserId] = OtherStaffUsername });
+        _sent = [];
+        var sender = new Mock<INotificationSender>();
+        sender.Setup(s => s.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
+            .Callback((Notification n, CancellationToken _) => _sent.Add(n))
+            .Returns(Task.CompletedTask);
+        fixture.Inject(_calendar.Object);
+        fixture.Inject(_identity.Object);
+        fixture.Inject(sender.Object);
         fixture.Inject(_repository.Object);
         fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
         _handler = fixture.Create<AddBankHolidaysHandler>();
@@ -94,5 +117,20 @@ public sealed class AddBankHolidaysHandlerTests
         _adds.Should().ContainSingle("the second time had nothing to add");
         response.Added.Should().BeEmpty();
         response.Skipped.Should().HaveCount(8).And.OnlyContain(s => s.Reason == AddBankHolidaysHandler.AlreadyClosed);
+    }
+
+    [Test]
+    public async Task Handle_AddedDaysWithBookings_SayWhatsOnEach_AndTellTheStaff()
+    {
+        var christmas = new DateOnly(2027, 12, 27);
+        _bookings[christmas] = [new StaffBookings(OtherStaffUserId, Appointments: 1, Blocks: 2, Meetings: 0)];
+
+        var response = await _handler.Handle(new AddBankHolidaysCommand(2027, AdminActor), CancellationToken.None);
+
+        response.Added.Single(d => d.Date == christmas).Bookings!.Should().BeEquivalentTo(new { Appointments = 1, Blocks = 2, Meetings = 0 });
+        response.Added.Where(d => d.Date != christmas).Should().OnlyContain(d => d.Bookings!.Staff.Count == 0);
+        var notification = _sent.Should().ContainSingle().Subject;
+        notification.UserId.Should().Be(OtherStaffUserId);
+        notification.Message.Should().Contain("Monday 27 December (Christmas Day (substitute day))").And.Contain("an appointment and 2 blocks");
     }
 }

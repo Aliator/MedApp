@@ -4,8 +4,8 @@ namespace MedApp.Application.Appointments.Common;
 
 /// <summary>
 /// An appointment's time, for validators: inside the working day (<see cref="WorkingDays"/>: not a weekend or a closed
-/// day), and in the future when it's booked, or started within the last <see cref="RecordAfterEventDays"/> days when
-/// it's recorded after the event.
+/// day), and in the future when it's booked; or, when it's recorded after the event, started within the last
+/// <see cref="RecordAfterEventDays"/> days on a weekday, closed or not.
 /// </summary>
 public static class BookingTimes
 {
@@ -30,15 +30,15 @@ public static class BookingTimes
     }
 
     /// <summary>
-    /// Why an appointment can't be recorded after the event at this time, or null if it can: on a working day, its
-    /// start passed (as an outcome is recorded once the start has passed), and not before the UK day
-    /// <see cref="RecordAfterEventDays"/> days ago.
+    /// Why an appointment can't be recorded after the event at this time, or null if it can: on a weekday, inside the
+    /// working day, its start passed (as an outcome is recorded once the start has passed), and not before the UK day
+    /// <see cref="RecordAfterEventDays"/> days ago. **A closed day doesn't count** (decision 74): a visit that happened
+    /// on a day closed later, or part-way through, is recorded as it happened, and shows flagged.
     /// </summary>
-    public static async Task<string?> WhyNotRecordedAsync(
-        WorkingDays workingDays, DateTime startUtc, DateTime endUtc, DateTime nowUtc, CancellationToken ct)
+    public static string? WhyNotRecorded(DateTime startUtc, DateTime endUtc, DateTime nowUtc)
     {
         var start = UkTime.Utc(startUtc);
-        if (await workingDays.WhyOutsideAsync(start, UkTime.Utc(endUtc), ct) is { } why)
+        if (WorkingHours.WhyOutside(start, UkTime.Utc(endUtc), ClosedDaySet.None) is { } why)
             return why;
 
         if (start > nowUtc)

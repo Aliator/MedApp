@@ -62,7 +62,7 @@ public sealed class SearchAppointmentsValidatorTests
     public void Validate_UnknownStatus_Fails()
     {
         Errors(Valid() with { Statuses = ["Booked", "Pending"] })
-            .Should().Equal("Each status must be one of: Requested, Booked, Attended, DidNotAttend, Cancelled.");
+            .Should().Equal("Each status must be one of: Requested, Booked, Attended, DidNotAttend, Cancelled, EnteredInError.");
     }
 
     [Test]

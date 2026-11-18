@@ -23,7 +23,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 
         RuleFor(x => x.StartUtc)
             .Must((x, start) => UkTime.DateOf(start) == x.Date)
-            .When(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc) is null)
+            .When(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc, ClosedDaySet.None) is null)
             .WithMessage(SameDay);
     }
 }

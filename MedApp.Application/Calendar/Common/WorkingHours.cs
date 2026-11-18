@@ -50,9 +50,10 @@ public static class WorkingHours
 
     /// <summary>
     /// Why an appointment, block or meeting can't be at these times, or null if it can. <paramref name="closedDays"/>
-    /// must cover the date (none are known without it).
+    /// must cover the date; pass <see cref="ClosedDaySet.None"/> only where closed days deliberately don't count (a
+    /// walk-in, decision 74) or are looked up next (<see cref="WorkingDays"/>). Validators use <see cref="WorkingDays"/>.
     /// </summary>
-    public static string? WhyOutside(DateTime startUtc, DateTime endUtc, ClosedDaySet? closedDays = null)
+    public static string? WhyOutside(DateTime startUtc, DateTime endUtc, ClosedDaySet closedDays)
     {
         var start = UkTime.Utc(startUtc);
         var end = UkTime.Utc(endUtc);
@@ -64,7 +65,7 @@ public static class WorkingHours
         if (UkTime.DateOf(end) != date)
             return NotSameDay;
 
-        if (WhyNotWorkingDay(date, closedDays ?? ClosedDaySet.None) is { } notWorking)
+        if (WhyNotWorkingDay(date, closedDays) is { } notWorking)
             return notWorking;
 
         if (UkTime.TimeOf(start) < Start || UkTime.TimeOf(end) > End)

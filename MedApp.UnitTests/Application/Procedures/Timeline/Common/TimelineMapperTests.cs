@@ -386,6 +386,17 @@ public sealed class TimelineMapperTests
         response.FromStatus.Should().Be(previous);
     }
 
+    [Test]
+    public void ToResponse_EnteredInError_GivesTheOutcomeItHad_AndTheReasonToAdminsOnly([Values] bool isAdmin)
+    {
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.EnteredInError, Now,
+            "{\"reason\":\"Synthetic wrong patient.\",\"previousStatus\":\"Attended\"}"), isAdmin);
+
+        response.Action.Should().Be("AppointmentEnteredInError");
+        response.FromStatus.Should().Be("Attended");
+        response.Reason.Should().Be(isAdmin ? "Synthetic wrong patient." : null);
+    }
+
     [TestCase(false, "{\"outcome\":\"Attended\"}", null, "Attended")]
     [TestCase(false, "{\"outcome\":\"DidNotAttend\",\"previousStatus\":\"Requested\"}", "Requested", "DidNotAttend")]
     [TestCase(true, "{\"outcome\":\"Attended\",\"previousStatus\":\"Requested\"}", "Requested", "Attended")]

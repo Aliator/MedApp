@@ -223,7 +223,7 @@ public sealed class ExportedAppointmentResponse
     /// <summary>The stage it's for, by name, if any.</summary>
     public string? StageName { get; set; }
 
-    /// <summary>Requested, Booked, Attended, DidNotAttend or Cancelled.</summary>
+    /// <summary>Requested, Booked, Attended, DidNotAttend, Cancelled or EnteredInError.</summary>
     public string Status { get; set; } = string.Empty;
 
     /// <summary>Who the patient sees, once booked.</summary>
@@ -236,6 +236,12 @@ public sealed class ExportedAppointmentResponse
 
     /// <summary>Whether the app asked for it (a stage that involves a visit became current), rather than someone.</summary>
     public bool IsAutomatic { get; set; }
+
+    /// <summary>
+    /// Recorded after the event (a walk-in, or one booked outside MedApp) rather than booked ahead: then BookedAtUtc
+    /// and BookedBy are when and by whom it was recorded.
+    /// </summary>
+    public bool IsRecordedAfterEvent { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

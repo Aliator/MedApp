@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -167,5 +168,102 @@ public sealed class AppointmentWorkflowTests
             "If that's the one that happened, record its outcome instead; otherwise cancel it first.");
         AppointmentWorkflow.StageHasBookedVisit(booked, null)
             .Should().StartWith("This stage already has a visit booked, on Monday 23 November at 11:00. ");
+    }
+
+    // Entered in error
+
+    private static Appointment WalkIn(AppointmentStatus status = AppointmentStatus.Attended, int daysAgo = 3)
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-daysAgo), 10));
+        appointment.Status = status;
+        appointment.IsRecordedAfterEvent = true;
+        return appointment;
+    }
+
+    [TestCase(AppointmentStatus.Attended)]
+    [TestCase(AppointmentStatus.DidNotAttend)]
+    public void CanMarkEnteredInError_AWalkInWithItsOutcome_IsTrue(AppointmentStatus status)
+    {
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now).Should().BeTrue();
+    }
+
+    [Test]
+    public void CanMarkEnteredInError_OnTheThirtiethDayButNotTheThirtyFirst()
+    {
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(daysAgo: 30), Now).Should().BeTrue();
+        AppointmentWorkflow.WhyCantMarkEnteredInError(WalkIn(daysAgo: 31), Now).Should().Contain("up to 30 days");
+    }
+
+    [Test]
+    public void CanMarkEnteredInError_ABookedOne_IsFalse()
+    {
+        var booked = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-1), 10));
+
+        AppointmentWorkflow.WhyCantMarkEnteredInError(booked, Now).Should().StartWith("Only an appointment recorded after the event");
+    }
+
+    [TestCase(AppointmentStatus.EnteredInError)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public void CanMarkEnteredInError_WithoutItsOutcome_IsFalse(AppointmentStatus status)
+    {
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now).Should().BeFalse();
+    }
+
+    [Test]
+    public void EnteredInError_IsOffTheCalendar_NotOpen_AndItsNotesCantChange()
+    {
+        var withdrawn = WalkIn(AppointmentStatus.EnteredInError);
+
+        AppointmentWorkflow.IsOnCalendar(AppointmentStatus.EnteredInError).Should().BeFalse();
+        AppointmentWorkflow.IsOpen(AppointmentStatus.EnteredInError).Should().BeFalse();
+        AppointmentWorkflow.CanEditNotes(withdrawn).Should().BeFalse();
+        AppointmentWorkflow.CanCancel(withdrawn).Should().BeFalse();
+        AppointmentWorkflow.CanRecordOutcome(withdrawn, Now).Should().BeFalse();
+        AppointmentWorkflow.Describe(AppointmentStatus.EnteredInError).Should().Be("entered in error");
+    }
+
+    // A walk-in for a procedure
+
+    [Test]
+    public void WhyStageNotReached_TheCurrentStageOrAnEarlierOne_IsNull_ALaterOneIsNamed()
+    {
+        var procedure = MedApp.UnitTests.Common.Constants.ProceduresTestConstants.CreateProcedure(MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus.Assigned, finishedStages: 1);
+
+        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(1)).Should().BeNull();
+        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(2)).Should().BeNull();
+        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(3)).Should()
+            .Be($"The '{procedure.StageAt(3).Name}' stage hasn't been reached yet: the current stage is '{procedure.StageAt(2).Name}'. Record the visit for that stage, or without one.");
+    }
+
+    [Test]
+    public void WhyStageNotReached_EveryStageFinished_IsNullForAny()
+    {
+        var procedure = MedApp.UnitTests.Common.Constants.ProceduresTestConstants.CreateProcedure(MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus.InReview, finishedStages: 3);
+
+        AppointmentWorkflow.WhyStageNotReached(procedure, procedure.StageAt(3)).Should().BeNull();
+    }
+
+    [Test]
+    public void BeforeProcedureMessage_SaysWhenItWasCreated()
+    {
+        AppointmentWorkflow.BeforeProcedureMessage(At(Today, 11)).Should().Be(
+            "This visit was before the procedure was created (Monday 16 November at 11:00). Record it without the procedure, or for the procedure it was for.");
+    }
+
+    [TestCase("", "Seen.", "Seen.")]
+    [TestCase("Needs an interpreter.", "Seen.", "Needs an interpreter.\n\nSeen.")]
+    [TestCase("Needs an interpreter.", " ", null)]
+    [TestCase("Needs an interpreter.", null, null)]
+    public void KeepingNotes_AddsNewNotesAfterTheVisitsOwn(string existing, string? added, string? expected)
+    {
+        AppointmentWorkflow.KeepingNotes(existing, added).Should().Be(expected);
+    }
+
+    [Test]
+    public void KeepingNotes_TogetherTooLong_IsAConflict()
+    {
+        var act = () => AppointmentWorkflow.KeepingNotes(new string('a', 1500), new string('b', 600));
+
+        act.Should().Throw<MedApp.Application.Common.Exceptions.ConflictException>().WithMessage("*the visit's own notes are kept*");
     }
 }

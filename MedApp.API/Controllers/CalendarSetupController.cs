@@ -8,6 +8,7 @@ using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypes;
 using MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
 using MedApp.Application.Calendar.ClosedDays.Commands.CreateClosedDay;
 using MedApp.Application.Calendar.ClosedDays.Commands.DeleteClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDayBookings;
 using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDays;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.DayTemplates.Commands.CreateDayTemplate;
@@ -275,7 +276,22 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetClosedDays([FromQuery] GetClosedDaysRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetClosedDaysQuery(request.From, request.To), ct));
 
-    /// <summary>Closes the clinic on a day, today or later. What's already on it stays, flagged.</summary>
+    /// <summary>
+    /// What's already booked on a day, for an admin about to close it: appointments, blocks and meetings, counted, for
+    /// each member of staff. Never a patient.
+    /// </summary>
+    [HttpGet("closed-days/bookings")]
+    [ProducesResponseType(typeof(DayBookingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin")]
+    [Tags(ClosedDaysTag)]
+    public async Task<IActionResult> GetClosedDayBookings([FromQuery] DateOnly date, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetClosedDayBookingsQuery(date), ct));
+
+    /// <summary>
+    /// Closes the clinic on a day, today or later. What's already on it stays, flagged; the response says what, and the
+    /// staff with something on it are told.
+    /// </summary>
     [HttpPost("closed-days")]
     [ProducesResponseType(typeof(ClosedDayResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]

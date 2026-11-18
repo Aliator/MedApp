@@ -2,6 +2,7 @@ using MedApp.API.Common.Authentication;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
 using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
@@ -121,6 +122,19 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RecordOutcome(Guid id, [FromBody] RecordAppointmentOutcomeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RecordAppointmentOutcomeCommand(id, request.Outcome, User.ToProcedureActor()), ct));
+
+    /// <summary>
+    /// Withdraws an appointment recorded after the event as entered in error (it didn't happen, or it's on the wrong
+    /// patient), with a reason: by whoever recorded it, or an admin, within 30 days of it.
+    /// </summary>
+    [HttpPost("{id:guid}/entered-in-error")]
+    [ProducesResponseType(typeof(EnteredInErrorResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] MarkEnteredInErrorRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToProcedureActor(), User.IsInRole("Admin")), ct));
 
     [HttpPost("{id:guid}/cancel")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]

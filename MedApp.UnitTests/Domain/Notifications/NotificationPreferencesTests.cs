@@ -33,7 +33,8 @@ public sealed class NotificationPreferencesTests
             .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>()
                 .Where(k => k.ToString().StartsWith("Monitored")
                             || k.ToString().StartsWith("Appointment")
-                            || k.ToString().StartsWith("Meeting")));
+                            || k.ToString().StartsWith("Meeting")
+                            || k == NotificationKind.DayClosed));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
     }
 

@@ -31,4 +31,33 @@ public static class StageVisits
 
         return hasOne ? null : change.RequestVisit(current);
     }
+
+    /// <summary>
+    /// After a stage's visit was withdrawn as entered in error, whether the stage should have its visit asked for again,
+    /// by the same rules as when it became current (<see cref="RequestForCurrentStage"/>), and what to tell the person
+    /// who withdrew it. <paramref name="appointments"/> are the stage's appointments as they stand, the withdrawn one
+    /// included. Null message: nothing to say (the stage involves no visit).
+    /// </summary>
+    public static (bool RequestAgain, string? Message) AfterVisitWithdrawn(
+        PatientProcedure procedure, PatientProcedureStage stage, IEnumerable<Appointment> appointments)
+    {
+        if (stage.VisitRequirement == VisitRequirement.None)
+            return (false, null);
+
+        if (stage.IsCompleted)
+            return (false, $"The '{stage.Name}' stage was finished with this visit. If it still needs its visit, an admin can unlock it, and then book one.");
+
+        if (!ProcedureWorkflow.IsOpen(procedure.Status))
+            return (false, $"No visit is asked for again while the procedure is {ProcedureWorkflow.Describe(procedure.Status)}.");
+
+        if (ProcedureWorkflow.CurrentStage(procedure)?.Id != stage.Id)
+            return (false, $"The '{stage.Name}' stage isn't the current stage, so no visit is asked for yet.");
+
+        var other = appointments.FirstOrDefault(a =>
+            a.StageId == stage.Id
+            && a.Status is AppointmentStatus.Requested or AppointmentStatus.Booked or AppointmentStatus.Attended);
+        return other is null
+            ? (true, $"The '{stage.Name}' stage's visit is back in Requires Appointment.")
+            : (false, $"The '{stage.Name}' stage already has a visit that's {MedApp.Application.Appointments.Common.AppointmentWorkflow.Describe(other.Status)}, so no other is asked for.");
+    }
 }

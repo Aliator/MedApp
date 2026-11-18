@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.RecordPastAppointment;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -318,5 +319,68 @@ public sealed class RecordPastAppointmentHandlerTests : AppointmentHandlerTestBa
         await _handler.Handle(Command() with { StartUtc = start, EndUtc = start.AddMinutes(30) }, CancellationToken.None);
 
         Added.Single().StartUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Test]
+    public async Task Handle_BeforeTheProcedureWasCreated_IsAConflict()
+    {
+        var procedure = ProceduresTestConstants.CreateProcedure(PatientProcedureStatus.Assigned, patient: _patient, title: ProcedureTitle, createdAt: At(LastThursday, 11));
+        _procedures.Setup(p => p.GetByIdAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure);
+
+        var act = () => _handler.Handle(Command(procedure.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This visit was before the procedure was created (Thursday 12 November at 11:00)*");
+        Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AStageNotReachedYet_IsAConflict()
+    {
+        var procedure = GivenProcedure();
+
+        var act = () => _handler.Handle(Command(procedure.Id, procedure.StageAt(2).Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*hasn't been reached yet*");
+        Lock.Locked.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_TheWaitingVisitsNotes_AreKept_WithTheNewOnesAfterThem()
+    {
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        var requested = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested, stageId: stageId));
+        requested.Notes = OtherNotes;
+        Repository.Setup(r => r.GetOpenForStageAsync(stageId, It.IsAny<CancellationToken>())).ReturnsAsync(requested);
+
+        await _handler.Handle(Command(procedure.Id, stageId), CancellationToken.None);
+
+        requested.Notes.Should().Be($"{OtherNotes}\n\n{Notes}");
+    }
+
+    [Test]
+    public async Task Handle_AVisitAddedForTheStageMeanwhile_IsAConflict()
+    {
+        // None when first looked for; one by the time the calendar lock is held.
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        Repository.SetupSequence(r => r.GetOpenForStageAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Appointment?)null)
+            .ReturnsAsync(CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11), stageId: stageId));
+
+        var act = () => _handler.Handle(Command(procedure.Id, stageId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("Someone else changed this stage's visit just now. Reload it and try again.");
+        Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_OnADayClosedSince_IsRecorded()
+    {
+        CalendarData = CreateData(LastThursday) with { ClosedDays = new ClosedDaySet([CreateClosedDay(LastThursday)]) };
+
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        Added.Should().ContainSingle();
     }
 }

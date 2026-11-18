@@ -31,7 +31,7 @@ public sealed class DemoMeetingsTests
         foreach (var meeting in calendars.Meetings)
         {
             var date = UkTime.DateOf(meeting.StartUtc);
-            WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc).Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)}");
+            WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc, DemoClosedDays.Set).Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)}");
             meeting.Attendees.Should().NotBeEmpty().And.OnlyHaveUniqueItems(a => a.StaffUserId);
             foreach (var attendee in meeting.Attendees)
                 CalendarClashes.Find(calendars.DataFor(attendee.StaffUserId, date, date), meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id)

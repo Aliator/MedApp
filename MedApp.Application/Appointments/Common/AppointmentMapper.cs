@@ -81,7 +81,8 @@ public static class AppointmentMapper
             CanReschedule = canChange && AppointmentWorkflow.CanReschedule(appointment),
             CanRecordOutcome = canChange && AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
             CanCancel = canPause && AppointmentWorkflow.CanCancel(appointment),
-            CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment)
+            CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment),
+            CanMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc)
         };
     }
 

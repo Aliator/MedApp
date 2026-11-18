@@ -206,4 +206,33 @@ public sealed class ClosedDayTests : IntegrationTest
 
         (await response.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest)).Errors.Should().ContainKey("Year");
     }
+
+    // What's already booked on a day being closed
+
+    [Test]
+    public async Task Bookings_ShowWhatsOnTheDay_AndClosingItTellsThoseStaff()
+    {
+        await BookNewAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10));
+        await CreateBlockAsync(_staff.Client, _staff.UserId, UkAt(_day, 14), UkAt(_day, 15));
+
+        var preview = await (await _admin.GetAsync($"/api/calendar/closed-days/bookings?date={_day:yyyy-MM-dd}"))
+            .ReadAsAsync<DayBookingsResponse>();
+        var added = await AddClosedDayAsync(_admin, _day);
+
+        preview.Should().BeEquivalentTo(new { Appointments = 1, Blocks = 1, Meetings = 0 });
+        preview.Staff.Should().ContainSingle().Which.Username.Should().Be(_staff.Username);
+        added.Bookings.Should().BeEquivalentTo(preview);
+
+        var notification = (await (await _staff.Client.GetAsync("/api/notifications")).ReadAsAsync<MedApp.Contracts.Notifications.Responses.NotificationsResponse>())
+            .Items.Should().ContainSingle(n => n.Kind == "DayClosed").Subject;
+        notification.Title.Should().Be("Day closed");
+        notification.Message.Should().Contain(ClosedDayName).And.Contain("an appointment and a block").And.NotContain(_patient.LastName);
+    }
+
+    [Test]
+    public async Task Bookings_AsStaff_Returns403()
+    {
+        await (await _staff.Client.GetAsync($"/api/calendar/closed-days/bookings?date={_day:yyyy-MM-dd}"))
+            .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+    }
 }

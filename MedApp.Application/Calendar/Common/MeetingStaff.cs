@@ -65,6 +65,10 @@ public static class MeetingStaff
 
         foreach (var (userId, username) in attendees)
         {
+            // A day closed since the validator ran (it reads closed days before the locks).
+            if (CalendarClashes.WhyClosed(calendars[userId], startUtc) is { } closed)
+                throw new ConflictException(closed);
+
             if (CalendarClashes.FindFirst(calendars[userId], startUtc, endUtc, ignoreMeetingId: ignoreMeetingId) is { } clash)
                 throw new ConflictException(
                     $"{username} has {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}.");

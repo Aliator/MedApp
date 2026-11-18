@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
@@ -44,7 +45,11 @@ public sealed class ProcedureRestrictionGuardConventionTests
     /// Commands that take the procedure repository only to read a procedure, and change nothing about the patient's
     /// record, so a restriction doesn't stop them: a download (audited, but nothing changes).
     /// </summary>
-    private static readonly Type[] ReadOnlyCommands = [typeof(DownloadAttachmentHandler)];
+    /// <summary>
+    /// Commands that read a procedure without changing it: downloading a file, and withdrawing a walk-in as entered in
+    /// error (it reads the stage to ask for its visit again; the appointment goes through its own guard).
+    /// </summary>
+    private static readonly Type[] ReadOnlyCommands = [typeof(DownloadAttachmentHandler), typeof(MarkAppointmentEnteredInErrorHandler)];
 
     /// <summary>
     /// Commands that read the procedure (or patient) rather than loading it for update, and check the patient's record

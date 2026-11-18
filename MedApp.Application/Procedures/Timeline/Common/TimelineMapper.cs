@@ -167,6 +167,12 @@ public static class TimelineMapper
                 response.ToStatus = Text(details, "outcome");
                 break;
 
+            case AppointmentEventAction.EnteredInError:
+                // The outcome it had is structured; why it was withdrawn is free text, for admins only.
+                response.FromStatus = Text(details, "previousStatus");
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
             case AppointmentEventAction.Cancelled:
                 response.Reason = isAdmin ? Text(details, "reason") : null;
                 break;

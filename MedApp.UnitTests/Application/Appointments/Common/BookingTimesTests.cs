@@ -15,7 +15,7 @@ public sealed class BookingTimesTests
         BookingTimes.WhyNotAsync(WorkingDays, start, end, now, CancellationToken.None);
 
     private static Task<string?> WhyNotRecorded(DateTime start, DateTime end, DateTime now) =>
-        BookingTimes.WhyNotRecordedAsync(WorkingDays, start, end, now, CancellationToken.None);
+        Task.FromResult(BookingTimes.WhyNotRecorded(start, end, now));
 
     [Test]
     public async Task WhyNot_FutureWorkingTime_IsNull()
@@ -123,12 +123,12 @@ public sealed class BookingTimesTests
     }
 
     [Test]
-    public async Task WhyNotRecorded_ClosedDay_SaysTheClinicIsClosed()
+    public async Task WhyNotRecorded_ClosedDay_IsAllowed()
     {
+        // What happened, happened: a visit on a day closed later, or part-way through, is recorded (decision 74).
         var now = At(ClosedWednesday.AddDays(2), 12);
 
-        (await WhyNotRecorded(At(ClosedWednesday, 10), At(ClosedWednesday, 11), now))
-            .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        (await WhyNotRecorded(At(ClosedWednesday, 10), At(ClosedWednesday, 11), now)).Should().BeNull();
     }
 
     [Test]

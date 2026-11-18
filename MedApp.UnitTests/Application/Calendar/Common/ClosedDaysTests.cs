@@ -67,7 +67,7 @@ public sealed class ClosedDaysTests
     {
         WorkingHours.WhyOutside(At(ClosedWednesday, 10), At(ClosedWednesday, 11), Closed)
             .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
-        WorkingHours.WhyOutside(At(ClosedWednesday, 10), At(ClosedWednesday, 11)).Should().BeNull("no closed days were given");
+        WorkingHours.WhyOutside(At(ClosedWednesday, 10), At(ClosedWednesday, 11), ClosedDaySet.None).Should().BeNull("no closed days were given");
     }
 
     [Test]

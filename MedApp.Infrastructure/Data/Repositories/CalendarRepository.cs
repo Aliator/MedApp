@@ -127,6 +127,49 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
         }).ToList();
     }
 
+    public async Task<IReadOnlyList<StaffBookings>> GetBookingsOnAsync(DateOnly date, CancellationToken ct)
+    {
+        var fromUtc = DueDates.StartOfDayUtc(date);
+        var beforeUtc = DueDates.StartOfDayUtc(date.AddDays(1));
+
+        var appointments = await context.Appointments
+            .AsNoTracking()
+            .Where(a => a.StaffUserId != null
+                        && (a.Status == AppointmentStatus.Booked
+                            || a.Status == AppointmentStatus.Attended
+                            || a.Status == AppointmentStatus.DidNotAttend)
+                        && a.StartUtc < beforeUtc
+                        && a.EndUtc > fromUtc)
+            .GroupBy(a => a.StaffUserId!.Value)
+            .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var blocks = await context.CalendarBlocks
+            .AsNoTracking()
+            .Where(b => b.StartUtc < beforeUtc && b.EndUtc > fromUtc)
+            .GroupBy(b => b.StaffUserId)
+            .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var meetings = await context.MeetingAttendees
+            .AsNoTracking()
+            .Where(a => context.Meetings.Any(m => m.Id == a.MeetingId && m.StartUtc < beforeUtc && m.EndUtc > fromUtc))
+            .GroupBy(a => a.StaffUserId)
+            .Select(g => new { StaffUserId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return appointments.Select(a => a.StaffUserId)
+            .Concat(blocks.Select(b => b.StaffUserId))
+            .Concat(meetings.Select(m => m.StaffUserId))
+            .Distinct()
+            .Select(id => new StaffBookings(
+                id,
+                appointments.FirstOrDefault(a => a.StaffUserId == id)?.Count ?? 0,
+                blocks.FirstOrDefault(b => b.StaffUserId == id)?.Count ?? 0,
+                meetings.FirstOrDefault(m => m.StaffUserId == id)?.Count ?? 0))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<StaffWeekTemplate>> GetStaffWeekTemplatesOnAsync(DateOnly date, CancellationToken ct) =>
         await context.StaffWeekTemplates
             .AsNoTracking()

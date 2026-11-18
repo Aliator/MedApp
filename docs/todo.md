@@ -15,9 +15,9 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 ## Features
 
 - **Calendar follow-ups.** What staff calendars and appointments left out (`docs/calendar-plan.md`, section 8):
-  - **Working hours, and more closed days:** working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday except closed days). Closed days are built (`docs/calendar-plan.md`, decisions 72 to 75); still to do: Scotland's and Northern Ireland's bank holidays, a closed day for some people or sites only, and **listing what's already on a day when an admin closes it** (booked appointments, blocks, meetings), so they're moved or cancelled and the patients told (hazard H-35).
+  - **Working hours, and more closed days:** working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday except closed days). Closed days are built (`docs/calendar-plan.md`, decisions 72 to 75); still to do: Scotland's and Northern Ireland's bank holidays, a closed day for some people or sites only, and marking appointments on a closed day outside the Calendar page's grid (lists, the procedure page, Home). Closing a day already says what's on it and tells those staff.
   - **More kinds of booking:** recurring appointments, rooms and resources, and booking several staff for one appointment.
-  - **After walk-ins** (built: decisions 74 to 78): a list of appointments recorded after the event, for admins to review (hazard H-39), and monitoring them as an event.
+  - **After walk-ins** (built: decisions 74 to 78): a list of appointments recorded after the event (and those withdrawn as entered in error), for admins to review (hazard H-39), and monitoring them as an event; regenerating `MedApp.Web/src/api/schema.d.ts` with `npm run gen:api` (hand-edited on `feature/closed-days-walk-ins`, as the AppHost wasn't running).
   - **Patients:** reminders by email or SMS, and booking for themselves.
   - **Requested appointments left waiting:** flag or notify ones requested long ago and still not booked.
   - **Printing a day list.**

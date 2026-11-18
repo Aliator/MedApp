@@ -28,8 +28,14 @@ public enum NotificationKind
     MeetingCancelled = 6,
 
     /// <summary>
-    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp). 9, not
-    /// 7, leaving 7 and 8 for the meeting kinds being added alongside it.
+    /// An admin closed a day (a bank holiday, a training day) on which the user has appointments, blocked time or
+    /// meetings. They stay; the user moves or cancels them.
+    /// </summary>
+    DayClosed = 8,
+
+    /// <summary>
+    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp). 7 is
+    /// kept for the meeting replies being built alongside it.
     /// </summary>
     AppointmentRecorded = 9,
 

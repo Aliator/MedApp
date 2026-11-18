@@ -26,7 +26,7 @@ public sealed class AppointmentResponse
     /// <summary>The stage's: None, Suggested or Required.</summary>
     public string? VisitRequirement { get; set; }
 
-    /// <summary>Requested, Booked, Attended, DidNotAttend or Cancelled.</summary>
+    /// <summary>Requested, Booked, Attended, DidNotAttend, Cancelled or EnteredInError.</summary>
     public string Status { get; set; } = string.Empty;
 
     public Guid? StaffUserId { get; set; }
@@ -79,6 +79,12 @@ public sealed class AppointmentResponse
     /// <summary>It's Requested or Booked.</summary>
     public bool CanCancel { get; set; }
 
-    /// <summary>It isn't Cancelled.</summary>
+    /// <summary>It isn't Cancelled or Entered in error.</summary>
     public bool CanEditNotes { get; set; }
+
+    /// <summary>
+    /// It was recorded after the event, still has its outcome, and started within the last 30 days: it can be marked
+    /// entered in error, by whoever recorded it or an admin (the server checks who).
+    /// </summary>
+    public bool CanMarkEnteredInError { get; set; }
 }

@@ -329,4 +329,18 @@ public sealed class CalendarClashesTests
         CalendarClashes.FindAppointment(data, At(NextMonday, 10), At(NextMonday, 11))
             .Should().Be("That time overlaps another appointment, 09:45 to 10:15.");
     }
+
+    // A day closed since the validator ran
+
+    [Test]
+    public void Find_OnAClosedDay_SaysTheClinicIsClosedBeforeAnyClash()
+    {
+        var data = CreateData(ClosedWednesday, blocks: [CreateBlock(At(ClosedWednesday, 10), At(ClosedWednesday, 11))])
+            with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        CalendarClashes.Find(data, At(ClosedWednesday, 10), At(ClosedWednesday, 11))
+            .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        CalendarClashes.WhyClosed(data, At(ClosedWednesday, 10)).Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        CalendarClashes.WhyClosed(data with { ClosedDays = ClosedDaySet.None }, At(ClosedWednesday, 10)).Should().BeNull();
+    }
 }
