@@ -1,6 +1,6 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {LABEL_STYLE, SummaryAlert} from './SummaryAlert';
+import {SummaryAlert} from './SummaryAlert';
 
 // The hover card itself, counting what the label's click asks of it: jsdom can't show whether a real browser would
 // reopen a card that a tap closed, so the tests check that nothing asks it to.
@@ -52,10 +52,13 @@ describe('SummaryAlert', () => {
     });
   });
 
-  it('shows only the short label, as a button that says there is more, with the whole message closed', async () => {
+  it('shows only the short label as text, with the status icon as a button that says there is more, closed', async () => {
     await renderAlert();
 
-    expect(trigger()).toHaveTextContent('Synthetic state');
+    // The label is plain text; the button is the icon at its end, with no text of its own.
+    expect(screen.getByText('Synthetic state')).not.toContainElement(trigger());
+    expect(screen.getByText('Synthetic state').closest('button')).toBeNull();
+    expect(trigger()).toHaveTextContent(/^$/);
     expect(trigger()).toHaveAttribute('aria-haspopup', 'dialog');
     expect(trigger()).toHaveAttribute('aria-expanded', 'false');
     expect(overlay()).not.toBeInTheDocument();
@@ -83,18 +86,19 @@ describe('SummaryAlert', () => {
   it('shows a summary after the label, on screen and in the button’s name', async () => {
     const {user} = renderWithApp(<SummaryAlert label="Synthetic state" summary="key fact" message={MESSAGE} />);
 
-    const label = await screen.findByRole('button', {name: 'Synthetic state: key fact, show details'});
-    expect(label).toHaveTextContent(/^Synthetic state: key fact$/);
-    await user.click(label);
+    const button = await screen.findByRole('button', {name: 'Synthetic state: key fact, show details'});
+    expect(screen.getByText('Synthetic state: key fact')).toBeInTheDocument();
+    await user.click(button);
     expect(await screen.findByRole('dialog', {name: 'Synthetic state: details'})).toBeInTheDocument();
   });
 
-  it('wraps its label rather than cutting it short in a narrow header', async () => {
-    await renderAlert();
+  it('ends with the status’s own icon, and shows no icon before the label', async () => {
+    const {container} = renderWithApp(<SummaryAlert status="info" label="Synthetic state" message={MESSAGE} />);
+    const button = await screen.findByRole('button', {name: 'Synthetic state, show details'});
 
-    // Astryx's Button is one line with an ellipsis; jsdom has no layout, so this checks the styles that undo that.
-    expect(LABEL_STYLE).toMatchObject({whiteSpace: 'normal', height: 'auto'});
-    expect(trigger()).toHaveStyle({whiteSpace: 'normal', height: 'auto', textAlign: 'start'});
+    // The only icon in the banner is the button's (Astryx draws its icons as svg).
+    expect(container.querySelectorAll('svg')).toHaveLength(button.querySelectorAll('svg').length);
+    expect(button.querySelectorAll('svg')).toHaveLength(1);
   });
 
   it('paints the overlay on the popover colour, as menus and popovers are', async () => {
