@@ -13,6 +13,7 @@ export const PERMISSION_GROUPS: {
   {group: 'Pathways', title: 'Pathways'},
   {group: 'AppointmentsAndCalendars', title: 'Appointments and calendars'},
   {group: 'Files', title: 'Files'},
+  {group: 'Lab', title: 'Lab'},
   {group: 'Oversight', title: 'Oversight'},
   {group: 'Setup', title: 'Setup'},
   {group: 'AdministratorOnly', title: 'Administrator only'},
