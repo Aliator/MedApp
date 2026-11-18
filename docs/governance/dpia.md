@@ -571,8 +571,8 @@ Two existing risks change with these phases too, in the PRs named: risk 22 (mali
 | Staff told that their registrations, edits, withdrawals and triage decisions are recorded by name and kept with the patient's record | Draft | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | The customer's policy on using the record of decisions: for care, safety and learning, not blame | The customer's | |
 
-<<<<<<< HEAD
-**Residual risk:** **low** now, relying on the staff notice and the customer's policy; triage (PR 6) confirms it against the decisions it records.
+**Residual risk:** **low**, relying on the staff notice and the customer's policy; triage (branch `feature/triage`) records its decisions as described.
+
 ### Risk 31: more identifying data about patients
 
 Built in PR 12 (branch `feature/patient-contact-gp`). A patient may now have a postal address (up to three lines), a postcode, a UK mobile and a registered GP practice from the centre's directory. Nothing sends anything to them yet: letters (PR 16) and reminders (PR 26) will, and complete this risk's second half (a wrong address or number) with their own measures (risks 30 and 32).
@@ -590,9 +590,6 @@ Built in PR 12 (branch `feature/patient-contact-gp`). A patient may now have a p
 
 **Residual risk:** **medium**, as for the rest of the record (risks 1 and 12): the details are as well protected as the record, but a breach of it now discloses where a patient lives. Letters and reminders (PRs 16 and 26) add the measures against post or messages going to the wrong person.
 
-=======
-**Residual risk:** **low**, relying on the staff notice and the customer's policy; triage (branch `feature/triage`) records its decisions as described.
->>>>>>> origin/main
 ### Risk 33: automated processing nobody watches
 
 Built in PR 19 (the job runner and the operational purge). Scheduled jobs (today only the operational purge) delete data with nobody at the keyboard. A job that deletes too much, or stops and leaves data kept longer than promised, could go unnoticed.
