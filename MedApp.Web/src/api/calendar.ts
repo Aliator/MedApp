@@ -30,6 +30,13 @@ export type MeetingAttendee = Schemas['MeetingAttendeeResponse'];
 export type MeetingInput = Schemas['MeetingRequest'];
 /** An attendee's answer to a meeting: `NoReply` until they answer (and again once it moves), `Accepted` or `Declined`. */
 export type MeetingReply = 'NoReply' | 'Accepted' | 'Declined';
+
+/**
+ * Whether this person declined the meeting: then it isn't busy time on their calendar (the server's
+ * `CalendarClashes.BusyTimes`), though it still is for everyone else going.
+ */
+export const hasDeclined = (meeting: Pick<Meeting, 'attendees'>, userId: string | null | undefined) =>
+  userId !== undefined && userId !== null && (meeting.attendees ?? []).some((a) => a.userId === userId && a.reply === 'Declined');
 export type TeamCalendar = Schemas['TeamCalendarResponse'];
 export type TimeRange = Schemas['TimeRangeResponse'];
 export type Availability = Schemas['AvailabilityResponse'];

@@ -322,7 +322,8 @@ export function CalendarGrid({
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
         const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
-        const busy = column.items.map((i) => intervalOf(i.startUtc, i.endUtc));
+        // A faded item (a meeting this calendar's owner declined) isn't busy time, as the server sees it.
+        const busy = column.items.filter((i) => !i.isFaded).map((i) => intervalOf(i.startUtc, i.endUtc));
         const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
         const unavailable = Array.from({length: rows}, (_, row) => {
           if (!free) return false;
@@ -1026,6 +1027,13 @@ const stripe = (colour: string) =>
   `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
 
 /**
+ * How much of its share of a column's width a faded item takes, at the end of it: a meeting its calendar's owner
+ * declined isn't busy time, so the rest of the width shows the free slots under it, which a pointer can select; the
+ * card itself still opens with a click, or Enter when it's focused (it's a tab stop like any item).
+ */
+const FADED_SHARE = 0.4;
+
+/**
  * How an item's text fits its height, in rows (each as tall as a line of text, whatever the row length): `tiny` (under
  * two thirds of a row: under 10 minutes in 15-minute rows) shows none, its words only in its tooltip and accessible
  * name; `short` (under a row) one small, tight line; otherwise one line a row.
@@ -1072,13 +1080,17 @@ function GridItem({
   const isTinted = item.kind !== 'block' && !isFaded;
   const isStriped = item.kind === 'block';
   const time = formatTimeRange(item.startUtc, item.endUtc);
+  // Its share of the column's width; a faded item takes only the end part of it (`FADED_SHARE`), as its time isn't
+  // busy: the rest shows the free slots under it, which can be selected there.
+  const share = 100 / columns;
+  const width = isFaded ? share * FADED_SHARE : share;
   const style = {
     position: 'absolute' as const,
     top: `${top * 100}%`,
     // A hair shorter, so items one after another (10:00 to 10:30, then 10:30) don't run together.
     height: `calc(${height * 100}% - var(--spacing-0-5))`,
-    insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
-    inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
+    insetInlineStart: `calc(${(column + 1) * share - width}% + var(--spacing-0-5))`,
+    inlineSize: `calc(${width}% - var(--spacing-1))`,
     zIndex: isTinted ? 2 : 1,
     // What its text shows depends on its own width (the grid's CSS: its start time alone when it's very narrow).
     containerType: 'inline-size' as const,

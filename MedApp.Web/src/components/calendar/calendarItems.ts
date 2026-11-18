@@ -1,6 +1,6 @@
 import type {TokenColor} from '@astryxdesign/core/Token';
 import {appointmentStatusLabel, type Appointment} from '../../api/appointments';
-import type {Calendar, CalendarBlock, Meeting} from '../../api/calendar';
+import {hasDeclined, type Calendar, type CalendarBlock, type Meeting} from '../../api/calendar';
 import {formatTimeRange} from '../../utils/calendarSlots';
 import {ukDay} from '../../utils/dates';
 import {APPOINTMENT_STATUS_COLOURS, activityColour} from './CalendarTokens';
@@ -68,10 +68,6 @@ export const MEETING_COLOUR: TokenColor = 'teal';
 /** How many are going to a meeting, leaving out those who declined: "1 attending", "4 attending". */
 export const attendingCount = (meeting: Pick<Meeting, 'attendees'>) =>
   `${(meeting.attendees ?? []).filter((a) => a.reply !== 'Declined').length} attending`;
-
-/** Whether this person declined the meeting. */
-export const hasDeclined = (meeting: Pick<Meeting, 'attendees'>, userId: string | null | undefined) =>
-  userId !== undefined && userId !== null && (meeting.attendees ?? []).some((a) => a.userId === userId && a.reply === 'Declined');
 
 /**
  * A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). On

@@ -1,4 +1,4 @@
-import {calendarDay, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../test/calendar';
+import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../test/calendar';
 import {
   addDays,
   addMinutes,
@@ -106,6 +106,25 @@ describe('busyTimes', () => {
     expect(times).not.toContain('09:00');
     expect(times).not.toContain('09:30');
     expect(times).toContain('10:00');
+  });
+
+  it("leaves out a meeting the calendar's owner declined, so its time is free for them, but not for anyone else", () => {
+    const meeting = testMeeting({
+      date: MONDAY,
+      start: '09:00',
+      end: '10:00',
+      attendees: [
+        {userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'},
+        {userId: STAFF_OTHER.userId, username: STAFF_OTHER.username, reply: 'Accepted'},
+      ],
+    });
+    const mine = testCalendar({from: MONDAY, dayCount: 1, today: MONDAY, meetings: [meeting]});
+    const theirs = testCalendar({from: MONDAY, dayCount: 1, today: MONDAY, staff: STAFF_OTHER, meetings: [meeting]});
+
+    expect(busyTimes(mine)).toEqual([]);
+    expect(freeStartsByDay(mine, 30, EARLY)[MONDAY].map(formatTime)).toEqual(expect.arrayContaining(['09:00', '09:30']));
+    expect(busyTimes(theirs)).toEqual([intervalOf(meeting.startUtc!, meeting.endUtc!)]);
+    expect(freeStartsByDay(theirs, 30, EARLY)[MONDAY].map(formatTime)).not.toContain('09:30');
   });
 });
 

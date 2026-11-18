@@ -1,3 +1,4 @@
+import {hasDeclined} from '../../api/calendar';
 import {testAppointment, testBlock, testCalendar, testMeeting, STAFF_ME, STAFF_OTHER} from '../../test/calendar';
 import {
   appointmentItem,
@@ -5,7 +6,6 @@ import {
   attendingCount,
   blockItem,
   calendarItems,
-  hasDeclined,
   MEETING_COLOUR,
   meetingItem,
   meetingKey,

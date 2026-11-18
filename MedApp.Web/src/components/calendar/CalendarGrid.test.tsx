@@ -581,6 +581,42 @@ describe('CalendarGrid', () => {
     expect(onItemOpen).toHaveBeenCalled();
   });
 
+  it("leaves a declined meeting's time free: its slots select, and the card sits at the column's end, still opening", async () => {
+    atMondayMorning();
+    const TUESDAY = '2026-11-24';
+    const declined = testMeeting({
+      date: TUESDAY,
+      start: '09:00',
+      end: '10:00',
+      title: 'MDT',
+      attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'}],
+    });
+    const {user, onSelectRange, onItemOpen} = renderGrid({items: [meetingItem(declined, STAFF_ME.userId)]});
+
+    // Under it, the rows are free buttons, as the server sees that time.
+    const free = await screen.findByRole('button', {name: 'Tuesday 24 November, 09:15, free'});
+    expect(screen.getByRole('button', {name: 'Tuesday 24 November, 09:00, free'})).toBeInTheDocument();
+    fireEvent.pointerDown(free, {button: 0, pointerId: 1});
+    fireEvent.pointerUp(free, {pointerId: 1});
+    await waitFor(() => expect(onSelectRange).toHaveBeenCalledWith(expect.objectContaining({date: TUESDAY, column: TUESDAY}), free));
+
+    // The card takes only the end of the column's width, leaving the rest to the slots, and still opens.
+    const card = screen.getByRole('button', {name: 'MDT, meeting, 09:00 to 10:00, Declined'});
+    const box = card.closest<HTMLElement>('[data-kind]')!;
+    expect(box.style.insetInlineStart).toBe('calc(60% + var(--spacing-0-5))');
+    expect(box.style.inlineSize).toBe('calc(40% - var(--spacing-1))');
+    await user.click(card);
+    expect(onItemOpen).toHaveBeenCalledWith(expect.objectContaining({key: 'meeting-meeting-2026-11-24-09:00'}), expect.objectContaining({key: TUESDAY}));
+  });
+
+  it('keeps the time of a meeting nobody on this calendar declined taken', async () => {
+    atMondayMorning();
+    renderGrid({items: [meetingItem(testMeeting({date: '2026-11-24', start: '09:00', end: '10:00', title: 'MDT'}), STAFF_ME.userId)]});
+
+    await screen.findByRole('button', {name: 'Tuesday 24 November, 10:00, free'});
+    expect(screen.queryByRole('button', {name: 'Tuesday 24 November, 09:15, free'})).not.toBeInTheDocument();
+  });
+
   describe('with a column for each person', () => {
     const day = calendarDay(MONDAY, MONDAY);
     const lunch = blockItem(testBlock(MONDAY, '12:00', '13:00', {blockId: 'k-lunch'}));
