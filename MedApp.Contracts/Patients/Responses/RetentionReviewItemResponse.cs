@@ -11,7 +11,10 @@ public sealed class RetentionReviewItemResponse
     /// <summary>The conclusion of treatment: the later of the last pathway closing and the record last changing (UK date).</summary>
     public DateOnly ConclusionOfTreatment { get; set; }
 
-    /// <summary>Adult or Child, which sets the period.</summary>
+    /// <summary>
+    /// What set the period: Adult or Child, or the class of one of the patient's pathways (Oncology, Maternity or
+    /// MentalHealth) when that's longer.
+    /// </summary>
     public string RetentionClass { get; set; } = string.Empty;
 
     /// <summary>When the minimum period ended.</summary>

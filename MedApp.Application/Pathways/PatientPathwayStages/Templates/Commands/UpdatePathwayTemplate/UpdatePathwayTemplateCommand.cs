@@ -9,6 +9,8 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 /// <paramref name="ClockStopStageOrder"/> goes with the stage list (positions mean nothing without it): the position
 /// of the stage that stops the waiting-time clock, or null for none.
 /// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
+/// <paramref name="RetentionClass"/> (a <c>RetentionClass</c> by name) changes the template's class and, unlike its
+/// other fields, every existing pathway made from it, since the class is about the kind of care, not when it began.
 /// </summary>
 public sealed record UpdatePathwayTemplateCommand(
     Guid TemplateId,
@@ -16,5 +18,6 @@ public sealed record UpdatePathwayTemplateCommand(
     Guid? SpecialtyId,
     IReadOnlyList<Guid>? StageDefinitionIdsInOrder,
     int? ClockStopStageOrder = null,
-    IReadOnlyList<TemplateStageOptions>? StageOptions = null)
+    IReadOnlyList<TemplateStageOptions>? StageOptions = null,
+    string? RetentionClass = null)
     : IRequest<PathwayTemplateResponse>;

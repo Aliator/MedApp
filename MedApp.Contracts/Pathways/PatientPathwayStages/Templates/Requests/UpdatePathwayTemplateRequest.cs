@@ -8,6 +8,12 @@ public sealed class UpdatePathwayTemplateRequest
     /// <summary>Moves it to another specialty (not an archived one). Only pathways created afterwards are in the new one.</summary>
     public Guid? SpecialtyId { get; set; }
 
+    /// <summary>
+    /// Its retention class: Standard, Oncology, Maternity or MentalHealth. Unlike the other fields, a change applies to
+    /// the pathways already made from it too.
+    /// </summary>
+    public string? RetentionClass { get; set; }
+
     /// <summary>The template's stages in order; the same definition may appear more than once.</summary>
     public List<Guid>? StageDefinitionIdsInOrder { get; set; }
 

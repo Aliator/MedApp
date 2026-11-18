@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Patients.Common;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Patients.Common;
@@ -15,13 +16,13 @@ public sealed class RetentionScheduleTests
     {
         var due = RetentionSchedule.Due(new DateOnly(1970, 5, 1), Conclusion, Defaults);
 
-        due.Should().Be(new RetentionDue(RetentionClass.Adult, Conclusion, new DateOnly(2028, 3, 10)));
+        due.Should().Be(new RetentionDue(RetentionBasis.Adult, Conclusion, new DateOnly(2028, 3, 10)));
     }
 
     [Test]
     public void Due_EighteenThatDay_IsAnAdult()
     {
-        RetentionSchedule.Due(new DateOnly(2002, 3, 10), Conclusion, Defaults).Class.Should().Be(RetentionClass.Adult);
+        RetentionSchedule.Due(new DateOnly(2002, 3, 10), Conclusion, Defaults).Class.Should().Be(RetentionBasis.Adult);
     }
 
     [Test]
@@ -29,7 +30,7 @@ public sealed class RetentionScheduleTests
     {
         var due = RetentionSchedule.Due(new DateOnly(2002, 3, 11), Conclusion, Defaults);
 
-        due.Should().Be(new RetentionDue(RetentionClass.Child, Conclusion, new DateOnly(2028, 3, 11)));
+        due.Should().Be(new RetentionDue(RetentionBasis.Child, Conclusion, new DateOnly(2028, 3, 11)));
     }
 
     [Test]
@@ -37,7 +38,7 @@ public sealed class RetentionScheduleTests
     {
         var due = RetentionSchedule.Due(new DateOnly(2003, 6, 1), Conclusion, Defaults);
 
-        due.Should().Be(new RetentionDue(RetentionClass.Child, Conclusion, new DateOnly(2028, 6, 1)));
+        due.Should().Be(new RetentionDue(RetentionBasis.Child, Conclusion, new DateOnly(2028, 6, 1)));
     }
 
     [Test]
@@ -138,7 +139,7 @@ public sealed class RetentionScheduleTests
     {
         var candidate = PrivacyTestConstants.CreateCandidate(new DateOnly(1970, 1, 1), new DateTime(2010, 1, 1, 12, 0, 0, DateTimeKind.Utc),
             keptUntil: new DateOnly(2027, 1, 1));
-        var due = new RetentionDue(RetentionClass.Child, new DateOnly(2010, 1, 1), new DateOnly(2018, 1, 1));
+        var due = new RetentionDue(RetentionBasis.Child, new DateOnly(2010, 1, 1), new DateOnly(2018, 1, 1));
 
         var response = RetentionReviewMapper.ToResponse(candidate, due);
 
@@ -176,5 +177,62 @@ public sealed class RetentionScheduleTests
             with { LastAuditUtc = new DateTime(2010, 1, 1, 12, 0, 0, DateTimeKind.Utc) };
 
         RetentionSchedule.Due(candidate, Defaults).ConclusionOfTreatment.Should().Be(new DateOnly(2015, 1, 1));
+    }
+
+    [Test]
+    public void Due_OncologyPathway_IsThirtyYearsAfterTheConclusionOfTreatment()
+    {
+        var due = RetentionSchedule.Due(new DateOnly(1970, 5, 1), Conclusion, Defaults, [RetentionClass.Oncology]);
+
+        due.Should().Be(new RetentionDue(RetentionBasis.Oncology, Conclusion, new DateOnly(2050, 3, 10)));
+    }
+
+    [Test]
+    public void Due_SeveralClasses_TakesTheLongest()
+    {
+        var due = RetentionSchedule.Due(
+            new DateOnly(1970, 5, 1), Conclusion, Defaults,
+            [RetentionClass.MentalHealth, RetentionClass.Standard, RetentionClass.Maternity]);
+
+        due.Should().Be(new RetentionDue(RetentionBasis.Maternity, Conclusion, new DateOnly(2045, 3, 10)));
+    }
+
+    [Test]
+    public void Due_StandardOnly_KeepsTheAdultRule()
+    {
+        RetentionSchedule.Due(new DateOnly(1970, 5, 1), Conclusion, Defaults, [RetentionClass.Standard])
+            .Should().Be(new RetentionDue(RetentionBasis.Adult, Conclusion, new DateOnly(2028, 3, 10)));
+    }
+
+    [Test]
+    public void Due_ChildRuleLongerThanTheClass_KeepsTheChildRule()
+    {
+        var options = new RetentionOptions { Classes = { MentalHealth = 5 } };
+
+        var due = RetentionSchedule.Due(new DateOnly(2019, 6, 1), Conclusion, options, [RetentionClass.MentalHealth]);
+
+        due.Should().Be(new RetentionDue(RetentionBasis.Child, Conclusion, new DateOnly(2044, 6, 1)));
+    }
+
+    [Test]
+    public void Due_CandidateWithClasses_UsesThem()
+    {
+        var candidate = new RetentionCandidate(
+            Guid.NewGuid(), "Test", "Patient", new DateOnly(1970, 5, 1),
+            new DateTime(2020, 3, 10, 12, 0, 0, DateTimeKind.Utc), null, null, null,
+            RetentionClasses: [RetentionClass.MentalHealth]);
+
+        RetentionSchedule.Due(candidate, Defaults).Should()
+            .Be(new RetentionDue(RetentionBasis.MentalHealth, Conclusion, new DateOnly(2040, 3, 10)));
+    }
+
+    [TestCase(30, 25, 20, true)]
+    [TestCase(0, 25, 20, false)]
+    [TestCase(30, 0, 20, false)]
+    [TestCase(30, 25, -1, false)]
+    public void IsValid_EveryClassAtLeastAYear(int oncology, int maternity, int mentalHealth, bool valid)
+    {
+        new RetentionOptions { Classes = { Oncology = oncology, Maternity = maternity, MentalHealth = mentalHealth } }
+            .IsValid.Should().Be(valid);
     }
 }

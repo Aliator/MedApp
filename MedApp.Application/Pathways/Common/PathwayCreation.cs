@@ -31,6 +31,7 @@ public static class PathwayCreation
             TemplateId = template.Id,
             TemplateName = template.Name,
             SpecialtyId = template.SpecialtyId,
+            RetentionClass = template.RetentionClass,
             Title = string.IsNullOrWhiteSpace(title) ? template.Name : title.Trim(),
             DueDateUtc = DueDates.EndOfDayUtc(dueDate),
             Priority = priority,

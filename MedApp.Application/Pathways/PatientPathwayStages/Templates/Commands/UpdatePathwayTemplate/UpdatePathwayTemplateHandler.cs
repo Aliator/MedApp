@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Specialties.Common;
 using MedApp.Application.Specialties.Repositories;
@@ -36,6 +37,9 @@ public sealed class UpdatePathwayTemplateHandler(
             template.SpecialtyId = specialty.Id;
             template.Specialty = specialty;
         }
+
+        if (request.RetentionClass is not null)
+            template.RetentionClass = PathwayEnums.Parse<RetentionClass>(request.RetentionClass);
 
         IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>? definitions = null;
         if (request.StageDefinitionIdsInOrder is { } ids)

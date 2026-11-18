@@ -37,6 +37,11 @@ export interface TemplateInput {
   stageDefinitionIdsInOrder: string[];
   specialtyId?: string;
   /**
+   * How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth. A change
+   * applies to the pathways already made from it too.
+   */
+  retentionClass?: string;
+  /**
    * The 1-based position, in `stageDefinitionIdsInOrder`, of the stage whose finishing stops a referral's waiting-time
    * clock, or null for none. The API reads it only with the stage list, so it's always sent beside it.
    */

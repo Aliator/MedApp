@@ -210,6 +210,10 @@ public static class DemoDataSeeder
             Name = p.TemplateName,
             IsArchived = p.IsArchived,
             SpecialtyId = specialties[DemoSpecialties.For(p.PathwayKind)],
+            // Skin lesions may be cancers: their records are kept on the oncology period.
+            RetentionClass = p.PathwayKind is PathwayKind.SkinLesion or PathwayKind.SkinLesion2024
+                ? RetentionClass.Oncology
+                : RetentionClass.Standard,
             Maps = p.Stages.Select((s, i) => new PathwayTemplateMap
             {
                 StageDefinitionId = definitions[s.Definition].Id,

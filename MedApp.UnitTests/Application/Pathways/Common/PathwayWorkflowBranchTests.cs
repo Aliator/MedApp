@@ -211,6 +211,17 @@ public sealed class PathwayWorkflowBranchTests
         pathway.Stages.Should().AllSatisfy(s => s.IsSkipped.Should().BeFalse());
     }
 
+    [Test]
+    public void FromTemplate_CopiesTheRetentionClass()
+    {
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ResultsStage));
+        template.RetentionClass = RetentionClass.Oncology;
+
+        var pathway = PathwayCreation.FromTemplate(template, Guid.NewGuid(), null, Today.AddDays(7), PatientPathwayPriority.Medium, Now);
+
+        pathway.RetentionClass.Should().Be(RetentionClass.Oncology);
+    }
+
     [TestCase(VisitRequirement.Required, false, false)]
     [TestCase(VisitRequirement.Required, true, true)]
     [TestCase(VisitRequirement.Suggested, false, true)]

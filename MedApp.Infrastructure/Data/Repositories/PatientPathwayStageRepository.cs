@@ -140,6 +140,11 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         existing.IsArchived = template.IsArchived;
         existing.SpecialtyId = template.SpecialtyId;
 
+        // The class is about the kind of care, so it covers the pathways already made from the template too (a class set
+        // after the fact mustn't leave its old records on the shorter period).
+        var classChanged = existing.RetentionClass != template.RetentionClass;
+        existing.RetentionClass = template.RetentionClass;
+
         if (stageDefinitionIdsInOrder is not null)
         {
             // Rows are keyed by position: reuse the positions that stay, add new ones, remove the rest.
@@ -162,6 +167,14 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
             }
 
             Maps.RemoveRange(existing.Maps.Where(m => m.StageOrder > stageDefinitionIdsInOrder.Count).ToList());
+        }
+
+        if (classChanged)
+        {
+            // Loaded and changed here, so the one SaveChangesAsync below saves them with the template, or nothing.
+            var pathways = await context.PatientPathways.Where(p => p.TemplateId == existing.Id).ToListAsync(ct);
+            foreach (var pathway in pathways)
+                pathway.RetentionClass = existing.RetentionClass;
         }
 
         await context.SaveChangesAsync(ct);

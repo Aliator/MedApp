@@ -160,6 +160,26 @@ describe('PathwayTemplateEditorPage', () => {
     expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], specialtyId: 'sp2', clockStopStageOrder: null});
   });
 
+  it('sends a changed retention class, saying it applies to the pathways already made from the template', async () => {
+    const {user, fetch} = renderEditor('t1', {[`PATCH ${BASE}/templates/t1`]: () => json(template)});
+
+    const field = await screen.findByRole('combobox', {name: /Retention class/});
+    expect(field).toHaveTextContent('Standard (adult or child period)');
+    expect(screen.getByText(/A change applies to its existing pathways too/)).toBeInTheDocument();
+    await user.click(field);
+    await user.click(screen.getByRole('option', {name: 'Oncology'}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
+    expect(await sent(fetch, 'PATCH')!.json()).toEqual({
+      name: 'Knee review',
+      stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'],
+      clockStopStageOrder: null,
+      retentionClass: 'Oncology',
+    });
+  });
+
   it('says when the specialties could not be loaded', async () => {
     renderEditor(undefined, {'GET /api/specialties': () => json({title: 'Server error'}, 500)});
 

@@ -7,6 +7,12 @@ public sealed class CreatePathwayTemplateRequest
     /// <summary>The specialty it belongs to (required; not an archived one).</summary>
     public Guid SpecialtyId { get; set; }
 
+    /// <summary>
+    /// How long its patients' records are kept before review: Standard (the default: the adult or child period),
+    /// Oncology, Maternity or MentalHealth.
+    /// </summary>
+    public string? RetentionClass { get; set; }
+
     /// <summary>The template's stages in order; the same definition may appear more than once.</summary>
     public IReadOnlyList<Guid> StageDefinitionIdsInOrder { get; set; } = Array.Empty<Guid>();
 

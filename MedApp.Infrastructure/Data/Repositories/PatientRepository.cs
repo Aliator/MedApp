@@ -7,6 +7,7 @@ using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
@@ -124,7 +125,13 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 p.RetentionKeptUntil,
                 p.RetentionKeptReason,
                 changes.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc),
-                context.ReferralEvents.Where(e => e.PatientId == p.Id).Max(e => (DateTime?)e.AtUtc)))
+                context.ReferralEvents.Where(e => e.PatientId == p.Id).Max(e => (DateTime?)e.AtUtc),
+                // Their pathways' specialty classes, which may lengthen the period (most have none).
+                context.PatientPathways
+                    .Where(pp => pp.PatientId == p.Id && pp.RetentionClass != RetentionClass.Standard)
+                    .Select(pp => pp.RetentionClass)
+                    .Distinct()
+                    .ToList()))
             .ToListAsync(cancellationToken);
     }
 

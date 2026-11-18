@@ -22,5 +22,11 @@ public sealed class PathwayTemplate
     public Guid SpecialtyId { get; set; }
     public Specialty Specialty { get; set; } = null!;
 
+    /// <summary>
+    /// How long its patients' records are kept before review (Standard: the adult or child rule). Copied onto each
+    /// pathway made from it; changing it changes its existing pathways too (<see cref="PatientPathway.RetentionClass"/>).
+    /// </summary>
+    public RetentionClass RetentionClass { get; set; }
+
     public List<PathwayTemplateMap> Maps { get; set; } = [];
 }

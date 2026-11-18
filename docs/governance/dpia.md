@@ -163,7 +163,7 @@ Scores are **drafts**, judged on the design without its measures, as the table a
 | 39 | **Patient data without a patient:** referrals fetched from the e-Referral Service wait unmatched, with a name, date of birth, NHS number and letter, outside any patient's record, so a patient's export and anonymisation can't find them, and they're kept until someone acts. | Incoming referrals from e-RS, matched by a person. | **Planned: applies when PR 38a merges** (live only after NHS onboarding) | Possible | Significant | **Medium** (draft) |
 | 40 | **The video platform as a processor:** a video consultation's link and the call itself go through a platform the customer chooses, which processes health data. | Video appointments with a link to another tool. | **Planned: applies when PR 34 merges** | Possible | Significant | **Medium** (draft) |
 
-Two existing risks change with these phases too, in the PRs named: risk 22 (malicious files) gains a real scanner (PR 37), and risk 5 (kept for ever) gains the operational purge (PR 19, built: a dry run until the DPO confirms its periods) and retention classes (PR 27).
+Two existing risks change with these phases too, in the PRs named: risk 22 (malicious files) gains a real scanner (PR 37), and risk 5 (kept for ever) gains the operational purge (PR 19, built: a dry run until the DPO confirms its periods) and retention classes (PR 27, built: a template's class lengthens its patients' period; the years are for the DPO to confirm).
 
 ## Step 6: Measures to reduce the risks
 

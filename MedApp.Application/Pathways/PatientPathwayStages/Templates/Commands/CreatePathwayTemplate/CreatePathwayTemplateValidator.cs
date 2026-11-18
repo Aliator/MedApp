@@ -1,4 +1,5 @@
 using FluentValidation;
+using MedApp.Application.Pathways.Common;
 
 namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 
@@ -17,6 +18,11 @@ public sealed class CreatePathwayTemplateValidator : AbstractValidator<CreatePat
         RuleFor(x => x.SpecialtyId)
             .NotEmpty()
             .WithMessage("Specialty is required.");
+
+        RuleFor(x => x.RetentionClass)
+            .Must(PathwayEnums.IsRetentionClass)
+            .When(x => x.RetentionClass is not null)
+            .WithMessage($"Retention class must be one of: {PathwayEnums.RetentionClassNames}.");
 
         RuleFor(x => x.StageDefinitionIdsInOrder)
             .NotNull()

@@ -49,6 +49,11 @@ public sealed class PatientPathwayConfiguration : IEntityTypeConfiguration<Patie
         // The template's specialty, copied when the pathway was created. The database's default is General, so an
         // API copy from before specialties can still create a pathway during a rollout. Specialties in use are
         // archived, never deleted.
+        // Stored by number; Standard (the adult or child rule) for everything made before classes, and from an API copy
+        // that doesn't know them.
+        builder.Property(x => x.RetentionClass)
+            .HasDefaultValue(RetentionClass.Standard);
+
         builder.Property(x => x.SpecialtyId)
             .HasDefaultValue(Specialty.GeneralId);
 

@@ -251,4 +251,30 @@ public sealed class UpdatePathwayTemplateHandlerTests
         UpdatePathwayTemplateHandler.KeptOptions(template, null).Should().BeNull();
         UpdatePathwayTemplateHandler.KeptOptions(template, [consultation.Id])!.Single().IsOptional.Should().BeTrue();
     }
+
+    [Test]
+    public async Task Handle_RetentionClass_ChangesTheTemplate()
+    {
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        var response = await Handler.Handle(
+            new UpdatePathwayTemplateCommand(template.Id, null, null, null, RetentionClass: "MentalHealth"), CancellationToken.None);
+
+        template.RetentionClass.Should().Be(RetentionClass.MentalHealth);
+        response.RetentionClass.Should().Be("MentalHealth");
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, null, It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NoRetentionClass_LeavesIt()
+    {
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        template.RetentionClass = RetentionClass.Oncology;
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+
+        await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, "Renamed", null, null), CancellationToken.None);
+
+        template.RetentionClass.Should().Be(RetentionClass.Oncology);
+    }
 }
