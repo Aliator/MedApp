@@ -74,6 +74,8 @@ public static class TimelineMapper
                 response.DueDate = DateOnly.TryParseExact(Text(details, "dueDate"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dueDate)
                     ? dueDate
                     : null;
+                // Accepted from a referral: a link to it.
+                response.ReferralId = Guid.TryParse(Text(details, "referralId"), out var fromReferral) ? fromReferral : null;
                 break;
 
             case StatusChanged:
@@ -277,9 +279,11 @@ public static class TimelineMapper
     /// <summary>
     /// One referral history entry: its action is "Referral" and what happened (e.g. ReferralRegistered), with its
     /// specialty, the priority asked for, the status after it, and for an edit each field changed, with values for the
-    /// structured ones only (the specialty, date received and priority). The free text the referral holds (its reason,
-    /// referring practice, and the detail given when it was closed) is left out unless <paramref name="isAdmin"/>, and
-    /// even then the history keeps no old text, so an edit's free-text fields come by name only.
+    /// structured ones only (the specialty, date received and priority); for triage, the outcome, the template and
+    /// priority chosen, the pathway, the rejection reason by name and the specialty redirected from. The free text the
+    /// referral holds (its reason, referring practice, the detail given when it was triaged or closed, and where it was
+    /// redirected elsewhere) is left out unless <paramref name="isAdmin"/>, and even then the history keeps no old text,
+    /// so an edit's free-text fields come by name only.
     /// </summary>
     public static PatientTimelineEntryResponse ToResponse(ReferralTimelineRow row, bool isAdmin)
     {
@@ -318,6 +322,33 @@ public static class TimelineMapper
             case Domain.Referrals.ReferralEventAction.Withdrawn or Domain.Referrals.ReferralEventAction.EnteredInError:
                 response.ToStatus = details.ToStatus;
                 response.Reason = isAdmin ? row.DecisionDetail : null;
+                break;
+
+            // Triage: the outcome, the template and priority chosen and the pathway, or the rejection reason, by name;
+            // the detail and where it was sent are free text, for admins only.
+            case Domain.Referrals.ReferralEventAction.Accepted:
+                response.ToStatus = details.ToStatus;
+                response.Priority = details.Priority;
+                response.TemplateName = details.TemplateName;
+                response.PathwayId = details.PathwayId;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.Rejected:
+                response.ToStatus = details.ToStatus;
+                response.RejectionReason = details.RejectionReason;
+                response.Reason = isAdmin ? row.DecisionDetail : null;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.RedirectedElsewhere:
+                response.ToStatus = details.ToStatus;
+                response.RedirectedTo = isAdmin ? row.RedirectedTo : null;
+                response.Reason = isAdmin ? row.DecisionDetail : null;
+                break;
+
+            case Domain.Referrals.ReferralEventAction.SpecialtyChanged:
+                response.PreviousSpecialtyName = details.PreviousSpecialtyName;
+                // The referral keeps the latest redirection's detail only.
+                response.Reason = isAdmin ? row.RedirectDetail : null;
                 break;
 
             default:

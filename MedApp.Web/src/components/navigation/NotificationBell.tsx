@@ -20,22 +20,25 @@ import {AppIcon} from '../shared/icons';
  * (a meeting, a day closed with something of yours on it) opens that day there, with the meeting itself open when it
  * has one (an invitation, a move, a decline; not a cancellation), so an organiser told of a decline sees who, even if
  * they aren't going. An admin's "Scheduled job failing" (a job that failed three times in a row) opens Scheduled Jobs.
+ * "Referral triaged" (one you registered was accepted, rejected or redirected by someone else) opens the referral.
  * A specimen rejected by the lab or lost opens the specimen (its `subjectId`).
  */
 const hrefOf = (notification: AppNotification) =>
   notification.kind === 'ScheduledJobFailing'
     ? '/admin/jobs'
-    : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
-      ? `/specimens/${notification.subjectId}`
+    : notification.referralId
+      ? `/referrals/${notification.referralId}`
+      : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
+        ? `/specimens/${notification.subjectId}`
       : notification.appointmentId
-      ? `/calendar?appointment=${notification.appointmentId}`
-      : notification.noteDeletionRequestId && notification.pathwayId
-        ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
-        : notification.pathwayId
-          ? `/pathways/${notification.pathwayId}`
-          : notification.calendarDate
-            ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
-            : undefined;
+        ? `/calendar?appointment=${notification.appointmentId}`
+        : notification.noteDeletionRequestId && notification.pathwayId
+          ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+          : notification.pathwayId
+            ? `/pathways/${notification.pathwayId}`
+            : notification.calendarDate
+              ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
+              : undefined;
 
 /** The kinds about a specimen, whose `subjectId` is the specimen. */
 const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost'];
@@ -58,6 +61,7 @@ const KIND_ICONS: Record<string, IconType> = {
   NoteDeletionDeclined: AppIcon.Notes,
   AuthorsNoteDeleted: AppIcon.Delete,
   ScheduledJobFailing: AppIcon.ScheduledJobs,
+  ReferralTriaged: AppIcon.Referrals,
   SpecimenRejectedByLab: AppIcon.StatusCancelled,
   SpecimenLost: AppIcon.Warning,
 };

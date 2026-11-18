@@ -4,6 +4,7 @@ using MedApp.Domain.Attachments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specimens;
 
@@ -17,6 +18,12 @@ namespace MedApp.Application.Patients.Common;
 public sealed record PatientRecord
 {
     public required Patient Patient { get; init; }
+
+    /// <summary>
+    /// The GP practice they're registered with, from the directory (read-only: an organisation's details, not the
+    /// patient's), or null.
+    /// </summary>
+    public Practice? Practice { get; init; }
 
     /// <summary>Their pathways, with stages (in order), assignments and notes.</summary>
     public required IReadOnlyList<PatientPathway> Pathways { get; init; }

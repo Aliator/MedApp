@@ -1,3 +1,5 @@
+using MedApp.Domain.Contacts;
+using MedApp.Domain.Practices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Attachments.Common;
@@ -53,7 +55,7 @@ public static class PatientExportMapper
         {
             ExportedAtUtc = nowUtc,
             ExportedBy = exportedBy,
-            Patient = ToExported(record.Patient),
+            Patient = ToExported(record.Patient, record.Practice),
             Pathways = record.Pathways
                 .OrderBy(p => p.CreatedAt)
                 .Select(p => new ExportedPathwayResponse
@@ -247,6 +249,7 @@ public static class PatientExportMapper
                     RejectionReason = r.RejectionReason?.ToString(),
                     DecisionDetail = r.DecisionDetail,
                     RedirectedTo = r.RedirectedTo,
+                    RedirectDetail = r.RedirectDetail,
                     PathwayId = r.PathwayId
                 })
                 .ToList(),
@@ -348,7 +351,7 @@ public static class PatientExportMapper
         key.EndsWith("UserId", StringComparison.OrdinalIgnoreCase)
         || key.EndsWith("UserIds", StringComparison.OrdinalIgnoreCase);
 
-    public static ExportedPatientResponse ToExported(Patient patient) => new()
+    public static ExportedPatientResponse ToExported(Patient patient, Practice? practice = null) => new()
     {
         Id = patient.Id,
         FirstName = patient.FirstName,
@@ -356,6 +359,11 @@ public static class PatientExportMapper
         DateOfBirth = patient.DateOfBirth,
         Email = patient.Email,
         NhsNumber = patient.NhsNumber,
+        AddressLines = PostalAddress.Split(patient.AddressLines).ToList(),
+        Postcode = patient.Postcode,
+        MobilePhone = patient.MobilePhone,
+        PracticeName = practice?.Id == patient.PracticeId ? practice?.Name : null,
+        PracticeOdsCode = practice?.Id == patient.PracticeId ? practice?.OdsCode : null,
         CreatedAt = patient.CreatedAt,
         LastUpdated = patient.LastUpdated,
         RestrictedAtUtc = patient.RestrictedAtUtc,

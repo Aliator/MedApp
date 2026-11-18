@@ -372,6 +372,22 @@ export const screens: Screen[] = [
       }
     },
   },
+  {
+    name: 'referral-accept',
+    title:
+      "Accepting a referral: the patient, the specialty's templates by name, an empty priority beside the one asked for (only opened, never confirmed; the page alone if the account can't triage it)",
+    path: '/referrals',
+    prepare: async (page) => {
+      await openFirstReferral(page);
+      // Only a member of the referral's specialty with Triage referrals sees Accept; the admin role doesn't have it.
+      const accept = page.getByRole('button', { name: 'Accept', exact: true });
+      if (await accept.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await accept.click();
+        await waitVisible(page, DIALOG);
+        await settle(page);
+      }
+    },
+  },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {
     name: 'pathway-record-specimen',
@@ -600,7 +616,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'users-roles',
-    title: "Edit roles dialog: every role, the user's ticked (not saved)",
+    title: "Edit roles dialog: the roles that aren't archived, with their descriptions, the user's ticked (not saved)",
     path: '/admin/users',
     prepare: async (page) => {
       await rowAction(page, /edit roles/i).click();
@@ -635,6 +651,58 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await rowAction(page, /delete/i).click();
       await waitVisible(page, DIALOG);
+    },
+  },
+  {
+    name: 'users-details',
+    title: "Edit details dialog: a user's full name and job title for letters (not saved)",
+    path: '/admin/users',
+    prepare: async (page) => {
+      await rowAction(page, /edit details/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'practices', title: 'GP practices: the directory of practices patients are registered with and referrals come from', path: '/practices' },
+  {
+    name: 'practice-dialog',
+    title: 'Add Practice dialog: a name, ODS code, address, postcode, phone and secure email (not saved)',
+    path: '/practices',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Practice' }).click();
+      await waitVisible(page, DIALOG);
+      },
+    },
+  { name: 'roles', title: 'Roles and Permissions (admin): each role, what it is for, who holds it, Admin first', path: '/admin/roles' },
+  {
+    name: 'role-edit',
+    title: "A role's page: its permissions ticked in groups, the Administrator-only group read only, and who holds it",
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'Open Nurse' }).click();
+      await page.getByRole('heading', { name: 'Edit Role', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'role-save-confirm',
+    title: 'Saving a role: what is added and removed, and how many people it affects (not saved)',
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'Open Nurse' }).click();
+      await page.getByRole('heading', { name: 'Edit Role', level: 1 }).waitFor();
+      await page.getByRole('checkbox', { name: 'Assign pathways' }).click();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  {
+    name: 'role-admin',
+    title: 'The built-in Admin role, read only',
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'View Admin' }).click();
+      await page.getByRole('heading', { name: 'Admin Role', level: 1 }).waitFor();
+      await settle(page);
     },
   },
   { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },

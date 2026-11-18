@@ -1,4 +1,4 @@
-﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
@@ -10,6 +10,7 @@ using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specimens;
 using MedApp.Domain.Specialties;
@@ -44,6 +45,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Specialty> Specialties => Set<Specialty>();
     public DbSet<StaffSpecialty> StaffSpecialties => Set<StaffSpecialty>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
     public DbSet<Specimen> Specimens => Set<Specimen>();
     public DbSet<SpecimenType> SpecimenTypes => Set<SpecimenType>();

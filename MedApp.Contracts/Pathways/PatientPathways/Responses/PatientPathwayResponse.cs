@@ -18,6 +18,12 @@ public sealed class PatientPathwayResponse
     /// <summary>The specialty it's in: its template's when it was created.</summary>
     public Guid SpecialtyId { get; set; }
 
+    /// <summary>
+    /// The referral it was accepted from, if any. Only the pathway's own page (its GET by ID) and accepting a referral
+    /// fill it; the other responses leave it null.
+    /// </summary>
+    public PathwayReferralResponse? Referral { get; set; }
+
     public string Title { get; set; } = string.Empty;
 
     /// <summary>The day it's due by (UK time).</summary>

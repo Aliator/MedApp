@@ -137,7 +137,7 @@ public static class DemoDataSeeder
                 username = s.Username,
                 name = s.Seed.Name,
                 job = s.Seed.JobTitle,
-                roles = s.Username == DemoStaff.ManagerUsername ? new[] { AppRoles.Admin, s.Role.Name } : [s.Role.Name],
+                roles = s.Username == DemoStaff.ManagerUsername ? new[] { AppRoles.Admin, s.RoleName } : [s.RoleName],
                 specialties = DemoSpecialties.For(s.Kind),
                 password = s.Password,
                 note = s.Username switch

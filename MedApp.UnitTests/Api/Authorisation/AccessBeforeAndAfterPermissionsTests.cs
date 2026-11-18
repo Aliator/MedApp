@@ -71,14 +71,12 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AttachmentsController.GetAttachments 00011
         AttachmentsController.Thumbnail 00011
         AttachmentsController.Upload 00011
-        AuthController.AssignRole 00001
-        AuthController.CreateRole 00001
         AuthController.CreateUser 00001
-        AuthController.DeleteRole 00001
         AuthController.DeleteUser 00001
         AuthController.ExtendSession 01111
         AuthController.GetAllRoles 00001
         AuthController.GetAllUsers 00001
+        AuthController.GetMyDetails 00011
         AuthController.GetMySettings 00011
         AuthController.GetMySpecialties 00011
         AuthController.GetSession 01111
@@ -88,9 +86,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.Login 11111
         AuthController.Logout 11111
         AuthController.ResetUserPassword 00001
-        AuthController.RevokeRole 00001
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
+        AuthController.SetMyDetails 00011
+        AuthController.SetUserDetails 00001
         AuthController.SetUserRoles 00001
         AuthController.SetUserSpecialties 00001
         AuthController.SignOutEverywhere 00001
@@ -212,13 +211,31 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+        PracticesController.ArchivePractice 00011
+        PracticesController.CreatePractice 00011
+        PracticesController.DeletePractice 00011
+        PracticesController.GetPractice 00011
+        PracticesController.GetPractices 00011
+        PracticesController.RestorePractice 00011
+        PracticesController.UpdatePractice 00011
+        ReferralsController.AcceptReferral 00000
         ReferralsController.CountAwaitingTriage 00011
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011
         ReferralsController.MarkEnteredInError 00011
+        ReferralsController.RedirectReferral 00000
         ReferralsController.RegisterReferral 00011
+        ReferralsController.RejectReferral 00000
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        RolesController.ArchiveRole 00001
+        RolesController.CreateRole 00001
+        RolesController.DeleteRole 00001
+        RolesController.GetPermissions 00001
+        RolesController.GetRole 00001
+        RolesController.GetRoles 00001
+        RolesController.RestoreRole 00001
+        RolesController.UpdateRole 00001
         SitesController.ArchiveRoom 00001
         SitesController.ArchiveSite 00001
         SitesController.CreateRoom 00001

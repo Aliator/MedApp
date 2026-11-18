@@ -1,13 +1,17 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Referrals.Commands.AcceptReferral;
 using MedApp.Application.Referrals.Commands.EditReferral;
 using MedApp.Application.Referrals.Commands.MarkReferralEnteredInError;
+using MedApp.Application.Referrals.Commands.RedirectReferral;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
+using MedApp.Application.Referrals.Commands.RejectReferral;
 using MedApp.Application.Referrals.Commands.WithdrawReferral;
 using MedApp.Application.Referrals.Queries.CountReferralsAwaitingTriage;
 using MedApp.Application.Referrals.Queries.GetReferralById;
 using MedApp.Application.Referrals.Queries.SearchReferrals;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
 using MediatR;
@@ -20,7 +24,8 @@ namespace MedApp.API.Controllers;
 /// the letter by holders of RegisterReferrals and read by anyone who can see patients. Every change is recorded in the
 /// referral's history, in the same save; every change carries the version the caller saw (<c>expectedVersion</c>).
 /// A restricted or anonymised record's referrals can't be registered or edited (409); they can still be withdrawn or
-/// marked entered in error. Triage comes in a later release.
+/// marked entered in error. Triage (accept, reject, redirect) needs TriageReferrals and membership of the referral's
+/// specialty.
 /// </summary>
 [ApiController]
 [Route("api/referrals")]
@@ -49,7 +54,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ConfirmPossibleDuplicate,
-            User.ToPathwayActor()), ct);
+            User.ToPathwayActor(),
+            request.PracticeId), ct);
 
         return Created($"/api/referrals/{referral.Id}", referral);
     }
@@ -108,7 +114,62 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ExpectedVersion,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(),
+            request.PracticeId), ct));
+
+    /// <summary>
+    /// Triage: accepts a referral awaiting triage into a new pathway, from a template of its specialty, with the
+    /// priority and target date the triager chose. Needs membership of its specialty too (403). 201, with the pathway.
+    /// </summary>
+    [HttpPost("{id:guid}/accept")]
+    [RequirePermission(Permission.TriageReferrals)]
+    [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AcceptReferral(Guid id, [FromBody] AcceptReferralRequest request, CancellationToken ct)
+    {
+        var pathway = await mediator.Send(new AcceptReferralCommand(
+            id,
+            request.TemplateId,
+            request.Priority,
+            request.DueDate,
+            request.Title,
+            request.AssigneeUserId,
+            request.Notes,
+            request.ExpectedVersion,
+            User.ToPathwayActor()), ct);
+
+        return Created($"/api/pathways/patient-pathways/{pathway.Id}", pathway);
+    }
+
+    /// <summary>Triage: rejects a referral awaiting triage, for a reason (a detail is required for Other).</summary>
+    [HttpPost("{id:guid}/reject")]
+    [RequirePermission(Permission.TriageReferrals)]
+    [ProducesResponseType(typeof(ReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RejectReferral(Guid id, [FromBody] RejectReferralRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new RejectReferralCommand(
+            id, request.Reason, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Triage: redirects a referral awaiting triage, with a detail: to another specialty here (it stays awaiting triage)
+    /// or elsewhere (it closes).
+    /// </summary>
+    [HttpPost("{id:guid}/redirect")]
+    [RequirePermission(Permission.TriageReferrals)]
+    [ProducesResponseType(typeof(ReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RedirectReferral(Guid id, [FromBody] RedirectReferralRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new RedirectReferralCommand(
+            id, request.SpecialtyId, request.Elsewhere, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>Withdraws a referral awaiting triage (the referrer or the patient withdrew it), with a detail.</summary>
     [HttpPost("{id:guid}/withdraw")]

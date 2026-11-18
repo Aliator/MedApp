@@ -1,13 +1,7 @@
-import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap} from './client';
+import {myDetailsQuery, toStaffDetailsRequest} from './account';
 import {ApiError} from './errors';
-
-/** Every role (`GET api/auth/roles`), e.g. Admin and User. */
-export const rolesQuery = queryOptions({
-  queryKey: ['roles'],
-  queryFn: async () => [...((await unwrap(api.GET('/api/auth/roles'))) ?? [])].sort(),
-  staleTime: 5 * 60 * 1000,
-});
 
 /**
  * Every users query is keyed under ['users'], so writes refresh them all. `carriesPassword` is for a mutation whose
@@ -149,4 +143,19 @@ export function useRemoveUserEmail() {
   return useUserMutation((username: string) =>
     unwrap(api.DELETE('/api/auth/users/{username}/email', {params: {path: {username}}})),
   );
+}
+
+/**
+ * Replaces a member of staff's full name and job title, as they go on letters (`PUT api/auth/users/{username}/details`,
+ * holders of ManageUsers): blank removes one. A 400 names `fullName` or `jobTitle`; an unknown user is a 404. Refreshes
+ * the Users list, and the signed-in user's own details in case they were the one changed.
+ */
+export function useSetStaffDetails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({username, fullName, jobTitle}: {username: string; fullName: string; jobTitle: string}) =>
+      unwrap(api.PUT('/api/auth/users/{username}/details', {params: {path: {username}}, body: toStaffDetailsRequest({fullName, jobTitle})})),
+    onSuccess: () =>
+      Promise.all([queryClient.invalidateQueries({queryKey: ['users']}), queryClient.invalidateQueries({queryKey: myDetailsQuery.queryKey})]),
+  });
 }

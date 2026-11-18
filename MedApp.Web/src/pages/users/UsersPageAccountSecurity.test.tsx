@@ -1,6 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
+import {roleResponse} from '../../test/roles';
 import {UsersPage} from './UsersPage';
 
 /** The Users page's email addresses and two-factor authentication: shown in the list, set on create, and reset. */
@@ -22,7 +23,7 @@ const users = [
 function renderUsers({canSendEmail = true, extra = {}}: {canSendEmail?: boolean; extra?: Parameters<typeof mockApi>[0]} = {}) {
   const fetch = mockApi({
     'GET /api/auth/users/search': () => json(pageOf(users)),
-    'GET /api/auth/roles': () => json(['User', 'Admin']),
+    'GET /api/roles': () => json([roleResponse('Admin'), roleResponse('User')]),
     'GET /api/auth/features': () => json({canSendEmail}),
     ...extra,
   });

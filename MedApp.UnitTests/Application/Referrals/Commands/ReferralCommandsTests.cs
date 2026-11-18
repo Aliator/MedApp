@@ -2,6 +2,7 @@ using FluentAssertions;
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Practices.Repositories;
 using MedApp.Application.Referrals.Commands.EditReferral;
 using MedApp.Application.Referrals.Commands.MarkReferralEnteredInError;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
@@ -25,6 +26,8 @@ public abstract class ReferralCommandTestBase
     protected Mock<IReferralRepository> Repository { get; private set; } = null!;
     protected Mock<IPatientRepository> Patients { get; private set; } = null!;
     protected Mock<ISpecialtyRepository> Specialties { get; set; } = null!;
+    protected Mock<IPracticeRepository> Practices { get; set; } = null!;
+    protected MedApp.Domain.Practices.Practice DirectoryPractice { get; private set; } = null!;
     protected FixedTimeProvider Clock { get; } = new(NowUtc);
     protected List<Referral> Added { get; } = [];
     protected List<ReferralEvent> Saved { get; } = [];
@@ -43,6 +46,8 @@ public abstract class ReferralCommandTestBase
         Specialty = SpecialtiesTestConstants.CreateSpecialty();
         Patient = PatientsTestConstants.CreateValidPatient();
         Specialties = SpecialtiesTestConstants.RepositoryWith(Specialty);
+        DirectoryPractice = PracticesTestConstants.CreatePractice();
+        Practices = PracticesTestConstants.RepositoryWith(DirectoryPractice);
         Patients = new Mock<IPatientRepository>();
         Patients.Setup(p => p.GetByIdAsync(Patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Patient);
         Repository = new Mock<IReferralRepository>();
@@ -85,7 +90,7 @@ public abstract class ReferralCommandTestBase
 [TestFixture]
 public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
 {
-    private RegisterReferralHandler Handler => new(Repository.Object, Patients.Object, Specialties.Object, Clock);
+    private RegisterReferralHandler Handler => new(Repository.Object, Patients.Object, Specialties.Object, Practices.Object, Clock);
 
     private RegisterReferralCommand Command(bool confirm = false, string? ods = " z99 999 ") => new(
         Patient.Id, Specialty.Id, ReceivedOn, $"  {Practice} ", " ", ods, "high", $" {Reason} ", confirm, Registrar);
@@ -111,6 +116,16 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
         response.Patient!.Id.Should().Be(Patient.Id);
         response.SpecialtyName.Should().Be(Specialty.Name);
         response.History.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task Handle_ByAClinicianOfItsSpecialty_SaysTheyCanTriageIt()
+    {
+        Repository.Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, Specialty.Id, Cts.Token)).ReturnsAsync(true);
+
+        var response = await Handler.Handle(Command() with { Actor = Triager }, Cts.Token);
+
+        response.CanTriage.Should().BeTrue();
     }
 
     [Test]
@@ -173,7 +188,7 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
 [TestFixture]
 public sealed class EditReferralHandlerTests : ReferralCommandTestBase
 {
-    private EditReferralHandler Handler => new(Repository.Object, Specialties.Object, Clock);
+    private EditReferralHandler Handler => new(Repository.Object, Specialties.Object, Practices.Object, Clock);
 
     private static EditReferralCommand Command(Referral referral, Guid specialtyId, int version = 3, string reason = Canary) => new(
         referral.Id, specialtyId, referral.ReceivedOn, Practice, Clinician, OdsCode, "High", reason, version, Registrar);

@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Fhir.Common;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Practices.Repositories;
 using MedApp.Contracts.Fhir;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
@@ -13,7 +14,11 @@ namespace MedApp.Application.Fhir.Queries.SearchFhirPatients;
 /// identifier system, or a value with no system that isn't an NHS number). Recorded in the activity log as the patient search is: the search (its filter's name and how
 /// many matched, never the number) and each patient found (<see cref="ActivityAction.PatientListed"/>).
 /// </summary>
-public sealed class SearchFhirPatientsHandler(IPatientRepository repository, IActivityLog activityLog, TimeProvider timeProvider)
+public sealed class SearchFhirPatientsHandler(
+    IPatientRepository repository,
+    IPracticeRepository practices,
+    IActivityLog activityLog,
+    TimeProvider timeProvider)
     : IRequestHandler<SearchFhirPatientsQuery, FhirBundle>
 {
     public async Task<FhirBundle> Handle(SearchFhirPatientsQuery request, CancellationToken cancellationToken)
@@ -37,6 +42,8 @@ public sealed class SearchFhirPatientsHandler(IPatientRepository repository, IAc
 
         var baseUrl = request.BaseUrl.TrimEnd('/');
         var selfUrl = $"{baseUrl}/Patient?identifier={Uri.EscapeDataString(request.Identifier!)}";
-        return FhirPatientMapper.ToSearchSet(found, baseUrl, selfUrl, timeProvider.GetUtcNow().UtcDateTime);
+        var registered = (await practices.GetByIdsAsync(found.Select(p => p.PracticeId).OfType<Guid>(), cancellationToken))
+            .ToDictionary(p => p.Id);
+        return FhirPatientMapper.ToSearchSet(found, baseUrl, selfUrl, timeProvider.GetUtcNow().UtcDateTime, registered);
     }
 }

@@ -488,6 +488,43 @@ describe('PatientTimeline', () => {
       expect(letter.queryByRole('link', {name: ''})).not.toBeInTheDocument();
     });
 
+    it('links an acceptance to its referral and its pathway, and a pathway created from a referral back to it', async () => {
+      const pathwayId = '00000031-0000-0000-0000-0000000000bb';
+      mockApi({
+        [`GET ${OVERVIEW}`]: () => json(overview),
+        [`GET ${TIMELINE}`]: () =>
+          json({
+            items: [
+              entry({
+                id: 'accepted',
+                kind: 'Referrals',
+                action: 'ReferralAccepted',
+                pathwayId,
+                pathwayTitle: 'Skin check',
+                referralId,
+                specialtyName: 'Dermatology',
+                templateName: 'Skin check',
+                priority: 'High',
+              }),
+              entry({id: 'created', kind: 'Created', action: 'Created', pathwayId, pathwayTitle: 'Skin check', referralId, templateName: 'Skin check'}),
+              entry({id: 'rejected', kind: 'Referrals', action: 'ReferralRejected', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Urology', rejectionReason: 'Duplicate'}),
+            ],
+            nextCursor: null,
+          }),
+      });
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const accepted = within((await screen.findByText('Referral to Dermatology accepted')).closest('li')!);
+      expect(accepted.getByText('Pathway from Skin check, high priority')).toBeInTheDocument();
+      expect(accepted.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      expect(accepted.getByRole('link', {name: 'Skin check'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+      const created = within(screen.getByText('Pathway created').closest('li')!);
+      expect(created.getByRole('link', {name: 'Skin check'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+      expect(created.getByRole('link', {name: 'From a referral'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      const rejected = within(screen.getByText('Referral to Urology rejected').closest('li')!);
+      expect(rejected.getByText('Duplicate')).toBeInTheDocument();
+    });
+
     it('can be filtered to', async () => {
       const fetch = mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null})});
       const {user} = renderWithApp(<Harness />, {user: staffUser});

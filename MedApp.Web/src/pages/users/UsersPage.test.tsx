@@ -3,18 +3,19 @@ import {act, screen, waitFor, within} from '@testing-library/react';
 import {parsePasswordBody} from '../../api/users';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
-import {UsersPage} from './UsersPage';
+import {roleResponse} from '../../test/roles';
+import {staffDetailsLine, UsersPage} from './UsersPage';
 
 const users = [
   {userId: 'u1', username: 'a.hartwell', roles: ['Admin', 'User']},
-  {userId: 'u2', username: 'l.northcott', roles: ['User']},
+  {userId: 'u2', username: 'l.northcott', roles: ['User'], fullName: 'Dr Lee Test', jobTitle: 'Consultant dermatologist'},
   {userId: 'u3', username: adminUser.username, roles: ['Admin', 'User']},
 ];
 
 function renderUsers(search: UsersListSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
     'GET /api/auth/users/search': () => json(pageOf(users)),
-    'GET /api/auth/roles': () => json(['User', 'Admin']),
+    'GET /api/roles': () => json([roleResponse('Admin'), roleResponse('User')]),
     ...extra,
   });
   const onSearchChange = vi.fn();
@@ -170,6 +171,30 @@ describe('UsersPage', () => {
     expect(await screen.findByText(`${adminUser.username}'s specialties have been saved.`)).toBeInTheDocument();
   });
 
+  it("shows each user's full name and job title, and edits them, starting from theirs", async () => {
+    const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/details': () => json({fullName: 'Dr Lee Test', jobTitle: 'Consultant'})});
+
+    const row = await rowOf('l.northcott');
+    expect(within(row).getByText('Dr Lee Test, Consultant dermatologist')).toBeInTheDocument();
+    await user.click(within(row).getByRole('button', {name: 'Edit details'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('textbox', {name: /^Full name/})).toHaveValue('Dr Lee Test');
+    const title = dialog.getByRole('textbox', {name: /^Job title/});
+    await user.clear(title);
+    await user.type(title, 'Consultant');
+    await user.click(dialog.getByRole('button', {name: 'Save Details'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await bodies(fetch, 'PUT')).toEqual([{fullName: 'Dr Lee Test', jobTitle: 'Consultant'}]);
+    expect(await screen.findByText("l.northcott's details have been saved.")).toBeInTheDocument();
+  });
+
+  it('puts a full name and job title on one line', () => {
+    expect(staffDetailsLine({fullName: 'Dr Lee Test', jobTitle: null})).toBe('Dr Lee Test');
+    expect(staffDetailsLine({fullName: ' ', jobTitle: 'Nurse'})).toBe('Nurse');
+    expect(staffDetailsLine({})).toBeUndefined();
+  });
+
   it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {
     const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/roles': () => new Response(null, {status: 204})});
 
@@ -186,6 +211,29 @@ describe('UsersPage', () => {
 
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await bodies(fetch, 'PUT')).toEqual([{roles: ['Admin']}]);
+  });
+
+  it('offers the roles that are not archived, with what each is for, keeping an archived one the user holds', async () => {
+    const {user} = renderUsers(
+      {},
+      {
+        'GET /api/roles': () =>
+          json([
+            roleResponse('Admin'),
+            roleResponse('Nurse', {description: 'Nurses who work on pathways.'}),
+            roleResponse('User', {isArchived: true}),
+            roleResponse('Lab', {isArchived: true}),
+          ]),
+      },
+    );
+
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Edit roles'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('checkbox', {name: 'Nurse'})).not.toBeChecked();
+    expect(dialog.getByText('Nurses who work on pathways.')).toBeInTheDocument();
+    // They hold User, archived since: it stays, to keep or take away, but Lab, archived too, isn't offered.
+    expect(dialog.getByRole('checkbox', {name: 'User (archived)'})).toBeChecked();
+    expect(dialog.queryByRole('checkbox', {name: /Lab/})).toBeNull();
   });
 
   it('can take every role away', async () => {

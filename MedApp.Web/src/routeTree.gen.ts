@@ -21,6 +21,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
 import { Route as AppLabRouteImport } from './routes/_app/lab'
 import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
+import { Route as AppPracticesRouteImport } from './routes/_app/practices'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -54,6 +55,9 @@ import { Route as AppReferralsNewRouteImport } from './routes/_app/referrals/new
 import { Route as AppAdminPathwayTemplatesIndexRouteImport } from './routes/_app/admin/pathway-templates/index'
 import { Route as AppAdminPathwayTemplatesIdRouteImport } from './routes/_app/admin/pathway-templates/$id'
 import { Route as AppAdminPathwayTemplatesNewRouteImport } from './routes/_app/admin/pathway-templates/new'
+import { Route as AppAdminRolesIndexRouteImport } from './routes/_app/admin/roles/index'
+import { Route as AppAdminRolesIdRouteImport } from './routes/_app/admin/roles/$id'
+import { Route as AppAdminRolesNewRouteImport } from './routes/_app/admin/roles/new'
 import { Route as AppCalendarTemplatesIndexRouteImport } from './routes/_app/calendar/templates/index'
 import { Route as AppPathwaysIdIndexRouteImport } from './routes/_app/pathways/$id/index'
 import { Route as AppPathwaysIdEditRouteImport } from './routes/_app/pathways/$id/edit'
@@ -127,6 +131,11 @@ const AppLabRoute = AppLabRouteImport.update({
 const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
   id: '/no-permission',
   path: '/no-permission',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPracticesRoute = AppPracticesRouteImport.update({
+  id: '/practices',
+  path: '/practices',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -299,6 +308,21 @@ const AppAdminPathwayTemplatesNewRoute =
     path: '/admin/pathway-templates/new',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminRolesIndexRoute = AppAdminRolesIndexRouteImport.update({
+  id: '/admin/roles/',
+  path: '/admin/roles/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRolesIdRoute = AppAdminRolesIdRouteImport.update({
+  id: '/admin/roles/$id',
+  path: '/admin/roles/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRolesNewRoute = AppAdminRolesNewRouteImport.update({
+  id: '/admin/roles/new',
+  path: '/admin/roles/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCalendarTemplatesIndexRoute =
   AppCalendarTemplatesIndexRouteImport.update({
     id: '/calendar/templates/',
@@ -392,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/accessibility': typeof AppAccessibilityRoute
   '/lab': typeof AppLabRoute
   '/no-permission': typeof AppNoPermissionRoute
+  '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/email': typeof AppAccountEmailRoute
@@ -424,6 +449,8 @@ export interface FileRoutesByFullPath {
   '/referrals/': typeof AppReferralsIndexRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/admin/roles/$id': typeof AppAdminRolesIdRoute
+  '/admin/roles/new': typeof AppAdminRolesNewRoute
   '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
@@ -431,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
+  '/admin/roles/': typeof AppAdminRolesIndexRoute
   '/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
   '/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
@@ -452,6 +480,7 @@ export interface FileRoutesByTo {
   '/accessibility': typeof AppAccessibilityRoute
   '/lab': typeof AppLabRoute
   '/no-permission': typeof AppNoPermissionRoute
+  '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -485,6 +514,8 @@ export interface FileRoutesByTo {
   '/referrals': typeof AppReferralsIndexRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/admin/roles/$id': typeof AppAdminRolesIdRoute
+  '/admin/roles/new': typeof AppAdminRolesNewRoute
   '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
@@ -492,6 +523,7 @@ export interface FileRoutesByTo {
   '/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/admin/pathway-templates': typeof AppAdminPathwayTemplatesIndexRoute
+  '/admin/roles': typeof AppAdminRolesIndexRoute
   '/calendar/templates': typeof AppCalendarTemplatesIndexRoute
   '/pathways/$id': typeof AppPathwaysIdIndexRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
@@ -515,6 +547,7 @@ export interface FileRoutesById {
   '/_app/accessibility': typeof AppAccessibilityRoute
   '/_app/lab': typeof AppLabRoute
   '/_app/no-permission': typeof AppNoPermissionRoute
+  '/_app/practices': typeof AppPracticesRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -548,6 +581,8 @@ export interface FileRoutesById {
   '/_app/referrals/': typeof AppReferralsIndexRoute
   '/_app/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/_app/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/_app/admin/roles/$id': typeof AppAdminRolesIdRoute
+  '/_app/admin/roles/new': typeof AppAdminRolesNewRoute
   '/_app/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/_app/patients/$id/export': typeof AppPatientsIdExportRoute
@@ -555,6 +590,7 @@ export interface FileRoutesById {
   '/_app/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/_app/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/_app/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
+  '/_app/admin/roles/': typeof AppAdminRolesIndexRoute
   '/_app/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
   '/_app/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
@@ -579,6 +615,7 @@ export interface FileRouteTypes {
     | '/accessibility'
     | '/lab'
     | '/no-permission'
+    | '/practices'
     | '/tasks'
     | '/account/colours'
     | '/account/email'
@@ -611,6 +648,8 @@ export interface FileRouteTypes {
     | '/referrals/'
     | '/admin/pathway-templates/$id'
     | '/admin/pathway-templates/new'
+    | '/admin/roles/$id'
+    | '/admin/roles/new'
     | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
@@ -618,6 +657,7 @@ export interface FileRouteTypes {
     | '/referrals/$id/edit'
     | '/specimens/$id/print'
     | '/admin/pathway-templates/'
+    | '/admin/roles/'
     | '/calendar/templates/'
     | '/pathways/$id/'
     | '/patients/$id/'
@@ -639,6 +679,7 @@ export interface FileRouteTypes {
     | '/accessibility'
     | '/lab'
     | '/no-permission'
+    | '/practices'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -672,6 +713,8 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/admin/pathway-templates/$id'
     | '/admin/pathway-templates/new'
+    | '/admin/roles/$id'
+    | '/admin/roles/new'
     | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
@@ -679,6 +722,7 @@ export interface FileRouteTypes {
     | '/referrals/$id/edit'
     | '/specimens/$id/print'
     | '/admin/pathway-templates'
+    | '/admin/roles'
     | '/calendar/templates'
     | '/pathways/$id'
     | '/patients/$id'
@@ -701,6 +745,7 @@ export interface FileRouteTypes {
     | '/_app/accessibility'
     | '/_app/lab'
     | '/_app/no-permission'
+    | '/_app/practices'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -734,6 +779,8 @@ export interface FileRouteTypes {
     | '/_app/referrals/'
     | '/_app/admin/pathway-templates/$id'
     | '/_app/admin/pathway-templates/new'
+    | '/_app/admin/roles/$id'
+    | '/_app/admin/roles/new'
     | '/_app/pathways/$id/edit'
     | '/_app/patients/$id/edit'
     | '/_app/patients/$id/export'
@@ -741,6 +788,7 @@ export interface FileRouteTypes {
     | '/_app/referrals/$id/edit'
     | '/_app/specimens/$id/print'
     | '/_app/admin/pathway-templates/'
+    | '/_app/admin/roles/'
     | '/_app/calendar/templates/'
     | '/_app/pathways/$id/'
     | '/_app/patients/$id/'
@@ -847,6 +895,13 @@ declare module '@tanstack/react-router' {
       path: '/no-permission'
       fullPath: '/no-permission'
       preLoaderRoute: typeof AppNoPermissionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/practices': {
+      id: '/_app/practices'
+      path: '/practices'
+      fullPath: '/practices'
+      preLoaderRoute: typeof AppPracticesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1080,6 +1135,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminPathwayTemplatesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/roles/': {
+      id: '/_app/admin/roles/'
+      path: '/admin/roles'
+      fullPath: '/admin/roles/'
+      preLoaderRoute: typeof AppAdminRolesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/roles/$id': {
+      id: '/_app/admin/roles/$id'
+      path: '/admin/roles/$id'
+      fullPath: '/admin/roles/$id'
+      preLoaderRoute: typeof AppAdminRolesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/roles/new': {
+      id: '/_app/admin/roles/new'
+      path: '/admin/roles/new'
+      fullPath: '/admin/roles/new'
+      preLoaderRoute: typeof AppAdminRolesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/calendar/templates/': {
       id: '/_app/calendar/templates/'
       path: '/calendar/templates'
@@ -1192,6 +1268,7 @@ interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
   AppLabRoute: typeof AppLabRoute
   AppNoPermissionRoute: typeof AppNoPermissionRoute
+  AppPracticesRoute: typeof AppPracticesRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -1225,6 +1302,8 @@ interface AppRouteChildren {
   AppReferralsIndexRoute: typeof AppReferralsIndexRoute
   AppAdminPathwayTemplatesIdRoute: typeof AppAdminPathwayTemplatesIdRoute
   AppAdminPathwayTemplatesNewRoute: typeof AppAdminPathwayTemplatesNewRoute
+  AppAdminRolesIdRoute: typeof AppAdminRolesIdRoute
+  AppAdminRolesNewRoute: typeof AppAdminRolesNewRoute
   AppPathwaysIdEditRoute: typeof AppPathwaysIdEditRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
   AppPatientsIdExportRoute: typeof AppPatientsIdExportRoute
@@ -1232,6 +1311,7 @@ interface AppRouteChildren {
   AppReferralsIdEditRoute: typeof AppReferralsIdEditRoute
   AppSpecimensIdPrintRoute: typeof AppSpecimensIdPrintRoute
   AppAdminPathwayTemplatesIndexRoute: typeof AppAdminPathwayTemplatesIndexRoute
+  AppAdminRolesIndexRoute: typeof AppAdminRolesIndexRoute
   AppCalendarTemplatesIndexRoute: typeof AppCalendarTemplatesIndexRoute
   AppPathwaysIdIndexRoute: typeof AppPathwaysIdIndexRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
@@ -1247,6 +1327,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
   AppLabRoute: AppLabRoute,
   AppNoPermissionRoute: AppNoPermissionRoute,
+  AppPracticesRoute: AppPracticesRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,
@@ -1280,6 +1361,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppReferralsIndexRoute: AppReferralsIndexRoute,
   AppAdminPathwayTemplatesIdRoute: AppAdminPathwayTemplatesIdRoute,
   AppAdminPathwayTemplatesNewRoute: AppAdminPathwayTemplatesNewRoute,
+  AppAdminRolesIdRoute: AppAdminRolesIdRoute,
+  AppAdminRolesNewRoute: AppAdminRolesNewRoute,
   AppPathwaysIdEditRoute: AppPathwaysIdEditRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
   AppPatientsIdExportRoute: AppPatientsIdExportRoute,
@@ -1287,6 +1370,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReferralsIdEditRoute: AppReferralsIdEditRoute,
   AppSpecimensIdPrintRoute: AppSpecimensIdPrintRoute,
   AppAdminPathwayTemplatesIndexRoute: AppAdminPathwayTemplatesIndexRoute,
+  AppAdminRolesIndexRoute: AppAdminRolesIndexRoute,
   AppCalendarTemplatesIndexRoute: AppCalendarTemplatesIndexRoute,
   AppPathwaysIdIndexRoute: AppPathwaysIdIndexRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,

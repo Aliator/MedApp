@@ -1,3 +1,4 @@
+import type {Role} from '../api/roles';
 import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
@@ -29,3 +30,23 @@ export const ROLE_PERMISSIONS = {
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'],
   Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ManageClinics', 'ViewInsights', 'ManageMonitoring'],
 } satisfies Record<string, Permission[]>;
+
+/**
+ * A role as `GET api/roles` sends it, for mocking: `name`'s standard permissions when it's a standard role (without
+ * UseApp, which the API doesn't list), editable unless it's Admin, held by nobody, at version `v1`.
+ */
+export const roleResponse = (name: string, extra: Partial<Role> = {}): Role => ({
+  id: `role-${name.toLowerCase().replace(/[^a-z]+/g, '-')}`,
+  name,
+  description: `Synthetic ${name} role.`,
+  isBuiltIn: name === 'Admin',
+  isArchived: false,
+  permissions: ((ROLE_PERMISSIONS as Record<string, readonly string[]>)[name] ?? []).filter((p) => p !== 'UseApp'),
+  holderCount: 0,
+  version: 'v1',
+  canEdit: name !== 'Admin',
+  canDelete: name !== 'Admin',
+  createdAt: '2026-11-02T09:00:00Z',
+  lastUpdated: '2026-11-02T09:00:00Z',
+  ...extra,
+});

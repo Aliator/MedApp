@@ -12,16 +12,25 @@ export interface PatientReferralsProps {
   patientId: string;
   /** Whether a referral can be registered for them now (not while the record is restricted or anonymised). */
   canRegister: boolean;
+  /**
+   * A referral to leave out: the one whose page this is (the referral page lists the patient's other referrals, so a
+   * triager spots a duplicate before choosing an outcome: hazard H-44).
+   */
+  exceptReferralId?: string;
+  /** A specialty whose referrals are marked "Same specialty" (the shown referral's: the likeliest duplicates). */
+  sameSpecialtyId?: string;
 }
 
 /**
- * A patient's referrals, for their page: the ones awaiting triage first (oldest received first), then the most recent
- * others, each linking to its page; and Register Referral, with the patient chosen.
+ * A patient's referrals, in every status, for their page: the ones awaiting triage first (oldest received first), then
+ * the most recent others, each linking to its page; and Register Referral, with the patient chosen. With
+ * `exceptReferralId`, the patient's other referrals (the referral page's, for spotting a duplicate).
  */
-export function PatientReferrals({patientId, canRegister}: PatientReferralsProps) {
+export function PatientReferrals({patientId, canRegister, exceptReferralId, sameSpecialtyId}: PatientReferralsProps) {
   const {data, isPending, isError} = useQuery(patientReferralsQuery(patientId));
-  const referrals = openFirst(data?.items ?? []);
-  const more = (data?.totalCount ?? 0) - referrals.length;
+  const items = data?.items ?? [];
+  const referrals = openFirst(items.filter((r) => r.id !== exceptReferralId));
+  const more = (data?.totalCount ?? 0) - items.length;
 
   return (
     <VStack gap={3} hAlign="stretch">
@@ -33,10 +42,10 @@ export function PatientReferrals({patientId, canRegister}: PatientReferralsProps
         </Text>
       ) : referrals.length === 0 ? (
         <Text type="body" color="secondary">
-          No referrals yet.
+          {exceptReferralId ? 'No other referrals.' : 'No referrals yet.'}
         </Text>
       ) : (
-        <ReferralList referrals={referrals} label="Referrals" />
+        <ReferralList referrals={referrals} label={exceptReferralId ? 'Other referrals' : 'Referrals'} sameSpecialtyId={sameSpecialtyId} />
       )}
       {more > 0 && (
         <Text type="supporting" color="secondary">

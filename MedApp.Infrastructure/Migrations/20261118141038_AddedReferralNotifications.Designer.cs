@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261118142656_AddedSpecimens")]
-    partial class AddedSpecimens
+    [Migration("20261118141038_AddedReferralNotifications")]
+    partial class AddedReferralNotifications
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,8 +24,6 @@ namespace MedApp.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.HasSequence("SpecimenNumbers");
 
             modelBuilder.Entity("MedApp.Domain.Activity.ActivityEntry", b =>
                 {
@@ -1063,7 +1061,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("SubjectId")
+                    b.Property<Guid?>("ReferralId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Title")
@@ -1715,6 +1713,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateOnly>("ReceivedOn")
                         .HasColumnType("date");
 
+                    b.Property<string>("RedirectDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("RedirectedTo")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -1998,190 +2000,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("SpecialtyId");
 
                     b.ToTable("StaffSpecialties", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Specimens.Laboratory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("UsesMedApp")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Laboratories", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Specimens.Specimen", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ClosedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ClosedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ClosedDetail")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("CourierReference")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("LabReference")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<Guid>("LaboratoryId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(16)");
-
-                    b.Property<Guid>("PathwayId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ReceivedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReceivedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("RecordedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("RejectionReason")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("ReportAttachmentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ReportedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReportedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("RequestNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("RequestingUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTime?>("SentAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("SentByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Site")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid>("SpecimenTypeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StageId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("TakenAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("TakenByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LaboratoryId");
-
-                    b.HasIndex("Number")
-                        .IsUnique();
-
-                    b.HasIndex("PathwayId");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("ReportAttachmentId")
-                        .HasFilter("[ReportAttachmentId] IS NOT NULL");
-
-                    b.HasIndex("SpecimenTypeId");
-
-                    b.HasIndex("Status", "LaboratoryId", "SentAtUtc");
-
-                    b.ToTable("Specimens", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Specimens.SpecimenType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ExpectedTurnaroundDays")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("SpecimenTypes", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Infrastructure.Common.Identity.ApplicationRole", b =>
@@ -2757,41 +2575,6 @@ namespace MedApp.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Specialty");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Specimens.Specimen", b =>
-                {
-                    b.HasOne("MedApp.Domain.Specimens.Laboratory", "Laboratory")
-                        .WithMany()
-                        .HasForeignKey("LaboratoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
-                        .WithMany()
-                        .HasForeignKey("PathwayId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Specimens.SpecimenType", "SpecimenType")
-                        .WithMany()
-                        .HasForeignKey("SpecimenTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Laboratory");
-
-                    b.Navigation("Pathway");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("SpecimenType");
                 });
 
             modelBuilder.Entity("MedApp.Infrastructure.Common.Identity.RolePermission", b =>

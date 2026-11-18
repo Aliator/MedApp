@@ -7,10 +7,6 @@ using MedApp.API.Common.Authentication;
 using MedApp.API.Common.Extensions;
 using MedApp.API.Common.RateLimiting;
 using MedApp.API.Controllers;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.CreateRole;
-using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
-using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
@@ -24,10 +20,12 @@ using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
 using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
@@ -526,42 +524,6 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public async Task CreateRole_Created_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var created = await Controller(new RecordingMediator(_ => new IdentityRole<Guid>("Auditor"))).CreateRole(new CreateRoleRequest("Auditor"));
-        var refused = await Controller(new RecordingMediator()).CreateRole(new CreateRoleRequest("Auditor"));
-
-        created.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
-    public async Task AssignRole_Assigned_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-
-        var assigned = await Controller(mediator).AssignRole(new AssignRoleRequest(OtherUsername, "Admin"));
-        var refused = await Controller(new RecordingMediator()).AssignRole(new AssignRoleRequest(OtherUsername, "Admin"));
-
-        mediator.Request.Should().Be(new AssignRoleCommand(OtherUsername, "Admin"));
-        assigned.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
-    public async Task RevokeRole_Revoked_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-
-        var revoked = await Controller(mediator).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
-        var refused = await Controller(new RecordingMediator()).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
-
-        mediator.Request.Should().Be(new RevokeRoleCommand(OtherUsername, "Admin", Username));
-        revoked.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
     public async Task SetUserRoles_Succeeds_SendsTheRolesAndTheAdminAndReturnsNoContent()
     {
         var mediator = new RecordingMediator(_ => IdentityResult.Success);
@@ -595,19 +557,6 @@ public sealed class AuthControllerTests
 
         notFound.Should().BeOfType<NotFoundResult>();
         ownRoles.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Test]
-    public async Task DeleteRole_Deleted_ReturnsNoContent_AndNotFoundWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => IdentityResult.Success);
-
-        var deleted = await Controller(mediator).DeleteRole("Auditor");
-        var missing = await Controller(new RecordingMediator(_ => Failed())).DeleteRole("Auditor");
-
-        mediator.Request.Should().Be(new DeleteRoleCommand("Auditor"));
-        deleted.Should().BeOfType<NoContentResult>();
-        missing.Should().BeOfType<NotFoundResult>();
     }
 
     [Test]
@@ -666,6 +615,52 @@ public sealed class AuthControllerTests
 
         (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn("User"))).Should().BeTrue();
         (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn())).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task GetMyDetails_AsksForTheSignedInUsers()
+    {
+        var details = new StaffDetailsResponse { FullName = "Sam Synthetic", JobTitle = "Nurse" };
+        var mediator = new RecordingMediator(_ => details);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).GetMyDetails(cts.Token);
+
+        mediator.Request.Should().Be(new GetStaffDetailsQuery(Username));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+    }
+
+    [Test]
+    public async Task SetMyDetails_SetsTheSignedInUsers_AndSetUserDetails_TheNamedAccounts()
+    {
+        var details = new StaffDetailsResponse { FullName = "Sam Synthetic" };
+        var request = new StaffDetailsRequest { FullName = "Sam Synthetic", JobTitle = null };
+        using var cts = new CancellationTokenSource();
+
+        var mine = new RecordingMediator(_ => details);
+        var mineResult = await Controller(mine).SetMyDetails(request, cts.Token);
+        var theirs = new RecordingMediator(_ => details);
+        var theirsResult = await Controller(theirs).SetUserDetails(OtherUsername, request, cts.Token);
+
+        mine.Request.Should().Be(new SetStaffDetailsCommand(Username, "Sam Synthetic", null));
+        theirs.Request.Should().Be(new SetStaffDetailsCommand(OtherUsername, "Sam Synthetic", null));
+        mine.Tokens.Single().Should().Be(cts.Token);
+        mineResult.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+        theirsResult.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+    }
+
+    [Test]
+    public async Task StaffDetails_AnyoneSetsTheirOwn_ManageUsersSetsAnyones()
+    {
+        foreach (var action in new[] { nameof(AuthController.GetMyDetails), nameof(AuthController.SetMyDetails) })
+        {
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("User"))).Should().BeTrue(action);
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn())).Should().BeFalse(action);
+        }
+
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.SetUserDetails), SignedIn("User"))).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.SetUserDetails), SignedIn("Admin"))).Should().BeTrue();
     }
 
     [Test]

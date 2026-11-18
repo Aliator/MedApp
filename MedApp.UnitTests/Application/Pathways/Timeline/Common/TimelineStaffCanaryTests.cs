@@ -371,10 +371,39 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ReferralRowsHoldingTheCanary_CoverEveryActionWrittenSoFar()
     {
-        // Triage and the waiting-time clock add the rest; add them here when they're written.
+        // The waiting-time clock adds the rest; add them here when they're written.
         ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Should().BeEquivalentTo(
-            [ReferralEventAction.Registered, ReferralEventAction.DetailsEdited, ReferralEventAction.Withdrawn, ReferralEventAction.EnteredInError]);
+        [
+            ReferralEventAction.Registered, ReferralEventAction.DetailsEdited, ReferralEventAction.Withdrawn,
+            ReferralEventAction.EnteredInError, ReferralEventAction.SpecialtyChanged, ReferralEventAction.Accepted,
+            ReferralEventAction.Rejected, ReferralEventAction.RedirectedElsewhere
+        ]);
     }
+
+    [Test]
+    public void ToResponse_StaffTriageEntries_GiveTheOutcomeByNameOnly()
+    {
+        var rows = ReferralRowsHoldingTheCanary();
+        var accepted = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.Accepted), isAdmin: false);
+        var rejected = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.Rejected), isAdmin: false);
+        var moved = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.SpecialtyChanged), isAdmin: false);
+        var elsewhere = TimelineMapper.ToResponse(rows.Single(r => r.Event.Action == ReferralEventAction.RedirectedElsewhere), isAdmin: true);
+
+        accepted.Action.Should().Be("ReferralAccepted");
+        accepted.Priority.Should().Be("Urgent");
+        accepted.TemplateName.Should().Be(TriageTemplate);
+        accepted.PathwayId.Should().NotBeNull();
+        accepted.ToStatus.Should().Be("Accepted");
+        rejected.RejectionReason.Should().Be("Other");
+        rejected.Reason.Should().BeNull();
+        moved.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        moved.SpecialtyName.Should().Be(SpecialtiesTestConstants.OtherSpecialtyName);
+        elsewhere.RedirectedTo.Should().Be(Canary);
+        elsewhere.Reason.Should().Be(Canary);
+    }
+
+    /// <summary>A template's name: admin-written, so staff see it.</summary>
+    private const string TriageTemplate = "Synthetic skin lesion pathway";
 
     private static string Serialised(ReferralTimelineRow row, bool isAdmin) =>
         JsonSerializer.Serialize(TimelineMapper.ToResponse(row, isAdmin), Json);
@@ -402,8 +431,24 @@ public sealed class TimelineStaffCanaryTests
         var error = new ReferralChange(other, Staff, Now);
         error.MarkEnteredInError(Canary);
 
-        return change.Events.Concat(error.Events)
-            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary))
+        // Triage: moved to another specialty here, then accepted; another rejected; another redirected elsewhere.
+        var triaged = ReferralsTestConstants.CreateReferral();
+        var accept = new ReferralChange(triaged, ReferralsTestConstants.Triager, Now);
+        accept.RedirectToSpecialty(SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName), Canary);
+        var accepted = new ReferralChange(triaged, ReferralsTestConstants.Triager, Now.AddMinutes(1));
+        accepted.Accept(Guid.NewGuid(), TriageTemplate, PatientPathwayPriority.Urgent);
+
+        var rejectedReferral = ReferralsTestConstants.CreateReferral();
+        var rejected = new ReferralChange(rejectedReferral, ReferralsTestConstants.Triager, Now);
+        rejected.Reject(ReferralRejectionReason.Other, Canary);
+
+        var sentReferral = ReferralsTestConstants.CreateReferral();
+        var sent = new ReferralChange(sentReferral, ReferralsTestConstants.Triager, Now);
+        sent.RedirectElsewhere(Canary, Canary);
+
+        return change.Events.Concat(error.Events).Concat(accept.Events).Concat(accepted.Events)
+            .Concat(rejected.Events).Concat(sent.Events)
+            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary))
             .ToList();
     }
 

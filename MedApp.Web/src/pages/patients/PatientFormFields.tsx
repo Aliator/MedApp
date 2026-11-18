@@ -11,14 +11,27 @@ import {useAnnounce} from '../../app/announcements';
 import {demographicsStatusQuery, useLookUpDemographics, type DemographicsResult} from '../../api/demographics';
 import {ApiError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import type {PatientInput} from '../../api/patients';
+import type {PracticeSummary} from '../../api/practices';
 import {DateOfBirthInput} from '../../components/forms/DateOfBirthInput';
 import {FormSection} from '../../components/forms/FormSection';
 import {NhsNumberField} from '../../components/forms/NhsNumberField';
 import {AppIcon} from '../../components/shared/icons';
 import {formatDate} from '../../utils/dates';
+import {formatMobile} from '../../utils/contactDetails';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
+import {PatientContactFields, PatientPracticeField} from './PatientContactFields';
 
-export const EMPTY_PATIENT: PatientInput = {firstName: '', lastName: '', dateOfBirth: '', email: '', nhsNumber: ''};
+export const EMPTY_PATIENT: PatientInput = {
+  firstName: '',
+  lastName: '',
+  dateOfBirth: '',
+  email: '',
+  nhsNumber: '',
+  addressLines: ['', '', ''],
+  postcode: '',
+  mobilePhone: '',
+  practiceId: '',
+};
 
 /** The fields shown, whose errors show on them (so the page's banner leaves them out). */
 export const PATIENT_FIELDS = Object.keys(EMPTY_PATIENT);
@@ -44,6 +57,19 @@ const describePerson = (p: {firstName?: string | null; lastName?: string | null;
 };
 
 const fromSource = (source: string | null | undefined) => (source ? ` from ${source}` : '');
+
+/**
+ * The contact details a look-up found, as the form holds them: only those the service has (an address, a postcode, a
+ * mobile), so a look-up never blanks what's already typed.
+ */
+export function foundContact(person: DemographicsResult): Partial<Pick<PatientInput, 'addressLines' | 'postcode' | 'mobilePhone'>> {
+  const lines = (person.addressLines ?? []).map((line) => line.trim()).filter(Boolean);
+  return {
+    ...(lines.length > 0 && {addressLines: [lines[0] ?? '', lines[1] ?? '', lines[2] ?? ''] as PatientInput['addressLines']}),
+    ...(person.postcode && {postcode: person.postcode}),
+    ...(person.mobilePhone && {mobilePhone: formatMobile(person.mobilePhone)}),
+  };
+}
 
 /** The NHS number look-up a patient form offers, and what it has found or filled (see `usePatientLookUp`). */
 export interface PatientLookUp {
@@ -101,11 +127,13 @@ export function usePatientLookUp(form: PatientInput, setForm: Dispatch<SetStateA
       lastName: person.lastName ?? latest.current.lastName,
       dateOfBirth: person.dateOfBirth ?? latest.current.dateOfBirth,
     };
-    setForm((now) => ({...now, firstName: values.firstName, lastName: values.lastName, dateOfBirth: values.dateOfBirth}));
+    const contact = foundContact(person);
+    setForm((now) => ({...now, firstName: values.firstName, lastName: values.lastName, dateOfBirth: values.dateOfBirth, ...contact}));
     setFilled(values);
+    const what = Object.keys(contact).length > 0 ? 'name, date of birth and contact details' : 'name and date of birth';
     tell(person.nhsNumber, {
       type: 'success',
-      message: `Found: name and date of birth filled in${fromSource(person.source)}. Check they're right.`,
+      message: `Found: ${what} filled in${fromSource(person.source)}. Check they're right.`,
     });
   };
 
@@ -184,15 +212,17 @@ export interface PatientFormFieldsProps {
   /** A 400's errors, shown on their fields. */
   errors?: ValidationErrors | null;
   isDisabled?: boolean;
+  /** On Edit Patient, the practice the patient has now, offered (marked archived) even if it's archived since. */
+  currentPractice?: PracticeSummary | null;
 }
 
 /**
  * The patient fields shared by Add and Edit: personal details (with the NHS number), then contact details, as in
- * the Blazor forms. When NHS number look-ups are set up (the national demographics service), the NHS number has a
+ * the Blazor forms, with the mobile and postal address (`PatientContactFields`), then the GP practice (`PatientPracticeField`). When NHS number look-ups are set up (the national demographics service), the NHS number has a
  * Look up button (see `usePatientLookUp`); on Edit Patient, who it found shows under the personal details, beside
  * who the form has now, to use or not.
  */
-export function PatientFormFields({value, onChange, lookUp, errors, isDisabled = false}: PatientFormFieldsProps) {
+export function PatientFormFields({value, onChange, lookUp, errors, isDisabled = false, currentPractice}: PatientFormFieldsProps) {
   const set = <K extends keyof PatientInput>(key: K, next: PatientInput[K]) => onChange((current) => ({...current, [key]: next}));
   const found = lookUp.found;
 
@@ -269,6 +299,10 @@ export function PatientFormFields({value, onChange, lookUp, errors, isDisabled =
           isDisabled={isDisabled}
           status={fieldStatus(errors, 'email')}
         />
+        <PatientContactFields value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} />
+      </FormSection>
+      <FormSection title="Registered GP Practice" useGrid={false}>
+        <PatientPracticeField value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} currentPractice={currentPractice} />
       </FormSection>
     </>
   );

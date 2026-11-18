@@ -42,6 +42,12 @@ public sealed class Notification
     public Guid? MeetingId { get; init; }
 
     /// <summary>
+    /// The referral it's about, if any (<see cref="NotificationKind.ReferralTriaged"/>), for a link to it. No foreign
+    /// key: the notification outlives what it's about.
+    /// </summary>
+    public Guid? ReferralId { get; init; }
+
+    /// <summary>
     /// What it's about, when that isn't one of the columns above: its meaning comes from the kind (a specimen for
     /// <see cref="NotificationKind.SpecimenRejectedByLab"/> and <see cref="NotificationKind.SpecimenLost"/>), and the web
     /// app links each kind to its page. No foreign key: the notification outlives what it's about.
@@ -63,12 +69,13 @@ public sealed class Notification
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
     /// "Appointment booked", the meeting kinds' "Meeting invitation"; the monitoring kinds' "Stage finished"; the note
-    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; the specimen kinds' "Specimen rejected" and "Specimen lost"; and "Scheduled job failing"), rather than the
+    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; and "Scheduled job failing"), rather than the
     /// pathway's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
         kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.AppointmentRecorded
             or NotificationKind.StageVisitWithdrawn
+            or NotificationKind.ReferralTriaged
             or NotificationKind.SpecimenRejectedByLab
             or NotificationKind.SpecimenLost
             or NotificationKind.ScheduledJobFailing

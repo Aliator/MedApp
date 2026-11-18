@@ -1,9 +1,11 @@
-﻿using Azure.Identity;
+using MedApp.Application.Practices.Repositories;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
+using MedApp.Application.Authentication.Roles.Repositories;
 using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
@@ -197,6 +199,7 @@ public static class ServiceExtensions
         this IServiceCollection services)
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPatientPathwayRepository, PatientPathwayRepository>();
         services.AddScoped<INoteDeletionRequestRepository, NoteDeletionRequestRepository>();
         services.AddScoped<IPatientPathwayStagesRepository, PatientPathwayStagesRepository>();
@@ -225,6 +228,7 @@ public static class ServiceExtensions
         services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
+        services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         
@@ -278,6 +282,7 @@ public static class ServiceExtensions
         services.AddScoped<IIdentityTransactions, IdentityTransactions>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<IStaffDetailsService, StaffDetailsService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddSingleton<IQrCodeRenderer, QrCodeRenderer>();
 

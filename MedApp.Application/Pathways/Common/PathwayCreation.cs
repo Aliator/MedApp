@@ -60,19 +60,29 @@ public static class PathwayCreation
 
     /// <summary>
     /// Records a new pathway's creation on its change: the Created audit entry (the template's name, the target date,
-    /// the priority and how many stages), then its first note, if <paramref name="notes"/> has any text, then the
-    /// first stage's visit, if it involves one.
+    /// the priority and how many stages, and the referral it was accepted from, if <paramref name="referralId"/> is
+    /// given), then its first note, if <paramref name="notes"/> has any text, then the first stage's visit, if it
+    /// involves one.
     /// </summary>
-    public static void Record(PathwayChange change, string templateName, DateOnly dueDate, string? notes = null)
+    public static void Record(PathwayChange change, string templateName, DateOnly dueDate, string? notes = null, Guid? referralId = null)
     {
         var pathway = change.Pathway;
-        change.Audit(PatientPathwayAuditAction.Created, new
-        {
-            template = templateName,
-            dueDate,
-            priority = pathway.Priority.ToString(),
-            stageCount = pathway.Stages.Count
-        });
+        change.Audit(PatientPathwayAuditAction.Created, referralId is { } fromReferral
+            ? new
+            {
+                template = templateName,
+                dueDate,
+                priority = pathway.Priority.ToString(),
+                stageCount = pathway.Stages.Count,
+                referralId = fromReferral
+            }
+            : new
+            {
+                template = templateName,
+                dueDate,
+                priority = pathway.Priority.ToString(),
+                stageCount = pathway.Stages.Count
+            });
 
         if (!string.IsNullOrWhiteSpace(notes))
             change.AddNote(notes);

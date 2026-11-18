@@ -63,8 +63,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
-        // Notifications point at pathways, including ones since deleted, which only the audit still names, or at
-        // appointments.
+        // Notifications point at pathways, including ones since deleted, which only the audit still names, at
+        // appointments, or at referrals.
         var pathwayIds = pathways.Select(p => p.Id)
             .Concat(history.Select(e => e.PatientPathwayId))
             .Distinct()
@@ -73,9 +73,14 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .Concat(appointmentHistory.Select(e => e.AppointmentId))
             .Distinct()
             .ToList();
+        var referralIds = await context.Referrals
+            .Where(r => r.PatientId == patientId)
+            .Select(r => r.Id)
+            .ToListAsync(ct);
         var notifications = await Tracking(context.Notifications, forUpdate)
             .Where(n => (n.PathwayId != null && pathwayIds.Contains(n.PathwayId.Value))
-                        || (n.AppointmentId != null && appointmentIds.Contains(n.AppointmentId.Value)))
+                        || (n.AppointmentId != null && appointmentIds.Contains(n.AppointmentId.Value))
+                        || (n.ReferralId != null && referralIds.Contains(n.ReferralId.Value)))
             .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
             .ToListAsync(ct);
 
@@ -112,6 +117,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         return new PatientRecord
         {
             Patient = patient,
+            // The directory's entry, read-only: anonymising clears the patient's link to it, never the practice.
+            Practice = patient.PracticeId is { } practiceId
+                ? await context.Practices.AsNoTracking().FirstOrDefaultAsync(p => p.Id == practiceId, ct)
+                : null,
             Pathways = pathways,
             PathwayHistory = history,
             NoteVersions = noteVersions,

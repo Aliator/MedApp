@@ -7,6 +7,13 @@ public sealed class EditReferralRequest
 
     public DateOnly ReceivedOn { get; set; }
 
+    /// <summary>
+    /// The referring practice in the directory, if chosen (not archived, unless the referral already has it); null for
+    /// none. When given, an empty <c>referrerPractice</c> takes the practice's name, and an empty <c>referrerOdsCode</c>
+    /// its code.
+    /// </summary>
+    public Guid? PracticeId { get; set; }
+
     public string ReferrerPractice { get; set; } = string.Empty;
 
     public string? ReferrerClinician { get; set; }

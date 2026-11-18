@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Appointments.Common;
+using Microsoft.Data.SqlClient;
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
@@ -153,7 +154,19 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         {
             throw new ConflictException(NhsNumberRules.InUse);
         }
+        // The practice chosen was deleted from the directory after the handler checked it.
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 547 } sql
+                                          && sql.Message.Contains(PracticeForeignKey, StringComparison.Ordinal))
+        {
+            throw new ConflictException(PracticeDeletedMessage);
+        }
     }
+
+    /// <summary>The foreign key from a patient to their practice, named as EF names it.</summary>
+    private const string PracticeForeignKey = "FK_Patients_Practices_PracticeId";
+
+    public const string PracticeDeletedMessage =
+        "That practice has just been deleted from the directory. Choose the practice again.";
 
     /// <summary>The unique index on the NHS number, named as EF names it.</summary>
     private const string NhsNumberIndex = "IX_Patients_NhsNumber";

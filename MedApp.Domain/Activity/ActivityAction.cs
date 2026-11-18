@@ -54,7 +54,10 @@ public enum ActivityAction
     /// <summary>An account's roles were changed (from and to).</summary>
     RolesChanged = 21,
 
+    /// <summary>An admin made a role: its name and the permissions it grants.</summary>
     RoleCreated = 22,
+
+    /// <summary>An admin deleted a role nobody held: its name and the permissions it granted.</summary>
     RoleDeleted = 23,
 
     /// <summary>An admin ended every session an account had ("Sign out everywhere").</summary>
@@ -120,8 +123,20 @@ public enum ActivityAction
     ReferralViewed = 43,
 
     /// <summary>
-    /// Someone opened a specimen's page or printed its label or request sheet, or found it by its number: the specimen's
-    /// ID in its details. (44 is allocated to Phase 2 by <c>docs/centre-phase2-plan.md</c>.)
+    /// An admin changed a role: renamed it, changed its description (never the text), added or removed permissions (by
+    /// name), or archived or restored it. Giving people roles is <see cref="RolesChanged"/>.
     /// </summary>
-    SpecimenViewed = 45
+    RoleChanged = 44,
+
+    /// <summary>
+    /// Someone opened a specimen's page or printed its label or request sheet, or found it by its number: the specimen's
+    /// ID in its details. (46 and 47 are kept for results and letters: <c>docs/centre-phases-3-5-plan.md</c>, section 5.)
+    /// </summary>
+    SpecimenViewed = 45,
+
+    /// <summary>
+    /// Someone's full name or job title was changed, by themselves or by an admin: the names of the fields changed, never
+    /// their values.
+    /// </summary>
+    StaffDetailsChanged = 48
 }

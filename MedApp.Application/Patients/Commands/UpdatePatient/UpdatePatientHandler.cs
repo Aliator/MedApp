@@ -5,16 +5,25 @@ using MedApp.Application.Patients.Repositories;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Contacts;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Practices;
+using MedApp.Application.Practices.Common;
+using MedApp.Application.Practices.Repositories;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
 /// <summary>
 /// Edits a patient's details. The activity log records which fields changed, never their values. A restricted or
 /// anonymised record can't be edited (409). The NHS number is left as it is when not given, removed when given empty,
-/// and a 409 when another patient has it.
+/// and a 409 when another patient has it. The contact details follow the same rule (null leaves one as it is, empty
+/// removes it; the practice is removed with <see cref="Guid.Empty"/>), and a newly chosen practice must exist (404) and
+/// not be archived (409); one that's archived since it was chosen stays.
 /// </summary>
-public sealed class UpdatePatientHandler(IPatientRepository repository, IActivityLog activityLog)
+public sealed class UpdatePatientHandler(
+    IPatientRepository repository,
+    IPracticeRepository practices,
+    IActivityLog activityLog)
     : IRequestHandler<UpdatePatientCommand, PatientResponse?>
 {
     public async Task<PatientResponse?> Handle(
@@ -67,6 +76,51 @@ public sealed class UpdatePatientHandler(IPatientRepository repository, IActivit
             }
         }
 
+        if (request.AddressLines is not null)
+        {
+            var lines = PostalAddress.Join(request.AddressLines);
+            if (lines != patient.AddressLines)
+            {
+                patient.AddressLines = lines;
+                changed.Add("addressLines");
+            }
+        }
+
+        if (request.Postcode is not null)
+        {
+            var postcode = UkPostcodes.Normalise(request.Postcode);
+            if (postcode != patient.Postcode)
+            {
+                patient.Postcode = postcode;
+                changed.Add("postcode");
+            }
+        }
+
+        if (request.MobilePhone is not null)
+        {
+            var mobile = UkPhoneNumbers.NormaliseMobile(request.MobilePhone);
+            if (mobile != patient.MobilePhone)
+            {
+                patient.MobilePhone = mobile;
+                changed.Add("mobilePhone");
+            }
+        }
+
+        Practice? practice = null;
+        if (request.PracticeId is { } practiceId)
+        {
+            Guid? chosen = practiceId == Guid.Empty ? null : practiceId;
+            if (chosen is { } id)
+                practice = await PracticeRules.CheckChosenAsync(practices, id, patient.PracticeId, cancellationToken);
+            if (chosen != patient.PracticeId)
+            {
+                patient.PracticeId = chosen;
+                changed.Add("practice");
+            }
+        }
+
+        practice ??= patient.PracticeId is { } current ? await practices.GetAsync(current, cancellationToken) : null;
+
         patient.LastUpdated = DateTime.UtcNow;
 
         await repository.UpdateAsync(
@@ -74,6 +128,6 @@ public sealed class UpdatePatientHandler(IPatientRepository repository, IActivit
             activityLog.Entry(ActivityAction.PatientUpdated, patient.Id, new { fields = changed }),
             cancellationToken);
 
-        return PatientMapper.ToResponse(patient);
+        return PatientMapper.ToResponse(patient, practice);
     }
 }

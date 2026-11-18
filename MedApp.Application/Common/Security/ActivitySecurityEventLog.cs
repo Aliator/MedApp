@@ -71,6 +71,9 @@ public sealed class ActivitySecurityEventLog(
         SecurityEventKind.EmailCodesEnabled => ActivityAction.EmailCodesEnabled,
         SecurityEventKind.EmailCodesDisabled => ActivityAction.EmailCodesDisabled,
         SecurityEventKind.AdminGrantedByCommand => ActivityAction.RolesChanged,
+        SecurityEventKind.RoleCreated => ActivityAction.RoleCreated,
+        SecurityEventKind.RoleChanged => ActivityAction.RoleChanged,
+        SecurityEventKind.RoleDeleted => ActivityAction.RoleDeleted,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No activity log action for this kind of security event."),
     };
 }

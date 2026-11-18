@@ -4,10 +4,6 @@ namespace MedApp.Application.Common.Identity;
 
 public interface IIdentityRoleService
 {
-    Task<IdentityRole<Guid>?> CreateRoleAsync(
-        string roleName,
-        CancellationToken ct);
-
     Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
@@ -26,9 +22,5 @@ public interface IIdentityRoleService
     Task<IdentityResult> SetRolesAsync(
         string username,
         IReadOnlyCollection<string> roleNames,
-        CancellationToken ct);
-
-    Task<IdentityResult> DeleteRoleAsync(
-        string roleName,
         CancellationToken ct);
 }

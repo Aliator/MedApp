@@ -47,6 +47,7 @@ import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
  */
 const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon]; href: string; permission: Permission}[] = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users', permission: 'ManageUsers'},
+  {label: 'Roles and Permissions', icon: AppIcon.Roles, href: '/admin/roles', permission: 'ManageRoles'},
   {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
   {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
   {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
@@ -720,6 +721,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 isSelected={isAt('/lab') || isAt('/specimens')}
                 ref={halfViewRow(isHalfAt('/lab') || isHalfAt('/specimens'))}
                 actions={<RowMenu label="Lab" href="/lab" />}
+              />
+            ),
+          },
+        ]
+      : []),
+    // The GP practice directory, for anyone who can view patients (holders of EditPatients keep it).
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'practices',
+            label: 'Practices',
+            icon: AppIcon.Practices,
+            href: '/practices',
+            isSelected: isAt('/practices'),
+            isHalfView: isHalfAt('/practices'),
+            row: (
+              <SideNavItem
+                label="Practices"
+                icon={AppIcon.Practices}
+                href="/practices"
+                isSelected={isAt('/practices')}
+                ref={halfViewRow(isHalfAt('/practices'))}
+                actions={<RowMenu label="Practices" href="/practices" />}
               />
             ),
           },

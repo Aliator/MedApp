@@ -1,3 +1,5 @@
+using MedApp.Application.Referrals.Commands.AcceptReferral;
+using MedApp.Application.Referrals.Common;
 using System.Reflection;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
@@ -72,6 +74,15 @@ public sealed class PathwayRestrictionGuardConventionTests
 
     private static readonly MethodInfo WhyCantTake = typeof(SpecimenWorkflow).GetMethod(nameof(SpecimenWorkflow.WhyCantTake))!;
 
+    /// <summary>
+    /// Accepting a referral creates a pathway for the referral's patient: it loads the referral through the triage
+    /// guard, which checks the patient's record (<see cref="ReferralRepositoryExtensions.GetForTriageOrThrowAsync"/>).
+    /// </summary>
+    private static readonly MethodInfo TriageGuard =
+        typeof(ReferralRepositoryExtensions).GetMethod(nameof(ReferralRepositoryExtensions.GetForTriageOrThrowAsync))!;
+
+    private static readonly Type[] CreateFromAReferral = [typeof(AcceptReferralHandler)];
+
     private static readonly MethodInfo GetAppointmentForUpdate =
         typeof(IAppointmentRepository).GetMethod(nameof(IAppointmentRepository.GetForUpdateAsync))!;
 
@@ -104,6 +115,7 @@ public sealed class PathwayRestrictionGuardConventionTests
             var isGuarded = calls.Any(m => Guards.Any(g => Same(m, g)))
                             || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)))
                             || (CheckThroughSpecimenRules.Contains(handler) && calls.Any(m => Same(m, WhyCantTake)))
+                            || (CreateFromAReferral.Contains(handler) && calls.Any(m => Same(m, TriageGuard)))
                             || ReadOnlyCommands.Contains(handler);
             isGuarded.Should().BeTrue($"{handler.Name} changes a pathway, so it must load it through a guard that checks the patient");
         }

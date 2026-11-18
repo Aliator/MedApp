@@ -44,6 +44,12 @@ public sealed class Referral
     /// <summary>The practice's Organisation Data Service code, if given (3 to 10 letters and digits, upper case; format only).</summary>
     public string? ReferrerOdsCode { get; set; }
 
+    /// <summary>
+    /// The referring practice in the directory, if staff chose one. The typed <see cref="ReferrerPractice"/> stays as the
+    /// letter gave it (filled from the directory's name when left empty); referrals from before the directory have none.
+    /// </summary>
+    public Guid? PracticeId { get; set; }
+
     /// <summary>The priority the referrer asked for, on the pathway priority scale. The triager chooses the pathway's own.</summary>
     public PatientPathwayPriority RequestedPriority { get; set; }
 
@@ -71,6 +77,12 @@ public sealed class Referral
 
     /// <summary>Redirected elsewhere: where to. Free text.</summary>
     public string? RedirectedTo { get; set; }
+
+    /// <summary>
+    /// Redirected here from another specialty: why, as the triager who moved it wrote it (the latest such move's). Free
+    /// text. Kept apart from <see cref="DecisionDetail"/>, as the referral still awaits triage after it.
+    /// </summary>
+    public string? RedirectDetail { get; set; }
 
     /// <summary>Accepted: the pathway it was accepted into, until that pathway is deleted.</summary>
     public Guid? PathwayId { get; set; }

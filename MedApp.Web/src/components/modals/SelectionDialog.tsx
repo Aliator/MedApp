@@ -6,6 +6,8 @@ import {ConfirmDialog, type ConfirmDialogProps} from './ConfirmDialog';
 export interface SelectionItem {
   value: string;
   label: string;
+  /** Under the label, in smaller words: what the choice means (a role's description). */
+  description?: string;
 }
 
 export interface SelectionDialogProps extends Omit<ConfirmDialogProps, 'children'> {
@@ -59,7 +61,7 @@ export function SelectionDialog({
           isDisabled={isProcessing}
           hasDividers>
           {items.map((item) => (
-            <CheckboxListItem key={item.value} value={item.value} label={item.label} />
+            <CheckboxListItem key={item.value} value={item.value} label={item.label} description={item.description} />
           ))}
         </CheckboxList>
       )}

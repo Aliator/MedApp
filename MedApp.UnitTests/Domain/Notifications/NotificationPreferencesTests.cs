@@ -38,6 +38,7 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
                             || k == NotificationKind.StageVisitWithdrawn
+                            || k == NotificationKind.ReferralTriaged
                             || k.ToString().StartsWith("Specimen")
                             || k == NotificationKind.ScheduledJobFailing));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
