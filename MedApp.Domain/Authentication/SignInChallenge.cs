@@ -8,8 +8,14 @@ namespace MedApp.Domain.Authentication;
 /// </summary>
 public sealed class SignInChallenge
 {
-    /// <summary>How long the second step can take.</summary>
+    /// <summary>How long the second step can take with an authenticator app.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How long the second step can take with a code by email: as long as the code itself works
+    /// (<see cref="EmailCode.Lifetime"/>), since an email can take a minute or two to arrive.
+    /// </summary>
+    public static readonly TimeSpan EmailLifetime = EmailCode.Lifetime;
 
     /// <summary>Wrong codes allowed before the challenge stops working (each also counts towards the lockout).</summary>
     public const int MaxFailedAttempts = 5;
@@ -19,12 +25,13 @@ public sealed class SignInChallenge
     {
     }
 
-    public SignInChallenge(Guid userId, string tokenHash, DateTime createdAtUtc)
+    /// <param name="lifetime">How long it lasts: <see cref="Lifetime"/> unless given (<see cref="EmailLifetime"/>).</param>
+    public SignInChallenge(Guid userId, string tokenHash, DateTime createdAtUtc, TimeSpan? lifetime = null)
     {
         UserId = userId;
         TokenHash = tokenHash;
         CreatedAtUtc = createdAtUtc;
-        ExpiresAtUtc = createdAtUtc.Add(Lifetime);
+        ExpiresAtUtc = createdAtUtc.Add(lifetime ?? Lifetime);
     }
 
     public Guid Id { get; private set; } = Guid.NewGuid();

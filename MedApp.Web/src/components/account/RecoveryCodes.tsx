@@ -16,16 +16,36 @@ export interface RecoveryCodesProps {
   username: string;
   /** What screen readers are told as they appear, e.g. "Two-factor authentication is on.". Never the codes. */
   announcement: string;
+  /** How the account gets its codes, so the advice fits: an authenticator app (the default) or codes by email. */
+  method?: 'authenticator' | 'email';
 }
+
+/** What a recovery code stands in for, for each method. */
+const STANDS_IN_FOR = {
+  authenticator: {
+    banner:
+      'If you lose your authenticator app, each code signs you in once instead of a code from it. Keep them somewhere safe, such as a password manager.',
+    file: 'Each code signs you in once, instead of a code from your authenticator app. Keep them somewhere safe.',
+  },
+  email: {
+    banner:
+      "If you can't get MedApp's emails, each code signs you in once instead of an emailed code. Keep them somewhere safe, such as a password manager, not in the same mailbox.",
+    file: 'Each code signs you in once, instead of a code MedApp emails you. Keep them somewhere safe, not in the same mailbox.',
+  },
+};
 
 /** The downloaded file's name. */
 export const RECOVERY_CODES_FILE = 'medapp-recovery-codes.txt';
 
 /** The codes as a text file: who they're for, how they work, then one a line. */
-export function recoveryCodesText(codes: readonly string[], username: string): string {
+export function recoveryCodesText(
+  codes: readonly string[],
+  username: string,
+  method: 'authenticator' | 'email' = 'authenticator',
+): string {
   return [
     `MedApp recovery codes for ${username}`,
-    'Each code signs you in once, instead of a code from your authenticator app. Keep them somewhere safe.',
+    STANDS_IN_FOR[method].file,
     '',
     ...codes,
     '',
@@ -48,7 +68,7 @@ function download(text: string, fileName: string) {
  * tell screen readers and take the focus (on Copy), as `OneTimePassword` does. Used by `TwoFactorSetup` and the
  * Security page's new codes.
  */
-export function RecoveryCodes({codes, username, announcement}: RecoveryCodesProps) {
+export function RecoveryCodes({codes, username, announcement, method = 'authenticator'}: RecoveryCodesProps) {
   const announce = useAnnounce();
   const {copy, isCopied} = useClipboard({announce: 'Copied'});
   const copyButton = useRef<HTMLButtonElement>(null);
@@ -72,7 +92,7 @@ export function RecoveryCodes({codes, username, announcement}: RecoveryCodesProp
         status="warning"
         container="card"
         title="Save your recovery codes now. They won't be shown again."
-        description="If you lose your authenticator app, each code signs you in once instead of a code from it. Keep them somewhere safe, such as a password manager."
+        description={STANDS_IN_FOR[method].banner}
       />
       <Grid columns={2} gap={2} justify="center">
         {codes.map((code) => (
@@ -91,7 +111,7 @@ export function RecoveryCodes({codes, username, announcement}: RecoveryCodesProp
         <Button
           label="Download codes"
           icon={<Icon icon={AppIcon.Download} />}
-          onClick={() => download(recoveryCodesText(codes, username), RECOVERY_CODES_FILE)}
+          onClick={() => download(recoveryCodesText(codes, username, method), RECOVERY_CODES_FILE)}
         />
       </HStack>
     </VStack>

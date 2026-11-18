@@ -148,7 +148,7 @@
   - **Calendars look double-booked:** the decliner shows going to the meeting and seeing a patient at once, with no "Declined" on screen, and "N attending" counts them.
   - **The safety reasoning is untrue in the data:** the device decision says "booking is refused over a meeting".
   - **An analogy:** going back to an old paper diary with no "declined" column. It sees double bookings it believes can't happen.
-- **Evidence:** the migration's `defaultValue: 0` (`20261118020738_AddedMeetingReplies.cs:25`) covers the forward rollout only. Old `main`: `UpdateMeetingHandler.cs:62` checks all attendees, and `CalendarClashes.cs:88` counts every meeting. New code skips decliners: `UpdateMeetingHandler.cs:66-68`, `CalendarClashes.cs:90`. Decision 71 covers the rollout, not a rollback.
+- **Evidence:** the migration's `defaultValue: 0` (`20261118063813_AddedMeetingReplies.cs:25`, rebuilt on top of `main` under finding 9) covers the forward rollout only. Old `main`: `UpdateMeetingHandler.cs:62` checks all attendees, and `CalendarClashes.cs:88` counts every meeting. New code skips decliners: `UpdateMeetingHandler.cs:66-68`, `CalendarClashes.cs:90`. Decision 71 covers the rollout, not a rollback.
 - **The fix:** add a rollback note to decision 71 (and the PR): after rolling back, take decliners off meetings still to come, so the old rule holds again (the SQL is under Detail). Or accept the overlaps knowingly and tell admins. Reverting the migration itself (`Down`) would also lose every reply.
 - **What happened to it:** documented in the PR (`e401f734`). Decision 71 has a **Rolling back** bullet: what the old code does with decliners' overlaps, the SQL above to take decliners off meetings still to come, telling admins, cancelling any meeting left empty, and not reverting the migrations (their `Down` loses every reply). `deploy/helm/medapp/README.md`'s Migrations list says the same and points there, as does `AGENTS.md`.
 
@@ -257,7 +257,12 @@
   - **Remove and re-add the migrations:** delete this PR's two migrations, put back `main`'s snapshot, and re-add them on top of `AddedNoteDeletion`. The re-added migrations must keep the `Reply` default of 0, so read their `Up`.
   - **Check:** `has-pending-model-changes` reports nothing, and the history goes `AddedNoteDeletion`, then the replies.
   - **Rename instead, if you prefer:** rename both migrations to later timestamps and regenerate their designers.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in the merge of `main` at `f40deb9` (#114, #115, #120 and #118):
+  - **Migrations rebuilt on top.** Neither had been applied to any database, so both (with their designers) were deleted, `main`'s snapshot taken, and both added again in the same order with the same names: `20261118063813_AddedMeetingReplies` (`Reply`, default 0, and `RepliedAtUtc`) and `20261118063819_AddedMeetingIdToNotifications` (the nullable `MeetingId`). Their `Up` and `Down` are the same operations as before; they had no hand edits. They now come after `main`'s `MadeEmailCodesOnePerPurpose`, `has-pending-model-changes` reports none, and `MigrationTests` (every migration both ways) passes.
+  - **`Notification.HasFixedTitle`** covers `AppointmentBooked` to `MeetingDeclined`, the monitoring kinds and `IsNoteDeletion`. No stored number collides: `MeetingDeclined = 7` sits in the calendar kinds' range, `main`'s note deletion kinds are 18 to 21, and `MeetingReply` is a new enum.
+  - **`NotificationResponse`** keeps `main`'s `NoteDeletionRequestId` then adds `MeetingId`, both nullable and last; the mapper passes them in that order, and `schema.d.ts` has both.
+  - **`NotificationBell`** keeps `main`'s note deletion link and icons, and adds `&meeting=` and the decline's icon.
+  - **Documents:** both sides' text kept; this PR's version entries renumbered after `main`'s (data inventory 0.11, DPIA 0.13, privacy notice 0.6, rights procedure 0.6, governance README 0.5).
 
 ### Remaining risks after the follow-up
 

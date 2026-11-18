@@ -24,4 +24,19 @@ public sealed class PatientProcedureNoteResponse
 
     /// <summary>Whether the signed-in user can edit it now: only its author, while the procedure's notes can change.</summary>
     public bool CanEdit { get; set; }
+
+    /// <summary>
+    /// Whether an admin can delete it now: while the patient's record can change (not restricted or anonymised). Only
+    /// admins can delete notes, so pages offer it only to them.
+    /// </summary>
+    public bool CanDelete { get; set; }
+
+    /// <summary>
+    /// Whether a member of staff can ask an admin to delete it now: while the patient's record can change, and no request
+    /// for it is waiting already.
+    /// </summary>
+    public bool CanRequestDeletion { get; set; }
+
+    /// <summary>The request to delete it that's waiting for an admin, if any (shown as "Deletion requested").</summary>
+    public Guid? DeletionRequestId { get; set; }
 }

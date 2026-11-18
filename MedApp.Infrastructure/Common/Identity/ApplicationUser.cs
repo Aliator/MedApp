@@ -1,3 +1,4 @@
+using MedApp.Domain.Authentication;
 using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Infrastructure.Common.Identity;
@@ -27,4 +28,18 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     /// ever. A complete sign-in sets it back to 0.
     /// </summary>
     public int TwoFactorLockouts { get; set; }
+
+    /// <summary>
+    /// How the account gives its second factor while <c>TwoFactorEnabled</c> is on: an authenticator app or codes by
+    /// email; <see cref="Domain.Authentication.TwoFactorMethod.None"/> while it's off. Read it through
+    /// <see cref="EffectiveTwoFactorMethod"/>, which treats an account with two-factor on and no method recorded as using
+    /// the app (as every such account did before codes by email).
+    /// </summary>
+    public TwoFactorMethod TwoFactorMethod { get; set; }
+
+    /// <summary>The method in use: none while two-factor is off, otherwise email only when recorded, else the app.</summary>
+    public TwoFactorMethod EffectiveTwoFactorMethod =>
+        !TwoFactorEnabled ? TwoFactorMethod.None
+        : TwoFactorMethod == TwoFactorMethod.Email ? TwoFactorMethod.Email
+        : TwoFactorMethod.Authenticator;
 }

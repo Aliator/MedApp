@@ -47,7 +47,7 @@ public sealed class EmailHandlersTests
     }
 
     private ChangeMyEmailHandler ChangeHandler(bool canSend = true) =>
-        new(_emails.Object, _users.Object, _twoFactor.Object, Availability(canSend), _sender.Object, Links(), _notices.Object, _events.Object, _attempts.Object);
+        new(_emails.Object, _users.Object, _twoFactor.Object, Availability(canSend), _sender.Object, Links(), _notices.Object, _events.Object, _attempts.Object, new Mock<MedApp.Application.Authentication.TwoFactor.Common.IEmailCodeService>().Object);
 
     [Test]
     public async Task GetMyEmail_ReturnsTheAddresses()
@@ -350,7 +350,7 @@ public sealed class EmailHandlersTests
     // RemoveUserEmail (admin)
 
     private MedApp.Application.Authentication.Emails.Commands.RemoveUserEmail.RemoveUserEmailHandler RemoveUserHandler(Mock<IIdentityReadService> read) =>
-        new(read.Object, _emails.Object, _notices.Object, _events.Object);
+        new(read.Object, _emails.Object, _twoFactor.Object, _notices.Object, _events.Object);
 
     [Test]
     public async Task RemoveUserEmail_RemovesItRecordsTheAdminAndTellsTheAddress()

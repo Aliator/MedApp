@@ -34,4 +34,10 @@ public enum SecurityEventKind
 
     /// <summary>An admin changed whether admin accounts must use two-factor authentication.</summary>
     TwoFactorRequirementChanged,
+
+    /// <summary>Two-factor authentication was turned on with codes by email.</summary>
+    EmailCodesEnabled,
+
+    /// <summary>Two-factor authentication with codes by email was turned off.</summary>
+    EmailCodesDisabled,
 }

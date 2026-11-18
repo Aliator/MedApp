@@ -85,6 +85,68 @@ public sealed class ParallelCodeTests : IntegrationTest
     }
 
     [Test]
+    public async Task EmailCodes_OneChallenge_ThirtyWrongCodesAtOnce_AtMostFiveAreCheckedAndTheLockoutLandsOnce()
+    {
+        var staff = await CreateStaffAsync(UserRole);
+        var address = NewAddress();
+        await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
+        var client = NewClient();
+        var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
+        var wrong = EmailedCodeTo(address) == WrongCode ? "111111" : WrongCode;
+
+        var responses = await AllAtOnceAsync(() =>
+            client.PostAsJsonAsync("/api/auth/login/two-factor", new LoginTwoFactorRequest(challenge.Challenge, wrong, null)));
+
+        // As for an authenticator code: the challenge's five attempts are reserved before any code is checked.
+        responses.Select(r => r.StatusCode).Should().OnlyContain(s => s == HttpStatusCode.Unauthorized || s == (HttpStatusCode)423);
+        var codes = await Task.WhenAll(responses.Select(async r => (r.StatusCode, Code: await ProblemCodeAsync(r))));
+        codes.Count(c => c.StatusCode == HttpStatusCode.Unauthorized && c.Code is null).Should().Be(4);
+        var account = await AccountAsync(staff.UserId);
+        account.LockoutEnd.Should().BeAfter(Api.Clock.GetUtcNow());
+        account.TwoFactorLockouts.Should().Be(1);
+        Api.Emails.To(address).Should().ContainSingle(m => m.Subject == "Wrong sign-in codes locked your MedApp account");
+        await ShouldBeSignedInAsync(client, false);
+    }
+
+    [Test]
+    public async Task EmailCodes_OneChallenge_ThirtyRightCodesAtOnce_SignInOnce()
+    {
+        var staff = await CreateStaffAsync(UserRole);
+        var address = NewAddress();
+        await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
+        var challenge = await PasswordStepAsync(NewClient(), staff.Username, staff.Password);
+        var code = EmailedCodeTo(address);
+
+        var responses = await AllAtOnceAsync(() =>
+            NewClient().PostAsJsonAsync("/api/auth/login/two-factor", new LoginTwoFactorRequest(challenge.Challenge, code, null)));
+
+        responses.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Select(r => r.StatusCode).Should().OnlyContain(s => s == HttpStatusCode.OK || s == HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task EmailCodes_ThirtyResendsAtOnce_SendOneEmail()
+    {
+        var staff = await CreateStaffAsync(UserRole);
+        var address = NewAddress();
+        await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
+        var client = NewClient();
+        var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
+        var before = CodeEmailsTo(address);
+        Api.Clock.Advance(MedApp.Domain.Authentication.EmailCode.ResendInterval);
+
+        var responses = await AllAtOnceAsync(() =>
+            client.PostAsJsonAsync("/api/auth/login/two-factor/resend", new ResendSignInCodeRequest(challenge.Challenge)));
+
+        responses.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Select(r => r.StatusCode).Should().OnlyContain(s => s == HttpStatusCode.OK || s == HttpStatusCode.TooManyRequests);
+        CodeEmailsTo(address).Should().Be(before + 1);
+        // And the one emailed is the one that works.
+        await (await client.PostAsJsonAsync("/api/auth/login/two-factor", new LoginTwoFactorRequest(challenge.Challenge, EmailedCodeTo(address), null)))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task NewRecoveryCodes_ThirtyWrongCodesAtOnce_AreLimitedPerAccount()
     {
         // The real per-account limit (10 in 15 minutes); the lockout out of reach, so the limit alone decides.

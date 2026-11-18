@@ -7,11 +7,19 @@ import {Spinner} from '@astryxdesign/core/Spinner';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {useQueryClient} from '@tanstack/react-query';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
-import {useBeginAuthenticatorSetup, useEnableTwoFactor, type AuthenticatorSetup} from '../../api/account';
+import {
+  twoFactorStatusQuery,
+  useBeginAuthenticatorSetup,
+  useEnableTwoFactor,
+  useSendTwoFactorEmailCode,
+  type AuthenticatorSetup,
+} from '../../api/account';
 import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {OneTimeCodeField} from '../forms/OneTimeCodeField';
 import {AppIcon} from '../shared/icons';
+import {EmailMeACode} from './EmailMeACode';
 import {RecoveryCodes} from './RecoveryCodes';
 
 /** How big the QR code is drawn, in pixels: big enough for a phone's camera across a desk. */
@@ -69,24 +77,41 @@ export interface TwoFactorSetupProps {
   onCancel?: () => void;
   /** Two-factor has just turned on (the recovery codes are showing). */
   onEnabled?: () => void;
+  /**
+   * The account signs in with codes by email now, so switching to the app must also prove that factor: a code emailed
+   * to it ("Email me a code", after the password), or a recovery code.
+   */
+  switchingFromEmail?: boolean;
 }
 
-/** The fields turning it on asks for, whose 400 messages show on them. */
+/**
+ * The fields turning it on shows, whose 400 messages show on them. The current code's field shows only while switching
+ * from codes by email; otherwise its message goes in the banner.
+ */
+const PASSWORD_AND_CODES = ['password', 'code', 'currentCode'];
 const PASSWORD_AND_CODE = ['password', 'code'];
+
+/** Why switching asks for a code from the email too. */
+export const PROVE_CURRENT =
+  "You sign in with codes by email now, so we also need a code we email you (or one of your recovery codes) to check it's you before the app replaces them.";
 
 /**
  * Setting up two-factor authentication with an authenticator app, from start to finish: it asks the API for a new key
  * as it opens, shows it as a QR code to scan and as text to type, then turns two-factor on with the account's password
  * (so a session alone can't) and a code from the app, and shows the recovery codes (`RecoveryCodes`) once, until
  * `onDone`. A 400 shows on its field; a 409 (already on), a locked account (423) or too many tries (429) shows in the
- * API's words. Used by Account Settings' Security page and by `/set-up-two-factor`, where an admin is held until
- * they've set it up. Put it in a card; it lays out its own steps.
+ * API's words. Used by Account Settings' Security page (also to switch from codes by email to an app: the API allows
+ * this set-up while codes by email are on, and two-factor stays on throughout) and by `/set-up-two-factor`, where an
+ * admin is held until they've set it up. Put it in a card; it lays out its own steps.
  */
-export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled}: TwoFactorSetupProps) {
+export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled, switchingFromEmail = false}: TwoFactorSetupProps) {
   const begin = useBeginAuthenticatorSetup();
   const enable = useEnableTwoFactor();
+  const send = useSendTwoFactorEmailCode();
+  const queryClient = useQueryClient();
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [currentCode, setCurrentCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
   const [setup, setSetup] = useState<AuthenticatorSetup | null>(null);
 
@@ -104,15 +129,23 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   const turnOn = (event: FormEvent) => {
     event.preventDefault();
     enable.mutate(
-      {password, code},
+      {password, code, ...(switchingFromEmail ? {currentCode} : {})},
       {
         onSuccess: (recoveryCodes) => {
           setPassword('');
           setCode('');
+          setCurrentCode('');
+          send.reset();
           // The key is no longer needed: from here, only the codes show.
           setSetup(null);
           setCodes(recoveryCodes);
           onEnabled?.();
+        },
+        // A 400 on the current code: perhaps asked for without its field showing, as the status we had is out of date
+        // (codes by email turned on in another tab), so load it again, and the field appears if it's needed.
+        onError: (error) => {
+          if (error instanceof ApiValidationError && error.errors.fields.currentCode)
+            void queryClient.invalidateQueries({queryKey: twoFactorStatusQuery.queryKey});
         },
       },
     );
@@ -155,7 +188,8 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   }
 
   const validation = enable.error instanceof ApiValidationError ? enable.error.errors : null;
-  const other = otherMessages(validation, PASSWORD_AND_CODE);
+  const sendErrors = send.error instanceof ApiValidationError ? send.error.errors : null;
+  const other = otherMessages(validation, switchingFromEmail ? PASSWORD_AND_CODES : PASSWORD_AND_CODE);
   const enableProblem = enable.isError && !validation
     ? refusalMessage(enable.error, 'Two-factor authentication could not be turned on. Please try again.')
     : other.length > 0
@@ -186,8 +220,21 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           onChange={setPassword}
           autoComplete="current-password"
           isRequired
-          status={fieldStatus(validation, 'password')}
+          status={fieldStatus(validation, 'password') ?? fieldStatus(sendErrors, 'password')}
         />
+        {switchingFromEmail && (
+          <>
+            <Text type="body">{PROVE_CURRENT}</Text>
+            <EmailMeACode send={send} password={password} />
+            <OneTimeCodeField
+              kind="either"
+              label="Code from the email, or a recovery code"
+              value={currentCode}
+              onChange={setCurrentCode}
+              status={fieldStatus(validation, 'currentCode')}
+            />
+          </>
+        )}
         <OneTimeCodeField value={code} onChange={setCode} status={fieldStatus(validation, 'code')} />
         <HStack gap={2} hAlign="end">
           {onCancel && <Button label="Cancel" variant="secondary" isDisabled={enable.isPending} onClick={onCancel} />}

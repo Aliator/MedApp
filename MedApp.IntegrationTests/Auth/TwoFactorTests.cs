@@ -52,7 +52,7 @@ public sealed class TwoFactorTests : IntegrationTest
         codes.RecoveryCodes.Should().HaveCount(10).And.OnlyHaveUniqueItems();
 
         var status = await (await staff.Client.GetAsync("/api/auth/me/two-factor")).ReadAsAsync<TwoFactorStatusResponse>();
-        status.Should().Be(new TwoFactorStatusResponse(true, 10, false));
+        status.Should().Be(new TwoFactorStatusResponse(true, 10, false, "Authenticator", false, "NoConfirmedAddress"));
         // Setting up another app while it's on is refused, so the working one can't be replaced silently.
         (await staff.Client.PostAsync("/api/auth/me/two-factor/authenticator", null)).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }

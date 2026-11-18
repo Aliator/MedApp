@@ -30,7 +30,7 @@ import {useCurrentUser, useLogout} from '../../auth/auth';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
 import {AppIcon} from '../shared/icons';
-import {NavRail, type NavRailEntry} from './NavRail';
+import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
@@ -168,13 +168,43 @@ const BRIDGE_Z_INDEX = 1000;
 /** How long the pointer rests on a row's menu button before the menu opens (so passing over it doesn't). */
 const MENU_OPEN_DELAY_MS = 150;
 /** How long the menu stays after the pointer leaves the button and the menu, so it can cross between them. */
-const MENU_CLOSE_DELAY_MS = 200;
+const MENU_CLOSE_DELAY_MS = 400;
+/** How far the strip across the gap to an open menu reaches above and below the button and the menu. */
+const BRIDGE_MARGIN_PX = 8;
+/** How far the strip reaches into the menu, so it meets the menu wherever the menu settles. */
+const BRIDGE_OVERLAP_PX = 24;
+
+/**
+ * A press that pins a menu the pointer resting opened doesn't go through the menu's own press handling (which would
+ * close it). Without that, the browser's light dismiss of the menu (a `popover="auto"`) takes the release over the
+ * button as a press outside and closes it. So, as the menu does for its own presses, the button is made the menu's
+ * invoker until just after the release, when light dismiss has run; the menu's click capture (on the button) stops
+ * that attribute toggling the menu on the click that follows.
+ */
+function holdInvokerThroughPress(control: HTMLElement) {
+  const menuId = control.getAttribute('aria-controls');
+  const doc = control.ownerDocument;
+  const popoverId = menuId ? doc.getElementById(menuId)?.closest('[popover]')?.id : undefined;
+  if (popoverId) {
+    control.setAttribute('popovertarget', popoverId);
+    const onPressEnd = () => {
+      doc.removeEventListener('pointerup', onPressEnd, true);
+      doc.removeEventListener('pointercancel', onPressEnd, true);
+      // Light dismiss runs as the release's default action, after its listeners.
+      window.setTimeout(() => control.removeAttribute('popovertarget'), 0);
+    };
+    doc.addEventListener('pointerup', onPressEnd, true);
+    doc.addEventListener('pointercancel', onPressEnd, true);
+  }
+}
 
 /**
  * A row's menu, behind one button at its end: its half views, then anything of its own (a pin, or a section's
- * show and hide). It opens when the pointer rests on the button (or from the keyboard), and closes once the pointer
- * has left the button and the menu. Like the rest of a row's controls, the button shows while the row is hovered or
- * focused (and while its menu is open), and always in the folded nav's flyouts. No tooltip: its icon says what it is.
+ * show and hide). It opens when the pointer rests on the button, and closes once the pointer has left the button and
+ * the menu. A click on the button (or the keyboard) pins it instead: it stays open, holding a folded nav's row out
+ * with it, until a second click, Escape, a click elsewhere or an item chosen closes it. Like the rest of a row's
+ * controls, the button shows while the row is hovered or focused (and while its menu is open), and always in the
+ * folded nav's flyouts. No tooltip: its icon says what it is.
  */
 function RowMenu({
   label,
@@ -191,6 +221,25 @@ function RowMenu({
   const isActive = useContext(ActiveRowsContext)(href);
   const {mode} = useColorMode();
   const [isOpen, setIsOpen] = useState(false);
+  // Opened with a click (or the keyboard), not just by the pointer resting on the button: it stays open whatever the
+  // pointer does, until it's closed (a second click, Escape, a click elsewhere, or an item chosen), and it holds a
+  // folded nav's row out with it.
+  const [isPinned, setIsPinned] = useState(false);
+  // Whether the menu reported opening during a handler: only a press, click or key that really opened it pins it
+  // (the menu ignores some, such as a right-click, and spends the click after a press that closed it).
+  const didOpen = useRef(false);
+  const openPinned = (open: () => void) => {
+    didOpen.current = false;
+    open();
+    if (didOpen.current) setIsPinned(true);
+  };
+  const holdFlyout = useContext(FlyoutHoldContext);
+  const isHolding = isOpen && isPinned;
+  useEffect(() => {
+    if (!holdFlyout || !isHolding) return;
+    holdFlyout(true);
+    return () => holdFlyout(false);
+  }, [holdFlyout, isHolding]);
   // The gap between the button and its open menu (the menu sits a little off the nav's edge), in the window's
   // coordinates: an invisible strip covers it while the menu is open (below).
   const [bridge, setBridge] = useState<Bridge | null>(null);
@@ -208,6 +257,7 @@ function RowMenu({
     if (!isOpen) return;
     let frame = 0;
     let tries = 0;
+    let isCancelled = false;
     const place = () => {
       const menu = triggerId.current && document.querySelector(`[aria-labelledby="${CSS.escape(triggerId.current)}"]`);
       const button = triggerId.current ? document.getElementById(triggerId.current) : null;
@@ -230,13 +280,26 @@ function RowMenu({
           const dx = edge + (navRight - rowRight) - box.left;
           const dy = row.getBoundingClientRect().top - box.top;
           panel.style.translate = `${dx}px ${dy}px`;
-          // Where the gap is once the menu has moved: from the button's end to the menu's start, as tall as both.
-          frame = requestAnimationFrame(() => {
+          // Where the gap is once the menu has moved: from the button's end into the menu (the menu is in the
+          // browser's top layer, so the part under it never takes the pointer), and a little above and below both.
+          // Measured again once the menu has settled: it slides into place, and a strip measured mid-way stopped
+          // short of it, leaving a dead zone that closed the menu under a slow pointer.
+          const measure = () => {
+            if (isCancelled) return;
             const from = button!.getBoundingClientRect();
             const to = surface.getBoundingClientRect();
-            const top = Math.min(from.top, to.top);
-            const width = to.left - from.right;
-            setBridge(width > 0 ? {left: from.right, top, width, height: Math.max(from.bottom, to.bottom) - top} : null);
+            const top = Math.min(from.top, to.top) - BRIDGE_MARGIN_PX;
+            const bottom = Math.max(from.bottom, to.bottom) + BRIDGE_MARGIN_PX;
+            setBridge(to.left > from.right ? {left: from.right, top, width: to.left + BRIDGE_OVERLAP_PX - from.right, height: bottom - top} : null);
+          };
+          frame = requestAnimationFrame(() => {
+            measure();
+            // Only animations that end by themselves: an endless one would hold the second measurement back for good.
+            const settling = (typeof surface.getAnimations === 'function' ? surface.getAnimations({subtree: true}) : []).filter((animation) => {
+              const end = animation.effect?.getComputedTiming().endTime;
+              return typeof end === 'number' && Number.isFinite(end);
+            });
+            if (settling.length > 0) void Promise.allSettled(settling.map((animation) => animation.finished)).then(measure);
           });
           return;
         }
@@ -245,7 +308,10 @@ function RowMenu({
       if (++tries < 5) frame = requestAnimationFrame(place);
     };
     place();
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [isOpen, mode]);
 
   const halfViewItems = useHalfViewItems(label, href);
@@ -261,7 +327,10 @@ function RowMenu({
     <HStack
       gap={0}
       onMouseEnter={() => setSoon(true, MENU_OPEN_DELAY_MS)}
-      onMouseLeave={() => setSoon(false, MENU_CLOSE_DELAY_MS)}
+      // A pinned menu stays when the pointer leaves.
+      onMouseLeave={() => {
+        if (!isPinned) setSoon(false, MENU_CLOSE_DELAY_MS);
+      }}
       style={shownFor(isActive || isOpen)}>
       {/* The pointer crossing from the button to the menu crosses a gap that's part of neither, which closed the menu
           (and a folded nav's row brought out, and the row's buttons). While the menu is open, an invisible strip
@@ -290,9 +359,13 @@ function RowMenu({
         placement="end"
         alignment="start"
         isMenuOpen={isOpen}
+        // Closed by the menu itself (a press on its pinned button, Escape, a click elsewhere, an item chosen): let go.
+        // Opening isn't taken as pinning here, as the menu reports opening when the pointer resting opened it too.
         onOpenChange={(open) => {
           window.clearTimeout(timer.current);
+          didOpen.current = open;
           setIsOpen(open);
+          if (!open) setIsPinned(false);
         }}
         renderTrigger={(trigger) => {
           triggerId.current = trigger.id;
@@ -302,9 +375,23 @@ function RowMenu({
               label={`${label} options`}
               icon={<Icon icon={AppIcon.Menu} />}
               variant="ghost"
-              // Already open from the pointer resting on it: a press leaves it open, rather than closing it.
-              onPointerDown={(event) => !isOpen && trigger.onPointerDown(event)}
-              onClick={(event) => !isOpen && trigger.onClick(event)}
+              // Closed, a press opens it pinned. Open from the pointer resting on it, a press pins it (rather than closing
+              // it). Pinned, a press closes it, through the menu's own press handling (which spends the click after).
+              onPointerDown={(event) => {
+                if (!isOpen) openPinned(() => trigger.onPointerDown(event));
+                else if (isPinned) trigger.onPointerDown(event);
+                else holdInvokerThroughPress(event.currentTarget);
+              }}
+              // A click that isn't a press's (Enter or Space on the button, or a screen reader's) does the same.
+              onClick={(event) => {
+                if (!isOpen) openPinned(() => trigger.onClick(event));
+                else if (!isPinned) {
+                  window.clearTimeout(timer.current);
+                  setIsPinned(true);
+                } else trigger.onClick(event);
+              }}
+              // Opened from the keyboard, it's pinned too.
+              onKeyDown={(event) => (isOpen ? trigger.onKeyDown(event) : openPinned(() => trigger.onKeyDown(event)))}
             />
           );
         }}

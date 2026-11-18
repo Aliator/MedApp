@@ -7,6 +7,7 @@ using Moq;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.Repositories;
 
 namespace MedApp.UnitTests.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
 
@@ -46,6 +47,29 @@ public sealed class DeletePatientProcedureHandlerTests : ProcedureHandlerTestBas
         Repository.Verify(r => r.DeleteAsync(procedure, It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), cts.Token), Times.Once);
         SavedAudit.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.Deleted && e.UserId == Admin.UserId);
         Attachments.Verify(a => a.CountForProcedureAsync(procedure.Id, cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_RequestsToDeleteItsNotesWaiting_ClosesThemUndecidedByTheAdmin()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.Cancelled));
+        var waiting = procedure.RequestDeletion(procedure.AddNote());
+        var requests = new Mock<INoteDeletionRequestRepository>();
+        requests.Setup(r => r.GetPendingForProcedureForUpdateAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync([waiting]);
+        Fixture.Inject(requests.Object);
+        using var cts = new CancellationTokenSource();
+
+        await Handler.Handle(new DeletePatientProcedureCommand(procedure.Id, Admin), cts.Token);
+
+        waiting.Should().BeEquivalentTo(new
+        {
+            Status = NoteDeletionRequestStatus.Closed,
+            DecidedByUserId = (Guid?)Admin.UserId,
+            DecidedByUsername = Admin.Username,
+            DecidedAtUtc = (DateTime?)Now
+        });
+        requests.Verify(r => r.GetPendingForProcedureForUpdateAsync(procedure.Id, cts.Token), Times.Once);
+        requests.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never, "the deletion's save saves them");
     }
 
     [TestCase(1, "This procedure has 1 file attached*")]

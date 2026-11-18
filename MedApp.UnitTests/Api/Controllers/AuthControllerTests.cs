@@ -103,6 +103,21 @@ public sealed class AuthControllerTests
     }
 
     [Test]
+    public async Task Login_EmailCodesAccount_SaysWhereTheCodeWentWithoutACookie()
+    {
+        var sent = new EmailCodeSentResponse("s•••@example.test", ExpiresAtUtc, 60, 3);
+        var mediator = new RecordingMediator(_ =>
+            LoginOutcome.TwoFactorRequired(TwoFactorChallenge, ExpiresAtUtc, MedApp.Domain.Authentication.TwoFactorMethod.Email, sent));
+        var controller = Controller(mediator);
+
+        var result = await controller.Login(new LoginRequest(Username, Password));
+
+        result.Should().BeOfType<AcceptedResult>().Which.Value.Should()
+            .Be(new TwoFactorChallengeResponse(TwoFactorChallenge, ExpiresAtUtc, "Email", sent));
+        _cookies.Verify(c => c.AppendSessionCookie(It.IsAny<HttpResponse>(), It.IsAny<LoginResult>()), Times.Never);
+    }
+
+    [Test]
     public async Task CreateUser_WithAnEmail_SendsItOn()
     {
         var mediator = new RecordingMediator(_ => CreateUserResult.Created(Password));

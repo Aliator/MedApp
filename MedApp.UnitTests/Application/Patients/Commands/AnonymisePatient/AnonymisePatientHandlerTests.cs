@@ -129,7 +129,10 @@ public sealed class AnonymisePatientHandlerTests
                 new Appointment { Id = Guid.NewGuid(), PatientId = record.Patient.Id, Status = AppointmentStatus.Requested }
             ],
             AppointmentHistory = record.AppointmentHistory,
-            Notifications = record.Notifications
+            Notifications = record.Notifications,
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = []
         });
 
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);

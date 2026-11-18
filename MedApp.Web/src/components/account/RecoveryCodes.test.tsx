@@ -44,6 +44,18 @@ describe('RecoveryCodes', () => {
     expect(downloads.revoke).toHaveBeenCalledWith('blob:synthetic/1');
   });
 
+  it('advises on codes by email for an account that uses them, not on an app', async () => {
+    const downloads = stubDownloads();
+    const {user} = renderWithApp(
+      <RecoveryCodes codes={recoveryCodes} username="test-admin" method="email" announcement="Codes by email are on." />,
+    );
+
+    expect(await screen.findByText(/If you can't get MedApp's emails/)).toBeInTheDocument();
+    expect(screen.queryByText(/authenticator app/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Download codes'}));
+    expect(await downloads.blobs[0].text()).toContain('instead of a code MedApp emails you');
+  });
+
   it('writes the file with who they are for, how they work, and each code on its own line', () => {
     expect(recoveryCodesText(['one', 'two'], 'test-admin')).toBe(
       'MedApp recovery codes for test-admin\n' +

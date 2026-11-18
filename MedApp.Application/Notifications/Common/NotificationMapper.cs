@@ -19,6 +19,7 @@ public static class NotificationMapper
         notification.ReadAtUtc is not null,
         notification.AppointmentId,
         notification.CalendarDate,
+        notification.NoteDeletionRequestId,
         notification.MeetingId);
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>

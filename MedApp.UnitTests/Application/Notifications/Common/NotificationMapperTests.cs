@@ -97,6 +97,36 @@ public sealed class NotificationMapperTests
     private static readonly Guid MeetingId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
 
     [Test]
+    public void ToResponse_NoteDeletionRequested_CarriesTheRequestAndProcedure()
+    {
+        var requestId = Guid.NewGuid();
+        var notification = new Notification
+        {
+            Id = NotificationId,
+            UserId = UserId,
+            Kind = NotificationKind.NoteDeletionRequested,
+            Title = "Note deletion requested",
+            Message = "test.staff asked to delete a note on a procedure.",
+            ProcedureId = ProcedureId,
+            NoteDeletionRequestId = requestId
+        };
+
+        NotificationMapper.ToResponse(notification).Should().BeEquivalentTo(new
+        {
+            Kind = "NoteDeletionRequested",
+            ProcedureId = (Guid?)ProcedureId,
+            NoteDeletionRequestId = (Guid?)requestId,
+            AppointmentId = (Guid?)null
+        });
+    }
+
+    [Test]
+    public void ToResponse_ProcedureNotification_HasNoCalendarDateOrRequest()
+    {
+        NotificationMapper.ToResponse(CreateNotification()).NoteDeletionRequestId.Should().BeNull();
+    }
+
+    [Test]
     public void ToResponse_ProcedureNotification_HasNoCalendarDate()
     {
         NotificationMapper.ToResponse(CreateNotification()).MeetingId.Should().BeNull();

@@ -61,6 +61,10 @@ function renderPane(procedures: OpenProcedure[] = []) {
 const putBodies = async (fetch: ReturnType<typeof mockApi>) =>
   Promise.all(fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === 'PUT').map((r) => r.clone().json()));
 
+/** Whether the writing area's least height is `height` (Astryx sets it as a custom property). */
+const fittedTo = (height: string) =>
+  [...document.querySelectorAll<HTMLElement>('[style]')].some((element) => element.style.getPropertyValue('--x-minHeight') === height);
+
 describe('NotepadPane', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -88,6 +92,37 @@ describe('NotepadPane', () => {
 
     const box = await screen.findByRole('textbox', {name: 'Notepad'});
     await waitFor(() => expect(box.style.getPropertyValue('--x-minHeight')).toBe('192px'));
+  });
+
+  it('fits the writing area to the room in the pane, at least 12rem, and stops watching when it closes', async () => {
+    const watching: {callback: ResizeObserverCallback; disconnect: ReturnType<typeof vi.fn>}[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        disconnect = vi.fn();
+        constructor(callback: ResizeObserverCallback) {
+          watching.push({callback, disconnect: this.disconnect});
+        }
+        observe() {}
+        unobserve() {}
+      },
+    );
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
+    const {unmount} = renderPane();
+
+    await screen.findByRole('textbox', {name: 'Notepad'});
+    expect(watching.length).toBeGreaterThan(0);
+    // jsdom lays nothing out (every height is 0), so the room left is less than the least: 12rem at 16px.
+    act(() => watching.forEach((w) => w.callback([], {} as ResizeObserver)));
+    await waitFor(() =>
+      expect(fittedTo('192px')).toBe(true),
+    );
+    // Measured again with nothing changed: the height stays as it is.
+    act(() => watching.forEach((w) => w.callback([], {} as ResizeObserver)));
+    expect(fittedTo('192px')).toBe(true);
+
+    unmount();
+    expect(watching.every((w) => w.disconnect.mock.calls.length > 0)).toBe(true);
   });
 
   it('has no prompt or explanation in it (removed by the product owner, 17 November 2026)', async () => {

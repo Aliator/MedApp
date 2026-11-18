@@ -123,6 +123,19 @@ describe('describeTimelineEntry', () => {
     });
   });
 
+  it("says a note was deleted: to admins with its reason and the text it had, to staff just that it was", () => {
+    const forAdmin = describeTimelineEntry(
+      entry({action: 'NoteDeleted', reason: 'Synthetic: on the wrong patient.', changes: [{field: 'note', from: 'Prefers **mornings**.', to: null}]}),
+    );
+    expect(forAdmin).toEqual({title: 'Note deleted', detail: 'Reason: Synthetic: on the wrong patient. It read:', noteText: 'Prefers **mornings**.'});
+
+    expect(describeTimelineEntry(entry({action: 'NoteDeleted', reason: null, changes: [{field: 'note', from: null, to: null}]}))).toEqual({
+      title: 'Note deleted',
+      detail: '',
+      noteText: undefined,
+    });
+  });
+
   it.each([
     [{action: 'StageStarted', stageName: 'Consultation'}, 'Started Consultation', ''],
     [{action: 'StageFinished', stageName: 'Consultation'}, 'Finished Consultation', ''],

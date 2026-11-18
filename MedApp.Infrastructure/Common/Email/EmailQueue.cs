@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace MedApp.Infrastructure.Common.Email;
 
 /// <summary>
-/// The app's <see cref="IEmailSender"/>: two queues in memory, notices and links, which <see cref="EmailDispatcher"/>
-/// sends from in the background, notices first. So sending never holds a request up or fails it, and a request whose
+/// The app's <see cref="IEmailSender"/>: two queues in memory, which <see cref="EmailDispatcher"/> sends from in the
+/// background: notices and two-factor codes (someone is waiting for each), then links. So sending never holds a request up or fails it, and a request whose
 /// email goes out takes no longer than one whose doesn't (a password reset request can't be timed to learn whether an
 /// account exists). It's best effort: a full queue drops the message, and messages still waiting when the app stops are
 /// lost; both are logged by category only, never with the address or subject.
@@ -19,17 +19,23 @@ public sealed class EmailQueue : IEmailSender
     private readonly EmailDeliveryOptions _options;
     private readonly ILogger<EmailQueue> _logger;
 
-    public EmailQueue(IOptions<EmailDeliveryOptions> options, ILogger<EmailQueue> logger)
+    public EmailQueue(IOptions<EmailDeliveryOptions> options, ILogger<EmailQueue> logger, TimeProvider? timeProvider = null)
     {
         _options = options.Value;
         _logger = logger;
         _notices = Create(_options.QueueCapacity);
         _links = Create(_options.QueueCapacity);
+        Budget = new EmailBudget(_options.MaxPerHour, timeProvider ?? TimeProvider.System);
     }
 
     public bool CanSend => _options.CanSend;
 
-    /// <summary>Notices waiting, sent before any link.</summary>
+    /// <summary>This copy's hourly allowance, which <see cref="EmailDispatcher"/> takes from as it sends.</summary>
+    public EmailBudget Budget { get; }
+
+    public bool HasRoomFor(EmailCategory category) => CanSend && Budget.HasRoom(category);
+
+    /// <summary>Notices and two-factor codes waiting, sent before any link.</summary>
     public ChannelReader<EmailMessage> Notices => _notices.Reader;
 
     /// <summary>Links waiting.</summary>
@@ -44,7 +50,8 @@ public sealed class EmailQueue : IEmailSender
             return Task.CompletedTask;
         }
 
-        var queue = category == EmailCategory.Notice ? _notices : _links;
+        // Codes are as urgent as notices (someone is waiting to sign in), but keep their own category for the hourly limit.
+        var queue = category == EmailCategory.Link ? _links : _notices;
         if (!queue.Writer.TryWrite(message))
             _logger.LogWarning("Email dropped ({EmailCategory}), as {Capacity} are already waiting to be sent.", category, _options.QueueCapacity);
 

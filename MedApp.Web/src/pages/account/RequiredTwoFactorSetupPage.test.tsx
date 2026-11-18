@@ -2,7 +2,7 @@ import {screen, waitFor} from '@testing-library/react';
 import {whoamiQuery} from '../../auth/auth';
 import {calls, json, mockApi, mustSetUpTwoFactorUser, renderWithApp} from '../../test/render';
 import {authenticatorSetup, recoveryCodes} from '../../test/twoFactor';
-import {RequiredTwoFactorSetupPage} from './RequiredTwoFactorSetupPage';
+import {EMAIL_CODES_NOT_ENOUGH, RequiredTwoFactorSetupPage} from './RequiredTwoFactorSetupPage';
 
 function renderPage(extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
@@ -41,6 +41,26 @@ describe('RequiredTwoFactorSetupPage', () => {
     // Who they are is asked again (going in reloads the account's settings): the cached answer that said they must set
     // it up is gone, so the layout's guard lets them in.
     expect(queryClient.getQueryData(whoamiQuery.queryKey)).toMatchObject({isAuthenticated: true, mustSetUpTwoFactor: false});
+  });
+
+  it('says why an admin who uses codes by email must set up an app too', async () => {
+    renderPage({
+      'GET /api/auth/me/two-factor': () =>
+        json({enabled: true, method: 'Email', recoveryCodesLeft: 10, required: true, canUseEmailCodes: true}),
+    });
+
+    expect(await screen.findByText(EMAIL_CODES_NOT_ENOUGH)).toBeInTheDocument();
+    expect(await screen.findByRole('img', {name: 'QR code for your authenticator app'})).toBeInTheDocument();
+    // Switching proves the current factor too: an emailed code, or a recovery code.
+    expect(await screen.findByLabelText(/code from the email, or a recovery code/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Email me a code'})).toBeInTheDocument();
+  });
+
+  it("doesn't mention codes by email to an admin without two-factor", async () => {
+    renderPage({'GET /api/auth/me/two-factor': () => json({enabled: false, method: 'None', recoveryCodesLeft: 0, required: true})});
+
+    expect(await screen.findByRole('img', {name: 'QR code for your authenticator app'})).toBeInTheDocument();
+    expect(screen.queryByText(EMAIL_CODES_NOT_ENOUGH)).not.toBeInTheDocument();
   });
 
   it('signs out', async () => {

@@ -15,8 +15,12 @@ using MedApp.Application.Authentication.Passwords.Commands.ResetPassword;
 using MedApp.Application.Authentication.Security.Commands.SaveSecuritySettings;
 using MedApp.Application.Authentication.Security.Queries.GetSecuritySettings;
 using MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
+using MedApp.Application.Authentication.Sessions.Commands.ResendSignInCode;
 using MedApp.Application.Authentication.Sessions.Queries.GetAuthFeatures;
 using MedApp.Application.Authentication.TwoFactor.Commands.BeginAuthenticatorSetup;
+using MedApp.Application.Authentication.TwoFactor.Commands.BeginEmailCodesSetup;
+using MedApp.Application.Authentication.TwoFactor.Commands.EnableEmailCodes;
+using MedApp.Application.Authentication.TwoFactor.Commands.SendTwoFactorEmailCode;
 using MedApp.Application.Authentication.TwoFactor.Commands.DisableTwoFactor;
 using MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 using MedApp.Application.Authentication.TwoFactor.Commands.RegenerateRecoveryCodes;
@@ -66,6 +70,62 @@ public sealed class AccountSecurityControllerTests
         mediator.Request.Should().Be(new LoginTwoFactorCommand(TwoFactorChallenge, AuthenticatorCode, null, IpAddress, UserAgent));
         _cookies.Verify(c => c.AppendSessionCookie(controller.Response, session), Times.Once);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(new LoginResponse(SessionId, ExpiresAtUtc));
+    }
+
+    [Test]
+    public async Task ResendSignInCode_SendsTheChallengeOnAndSetsNoCookie()
+    {
+        var sent = new EmailCodeSentResponse("s•••@example.test", ExpiresAtUtc, 60, 2);
+        var mediator = new RecordingMediator(_ => sent);
+
+        var result = await Controller(mediator, new ClaimsPrincipal(new ClaimsIdentity()))
+            .ResendSignInCode(new ResendSignInCodeRequest(TwoFactorChallenge), CancellationToken.None);
+
+        mediator.Request.Should().Be(new ResendSignInCodeCommand(TwoFactorChallenge));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(sent);
+        _cookies.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task EmailCodes_EachActionIsForTheSignedInUserAndSession()
+    {
+        var sent = new EmailCodeSentResponse("s•••@example.test", ExpiresAtUtc, 60, 3);
+        var mediator = new RecordingMediator(request => request switch
+        {
+            EnableEmailCodesCommand or EnableTwoFactorCommand => new RecoveryCodesResponse(["A"]),
+            ChangeMyEmailCommand => new EmailResponse(Email, null),
+            _ => sent,
+        });
+        var controller = Controller(mediator);
+
+        (await controller.BeginEmailCodesSetup(new EmailCodesSetupRequest(Password), CancellationToken.None))
+            .Should().BeOfType<AcceptedResult>().Which.Value.Should().Be(sent);
+        (await controller.EnableEmailCodes(new EmailCodeRequest(AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.SendTwoFactorEmailCode(new SendEmailCodeRequest(Password), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
+        (await controller.EnableTwoFactor(new TwoFactorCodeRequest(Password, AuthenticatorCode, "ABCDE-23456"), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.ChangeMyEmail(new ChangeEmailRequest(Email, Password, "654321"), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
+
+        mediator.Sent.Should().Equal(
+            new BeginEmailCodesSetupCommand(UserId, Password),
+            new EnableEmailCodesCommand(UserId, AuthenticatorCode, SessionId),
+            new SendTwoFactorEmailCodeCommand(UserId, Password),
+            new EnableTwoFactorCommand(UserId, Password, AuthenticatorCode, SessionId, "ABCDE-23456"),
+            new ChangeMyEmailCommand(UserId, Email, Password, "654321"));
+        new EmailCodesSetupRequest(Password).ToString().Should().NotContain(Password);
+        new SendEmailCodeRequest(Password).ToString().Should().NotContain(Password);
+        new TwoFactorCodeRequest(Password, AuthenticatorCode, "ABCDE-23456").ToString().Should().NotContain("ABCDE-23456");
+        new ChangeEmailRequest(Email, Password, "654321").ToString().Should().NotContain("654321");
+        new EmailCodeRequest(AuthenticatorCode).ToString().Should().NotContain(AuthenticatorCode);
+    }
+
+    [Test]
+    public void ResendSignInCode_IsOpenThrottledAndSmall()
+    {
+        var method = typeof(AccountSecurityController).GetMethod(nameof(AccountSecurityController.ResendSignInCode))!;
+
+        method.GetCustomAttributes<AuthorizeAttribute>().Should().BeEmpty();
+        method.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.Should().Be(LoginThrottling.Policy);
+        method.GetCustomAttribute<RequestSizeLimitAttribute>().Should().NotBeNull();
     }
 
     [Test]
@@ -232,6 +292,9 @@ public sealed class AccountSecurityControllerTests
     [TestCase(nameof(AccountSecurityController.EnableTwoFactor))]
     [TestCase(nameof(AccountSecurityController.DisableTwoFactor))]
     [TestCase(nameof(AccountSecurityController.RegenerateRecoveryCodes))]
+    [TestCase(nameof(AccountSecurityController.BeginEmailCodesSetup))]
+    [TestCase(nameof(AccountSecurityController.EnableEmailCodes))]
+    [TestCase(nameof(AccountSecurityController.SendTwoFactorEmailCode))]
     public void EndpointsThatCheckACode_AreThrottledPerAddress(string action) =>
         typeof(AccountSecurityController).GetMethod(action)!.GetCustomAttribute<EnableRateLimitingAttribute>()!
             .PolicyName.Should().Be(LoginThrottling.Policy);
@@ -246,6 +309,9 @@ public sealed class AccountSecurityControllerTests
     [TestCase(nameof(AccountSecurityController.GetMyTwoFactor), "User", true)]
     [TestCase(nameof(AccountSecurityController.EnableTwoFactor), "User", true)]
     [TestCase(nameof(AccountSecurityController.DisableTwoFactor), null, false)]
+    [TestCase(nameof(AccountSecurityController.BeginEmailCodesSetup), "User", true)]
+    [TestCase(nameof(AccountSecurityController.EnableEmailCodes), null, false)]
+    [TestCase(nameof(AccountSecurityController.SendTwoFactorEmailCode), "Admin", true)]
     [TestCase(nameof(AccountSecurityController.ResetUserTwoFactor), "User", false)]
     [TestCase(nameof(AccountSecurityController.ResetUserTwoFactor), "Admin", true)]
     [TestCase(nameof(AccountSecurityController.GetSecuritySettings), "User", false)]

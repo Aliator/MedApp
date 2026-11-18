@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting procedure notes (`feature/note-deletion`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -70,6 +70,7 @@
 | [H-35](#h-35-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
 | [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 | [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-procedure) | A note from the notepad is added to the wrong patient's procedure | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
+| [H-38](#h-38-a-procedures-note-is-deleted-wrongly) | A procedure's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -82,6 +83,8 @@
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
 **The notepad and several notes per procedure (H-37)** is a draft for the CSO too, written with the feature (branch `feature/procedure-notes`), with a draft estimate in the same way: 3 to start, 2 with its confirmation, which is built.
+
+**Deleting procedure notes (H-38)** is a draft for the CSO, written with the feature (branch `feature/note-deletion`): admins delete notes (soft, with a reason), and staff ask them to. Draft estimate: 2 to start, as its controls (admins only, a reason, a confirmation showing the patient and the note, the note kept and recoverable) are built with it.
 
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
@@ -433,7 +436,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **One maintainer** (risk O1).
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
-- **For one member of staff (since `feature/email-2fa`): they can't sign in.** They've lost the phone with their authenticator app, or five wrong codes (or passwords) have locked their account for five minutes, or an admin who must use two-factor hasn't set it up and is held to doing so. A person locked out of a clinical system mid-shift can't record or look up work. **A new cause, for the clinical safety officer to assess.**
+- **For one member of staff (since `feature/email-2fa`): they can't sign in.** They've lost the phone with their authenticator app, or five wrong codes (or passwords) have locked their account for five minutes, or an admin who must use two-factor hasn't set it up and is held to doing so. **Or, with codes by email (`feature/email-2fa-codes`), the emailed code doesn't arrive:** mail delayed or down, the hour's email allowance used up, or the email in the junk folder. A person locked out of a clinical system mid-shift can't record or look up work. **New causes, for the clinical safety officer to assess.**
 - File storage alone can fail while the rest works: H-28.
 - **A hostile file uploaded as an attachment** (branch `feature/file-attachments`): an image whose header claims a huge size (a 1 MB progressive JPEG claiming 24,000 by 24,000 pixels needs over a gigabyte to decode for its thumbnail), a Word file whose table of contents lists hundreds of thousands of entries, or many such uploads at once, could take an API copy past its memory limit, so that the kernel kills it with every request it was serving. Two such uploads could take both copies down. Controlled since the review of #85 (existing controls).
 
@@ -446,7 +449,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - A failed migration stops the rollout and leaves the old version running (ADR-10).
 - Server rendering falls back to rendering in the browser if Node fails (`SsrPages`).
 - Rollback is a revert on `main` (`AGENTS.md`).
-- **For a member of staff locked out of their account** (`feature/email-2fa`): two-factor is optional, and off unless they turn it on; ten one-time recovery codes, shown at set-up with copy and download; an admin can reset someone's two-factor at once, from the Users page (recorded, and the owner is emailed); "Forgot your password?" works by email without an admin; a lockout lasts five minutes; requiring two-factor for admins can't be turned on by an admin who doesn't use it, and a held admin can set it up from the page they're sent to. Deploying organisations should make sure there's always an admin on duty who can reset another's two-factor, and that staff keep their recovery codes (a downtime procedure item, step 6).
+- **For a member of staff locked out of their account** (`feature/email-2fa`): two-factor is optional, and off unless they turn it on; ten one-time recovery codes, shown at set-up with copy and download; an admin can reset someone's two-factor at once, from the Users page (recorded, and the owner is emailed); "Forgot your password?" works by email without an admin; a lockout lasts five minutes; requiring two-factor for admins can't be turned on by an admin who doesn't use it, and a held admin can set it up from the page they're sent to. Deploying organisations should make sure there's always an admin on duty who can reset another's two-factor, and that staff keep their recovery codes (a downtime procedure item, step 6). **For codes by email:** a code that can't be sent now isn't promised (the sign-in says so, and a recovery code still signs in); codes have a share of the hourly email allowance that reset links can't use, so anonymous reset requests can't stop them (`EmailBudget`); a code can be sent again (once a minute, three times a sign-in), and the email says to look in the junk folder; the authenticator app, which needs no email, is offered as the stronger choice.
 - **Hostile files are bounded:** the thumbnail generator reads the image's header first and makes no thumbnail (the upload still succeeds, without a preview) when the source is over 24 megapixels or over 10,000 pixels on either side (`SkiaThumbnailGenerator`); a `.docx` whose ZIP table of contents lists more than 5,000 entries is refused, the count read from the end-of-central-directory record before the archive is opened (`FileTypeSniffer`); at most two thumbnails or Word inspections run at a time per API copy (a `SemaphoreSlim(2)`); and a request is at most 20 MiB.
 
 **Initial risk:** Major, Medium: **3**.
@@ -1411,7 +1414,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The notepad isn't tied to a patient.** It's one per member of staff, open beside every page, so what's in it can be about anyone, and the procedure page open beside it may not be the patient it's about.
 - **Two procedure pages open at once** (a half view), each a possible target.
 - **Several patients' jottings in one notepad,** where all of it is added rather than the part about this patient.
-- **A note can't be deleted** (clinical record integrity): a wrong one stays, visible, until it's marked "entered in error", which isn't built (`docs/todo.md`).
+- **A wrong note stays until an admin deletes it:** staff can't delete notes (clinical record integrity); they ask an admin to, with a reason, and until one decides, the note is visible, marked "Deletion requested". Deleting it wrongly is H-38.
 - **The same words in two patients' jottings** ("obs stable", "bloods sent", "call back"): taking the added text out of the notepad could take out the wrong copy, leaving the other patient's line short and this patient's still there, ready to be added again elsewhere. Found in the review of #110: the first build searched the notepad for the selected text and removed the first copy it found.
 - **The notepad in a half view** (`/notepad` beside a page, branch `feature/notepad-window`) offers the procedure page beside it, so the target is the page in the other half, which may not be the patient the jotting is about. (A separate notepad window, which would have offered procedure pages from other windows out of view, was tried on that branch and removed before merging, by the product owner's decision.)
 
@@ -1432,11 +1435,51 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3** (without the confirmation).
 
 **Further controls:**
-- **Mark a note "entered in error"**, so a note added to the wrong record can be visibly withdrawn without deleting it. Corrective; **planned** (`docs/todo.md`); later.
+- **Delete a note added to the wrong record,** by an admin, with a reason, directly or when a member of staff asks: soft, so it's hidden from the procedure page but kept, with its versions, in the audit, the admins' timeline and the export. Corrective; **built** (`feature/note-deletion`; its own hazard is H-38).
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
 **Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+## H-38: A procedure's note is deleted wrongly
+
+**Description.** An admin deletes a note on a procedure that should have stayed: the wrong note (another note on the same procedure, or the right words on the wrong patient's procedure), or a note that was on the right record and is still clinically needed. They delete it directly, or by approving a member of staff's request to delete it.
+
+**Causes:**
+- **A request names the wrong note.** A member of staff asks for a note to be deleted from the note's own row, but picks the wrong row (two similar notes, "bloods sent" twice), and the admin approves it.
+- **The admin opens the wrong request,** or approves without reading the note or the patient, trusting the requester's reason.
+- **A note looks wrong but isn't:** a note that seems to belong to another patient (a relative mentioned by name, a shared surname) is still about this patient.
+- **Deleting directly,** on the procedure page, picks the wrong note's Delete.
+- **The note changes after the admin reads it:** its author edits it (into the right result, say) after the request was made, or while the admin has the dialog open, and the admin deletes words they never saw.
+- **A note still needed for care** is deleted as "duplicate" or "not relevant", and whoever reads the record next misses it.
+
+**Effect.** A clinical note is hidden from the procedure page, so staff working on the procedure don't see it, and the wrong note may stay where it was.
+
+**Possible harm.** A clinical decision made without information that was in the record (a result, an allergy mentioned in passing, a follow-up agreed with the patient). Considerable.
+
+**Existing controls:**
+- **Only admins delete notes** (`[Authorize(Roles = "Admin")]` on the delete and decision endpoints). Staff can only ask, and the admin decides. Protective; **built**.
+- **A reason is required,** a fixed choice (wrong patient, written in error, duplicate, other) with an optional detail (required for "other"), for a direct delete and for a request; the admin may keep or change the requester's. Protective; **built**.
+- **Only the version the admin read is deleted:** a deletion carries the note's version the admin saw, and a note edited since is refused (409), so they read it again first. The request's dialog says when the note was edited, and warns when that was after the request was made (the reason may be about other words). Protective; **built** (review of #115).
+- **A confirmation before anything is deleted:** the request's dialog shows the note's text as it reads now, the patient as the patient banner shows them (`SURNAME, Forename`, date of birth and age, NHS number), the procedure's title, who asked, when and why, with **Delete note** and **Keep note**. A direct delete asks for the reason in a confirmation dialog that shows the note and the patient as the banner shows them (as the request's does), so the admin checks the patient even with two procedure pages side by side. Each note's buttons are named for their note ("Delete note by s.nurse, 17 Nov 2026, 10:32"). A request's link opens only on its own procedure's page. Protective; **built**.
+- **Deleting is soft:** the note is hidden, not erased. Its row and every version are kept, with who deleted it, when and why; the audit log records the deletion (`NoteDeleted`); admins see it on the patient's timeline, with the text it had and the reason; and the patient's export lists it as deleted. So a wrong deletion can be found and its text recovered. Detective; **built**.
+- **The requester is told the outcome** ("Note deleted" or "Note kept"), so a deletion they didn't expect, or a request still waiting, is noticed. Detective; **built**.
+- **The note's author is told** ("Your note was deleted"), whether it was deleted directly or from someone else's request (unless they deleted it, or asked for it, themselves), so a wrong deletion has a second witness who knows what the note said, and a note on the wrong patient can be added to the right one (H-37's corrective control). Detective; **built** (review of #115).
+- **One request per note at a time,** and a request already decided by another admin shows its outcome instead of the buttons (deciding it again is refused), so two admins can't act on it twice. Protective; **built**.
+- **A restricted or anonymised record refuses deletions and requests** (409), so a record under restriction stays exactly as it is. Protective; **built**.
+- **Transferred:** admins read the note and check the patient before deleting, as for any change to a record.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls:**
+- **Restore a deleted note,** by an admin, with a reason, so a wrong deletion can be undone on the page rather than copied back from the timeline. Corrective; **planned** (`docs/todo.md`); later.
+- **A list of waiting requests,** so none is left undecided once its notification has been read. Protective; **planned** (`docs/todo.md`); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open, draft for the CSO.
 
@@ -1473,3 +1516,5 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.11 | 17 November 2026 | The notepad in a half view, and its explanation removed (branch `feature/notepad-window`): the control "The notepad says it's for jottings, and that anything about a patient belongs in their record" removed by the product owner's decision, with the notepad's prompt, leaving the confirmation as H-37's main control (the staff privacy notice still says what the notepad is for); a new cause of H-37, the notepad in a half view offering the procedure page beside it, with the same confirmation as its control (a separate notepad window was removed before merging, by the product owner's decision). No rating changed. Still a draft, not an issued version | AI coding agent, for review |
 | 0.12 | 17 November 2026 | The Needs booking list renamed Requires Appointment (branch `feature/requires-appointment`, shipped with `feature/notepad-window`) and taken out of the side navigation: H-30 now records, as a cause and in its existing controls, that the list is reached from the Calendar page's "Requires Appointment (N)" link, which shows the count, and its proposed control (a visible count in the side navigation or on Home) stays proposed. No rating changed. Still a draft, not an issued version | AI coding agent, for review |
 | 0.13 | 18 November 2026 | Shorter record banners (branch `feature/warning-banners`): the restricted, disputed and anonymised banners show a label on screen ("Restricted record: changes paused", "Disputed record: <what's disputed>" when it's short, "Anonymised record"), with the whole message over the page on hover, keyboard focus, a click or a tap; screen readers get it as the label's description, and as an alert when it appears. **A change to H-22's control for the CSO to accept:** "Everyone sees why" now means the label on screen and the reason, and what can still be done, on demand (renamed "Everyone sees that the record is restricted, and why on demand"). After the review of #114, the label is also on Edit Procedure and New Procedure, Edit Procedure gives the restriction as its reason, and the booking dialog shows its own refusal again. H-03's disputed banner reworded to match (what's disputed may now be on demand). No rating changed | AI coding agent, for review |
+| 0.14 | 18 November 2026 | Deleting procedure notes (branch `feature/note-deletion`): new draft hazard H-38 (a note deleted wrongly), with its controls (admins only, a reason, a confirmation showing the patient, the procedure and the note, the note kept and in the export and the admins' timeline, the requester told, restricted and anonymised records refused); H-37's "entered in error" further control is now built as admin deletion, and its cause updated. After the review of #115: a new cause (the note edited after the admin read it) with its control (only the version read is deleted), the reason a fixed choice, the author told, and the patient in the direct delete's confirmation. Ratings left for the CSO | AI coding agent, for review |
+| 0.15 | 18 November 2026 | Two-factor codes by email (branch `feature/email-2fa-codes`, after its review): an emailed code that doesn't arrive added to H-10's causes for the CSO, with its controls (codes' own share of the email allowance, no promise of a code that can't be sent, resending, recovery codes and the app) | AI coding agent, for review |

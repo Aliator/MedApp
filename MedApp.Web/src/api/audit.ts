@@ -2,6 +2,7 @@ import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {formatShortDate} from '../utils/dates';
 import {formatFileSize} from '../utils/fileSize';
 import {NO_PROCEDURE} from './attachments';
+import {describeNoteDeletionReason} from './noteDeletion';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -26,6 +27,7 @@ export const AUDIT_ACTIONS = [
   'AttachmentDownloaded',
   'NoteAdded',
   'NoteEdited',
+  'NoteDeleted',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -45,6 +47,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   AttachmentDownloaded: 'File downloaded',
   NoteAdded: 'Note added',
   NoteEdited: 'Note edited',
+  NoteDeleted: 'Note deleted',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -154,6 +157,16 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'NoteAdded':
     case 'NoteEdited':
       return typeof d.version === 'number' ? `Version ${d.version}` : '';
+    // The version deleted and the admin's reason; still never the note's text.
+    // The reason is a choice (by name), with an optional detail: "Version 2: Wrong patient: belongs to the other procedure".
+    case 'NoteDeleted': {
+      const version = typeof d.version === 'number' ? `Version ${d.version}` : '';
+      const reason = describeNoteDeletionReason(
+        typeof d.deletionReason === 'string' ? d.deletionReason : null,
+        typeof d.detail === 'string' ? d.detail : null,
+      );
+      return [version, reason].filter(Boolean).join(': ');
+    }
     default:
       return '';
   }

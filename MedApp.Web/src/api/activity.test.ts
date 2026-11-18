@@ -53,11 +53,19 @@ describe('describeActivity', () => {
   it('says why a sign-in was refused', () => {
     expect(describe_('SignInFailed', {reason: 'LockedOut'})).toBe('Account locked');
     expect(describe_('SignInFailed', {reason: 'InvalidCredentials'})).toBe('Wrong username or password');
-    expect(describe_('SignInFailed', {reason: 'InvalidCode', secondStep: true})).toBe('Wrong authenticator code');
+    expect(describe_('SignInFailed', {reason: 'InvalidCode', secondStep: true})).toBe('Wrong two-factor code');
     expect(describe_('SignInFailed', {reason: 'ChallengeExpired'})).toBe('Code step timed out');
     expect(describe_('SignInFailed', {reason: 'TooManyCodes', secondStep: true})).toBe('Too many codes for the account');
     expect(describe_('SignedIn', {secondStep: 'recoveryCode'})).toBe('With a recovery code');
     expect(describe_('SignedIn', {secondStep: 'authenticator'})).toBe('With an authenticator code');
+    expect(describe_('SignedIn', {secondStep: 'email'})).toBe('With an emailed code');
+    expect(describe_('SignInFailed', {reason: 'InvalidCodeLockedOut', secondStep: true})).toBe('Wrong two-factor code: account locked');
+    expect(describe_('TwoFactorChallenged', {method: 'email'})).toBe('Code emailed');
+    expect(describe_('TwoFactorChallenged', {})).toBe('');
+    expect(describe_('TwoFactorEnabled', {switchedFrom: 'email'})).toBe('Switched from codes by email');
+    expect(describe_('TwoFactorEnabled', {})).toBe('');
+    expect(activityActionLabel('EmailCodesEnabled')).toBe('Codes by email turned on');
+    expect(activityActionLabel('EmailCodesDisabled')).toBe('Codes by email turned off');
     expect(describe_('SignedIn', {})).toBe('');
     expect(describe_('RecoveryCodeUsed', {codesLeft: 9})).toBe('9 left');
     expect(describe_('RecoveryCodeUsed', {})).toBe('');

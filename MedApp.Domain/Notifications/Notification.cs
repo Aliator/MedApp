@@ -26,6 +26,12 @@ public sealed class Notification
     /// <summary>The appointment it's about, if any, for a link to it.</summary>
     public Guid? AppointmentId { get; init; }
 
+    /// <summary>
+    /// The request to delete a procedure's note it's about, if any (<see cref="NotificationKind.NoteDeletionRequested"/>),
+    /// for a link that opens it for an admin to decide.
+    /// </summary>
+    public Guid? NoteDeletionRequestId { get; init; }
+
     /// <summary>The UK date on the calendar it's about, if any (a meeting's day), for a link to the Calendar that day.</summary>
     public DateOnly? CalendarDate { get; init; }
 
@@ -49,9 +55,15 @@ public sealed class Notification
 
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the appointment kinds' "Appointment booked", the meeting
-    /// kinds' "Meeting invitation", the monitoring kinds' "Stage finished"), rather than the procedure's title, so
-    /// anonymising a patient leaves it as it is.
+    /// kinds' "Meeting invitation", the monitoring kinds' "Stage finished", the note deletion kinds' "Note deletion
+    /// requested"), rather than the procedure's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
-        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingDeclined || IsMonitoring(kind);
+        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingDeclined
+            || IsMonitoring(kind)
+            || IsNoteDeletion(kind);
+
+    /// <summary>Whether it's about deleting a procedure's note (a request asked for or decided, or an author told).</summary>
+    public static bool IsNoteDeletion(NotificationKind kind) =>
+        kind is >= NotificationKind.NoteDeletionRequested and <= NotificationKind.AuthorsNoteDeleted;
 }
