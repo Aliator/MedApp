@@ -42,7 +42,8 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.ReferralTriaged
                             || k == NotificationKind.ClinicSessionCancelled
                             || k.ToString().StartsWith("Specimen")
-                            || k == NotificationKind.ScheduledJobFailing));
+                            || k == NotificationKind.ScheduledJobFailing
+                            || k == NotificationKind.MdtOutcomeRecorded));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }
 

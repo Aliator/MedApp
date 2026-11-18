@@ -762,6 +762,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("EndUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsMdt")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
@@ -781,6 +784,9 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<Guid?>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("StartUtc")
                         .HasColumnType("datetime2");
 
@@ -790,6 +796,8 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SpecialtyId");
 
                     b.HasIndex("StartUtc");
 
@@ -1349,6 +1357,110 @@ namespace MedApp.Infrastructure.Migrations
                         .HasDatabaseName("IX_LetterTemplates_SpecialtyId_Name");
 
                     b.ToTable("LetterTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ListedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ListedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ListedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("MeetingCancelledStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("MeetingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("OutcomeAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("OutcomeByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OutcomeByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("WithdrawnAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("WithdrawnByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WithdrawnByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingId");
+
+                    b.HasIndex("PathwayId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("SpecialtyId", "Status");
+
+                    b.ToTable("MdtItems", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItemAttendee", b =>
+                {
+                    b.Property<Guid>("MdtItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("MdtItemId", "StaffUserId");
+
+                    b.ToTable("MdtItemAttendees", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
@@ -3303,6 +3415,14 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("DayTemplate");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Calendar.Meeting", b =>
+                {
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", null)
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Calendar.MeetingAttendee", b =>
                 {
                     b.HasOne("MedApp.Domain.Calendar.Meeting", "Meeting")
@@ -3435,6 +3555,49 @@ namespace MedApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SpecialtyId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.HasOne("MedApp.Domain.Calendar.Meeting", "Meeting")
+                        .WithMany()
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Meeting");
+
+                    b.Navigation("Pathway");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("Specialty");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItemAttendee", b =>
+                {
+                    b.HasOne("MedApp.Domain.Mdt.MdtItem", null)
+                        .WithMany("Attendees")
+                        .HasForeignKey("MdtItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MedApp.Domain.Notepads.Notepad", b =>
@@ -3739,6 +3902,11 @@ namespace MedApp.Infrastructure.Migrations
             modelBuilder.Entity("MedApp.Domain.Letters.Letter", b =>
                 {
                     b.Navigation("Recipients");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Mdt.MdtItem", b =>
+                {
+                    b.Navigation("Attendees");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", b =>

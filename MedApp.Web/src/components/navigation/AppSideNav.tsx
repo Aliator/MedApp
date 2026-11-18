@@ -792,6 +792,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           },
         ]
       : []),
+    // The MDT list (multidisciplinary team meetings), for anyone who can view patients.
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'mdt',
+            label: 'MDT',
+            icon: AppIcon.Mdt,
+            href: '/mdt',
+            isSelected: isAt('/mdt'),
+            isHalfView: isHalfAt('/mdt'),
+            row: (
+              <SideNavItem
+                label="MDT"
+                icon={AppIcon.Mdt}
+                href="/mdt"
+                isSelected={isAt('/mdt')}
+                ref={halfViewRow(isHalfAt('/mdt'))}
+                actions={<RowMenu label="MDT" href="/mdt" />}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'patients',
       label: 'Patients',

@@ -199,6 +199,27 @@ public static class PatientExportMapper
                     StatusAtUtc = m.StatusAtUtc
                 })
                 .ToList(),
+            // Staff by the usernames recorded at the time.
+            MdtItems = record.MdtItems
+                .Select(i => new ExportedMdtItemResponse
+                {
+                    PathwayId = i.PathwayId,
+                    PathwayTitle = i.Pathway?.Title ?? string.Empty,
+                    Specialty = i.Specialty?.Name ?? string.Empty,
+                    Status = i.Status.ToString(),
+                    Question = i.Question,
+                    MeetingStartUtc = i.Meeting?.StartUtc,
+                    MeetingCancelledStartUtc = i.MeetingId is null ? i.MeetingCancelledStartUtc : null,
+                    ListedBy = i.ListedByUsername,
+                    ListedAtUtc = i.ListedAtUtc,
+                    Outcome = i.Outcome,
+                    OutcomeBy = i.OutcomeByUsername,
+                    OutcomeAtUtc = i.OutcomeAtUtc,
+                    Present = i.Attendees.Select(a => a.Username).OrderBy(u => u, StringComparer.OrdinalIgnoreCase).ToList(),
+                    WithdrawnBy = i.WithdrawnByUsername,
+                    WithdrawnAtUtc = i.WithdrawnAtUtc
+                })
+                .ToList(),
             // As the pathways' history: staff by the username recorded at the time.
             AppointmentHistory = record.AppointmentHistory
                 .Select(e => new ExportedAppointmentHistoryEntryResponse

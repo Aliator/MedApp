@@ -44,7 +44,9 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.AttendeeUserIds ?? [],
-            User.ToCalendarActor()), ct);
+            User.ToCalendarActor(),
+            request.IsMdt,
+            request.SpecialtyId), ct);
 
         return Created($"/api/calendar/meetings/{meeting.Id}", meeting);
     }
@@ -68,7 +70,9 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
             request.EndUtc,
             request.AttendeeUserIds ?? [],
             request.ExpectedLastUpdated,
-            User.ToCalendarActor()), ct));
+            User.ToCalendarActor(),
+            request.IsMdt,
+            request.SpecialtyId), ct));
 
     /// <summary>
     /// The signed-in member of staff accepts or declines a meeting they're going to (<c>reply</c>: "Accepted" or

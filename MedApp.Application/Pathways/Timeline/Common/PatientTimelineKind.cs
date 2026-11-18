@@ -62,5 +62,8 @@ public enum PatientTimelineKind
     Letters,
 
     /// <summary>A specimen was taken, sent, received, reported, rejected, lost, entered in error or edited.</summary>
-    Specimens
+    Specimens,
+
+    /// <summary>The pathway was listed for an MDT, deferred, withdrawn, or the team's outcome recorded (never its text).</summary>
+    Mdt
 }

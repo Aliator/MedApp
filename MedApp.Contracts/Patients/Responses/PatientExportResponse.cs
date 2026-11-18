@@ -77,6 +77,12 @@ public sealed class PatientExportResponse
     /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
+
+    /// <summary>
+    /// The patient's pathways put forward for multidisciplinary team meetings (MDTs), oldest listed first: the question
+    /// for the team and, once discussed, its outcome as written and who was present.
+    /// </summary>
+    public List<ExportedMdtItemResponse> MdtItems { get; set; } = [];
 }
 
 /// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>
@@ -196,6 +202,32 @@ public sealed class ExportedSpecimenResponse
     public DateTime? ClosedAtUtc { get; set; }
 
     public string? ClosedBy { get; set; }
+}
+
+/// <summary>A pathway put forward for an MDT, as the export gives it. Staff by username.</summary>
+public sealed class ExportedMdtItemResponse
+{
+    public Guid PathwayId { get; set; }
+    public string PathwayTitle { get; set; } = string.Empty;
+    public string Specialty { get; set; } = string.Empty;
+
+    /// <summary>Listed, Discussed, Deferred or Withdrawn.</summary>
+    public string Status { get; set; } = string.Empty;
+
+    public string Question { get; set; } = string.Empty;
+    public DateTime? MeetingStartUtc { get; set; }
+
+    /// <summary>When its meeting would have been, if that was cancelled.</summary>
+    public DateTime? MeetingCancelledStartUtc { get; set; }
+
+    public string ListedBy { get; set; } = string.Empty;
+    public DateTime ListedAtUtc { get; set; }
+    public string? Outcome { get; set; }
+    public string? OutcomeBy { get; set; }
+    public DateTime? OutcomeAtUtc { get; set; }
+    public List<string> Present { get; set; } = [];
+    public string? WithdrawnBy { get; set; }
+    public DateTime? WithdrawnAtUtc { get; set; }
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>

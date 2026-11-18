@@ -20,6 +20,15 @@ public sealed class Meeting
     /// <summary>The admin who arranged it. No foreign key to the users table, as with other staff IDs.</summary>
     public Guid OrganiserUserId { get; init; }
 
+    /// <summary>
+    /// Whether it's a specialty's multidisciplinary team meeting (an MDT), which pathways can be listed for
+    /// (<c>MdtItem</c>). Its title and notes still never name patients: the list is separate.
+    /// </summary>
+    public bool IsMdt { get; set; }
+
+    /// <summary>The specialty whose MDT it is; set exactly when <see cref="IsMdt"/>.</summary>
+    public Guid? SpecialtyId { get; set; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     public DateTime LastUpdated { get; set; }

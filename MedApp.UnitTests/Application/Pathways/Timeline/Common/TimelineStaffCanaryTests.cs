@@ -16,6 +16,9 @@ using MedApp.Domain.Referrals;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.Application.Specimens.Common;
 using MedApp.Domain.Specimens;
+using MedApp.Application.Mdt.Common;
+using MedApp.Domain.Calendar;
+using MedApp.Domain.Mdt;
 
 namespace MedApp.UnitTests.Application.Pathways.Timeline.Common;
 
@@ -215,8 +218,27 @@ public sealed class TimelineStaffCanaryTests
         branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
         branchChange.ReinstateStage(branching.StageAt(2), Canary);
 
+        // As the MDT handlers: an item listed, deferred, withdrawn and its outcome recorded, with the canary as the
+        // question, the outcome and the meeting's title, none of which the details ever copy.
+        var mdtPathway = CreatePathway(Status.InProgress, title: Canary);
+        var meeting = new Meeting { Id = Guid.NewGuid(), Title = Canary, Notes = Canary, StartUtc = Now, EndUtc = Now.AddHours(1), IsMdt = true, SpecialtyId = Guid.NewGuid() };
+        var later = new Meeting { Id = Guid.NewGuid(), Title = Canary, StartUtc = Now.AddDays(7), EndUtc = Now.AddDays(7).AddHours(1), IsMdt = true, SpecialtyId = meeting.SpecialtyId };
+        var item = new MdtItem
+        {
+            Id = Guid.NewGuid(), PatientId = mdtPathway.PatientId, PathwayId = mdtPathway.Id, Pathway = mdtPathway,
+            MeetingId = meeting.Id, Meeting = meeting, Question = Canary, Outcome = Canary,
+            Attendees = [new MdtItemAttendee { StaffUserId = OtherUserId, Username = OtherUsername }]
+        };
+        var mdt = new[]
+        {
+            MdtAudit.Listed(item, mdtPathway, "Dermatology", meeting, Staff, Now),
+            MdtAudit.Deferred(item, "Dermatology", meeting.Id, meeting.StartUtc, later, Staff, Now),
+            MdtAudit.Withdrawn(item, "Dermatology", Staff, Now),
+            MdtAudit.OutcomeRecorded(item, "Dermatology", Staff, Now),
+        };
+
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
-            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt).ToList();
     }
 
     /// <summary>
@@ -611,5 +633,25 @@ public sealed class TimelineStaffCanaryTests
         staff.SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
         staff.Reason.Should().BeNull();
         admin.Reason.Should().Be(Canary);
+    }
+
+    [Test]
+    public void MdtEntries_NeverHoldTheQuestionOrTheOutcome_AndGiveEveryoneTheMeetingAndWhoWasPresent()
+    {
+        var entries = EntriesHoldingTheCanary()
+            .Where(e => e.Action is Action.MdtListed or Action.MdtDeferred or Action.MdtWithdrawn or Action.MdtOutcomeRecorded)
+            .ToList();
+        entries.Select(e => e.Action).Should().Equal(Action.MdtListed, Action.MdtDeferred, Action.MdtWithdrawn, Action.MdtOutcomeRecorded);
+        entries.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+
+        var outcome = TimelineMapper.ToResponse(new PatientTimelineRow(entries[3], CurrentTitle), isAdmin: false);
+        outcome.Kind.Should().Be(nameof(PatientTimelineKind.Mdt));
+        outcome.SpecialtyName.Should().Be("Dermatology");
+        outcome.MeetingStartUtc.Should().Be(Now);
+        outcome.PresentUsernames.Should().Equal(OtherUsername);
+
+        var deferred = TimelineMapper.ToResponse(new PatientTimelineRow(entries[1], CurrentTitle), isAdmin: false);
+        deferred.PreviousMeetingStartUtc.Should().Be(Now);
+        deferred.MeetingStartUtc.Should().Be(Now.AddDays(7));
     }
 }

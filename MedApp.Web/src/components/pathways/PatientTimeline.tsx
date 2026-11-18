@@ -58,6 +58,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   DueDates: AppIcon.Calendar,
   Details: AppIcon.Edit,
   Files: AppIcon.Attachment,
+  Mdt: AppIcon.Mdt,
   Deleted: AppIcon.Delete,
 };
 
@@ -141,6 +142,10 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'SpecimenDetailsEdited':
       return AppIcon.Edit;
+    case 'MdtWithdrawn':
+      return AppIcon.Withdraw;
+    case 'MdtDeferred':
+      return AppIcon.Calendar;
     case 'Unassigned':
       return AppIcon.Revoke;
     case 'AttachmentDeleted':
