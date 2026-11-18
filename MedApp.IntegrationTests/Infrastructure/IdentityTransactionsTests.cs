@@ -16,7 +16,7 @@ namespace MedApp.IntegrationTests.Infrastructure;
 [TestFixture]
 public sealed class IdentityTransactionsTests : IntegrationTest
 {
-    // Starts with an empty database: no roles and no accounts.
+    // Starts with no accounts, and only the standard roles the migration makes (left out of RoleNamesAsync).
     protected override bool MakesFirstAdmin => false;
 
     private const string RoleA = "IntegrationRoleA";
@@ -117,23 +117,26 @@ public sealed class IdentityTransactionsTests : IntegrationTest
     [Test]
     public async Task FirstAdminSetup_PasswordRefused_LeavesNoRolesBehind()
     {
-        // The roles are made first, in the same transaction, so a refused password must undo them too.
+        // On a database without the Admin role, it's made first, in the same transaction, so a refused password must
+        // undo it too.
+        await RemoveEveryRoleAsync();
         var result = await RunInScopeAsync(services =>
             services.GetRequiredService<FirstAdminSetup>().RunAsync(AdminUsername, "short", CancellationToken.None));
 
         result.Outcome.Should().Be(FirstAdminOutcome.Failed);
-        (await RoleNamesAsync()).Should().BeEmpty();
+        (await AllRoleNamesAsync()).Should().BeEmpty();
         (await UserCountAsync()).Should().Be(0);
     }
 
     [Test]
-    public async Task FirstAdminSetup_NewDatabase_MakesTheRolesAndAnAdminWithBoth()
+    public async Task FirstAdminSetup_NoAdminRole_MakesTheBuiltInOneAndAnAdminWithIt()
     {
+        await RemoveEveryRoleAsync();
         var result = await RunInScopeAsync(services =>
             services.GetRequiredService<FirstAdminSetup>().RunAsync(AdminUsername, AdminPassword, CancellationToken.None));
 
         result.Outcome.Should().Be(FirstAdminOutcome.Created);
-        (await RoleNamesAsync()).Should().BeEquivalentTo([AdminRole, UserRole]);
+        (await AllRoleNamesAsync()).Should().BeEquivalentTo([AdminRole]);
         var client = await SignInAsAdminAsync();
         (await client.GetAsync("/api/auth/users/search")).IsSuccessStatusCode.Should().BeTrue();
     }
@@ -151,9 +154,19 @@ public sealed class IdentityTransactionsTests : IntegrationTest
         (await UserCountAsync()).Should().Be(1);
     }
 
-    private static Task<List<string?>> RoleNamesAsync() =>
+    /// <summary>The roles a test made: every role but the standard ones.</summary>
+    private static async Task<List<string?>> RoleNamesAsync()
+    {
+        var standard = StandardRoles.All.Select(r => r.Name).ToList();
+        return (await AllRoleNamesAsync()).Where(name => !standard.Contains(name!)).ToList();
+    }
+
+    private static Task<List<string?>> AllRoleNamesAsync() =>
         RunInScopeAsync(services =>
             services.GetRequiredService<RoleManager<ApplicationRole>>().Roles.Select(r => r.Name).ToListAsync());
+
+    /// <summary>A database from before roles had permissions, without even the Admin role.</summary>
+    private static Task RemoveEveryRoleAsync() => ExecuteSqlAsync($"DELETE FROM AspNetRoles");
 
     private static Task<int> UserCountAsync() =>
         RunInScopeAsync(services => services.GetRequiredService<UserManager<ApplicationUser>>().Users.CountAsync());
