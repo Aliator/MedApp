@@ -1,73 +1,193 @@
-name: PR Unit Tests & Coverage
+name: CI
+# What runs, and when (AGENTS.md, CI):
+#   - A pull request to main runs a tier, chosen by the `changes` job from the pull request's labels and what it changed:
+#     none (only docs changed, or the `ci:none` label), light (the default: quick checks of the side that changed) or
+#     full (the `ci:full` label: everything). Adding or removing a label starts a run, so a label takes effect at once.
+#   - Every push to main, and a nightly run, get the full suite. It gates nothing (Publish deploys alongside it): it's
+#     how what a light pull request missed is found, and a failure opens or updates one issue (the main-report job).
+# The light tiers are a deliberate choice while MedApp isn't live (docs/todo.md, Testing).
 on:
   pull_request:
     branches: [ main ]
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  schedule:
+    # Nightly, for what changes without a commit: a new advisory, a rebuilt base image, a date a test depends on.
+    - cron: '17 3 * * *'
+# Each job asks for what it needs beyond reading the repository.
 permissions:
   contents: read
-  pull-requests: write
+concurrency:
+  # One run at a time for each pull request, and one for main: a newer push (or label change) cancels the run before it.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
-  # Whether this push needs the build and tests. A push of only docs/ (a review document, say) on top of a commit whose
-  # run of this workflow passed, with nothing merged into the base branch since that run started, needs none: a run
-  # tests the pull request merged into its base, so this one would test exactly what that run did, and no build or
-  # test reads docs/ (the image's build leaves it out too). The jobs that build and test are then skipped, and GitHub
-  # counts a job skipped by its `if` as passing a required check. Anything else runs them all: a new or reopened pull
-  # request, a force push, a previous run that failed, was cancelled or hasn't finished yet, anything merged into the
-  # base since it started, a change outside docs/ (a file moved out of or into docs/ counts by both its names), a push
-  # of 300 files or more (the comparison lists only that many), or this job failing. It compares this push only, not
-  # the whole pull request, which is why paths-ignore can't do it.
+  # What this run does: the tier, and from it which jobs run (.github/scripts/ci-plan.sh has the rules, in one place,
+  # and ci-plan.test.sh their cases). A job that isn't needed is skipped by its `if`, and GitHub counts a job skipped
+  # that way as passing a required check.
+  #   - The tier comes from the whole pull request's changes against its base (not from the last push: a pull request
+  #     whose first push changed .NET and whose second changed the web app still needs both sides checked), and from
+  #     its labels.
+  #   - Then, as before the tiers: an event that changes nothing those jobs test needs no run of them. That's a push of
+  #     only docs/, or a label change, on top of a run of the same commit (the one before, for a push) that passed, ran
+  #     every job this one would, and has had nothing merged into the base branch since it started. A run tests the
+  #     pull request merged into its base, so this one would test exactly what that one did.
+  #   - Anything unsure runs more, not less: a comparison that fails or lists 300 files or more (it lists only that
+  #     many) is the full tier, and if this job fails, every job runs, in full (each job's `if` skips only on a value
+  #     this job set).
   changes:
     runs-on: ubuntu-latest
     permissions:
-      actions: read    # the previous commit's runs of this workflow
-      contents: read   # compare the two commits, and list the base branch's commits since the passing run
+      actions: read    # the previous runs of this workflow, and their jobs
+      contents: read   # check out the scripts, compare commits, and list the base branch's commits since a passing run
     outputs:
-      code: ${{ steps.check.outputs.code }}
+      tier: ${{ steps.plan.outputs.tier }}
+      web: ${{ steps.plan.outputs.web }}
+      web_build: ${{ steps.plan.outputs.web_build }}
+      web_files: ${{ steps.plan.outputs.web_files }}
+      dotnet: ${{ steps.plan.outputs.dotnet }}
+      integration: ${{ steps.plan.outputs.integration }}
+      image: ${{ steps.plan.outputs.image }}
+      e2e: ${{ steps.plan.outputs.e2e }}
+      helm: ${{ steps.plan.outputs.helm }}
+      coverage: ${{ steps.plan.outputs.coverage }}
     steps:
-      - name: Check whether this push changed only docs/ after a passing run
-        id: check
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Test the tier chooser
+        run: bash .github/scripts/ci-plan.test.sh
+
+      - name: Choose the tier and the jobs
+        id: plan
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.pull_request.head.sha }}
           BASE: ${{ github.event.pull_request.base.ref }}
         run: |
-          code=true
-          reason='not a push to an open pull request'
-          if [ "$ACTION" = synchronize ] && [ -n "$BEFORE" ] && [ -n "$AFTER" ]; then
-            # "ahead": the new commit has the previous one in its history. Then how many files changed, and how many of
-            # their names (old and new) are outside docs/.
-            compared=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" \
-              --jq '(.files // []) as $f | "\(.status) \($f | length) \([$f[] | .filename, (.previous_filename // empty) | select(startswith("docs/") | not)] | length)"') \
-              || compared='unknown'
-            # The previous commit's passing runs, and when the latest of them started.
-            passing=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?head_sha=$BEFORE&event=pull_request&status=success" \
-              --jq '"\(.total_count) \([.workflow_runs[].run_started_at] | max // "none")"') || passing='0 none'
-            read -r status files outside <<< "$compared"
-            read -r passed started <<< "$passing"
-            # Anything merged into the base since then (a run tests the pull request merged into its base as it was).
-            moved=unknown
-            if [ "${passed:-0}" -gt 0 ] && [ "$started" != none ]; then
+          # The whole pull request's files: its head against where it left the base branch (a three-dot comparison),
+          # each by its name and, if it moved, its old name. "unknown" if the comparison fails.
+          labels=''; files=''; known=true
+          if [ "$EVENT" = pull_request ]; then
+            labels=$(jq -r 'if type == "array" then join(" ") else "" end' <<< "$LABELS_JSON") || labels=''
+            listed=$(gh api "repos/$REPO/compare/$BASE...$AFTER" \
+              --jq 'if .files == null then "unknown" else (.files | length), (.files[] | .filename, (.previous_filename // empty)) end') \
+              || listed=unknown
+            count=$(head -n 1 <<< "$listed")
+            files=$(tail -n +2 <<< "$listed")
+            if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -ge 300 ]; then known=false; fi
+          fi
+          plan=$(EVENT="$EVENT" LABELS="$labels" KNOWN="$known" bash .github/scripts/ci-plan.sh <<< "$files")
+          get() { sed -n "s/^$1=//p" <<< "$plan"; }
+          tier=$(get tier); reason=$(get reason)
+          web=$(get web); web_build=$(get web_build); dotnet=$(get dotnet); integration=$(get integration)
+          image=$(get image); e2e=$(get e2e); helm=$(get helm); coverage=$(get coverage)
+
+          # Does this event change anything those jobs test? Not if it's a push of only docs/, or a label change, after
+          # a run that already passed with them all.
+          previous=''; why=''
+          if [ "$EVENT" = pull_request ] && [ "$tier" != none ]; then
+            case "$ACTION" in
+              synchronize)
+                # "ahead": the new commit has the previous one in its history. Then how many files changed, and how
+                # many of their names (old and new) are outside docs/.
+                compared=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" \
+                  --jq '(.files // []) as $f | "\(.status) \($f | length) \([$f[] | .filename, (.previous_filename // empty) | select(startswith("docs/") | not)] | length)"') \
+                  || compared='unknown'
+                read -r status changed outside <<< "$compared" || true
+                if [ "$status" = ahead ] && [ "${changed:-300}" -lt 300 ] && [ "$outside" = 0 ]; then previous=$BEFORE; fi
+                why="this push compared with $BEFORE: $compared" ;;
+              labeled | unlabeled)
+                previous=$AFTER
+                why="a label change" ;;
+            esac
+          fi
+          if [ -n "$previous" ]; then
+            # The latest other run of that commit: it must have passed...
+            latest=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?head_sha=$previous&event=pull_request&per_page=5" \
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID)][0] | \"\(.id) \(.conclusion) \(.run_started_at)\"") || latest=''
+            read -r run conclusion started <<< "$latest" || true
+            covered=false; moved=unknown
+            if [ "$conclusion" = success ]; then
+              # ...with every job this run would run (one job stands for each kind; the web jobs differ by tier)...
+              ran=$(gh api "repos/$REPO/actions/runs/$run/jobs?per_page=100" --jq '.jobs[] | select(.conclusion == "success") | .name') || ran=''
+              covered=true
+              need() { grep -qxF "$1" <<< "$ran" || covered=false; }
+              [ "$web" != light ] || need web-checks
+              [ "$web" != full ] || need web-coverage
+              [ "$dotnet" != true ] || need unit-tests
+              [ "$integration" != true ] || need 'integration-tests (shard 1)'
+              [ "$image" != true ] || need image
+              [ "$e2e" != true ] || need e2e
+              [ "$helm" != true ] || need helm
+              # ...and nothing merged into the base since it started (a run tests the pull request merged into its
+              # base as it was).
               moved=$(gh api "repos/$REPO/commits?sha=$BASE&since=$started&per_page=1" --jq 'length') || moved=unknown
             fi
-            if [ "$status" = ahead ] && [ "${files:-300}" -lt 300 ] && [ "$outside" = 0 ] && [ "${passed:-0}" -gt 0 ] && [ "$moved" = 0 ]; then
-              code=false
-              reason="only docs/ changed since $BEFORE, whose run passed, and nothing has merged into $BASE since it started"
+            if [ "$covered" = true ] && [ "$moved" = 0 ]; then
+              reason="nothing to test again ($why): run $run of $previous passed with every job the $tier tier would run ($reason), and nothing has merged into $BASE since it started"
+              tier=none; web=none; web_build=false; dotnet=false; integration=false; image=false; e2e=false; helm=false; coverage=false
             else
-              reason="compared with $BEFORE: ${compared}; its passing runs: ${passed:-0}; commits on $BASE since: ${moved}"
+              reason="$reason. Not skipped ($why): the run before, of $previous, was ${run:-none} (${conclusion:-none}); it ran every job needed: $covered; commits on $BASE since: $moved"
             fi
           fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "Build and test: $code ($reason)" >> "$GITHUB_STEP_SUMMARY"
 
-  # MedApp.Web (React): lint, type check, theme drift, unit tests with coverage, and a production build.
-  # Its coverage summary goes into the sticky PR comment, after the .NET coverage (coverage-comment job).
-  web:
+          # The web app's changed files, for the light tier's related tests.
+          web_files=''
+          [ "$web" != light ] || web_files=$(grep '^MedApp\.Web/' <<< "$files" || true)
+          delimiter="files_$(openssl rand -hex 16)"
+          {
+            printf '%s\n' "tier=$tier" "web=$web" "web_build=$web_build" "dotnet=$dotnet" "integration=$integration" \
+              "image=$image" "e2e=$e2e" "helm=$helm" "coverage=$coverage"
+            printf '%s\n' "web_files<<$delimiter" "$web_files" "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+          # What that means, for the run's summary and its log.
+          say() { if [ "$2" = true ]; then echo "- **$1:** runs"; else echo "- **$1:** skipped"; fi; }
+          {
+            echo "### CI tier: $tier"
+            echo
+            echo "$reason."
+            echo
+            case "$web" in
+              none) echo "- **web:** skipped" ;;
+              light) echo "- **web:** lint, type check and the tests related to the changed files$([ "$web_build" = true ] && echo ', and the production build'); no coverage" ;;
+              *) echo "- **web:** everything (audit, lint, type check, every test with the coverage thresholds, the production build)" ;;
+            esac
+            say unit-tests "$dotnet"
+            say integration-tests "$integration"
+            say image "$image"
+            say e2e "$e2e"
+            say helm "$helm"
+            say 'coverage comment' "$coverage"
+            if [ "$tier" != full ] && [ "$EVENT" = pull_request ]; then
+              echo
+              echo "What a pull request skips runs on main after it merges. For everything on this pull request, add the \`ci:full\` label."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # MedApp.Web (React), in parallel jobs: web-checks (the audit, lint, type check, theme drift and the production
+  # build), web-tests (Vitest, in shards) and, in the full tier, web-coverage (the shards' coverage as one report, held
+  # to the thresholds). The `web` job after them is the required check: it passes only if each did what the tier asks.
+  #   - Light: lint, the type check, theme drift and the tests related to the changed files; the build only if the
+  #     pull request changed something the build reads beyond the source (`web_build`). No audit and no coverage.
+  #   - Full (and whenever `changes` gave no answer): everything.
+  web-checks:
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: MedApp.Web
@@ -92,6 +212,7 @@ jobs:
       #   4.0.7, the latest, is affected. Accepted to the end of 17 December 2026. It reaches only build and test tools (Vite, Vitest, the router plugin,
       #   typescript-eslint, the Astryx CLI), never the app: `npm audit --omit=dev` is clean.
       - name: Audit dependencies
+        if: ${{ needs.changes.outputs.web != 'light' }}
         env:
           ACCEPTED: GHSA-fc5q-39xc-vjpf
           ACCEPTED_UNTIL: '2026-12-17'
@@ -139,8 +260,112 @@ jobs:
       - name: Check the built theme is up to date
         run: npm run theme:check
 
+      # The whole production build, as the image's Dockerfile runs it: tsc, the client build, the server rendering
+      # bundle (vite build --ssr) and the copy of the page server.
+      - name: Build
+        if: ${{ needs.changes.outputs.web != 'light' || needs.changes.outputs.web_build == 'true' }}
+        run: npm run build
+
+  # Vitest, split across runners by file (--shard). Each shard's number and the count come from the matrix, so changing
+  # the list is all it takes to change the count.
+  #   - Full: every test, with coverage. A shard covers only its share, so the thresholds can't apply to it: they're set
+  #     to 0 on the command line here only, and web-coverage applies vite.config.ts's to the merged report. Each shard
+  #     saves its results and coverage as a blob for that.
+  #   - Light: only the tests that import a changed file (`vitest related`), with no coverage. A shard with none passes.
+  web-tests:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      # Every shard reports, so one failure doesn't hide another's.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: MedApp.Web
+    env:
+      SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: MedApp.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The changed files come as names from the pull request, so they're passed as arguments, by their full paths
+      # (never read by the shell, and never mistaken for an option). A deleted file has nothing to run.
+      - name: Unit tests related to the changed files
+        if: ${{ needs.changes.outputs.web == 'light' }}
+        env:
+          WEB_FILES: ${{ needs.changes.outputs.web_files }}
+        run: |
+          files=()
+          while IFS= read -r file; do
+            if [ -n "$file" ] && [ -f "$GITHUB_WORKSPACE/$file" ]; then files+=("$GITHUB_WORKSPACE/$file"); fi
+          done <<< "$WEB_FILES"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No changed file is left to find tests for."
+            exit 0
+          fi
+          npx vitest related --run --passWithNoTests --shard="$SHARD" "${files[@]}"
+
       - name: Unit tests with coverage
-        run: npm run coverage
+        if: ${{ needs.changes.outputs.web != 'light' }}
+        run: >-
+          npx vitest run --shard="$SHARD" --coverage
+          --coverage.thresholds.lines=0 --coverage.thresholds.statements=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
+          --reporter=default --reporter=blob --outputFile.blob="blob-reports/blob-${{ matrix.shard }}.json"
+
+      - name: Upload the shard's results and coverage
+        if: ${{ needs.changes.outputs.web != 'light' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: web-blob-${{ matrix.shard }}
+          path: MedApp.Web/blob-reports
+          if-no-files-found: error
+          retention-days: 1
+
+  # The shards' coverage, merged into one report and held to the thresholds in vite.config.ts, as one run of the whole
+  # suite would be. Its summary goes into the sticky PR comment, after the .NET coverage (coverage-comment job).
+  web-coverage:
+    needs: [changes, web-tests]
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'none' && needs.changes.outputs.web != 'light' && needs.web-tests.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: MedApp.Web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: MedApp.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: web-blob-*
+          path: MedApp.Web/blob-reports
+          merge-multiple: true
+
+      # Runs no test: it reads the shards' blobs, reports them as one run and checks the coverage thresholds.
+      - name: Merge the shards' coverage and check the thresholds
+        run: npx vitest run --merge-reports=blob-reports --coverage
 
       - name: Upload coverage summary
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -148,10 +373,27 @@ jobs:
           name: web-coverage
           path: MedApp.Web/coverage/coverage-summary.json
 
-      # The whole production build, as the image's Dockerfile runs it: tsc, the client build, the server rendering
-      # bundle (vite build --ssr) and the copy of the page server.
-      - name: Build
-        run: npm run build
+  # The required check for the web app. The jobs above report under their own names (and the shards as
+  # "web-tests (1)"), so this one keeps the name main's ruleset requires, and says whether each did what the tier asks:
+  # passed, or skipped because `changes` said so. A failed, cancelled or wrongly skipped job fails it.
+  web:
+    needs: [changes, web-checks, web-tests, web-coverage]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check the web jobs did what the tier asks
+        env:
+          TIER: ${{ needs.changes.outputs.web }}
+          GOT: ${{ needs.web-checks.result }} ${{ needs.web-tests.result }} ${{ needs.web-coverage.result }}
+        run: |
+          case "$TIER" in
+            none) want='skipped skipped skipped' ;;
+            light) want='success success skipped' ;;
+            *) want='success success success' ;;
+          esac
+          echo "web-checks, web-tests and web-coverage: $GOT (the '${TIER:-full}' web tier needs: $want)"
+          [ "$GOT" = "$want" ]
 
   # The API's image (MedApp.API/Dockerfile), built as Publish builds it but not pushed, so a broken Dockerfile, a
   # React or SSR bundle that won't build, or a migrations bundle that won't, fails on the pull request rather than
@@ -161,8 +403,9 @@ jobs:
   # has a fix fails the pull request.
   image:
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Full tier, or the pull request changed the Dockerfile, .dockerignore or a package manifest or lock. It runs if
+    # `changes` gave no answer.
+    if: ${{ !cancelled() && needs.changes.outputs.image != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read          # check out the code
@@ -228,6 +471,8 @@ jobs:
   # known high or critical advisory fails it, and a comment on the pull request says which. In this workflow rather
   # than one of its own because, like everything else here, it only runs on pull requests to main.
   dependency-review:
+    # It compares a pull request with its base: main's own runs have nothing to compare.
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read        # read the dependency graph's diff
@@ -248,8 +493,8 @@ jobs:
   # SQL Server listens on the runner's loopback only.
   e2e:
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Full tier only. It runs if `changes` gave no answer.
+    if: ${{ !cancelled() && needs.changes.outputs.e2e != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # It builds and runs the pull request's own code: it needs no more than to read the repository.
@@ -411,8 +656,8 @@ jobs:
   # template fails here rather than on a deploy. Helm comes with the runner image.
   helm:
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Full tier, or the pull request changed deploy/. It runs if `changes` gave no answer.
+    if: ${{ !cancelled() && needs.changes.outputs.helm != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -551,17 +796,34 @@ jobs:
           done
 
   # The integration tests (MedApp.IntegrationTests): the real API in memory (WebApplicationFactory) against SQL Server
-  # 2022 in Docker (Testcontainers), which the runner has. The migrations are applied at the start and the data reset
-  # between tests. Each run pulls the SQL Server image (about 1.6 GB) first.
-  integration-tests:
+  # 2022 and Azurite in Docker (Testcontainers), which the runner has. Only in the full tier. They're split across
+  # runners by namespace, each with containers of its own: the migrations are applied at the start and the data reset
+  # between tests. Each shard pulls the SQL Server image (about 1.6 GB) first.
+  #   - SHARD_1 and SHARD_2 name the namespaces (under MedApp.IntegrationTests) the first two shards run, balanced by
+  #     how long they take (from a run's log, November 2026: about 2 minutes of tests each).
+  #   - The last shard runs every test that isn't in one of those namespaces, by a filter built from the same two
+  #     lists. So no test can fall between shards: a new namespace, or a name mistyped here, runs in the last one.
+  integration-shards:
+    name: integration-tests (shard ${{ matrix.shard }})
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.integration != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # It runs the pull request's own code: it needs no more than to read the repository.
     permissions:
       contents: read
+    strategy:
+      # Every shard reports, so one failure doesn't hide another's.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      SHARD_1: Auth Api Appointments
+      SHARD_2: Tools Migrations Infrastructure Attachments
+    outputs:
+      tests-1: ${{ steps.run.outputs.tests-1 }}
+      tests-2: ${{ steps.run.outputs.tests-2 }}
+      tests-3: ${{ steps.run.outputs.tests-3 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -570,12 +832,57 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Run integration tests
-        run: dotnet test MedApp.IntegrationTests --configuration Release --logger "console;verbosity=normal"
+        id: run
+        shell: bash   # with pipefail, so a failed test run isn't hidden by tee
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          # Shards 1 and 2: the tests in their namespaces. The last: the tests in none of those.
+          case "$SHARD" in
+            1) namespaces=$SHARD_1; match='~'; join='|' ;;
+            2) namespaces=$SHARD_2; match='~'; join='|' ;;
+            *) namespaces="$SHARD_1 $SHARD_2"; match='!~'; join='&' ;;
+          esac
+          filter=''
+          for namespace in $namespaces; do
+            filter="${filter:+$filter$join}FullyQualifiedName${match}MedApp.IntegrationTests.$namespace."
+          done
+          echo "Filter: $filter"
+          dotnet test MedApp.IntegrationTests --configuration Release --logger "console;verbosity=normal" --filter "$filter" \
+            | tee "$RUNNER_TEMP/integration-tests.log"
+          # How many ran, for the integration-tests job to add up. A shard that ran none has a broken filter.
+          tests=$(sed -n -E 's/^ *Total tests: ([0-9]+).*/\1/p' "$RUNNER_TEMP/integration-tests.log" | tail -n 1)
+          echo "tests-$SHARD=${tests:-0}" >> "$GITHUB_OUTPUT"
+          echo "Shard $SHARD ran ${tests:-0} tests." | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${tests:-0}" -gt 0 ]
+
+  # The required check for the integration tests: the shards report as "integration-tests (shard 1)", so this job
+  # keeps the name main's ruleset requires. It passes only if every shard passed, or all were skipped because `changes`
+  # said so; a failed or cancelled shard fails it. It also adds up how many tests the shards ran.
+  integration-tests:
+    needs: [changes, integration-shards]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check the shards did what the tier asks
+        env:
+          WANTED: ${{ needs.changes.outputs.integration }}
+          GOT: ${{ needs.integration-shards.result }}
+          TESTS: ${{ needs.integration-shards.outputs.tests-1 }} + ${{ needs.integration-shards.outputs.tests-2 }} + ${{ needs.integration-shards.outputs.tests-3 }}
+        run: |
+          want=success
+          if [ "$WANTED" = false ]; then want=skipped; fi
+          echo "The shards: $GOT (needed: $want)"
+          [ "$GOT" = "$want" ]
+          if [ "$GOT" = success ]; then
+            echo "Integration tests run: $TESTS = $((TESTS))" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
   unit-tests:
     needs: changes
-    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Whenever the pull request changed .NET code (light and full tiers). It runs if `changes` gave no answer.
+    if: ${{ !cancelled() && needs.changes.outputs.dotnet != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -681,21 +988,43 @@ jobs:
           name: dotnet-coverage-comment
           path: coverage-details.md
 
-  # One sticky PR comment for both: the .NET section from unit-tests, then MedApp.Web's from its summary.
+  # One sticky PR comment for both: the .NET section from unit-tests, then MedApp.Web's from its merged summary. Only
+  # in the full tier of a pull request (the light tier measures no coverage), and with only the side that ran when a
+  # pull request changed one side.
   coverage-comment:
-    needs: [web, unit-tests]
+    needs: [changes, web-coverage, unit-tests]
+    if: >-
+      ${{ !cancelled() && !failure() && github.event_name == 'pull_request' && needs.changes.outputs.coverage == 'true'
+      && (needs.web-coverage.result == 'success' || needs.unit-tests.result == 'success') }}
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # the comment
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: ${{ needs.unit-tests.result == 'success' }}
         with:
           name: dotnet-coverage-comment
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: ${{ needs.web-coverage.result == 'success' }}
         with:
           name: web-coverage
           path: web-coverage
 
+      - name: Say which side didn't run
+        env:
+          DOTNET: ${{ needs.unit-tests.result }}
+          WEB: ${{ needs.web-coverage.result }}
+        run: |
+          if [ "$DOTNET" != success ]; then
+            printf '%s\n\n%s\n' '## 📊 Coverage Report' "The .NET tests didn't run: this pull request changes no .NET code." > coverage-details.md
+          fi
+          if [ "$WEB" != success ]; then
+            printf '\n%s\n\n%s\n' '## 🌐 MedApp.Web Coverage' "The web tests didn't run: this pull request changes nothing in MedApp.Web." >> coverage-details.md
+          fi
+
       - name: Add MedApp.Web coverage
+        if: ${{ needs.web-coverage.result == 'success' }}
         run: |
           python3 << 'EOF'
           import json
@@ -733,3 +1062,44 @@ jobs:
         with:
           recreate: true
           path: coverage-details.md
+
+  # The full suite on main (each push, and nightly) gates nothing: Publish deploys alongside it. So a failure has to be
+  # loud. The run fails, and this job opens one issue, "Full suite failing on main", or adds a comment to it if it's
+  # already open, with the jobs that failed, the commit and the run. The next run that passes closes it. A run
+  # cancelled by a newer push says nothing: the newer run reports.
+  main-report:
+    needs: [changes, web, image, e2e, helm, integration-tests, unit-tests]
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write  # open, comment on and close the issue
+    steps:
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Full suite failing on main'
+          failed=$(jq -r 'to_entries[] | select(.value.result != "success") | "- `\(.key)`: \(.value.result)"' <<< "$NEEDS")
+          issue=$(gh issue list --state open --limit 200 --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ -z "$failed" ]; then
+            echo "Every job passed."
+            if [ -n "$issue" ]; then
+              gh issue close "$issue" --comment "The full suite passes again at $GITHUB_SHA ($EVENT): $RUN_URL"
+            fi
+            exit 0
+          fi
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The full suite failed on \`main\` at $GITHUB_SHA ($EVENT): $RUN_URL" \
+            "$failed" \
+            "Pull requests run a lighter tier by default (AGENTS.md, CI), so this run is where what they skipped is found. \`web\` and \`integration-tests\` stand for their shards: the run has the detail. This issue closes itself when a run on \`main\` passes.")
+          echo "$body"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
