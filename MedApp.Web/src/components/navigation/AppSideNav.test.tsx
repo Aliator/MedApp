@@ -450,6 +450,64 @@ describe('AppSideNav folded, and its menus', () => {
     expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
   });
 
+  it('measures nothing more once the menu has closed, though its animation finishes after', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
+      return new DOMRect();
+    });
+    let settle = () => {};
+    const sliding = {finished: new Promise<void>((resolve) => (settle = resolve)), effect: {getComputedTiming: () => ({endTime: 200})}};
+    const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
+    prototype.getAnimations = () => [sliding];
+    try {
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const {user} = renderWithApp(
+        <HalfViewsContext.Provider value={halfViews}>
+          <AppSideNav />
+        </HalfViewsContext.Provider>,
+        {user: staffUser},
+      );
+      await rowMenuItem(user, 'My Tasks', 'Open in half view');
+      const button = screen.getByRole('button', {name: 'My Tasks options'});
+      await waitFor(() => expect(document.querySelector('[data-nav-bridge]')).not.toBeNull());
+
+      // Closed before the menu settles: no strip, and none comes back when the animation ends.
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+      await act(async () => settle());
+      expect(document.querySelector('[data-nav-bridge]')).toBeNull();
+    } finally {
+      delete prototype.getAnimations;
+    }
+  });
+
+  it("shows a row's buttons on hover alone in a browser without :focus-visible", async () => {
+    // A half view to open is what gives a row its menu button.
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    const tasks = (await screen.findAllByRole('link', {name: 'My Tasks'}))[0];
+    // Only this link's check for `:focus-visible` throws, as it would in a browser without it.
+    const matches = tasks.matches.bind(tasks);
+    tasks.matches = (selector: string) => {
+      if (selector === ':focus-visible') throw new SyntaxError('unsupported');
+      return matches(selector);
+    };
+
+    // Focus doesn't bring the buttons out (keyboard focus can't be told from a click's), but hovering does.
+    act(() => tasks.focus());
+    expect(screen.queryByRole('button', {name: 'My Tasks options'})).not.toBeInTheDocument();
+    await user.hover(tasks);
+    expect(await screen.findByRole('button', {name: 'My Tasks options'})).toBeInTheDocument();
+  });
+
   it('measures the strip again once the menu has slid into place, ignoring an animation that never ends', async () => {
     // The menu starts at 300 while it animates, and settles at 310.
     let menuLeft = 300;
