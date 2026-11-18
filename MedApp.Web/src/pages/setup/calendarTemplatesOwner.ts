@@ -1,6 +1,6 @@
 import {useQuery, type QueryClient, type UseQueryResult} from '@tanstack/react-query';
 import {staffQuery, type StaffMember} from '../../api/calendar';
-import {useCurrentUser, whoamiQuery} from '../../auth/auth';
+import {can, useCurrentUser, whoamiQuery} from '../../auth/auth';
 
 /** The signed-in user's staff ID: their entry in the staff list, found by username (as the Calendar page does). */
 const idOf = (staff: readonly StaffMember[] | undefined, username: string) => staff?.find((s) => s.username === username)?.userId ?? undefined;
@@ -31,9 +31,10 @@ export interface TemplatesOwner {
   ownerName: string;
   /** "My calendar templates", or "k.ashford's calendar templates". */
   title: string;
-  /** The signed-in user can change them: they're their own, or they're an admin (the API's rule too). */
+  /** The signed-in user can change them: they're their own, or their roles grant ManageAnyCalendar (the API's rule too). */
   canEdit: boolean;
-  isAdmin: boolean;
+  /** The signed-in user can change anyone's (ManageAnyCalendar), so the page offers whose to show. */
+  canManageAnyCalendar: boolean;
   /** `staff` for links to this person's list and editors: none for your own. */
   staffParam: string | undefined;
   /** The staff list, for a picker. */
@@ -56,8 +57,8 @@ export function useTemplatesOwner(staffParam: string | undefined): TemplatesOwne
     isOwn,
     ownerName,
     title: isOwn ? 'My calendar templates' : ownerName ? `${ownerName}'s calendar templates` : 'Calendar templates',
-    canEdit: isOwn || me.isAdmin,
-    isAdmin: me.isAdmin,
+    canEdit: isOwn || can(me, 'ManageAnyCalendar'),
+    canManageAnyCalendar: can(me, 'ManageAnyCalendar'),
     staffParam: isOwn ? undefined : staffParam,
     staff,
   };

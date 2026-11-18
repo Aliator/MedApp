@@ -10,6 +10,7 @@ import {useState} from 'react';
 import {appointmentsQuery, type Appointment, type AppointmentSearch} from '../../api/appointments';
 import {pathwayQuery} from '../../api/pathways';
 import {useListSettings} from '../../app/listSettings';
+import {useCan} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {Page} from '../../components/pages/Page';
@@ -55,6 +56,8 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(appointmentsQuery(requiresAppointmentQuery(search, pageSize)));
   const [booking, setBooking] = useState<Appointment | null>(null);
+  // Booking needs BookAppointments; without it, the list only shows what's waiting.
+  const canBook = useCan('BookAppointments');
   // The pathway of the appointment being booked, for its assignee (fetched when the dialog opens).
   const pathway = useQuery({...pathwayQuery(booking?.pathwayId ?? ''), enabled: !!booking?.pathwayId});
   const assignees = pathway.data?.assignments ?? [];
@@ -64,6 +67,25 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
   const rows = (data?.items ?? []) as Row[];
   const isFiltered = search.patient !== undefined;
 
+  // Booking, for whoever can book.
+  const actionsColumn: DataTableColumn<Row> = {
+    key: 'actions',
+    header: 'Actions',
+    align: 'end',
+    width: pixel(104),
+    // Not when the patient's record is restricted or anonymised (the API's `canBook`); the patient's page says why.
+    renderCell: (a) => (
+      <VStack hAlign="end">
+        {a.canBook ? (
+          <Button label="Book" size="sm" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setBooking(a)} />
+        ) : (
+          <Text type="supporting" color="secondary" maxLines={2}>
+            Can’t be booked
+          </Text>
+        )}
+      </VStack>
+    ),
+  };
   const columns: DataTableColumn<Row>[] = [
     {
       key: 'Patient',
@@ -120,24 +142,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
         </VStack>
       ),
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'end',
-      width: pixel(104),
-      // Not when the patient's record is restricted or anonymised (the API's `canBook`); the patient's page says why.
-      renderCell: (a) => (
-        <VStack hAlign="end">
-          {a.canBook ? (
-            <Button label="Book" size="sm" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setBooking(a)} />
-          ) : (
-            <Text type="supporting" color="secondary" maxLines={2}>
-              Can’t be booked
-            </Text>
-          )}
-        </VStack>
-      ),
-    },
+    ...(canBook ? [actionsColumn] : []),
   ];
 
   const noun = total === 1 ? 'appointment' : 'appointments';

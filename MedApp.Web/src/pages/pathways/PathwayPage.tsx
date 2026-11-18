@@ -12,6 +12,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
 import {pathwayAppointmentsQuery, useAppointmentActions, type Appointment} from '../../api/appointments';
+import {staffWithPermissionQuery} from '../../api/calendar';
 import {ApiError, problemMessage} from '../../api/errors';
 import {
   canDeletePathway,
@@ -21,9 +22,8 @@ import {
   type Pathway,
   type PathwayStage,
 } from '../../api/pathways';
-import {userSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCan, useCurrentUser} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {RecordPastAppointmentDialog} from '../../components/calendar/RecordPastAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
@@ -74,7 +74,10 @@ export function finishedMessage(stage: PathwayStage, pathway: Pathway): string {
 /** The wording of decision 18 in docs/pathways-ui-plan.md. */
 export const NOT_ASSIGNED_MESSAGE = 'This pathway is not assigned to you, are you sure you want to make these changes?';
 
-/** Why staff can't finish a stage that requires a visit until one is marked Attended (an admin can, with a reason). */
+/**
+ * Why staff can't finish a stage that requires a visit until one is marked Attended (a holder of OverrideStages can,
+ * with a reason).
+ */
 export const NEEDS_VISIT_MESSAGE = 'Needs an attended visit first';
 
 /** Pathways that are closed for good: nothing more is booked for them. */
@@ -91,23 +94,25 @@ interface Booking {
  * beside all its stages. Like Home, the two cards fill the page and each scrolls on its own, so the page itself
  * never does; a narrow window has one card instead (see PathwayView).
  *
- * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive);
- * admins also assign and unassign staff and unlock finished stages. Anyone can work on any pathway, but if
- * it isn't assigned to you, the first change of the visit asks you to confirm.
+ * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive), as
+ * their roles allow (WorkPathways: the API's flags say so); holders of AssignPathways also assign and unassign
+ * staff, and of OverrideStages unlock finished stages. Anyone who can work on pathways can work on any, but if it
+ * isn't assigned to you, the first change of the visit asks you to confirm.
  *
  * A request to delete one of its notes in the address (`?deletionRequest=<id>`, from an admin's "Note deletion
- * requested" notification) opens in `NoteDeletionRequestDialog` over the page, for admins; closing it takes it out of
+ * requested" notification) opens in `NoteDeletionRequestDialog` over the page, for holders of CorrectRecords; closing it takes it out of
  * the address. A request about another pathway's note (an edited link) isn't shown over this page: it goes to its
  * own pathway's page (`onDeletionRequestElsewhere`).
  */
 export function PathwayPage({id, deletionRequest, onCloseDeletionRequest, onDeletionRequestElsewhere}: PathwayPageProps) {
   const isNarrow = useIsNarrow();
-  const {isAdmin} = useCurrentUser();
+  // Deciding note deletion requests is for holders of CorrectRecords.
+  const canCorrectRecords = useCan('CorrectRecords');
   return (
     <>
       <PathwayView id={id} isNarrow={isNarrow} />
       <NoteDeletionRequestDialog
-        requestId={isAdmin ? (deletionRequest ?? null) : null}
+        requestId={canCorrectRecords ? (deletionRequest ?? null) : null}
         pathwayId={id}
         onClose={() => onCloseDeletionRequest?.()}
         onWrongPathway={
@@ -140,6 +145,13 @@ export interface PathwayViewProps {
 /** The pathway page's content, laid out for the window (see PathwayPage). */
 export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const user = useCurrentUser();
+  // What this person's roles allow here, beside what the pathway's own flags say (which the API also works out from
+  // their permissions): assigning, unlocking and finishing without a visit, deleting, booking, and the audit log.
+  const canAssignStaff = can(user, 'AssignPathways');
+  const canOverrideStages = can(user, 'OverrideStages');
+  const canBook = can(user, 'BookAppointments');
+  const canViewAudit = can(user, 'ViewAudit');
+  const canWork = can(user, 'WorkPathways');
   const {data: pathway, error, isPending} = useQuery(pathwayQuery(id));
   // While it's open, the notepad can add what's written to it as a note.
   useOfferToNotepad(pathway);
@@ -190,7 +202,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   // Each stage's files start folded (and unfetched), and open on their own, like its instructions.
   const [stageFilesOpen, setStageFilesOpen] = useState<Record<string, boolean>>({});
 
-  const staff = useQuery({...userSearchQuery({PageSize: 100, Sort: 'username'}), enabled: user.isAdmin && dialog?.kind === 'assign'});
+  // Who can be assigned: holders of WorkPathways (the API refuses anyone else).
+  const staff = useQuery({...staffWithPermissionQuery('WorkPathways'), enabled: canAssignStaff && dialog?.kind === 'assign'});
 
   const isMissing = error instanceof ApiError && error.status === 404;
   const currentStage = pathway?.stages?.find((s) => s.id === pathway.currentStageId);
@@ -198,12 +211,12 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending || appointmentActions.recordOutcome.isPending;
 
   /**
-   * Runs a change to the pathway, first asking (once per visit) if it isn't assigned to you. Admins aren't asked:
-   * looking after any pathway is their job.
+   * Runs a change to the pathway, first asking (once per visit) if it isn't assigned to you. Holders of AssignPathways
+   * aren't asked: handing out and looking after any pathway is their job.
    */
   const checked = (action: () => void) => {
     setActionError(null);
-    if (isMine || user.isAdmin || isCheckAnswered) action();
+    if (isMine || canAssignStaff || isCheckAnswered) action();
     else setWaitingOnCheck(() => action);
   };
 
@@ -224,7 +237,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     );
   /**
    * Finishing asks first: as it always has, or, for a stage that involves a visit with none marked Attended, whether
-   * to finish it without one (an admin giving a reason for a required one; staff can't, as Finish says).
+   * to finish it without one (a holder of OverrideStages giving a reason for a required one; anyone else can't, as Finish
+   * says).
    */
   const finishStage = (stage: PathwayStage, notes: string) =>
     checked(() => {
@@ -268,7 +282,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       onFitNotes={isCurrentSection ? setNotesHeight : undefined}
       key={`${stage.id}:${stage.notes}`}
       stage={stage}
-      isAdmin={user.isAdmin}
+      canUnlock={canOverrideStages}
       isBusy={isBusy}
       onStart={() => startStage(stage)}
       onSaveNotes={(notes) => saveNotes(stage, notes)}
@@ -279,7 +293,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       }}
       visit={involvesVisit(stage) && visitFor(stage)}
       finishDisabledReason={
-        !user.isAdmin && stage.visitRequirement === 'Required' && finishesWithoutVisit(stage, stageVisit(stage.id, appointments))
+        !canOverrideStages && stage.visitRequirement === 'Required' && finishesWithoutVisit(stage, stageVisit(stage.id, appointments))
           ? NEEDS_VISIT_MESSAGE
           : undefined
       }
@@ -295,6 +309,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         stage={stage}
         appointments={appointments}
         isBusy={isBusy || appointmentsQuery.isPending}
+        canBook={canBook}
         onBook={(requested) => setBooking({stage, appointment: requested})}
         onReschedule={(booked) => setBooking({stage, appointment: booked})}
         onRecordPast={() => {
@@ -334,7 +349,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   );
 
   const assignedIds = new Set(pathway?.assignments?.map((a) => a.userId));
-  const assignable = (staff.data?.items ?? [])
+  const assignable = (staff.data ?? [])
     .filter((u) => !assignedIds.has(u.userId))
     .map((u) => ({value: u.userId ?? '', label: u.username ?? ''}));
 
@@ -382,7 +397,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
                 />
               );
             })}
-            {canDeletePathway(pathway, user.isAdmin) && (
+            {canDeletePathway(pathway, can(user, 'DeletePathways')) && (
               <Button
                 label="Delete Pathway"
                 variant="destructive"
@@ -438,7 +453,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             title="Finish without a visit?"
             message={
               withoutVisit?.visitRequirement === 'Required'
-                ? `${withoutVisit.name} requires a visit, and none is marked Attended. As an admin, you can finish it without one: say why. The reason is kept in the audit log.`
+                ? `${withoutVisit.name} requires a visit, and none is marked Attended. Your roles let you finish it without one: say why. The reason is kept in the audit log.`
                 : `${withoutVisit?.name ?? 'This stage'} suggests a visit, and none is marked Attended. Finish it anyway?`
             }
             icon={AppIcon.Warning}
@@ -604,7 +619,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
           <VStack gap={3}>
             {appointmentsList(pathway)}
-            {!CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
+            {canBook && !CLOSED_FOR_BOOKING.includes(pathway.status ?? '') && (
               <HStack>
                 <Button
                   label="Book Appointment"
@@ -668,10 +683,13 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   function canAssign(pathway: Pathway) {
-    return user.isAdmin && (pathway.canChangeAssignments ?? false);
+    return canAssignStaff && (pathway.canChangeAssignments ?? false);
   }
 
-  /** Edit Details, View Patient, and for admins Assign Staff and the pathway's Audit Log. Book Appointment is under Appointments. */
+  /**
+   * Edit Details, View Patient, Assign Staff (AssignPathways) and the pathway's Audit Log (ViewAudit). Book Appointment
+   * is under Appointments.
+   */
   function footer(pathway: Pathway) {
     return (
       <>
@@ -696,7 +714,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             isDisabled={isBusy}
           />
         )}
-        {user.isAdmin && (
+        {canViewAudit && (
           <Button
             label="Audit Log"
             tooltip="View this pathway's audit log"
@@ -721,6 +739,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       <Section variant="transparent" padding={6}>
         <CurrentStage
           pathway={pathway}
+          canWork={canWork}
           stage={currentStage}
           work={currentStage && workFor(currentStage, true)}
           files={currentStage && filesFor(currentStage)}
@@ -733,7 +752,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Every stage, each opening when clicked. Finished stages can be unlocked (admins) and then edited here. The
+   * Every stage, each opening when clicked. Finished stages can be unlocked (OverrideStages) and then edited here. The
    * current stage is worked on in the Current stage section while that's open; when it's folded, here.
    */
   function stageList(pathway: Pathway) {
@@ -870,10 +889,12 @@ function DetailPart({title, isOpen, onToggle, children}: {title: string; isOpen:
 
 /**
  * The stage being worked on, in full, with its notes box and actions (`work`); or a note that every stage is
- * finished. Says why when the pathway's status stops work on it.
+ * finished. Says why when the pathway's status, or the person's roles (`canWork`), stop work on it.
  */
 interface CurrentStageProps {
   pathway: Pathway;
+  /** The person's roles grant WorkPathways. */
+  canWork: boolean;
   stage: PathwayStage | undefined;
   work: ReactNode;
   /** The stage's files, under its notes. */
@@ -883,7 +904,7 @@ interface CurrentStageProps {
   visit?: ReactNode;
 }
 
-function CurrentStage({pathway, stage, work, files, instructions, visit}: CurrentStageProps) {
+function CurrentStage({pathway, canWork, stage, work, files, instructions, visit}: CurrentStageProps) {
   return (
     <VStack gap={4}>
       {stage ? (
@@ -891,7 +912,9 @@ function CurrentStage({pathway, stage, work, files, instructions, visit}: Curren
           <StageTitle stage={stage} extra={visit} />
           {!pathway.canWorkOnStages && (
             <Text type="body" color="secondary">
-              {`Stages can't be worked on while the pathway is ${statusLabel(pathway.status ?? '').toLowerCase()}.`}
+              {canWork
+                ? `Stages can't be worked on while the pathway is ${statusLabel(pathway.status ?? '').toLowerCase()}.`
+                : "Your roles don't allow working on pathways, so this is read only."}
             </Text>
           )}
           <StageDetails stage={stage} work={work} files={files} instructions={instructions} />

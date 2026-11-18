@@ -2,6 +2,7 @@ import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {pathwayKeys} from './pathways';
+import {can, type Permission} from '../auth/permissions';
 
 /**
  * Appointments: a patient seen by one member of staff, optionally for a pathway's stage. Requested ones ("Needs
@@ -126,13 +127,15 @@ const APPOINTMENT = '/api/appointments/{id}';
 export type EnteredInErrorResult = Schemas['EnteredInErrorResponse'];
 
 /**
- * Whether `user` may mark an appointment Entered in error: an admin whenever the API allows it
- * (`canMarkEnteredInError`: recorded after the event, still Attended or Did not attend, the patient not anonymised),
- * and whoever recorded it only in its first 30 days (`canRecorderMarkEnteredInError`). Anyone else gets the API's 403.
+ * Whether `user` may mark an appointment Entered in error (which needs BookAppointments): a holder of CorrectRecords
+ * whenever the API allows it (`canMarkEnteredInError`: recorded after the event, still Attended or Did not attend, the
+ * patient not anonymised), and whoever recorded it only in its first 30 days (`canRecorderMarkEnteredInError`).
+ * Anyone else gets the API's 403.
  */
-export const canMarkEnteredInError = (appointment: Appointment, user: {username: string; isAdmin: boolean}) =>
+export const canMarkEnteredInError = (appointment: Appointment, user: {username: string; permissions: readonly Permission[]}) =>
   appointment.canMarkEnteredInError === true &&
-  (user.isAdmin ||
+  can(user, 'BookAppointments') &&
+  (can(user, 'CorrectRecords') ||
     (appointment.bookedByUsername === user.username && appointment.canRecorderMarkEnteredInError === true));
 
 /**

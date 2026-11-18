@@ -26,7 +26,9 @@ import {pathwayLabelsQuery} from '../../api/pathways';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
-import {useCurrentUser, useLogout} from '../../auth/auth';
+import {can, useCurrentUser, useLogout} from '../../auth/auth';
+import type {Permission} from '../../auth/permissions';
+import {rolesSummary} from '../../auth/roles';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
 import {AppIcon} from '../shared/icons';
@@ -36,21 +38,25 @@ import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 
-const ADMIN_PAGES = [
-  {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
-  {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties'},
-  {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
-  {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates'},
-  {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},
-  {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days'},
-  {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites'},
-  {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
-  {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
-  {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
-  {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention'},
-  {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring'},
-  {label: 'Scheduled Jobs', icon: AppIcon.ScheduledJobs, href: '/admin/jobs'},
-  {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings'},
+/**
+ * The Administration section's pages, each shown only to people whose roles grant its permission (the page's route
+ * checks the same: `requirePermission`). The section is left out when none are.
+ */
+const ADMIN_PAGES: {label: string; icon: (typeof AppIcon)[keyof typeof AppIcon]; href: string; permission: Permission}[] = [
+  {label: 'Users', icon: AppIcon.Users, href: '/admin/users', permission: 'ManageUsers'},
+  {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties', permission: 'ManageSetup'},
+  {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages', permission: 'ManageSetup'},
+  {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
+  {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
+  {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
+  {label: 'Sites and Rooms', icon: AppIcon.Sites, href: '/admin/sites', permission: 'ManageSetup'},
+  {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
+  {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights', permission: 'ViewInsights'},
+  {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
+  {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention', permission: 'ManagePrivacy'},
+  {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring', permission: 'ManageMonitoring'},
+  {label: 'Scheduled Jobs', icon: AppIcon.ScheduledJobs, href: '/admin/jobs', permission: 'ManageSetup'},
+  {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings', permission: 'ManageSecuritySettings'},
 ];
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */
@@ -718,26 +724,24 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
       ),
     },
   ];
-  const admin: NavRailEntry[] = user.isAdmin
-    ? ADMIN_PAGES.map((page) => ({
-        key: page.href,
-        label: page.label,
-        icon: page.icon,
-        href: page.href,
-        isSelected: isAt(page.href),
-        isHalfView: isHalfAt(page.href),
-        row: (
-          <SideNavItem
-            label={page.label}
-            icon={page.icon}
-            href={page.href}
-            isSelected={isAt(page.href)}
-            ref={halfViewRow(isHalfAt(page.href))}
-            actions={<RowMenu label={page.label} href={page.href} />}
-          />
-        ),
-      }))
-    : [];
+  const admin: NavRailEntry[] = ADMIN_PAGES.filter((page) => can(user, page.permission)).map((page) => ({
+    key: page.href,
+    label: page.label,
+    icon: page.icon,
+    href: page.href,
+    isSelected: isAt(page.href),
+    isHalfView: isHalfAt(page.href),
+    row: (
+      <SideNavItem
+        label={page.label}
+        icon={page.icon}
+        href={page.href}
+        isSelected={isAt(page.href)}
+        ref={halfViewRow(isHalfAt(page.href))}
+        actions={<RowMenu label={page.label} href={page.href} />}
+      />
+    ),
+  }));
   // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
   const notepad = useNotepad();
   const toggleNotepad = () => {
@@ -793,7 +797,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           // No menu: Account Settings opens in the main view only.
           endContent={
             <Text type="supporting" color="secondary">
-              {user.isAdmin ? 'Administrator' : 'User'}
+              {rolesSummary(user.roles)}
             </Text>
           }
         />

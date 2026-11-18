@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import type {Appointment} from '../../api/appointments';
 import {STAFF_ME, TEST_PATIENT, testAppointment, testCalendar, testRequested} from '../../test/calendar';
-import {adminUser, expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, expectAnnounced, isDisabled, json, managerUser, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
 
 const MONDAY = '2026-11-23';
@@ -120,6 +120,31 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     status = 409;
     await user.click(dialog().getByRole('button', {name: 'Save Notes'}));
     expect(await dialog().findByText('The appointment was cancelled.')).toBeInTheDocument();
+  });
+
+  it("keeps what was typed, and says what's missing, when the API refuses for a permission", async () => {
+    const appointment = testAppointment({id: 'appt-1'});
+    const detail = "Your roles don't allow this. It needs the permission to: Request, book, move and cancel appointments.";
+    const {user} = renderDialog(appointment, {
+      'PUT /api/appointments/appt-1/notes': () => json({title: 'Permission needed', detail, code: 'permission_missing', permission: 'BookAppointments'}, 403),
+    });
+
+    await user.type(await dialog().findByRole('textbox', {name: /Notes/}), 'Ramp at the side door.');
+    await user.click(dialog().getByRole('button', {name: 'Save Notes'}));
+
+    expect(await dialog().findByText(detail)).toBeInTheDocument();
+    expect(dialog().getByRole('textbox', {name: /Notes/})).toHaveValue('Ramp at the side door.');
+  });
+
+  it("shows someone who can't book (a manager) the appointment, but nothing to change it with", async () => {
+    const appointment = testAppointment({id: 'appt-1', notes: 'Bring the scan.', canRecordOutcome: true});
+    renderDialog(appointment, {}, undefined, managerUser);
+
+    expect(await dialog().findByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
+    expect(dialog().getByText('Bring the scan.')).toBeInTheDocument();
+    expect(dialog().queryByRole('textbox', {name: /Notes/})).not.toBeInTheDocument();
+    for (const name of ['Attended', 'Reschedule', 'Cancel Appointment', 'Save Notes'])
+      expect(dialog().queryByRole('button', {name})).not.toBeInTheDocument();
   });
 
   it('records whether the patient came, once it has started', async () => {

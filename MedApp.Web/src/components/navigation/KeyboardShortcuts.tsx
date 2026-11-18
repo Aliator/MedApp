@@ -3,23 +3,24 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useRouter} from '@tanstack/react-router';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useAccessibility} from '../../app/accessibility';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
+import type {Permission} from '../../auth/permissions';
 import {SAVE_KEYS} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
 
-/** "Go to" shortcuts: G, then a letter. The admin ones only for admins. */
-export const GO_TO = [
+/** "Go to" shortcuts: G, then a letter. Those for a page that needs a permission only for people whose roles grant it. */
+export const GO_TO: readonly {key: string; label: string; href: string; permission?: Permission}[] = [
   {key: 'h', label: 'Home', href: '/'},
   {key: 't', label: 'My Worklist', href: '/tasks'},
   {key: 'p', label: 'Patients', href: '/patients'},
   {key: 'r', label: 'Pathways', href: '/pathways'},
   {key: 's', label: 'Account Settings', href: '/account'},
-  {key: 'u', label: 'Users', href: '/admin/users', isAdmin: true},
-  {key: 'a', label: 'Audit Log', href: '/admin/audit', isAdmin: true},
-  {key: 'i', label: 'Insights', href: '/admin/insights', isAdmin: true},
-] as const;
+  {key: 'u', label: 'Users', href: '/admin/users', permission: 'ManageUsers'},
+  {key: 'a', label: 'Audit Log', href: '/admin/audit', permission: 'ViewAudit'},
+  {key: 'i', label: 'Insights', href: '/admin/insights', permission: 'ViewInsights'},
+];
 
 /** How long after G its letter can come. */
 const GO_TO_WINDOW_MS = 1500;
@@ -48,7 +49,8 @@ export function KeyboardShortcuts() {
   const goPressedAt = useRef(0);
 
   const isOn = flags.shortcuts;
-  const isAdmin = me.isAdmin;
+  // The shortcuts this person's roles allow.
+  const shortcuts = useMemo(() => GO_TO.filter((go) => !go.permission || can(me, go.permission)), [me]);
   useEffect(() => {
     if (!isOn) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -68,7 +70,7 @@ export function KeyboardShortcuts() {
         goPressedAt.current = Date.now();
       } else if (Date.now() - goPressedAt.current < GO_TO_WINDOW_MS) {
         goPressedAt.current = 0;
-        const page = GO_TO.find((go) => go.key === key && (!('isAdmin' in go) || isAdmin));
+        const page = shortcuts.find((go) => go.key === key);
         if (page) {
           event.preventDefault();
           void router.navigate({href: page.href});
@@ -77,7 +79,7 @@ export function KeyboardShortcuts() {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOn, isAdmin, router]);
+  }, [isOn, shortcuts, router]);
 
   return (
     <DialogFrame isOpen={isOn && isHelpOpen} title="Keyboard shortcuts" purpose="info" onClose={() => setIsHelpOpen(false)}>
@@ -92,7 +94,7 @@ export function KeyboardShortcuts() {
           <MetadataListItem label="Save the form">
             <Kbd keys={SAVE_KEYS} />
           </MetadataListItem>
-          {GO_TO.filter((go) => !('isAdmin' in go) || isAdmin).map((go) => (
+          {shortcuts.map((go) => (
             <MetadataListItem key={go.key} label={`Go to ${go.label}`}>
               <Text type="body">
                 <Kbd keys="g" /> then <Kbd keys={go.key} />

@@ -73,12 +73,18 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
             request.DurationMinutes,
             request.ExceptMeetingId), ct));
 
-    /// <summary>Everyone whose calendar can be shown (anyone with a role), with their default week template.</summary>
+    /// <summary>
+    /// Everyone whose calendar can be shown (anyone with a role), with their default week template. With
+    /// <paramref name="permission"/> (a permission's name, exact case), only those whose roles grant it: the people list
+    /// for whoever may not manage users, such as who can be assigned a pathway (<c>WorkPathways</c>) or who can unlock
+    /// a stage (<c>OverrideStages</c>). A name that isn't a permission is a 400.
+    /// </summary>
     [HttpGet("staff")]
     [ProducesResponseType(typeof(IReadOnlyList<StaffMemberResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [RequirePermission(Permission.UseApp)]
-    public async Task<IActionResult> GetStaff(CancellationToken ct) =>
-        Ok(await mediator.Send(new GetCalendarStaffQuery(), ct));
+    public async Task<IActionResult> GetStaff([FromQuery] string? permission, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetCalendarStaffQuery(permission), ct));
 
     /// <summary>Blocks off time for an activity, inside the working day and clash-free.</summary>
     [HttpPost("blocks")]

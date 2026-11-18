@@ -7,6 +7,7 @@ import {
   expectAnnounced,
   findAlert,
   json,
+  managerUser,
   mockApi,
   openDialog,
   renderWithApp,
@@ -305,6 +306,15 @@ describe('Attachments', () => {
     render();
     expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
     expect(screen.queryByRole('switch', {name: 'Show deleted files'})).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to add for someone whose roles don't allow attaching files (a manager)", async () => {
+    mockList([attachment()]);
+    render({patientId}, {user: managerUser});
+
+    expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Download scan.pdf'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
   });
 
   it('in a narrow window or half view, puts the buttons under the details', async () => {

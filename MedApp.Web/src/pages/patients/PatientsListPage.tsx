@@ -18,6 +18,7 @@ import {ageOn, formatShortDate} from '../../utils/dates';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
+import {useCan} from '../../auth/auth';
 
 /** The search's fields, as the API filters patients, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -59,6 +60,8 @@ export function patientsListQuery(search: PatientsListSearch, pageSize: number) 
 }
 
 export function PatientsListPage({search, onSearchChange}: PatientsListPageProps) {
+  // Adding and editing patients needs EditPatients.
+  const canAdd = useCan('EditPatients');
   const {pageSize} = useListSettings();
   const page = search.page ?? 1;
   const sortColumn: PatientSortColumn = search.sort ?? 'Patients';
@@ -119,7 +122,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
         <TableActions
           actions={[
             {label: 'View patient', icon: AppIcon.View, href: `/patients/${p.id}`},
-            {label: 'Edit patient', icon: AppIcon.Edit, href: `/patients/${p.id}/edit`},
+            ...(canAdd ? [{label: 'Edit patient', icon: AppIcon.Edit, href: `/patients/${p.id}/edit`}] : []),
             {label: 'Pathways', icon: AppIcon.Pathways, href: `/patients/${p.id}/pathways`},
           ]}
         />
@@ -141,13 +144,13 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       subtitle={subtitle}
       fill
       message={isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
-      actions={<Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />}>
+      actions={canAdd && <Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />}>
       {noPatientsAtAll ? (
         <EmptyState
           title="No patients yet"
           description="Get started by adding your first patient to the system."
           icon={<Icon icon={AppIcon.Patients} size="lg" />}
-          actions={<Button label="Add Your First Patient" variant="primary" href="/patients/add" />}
+          actions={canAdd && <Button label="Add Your First Patient" variant="primary" href="/patients/add" />}
         />
       ) : (
         <DataTable

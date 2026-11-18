@@ -2595,7 +2595,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    permission?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -2611,6 +2613,17 @@ export interface paths {
                         "text/plain": components["schemas"]["StaffMemberResponse"][];
                         "application/json": components["schemas"]["StaffMemberResponse"][];
                         "text/json": components["schemas"]["StaffMemberResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
             };

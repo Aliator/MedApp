@@ -7,15 +7,22 @@ const whoami = (body: unknown, status = 200) => {
   return new QueryClient().fetchQuery(whoamiQuery);
 };
 
-const signedOut = {isAuthenticated: false, username: '', roles: [], isAdmin: false, mustChangePassword: false, mustSetUpTwoFactor: false};
+const signedOut = {isAuthenticated: false, username: '', roles: [], permissions: [], mustChangePassword: false, mustSetUpTwoFactor: false};
 
 describe('whoamiQuery', () => {
-  it('reads who is signed in, and whether they are an admin whatever the case of the role', async () => {
-    expect(await whoami({isAuthenticated: true, name: 'test-admin', roles: ['admin', 'User']})).toEqual({
+  it('reads who is signed in, their roles, and what their roles allow (only permissions it knows, each once)', async () => {
+    expect(
+      await whoami({
+        isAuthenticated: true,
+        name: 'test-admin',
+        roles: ['Admin', 'Clinician'],
+        permissions: ['ViewPatients', 'UseApp', 'SomethingNewer', 'UseApp'],
+      }),
+    ).toEqual({
       isAuthenticated: true,
       username: 'test-admin',
-      roles: ['admin', 'User'],
-      isAdmin: true,
+      roles: ['Admin', 'Clinician'],
+      permissions: ['UseApp', 'ViewPatients'],
       mustChangePassword: false,
       mustSetUpTwoFactor: false,
     });
@@ -26,7 +33,7 @@ describe('whoamiQuery', () => {
       isAuthenticated: true,
       username: 'test-new-user',
       roles: ['User'],
-      isAdmin: false,
+      permissions: [],
       mustChangePassword: true,
       mustSetUpTwoFactor: false,
     });
@@ -34,7 +41,6 @@ describe('whoamiQuery', () => {
 
   it('says when an admin must set up two-factor authentication', async () => {
     expect(await whoami({isAuthenticated: true, name: 'test-admin', roles: ['Admin'], mustSetUpTwoFactor: true})).toMatchObject({
-      isAdmin: true,
       mustChangePassword: false,
       mustSetUpTwoFactor: true,
     });
@@ -45,7 +51,7 @@ describe('whoamiQuery', () => {
       isAuthenticated: true,
       username: '',
       roles: [],
-      isAdmin: false,
+      permissions: [],
       mustChangePassword: false,
       mustSetUpTwoFactor: false,
     });

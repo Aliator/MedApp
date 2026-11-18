@@ -1,4 +1,4 @@
-import {ApiError, ApiValidationError, type ValidationErrors} from '../api/errors';
+import {ApiError, ApiValidationError, isPermissionMissing, type ValidationErrors} from '../api/errors';
 
 /** What the add and edit pages show for a failed save: field errors for a 400, otherwise one message. */
 export interface SaveProblem {
@@ -32,6 +32,8 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 
       case 401:
         return {validation: null, message: 'Your session has ended. Please sign in again.'};
       case 403:
+        // The API names what the person's roles don't allow.
+        if (isPermissionMissing(error) && error.title) return {validation: null, message: error.title};
         return {validation: null, message: `You do not have permission to change ${subjects}.`};
       case 404:
         return {validation: null, message: `${Subject} not found. It may have been deleted.`};

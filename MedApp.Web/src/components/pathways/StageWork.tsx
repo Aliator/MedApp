@@ -12,8 +12,8 @@ import {StageNotes} from './StageList';
 
 export interface StageWorkProps {
   stage: PathwayStage;
-  /** Shows Unlock on a finished, locked stage. */
-  isAdmin: boolean;
+  /** Shows Unlock on a finished, locked stage: the person's roles grant OverrideStages. */
+  canUnlock: boolean;
   /** Something is being saved: the buttons wait. */
   isBusy: boolean;
   onStart: () => void;
@@ -72,14 +72,14 @@ function fittedHeight(box: HTMLElement): number | undefined {
 /**
  * The working part of a stage. While it can be edited (it's the current stage, or an admin unlocked it): its visit,
  * if it involves one, then a notes box with Save Notes and Finish Stage, and Start Stage before work begins.
- * Otherwise its notes, read-only, and for an admin, Unlock Stage on a finished stage.
+ * Otherwise its notes, read-only, and for a holder of OverrideStages, Unlock Stage on a finished stage.
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.
  * Ctrl+S (⌘S on a Mac) in it saves the notes.
  */
 export function StageWork({
   stage,
-  isAdmin,
+  canUnlock,
   isBusy,
   onStart,
   onSaveNotes,
@@ -129,7 +129,7 @@ export function StageWork({
     return (
       <VStack gap={3}>
         <StageNotes notes={saved} />
-        {isAdmin && stage.canUnlock && (
+        {canUnlock && stage.canUnlock && (
           <HStack>
             <Button
               label="Unlock Stage"
