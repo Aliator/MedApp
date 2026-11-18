@@ -83,6 +83,7 @@ const KIND_ICONS: Record<string, IconType> = {
   ResultReady: AppIcon.Results,
   ResultReassigned: AppIcon.Reassign,
   ResultSignedOffByOther: AppIcon.SignOff,
+  MdtOutcomeRecorded: AppIcon.Mdt,
 };
 
 /** The bell, which the unread count is placed over. */

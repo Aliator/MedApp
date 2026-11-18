@@ -182,6 +182,18 @@ public static class TimelineMapper
             case >= ResultRecorded and <= ResultEnteredInError:
                 Result(response, entry.Action, details, isAdmin ? row.Result : null);
                 break;
+
+            // MDT items: the specialty (an admin-written name), the meetings' times and who was present, for everyone.
+            // The question and the outcome are never in the details, so neither is ever here (decision 70).
+            case MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn:
+                response.MdtItemId = Guid.TryParse(Text(details, "mdtItemId"), out var mdtItemId) ? mdtItemId : null;
+                response.SpecialtyName = Text(details, "specialty");
+                response.MeetingStartUtc = Time(details, "meetingStartUtc");
+                response.PreviousMeetingStartUtc = Time(details, "fromMeetingStartUtc");
+                response.PresentUsernames = details.TryGetValue("present", out var present) && present.ValueKind == JsonValueKind.Array
+                    ? present.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.String).Select(p => p.GetString()!).ToList()
+                    : [];
+                break;
         }
 
         return response;

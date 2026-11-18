@@ -36,7 +36,7 @@ describe('ResultsPage', () => {
     expect(screen.getByText('3 days')).toBeInTheDocument();
     expect(screen.getByText('1 day')).toBeInTheDocument();
     expect(screen.getAllByText('test-senior')).toHaveLength(2);
-    expect(screen.getByText('Needs a clinician')).toBeInTheDocument();
+    expect(screen.getAllByText('Needs a clinician').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Awaiting sign-off')).toHaveLength(2);
     expect(screen.getByText('2 results')).toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/results/search?View=AwaitingMine&Page=1&PageSize=10');

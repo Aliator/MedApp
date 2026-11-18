@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   'AssignPathways',
   'UnlockStages',
   'FinishWithoutVisit',
+  'RecordMdtOutcomes',
   'DeletePathways',
   'BookAppointments',
   'ManageAnyCalendar',
@@ -84,6 +85,10 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   AssignPathways: {group: 'Pathways', description: 'Assign staff to pathways, and unassign them.'},
   UnlockStages: {group: 'Pathways', description: 'Unlock a finished stage, and reinstate a skipped one.'},
   FinishWithoutVisit: {group: 'Pathways', description: 'Finish, or skip, a stage that requires a visit without one, giving a reason.'},
+  RecordMdtOutcomes: {
+    group: 'Pathways',
+    description: "Record a multidisciplinary team meeting's (MDT) outcome on a pathway listed for it.",
+  },
   DeletePathways: {group: 'Pathways', description: 'Delete a cancelled or archived pathway.'},
   BookAppointments: {
     group: 'AppointmentsAndCalendars',

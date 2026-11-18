@@ -52,7 +52,8 @@ public static class PrivacyTestConstants
         Referrals = [],
         ReferralHistory = [],
         Letters = [],
-        Specimens = []
+        Specimens = [],
+        MdtItems = []
     };
 
     /// <summary>The record with these requests to delete notes.</summary>
@@ -71,7 +72,8 @@ public static class PrivacyTestConstants
         Referrals = [],
         ReferralHistory = [],
         Letters = [],
-        Specimens = []
+        Specimens = [],
+        MdtItems = []
     };
 
     public static PatientRecord CreateRecord(Patient? patient = null, params PatientPathway[] pathways)
@@ -136,7 +138,8 @@ public static class PrivacyTestConstants
             Referrals = [],
             ReferralHistory = [],
             Letters = [],
-            Specimens = []
+            Specimens = [],
+            MdtItems = []
         };
     }
 

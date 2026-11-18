@@ -32,10 +32,10 @@ public sealed class RolePermissionsMigrationTests
     /// <summary>The permissions later migrations add (AddedSpecimens), which the starting roles have now.</summary>
     private static readonly Permission[] SpecimenPermissions = [Permission.RecordSpecimens, Permission.ProcessSpecimens];
 
-    private const string ResultsMigration = "20261118181058_AddedResults";
+    private const string ResultsMigration = "20261118182523_AddedResults";
 
-    /// <summary>The permission a later migration adds (AddedResults), which the starting clinician roles have now.</summary>
-    private static readonly Permission[] ResultPermissions = [Permission.SignOffResults];
+    /// <summary>The permissions later migrations add (AddedMdtItems, AddedResults), which the starting clinician roles have now.</summary>
+    private static readonly Permission[] ResultPermissions = [Permission.RecordMdtOutcomes, Permission.SignOffResults];
 
     private static readonly Guid AdminRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
     private static readonly Guid UserRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000002");

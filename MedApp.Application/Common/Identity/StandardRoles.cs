@@ -9,7 +9,7 @@ public sealed record StandardRole(Guid Id, string Name, string Description, IRea
 /// The roles every database has: the built-in <c>Admin</c>; "All staff (before roles)", which was the old <c>User</c>
 /// role, with exactly what staff could do before roles; and the starting roles (decision 68's table, with Senior
 /// clinician from decision 138 of the Phases 3 to 5 plan). The migration <c>AddedRolePermissions</c> writes them, and
-/// later ones change them (<c>AddedWorkingHours</c>, <c>SplitOverrideStages</c>); the integration tests and the demo
+/// later ones change them (<c>AddedWorkingHours</c>, <c>SplitOverrideStages</c>, <c>AddedMdtItems</c>); the integration tests and the demo
 /// data put them back as they were. Every one but Admin stays editable.
 /// <para>
 /// The IDs are fixed for the starting roles and for Admin and All staff where the migration made them; on a database
@@ -45,7 +45,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens, SignOffResults, WriteLetters, ApproveLetters, SendLetters,
+            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles, RecordSpecimens, SignOffResults, WriteLetters, ApproveLetters, SendLetters,
         });
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens, SignOffResults, WriteLetters, ApproveLetters, SendLetters,
+            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles, RecordSpecimens, SignOffResults, WriteLetters, ApproveLetters, SendLetters,
         });
 
     public static readonly StandardRole Nurse = new(

@@ -179,6 +179,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LetterTemplatesController.PreviewLetterTemplate 00001
         LetterTemplatesController.RestoreLetterTemplate 00001
         LetterTemplatesController.UpdateLetterTemplate 00001
+        MdtController.Defer 00011
+        MdtController.GetAwaitingMeeting 00011
+        MdtController.GetMeetingList 00011
+        MdtController.GetMeetings 00011
+        MdtController.GetPathwayItems 00011
+        MdtController.ListForMdt 00011
+        MdtController.RecordOutcome 00000
+        MdtController.Withdraw 00011
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -464,12 +472,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     [Test]
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
-        // Admin had every permission but triage, OverrideStages among them (here, as its two halves). The clinical
-        // permissions added since (specimens, results, letters) were never Admin's.
+        // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
+        // The clinical permissions that came later (specimens, letters, MDT outcomes) were never Admin's.
+        var cameLater = Permissions.NotForAdmin.Except([Permission.TriageReferrals, Permission.FinishWithoutVisit]).ToHashSet();
         var adminBefore = Enum.GetValues<Permission>()
-            .Where(p => p != Permission.TriageReferrals
-                        && p is not (Permission.RecordSpecimens or Permission.ProcessSpecimens or Permission.SignOffResults
-                            or Permission.WriteLetters or Permission.ApproveLetters or Permission.SendLetters))
+            .Where(p => p != Permission.TriageReferrals && !cameLater.Contains(p))
             .ToHashSet();
         var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
 

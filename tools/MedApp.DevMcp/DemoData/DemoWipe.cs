@@ -56,6 +56,8 @@ public static class DemoWipe
                 // name rooms and specialties, which go below.
                 await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
                 await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
+                // MDT items (who was present cascades) before the meetings, pathways and specialties they name.
+                await db.MdtItems.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);

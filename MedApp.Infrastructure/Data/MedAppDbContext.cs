@@ -6,6 +6,7 @@ using MedApp.Domain.Calendar;
 using MedApp.Domain.Clinics;
 using MedApp.Domain.Jobs;
 using MedApp.Domain.Letters;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
@@ -74,6 +75,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<StaffHours> StaffHours => Set<StaffHours>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
+    public DbSet<MdtItem> MdtItems => Set<MdtItem>();
+    public DbSet<MdtItemAttendee> MdtItemAttendees => Set<MdtItemAttendee>();
     public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();
     public DbSet<DayTemplateBlock> DayTemplateBlocks => Set<DayTemplateBlock>();
     public DbSet<WeekTemplate> WeekTemplates => Set<WeekTemplate>();

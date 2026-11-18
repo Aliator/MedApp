@@ -173,6 +173,9 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       startUtc: '2026-11-17T14:00:00.000Z',
       endUtc: '2026-11-17T15:00:00.000Z',
       attendeeUserIds: ALL,
+      // An ordinary meeting, not a specialty's MDT.
+      isMdt: false,
+      specialtyId: null,
     });
   });
 
@@ -388,6 +391,9 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       startUtc: '2026-11-19T09:00:00.000Z',
       endUtc: '2026-11-19T10:00:00.000Z',
       attendeeUserIds: [KAY.userId, GONE],
+      // What it is, as shown, so a change never turns an MDT into an ordinary meeting.
+      isMdt: false,
+      specialtyId: null,
       // The version it was changed from: the API refuses the change if anyone has changed the meeting since.
       expectedLastUpdated: MEETING.lastUpdated,
     });

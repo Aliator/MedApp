@@ -2,6 +2,7 @@ using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Letters;
+using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -89,4 +90,10 @@ public sealed record PatientRecord
     /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
     /// </summary>
     public IReadOnlyList<Domain.Results.Result> Results { get; init; } = [];
+
+    /// <summary>
+    /// The patient's MDT items, oldest listed first, with their specialty, meeting and who was present (items of a
+    /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).
+    /// </summary>
+    public required IReadOnlyList<MdtItem> MdtItems { get; init; }
 }
