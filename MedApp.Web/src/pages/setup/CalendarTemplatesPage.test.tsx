@@ -28,6 +28,29 @@ const WEEKS = '/api/calendar/week-templates';
 const daysOf = (userId: string) => `${STAFF}/${userId}/day-templates`;
 const weeksOf = (userId: string) => `${STAFF}/${userId}/week-templates`;
 const defaultOf = (userId: string) => `${STAFF}/${userId}/week-template`;
+const hoursOf = (userId: string) => `${STAFF}/${userId}/hours`;
+
+const DEFAULT_HOURS = (userId: string, canEdit = true) => ({
+  staffUserId: userId,
+  hasOwnHours: false,
+  since: null,
+  canEdit,
+  days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, starts: '08:00:00', ends: '18:00:00', siteId: null, siteName: null})),
+});
+const SATURDAYS = (userId: string, canEdit = true) => ({
+  staffUserId: userId,
+  hasOwnHours: true,
+  since: '2026-11-02',
+  canEdit,
+  days: [
+    {dayOfWeek: 'Monday', starts: '09:00:00', ends: '17:00:00', siteId: 'main', siteName: 'Main site'},
+    {dayOfWeek: 'Saturday', starts: '09:00:00', ends: '13:00:00', siteId: 'main', siteName: 'Main site'},
+  ],
+});
+const SITES = [
+  {id: 'main', name: 'Main site', addressLines: [], isArchived: false, canBeDeleted: false, rooms: []},
+  {id: 'north', name: 'Northgate outreach clinic', addressLines: [], isArchived: false, canBeDeleted: true, rooms: []},
+];
 
 const dayTemplates = [
   {
@@ -64,6 +87,8 @@ function renderPage(
     [`GET ${daysOf(owner)}`]: () => json(dayTemplates),
     [`GET ${weeksOf(owner)}`]: () => json(weekTemplates),
     [`GET ${defaultOf(owner)}`]: () => json({staffUserId: owner, weekTemplateId: 'wt1', weekTemplateName: 'Full time', since: '2026-11-02'}),
+    [`GET ${hoursOf(owner)}`]: () => json(DEFAULT_HOURS(owner)),
+    'GET /api/sites': () => json(SITES),
     ...extra,
   });
   const onSearchChange = vi.fn();
@@ -383,5 +408,88 @@ describe('CalendarTemplatesPage', () => {
     expect(keys('day')).toEqual([calendarKeys.dayTemplatesOf(OTHER.userId)]);
     expect(keys('week')).toEqual([calendarKeys.weekTemplatesOf(OTHER.userId)]);
     expect(keys('default')).toEqual([calendarKeys.weekTemplateOf(OTHER.userId), calendarKeys.weekTemplatesOf(OTHER.userId)]);
+  });
+
+  describe('Working Hours', () => {
+    it('shows the default hours, and saves new ones from the editor, at a site', async () => {
+      withAnnouncements();
+      let saved: unknown;
+      const {user, fetch} = renderPage(
+        {tab: 'hours'},
+        {
+          [`PUT ${hoursOf(ADMIN.userId)}`]: async (request) => {
+            saved = await request.json();
+            return json(SATURDAYS(ADMIN.userId));
+          },
+        },
+      );
+
+      expect(await screen.findByText('You work the default hours: Monday to Friday, 08:00 to 18:00, at no particular site.')).toBeInTheDocument();
+      expect(screen.getByText('Working hours: the default')).toBeInTheDocument();
+      expect(screen.getByRole('tab', {name: 'Working Hours'})).toHaveAttribute('aria-selected', 'true');
+      expect(screen.queryByRole('link', {name: /^New/})).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', {name: 'Edit Working Hours'}));
+      const dialog = within(openDialog()!);
+      expect(dialog.getByRole('switch', {name: 'Use the default hours: Monday to Friday, 08:00 to 18:00'})).toBeChecked();
+      await user.click(dialog.getByRole('switch', {name: 'Use the default hours: Monday to Friday, 08:00 to 18:00'}));
+      const saturday = within(dialog.getByRole('group', {name: 'Saturday'}));
+      await user.click(saturday.getByRole('switch', {name: 'Works on Saturday'}));
+      await user.click(saturday.getByRole('combobox', {name: 'Saturday to'}));
+      await user.click(screen.getByRole('option', {name: '13:00'}));
+      await user.click(dialog.getByRole('button', {name: 'Save'}));
+
+      await expectAnnounced('Working hours saved');
+      expect(saved).toEqual({
+        days: [
+          ...['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, starts: '08:00:00', ends: '18:00:00', siteId: 'main'})),
+          {dayOfWeek: 'Saturday', starts: '08:00:00', ends: '13:00:00', siteId: 'main'},
+        ],
+      });
+      expect(calls(fetch)).toContain(`PUT ${hoursOf(ADMIN.userId)}`);
+    });
+
+    it("lists someone's own hours by day, with where and since when, read only without the permission", async () => {
+      renderPage({tab: 'hours', staff: OTHER.userId}, {[`GET ${hoursOf(OTHER.userId)}`]: () => json(SATURDAYS(OTHER.userId, false))}, {user: staffUser, owner: OTHER.userId});
+
+      expect(await screen.findByText('b.staff works these days, from 2 November 2026. Anything on the calendar sits inside them.')).toBeInTheDocument();
+      expect(screen.getByText('Saturday')).toBeInTheDocument();
+      expect(screen.getAllByText('09:00 to 13:00, Main site')).toHaveLength(1);
+      expect(screen.getAllByText('Not working')).toHaveLength(5);
+      expect(screen.getByText('Working hours: Mon, 09:00 to 17:00 · Sat, 09:00 to 13:00')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Edit Working Hours'})).not.toBeInTheDocument();
+      expect(screen.getByText("Only staff who manage clinics or anyone's calendar can change working hours.")).toBeInTheDocument();
+    });
+
+    it("goes back to the default, and shows the API's refusal in the dialog", async () => {
+      let saved: unknown;
+      const {user} = renderPage(
+        {tab: 'hours'},
+        {
+          [`GET ${hoursOf(ADMIN.userId)}`]: () => json(SATURDAYS(ADMIN.userId)),
+          [`PUT ${hoursOf(ADMIN.userId)}`]: async (request) => {
+            saved = await request.json();
+            return json({title: 'Main site is open 08:00 to 18:00 on Mondays: working hours there must be inside them.'}, 409);
+          },
+        },
+      );
+
+      await user.click(await screen.findByRole('button', {name: 'Edit Working Hours'}));
+      const dialog = within(openDialog()!);
+      await user.click(dialog.getByRole('switch', {name: 'Use the default hours: Monday to Friday, 08:00 to 18:00'}));
+      await user.click(dialog.getByRole('button', {name: 'Save'}));
+
+      expect(await dialog.findByText('Main site is open 08:00 to 18:00 on Mondays: working hours there must be inside them.')).toBeInTheDocument();
+      expect(saved).toEqual({days: []});
+    });
+
+    it('says so when the hours could not be loaded', async () => {
+      renderPage({tab: 'hours'}, {[`GET ${hoursOf(ADMIN.userId)}`]: () => json({title: 'Down'}, 500)});
+      expect(await screen.findByText('The working hours could not be loaded. Please try again.')).toBeInTheDocument();
+    });
+
+    it('preloads the hours for the tab', () => {
+      expect(calendarTemplatesPageQueries('hours', ME.userId).map((q) => q.queryKey)).toEqual([calendarKeys.hoursOf(ME.userId)]);
+    });
   });
 });
