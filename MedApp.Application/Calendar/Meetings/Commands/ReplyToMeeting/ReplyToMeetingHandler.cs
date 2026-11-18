@@ -14,8 +14,8 @@ namespace MedApp.Application.Calendar.Meetings.Commands.ReplyToMeeting;
 /// Records the signed-in member of staff's reply to a meeting (<see cref="MeetingReplies"/>), holding their calendar
 /// lock: a change to the meeting holds it too (they're going), so a reply can't cross a move, and a booking into time
 /// a decline frees waits for it. A cancelled meeting is deleted, so it's a 404; someone not going is a 403; one that
-/// has ended is a 409. Accepting again after declining is a 409 if that time has been taken since (the decline freed
-/// it). The same reply again changes nothing. A decline (not a repeat of one) tells the organiser, unless it's theirs
+/// has ended, or has moved since the person looked, is a 409. Accepting again after declining is a 409 naming what's
+/// at that time on their calendar, if anything is. The same reply again changes nothing. A decline (not a repeat of one) tells the organiser, unless it's theirs
 /// or their account has gone.
 /// </summary>
 public sealed class ReplyToMeetingHandler(
@@ -38,11 +38,14 @@ public sealed class ReplyToMeetingHandler(
             var tracked = await repository.GetForUpdateAsync(request.MeetingId, ct)
                           ?? throw new NotFoundException($"Meeting '{request.MeetingId}' was not found.");
 
-            var previous = MeetingReplies.Reply(tracked, actor.UserId, reply, now);
+            // The validator requires the time seen; compared under the lock, so a move can't slip in between.
+            var previous = MeetingReplies.Reply(
+                tracked, actor.UserId, reply, request.ExpectedStartUtc!.Value, request.ExpectedEndUtc!.Value, now);
             if (previous == reply)
                 return (tracked, previous);
 
-            // The decline freed the time on their calendar, and something may have been put there since.
+            // The decline freed the time on their calendar: something may have been put there since, or (a template block,
+            // or what kept their decline through a move) have been there all along.
             if (previous == MeetingReply.Declined)
                 await EnsureStillFreeAsync(tracked, actor.UserId, ct);
 
@@ -66,6 +69,6 @@ public sealed class ReplyToMeetingHandler(
         var date = UkTime.DateOf(meeting.StartUtc);
         var calendar = (await calendarRepository.GetCalendarsAsync([staffUserId], date, date, ct)).Single();
         if (CalendarClashes.Find(calendar, meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id) is { } clash)
-            throw new ConflictException($"{MeetingReplies.TakenSinceDeclining} {clash}");
+            throw new ConflictException($"{MeetingReplies.NotFreeToAccept} {clash}");
     }
 }

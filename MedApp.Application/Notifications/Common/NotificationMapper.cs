@@ -18,7 +18,8 @@ public static class NotificationMapper
         notification.CreatedAtUtc,
         notification.ReadAtUtc is not null,
         notification.AppointmentId,
-        notification.CalendarDate);
+        notification.CalendarDate,
+        notification.MeetingId);
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>
     public static NotificationPreferencesResponse ToResponse(NotificationPreferences preferences) =>

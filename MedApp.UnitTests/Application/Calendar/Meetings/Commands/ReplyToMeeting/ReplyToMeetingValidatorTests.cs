@@ -17,7 +17,7 @@ public sealed class ReplyToMeetingValidatorTests
     [TestCase(" Accepted ")]
     public void Validate_AReply_IsValid(string reply)
     {
-        _validator.Validate(new ReplyToMeetingCommand(MeetingId, reply, StaffActor)).IsValid.Should().BeTrue();
+        _validator.Validate(Command(reply)).IsValid.Should().BeTrue();
     }
 
     [TestCase("NoReply")]
@@ -29,7 +29,7 @@ public sealed class ReplyToMeetingValidatorTests
     [TestCase(null)]
     public void Validate_NotAReply_IsInvalid(string? reply)
     {
-        var result = _validator.Validate(new ReplyToMeetingCommand(MeetingId, reply!, StaffActor));
+        var result = _validator.Validate(Command(reply!));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(ReplyToMeetingCommand.Reply))
             .Which.ErrorMessage.Should().Be(MeetingReplies.NotAReply);
@@ -38,8 +38,22 @@ public sealed class ReplyToMeetingValidatorTests
     [Test]
     public void Validate_NoMeetingId_IsInvalid()
     {
-        var result = _validator.Validate(new ReplyToMeetingCommand(Guid.Empty, "Accepted", StaffActor));
+        var result = _validator.Validate(Command("Accepted") with { MeetingId = Guid.Empty });
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(ReplyToMeetingCommand.MeetingId));
     }
+
+    [Test]
+    public void Validate_NoTimeSeen_IsInvalid()
+    {
+        var result = _validator.Validate(Command("Accepted") with { ExpectedStartUtc = null, ExpectedEndUtc = null });
+
+        result.Errors.Select(e => (e.PropertyName, e.ErrorMessage)).Should().BeEquivalentTo([
+            (nameof(ReplyToMeetingCommand.ExpectedStartUtc), MeetingReplies.NoTimeSeen),
+            (nameof(ReplyToMeetingCommand.ExpectedEndUtc), MeetingReplies.NoTimeSeen),
+        ]);
+    }
+
+    private static ReplyToMeetingCommand Command(string reply) =>
+        new(MeetingId, reply, At(NextMonday, 10), At(NextMonday, 11), StaffActor);
 }

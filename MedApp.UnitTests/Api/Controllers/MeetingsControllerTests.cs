@@ -154,9 +154,13 @@ public sealed class MeetingsControllerTests
         var meeting = _fixture.Create<MeetingResponse>();
         var mediator = new RecordingMediator(_ => meeting);
 
-        var result = await Controller(mediator, role).ReplyToMeeting(RecordId, new MeetingReplyRequest { Reply = "Declined" }, _cts.Token);
+        var start = new DateTime(2026, 11, 23, 10, 0, 0, DateTimeKind.Utc);
+        var request = new MeetingReplyRequest { Reply = "Declined", ExpectedStartUtc = start, ExpectedEndUtc = start.AddHours(1) };
 
-        mediator.Request.Should().Be(new ReplyToMeetingCommand(RecordId, "Declined", new CalendarActor(UserId, Username, isAdmin)));
+        var result = await Controller(mediator, role).ReplyToMeeting(RecordId, request, _cts.Token);
+
+        mediator.Request.Should().Be(new ReplyToMeetingCommand(
+            RecordId, "Declined", start, start.AddHours(1), new CalendarActor(UserId, Username, isAdmin)));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
     }

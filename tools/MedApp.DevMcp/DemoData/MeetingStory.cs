@@ -85,7 +85,7 @@ public sealed class MeetingStory
         meeting.EndUtc = endUtc;
         meeting.LastUpdated = atUtc;
         if (moved)
-            MeetingReplies.ResetAll(meeting);
+            MeetingReplies.ResetAfterMove(meeting);
         meeting.Attendees.RemoveAll(a => !wanted.Contains(a.StaffUserId));
         meeting.Attendees.AddRange(MeetingStaff.Attendees(
             meeting.Id, wanted.Where(id => meeting.Attendees.All(a => a.StaffUserId != id))));
@@ -121,11 +121,11 @@ public sealed class MeetingStory
             throw new InvalidOperationException($"{by.Username} doesn't work here at {UkTime.Describe(atUtc)}.");
 
         var actor = new CalendarActor(by.Id, by.Username, by.IsAdminAt(atUtc));
-        ReplyValidator.ValidateAndThrow(new ReplyToMeetingCommand(Meeting.Id, reply.ToString(), actor));
+        ReplyValidator.ValidateAndThrow(new ReplyToMeetingCommand(Meeting.Id, reply.ToString(), Meeting.StartUtc, Meeting.EndUtc, actor));
         if (MeetingReplies.HasDeclined(Meeting, by.Id) && reply == MeetingReply.Accepted)
             throw new InvalidOperationException("Accepting after declining needs the freed time checked, which the story doesn't do.");
 
-        var before = MeetingReplies.Reply(Meeting, by.Id, reply, atUtc);
+        var before = MeetingReplies.Reply(Meeting, by.Id, reply, Meeting.StartUtc, Meeting.EndUtc, atUtc);
         if (reply == MeetingReply.Declined && before != MeetingReply.Declined
             && MeetingNotifications.AfterDeclining(Meeting, actor, atUtc) is { } notification)
             _notifications.Add(notification);

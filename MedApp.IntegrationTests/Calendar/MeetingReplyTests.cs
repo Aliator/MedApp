@@ -44,8 +44,24 @@ public sealed class MeetingReplyTests : IntegrationTest
             AttendeeUserIds = [.. attendees],
         })).ReadAsAsync<MeetingResponse>(HttpStatusCode.Created);
 
-    private static Task<HttpResponseMessage> ReplyAsync(HttpClient client, Guid meetingId, string reply) =>
-        client.PutAsJsonAsync($"/api/calendar/meetings/{meetingId}/reply", new MeetingReplyRequest { Reply = reply });
+    /// <summary>A reply to the meeting as the person saw it (<paramref name="seen"/>: its time is sent with the reply).</summary>
+    private static Task<HttpResponseMessage> ReplyAsync(HttpClient client, MeetingResponse seen, string reply) =>
+        client.PutAsJsonAsync($"/api/calendar/meetings/{seen.Id}/reply", new MeetingReplyRequest
+        {
+            Reply = reply,
+            ExpectedStartUtc = seen.StartUtc,
+            ExpectedEndUtc = seen.EndUtc,
+        });
+
+    private Task<HttpResponseMessage> MoveAsync(MeetingResponse seen, DateTime startUtc, DateTime endUtc) =>
+        _admin.PutAsJsonAsync($"/api/calendar/meetings/{seen.Id}", new MeetingRequest
+        {
+            Title = seen.Title,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+            AttendeeUserIds = seen.Attendees.Select(a => a.UserId).ToList(),
+            ExpectedLastUpdated = seen.LastUpdated,
+        });
 
     private async Task<MeetingResponse> GetMeetingAsync(HttpClient client, Guid meetingId) =>
         await (await client.GetAsync($"/api/calendar/meetings/{meetingId}")).ReadAsAsync<MeetingResponse>();
@@ -58,11 +74,11 @@ public sealed class MeetingReplyTests : IntegrationTest
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId);
 
-        var declined = await (await ReplyAsync(_staff.Client, meeting.Id, "Declined")).ReadAsAsync<MeetingResponse>();
+        var declined = await (await ReplyAsync(_staff.Client, meeting, "Declined")).ReadAsAsync<MeetingResponse>();
         declined.Should().BeEquivalentTo(new { MyReply = "Declined", CanReply = true });
         declined.LastUpdated.Should().Be(meeting.LastUpdated, "a reply isn't a change to the meeting");
 
-        var accepted = await (await ReplyAsync(_staff.Client, meeting.Id, "Accepted")).ReadAsAsync<MeetingResponse>();
+        var accepted = await (await ReplyAsync(_staff.Client, meeting, "Accepted")).ReadAsAsync<MeetingResponse>();
         accepted.MyReply.Should().Be("Accepted");
 
         // Everyone sees everyone's reply; only an attendee has one of their own.
@@ -78,8 +94,8 @@ public sealed class MeetingReplyTests : IntegrationTest
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
 
-        var outsider = await ReplyAsync(_other.Client, meeting.Id, "Declined");
-        var organiser = await ReplyAsync(_admin, meeting.Id, "Declined");
+        var outsider = await ReplyAsync(_other.Client, meeting, "Declined");
+        var organiser = await ReplyAsync(_admin, meeting, "Declined");
 
         (await outsider.ReadAsAsync<ProblemDetails>(HttpStatusCode.Forbidden)).Title.Should().Be(MeetingReplies.NotAnAttendee);
         await organiser.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
@@ -91,8 +107,8 @@ public sealed class MeetingReplyTests : IntegrationTest
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
 
-        await (await ReplyAsync(_staff.Client, meeting.Id, "NoReply")).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Maybe")).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+        await (await ReplyAsync(_staff.Client, meeting, "NoReply")).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+        await (await ReplyAsync(_staff.Client, meeting, "Maybe")).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
     }
 
     [Test]
@@ -101,7 +117,7 @@ public sealed class MeetingReplyTests : IntegrationTest
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
         await (await _admin.DeleteAsync($"/api/calendar/meetings/{meeting.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        await (await ReplyAsync(_staff.Client, meeting, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
     }
 
     [Test]
@@ -110,7 +126,7 @@ public sealed class MeetingReplyTests : IntegrationTest
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
         MoveClockPast(UkAt(_day, 10));
 
-        var response = await ReplyAsync(_staff.Client, meeting.Id, "Declined");
+        var response = await ReplyAsync(_staff.Client, meeting, "Declined");
 
         (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Be(MeetingReplies.Ended);
     }
@@ -122,7 +138,7 @@ public sealed class MeetingReplyTests : IntegrationTest
         var patient = await CreatePatientAsync(_staff.Client);
 
         await (await PostBookingAsync(_staff.Client, patient.Id, _staff.UserId, UkAt(_day, 9, 30))).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await ReplyAsync(_staff.Client, meeting, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         // Their time is free now; the others going are still busy.
         await (await PostBookingAsync(_staff.Client, patient.Id, _staff.UserId, UkAt(_day, 9, 30))).ShouldHaveStatusAsync(HttpStatusCode.Created);
@@ -138,8 +154,9 @@ public sealed class MeetingReplyTests : IntegrationTest
         told.CalendarDate.Should().Be(_day);
 
         // Accepting again now finds the time taken: a 409 naming it, and the decline stands.
-        var again = await ReplyAsync(_staff.Client, meeting.Id, "Accepted");
-        (await again.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith(MeetingReplies.TakenSinceDeclining);
+        var again = await ReplyAsync(_staff.Client, meeting, "Accepted");
+        (await again.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should()
+            .Be($"{MeetingReplies.NotFreeToAccept} That time overlaps another appointment, 09:30 to 10:00.");
         (await GetMeetingAsync(_staff.Client, meeting.Id)).MyReply.Should().Be("Declined");
     }
 
@@ -148,7 +165,7 @@ public sealed class MeetingReplyTests : IntegrationTest
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
 
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await ReplyAsync(_staff.Client, meeting, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsAsync(_admin)).Should().NotContain(n => n.Kind == "MeetingDeclined");
     }
@@ -157,8 +174,8 @@ public sealed class MeetingReplyTests : IntegrationTest
     public async Task UpdateMeeting_Moved_PutsEveryReplyBackToNoReply_ButATitleChangeKeepsThem()
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId);
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await ReplyAsync(_other.Client, meeting.Id, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await ReplyAsync(_staff.Client, meeting, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await ReplyAsync(_other.Client, meeting, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         // A new title, the same time: replies stay, and the decliner's calendar isn't checked.
         var renamed = await (await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", new MeetingRequest
@@ -190,7 +207,7 @@ public sealed class MeetingReplyTests : IntegrationTest
     public async Task UpdateMeeting_NotMoved_ADeclinerWhoBookedTheTimeSince_DoesntBlockIt()
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId);
-        await (await ReplyAsync(_staff.Client, meeting.Id, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await ReplyAsync(_staff.Client, meeting, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var patient = await CreatePatientAsync(_staff.Client);
         await (await PostBookingAsync(_staff.Client, patient.Id, _staff.UserId, UkAt(_day, 9))).ShouldHaveStatusAsync(HttpStatusCode.Created);
 
@@ -204,5 +221,49 @@ public sealed class MeetingReplyTests : IntegrationTest
         });
 
         await renamed.ShouldHaveStatusAsync(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Reply_FromAScreenOpenedBeforeAMove_Returns409NamingTheNewTime_AndRecordsNothing()
+    {
+        var seen = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId);
+        await (await MoveAsync(seen, UkAt(_day, 14), UkAt(_day, 15))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var stale = await ReplyAsync(_staff.Client, seen, "Accepted");
+
+        (await stale.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should()
+            .StartWith("This meeting has moved to ").And.EndWith("14:00 to 15:00: look at its new time, then reply.");
+        var now = await GetMeetingAsync(_staff.Client, seen.Id);
+        now.MyReply.Should().Be("NoReply");
+        // From the meeting as it is now, the reply goes through.
+        await (await ReplyAsync(_staff.Client, now, "Accepted")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task UpdateMeeting_Moved_OverADeclinersBooking_IsSaved_KeepingTheirDecline_AndTellingThem()
+    {
+        var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId);
+        await (await ReplyAsync(_staff.Client, meeting, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var patient = await CreatePatientAsync(_staff.Client);
+        await (await PostBookingAsync(_staff.Client, patient.Id, _staff.UserId, UkAt(_day, 9, 30))).ShouldHaveStatusAsync(HttpStatusCode.Created);
+
+        // Moved by a quarter of an hour: still over the decliner's appointment, which doesn't stop it.
+        var moved = await (await MoveAsync(meeting, UkAt(_day, 9, 15), UkAt(_day, 10, 15))).ReadAsAsync<MeetingResponse>();
+
+        moved.Attendees.Single(a => a.UserId == _staff.UserId).Reply.Should().Be("Declined");
+        moved.Attendees.Single(a => a.UserId == _other.UserId).Reply.Should().Be("NoReply");
+        var told = (await NotificationsAsync(_staff.Client)).Where(n => n.Kind == "MeetingChanged").Should().ContainSingle().Subject;
+        told.Message.Should().EndWith(MeetingNotifications.DeclineStands);
+        told.MeetingId.Should().Be(meeting.Id);
+    }
+
+    [Test]
+    public async Task Decline_TellsTheOrganiser_WithALinkToTheMeeting()
+    {
+        var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
+
+        await (await ReplyAsync(_staff.Client, meeting, "Declined")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        (await NotificationsAsync(_admin)).Single(n => n.Kind == "MeetingDeclined").MeetingId.Should().Be(meeting.Id);
     }
 }

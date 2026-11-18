@@ -35,8 +35,11 @@ public sealed class ReplyToMeetingHandlerTests : MeetingHandlerTestBase
 
     private MeetingAttendee Attendee(Guid staffUserId) => _meeting.Attendees.Single(a => a.StaffUserId == staffUserId);
 
-    private Task<MeetingResponse> Reply(string reply, CalendarActor? actor = null) =>
-        _handler.Handle(new ReplyToMeetingCommand(MeetingId, reply, actor ?? StaffActor), Token);
+    /// <summary>A reply made looking at the meeting at the time it's stored at (or <paramref name="seenStartUtc"/>).</summary>
+    private Task<MeetingResponse> Reply(string reply, CalendarActor? actor = null, DateTime? seenStartUtc = null) =>
+        _handler.Handle(new ReplyToMeetingCommand(
+            MeetingId, reply, seenStartUtc ?? _meeting.StartUtc, (seenStartUtc ?? _meeting.StartUtc) + (_meeting.EndUtc - _meeting.StartUtc),
+            actor ?? StaffActor), Token);
 
     [Test]
     public async Task Handle_Decline_RecordsItHoldingOnlyTheirLock_AndSaves()
@@ -119,7 +122,7 @@ public sealed class ReplyToMeetingHandlerTests : MeetingHandlerTestBase
         var act = () => Reply("Accepted");
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage($"{MeetingReplies.TakenSinceDeclining} That time overlaps another appointment, 10:30 to 11:00.");
+            .WithMessage($"{MeetingReplies.NotFreeToAccept} That time overlaps another appointment, 10:30 to 11:00.");
         Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -157,10 +160,26 @@ public sealed class ReplyToMeetingHandlerTests : MeetingHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_MovedSinceTheyLooked_IsAConflictNamingTheNewTime_SavingNothingAndTellingNobody()
+    {
+        // They opened it at 10:00; an admin has since moved it to 14:00.
+        GivenMeeting(NewMeeting(At(NextMonday, 14), At(NextMonday, 15)));
+
+        var act = () => Reply("Declined", seenStartUtc: At(NextMonday, 10));
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This meeting has moved to Monday 23 November, 14:00 to 15:00: look at its new time, then reply.");
+        Attendee(StaffUserId).Reply.Should().Be(MeetingReply.NoReply);
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Handle_CancelledMeeting_IsNotFound()
     {
         // Cancelling deletes a meeting.
-        var act = () => _handler.Handle(new ReplyToMeetingCommand(OtherMeetingId, "Accepted", StaffActor), Token);
+        var act = () => _handler.Handle(
+            new ReplyToMeetingCommand(OtherMeetingId, "Accepted", At(NextMonday, 10), At(NextMonday, 11), StaffActor), Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
         Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);

@@ -81,6 +81,7 @@ public sealed class NotificationMapperTests
             Title = "Meeting invitation",
             Message = Message,
             CalendarDate = date,
+            MeetingId = MeetingId,
             CreatedAtUtc = CreatedAtUtc,
         };
 
@@ -88,13 +89,17 @@ public sealed class NotificationMapperTests
 
         response.Kind.Should().Be(expected);
         response.CalendarDate.Should().Be(date);
+        response.MeetingId.Should().Be(MeetingId);
         response.ProcedureId.Should().BeNull();
         response.AppointmentId.Should().BeNull();
     }
 
+    private static readonly Guid MeetingId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
+
     [Test]
     public void ToResponse_ProcedureNotification_HasNoCalendarDate()
     {
+        NotificationMapper.ToResponse(CreateNotification()).MeetingId.Should().BeNull();
         NotificationMapper.ToResponse(CreateNotification()).CalendarDate.Should().BeNull();
     }
 

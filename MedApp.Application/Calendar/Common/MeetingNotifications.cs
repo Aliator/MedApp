@@ -12,8 +12,11 @@ namespace MedApp.Application.Calendar.Common;
 /// </summary>
 public static class MeetingNotifications
 {
-    /// <summary>Added to "Meeting moved": a move clears everyone's reply (<see cref="MeetingReplies.ResetAll"/>).</summary>
+    /// <summary>Added to "Meeting moved": a move clears the replies (<see cref="MeetingReplies.ResetAfterMove"/>).</summary>
     public const string ReplyAgain = "Please reply again.";
+
+    /// <summary>Added to "Meeting moved" instead, for someone who declined it and is busy at the new time.</summary>
+    public const string DeclineStands = "You have something else on then, so your decline stands.";
 
     public static string TitleOf(NotificationKind kind) => kind switch
     {
@@ -70,7 +73,11 @@ public static class MeetingNotifications
                     NotificationKind.MeetingInvited, attendee, meeting, $"{actor.Username} invited you to '{meeting.Title}', {when}.", nowUtc));
             else if (moved)
                 notifications.Add(Create(
-                    NotificationKind.MeetingChanged, attendee, meeting, $"{actor.Username} moved '{meeting.Title}' to {when}. {ReplyAgain}", nowUtc));
+                    NotificationKind.MeetingChanged,
+                    attendee,
+                    meeting,
+                    $"{actor.Username} moved '{meeting.Title}' to {when}. {(MeetingReplies.HasDeclined(meeting, attendee) ? DeclineStands : ReplyAgain)}",
+                    nowUtc));
         }
 
         return notifications;
@@ -116,6 +123,8 @@ public static class MeetingNotifications
         Title = TitleOf(kind),
         Message = message,
         CalendarDate = date ?? UkTime.DateOf(meeting.StartUtc),
+        // A cancellation has nothing to open: the meeting is deleted, or the person was taken off it.
+        MeetingId = kind == NotificationKind.MeetingCancelled ? null : meeting.Id,
         CreatedAtUtc = nowUtc
     };
 }

@@ -13,6 +13,10 @@ public sealed class MeetingRepliesTests
     /// <summary>The MDT, 10:00 to 11:00 next Monday, for both members of staff (the admin arranged it, and isn't going).</summary>
     private static Meeting Mdt() => NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
 
+    /// <summary>A reply made looking at the meeting as it is now.</summary>
+    private static MeetingReply AsSeen(Meeting meeting, Guid staffUserId, MeetingReply reply, DateTime nowUtc) =>
+        MeetingReplies.Reply(meeting, staffUserId, reply, meeting.StartUtc, meeting.EndUtc, nowUtc);
+
     private static MeetingAttendee Attendee(Meeting meeting, Guid staffUserId) =>
         meeting.Attendees.Single(a => a.StaffUserId == staffUserId);
 
@@ -39,7 +43,7 @@ public sealed class MeetingRepliesTests
         var meeting = Mdt();
         var lastUpdated = meeting.LastUpdated;
 
-        var before = MeetingReplies.Reply(meeting, StaffUserId, reply, Now);
+        var before = AsSeen(meeting, StaffUserId, reply, Now);
 
         before.Should().Be(MeetingReply.NoReply);
         Attendee(meeting, StaffUserId).Reply.Should().Be(reply);
@@ -53,9 +57,9 @@ public sealed class MeetingRepliesTests
     public void Reply_ChangedMind_RecordsTheNewReplyAndReturnsTheOld()
     {
         var meeting = Mdt();
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now.AddHours(-1));
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now.AddHours(-1));
 
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Accepted, Now).Should().Be(MeetingReply.Declined);
+        AsSeen(meeting, StaffUserId, MeetingReply.Accepted, Now).Should().Be(MeetingReply.Declined);
 
         Attendee(meeting, StaffUserId).Reply.Should().Be(MeetingReply.Accepted);
         Attendee(meeting, StaffUserId).RepliedAtUtc.Should().Be(Now);
@@ -65,9 +69,9 @@ public sealed class MeetingRepliesTests
     public void Reply_TheSameAgain_ChangesNothing()
     {
         var meeting = Mdt();
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now.AddHours(-1));
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now.AddHours(-1));
 
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now).Should().Be(MeetingReply.Declined);
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now).Should().Be(MeetingReply.Declined);
 
         Attendee(meeting, StaffUserId).RepliedAtUtc.Should().Be(Now.AddHours(-1));
     }
@@ -76,7 +80,7 @@ public sealed class MeetingRepliesTests
     public void Reply_SomeoneNotGoing_IsForbidden()
     {
         // The admin who arranged it isn't going, so can't reply, for themselves or anyone else.
-        var act = () => MeetingReplies.Reply(Mdt(), AdminUserId, MeetingReply.Declined, Now);
+        var act = () => AsSeen(Mdt(), AdminUserId, MeetingReply.Declined, Now);
 
         act.Should().Throw<ForbiddenException>().WithMessage(MeetingReplies.NotAnAttendee);
     }
@@ -87,7 +91,7 @@ public sealed class MeetingRepliesTests
     {
         var meeting = NewMeeting(Now.AddMinutes(-60 - minutesAfterEnd), Now.AddMinutes(-minutesAfterEnd));
 
-        var act = () => MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Accepted, Now);
+        var act = () => AsSeen(meeting, StaffUserId, MeetingReply.Accepted, Now);
 
         act.Should().Throw<ConflictException>().WithMessage(MeetingReplies.Ended);
     }
@@ -97,7 +101,7 @@ public sealed class MeetingRepliesTests
     {
         var meeting = NewMeeting(Now.AddMinutes(-30), Now.AddMinutes(30));
 
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now);
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now);
 
         Attendee(meeting, StaffUserId).Reply.Should().Be(MeetingReply.Declined);
     }
@@ -105,7 +109,7 @@ public sealed class MeetingRepliesTests
     [Test]
     public void Reply_NoReply_IsntOne()
     {
-        var act = () => MeetingReplies.Reply(Mdt(), StaffUserId, MeetingReply.NoReply, Now);
+        var act = () => AsSeen(Mdt(), StaffUserId, MeetingReply.NoReply, Now);
 
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -114,7 +118,7 @@ public sealed class MeetingRepliesTests
     public void ReplyOfAndHasDeclined_ReadThePersonsOwnReply()
     {
         var meeting = Mdt();
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now);
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now);
 
         MeetingReplies.ReplyOf(meeting, StaffUserId).Should().Be(MeetingReply.Declined);
         MeetingReplies.ReplyOf(meeting, OtherStaffUserId).Should().Be(MeetingReply.NoReply);
@@ -133,14 +137,67 @@ public sealed class MeetingRepliesTests
     }
 
     [Test]
-    public void ResetAll_PutsEveryoneBackToNoReply()
+    public void ResetAfterMove_PutsEveryoneBackToNoReply()
     {
         var meeting = Mdt();
-        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Declined, Now);
-        MeetingReplies.Reply(meeting, OtherStaffUserId, MeetingReply.Accepted, Now);
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now);
+        AsSeen(meeting, OtherStaffUserId, MeetingReply.Accepted, Now);
 
-        MeetingReplies.ResetAll(meeting);
+        MeetingReplies.ResetAfterMove(meeting);
 
         meeting.Attendees.Should().OnlyContain(a => a.Reply == MeetingReply.NoReply && a.RepliedAtUtc == null);
+    }
+
+    [Test]
+    public void ResetAfterMove_KeepsTheDeclinesOfThoseBusyAtTheNewTime_Only()
+    {
+        var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, OtherStaffUserId, AdminUserId]);
+        AsSeen(meeting, StaffUserId, MeetingReply.Declined, Now);
+        AsSeen(meeting, OtherStaffUserId, MeetingReply.Declined, Now);
+        AsSeen(meeting, AdminUserId, MeetingReply.Accepted, Now);
+
+        // AdminUserId is listed but accepted: only a decline is ever kept.
+        MeetingReplies.ResetAfterMove(meeting, new HashSet<Guid> { StaffUserId, AdminUserId });
+
+        Attendee(meeting, StaffUserId).Reply.Should().Be(MeetingReply.Declined);
+        Attendee(meeting, StaffUserId).RepliedAtUtc.Should().Be(Now);
+        Attendee(meeting, OtherStaffUserId).Reply.Should().Be(MeetingReply.NoReply);
+        Attendee(meeting, AdminUserId).Reply.Should().Be(MeetingReply.NoReply);
+        MeetingReplies.Decliners(meeting).Should().BeEquivalentTo([StaffUserId]);
+    }
+
+    [TestCase(10, 30, 11, 0)]
+    [TestCase(10, 0, 11, 30)]
+    [TestCase(14, 0, 15, 0)]
+    public void Reply_TheMeetingMovedSinceTheyLooked_IsAConflictNamingTheNewTime_AndChangesNothing(
+        int startHour, int startMinute, int endHour, int endMinute)
+    {
+        // They saw 10:00 to 11:00; it's now somewhere else.
+        var meeting = NewMeeting(At(NextMonday, startHour, startMinute), At(NextMonday, endHour, endMinute));
+
+        var act = () => MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Accepted, At(NextMonday, 10), At(NextMonday, 11), Now);
+
+        act.Should().Throw<ConflictException>().WithMessage(
+            $"This meeting has moved to {UkTime.DescribeRange(meeting.StartUtc, meeting.EndUtc)}: look at its new time, then reply.");
+        Attendee(meeting, StaffUserId).Reply.Should().Be(MeetingReply.NoReply);
+    }
+
+    [Test]
+    public void Reply_TheTimeSeenWithoutAKind_IsReadAsUtc()
+    {
+        var meeting = Mdt();
+
+        MeetingReplies.Reply(meeting, StaffUserId, MeetingReply.Accepted,
+            DateTime.SpecifyKind(meeting.StartUtc, DateTimeKind.Unspecified), meeting.EndUtc, Now);
+
+        Attendee(meeting, StaffUserId).Reply.Should().Be(MeetingReply.Accepted);
+    }
+
+    [Test]
+    public void Reply_SomeoneNotGoing_IsForbiddenEvenIfItMoved()
+    {
+        var act = () => MeetingReplies.Reply(Mdt(), AdminUserId, MeetingReply.Accepted, At(NextMonday, 14), At(NextMonday, 15), Now);
+
+        act.Should().Throw<ForbiddenException>();
     }
 }
