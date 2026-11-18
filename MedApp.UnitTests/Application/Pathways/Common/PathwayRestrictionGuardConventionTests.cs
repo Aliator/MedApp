@@ -65,7 +65,7 @@ public sealed class PathwayRestrictionGuardConventionTests
     private static readonly Type[] CheckTheirOwnPatient =
     [
         typeof(CreatePatientPathwayHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
-        typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler),
+        typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler), typeof(MedApp.Application.Mdt.Commands.ListForMdt.ListForMdtHandler),
     ];
 
     /// <summary>

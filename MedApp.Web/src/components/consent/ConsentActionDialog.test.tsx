@@ -1,5 +1,5 @@
 import {screen} from '@testing-library/react';
-import {json, mockApi, nurseUser, renderWithApp} from '../../test/render';
+import {isDisabled, json, mockApi, nurseUser, renderWithApp} from '../../test/render';
 import {CONSENT_PATIENT, CONSENT_RECORD_ID, testConsent} from '../../test/consent';
 import {ConsentActionDialog} from './ConsentActionDialog';
 
@@ -11,8 +11,8 @@ describe('ConsentActionDialog', () => {
       user: nurseUser,
     });
 
-    expect(screen.getByText(/its scan is deleted/)).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Mark Entered in Error'})).toBeDisabled();
+    expect(await screen.findByText(/its scan is deleted/)).toBeInTheDocument();
+    expect(isDisabled(screen.getByRole('button', {name: 'Mark Entered in Error'}))).toBe(true);
     await user.type(screen.getByRole('textbox', {name: /What was wrong/}), 'Synthetic: wrong patient.');
     await user.click(screen.getByRole('button', {name: 'Mark Entered in Error'}));
 
@@ -25,14 +25,14 @@ describe('ConsentActionDialog', () => {
     mockApi({[`POST /api/consent-records/${CONSENT_RECORD_ID}/withdraw`]: () => json({title: 'Someone else changed this consent record.'}, 409)});
     const {user} = renderWithApp(<ConsentActionDialog action="withdraw" record={testConsent()} onClose={vi.fn()} />, {user: nurseUser});
 
-    await user.type(screen.getByRole('textbox', {name: /What was said/}), 'Synthetic.');
+    await user.type(await screen.findByRole('textbox', {name: /What was said/}), 'Synthetic.');
     await user.click(screen.getByRole('button', {name: 'Withdraw Consent'}));
 
     expect(await screen.findByText('Someone else changed this consent record.')).toBeInTheDocument();
   });
 
-  it('asks for a file to add a scan', () => {
+  it('asks for a file to add a scan', async () => {
     renderWithApp(<ConsentActionDialog action="attachScan" record={testConsent()} onClose={vi.fn()} />, {user: nurseUser});
-    expect(screen.getByRole('button', {name: 'Add Scan'})).toBeDisabled();
+    expect(isDisabled(await screen.findByRole('button', {name: 'Add Scan'}))).toBe(true);
   });
 });

@@ -91,6 +91,7 @@ describe('StageDefinitionsPage', () => {
       snomedTerm: '',
       visitRequirement: 'Suggested',
       needsLetterKind: 'ClinicLetter',
+      needsConsent: false,
     });
     await expectAnnounced('Stage added');
   });
@@ -116,6 +117,7 @@ describe('StageDefinitionsPage', () => {
       instructions: 'Give the patient a copy.',
       visitRequirement: 'Required',
       needsLetterKind: 'DischargeSummary',
+      needsConsent: false,
       snomedCode: '71388002',
       snomedTerm: 'Procedure',
     });
