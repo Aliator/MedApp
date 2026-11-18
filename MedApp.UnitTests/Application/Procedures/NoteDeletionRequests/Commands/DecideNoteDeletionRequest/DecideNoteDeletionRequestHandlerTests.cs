@@ -131,6 +131,27 @@ public sealed class DecideNoteDeletionRequestHandlerTests : ProcedureHandlerTest
         note.DeletionDetail.Should().Be(AdminsDetail);
     }
 
+    [TestCase("")]
+    [TestCase("   ")]
+    public async Task Handle_DeleteNoteWithNoReasonAndABlankDetail_KeepsTheRequestersDetail(string blank)
+    {
+        // A blank detail is "left out", like a missing one: the requester's Other keeps the detail it needs.
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        var note = procedure.AddNote(OtherUserId);
+        var request = new ProcedureNoteDeletionRequest
+        {
+            Id = Guid.NewGuid(), NoteId = note.Id, PatientProcedureId = procedure.Id, PatientId = procedure.PatientId,
+            RequestedByUserId = Staff.UserId, RequestedByUsername = Staff.Username, Reason = NoteDeletionReason.Other,
+            Detail = DeletionDetail, RequestedAtUtc = Now.AddDays(-1)
+        };
+        note.PendingDeletionRequestId = request.Id;
+        _requests.Setup(r => r.GetForUpdateAsync(request.Id, It.IsAny<CancellationToken>())).ReturnsAsync(request);
+
+        await Handler.Handle(Delete(request, detail: blank), CancellationToken.None);
+
+        note.Should().BeEquivalentTo(new { DeletionReason = (NoteDeletionReason?)NoteDeletionReason.Other, DeletionDetail });
+    }
+
     [Test]
     public async Task Handle_DeleteNoteEditedSinceTheAdminOpenedIt_ThrowsConflictWithoutSaving()
     {

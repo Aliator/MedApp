@@ -35,6 +35,12 @@ public sealed class DecideNoteDeletionRequestValidatorTests
         _validator.Validate(Deleting(reason: "Other")).Errors
             .Should().ContainSingle(e => e.PropertyName == "Detail" && e.ErrorMessage == NoteDeletionReasons.OtherNeedsDetailMessage);
 
+    [TestCase(null)]
+    [TestCase("  ")]
+    public void Validate_DeletingAsOtherWithABlankDetail_IsInvalid(string? detail) =>
+        _validator.Validate(Deleting(reason: "Other", detail: detail)).Errors
+            .Should().ContainSingle(e => e.ErrorMessage == NoteDeletionReasons.OtherNeedsDetailMessage);
+
     [Test]
     public void Validate_DeletingWithADetailTooLong_IsInvalid() =>
         _validator.Validate(Deleting(detail: new string('a', 501))).Errors.Should().ContainSingle(e => e.PropertyName == "Detail");

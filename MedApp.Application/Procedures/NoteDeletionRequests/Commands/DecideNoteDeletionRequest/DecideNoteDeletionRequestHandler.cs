@@ -46,9 +46,10 @@ public sealed class DecideNoteDeletionRequestHandler(
             if (note.Version != request.ExpectedVersion)
                 throw new ConflictException(ProcedureNotes.EditedSinceOpenedMessage);
 
-            // The admin's reason, or with none, the requester's (and their detail).
+            // The admin's reason, or with none, the requester's, with the admin's detail if they wrote one and the
+            // requester's otherwise: a blank detail is "left out", so a requester's Other never loses the detail it needs.
             var (reason, detail) = request.Reason is null
-                ? (deletionRequest.Reason, request.Detail is null ? deletionRequest.Detail : NoteDeletionReasons.CleanDetail(request.Detail))
+                ? (deletionRequest.Reason, NoteDeletionReasons.CleanDetail(request.Detail) ?? deletionRequest.Detail)
                 : (ProcedureEnums.Parse<NoteDeletionReason>(request.Reason), NoteDeletionReasons.CleanDetail(request.Detail));
 
             var change = new ProcedureChange(procedure, request.Actor, now);
