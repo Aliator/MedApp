@@ -734,6 +734,17 @@ export const screens: Screen[] = [
   { name: 'account-email', title: 'Your email address (from Account Settings)', path: '/account/email' },
   { name: 'account-security', title: 'Security: two-factor authentication (from Account Settings)', path: '/account/security' },
   { name: 'admin-settings', title: 'Admin Settings: require two-factor for admins', path: '/admin/settings' },
+  { name: 'admin-jobs', title: 'Scheduled Jobs (admin): each job with its schedule, status, last and next run', path: '/admin/jobs' },
+  {
+    name: 'admin-jobs-run-dialog',
+    title: 'Scheduled Jobs: the Run Now confirmation, saying what the job does (not run)',
+    path: '/admin/jobs',
+    prepare: async (page) => {
+      // The first job that can run now (running or switched off ones are disabled); never confirmed.
+      await page.locator('button:not([aria-disabled="true"]):not([disabled])').filter({ hasText: 'Run Now' }).first().click();
+      await waitVisible(page, DIALOG);
+    },
+  },
   { name: 'account-colours', title: 'Colours: a colour theme for each mode, or Custom', path: '/account/colours' },
   {
     name: 'account-colours-custom',

@@ -49,6 +49,7 @@ const ADMIN_PAGES = [
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
   {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention'},
   {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring'},
+  {label: 'Scheduled Jobs', icon: AppIcon.ScheduledJobs, href: '/admin/jobs'},
   {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings'},
 ];
 

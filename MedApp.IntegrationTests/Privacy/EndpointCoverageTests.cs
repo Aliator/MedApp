@@ -76,6 +76,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/me/two-factor"] = Nothing("the user's own two-factor state"),
         ["api/auth/features"] = Nothing("whether this deployment sends email; asked before signing in"),
         ["api/auth/security-settings"] = Nothing("the admins' sign-in rules: configuration"),
+        ["api/jobs"] = Nothing("the scheduled jobs' state: names, times and counts, never patient data"),
         ["api/auth/users"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/search"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}"] = Nothing("staff accounts, not patients"),

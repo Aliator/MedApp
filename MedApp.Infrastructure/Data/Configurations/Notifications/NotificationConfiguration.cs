@@ -23,5 +23,8 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         // A user's newest first, and their unread ones counted.
         builder.HasIndex(notification => new { notification.UserId, notification.CreatedAtUtc });
+
+        // The operational purge finds the old ones (OperationalDataRepository).
+        builder.HasIndex(notification => notification.CreatedAtUtc);
     }
 }
