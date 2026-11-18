@@ -297,6 +297,49 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("Attachments", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Authentication.EmailCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ChallengeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Resends")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChallengeId");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("UserId", "Purpose");
+
+                    b.ToTable("EmailCodes", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Authentication.SecuritySettings", b =>
                 {
                     b.Property<int>("Id")
@@ -1461,6 +1504,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<int>("TwoFactorLockouts")
                         .HasColumnType("int");
 
+                    b.Property<int>("TwoFactorMethod")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -1651,6 +1697,20 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Procedure");
 
                     b.Navigation("Stage");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Authentication.EmailCode", b =>
+                {
+                    b.HasOne("MedApp.Domain.Authentication.SignInChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("ChallengeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("MedApp.Infrastructure.Common.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MedApp.Domain.Calendar.CalendarBlock", b =>

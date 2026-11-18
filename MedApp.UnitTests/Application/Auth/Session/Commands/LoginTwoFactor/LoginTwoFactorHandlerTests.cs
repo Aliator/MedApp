@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
+using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
@@ -28,6 +29,7 @@ public sealed class LoginTwoFactorHandlerTests
     private Mock<IAccountAttemptLimiter> _attempts = null!;
     private LoginTwoFactorHandler _handler = null!;
     private SignInChallenge _challenge = null!;
+    private Mock<IEmailCodeService> _emailCodes = null!;
     private readonly LoginResult _session = new(SessionId, NowUtc.AddHours(8));
 
     [SetUp]
@@ -44,8 +46,10 @@ public sealed class LoginTwoFactorHandlerTests
         _read.Setup(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, string> { [UserId] = Username });
         _attempts = new Mock<IAccountAttemptLimiter>();
+        _emailCodes = new Mock<IEmailCodeService>();
         _handler = new LoginTwoFactorHandler(
-            _challenges.Object, _twoFactor.Object, _sessions.Object, _read.Object, _activity, _notices.Object, _events.Object, _attempts.Object, _clock);
+            _challenges.Object, _twoFactor.Object, _sessions.Object, _read.Object, _activity, _notices.Object, _events.Object, _attempts.Object,
+            _emailCodes.Object, _clock);
 
         _challenge = new SignInChallenge(UserId, SignInChallengeTokens.Hash(ChallengeToken), NowUtc.AddMinutes(-1));
         _challenges

@@ -7,6 +7,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Security;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Domain.Authentication;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
@@ -15,7 +16,9 @@ namespace MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 /// <summary>
 /// Checks the password, then the code against the key just set up, then turns two-factor on with new recovery codes and ends the account's
 /// other sessions, together (one transaction). A wrong code is a validation error on <c>Code</c>; it doesn't count
-/// towards the lockout, since the person setting up holds the key anyway. The owner is told by email.
+/// towards the lockout, since the person setting up holds the key anyway. The owner is told by email. On an account
+/// using codes by email, the app replaces them (two-factor stays on throughout), recorded as turned on with
+/// <c>switchedFrom: "email"</c>.
 /// </summary>
 public sealed class EnableTwoFactorHandler(
     ITwoFactorService twoFactor,
@@ -31,8 +34,9 @@ public sealed class EnableTwoFactorHandler(
         var state = await twoFactor.GetStateAsync(request.UserId, ct)
                     ?? throw new NotFoundException("Account not found.");
 
-        if (state.Enabled)
+        if (state.UsesApp)
             throw new ConflictException("Two-factor authentication is already on.");
+        var switchingFromEmail = state.UsesEmailCodes;
 
         // A session alone isn't enough to tie the account to someone's app: the password too.
         await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
@@ -43,7 +47,7 @@ public sealed class EnableTwoFactorHandler(
         RecoveryCodesResult? codes = null;
         var result = await transactions.RunAsync(async () =>
         {
-            codes = await twoFactor.EnableAsync(request.UserId, ct);
+            codes = await twoFactor.EnableAsync(request.UserId, TwoFactorMethod.Authenticator, ct);
             if (!codes.Result.Succeeded)
                 return codes.Result;
 
@@ -55,9 +59,13 @@ public sealed class EnableTwoFactorHandler(
         if (!result.Succeeded)
             throw new ConflictException(string.Join(" ", result.Errors.Select(e => e.Description)));
 
-        await events.RecordAsync(new SecurityEvent(SecurityEventKind.TwoFactorEnabled, request.UserId, state.Username), ct);
+        await events.RecordAsync(
+            new SecurityEvent(SecurityEventKind.TwoFactorEnabled, request.UserId, state.Username,
+                Details: switchingFromEmail ? new Dictionary<string, object?> { ["switchedFrom"] = "email" } : null),
+            ct);
         await notices.SendAsync(request.UserId, SecurityNotice.TwoFactorEnabled, ct);
-        if (state.IsAdmin)
+        // Other admins hear when an admin turns two-factor on, not when one moves to the stronger method.
+        if (state.IsAdmin && !switchingFromEmail)
             await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorEnabled, request.UserId, state.Username, ct);
 
         return TwoFactorMapper.ToResponse(codes!);

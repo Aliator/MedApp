@@ -44,7 +44,9 @@ public sealed class AuthController(
 {
     /// <summary>
     /// Signs in. Throttled per client address and per username (<see cref="LoginThrottling"/>): too many attempts is
-    /// a 429 with <c>Retry-After</c>, before the password is checked.
+    /// a 429 with <c>Retry-After</c>, before the password is checked. For an account with two-factor authentication, a
+    /// 202 with the challenge for the second step, and, for codes by email, where the code was emailed (masked); a 429
+    /// too when the account has had too many codes emailed.
     /// </summary>
     [HttpPost("login")]
     [Tags("Login")]
@@ -70,7 +72,11 @@ public sealed class AuthController(
         if (outcome.NeedsTwoFactor)
         {
             NoStore();
-            return Accepted(new TwoFactorChallengeResponse(outcome.Challenge, outcome.ChallengeExpiresAtUtc.Value));
+            return Accepted(new TwoFactorChallengeResponse(
+                outcome.Challenge,
+                outcome.ChallengeExpiresAtUtc.Value,
+                outcome.Method.ToString(),
+                outcome.EmailCode));
         }
 
         var session = outcome.Session;

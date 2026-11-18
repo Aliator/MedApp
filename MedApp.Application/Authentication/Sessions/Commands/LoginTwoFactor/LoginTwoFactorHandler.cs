@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
@@ -6,13 +7,16 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Security;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Authentication;
 using MediatR;
 
 namespace MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
 
 /// <summary>
 /// Finishes signing in to an account with two-factor authentication: a usable challenge (not expired, not used, not out
-/// of attempts) and a right code make the session, as the password alone does for other accounts. A wrong code counts
+/// of attempts) and a right code make the session, as the password alone does for other accounts. The code is from the
+/// account's method: its authenticator app, or the one emailed for this challenge (used up when it's accepted); or a
+/// recovery code either way. A wrong emailed code counts exactly as a wrong authenticator code does. A wrong code counts
 /// against the challenge and towards the account's lockout, as a wrong password does; a locked account is refused, as at
 /// the password step. Signing in with a recovery code uses it up, and the account's owner is told by email.
 /// <para>
@@ -22,7 +26,8 @@ namespace MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
 /// A lockout from codes, which grows each time, is emailed to the account holder.
 /// </para>
 /// <para>
-/// The activity log records the sign-in (<see cref="ActivityAction.SignedIn"/>, saying which kind of code), or a refused
+/// The activity log records the sign-in (<see cref="ActivityAction.SignedIn"/>, saying which kind of code:
+/// <c>authenticator</c>, <c>email</c> or <c>recoveryCode</c>), or a refused
 /// one (<see cref="ActivityAction.SignInFailed"/>: a wrong code, a locked account, or a challenge that can't be used),
 /// with the address it came from. Never the code.
 /// </para>
@@ -36,6 +41,7 @@ public sealed class LoginTwoFactorHandler(
     ISecurityNotices notices,
     ISecurityEventLog events,
     IAccountAttemptLimiter attempts,
+    IEmailCodeService emailCodes,
     TimeProvider timeProvider)
     : IRequestHandler<LoginTwoFactorCommand, LoginResult>
 {
@@ -83,10 +89,16 @@ public sealed class LoginTwoFactorHandler(
 
         RecoveryCodeRedemption? redemption = null;
         bool verified;
+        var byEmail = false;
         if (usedRecoveryCode)
         {
             redemption = await twoFactor.RedeemRecoveryCodeAsync(userId, request.RecoveryCode ?? string.Empty, ct);
             verified = redemption.Succeeded;
+        }
+        else if (await twoFactor.GetMethodAsync(userId, ct) == TwoFactorMethod.Email)
+        {
+            byEmail = true;
+            verified = await emailCodes.CheckAsync(userId, EmailCodePurpose.SignIn, challenge.Id, request.Code!, ct);
         }
         else
         {
@@ -122,7 +134,7 @@ public sealed class LoginTwoFactorHandler(
         await activityLog.RecordAsync(
             activityLog.Entry(
                 ActivityAction.SignedIn,
-                details: new { secondStep = usedRecoveryCode ? "recoveryCode" : "authenticator" },
+                details: new { secondStep = usedRecoveryCode ? "recoveryCode" : byEmail ? "email" : "authenticator" },
                 actor: actor),
             ct);
 

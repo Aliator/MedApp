@@ -4,9 +4,9 @@ namespace MedApp.Infrastructure.Common.Email;
 
 /// <summary>
 /// How many emails may go out in each clock hour (<see cref="EmailDeliveryOptions.MaxPerHour"/>), so a flood of reset
-/// requests can't use up the mail provider's quota (Azure's managed domain allows 10 an hour). Links may use all but a
-/// share kept for notices (<see cref="NoticeReserve"/>), so the notice that would reveal a takeover still goes out when
-/// someone is asking for links in bulk. Counted by this copy of the API.
+/// requests can't use up the mail provider's quota (Azure's managed domain allows 10 an hour). Links and two-factor codes
+/// may use all but a share kept for notices (<see cref="NoticeReserve"/>), so the notice that would reveal a takeover
+/// still goes out when someone is asking for links or codes in bulk. Counted by this copy of the API.
 /// </summary>
 public sealed class EmailBudget(int maxPerHour, TimeProvider timeProvider)
 {

@@ -37,4 +37,7 @@ public enum SecurityNotice
 
     /// <summary>Another admin's two-factor was reset or turned off (sent to every admin with a confirmed address).</summary>
     AdminTwoFactorRemoved,
+
+    /// <summary>Two-factor authentication was turned on with codes sent to this address.</summary>
+    EmailCodesEnabled,
 }

@@ -52,6 +52,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentEvent> AppointmentEvents => Set<AppointmentEvent>();
     public DbSet<SignInChallenge> SignInChallenges => Set<SignInChallenge>();
+    public DbSet<EmailCode> EmailCodes => Set<EmailCode>();
     public DbSet<SecuritySettings> SecuritySettings => Set<SecuritySettings>();
 
     /// <summary>

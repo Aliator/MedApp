@@ -350,7 +350,7 @@ public sealed class EmailHandlersTests
     // RemoveUserEmail (admin)
 
     private MedApp.Application.Authentication.Emails.Commands.RemoveUserEmail.RemoveUserEmailHandler RemoveUserHandler(Mock<IIdentityReadService> read) =>
-        new(read.Object, _emails.Object, _notices.Object, _events.Object);
+        new(read.Object, _emails.Object, _twoFactor.Object, _notices.Object, _events.Object);
 
     [Test]
     public async Task RemoveUserEmail_RemovesItRecordsTheAdminAndTellsTheAddress()

@@ -48,4 +48,13 @@ public sealed class LoginThrottlingOptions
     public int EmailChangesPerAccountPermitLimit { get; set; } = 3;
 
     public TimeSpan EmailChangeWindow { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Two-factor codes emailed to one account (sent or sent again, for signing in or confirming a change), from anywhere,
+    /// in each <see cref="EmailCodeWindow"/>, so someone with the password can't flood the mailbox (or use up the hourly
+    /// email allowance) by signing in again and again. Each challenge also allows only three resends, a minute apart.
+    /// </summary>
+    public int EmailCodesPerAccountPermitLimit { get; set; } = 10;
+
+    public TimeSpan EmailCodeWindow { get; set; } = TimeSpan.FromMinutes(15);
 }

@@ -173,6 +173,7 @@ public static class ServiceExtensions
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
+        services.AddScoped<IEmailCodeRepository, EmailCodeRepository>();
         services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
         services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();

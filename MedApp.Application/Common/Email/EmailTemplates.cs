@@ -6,13 +6,18 @@ namespace MedApp.Application.Common.Email;
 /// <summary>
 /// Every email MedApp sends, as plain, accessible HTML (a language, a title, real paragraphs and links, no images or
 /// layout tables) and the same words as text. They hold only the account's username, a link and what changed: never
-/// clinical information (no patient, procedure or notification text) and never a password or a code. Every value is
-/// HTML-encoded.
+/// clinical information (no patient, procedure or notification text), and never a password, an authenticator key or
+/// recovery codes. The one secret an email may carry is a short-lived, single-use two-factor code
+/// (<see cref="TwoFactorCode"/>), with nothing else in that email but what it's for, how long it lasts and what to do if
+/// you didn't ask for it. Every value is HTML-encoded.
 /// </summary>
 public static class EmailTemplates
 {
     public const string ConfirmAddressSubject = "Confirm your email address for MedApp";
     public const string ResetLinkSubject = "Reset your MedApp password";
+
+    /// <summary>The subject of every two-factor code email. The code itself is never in a subject.</summary>
+    public const string TwoFactorCodeSubject = "Your MedApp code";
 
     /// <summary>How long a reset link works, as the emails say it (the token's lifetime is set to match).</summary>
     public static readonly TimeSpan ResetLinkLifetime = TimeSpan.FromMinutes(30);
@@ -49,6 +54,34 @@ public static class EmailTemplates
             ("Choose a new password", link),
             ["If you didn't ask for this, you can ignore this email: your password hasn't changed."]);
 
+    /// <summary>
+    /// A two-factor code, sent to the account's confirmed address: the code, what it's for, how long it works, and what to
+    /// do if you didn't ask for it. Nothing else: no username, no link, no clinical information.
+    /// </summary>
+    /// <param name="code">The 6-digit code.</param>
+    /// <param name="forSignIn">True for signing in; false for turning codes by email on or confirming a change.</param>
+    /// <param name="lifetime">How long it works (<c>EmailCode.Lifetime</c>).</param>
+    public static EmailMessage TwoFactorCode(string to, string code, bool forSignIn, TimeSpan lifetime)
+    {
+        var minutes = (int)Math.Round(lifetime.TotalMinutes);
+        var purpose = forSignIn ? "to sign in to MedApp" : "to confirm a change to how you sign in to MedApp";
+        var message = Build(
+            to,
+            TwoFactorCodeSubject,
+            greeting: null,
+            [
+                $"Your code {purpose} is:",
+                code,
+                $"It works once, for {minutes} minutes. Don't give it to anyone.",
+            ],
+            link: null,
+            [
+                "If you didn't ask for a code, someone may know your password. Don't use the code: change your password as soon as you can, and tell your MedApp administrator.",
+            ],
+            emphasised: 1);
+        return message with { Category = EmailCategory.Code };
+    }
+
     /// <summary>A notice of a change to the account, sent to its confirmed email address (or the one it changed from).</summary>
     /// <param name="aboutUsername">For a notice to admins about another admin: that admin's username.</param>
     public static EmailMessage Notice(
@@ -70,9 +103,12 @@ public static class EmailTemplates
             SecurityNotice.TwoFactorDisabled => (
                 "Two-factor authentication is off for your MedApp account",
                 "Two-factor authentication was turned off for your MedApp account. Signing in now needs only your password."),
+            SecurityNotice.EmailCodesEnabled => (
+                "Sign-in codes by email are on for your MedApp account",
+                "Two-factor authentication with codes by email was turned on for your MedApp account. From now on, signing in needs a code MedApp emails to this address as well as your password."),
             SecurityNotice.TwoFactorReset => (
                 "An administrator reset your MedApp two-factor authentication",
-                "A MedApp administrator turned off two-factor authentication for your account, so you can set it up again, and signed you out everywhere. Your authenticator app and recovery codes no longer work for it."),
+                "A MedApp administrator turned off two-factor authentication for your account, so you can set it up again, and signed you out everywhere. Your authenticator app or codes by email, and your recovery codes, no longer work for it."),
             SecurityNotice.RecoveryCodesRegenerated => (
                 "New recovery codes for your MedApp account",
                 "New recovery codes were made for your MedApp account. The old ones no longer work."),
@@ -110,16 +146,20 @@ public static class EmailTemplates
         return message with { Category = EmailCategory.Notice };
     }
 
+    /// <param name="greeting">The first line ("Hello …"), or none.</param>
+    /// <param name="emphasised">The index of a paragraph to show large and bold in the HTML (a code), or none.</param>
     private static EmailMessage Build(
         string to,
         string subject,
-        string greeting,
+        string? greeting,
         IReadOnlyList<string> paragraphs,
         (string Text, string Url)? link,
-        IReadOnlyList<string> closing)
+        IReadOnlyList<string> closing,
+        int? emphasised = null)
     {
         var text = new StringBuilder();
-        text.AppendLine(greeting).AppendLine();
+        if (greeting is not null)
+            text.AppendLine(greeting).AppendLine();
         foreach (var paragraph in paragraphs)
             text.AppendLine(paragraph).AppendLine();
         if (link is { } textLink)
@@ -133,9 +173,12 @@ public static class EmailTemplates
         html.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         html.Append($"<title>{Encode(subject)}</title></head>");
         html.Append("<body style=\"margin:0;padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1b1b1b;background:#ffffff\">");
-        html.Append($"<p>{Encode(greeting)}</p>");
-        foreach (var paragraph in paragraphs)
-            html.Append($"<p>{Encode(paragraph)}</p>");
+        if (greeting is not null)
+            html.Append($"<p>{Encode(greeting)}</p>");
+        for (var i = 0; i < paragraphs.Count; i++)
+            html.Append(i == emphasised
+                ? $"<p style=\"font-size:28px;font-weight:bold;letter-spacing:4px\">{Encode(paragraphs[i])}</p>"
+                : $"<p>{Encode(paragraphs[i])}</p>");
         if (link is { } htmlLink)
         {
             html.Append($"<p><a href=\"{Encode(htmlLink.Url)}\" style=\"color:#0b4f9c;font-weight:bold\">{Encode(htmlLink.Text)}</a></p>");

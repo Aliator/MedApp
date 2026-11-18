@@ -83,6 +83,31 @@ public sealed class EmailDeliveryTests
     }
 
     [Test]
+    public async Task Queue_CodesComeBeforeLinks()
+    {
+        var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);
+
+        await queue.SendAsync(Message("link"), CancellationToken.None);
+        await queue.SendAsync(Message("code") with { Category = EmailCategory.Code }, CancellationToken.None);
+
+        queue.TryTakeNext()!.Category.Should().Be(EmailCategory.Code);
+        queue.TryTakeNext()!.Subject.Should().Be("link");
+    }
+
+    [Test]
+    public void Budget_CodesShareTheLinksAllowance_SoNoticesKeepTheirs()
+    {
+        var clock = new Mock<TimeProvider>();
+        clock.Setup(c => c.GetUtcNow()).Returns(new DateTimeOffset(2026, 11, 16, 10, 0, 0, TimeSpan.Zero));
+        var budget = new EmailBudget(10, clock.Object);
+
+        Enumerable.Range(0, 8).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Code));
+        budget.TryTake(EmailCategory.Code).Should().BeFalse();
+        budget.TryTake(EmailCategory.Link).Should().BeFalse();
+        budget.TryTake(EmailCategory.Notice).Should().BeTrue();
+    }
+
+    [Test]
     public async Task Queue_Wait_ReturnsOnceEitherHasOne()
     {
         var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);

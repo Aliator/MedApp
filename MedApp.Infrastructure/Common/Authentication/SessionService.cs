@@ -57,11 +57,12 @@ public sealed class SessionService(
     }
 
     /// <summary>
-    /// Whether the user is an admin without two-factor while admins must use it, so they're held to setting it up
+    /// Whether the user is an admin without an authenticator app (two-factor off, or on with codes by email, which the
+    /// requirement doesn't accept) while admins must use it, so they're held to setting the app up
     /// (<c>TwoFactorSetupRequired</c>). The setting is read only for such an admin, so other requests cost nothing more.
     /// </summary>
     private async Task<bool> MustSetUpTwoFactorAsync(ApplicationUser user, IList<string> roles, CancellationToken ct) =>
-        !user.TwoFactorEnabled
+        user.EffectiveTwoFactorMethod != TwoFactorMethod.Authenticator
         && roles.Contains(FirstAdminSetup.AdminRole, StringComparer.OrdinalIgnoreCase)
         && await context.SecuritySettings
             .AsNoTracking()

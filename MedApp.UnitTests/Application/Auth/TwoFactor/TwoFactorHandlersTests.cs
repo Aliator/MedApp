@@ -34,6 +34,9 @@ public sealed class TwoFactorHandlersTests
     private Mock<ISecurityNotices> _notices = null!;
     private Mock<ISecurityEventLog> _events = null!;
     private Mock<IAccountAttemptLimiter> _attempts = null!;
+    private Mock<IEmailCodeService> _emailCodes = null!;
+    private Mock<IAccountEmailService> _emails = null!;
+    private Mock<IEmailSender> _sender = null!;
 
     private static readonly IReadOnlyList<string> Codes = Enumerable.Range(0, 10).Select(i => $"CODE{i}-23456").ToList();
 
@@ -50,6 +53,11 @@ public sealed class TwoFactorHandlersTests
         _notices = new Mock<ISecurityNotices>();
         _events = new Mock<ISecurityEventLog>();
         _attempts = new Mock<IAccountAttemptLimiter>();
+        _emailCodes = new Mock<IEmailCodeService>();
+        _emails = new Mock<IAccountEmailService>();
+        _emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(Account());
+        _sender = new Mock<IEmailSender>();
+        _sender.SetupGet(s => s.CanSend).Returns(true);
         // The right password, unless a test says otherwise.
         _users.Setup(u => u.VerifyPasswordAsync(Username, CurrentPassword, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
     }
@@ -62,6 +70,8 @@ public sealed class TwoFactorHandlersTests
 
     // GetMyTwoFactorStatus
 
+    private GetMyTwoFactorStatusHandler StatusHandler() => new(_twoFactor.Object, _settings.Object, _emails.Object, _sender.Object);
+
     [TestCase(false, false, false)]
     [TestCase(true, false, false)]
     [TestCase(true, true, true)]
@@ -71,17 +81,15 @@ public sealed class TwoFactorHandlersTests
         if (adminsRequired)
             AdminsRequired();
 
-        var result = await new GetMyTwoFactorStatusHandler(_twoFactor.Object, _settings.Object)
-            .Handle(new GetMyTwoFactorStatusQuery(UserId), CancellationToken.None);
+        var result = await StatusHandler().Handle(new GetMyTwoFactorStatusQuery(UserId), CancellationToken.None);
 
-        result.Should().Be(new TwoFactorStatusResponse(true, 7, required));
+        result.Should().Be(new TwoFactorStatusResponse(true, 7, required, "Authenticator", true, null));
     }
 
     [Test]
     public async Task GetStatus_NoAccount_IsNotFound()
     {
-        var act = () => new GetMyTwoFactorStatusHandler(_twoFactor.Object, _settings.Object)
-            .Handle(new GetMyTwoFactorStatusQuery(UserId), CancellationToken.None);
+        var act = () => StatusHandler().Handle(new GetMyTwoFactorStatusQuery(UserId), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -146,7 +154,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: false));
         _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
+        _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 
         var result = await EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
@@ -166,7 +174,7 @@ public sealed class TwoFactorHandlersTests
         var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Code");
-        _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<TwoFactorMethod>(), It.IsAny<CancellationToken>()), Times.Never);
         _twoFactor.Verify(t => t.RecordFailedCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -185,7 +193,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: false));
         _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>()))
+        _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Failed(new IdentityError { Description = "No." }), []));
 
         var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
@@ -213,7 +221,7 @@ public sealed class TwoFactorHandlersTests
     // DisableTwoFactor
 
     private DisableTwoFactorHandler DisableHandler() =>
-        new(_twoFactor.Object, _users.Object, _settings.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _attempts.Object);
+        new(_twoFactor.Object, _users.Object, _settings.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _attempts.Object, _emailCodes.Object);
 
     private static DisableTwoFactorCommand Disable(string code = AuthenticatorCode) => new(UserId, CurrentPassword, code, SessionId);
 
@@ -341,7 +349,7 @@ public sealed class TwoFactorHandlersTests
 
     // RegenerateRecoveryCodes
 
-    private RegenerateRecoveryCodesHandler RegenerateHandler() => new(_twoFactor.Object, _users.Object, _notices.Object, _events.Object, _attempts.Object);
+    private RegenerateRecoveryCodesHandler RegenerateHandler() => new(_twoFactor.Object, _users.Object, _notices.Object, _events.Object, _attempts.Object, _emailCodes.Object);
 
     [Test]
     public async Task Regenerate_RightCode_ReturnsNewCodesAndTellsTheOwner()
@@ -511,7 +519,8 @@ public sealed class TwoFactorHandlersTests
 
     [Test]
     public void Mapper_StatusOff_HasNoCodesLeft() =>
-        TwoFactorMapper.ToResponse(State(enabled: false, codesLeft: 4), required: true).Should().Be(new TwoFactorStatusResponse(false, 0, true));
+        TwoFactorMapper.ToResponse(State(enabled: false, codesLeft: 4), required: true, EmailCodesAvailability.NoConfirmedAddress)
+            .Should().Be(new TwoFactorStatusResponse(false, 0, true, "None", false, EmailCodesAvailability.NoConfirmedAddress));
 
     [Test]
     public void Mapper_RecoveryCodes_AreReturnedInOrder() =>
@@ -538,7 +547,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: false, isAdmin: true));
         _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
+        _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 
         await EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 

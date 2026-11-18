@@ -13,7 +13,7 @@ public sealed class DisableTwoFactorValidator : AbstractValidator<DisableTwoFact
 
         RuleFor(x => x.Code)
             .NotEmpty()
-            .WithMessage("Enter a code from your authenticator app, or a recovery code.")
+            .WithMessage("Enter a code (from your authenticator app or email), or a recovery code.")
             .MaximumLength(LoginTwoFactorValidator.MaxLength)
             .WithMessage("That code is too long.");
     }
