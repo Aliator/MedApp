@@ -26,6 +26,7 @@ The detail behind the root `AGENTS.md`, one file per area, read on demand. `AGEN
 | [auth.md](auth.md) | Sign-in, sessions, throttling, passwords, security headers and roles |
 | [email-2fa.md](email-2fa.md) | Email, password reset and two-factor authentication |
 | [dev-mcp.md](dev-mcp.md) | The `medapp-dev` tool and the demo data |
+| [light-demo.md](light-demo.md) | The light demo on GitHub Pages: the demo build, the stand-in API in the browser, its seed and the Read Me |
 | [local-dev.md](local-dev.md) | Local containers, memory, server-side rendering and the production image |
 | [testing.md](testing.md) | Integration and end-to-end tests |
 | [ci.md](ci.md) | CI jobs, coverage, CodeQL, Dependabot and the supply chain rules |
