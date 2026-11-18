@@ -16,8 +16,9 @@ using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 namespace MedApp.IntegrationTests.Auth;
 
 /// <summary>
-/// Nobody locks everyone out (decision 57): the last active admin keeps Admin and their account, the built-in Admin
-/// role can't be deleted, and <c>grant-admin</c> recovers when every admin is locked out anyway.
+/// Nobody locks everyone out (decision 57): the last active admin keeps Admin and their account, and
+/// <c>grant-admin</c> recovers when every admin is locked out anyway. The built-in Admin role's own rules are in
+/// <see cref="RoleManagementTests"/>.
 /// </summary>
 [TestFixture]
 public sealed class AdminSafetyTests : IntegrationTest
@@ -89,24 +90,7 @@ public sealed class AdminSafetyTests : IntegrationTest
     }
 
     [Test]
-    public async Task RevokeRole_OwnAdminOrTheLastActiveAdmins_IsRefused()
-    {
-        var first = await SignInAsAdminAsync();
-        var second = await CreateStaffAsync(AdminRole);
-
-        await (await first.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(AdminUsername, AppRoles.Admin)))
-            .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
-
-        await LockOutAsync(AdminUsername);
-        await (await first.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(second.Username, AppRoles.Admin)))
-            .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
-
-        (await RolesOfAsync(AdminUsername)).Should().Contain(AppRoles.Admin);
-        (await RolesOfAsync(second.Username)).Should().Contain(AppRoles.Admin);
-    }
-
-    [Test]
-    public async Task RevokeRole_TwoAdminsRevokingEachOthersAdminAtOnce_LeaveOneAdmin()
+    public async Task SetUserRoles_TwoAdminsTakingEachOthersAdminAtOnce_LeaveOneAdmin()
     {
         // Two admins only: each takes Admin from the other at the same moment. The guard's lock lets one through, and
         // the other then finds the last active admin and is refused.
@@ -114,26 +98,16 @@ public sealed class AdminSafetyTests : IntegrationTest
         var second = await CreateStaffAsync(AdminRole);
 
         var responses = await Task.WhenAll(
-            first.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(second.Username, AppRoles.Admin)),
-            second.Client.PostAsJsonAsync("/api/auth/roles/revoke", new RevokeRoleRequest(AdminUsername, AppRoles.Admin)));
+            first.PutAsJsonAsync($"/api/auth/users/{second.Username}/roles", new SetUserRolesRequest(["Clinician"])),
+            second.Client.PutAsJsonAsync($"/api/auth/users/{AdminUsername}/roles", new SetUserRolesRequest(["Clinician"])));
 
         responses.Count(r => r.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
+        responses.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
         var admins = 0;
         foreach (var username in new[] { AdminUsername, second.Username })
             if ((await RolesOfAsync(username)).Contains(AppRoles.Admin))
                 admins++;
         admins.Should().Be(1);
-    }
-
-    [Test]
-    public async Task DeleteRole_Admin_Is409()
-    {
-        var admin = await SignInAsAdminAsync();
-
-        var response = await admin.DeleteAsync($"/api/auth/roles/{AppRoles.Admin}");
-
-        await response.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        (await RolesOfAsync(AdminUsername)).Should().Contain(AppRoles.Admin);
     }
 
     [Test]

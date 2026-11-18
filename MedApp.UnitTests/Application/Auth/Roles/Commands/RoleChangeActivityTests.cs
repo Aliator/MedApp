@@ -2,8 +2,6 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.CreateRole;
-using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
 using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Common.Identity;
 using MedApp.Domain.Activity;
@@ -13,7 +11,7 @@ using Moq;
 
 namespace MedApp.UnitTests.Application.Auth.Roles.Commands;
 
-/// <summary>What assigning, revoking, creating and deleting roles record in the activity log.</summary>
+/// <summary>What assigning and revoking roles record in the activity log.</summary>
 [TestFixture]
 public sealed class RoleChangeActivityTests
 {
@@ -75,51 +73,6 @@ public sealed class RoleChangeActivityTests
         _roles.Setup(r => r.RevokeRoleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((IdentityRole<Guid>?)null);
 
         await _fixture.Create<RevokeRoleHandler>().Handle(new RevokeRoleCommand("staff-user", "Admin"), CancellationToken.None);
-
-        _activity.Recorded.Should().BeEmpty();
-    }
-
-    [Test]
-    public async Task CreateRole_Created_RecordsIt()
-    {
-        _roles.Setup(r => r.CreateRoleAsync("Auditor", It.IsAny<CancellationToken>())).ReturnsAsync(Role("Auditor"));
-
-        await _fixture.Create<CreateRoleHandler>().Handle(new CreateRoleCommand("Auditor"), CancellationToken.None);
-
-        var entry = _activity.Recorded.Should().ContainSingle().Subject;
-        entry.Action.Should().Be(ActivityAction.RoleCreated);
-        entry.Details.Should().Be("""{"role":"Auditor"}""");
-    }
-
-    [Test]
-    public async Task CreateRole_Failed_RecordsNothing()
-    {
-        _roles.Setup(r => r.CreateRoleAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((IdentityRole<Guid>?)null);
-
-        await _fixture.Create<CreateRoleHandler>().Handle(new CreateRoleCommand("Auditor"), CancellationToken.None);
-
-        _activity.Recorded.Should().BeEmpty();
-    }
-
-    [Test]
-    public async Task DeleteRole_Deleted_RecordsIt()
-    {
-        _roles.Setup(r => r.DeleteRoleAsync("Auditor", It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
-
-        await _fixture.Create<DeleteRoleHandler>().Handle(new DeleteRoleCommand("Auditor"), CancellationToken.None);
-
-        var entry = _activity.Recorded.Should().ContainSingle().Subject;
-        entry.Action.Should().Be(ActivityAction.RoleDeleted);
-        entry.Details.Should().Be("""{"role":"Auditor"}""");
-    }
-
-    [Test]
-    public async Task DeleteRole_Failed_RecordsNothing()
-    {
-        _roles.Setup(r => r.DeleteRoleAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.RoleNotFound));
-
-        await _fixture.Create<DeleteRoleHandler>().Handle(new DeleteRoleCommand("Auditor"), CancellationToken.None);
 
         _activity.Recorded.Should().BeEmpty();
     }

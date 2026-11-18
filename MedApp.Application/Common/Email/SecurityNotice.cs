@@ -46,4 +46,7 @@ public enum SecurityNotice
 
     /// <summary>Another admin's codes by email were replaced by an authenticator app (sent to every admin with a confirmed address).</summary>
     AdminTwoFactorSwitchedToApp,
+
+    /// <summary>Another admin made, changed or deleted a role (sent to every admin with a confirmed address).</summary>
+    AdminChangedRole,
 }

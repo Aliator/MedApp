@@ -32,68 +32,7 @@ public sealed class IdentityRoleServiceTests
             .Setup(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()))
             .Returns((Func<Task<IdentityResult>> work, CancellationToken _) => work());
 
-        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object, TimeProvider.System);
-    }
-
-    [Test]
-    public async Task CreateRoleAsync_RoleAlreadyExists_ReturnsExistingRole()
-    {
-        var role = AuthTestConstants.CreateValidRole();
-
-        _roleManager
-            .Setup(r => r.FindByNameAsync(role.Name!))
-            .ReturnsAsync(role);
-
-        var result = await _service.CreateRoleAsync(
-            role.Name!,
-            CancellationToken.None);
-
-        result.Should().BeSameAs(role);
-
-        _roleManager.Verify(
-            r => r.CreateAsync(It.IsAny<ApplicationRole>()),
-            Times.Never);
-    }
-
-    [Test]
-    public async Task CreateRoleAsync_CreateFails_ReturnsNull()
-    {
-        var roleName = AuthTestConstants.Roles[0];
-
-        _roleManager
-            .Setup(r => r.FindByNameAsync(roleName))
-            .ReturnsAsync((ApplicationRole?)null);
-
-        _roleManager
-            .Setup(r => r.CreateAsync(It.Is<ApplicationRole>(x => x.Name == roleName)))
-            .ReturnsAsync(IdentityResult.Failed());
-
-        var result = await _service.CreateRoleAsync(
-            roleName,
-            CancellationToken.None);
-
-        result.Should().BeNull();
-    }
-
-    [Test]
-    public async Task CreateRoleAsync_CreateSucceeds_ReturnsCreatedRole()
-    {
-        var roleName = AuthTestConstants.Roles[0];
-
-        _roleManager
-            .Setup(r => r.FindByNameAsync(roleName))
-            .ReturnsAsync((ApplicationRole?)null);
-
-        _roleManager
-            .Setup(r => r.CreateAsync(It.Is<ApplicationRole>(x => x.Name == roleName)))
-            .ReturnsAsync(IdentityResult.Success);
-
-        var result = await _service.CreateRoleAsync(
-            roleName,
-            CancellationToken.None);
-
-        result.Should().NotBeNull();
-        result!.Name.Should().Be(roleName);
+        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object);
     }
 
     [Test]
@@ -324,45 +263,6 @@ public sealed class IdentityRoleServiceTests
         result.Should().BeSameAs(role);
     }
 
-    [Test]
-    public async Task DeleteRoleAsync_RoleNotFound_ReturnsFailedResult()
-    {
-        _roleManager
-            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
-            .ReturnsAsync((ApplicationRole?)null);
-
-        var result = await _service.DeleteRoleAsync(
-            AuthTestConstants.Roles[0],
-            CancellationToken.None);
-
-        result.Succeeded.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.RoleNotFoundCode);
-    }
-
-    [Test]
-    public async Task DeleteRoleAsync_RoleExists_DeletesRole()
-    {
-        var role = AuthTestConstants.CreateValidRole();
-
-        _roleManager
-            .Setup(r => r.FindByNameAsync(role.Name!))
-            .ReturnsAsync(role);
-
-        _roleManager
-            .Setup(r => r.DeleteAsync(role))
-            .ReturnsAsync(IdentityResult.Success);
-
-        var result = await _service.DeleteRoleAsync(
-            role.Name!,
-            CancellationToken.None);
-
-        result.Succeeded.Should().BeTrue();
-
-        _roleManager.Verify(
-            r => r.DeleteAsync(role),
-            Times.Once);
-    }
-
     private void SetUpRoles(params string[] names)
     {
         foreach (var name in names)
@@ -523,31 +423,5 @@ public sealed class IdentityRoleServiceTests
         var result = await _service.SetRolesAsync(user.UserName!, ["Lab"], CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
-    }
-
-    [Test]
-    public async Task DeleteRoleAsync_TheBuiltInAdminRole_FailsWithoutDeleting()
-    {
-        _roleManager.Setup(r => r.FindByNameAsync("Admin")).ReturnsAsync(new ApplicationRole("Admin") { IsBuiltIn = true });
-
-        var result = await _service.DeleteRoleAsync("Admin", CancellationToken.None);
-
-        result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.BuiltInRoleCode);
-        _roleManager.Verify(r => r.DeleteAsync(It.IsAny<ApplicationRole>()), Times.Never);
-    }
-
-    [Test]
-    public async Task CreateRoleAsync_New_SetsWhenItWasMade()
-    {
-        var now = new DateTime(2026, 11, 18, 10, 0, 0, DateTimeKind.Utc);
-        _roleManager.Setup(r => r.FindByNameAsync("Visitor")).ReturnsAsync((ApplicationRole?)null);
-        _roleManager.Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>())).ReturnsAsync(IdentityResult.Success);
-        var service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object, new MedApp.UnitTests.Common.Fixtures.FixedTimeProvider(now));
-
-        var role = (ApplicationRole?)await service.CreateRoleAsync("Visitor", CancellationToken.None);
-
-        role!.CreatedAt.Should().Be(now);
-        role.LastUpdated.Should().Be(now);
-        role.IsBuiltIn.Should().BeFalse();
     }
 }

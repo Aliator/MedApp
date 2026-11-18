@@ -85,13 +85,15 @@ public static class EmailTemplates
 
     /// <summary>A notice of a change to the account, sent to its confirmed email address (or the one it changed from).</summary>
     /// <param name="aboutUsername">For a notice to admins about another admin: that admin's username.</param>
+    /// <param name="detail">For a role change: what that admin did, as a sentence ("changed the role Nurse: …").</param>
     public static EmailMessage Notice(
         string to,
         string username,
         SecurityNotice notice,
         string? signInLink,
         int? recoveryCodesLeft = null,
-        string? aboutUsername = null)
+        string? aboutUsername = null,
+        string? detail = null)
     {
         var (subject, what) = notice switch
         {
@@ -140,6 +142,9 @@ public static class EmailTemplates
             SecurityNotice.AdminTwoFactorRemoved => (
                 "An administrator's two-factor authentication was turned off",
                 $"Two-factor authentication was turned off or reset for the MedApp administrator account {aboutUsername}. You're told because you're an administrator too."),
+            SecurityNotice.AdminChangedRole => (
+                "An administrator changed a MedApp role",
+                $"The MedApp administrator {aboutUsername} {detail} Roles decide what everyone who holds them can do. You're told because you're an administrator too."),
             _ => throw new ArgumentOutOfRangeException(nameof(notice), notice, "No email for this notice."),
         };
 
