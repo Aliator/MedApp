@@ -236,7 +236,7 @@ export function createPathway(input: {
     blockedFromStatus: null,
     createdAt: now,
     lastUpdated: now,
-    stages: templateStages(template).map((stage) => ({...stage, id: newId()})),
+    stages: templateStages(template, db().stageDefinitions).map((stage) => ({...stage, id: newId()})),
     assignments: input.assigneeUserId ? [{userId: input.assigneeUserId, assignedByUserId: viewer.id, assignedAtUtc: now}] : [],
     notes: input.notes?.trim()
       ? [{id: newId(), authorUserId: viewer.id, text: input.notes.trim(), createdAtUtc: now, lastEditedAtUtc: null, version: 1}]
@@ -465,9 +465,6 @@ export function registerPathways() {
           });
     return [...seen.values()];
   });
-
-  // No audit log in the light demo: the full version keeps one for every change.
-  on('get', '/api/pathways/audit/search', ({query}) => paged([], query));
 
   on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('SpecialtyId')));
 }

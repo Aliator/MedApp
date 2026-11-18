@@ -204,10 +204,8 @@ export function registerPatients() {
     };
   });
 
-  // No files, letters or practices in the light demo: their lists are empty.
+  // No files or practices in the light demo: their lists are empty.
   on('get', '/api/attachments', () => ({items: [], totalCount: 0, maxFileBytes: 0, allowedExtensions: []}));
-  on('get', '/api/letters/count', () => ({toApprove: 0, toSend: 0}));
-  on('get', '/api/letters/search', ({query}) => paged([], query));
   on('get', '/api/practices', () => []);
 
   on('get', '/api/specialties', () => {
