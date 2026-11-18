@@ -38,6 +38,7 @@ import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
+  {label: 'Specialties', icon: AppIcon.Specialties, href: '/admin/specialties'},
   {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates'},
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},

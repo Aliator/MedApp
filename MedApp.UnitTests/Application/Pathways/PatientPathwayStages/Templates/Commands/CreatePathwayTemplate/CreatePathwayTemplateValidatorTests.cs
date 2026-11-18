@@ -12,14 +12,14 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_RepeatedStage_Passes()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId]))
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId]))
             .IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_NoStages_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, [])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [])).IsValid.Should().BeFalse();
     }
 
     [Test]
@@ -27,14 +27,14 @@ public sealed class CreatePathwayTemplateValidatorTests
     {
         var stages = Enumerable.Repeat(ConsultationDefinitionId, CreatePathwayTemplateValidator.MaxStages + 1).ToList();
 
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, stages)).Errors
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, stages)).Errors
             .Should().ContainSingle(e => e.ErrorMessage == $"A template can have at most {CreatePathwayTemplateValidator.MaxStages} stages.");
     }
 
     [Test]
     public void Validate_NullStageList_FailsAsRequiredOnly()
     {
-        var result = _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, null!));
+        var result = _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, null!));
 
         result.IsValid.Should().BeFalse();
         result.Errors.Select(e => e.ErrorMessage).Should().Contain("Stage definition ids are required.")
@@ -44,12 +44,17 @@ public sealed class CreatePathwayTemplateValidatorTests
     [Test]
     public void Validate_BlankName_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(" ", [ConsultationDefinitionId])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(" ", SpecialtyId, [ConsultationDefinitionId])).IsValid.Should().BeFalse();
     }
 
     [Test]
     public void Validate_EmptyStageId_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, [Guid.Empty])).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [Guid.Empty])).IsValid.Should().BeFalse();
     }
+
+    [Test]
+    public void Validate_NoSpecialty_IsInvalid() =>
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, Guid.Empty, [ConsultationDefinitionId])).Errors
+            .Should().ContainSingle(e => e.ErrorMessage == "Specialty is required.");
 }

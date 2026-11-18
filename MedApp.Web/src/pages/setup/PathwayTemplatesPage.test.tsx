@@ -7,7 +7,7 @@ const BASE = '/api/pathways/patient-pathway-stage/templates';
 const stage = (stageOrder: number, name: string) => ({stageOrder, stageDefinitionId: `d-${name}`, name});
 
 const templates = [
-  {id: 't1', name: 'Knee review', isArchived: false, pathwayCount: 3, stages: [stage(2, 'Scan'), stage(1, 'Consultation')]},
+  {id: 't1', name: 'Knee review', isArchived: false, specialtyId: 'sp1', specialtyName: 'Orthopaedics', pathwayCount: 3, stages: [stage(2, 'Scan'), stage(1, 'Consultation')]},
   {id: 't2', name: 'Draft pathway', isArchived: false, pathwayCount: 0, stages: [stage(1, 'Consent')]},
   {id: 't3', name: 'Old pathway', isArchived: true, pathwayCount: 0, stages: []},
 ];
@@ -31,6 +31,9 @@ describe('PathwayTemplatesPage', () => {
     const knee = await rowOf('Knee review');
     expect(within(knee).getByText('2 stages: Consultation, Scan')).toBeInTheDocument();
     expect(within(knee).getByText('3 pathways')).toBeInTheDocument();
+    expect(within(knee).getByText('Orthopaedics')).toBeInTheDocument();
+    // One without a specialty (none should be) says so.
+    expect(within(await rowOf('Draft pathway')).getByText('None')).toBeInTheDocument();
     expect(within(knee).getByRole('link', {name: 'Edit template'})).toHaveAttribute('href', '/admin/pathway-templates/t1');
     expect(within(await rowOf('Draft pathway')).getByText('Not used yet')).toBeInTheDocument();
     expect(screen.queryByText('Old pathway')).not.toBeInTheDocument();

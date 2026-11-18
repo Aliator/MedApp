@@ -9,6 +9,7 @@ using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
+using MedApp.Contracts.Specialties.Responses;
 using Microsoft.Playwright;
 
 namespace MedApp.E2ETests.Common;
@@ -54,12 +55,17 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     public Task DeleteStageDefinitionAsync(Guid id) => DeleteIfThereAsync($"{Stages}/definitions/{id}");
 
-    public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds) =>
-        await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
+    /// <summary>A template in the first specialty that isn't archived (every database starts with General).</summary>
+    public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds)
+    {
+        var specialty = (await SendAsync<List<SpecialtyResponse>>("GET", "/api/specialties")).First();
+        return await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
         {
             name,
+            specialtyId = specialty.Id,
             stageDefinitionIdsInOrder = stageDefinitionIds,
         });
+    }
 
     public Task DeleteTemplateAsync(Guid id) => DeleteIfThereAsync($"{Stages}/templates/{id}");
 

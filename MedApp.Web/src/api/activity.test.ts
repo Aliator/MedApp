@@ -1,4 +1,4 @@
-import {ACCESS_ACTIONS, ACTIVITY_ACTIONS, activityActionLabel, activitySearchQuery, describeActivity, FILE_ACTIONS} from './activity';
+import {ACCESS_ACTIONS, ACCOUNT_ACTIONS, ACTIVITY_ACTIONS, activityActionLabel, activitySearchQuery, describeActivity, FILE_ACTIONS} from './activity';
 
 const describe_ = (action: string, details: unknown) => describeActivity({action, details: JSON.stringify(details)});
 
@@ -86,6 +86,15 @@ describe('describeActivity', () => {
     expect(describe_('RoleCreated', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {})).toBe('');
+  });
+
+  it("gives a member of staff's specialties before and after, by name, as an account change", () => {
+    expect(activityActionLabel('StaffSpecialtiesChanged')).toBe('Specialties changed');
+    expect(describe_('StaffSpecialtiesChanged', {from: [], to: ['Dermatology', 'Urology'], fromIds: [], toIds: ['s1', 's2']})).toBe(
+      'none → Dermatology, Urology',
+    );
+    expect(describe_('StaffSpecialtiesChanged', {from: ['Urology'], to: []})).toBe('Urology → none');
+    expect(ACCOUNT_ACTIONS).toContain('StaffSpecialtiesChanged');
   });
 
   it('gives a retention decision: until when, and why', () => {

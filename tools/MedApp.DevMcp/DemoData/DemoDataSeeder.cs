@@ -64,8 +64,10 @@ public static class DemoDataSeeder
         });
 
         var staff = await DemoStaff.CreateAsync(services, timeline, ct);
+        var specialties = await DemoSpecialties.CreateAsync(services, staff[0], timeline, ct);
+        var memberships = await DemoSpecialties.AddMembershipsAsync(services, staff, specialties, ct);
         Mark("accounts");
-        var (definitions, templates) = await CreatePathwayKindsAsync(services, timeline, ct);
+        var (definitions, templates) = await CreatePathwayKindsAsync(services, specialties.Ids, ct);
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
         var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
@@ -135,6 +137,7 @@ public static class DemoDataSeeder
                 name = s.Seed.Name,
                 job = s.Seed.JobTitle,
                 roles = s.Username == DemoStaff.ManagerUsername ? new[] { AppRoles.Admin, s.Role.Name } : [s.Role.Name],
+                specialties = DemoSpecialties.For(s.Kind),
                 password = s.Password,
                 note = s.Username switch
                 {
@@ -155,6 +158,8 @@ public static class DemoDataSeeder
                 importedPatients = imported.Count,
                 stageDefinitions = definitions.Count,
                 templates = templates.Count,
+                specialties = specialties.Ids.Count,
+                specialtyMemberships = memberships,
                 pathways,
                 calendar = new
                 {
@@ -185,7 +190,7 @@ public static class DemoDataSeeder
 
     /// <summary>The stage definitions and pathway templates, written as an admin set them up when the centre started.</summary>
     private static async Task<(Dictionary<string, PatientPathwayStageDefinition> Definitions, Dictionary<PathwayKind, PathwayTemplate> Templates)> CreatePathwayKindsAsync(
-        SeedServices services, DemoTimeline timeline, CancellationToken ct)
+        SeedServices services, IReadOnlyDictionary<string, Guid> specialties, CancellationToken ct)
     {
         var definitions = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => new PatientPathwayStageDefinition
         {
@@ -204,6 +209,7 @@ public static class DemoDataSeeder
             Id = Guid.NewGuid(),
             Name = p.TemplateName,
             IsArchived = p.IsArchived,
+            SpecialtyId = specialties[DemoSpecialties.For(p.PathwayKind)],
             Maps = p.Stages.Select((s, i) => new PathwayTemplateMap
             {
                 StageDefinitionId = definitions[s.Definition].Id,

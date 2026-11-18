@@ -539,6 +539,17 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'users-specialties',
+    title: "Edit specialties dialog: the active specialties, and archived ones the user has, theirs ticked (not saved)",
+    path: '/admin/users',
+    prepare: async (page) => {
+      await rowAction(page, /edit specialties/i).click();
+      await waitVisible(page, DIALOG);
+      await page.getByRole('dialog').getByText('Loading specialties...').waitFor({ state: 'detached' });
+      await settle(page);
+    },
+  },
+  {
     name: 'users-reset-password',
     title: 'Reset password confirmation (not confirmed)',
     path: '/admin/users',
@@ -553,6 +564,16 @@ export const screens: Screen[] = [
     path: '/admin/users',
     prepare: async (page) => {
       await rowAction(page, /delete/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },
+  {
+    name: 'specialty-dialog',
+    title: 'Rename specialty dialog (not saved)',
+    path: '/admin/specialties',
+    prepare: async (page) => {
+      await rowAction(page, /rename specialty/i).click();
       await waitVisible(page, DIALOG);
     },
   },

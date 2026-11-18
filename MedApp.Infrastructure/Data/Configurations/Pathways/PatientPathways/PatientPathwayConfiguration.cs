@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Specialties;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -44,6 +45,17 @@ public sealed class PatientPathwayConfiguration : IEntityTypeConfiguration<Patie
             .WithMany()
             .HasForeignKey(x => x.TemplateId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // The template's specialty, copied when the pathway was created. The database's default is General, so an
+        // API copy from before specialties can still create a pathway during a rollout. Specialties in use are
+        // archived, never deleted.
+        builder.Property(x => x.SpecialtyId)
+            .HasDefaultValue(Specialty.GeneralId);
+
+        builder.HasOne<Specialty>()
+            .WithMany()
+            .HasForeignKey(x => x.SpecialtyId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.CreatedAt)
             .IsRequired();

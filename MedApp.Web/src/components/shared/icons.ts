@@ -51,6 +51,7 @@ import {
   RiFileWord2Line,
   RiFileSearchLine,
   RiHistoryLine,
+  RiHospitalLine,
   RiHourglassLine,
   RiHomeLine,
   RiInboxUnarchiveLine,
@@ -237,6 +238,8 @@ export const AppIcon = {
   /** Suggested meeting times. */
   Suggestion: remix(RiLightbulbLine),
   ActivityTypes: remix(RiPriceTag3Line),
+  /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
+  Specialties: remix(RiHospitalLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */
   ClosedDays: remix(RiDoorClosedLine),
   /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
