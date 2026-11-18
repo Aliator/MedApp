@@ -63,6 +63,14 @@ describe('DataRequestsPage', () => {
     expect(onSearchChange).toHaveBeenCalledWith({view: 'Sent', page: 2});
   });
 
+  it('drops the page from the address on the way back to the first', async () => {
+    const {user, onSearchChange} = render({view: 'Refused', page: 2}, [testDataRequestSummary({status: 'Refused'})], 11);
+
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    await user.click(screen.getByRole('button', {name: /Previous page|Go to page 1|^1$/}));
+    expect(onSearchChange).toHaveBeenCalledWith({view: 'Refused', page: undefined});
+  });
+
   it("says when the list can't be loaded", async () => {
     mockApi({'GET /api/data-requests/search': () => json({title: 'Boom'}, 500)});
     renderWithApp(<DataRequestsPage search={{}} onSearchChange={vi.fn()} />, {user: adminUser});
