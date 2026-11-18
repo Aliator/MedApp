@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261118152624_AddedLetterTemplates")]
+    [Migration("20261118154532_AddedLetterTemplates")]
     partial class AddedLetterTemplates
     {
         /// <inheritdoc />
@@ -90,6 +90,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid?>("ClinicSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -127,6 +130,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("RoomId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -153,9 +159,15 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("StageId");
 
+                    b.HasIndex("RoomId", "StartUtc");
+
                     b.HasIndex("StaffUserId", "StartUtc");
 
                     b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex(new[] { "ClinicSessionId", "StartUtc" }, "IX_Appointments_ClinicSessionId_StartUtc_OnCalendar")
+                        .IsUnique()
+                        .HasFilter("[ClinicSessionId] IS NOT NULL AND [Status] IN (1, 2, 3)");
 
                     b.HasIndex(new[] { "StageId" }, "IX_Appointments_StageId_Open")
                         .IsUnique()
@@ -914,6 +926,143 @@ namespace MedApp.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_WeekTemplateDays_DayOfWeek", "[DayOfWeek] BETWEEN 1 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Clinics.ClinicPattern", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("Ends")
+                        .HasColumnType("time");
+
+                    b.Property<int>("EveryWeeks")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RoomId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SlotMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly>("Starts")
+                        .HasColumnType("time");
+
+                    b.Property<DateOnly?>("UntilDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomId");
+
+                    b.HasIndex("SpecialtyId");
+
+                    b.HasIndex("StaffUserId");
+
+                    b.ToTable("ClinicPatterns", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Clinics.ClinicSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("PatternId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RoomId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SlotMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SpecialtyId");
+
+                    b.HasIndex("Date", "StartUtc");
+
+                    b.HasIndex("RoomId", "StartUtc");
+
+                    b.HasIndex("StaffUserId", "StartUtc");
+
+                    b.HasIndex(new[] { "PatternId", "Date" }, "IX_ClinicSessions_PatternId_Date")
+                        .IsUnique()
+                        .HasFilter("[PatternId] IS NOT NULL");
+
+                    b.ToTable("ClinicSessions", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Jobs.ScheduledJob", b =>
@@ -2418,6 +2567,11 @@ namespace MedApp.Infrastructure.Migrations
 
             modelBuilder.Entity("MedApp.Domain.Appointments.Appointment", b =>
                 {
+                    b.HasOne("MedApp.Domain.Clinics.ClinicSession", null)
+                        .WithMany()
+                        .HasForeignKey("ClinicSessionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
                         .WithMany()
                         .HasForeignKey("PathwayId")
@@ -2428,6 +2582,11 @@ namespace MedApp.Infrastructure.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Sites.Room", null)
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStage", "Stage")
                         .WithMany()
@@ -2562,6 +2721,49 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("DayTemplate");
 
                     b.Navigation("WeekTemplate");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Clinics.ClinicPattern", b =>
+                {
+                    b.HasOne("MedApp.Domain.Sites.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Room");
+
+                    b.Navigation("Specialty");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Clinics.ClinicSession", b =>
+                {
+                    b.HasOne("MedApp.Domain.Clinics.ClinicPattern", null)
+                        .WithMany()
+                        .HasForeignKey("PatternId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MedApp.Domain.Sites.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Room");
+
+                    b.Navigation("Specialty");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Letters.LetterTemplate", b =>
@@ -2715,11 +2917,13 @@ namespace MedApp.Infrastructure.Migrations
 
             modelBuilder.Entity("MedApp.Domain.Sites.Room", b =>
                 {
-                    b.HasOne("MedApp.Domain.Sites.Site", null)
+                    b.HasOne("MedApp.Domain.Sites.Site", "Site")
                         .WithMany()
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Site");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Sites.SiteHours", b =>

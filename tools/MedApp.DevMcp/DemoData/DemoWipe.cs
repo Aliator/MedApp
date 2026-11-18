@@ -41,6 +41,10 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
+                // Clinic sessions (after the appointments booked into them), then the patterns that made them; both
+                // name rooms and specialties, which go below.
+                await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
+                await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);

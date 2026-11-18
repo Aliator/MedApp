@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
@@ -22,6 +23,7 @@ public sealed class CreateAppointmentHandler(
     IPatientPathwayRepository pathwayRepository,
     ICalendarRepository calendarRepository,
     ICalendarLock calendarLock,
+    IClinicRepository clinicRepository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     TimeProvider timeProvider)
@@ -96,16 +98,20 @@ public sealed class CreateAppointmentHandler(
             var end = UkTime.Utc(request.EndUtc!.Value);
 
             // Checked and saved holding the member of staff's calendar lock, so two bookings can't race for a slot.
-            appointment = await calendarLock.RunAsync([staffUserId], async ct =>
+            appointment = await calendarLock.RunAsync(AppointmentPlaces.Locks(staffUserId, request.ClinicSessionId, request.RoomId), async ct =>
             {
+                // A clinic session's slot (its clinician and room) or a room, checked under the locks they need.
+                var place = await AppointmentPlaces.CheckAsync(
+                    clinicRepository, staffUserId, start, end, request.ClinicSessionId, request.RoomId, null, ct);
+
                 var date = UkTime.DateOf(start);
                 var data = await calendarRepository.GetCalendarDataAsync(staffUserId, date, date, ct);
-                if (CalendarClashes.Find(data, start, end) is { } clash)
+                if (CalendarClashes.Find(data, start, end, ignoreSessionId: place.ClinicSessionId) is { } clash)
                     throw new ConflictException(clash);
 
                 var booked = New(request, now);
                 var change = new AppointmentChange(booked, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
-                change.Book(staffUserId, staffUsername, start, end);
+                change.Book(staffUserId, staffUsername, start, end, place);
                 await repository.AddAsync(booked, change.Events, ct);
                 return booked;
             }, cancellationToken);

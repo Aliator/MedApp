@@ -99,3 +99,17 @@ export function parseRequiresAppointmentSearch(raw: Record<string, unknown>): Re
     patient: text(raw.patient),
   });
 }
+
+/**
+ * The Clinics page: the week shown (any date in it; this week by default), a site to narrow it to, and a session to
+ * open in its dialog.
+ */
+export interface ClinicsSearch {
+  date?: string;
+  site?: string;
+  session?: string;
+}
+
+export function parseClinicsSearch(raw: Record<string, unknown>): ClinicsSearch {
+  return compact({date: date(raw.date), site: id(raw.site), session: id(raw.session)});
+}

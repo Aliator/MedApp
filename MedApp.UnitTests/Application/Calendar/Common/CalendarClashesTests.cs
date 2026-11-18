@@ -3,6 +3,7 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
+using static MedApp.UnitTests.Common.Constants.ClinicsTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
 namespace MedApp.UnitTests.Application.Calendar.Common;
@@ -23,6 +24,38 @@ public sealed class CalendarClashesTests
 
         CalendarClashes.Find(data, At(NextMonday, 12, 30), At(NextMonday, 13, 30))
             .Should().Be("That time overlaps Lunch, 12:00 to 13:00.");
+    }
+
+    [Test]
+    public void Find_OverlapsAClinicSession_NamesItsRoom()
+    {
+        var data = CreateData(NextMonday) with { Sessions = [CreateSession()] };
+
+        CalendarClashes.Find(data, At(NextMonday, 11), At(NextMonday, 13))
+            .Should().Be("That time overlaps a clinic session in Room 2, 09:00 to 12:00.");
+    }
+
+    [Test]
+    public void Find_InTheSessionBeingBookedInto_OnlyItsOtherAppointmentsClash()
+    {
+        var session = CreateSession();
+        var booked = InSession(session, At(NextMonday, 9, 20));
+        var data = CreateData(NextMonday, appointments: [booked]) with { Sessions = [session] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9), At(NextMonday, 9, 20), ignoreSessionId: session.Id).Should().BeNull();
+        CalendarClashes.Find(data, At(NextMonday, 9, 20), At(NextMonday, 9, 40), ignoreSessionId: session.Id)
+            .Should().Be("That time overlaps another appointment, 09:20 to 09:40.");
+    }
+
+    [Test]
+    public void BusyTimes_IncludePlannedSessions_NotCancelledOnes()
+    {
+        var data = CreateData(NextMonday) with
+        {
+            Sessions = [CreateSession(), CreateSession(At(NextMonday, 14), At(NextMonday, 15), id: OtherSessionId, status: MedApp.Domain.Clinics.ClinicSessionStatus.Cancelled)]
+        };
+
+        CalendarClashes.BusyTimes(data).Should().ContainSingle().Which.What.Should().Be("a clinic session in Room 2");
     }
 
     [Test]

@@ -39,6 +39,12 @@ public sealed class AppointmentResponse
 
     public int? DurationMinutes { get; set; }
 
+    /// <summary>The clinic session it's booked into, if any.</summary>
+    public Guid? ClinicSessionId { get; set; }
+
+    /// <summary>The room it's in, if any (its session's, or one chosen for it).</summary>
+    public Guid? RoomId { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     public string? CancelReason { get; set; }

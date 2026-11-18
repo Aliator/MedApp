@@ -1,4 +1,5 @@
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Clinics.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
@@ -68,6 +69,17 @@ public static class CalendarMapper
                     meeting.OverlapsAppointment = OverlapsAny(appointments, m.StartUtc, m.EndUtc);
                     return meeting;
                 })
+                .ToList(),
+            // Its clinic sessions, each with its slots counted from the appointments booked into it.
+            Sessions = data.Sessions
+                .OrderBy(c => c.StartUtc)
+                .ThenBy(c => c.Id)
+                .Select(c => ClinicMapper.ToResponse(
+                    c,
+                    staffUsername,
+                    appointments.Where(a => a.ClinicSessionId == c.Id).Select(a => a.StartUtc!.Value),
+                    nowUtc,
+                    viewer?.CanManageClinics == true))
                 .ToList()
         };
     }

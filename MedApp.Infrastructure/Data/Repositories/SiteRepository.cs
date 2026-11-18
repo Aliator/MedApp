@@ -78,8 +78,31 @@ public sealed class SiteRepository(MedAppDbContext context) : ISiteRepository
     }
 
     // Nothing names a room yet: clinic sessions and appointments will (the centre plan's PR 23), and add their checks here.
-    public Task<IReadOnlySet<Guid>> GetRoomsInUseAsync(IEnumerable<Guid> ids, CancellationToken ct) =>
-        Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+    public async Task<IReadOnlySet<Guid>> GetRoomsInUseAsync(IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.Distinct().ToList();
+        var nullable = list.Select(id => (Guid?)id).ToList();
+
+        var sessions = await context.ClinicSessions
+            .Where(s => list.Contains(s.RoomId))
+            .Select(s => s.RoomId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var patterns = await context.ClinicPatterns
+            .Where(p => list.Contains(p.RoomId))
+            .Select(p => p.RoomId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var appointments = await context.Appointments
+            .Where(a => nullable.Contains(a.RoomId))
+            .Select(a => a.RoomId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return sessions.Concat(patterns).Concat(appointments).ToHashSet();
+    }
 
     public async Task AddSiteAsync(Site site, CancellationToken ct)
     {
