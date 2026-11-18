@@ -52,7 +52,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
-import {formatDateTime} from '../../utils/dates';
+import {formatDate, formatDateTime} from '../../utils/dates';
 
 /** The dialog the page has open, if any. */
 type Dialog =
@@ -600,6 +600,14 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             hasValueLabel
             formatValueLabel={(value) => `${value} of ${pathway.stageCount ?? 0}`}
           />
+          {/* Accepted from a referral: a link back to it (only the pathway's own read says so). */}
+          {pathway.referral?.id && (
+            <Text type="body">
+              <Link href={`/referrals/${pathway.referral.id}`}>
+                {`From a referral received ${formatDate(pathway.referral.receivedOn ?? '')}, ${pathway.referral.specialtyName}`}
+              </Link>
+            </Text>
+          )}
           </VStack>
         </Section>
         <DetailPart title="Patient info" isOpen={open.patientInfo} onToggle={() => toggle('patientInfo')}>

@@ -1022,6 +1022,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("ReferralId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1670,6 +1673,10 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<DateOnly>("ReceivedOn")
                         .HasColumnType("date");
+
+                    b.Property<string>("RedirectDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("RedirectedTo")
                         .HasMaxLength(200)

@@ -7,6 +7,7 @@ Concept and decisions: `docs/pathways-ui-plan.md`. Admins build **templates**, o
 - **Every change is audited** (`PatientPathwayAuditEntry`, no foreign keys so history outlives deletes). New pathway commands must go through `PathwayChange`.
 - **Target dates are whole days,** due by the end of the day UK time, stored as that moment in UTC (`DueDates`); the API takes and returns `DueDate` as a date.
 - **Every template belongs to a specialty,** and a pathway copies its template's when it's created: see [Specialties](specialties.md).
+- **A pathway can come from a referral:** accepting one creates it through `PathwayCreation` like any new pathway, with `referralId` in its Created audit entry, saved with the referral's change: see [Referrals](referrals.md). Its page links back (`PatientPathwayResponse.Referral`).
 - **Definitions and templates in use are archived, not deleted** (deleting one is a 409). Patients with pathways or appointments can't be deleted (409).
 - **A stage can involve a visit** (`VisitRequirement`, copied onto the stage): see [Calendar and appointments](calendar.md).
 - **A pathway has several notes** (`PatientPathwayNote`, Markdown, 4,000 characters), newest first, each with author, written and last edited times. `PATCH` refuses notes (400, `UpdatePatientPathwayValidator.NotesMovedMessage`, so an old page is told, not silently ignored), and the Edit Pathway page has none. A new pathway's notes become its first note, by its creator (`PathwayCreation.Record`).

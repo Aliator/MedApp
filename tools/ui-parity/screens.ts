@@ -354,6 +354,22 @@ export const screens: Screen[] = [
       }
     },
   },
+  {
+    name: 'referral-accept',
+    title:
+      "Accepting a referral: the patient, the specialty's templates by name, an empty priority beside the one asked for (only opened, never confirmed; the page alone if the account can't triage it)",
+    path: '/referrals',
+    prepare: async (page) => {
+      await openFirstReferral(page);
+      // Only a member of the referral's specialty with Triage referrals sees Accept; the admin role doesn't have it.
+      const accept = page.getByRole('button', { name: 'Accept', exact: true });
+      if (await accept.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await accept.click();
+        await waitVisible(page, DIALOG);
+        await settle(page);
+      }
+    },
+  },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {
     name: 'pathway-notes',

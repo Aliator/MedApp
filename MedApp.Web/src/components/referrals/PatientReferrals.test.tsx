@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {findAlert, json, mockApi, renderWithApp, staffUser} from '../../test/render';
-import {REFERRAL_PATIENT_ID, testReferralSummary} from '../../test/referrals';
+import {REFERRAL_PATIENT_ID, testReferralSummary, UROLOGY_ID} from '../../test/referrals';
 import {PatientReferrals} from './PatientReferrals';
 
 describe('PatientReferrals', () => {
@@ -29,6 +29,32 @@ describe('PatientReferrals', () => {
 
     expect(await screen.findByText('No referrals yet.')).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Register Referral'})).not.toBeInTheDocument();
+  });
+
+  it("leaves out the referral being shown, listing the patient's others in every status", async () => {
+    mockApi({
+      'GET /api/referrals/search': () =>
+        json({
+          items: [
+            testReferralSummary({id: 'this-one', specialtyName: 'Dermatology'}),
+            testReferralSummary({id: 'other', status: 'Rejected', specialtyId: UROLOGY_ID, specialtyName: 'Urology'}),
+          ],
+          totalCount: 2,
+        }),
+    });
+    renderWithApp(<PatientReferrals patientId={REFERRAL_PATIENT_ID} canRegister={false} exceptReferralId="this-one" sameSpecialtyId={UROLOGY_ID} />, {user: staffUser});
+
+    const links = await screen.findAllByRole('link', {name: /^Referral to/});
+    expect(links.map((link) => link.textContent)).toEqual(['Referral to Urology']);
+    expect(screen.getByText('Same specialty')).toBeInTheDocument();
+    expect(screen.queryByText(/older referral/)).not.toBeInTheDocument();
+  });
+
+  it('says when there are no others', async () => {
+    mockApi({'GET /api/referrals/search': () => json({items: [testReferralSummary({id: 'this-one'})], totalCount: 1})});
+    renderWithApp(<PatientReferrals patientId={REFERRAL_PATIENT_ID} canRegister={false} exceptReferralId="this-one" />, {user: staffUser});
+
+    expect(await screen.findByText('No other referrals.')).toBeInTheDocument();
   });
 
   it('says when they could not be loaded', async () => {

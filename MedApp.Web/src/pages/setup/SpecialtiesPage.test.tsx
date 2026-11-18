@@ -1,7 +1,19 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, expectAnnounced, findAlert, isDisabled, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
+import {
+  adminUser,
+  calls,
+  expectAnnounced,
+  findAlert,
+  isDisabled,
+  json,
+  mockApi,
+  openAlertDetails,
+  openDialog,
+  renderWithApp,
+  withAnnouncements,
+} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
-import {SpecialtiesPage, specialtyUse} from './SpecialtiesPage';
+import {SpecialtiesPage, specialtyUse, untriageable, untriageableWords} from './SpecialtiesPage';
 
 const BASE = '/api/specialties';
 
@@ -30,7 +42,54 @@ describe('specialtyUse', () => {
   });
 });
 
+describe('untriageable', () => {
+  it('names the specialties in use that no member can triage for (hazard H-40)', () => {
+    const list = [
+      {name: 'Cardiology', isArchived: false, triagerCount: 0},
+      {name: 'Dermatology', isArchived: false, triagerCount: 2},
+      {name: 'Old clinic', isArchived: true, triagerCount: 0},
+      {name: 'Urology', isArchived: false, triagerCount: 0},
+      {name: 'Unknown', isArchived: false},
+    ];
+    expect(untriageable(list).map((s) => s.name)).toEqual(['Cardiology', 'Urology']);
+    expect(untriageableWords(list)).toBe(
+      'Nobody can triage referrals to Cardiology and Urology: no member of these specialties holds the Triage referrals permission. Give one a role that has it, or add a member who has.',
+    );
+    expect(untriageableWords([list[0]])).toBe(
+      'Nobody can triage referrals to Cardiology: no member of this specialty holds the Triage referrals permission. Give one a role that has it, or add a member who has.',
+    );
+    expect(untriageableWords([...list, {name: 'Allergy', isArchived: false, triagerCount: 0}])).toMatch(/^Nobody can triage referrals to Cardiology, Urology and Allergy:/);
+  });
+});
+
 describe('SpecialtiesPage', () => {
+  it('warns about a specialty nobody can triage for, in its row and above the list', async () => {
+    const user = renderPage(
+      {},
+      {
+        [`GET ${BASE}`]: () =>
+          json([
+            {...specialties[0], triagerCount: 1},
+            {...specialties[1], triagerCount: 0},
+            {...specialties[2], triagerCount: 0},
+          ]),
+      },
+    ).user;
+
+    const urology = await rowOf('Urology');
+    expect(within(urology).getByText('Nobody can triage')).toBeInTheDocument();
+    expect(within(await rowOf('Dermatology')).queryByText('Nobody can triage')).not.toBeInTheDocument();
+    const details = within(await openAlertDetails(user, 'Nobody can triage'));
+    expect(details.getByText(/^Nobody can triage referrals to Urology: no member of this specialty/)).toBeInTheDocument();
+  });
+
+  it('gives no warning while every specialty has someone who can triage', async () => {
+    renderPage({}, {[`GET ${BASE}`]: () => json(specialties.map((s) => ({...s, triagerCount: 1})))});
+
+    await rowOf('Dermatology');
+    expect(screen.queryByText('Nobody can triage')).not.toBeInTheDocument();
+  });
+
   it('lists the active ones by name, with what uses each, reading archived ones too', async () => {
     const {fetch} = renderPage();
 

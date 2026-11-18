@@ -40,6 +40,9 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
         builder.Property(x => x.RedirectedTo)
             .HasMaxLength(Referral.MaxRedirectedToLength);
 
+        builder.Property(x => x.RedirectDetail)
+            .HasMaxLength(Referral.MaxDetailLength);
+
         builder.Property(x => x.Version)
             .IsRequired();
 

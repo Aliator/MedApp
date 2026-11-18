@@ -80,6 +80,13 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.Edit;
     case 'ReferralWithdrawn':
       return AppIcon.Withdraw;
+    case 'ReferralAccepted':
+      return AppIcon.Success;
+    case 'ReferralRejected':
+      return AppIcon.StatusCancelled;
+    case 'ReferralRedirectedElsewhere':
+    case 'ReferralSpecialtyChanged':
+      return AppIcon.StatusChange;
     case 'ReferralEnteredInError':
       return AppIcon.EnteredInError;
     case 'StageUnlocked':
@@ -414,9 +421,17 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
             {/* A referral's entry, or its letter's, links to the referral. No pathway to link to: an appointment not for
                 one, or a patient's own file (its detail says "To the patient"). */}
             {(isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (
-              <Text type="supporting" maxLines={1}>
-                <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
-              </Text>
+              <>
+                <Text type="supporting" maxLines={1}>
+                  <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
+                </Text>
+                {/* Accepted: the pathway it was accepted into. */}
+                {entry.action === 'ReferralAccepted' && entry.pathwayId && !entry.isPathwayDeleted && (
+                  <Text type="supporting" maxLines={1}>
+                    <Link href={`/pathways/${entry.pathwayId}`}>{entry.pathwayTitle || 'Its pathway'}</Link>
+                  </Text>
+                )}
+              </>
             ) : !entry.pathwayId || isPatientEntry(entry) || isReferralFileEntry(entry) ? null : entry.isPathwayDeleted ? (
               <>
                 <Text type="supporting" color="secondary" maxLines={1}>
@@ -425,9 +440,17 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
                 <Token size="sm" label="Deleted" color="gray" />
               </>
             ) : (
-              <Text type="supporting" maxLines={1}>
-                <Link href={`/pathways/${entry.pathwayId}`}>{entry.pathwayTitle}</Link>
-              </Text>
+              <>
+                <Text type="supporting" maxLines={1}>
+                  <Link href={`/pathways/${entry.pathwayId}`}>{entry.pathwayTitle}</Link>
+                </Text>
+                {/* A pathway accepted from a referral: its Created entry links to the referral. */}
+                {entry.action === 'Created' && entry.referralId && (
+                  <Text type="supporting" maxLines={1}>
+                    <Link href={`/referrals/${entry.referralId}`}>From a referral</Link>
+                  </Text>
+                )}
+              </>
             )}
             <Text type="supporting" color="secondary">
               {`${formatTime(entry.atUtc ?? '')} · ${entry.username}`}

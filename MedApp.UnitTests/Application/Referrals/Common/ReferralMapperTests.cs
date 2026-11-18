@@ -33,7 +33,7 @@ public sealed class ReferralMapperTests
         response.CanAttachFiles.Should().BeTrue();
         response.ReadOnlyReason.Should().BeNull();
         response.CanTriage.Should().BeFalse();
-        response.WhyCantTriage.Should().Be(ReferralWorkflow.TriageNotAvailableMessage);
+        response.WhyCantTriage.Should().Be(ReferralWorkflow.NoTriagePermissionMessage);
         response.History.Single().Action.Should().Be("Registered");
         response.History.Single().SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
         response.History.Single().RequestedPriority.Should().Be("High");
@@ -80,6 +80,112 @@ public sealed class ReferralMapperTests
         response.WhyCantTriage.Should().BeNull();
         response.DecisionDetail.Should().Be(Detail);
         response.DecidedByUsername.Should().Be(Registrar.Username);
+    }
+
+    [Test]
+    public void ToResponse_ATriagerInItsSpecialty_CanTriage()
+    {
+        var response = ReferralMapper.ToResponse(CreateReferral(), [], 0, Triager, viewerIsMember: true);
+
+        response.CanTriage.Should().BeTrue();
+        response.WhyCantTriage.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_ATriagerOutsideItsSpecialty_IsToldWhoCan()
+    {
+        var response = ReferralMapper.ToResponse(CreateReferral(), [], 0, Triager, viewerIsMember: false);
+
+        response.CanTriage.Should().BeFalse();
+        response.WhyCantTriage.Should().Be(ReferralWorkflow.NotInSpecialtyMessage(SpecialtiesTestConstants.SpecialtyName));
+    }
+
+    [Test]
+    public void ToResponse_ATriagerOnARestrictedRecord_CantTriage()
+    {
+        var referral = CreateReferral();
+        referral.Patient.RestrictedAtUtc = NowUtc;
+
+        var response = ReferralMapper.ToResponse(referral, [], 0, Triager, viewerIsMember: true);
+
+        response.CanTriage.Should().BeFalse();
+        response.WhyCantTriage.Should().NotBeNull();
+    }
+
+    [Test]
+    public void ToResponse_Triaged_GivesTheDecisionAndHistoryWithoutFreeTextInTheHistory()
+    {
+        var referral = CreateReferral();
+        var change = new ReferralChange(referral, Triager, NowUtc);
+        change.Reject(ReferralRejectionReason.Duplicate, Canary);
+
+        var response = ReferralMapper.ToResponse(referral, change.Events, 0, Triager, viewerIsMember: true);
+
+        response.Status.Should().Be("Rejected");
+        response.RejectionReason.Should().Be("Duplicate");
+        response.DecisionDetail.Should().Be(Canary);
+        response.DecidedByUsername.Should().Be(Triager.Username);
+        response.CanTriage.Should().BeFalse();
+        response.WhyCantTriage.Should().BeNull();
+        var entry = response.History.Single();
+        entry.Action.Should().Be("Rejected");
+        entry.RejectionReason.Should().Be("Duplicate");
+        entry.ToStatus.Should().Be("Rejected");
+        change.Events.Single().Details.Should().NotContain(Canary);
+    }
+
+    [Test]
+    public void ToResponse_RedirectedHere_GivesTheRedirectDetail()
+    {
+        var referral = CreateReferral();
+        referral.RedirectDetail = Detail;
+
+        ReferralMapper.ToResponse(referral, [], 0, Viewer).RedirectDetail.Should().Be(Detail);
+    }
+
+    [Test]
+    public void ToPathwayReferral_GivesItsIdDateAndSpecialty()
+    {
+        var referral = CreateReferral();
+
+        var response = ReferralMapper.ToPathwayReferral(referral);
+
+        response.Id.Should().Be(referral.Id);
+        response.ReceivedOn.Should().Be(ReceivedOn);
+        response.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+    }
+
+    [Test]
+    public void EventDetails_Accepted_GivesThePriorityTemplateAndPathway()
+    {
+        var referral = CreateReferral();
+        var pathwayId = Guid.NewGuid();
+        var change = new ReferralChange(referral, Triager, NowUtc);
+        change.Accept(pathwayId, "Synthetic template", MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority.Urgent);
+
+        var entry = ReferralMapper.ToResponse(change.Events.Single());
+
+        entry.Action.Should().Be("Accepted");
+        entry.Priority.Should().Be("Urgent");
+        entry.TemplateName.Should().Be("Synthetic template");
+        entry.PathwayId.Should().Be(pathwayId);
+        entry.SpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+    }
+
+    [Test]
+    public void EventDetails_SpecialtyChanged_GivesBothSpecialties()
+    {
+        var referral = CreateReferral();
+        var urology = SpecialtiesTestConstants.CreateSpecialty(SpecialtiesTestConstants.OtherSpecialtyName);
+        var change = new ReferralChange(referral, Triager, NowUtc);
+        change.RedirectToSpecialty(urology, Canary);
+
+        var entry = ReferralMapper.ToResponse(change.Events.Single());
+
+        entry.Action.Should().Be("SpecialtyChanged");
+        entry.SpecialtyName.Should().Be(SpecialtiesTestConstants.OtherSpecialtyName);
+        entry.PreviousSpecialtyName.Should().Be(SpecialtiesTestConstants.SpecialtyName);
+        change.Events.Single().Details.Should().NotContain(Canary);
     }
 
     [Test]

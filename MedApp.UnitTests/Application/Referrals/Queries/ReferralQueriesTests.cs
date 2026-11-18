@@ -95,6 +95,70 @@ public sealed class ReferralQueriesTests
     }
 
     [Test]
+    public async Task Search_ByPatientName_RecordsTheFiltersUsedButNeverTheTerm()
+    {
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, _cts.Token))
+            .ReturnsAsync(new PagedResult<ReferralRow>([new(CreateReferral(), false)], 1));
+
+        await SearchHandler.Handle(Search() with { Search = "Synthia" }, _cts.Token);
+
+        var searched = _activity.Recorded.Single();
+        searched.Action.Should().Be(ActivityAction.PatientsSearched);
+        searched.Details.Should().Contain("patientName").And.Contain("statuses").And.Contain("\"resultCount\":1")
+            .And.Contain("referrals").And.NotContain("Synthia");
+    }
+
+    [Test]
+    public async Task Search_WithoutAPatientName_RecordsNoSearch()
+    {
+        _repository.Setup(r => r.SearchAsync(It.IsAny<SearchReferralsQuery>(), null, _cts.Token))
+            .ReturnsAsync(new PagedResult<ReferralRow>([], 0));
+
+        await SearchHandler.Handle(Search() with { PatientId = Guid.NewGuid() }, _cts.Token);
+
+        _activity.Recorded.Should().BeEmpty();
+    }
+
+    [Test]
+    public void FiltersUsed_NamesEachFilterGiven()
+    {
+        ReferralSearch.FiltersUsed(new SearchReferralsQuery(1, 10, null, true, null, null, false, null, null, Registrar.UserId))
+            .Should().BeEmpty();
+        ReferralSearch.FiltersUsed(new SearchReferralsQuery(
+                1, 10, null, true, ["Accepted"], [Guid.NewGuid()], true, Guid.NewGuid(), " x ", Registrar.UserId))
+            .Should().Equal("patientName", "patientId", "statuses", "specialtyIds", "mine");
+    }
+
+    [Test]
+    public async Task GetById_ATriagerInItsSpecialty_CanTriage()
+    {
+        var referral = CreateReferral();
+        _repository.Setup(r => r.GetByIdAsync(referral.Id, _cts.Token)).ReturnsAsync(referral);
+        _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
+        _repository.Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, referral.SpecialtyId, _cts.Token)).ReturnsAsync(true);
+
+        var response = await new GetReferralByIdHandler(_repository.Object, _activity)
+            .Handle(new GetReferralByIdQuery(referral.Id, Triager), _cts.Token);
+
+        response.CanTriage.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GetById_SomeoneWithoutTheTriagePermission_IsNotAskedAboutMembership()
+    {
+        var referral = CreateReferral();
+        _repository.Setup(r => r.GetByIdAsync(referral.Id, _cts.Token)).ReturnsAsync(referral);
+        _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
+
+        var response = await new GetReferralByIdHandler(_repository.Object, _activity)
+            .Handle(new GetReferralByIdQuery(referral.Id, Registrar), _cts.Token);
+
+        response.CanTriage.Should().BeFalse();
+        response.WhyCantTriage.Should().Be(ReferralWorkflow.NoTriagePermissionMessage);
+        _repository.Verify(r => r.IsSpecialtyMemberAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Search_Mine_KeepsTheViewersSpecialties_OrEveryOneWhenTheyHaveNone()
     {
         var mine = SpecialtiesTestConstants.CreateSpecialty();
