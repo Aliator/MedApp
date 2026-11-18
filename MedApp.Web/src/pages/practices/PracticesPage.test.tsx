@@ -48,7 +48,8 @@ describe('practicesPage and practiceUse', () => {
   });
 });
 
-describe('PracticesPage', () => {
+// The add and edit tests fill a long form field by field, which can pass Vitest's 5 s default on a busy CI runner.
+describe('PracticesPage', {timeout: 20_000}, () => {
   it('lists the active ones by name, with their code, postcode, phone and use, reading archived ones too', async () => {
     const {fetch} = renderPage();
 

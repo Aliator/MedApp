@@ -40,6 +40,7 @@ public static class DemoWipe
                 // Letters first: they name patients, pathways, referrals and templates (recipients go with them).
                 await db.Letters.ExecuteDeleteAsync(cancellationToken);
                 await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
+                await db.ReferralClockPauses.ExecuteDeleteAsync(cancellationToken);
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
