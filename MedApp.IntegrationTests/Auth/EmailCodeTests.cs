@@ -301,7 +301,9 @@ public sealed class EmailCodeTests : IntegrationTest
             await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(staff.Password, wrong));
 
         // The five wrong codes locked the account (as five wrong app codes would); once that's over, a new code works.
-        Api.Clock.Advance(TimeSpan.FromMinutes(6));
+        // The lockout is ended here rather than by moving the test clock on: Identity's own lockout check reads the
+        // real clock.
+        await ExecuteSqlAsync($"UPDATE AspNetUsers SET LockoutEnd = NULL WHERE Id = {staff.UserId}");
         var fresh = await ConfirmCodeAsync(staff.Client, staff.Password, address);
 
         await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(staff.Password, fresh)))
