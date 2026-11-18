@@ -38,7 +38,7 @@ public sealed class AttachmentSearchTests
     [Test]
     public void Patient_ListsEverythingAttachedToThemNewestFirstWithoutDeletedOnes()
     {
-        var rows = Run(new GetAttachmentsQuery(PatientId, null, null, false, Staff.UserId, false));
+        var rows = Run(new GetAttachmentsQuery(PatientId, null, null, null, false, Staff.UserId, false));
 
         rows.Select(r => r.Attachment).Should().Equal(StageFile, PathwayFile, PatientFile);
         rows[0].PathwayTitle.Should().Be(PathwayTitle);
@@ -49,35 +49,35 @@ public sealed class AttachmentSearchTests
     [Test]
     public void Pathway_ListsOnlyItsOwnFiles()
     {
-        Run(new GetAttachmentsQuery(null, Pathway.Id, null, false, Staff.UserId, false))
+        Run(new GetAttachmentsQuery(null, Pathway.Id, null, null, false, Staff.UserId, false))
             .Select(r => r.Attachment).Should().Equal(PathwayFile);
     }
 
     [Test]
     public void Stage_ListsOnlyItsFiles()
     {
-        Run(new GetAttachmentsQuery(null, null, Pathway.StageAt(2).Id, false, Staff.UserId, false))
+        Run(new GetAttachmentsQuery(null, null, Pathway.StageAt(2).Id, null, false, Staff.UserId, false))
             .Select(r => r.Attachment).Should().Equal(StageFile);
     }
 
     [Test]
     public void IncludeDeleted_Admin_GetsThem()
     {
-        Run(new GetAttachmentsQuery(PatientId, null, null, true, Admin.UserId, true))
+        Run(new GetAttachmentsQuery(PatientId, null, null, null, true, Admin.UserId, true))
             .Select(r => r.Attachment).Should().Equal(DeletedFile, StageFile, PathwayFile, PatientFile);
     }
 
     [Test]
     public void IncludeDeleted_Staff_StillDoesNot()
     {
-        Run(new GetAttachmentsQuery(PatientId, null, null, true, Staff.UserId, false))
+        Run(new GetAttachmentsQuery(PatientId, null, null, null, true, Staff.UserId, false))
             .Should().NotContain(r => r.Attachment == DeletedFile);
     }
 
     [Test]
     public void NoTarget_ListsNothing()
     {
-        Run(new GetAttachmentsQuery(null, null, null, false, Staff.UserId, false)).Should().BeEmpty();
+        Run(new GetAttachmentsQuery(null, null, null, null, false, Staff.UserId, false)).Should().BeEmpty();
     }
 
     [Test]

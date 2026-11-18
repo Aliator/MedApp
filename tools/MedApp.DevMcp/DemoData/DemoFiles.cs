@@ -64,7 +64,7 @@ public static class DemoFiles
             services.At(at, by.ActivityActor);
             await using var content = new MemoryStream(bytes, writable: false);
             var response = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
-                new UploadAttachmentCommand(patientId, pathwayId, stageId, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
+                new UploadAttachmentCommand(patientId, pathwayId, stageId, null, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
             var patient = patientId ?? world.Pathways.Single(p => p.Id == pathwayId || p.Stages.Any(s => s.Id == stageId)).PatientId;
             uploaded.Add((response.Id, by, patient, at));
             return response.Id;
@@ -201,7 +201,7 @@ public static class DemoFiles
             var ok = await services.Run(async sp =>
             {
                 var mediator = sp.GetRequiredService<IMediator>();
-                await mediator.Send(new GetAttachmentsQuery(file.PatientId, null, null, false, by.Id, by.IsAdminAt(at)), ct);
+                await mediator.Send(new GetAttachmentsQuery(file.PatientId, null, null, null, false, by.Id, by.IsAdminAt(at)), ct);
                 try
                 {
                     var download = await mediator.Send(new DownloadAttachmentCommand(file.Id, by.Actor), ct);

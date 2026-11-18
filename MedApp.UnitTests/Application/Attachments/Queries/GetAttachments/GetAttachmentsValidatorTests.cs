@@ -18,6 +18,7 @@ public sealed class GetAttachmentsValidatorTests
     {
         var result = _validator.Validate(new GetAttachmentsQuery(
             patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null,
+            null,
             false, Staff.UserId, false));
 
         result.IsValid.Should().Be(valid);

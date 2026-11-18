@@ -1,8 +1,8 @@
 namespace MedApp.Contracts.Pathways.Timeline.Responses;
 
 /// <summary>
-/// One thing that happened to one of a patient's pathways (from the pathway audit log) or appointments (from their
-/// history). Which fields are set depends on <see cref="Action"/>. Free-text values (notes, titles, reasons) are only
+/// One thing that happened to one of a patient's pathways (from the pathway audit log), appointments or referrals
+/// (from their histories). Which fields are set depends on <see cref="Action"/>. Free-text values (notes, titles, reasons) are only
 /// sent to admins.
 /// </summary>
 public sealed class PatientTimelineEntryResponse
@@ -11,11 +11,14 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>
     /// The filter it falls under: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted,
-    /// Appointments or Files.
+    /// Appointments, Files or Referrals.
     /// </summary>
     public string Kind { get; set; } = string.Empty;
 
-    /// <summary>The audit action, e.g. StageFinished, or for an appointment "Appointment" and what happened, e.g. AppointmentBooked.</summary>
+    /// <summary>
+    /// The audit action, e.g. StageFinished, or for an appointment "Appointment" and what happened, e.g. AppointmentBooked,
+    /// or for a referral "Referral" and what happened, e.g. ReferralRegistered.
+    /// </summary>
     public string Action { get; set; } = string.Empty;
 
     public DateTime AtUtc { get; set; }
@@ -100,9 +103,21 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>A file attached or deleted (AttachmentAdded, AttachmentDeleted): which one.</summary>
     public Guid? AttachmentId { get; set; }
 
-    /// <summary>A file attached or deleted: what it's attached to, Patient, Pathway or Stage.</summary>
+    /// <summary>A file attached or deleted: what it's attached to, Patient, Pathway, Stage or Referral.</summary>
     public string? AttachedTo { get; set; }
 
     /// <summary>A file attached or deleted: its name. Admins only (it's free text).</summary>
     public string? FileName { get; set; }
+
+    /// <summary>A referral entry, or a file attached to a referral: the referral.</summary>
+    public Guid? ReferralId { get; set; }
+
+    /// <summary>
+    /// A referral entry: its specialty (the one asked for when registered; the new one when an edit moved it), an
+    /// admin-written name.
+    /// </summary>
+    public string? SpecialtyName { get; set; }
+
+    /// <summary>A referral entry: the referring practice. Admins only (it's free text).</summary>
+    public string? ReferrerPractice { get; set; }
 }
