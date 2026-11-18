@@ -134,6 +134,8 @@ public static class PathwayMapper
                     CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
                     CanUnlock = Allows(viewerPermissions, Permission.OverrideStages)
                         && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
+                    CanRecordSpecimen = Allows(viewerPermissions, Permission.RecordSpecimens)
+                        && Specimens.Common.SpecimenWorkflow.WhyCantTake(pathway, s) is null,
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),

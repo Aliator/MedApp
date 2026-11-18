@@ -86,6 +86,18 @@ public enum NotificationKind
     StageVisitWithdrawn = 22,
 
     /// <summary>
+    /// The lab rejected a specimen the user asked for or took (never sent to whoever recorded the rejection). Its
+    /// <see cref="Notification.SubjectId"/> is the specimen.
+    /// </summary>
+    SpecimenRejectedByLab = 24,
+
+    /// <summary>
+    /// A specimen the user asked for or took was marked lost (never sent to whoever marked it). Its
+    /// <see cref="Notification.SubjectId"/> is the specimen.
+    /// </summary>
+    SpecimenLost = 25,
+
+    /// <summary>
     /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 23 to 39 are
     /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>

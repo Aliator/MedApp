@@ -22,6 +22,7 @@ using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Referrals.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
@@ -225,6 +226,7 @@ public static class ServiceExtensions
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
+        services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         
         return services;
     }

@@ -217,7 +217,8 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             NoteVersions = [],
             NoteDeletionRequests = [],
             Referrals = [],
-            ReferralHistory = []
+            ReferralHistory = [],
+            Specimens = []
         };
 
         var entries = PatientAnonymiser.Apply(withFiles, Now, ActivityTestConstants.Actor);

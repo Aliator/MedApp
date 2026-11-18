@@ -8,6 +8,7 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Activity;
 using MediatR;
@@ -58,6 +59,13 @@ public sealed partial class AnonymisePatientHandler(
             throw new ConflictException(
                 $"This patient has {awaitingTriage} referral{(awaitingTriage == 1 ? "" : "s")} awaiting triage, so their " +
                 $"record can't be anonymised until {(awaitingTriage == 1 ? "it's" : "they're")} triaged or withdrawn.");
+
+        var openSpecimens = record.Specimens.Count(s => SpecimenWorkflow.IsOpen(s.Status));
+        if (openSpecimens > 0)
+            throw new ConflictException(
+                $"This patient has {openSpecimens} specimen{(openSpecimens == 1 ? "" : "s")} still with the lab (taken, sent or " +
+                $"received), so their record can't be anonymised until {(openSpecimens == 1 ? "it's" : "they're")} reported, " +
+                "rejected, lost or entered in error.");
 
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(

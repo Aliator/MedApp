@@ -117,5 +117,11 @@ public enum ActivityAction
     StaffSpecialtiesChanged = 42,
 
     /// <summary>Someone opened a referral's page: the referral's ID in its details.</summary>
-    ReferralViewed = 43
+    ReferralViewed = 43,
+
+    /// <summary>
+    /// Someone opened a specimen's page or printed its label or request sheet, or found it by its number: the specimen's
+    /// ID in its details. (44 is allocated to Phase 2 by <c>docs/centre-phase2-plan.md</c>.)
+    /// </summary>
+    SpecimenViewed = 45
 }

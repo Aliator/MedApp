@@ -33,5 +33,33 @@ public enum PatientPathwayAuditAction
     /// An admin deleted a note on the pathway (soft: it's hidden, but kept). The details hold its ID and latest version,
     /// the admin's reason, and the request it approved, if any; never its text.
     /// </summary>
-    NoteDeleted = 15
+    NoteDeleted = 15,
+
+    // Specimens (docs/centre-phases-3-5-plan.md, section 5). Not changes to the pathway: they don't go through
+    // PathwayChange and don't move its LastUpdated. Details hold the specimen's ID and number, its type and lab by ID and
+    // name, statuses and fixed choices by name; never its site, request notes or any detail typed (SpecimenAudit).
+
+    /// <summary>A specimen was taken at a stage.</summary>
+    SpecimenTaken = 16,
+
+    /// <summary>A specimen was sent to the lab.</summary>
+    SpecimenSent = 17,
+
+    /// <summary>The lab received a specimen.</summary>
+    SpecimenReceived = 18,
+
+    /// <summary>A specimen's report was attached (the file's ID in the details).</summary>
+    SpecimenReported = 19,
+
+    /// <summary>The lab rejected a specimen: the reason by name, never its detail.</summary>
+    SpecimenRejected = 20,
+
+    /// <summary>A specimen was marked lost.</summary>
+    SpecimenLost = 21,
+
+    /// <summary>A specimen was marked entered in error.</summary>
+    SpecimenEnteredInError = 22,
+
+    /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
+    SpecimenDetailsEdited = 23
 }

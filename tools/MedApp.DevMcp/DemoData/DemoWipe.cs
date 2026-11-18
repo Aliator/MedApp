@@ -39,6 +39,10 @@ public static class DemoWipe
                 // activity type and day template.
                 await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
+                // Specimens hold their pathways, types and labs (foreign keys), so they go first.
+                await db.Specimens.ExecuteDeleteAsync(cancellationToken);
+                await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
+                await db.Laboratories.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);

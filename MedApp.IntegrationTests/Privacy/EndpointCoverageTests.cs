@@ -58,6 +58,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/referrals/{id:guid}"] = Records("ReferralViewed"), // the referral's ID in the details
         ["api/referrals/search"] = Records("PatientListed"),
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
+        ["api/specimens/{id:guid}"] = Records("SpecimenViewed"), // its page, label and request sheet; the specimen's ID in the details
+        ["api/specimens/search"] = Records("PatientListed"),
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
@@ -110,6 +112,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/sites/{id:guid}"] = Nothing("a site and its rooms: configuration"),
         ["api/sites/{id:guid}/hours"] = Nothing("a site's opening hours: configuration"),
         ["api/rooms"] = Nothing("rooms: configuration"),
+        ["api/specimen-types"] = Nothing("specimen types: configuration"),
+        ["api/laboratories"] = Nothing("labs: configuration"),
         ["api/calendar/closed-days/bookings"] = Nothing("how many appointments, blocks and meetings each member of staff has on a day: counts, never patients"),
         ["api/calendar/staff/{userId:guid}/day-templates"] = Nothing("a member of staff's day templates: configuration"),
         ["api/calendar/day-templates/{id:guid}"] = Nothing("calendar day templates: configuration"),
@@ -171,6 +175,12 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ReferrerPractice = "Synthetic Lane Surgery", RequestedPriority = "Medium", Reason = "Synthetic reason."
         })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 
+        // A specimen, taken by a nurse (admins don't record specimens), for its page and the lab's worklist.
+        var nurse = await CreateStaffAsync("Nurse");
+        var (specimenType, laboratory) = await MedApp.IntegrationTests.Specimens.SpecimenApi.CreateSetupAsync(admin);
+        var specimen = await MedApp.IntegrationTests.Specimens.SpecimenApi.RecordAsync(
+            nurse.Client, pathway, specimenType.Id, laboratory.Id, nurse.UserId);
+
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
             ($"/api/patients/{patientId}", "PatientViewed", patientId),
@@ -193,6 +203,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
             ($"/api/referrals/{referral.Id}", "ReferralViewed", patientId),
             ("/api/referrals/search", "PatientListed", patientId),
+            ($"/api/specimens/{specimen.Id}", "SpecimenViewed", patientId),
+            ("/api/specimens/search?view=ToSend", "PatientListed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

@@ -99,6 +99,16 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
+        // Specimens, with their types and labs; their history is in the audit entries above.
+        var specimens = await Tracking(context.Specimens, forUpdate)
+            .Include(s => s.SpecimenType)
+            .Include(s => s.Laboratory)
+            .Where(s => s.PatientId == patientId)
+            .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
+            .ToListAsync(ct);
+        foreach (var specimen in specimens)
+            specimen.Patient = patient;
+
         return new PatientRecord
         {
             Patient = patient,
@@ -112,7 +122,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Notifications = notifications,
             Attachments = attachments,
             Referrals = referrals,
-            ReferralHistory = referralHistory
+            ReferralHistory = referralHistory,
+            Specimens = specimens
         };
     }
 

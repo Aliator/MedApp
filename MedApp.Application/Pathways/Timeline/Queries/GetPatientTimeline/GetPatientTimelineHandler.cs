@@ -6,6 +6,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Referrals.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.Domain.Activity;
 using MediatR;
@@ -18,6 +19,7 @@ public sealed class GetPatientTimelineHandler(
     IPathwayAuditRepository auditRepository,
     IAppointmentRepository appointmentRepository,
     IReferralRepository referralRepository,
+    ISpecimenRepository specimenRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
 {
@@ -61,7 +63,10 @@ public sealed class GetPatientTimelineHandler(
 
         // Admins see the text of the notes added and edited, from the note versions (the audit holds none).
         if (request.FullView)
+        {
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
+            page = await WithSpecimensAsync(page, cancellationToken);
+        }
 
         return new PatientTimelinePageResponse
         {
@@ -109,6 +114,48 @@ public sealed class GetPatientTimelineHandler(
                 }
                 : e)
             .ToList();
+    }
+
+    /// <summary>
+    /// The page with each specimen entry's specimen, for its free text (admins only): the audit holds none. Only
+    /// specimens of this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithSpecimensAsync(List<Entry> page, CancellationToken ct)
+    {
+        var ids = page
+            .Select(e => e.Audit is { } audit && PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Specimens
+                ? SpecimenIdOf(audit.Entry.Details)
+                : null)
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var specimens = (await specimenRepository.GetByIdsAsync(ids, ct)).ToDictionary(s => s.Id);
+        return page
+            .Select(e => e.Audit is { } audit && SpecimenIdOf(audit.Entry.Details) is { } id
+                         && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Specimen = specimen } }
+                : e)
+            .ToList();
+    }
+
+    private static Guid? SpecimenIdOf(string details)
+    {
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(details);
+            return json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                   && json.RootElement.TryGetProperty("specimenId", out var id)
+                   && id.TryGetGuid(out var guid)
+                ? guid
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>One entry of the merged feed, from the audit log, appointments' history or referrals' history.</summary>

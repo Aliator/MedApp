@@ -14,6 +14,8 @@ using MedApp.Domain.Appointments;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Referrals;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.Application.Specimens.Common;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.UnitTests.Application.Pathways.Timeline.Common;
 
@@ -134,6 +136,8 @@ public sealed class TimelineStaffCanaryTests
                 Action.NoteAdded => new PatientTimelineRow(e, CurrentTitle) { NoteText = Canary },
                 Action.NoteEdited => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
                 Action.NoteDeleted => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
+                // As the handler gives admins a specimen entry's specimen, for its free text (the audit holds none).
+                >= Action.SpecimenTaken and <= Action.SpecimenDetailsEdited => new PatientTimelineRow(e, CurrentTitle) { Specimen = SpecimenHoldingTheCanary() },
                 _ => new PatientTimelineRow(e, CurrentTitle),
             })
             .ToList();
@@ -194,7 +198,100 @@ public sealed class TimelineStaffCanaryTests
             AttachmentAudit.Entry(pathwayFile, onPathway, Staff, Action.AttachmentDownloaded, Now),
         };
 
-        return change.AuditEntries.Concat(files).ToList();
+        return change.AuditEntries.Concat(files).Concat(SpecimenEntriesHoldingTheCanary()).ToList();
+    }
+
+    /// <summary>A specimen whose free text (site, request notes, the detail it closed with) is all the canary.</summary>
+    private static Specimen SpecimenHoldingTheCanary()
+    {
+        var specimen = SpecimensTestConstants.CreateSpecimen();
+        specimen.Site = Canary;
+        specimen.RequestNotes = Canary;
+        specimen.ClosedDetail = Canary;
+        return specimen;
+    }
+
+    /// <summary>Every specimen action, through <see cref="SpecimenChange"/> as the handlers write them, with the canary as all the free text.</summary>
+    private static List<PatientPathwayAuditEntry> SpecimenEntriesHoldingTheCanary()
+    {
+        var reported = SpecimenHoldingTheCanary();
+        var change = new SpecimenChange(reported, reported.Pathway, Staff, Now);
+        change.Take();
+        change.EditDetails(
+            SpecimensTestConstants.Urine(), SpecimensTestConstants.PartnerLab(), reported.TakenAtUtc.AddHours(-1),
+            $"{Canary} (edited)", $"{Canary} (edited)", OtherUserId, Staff.Username, OtherUsername);
+        change.Send(Now, Canary.Length > 50 ? null : Canary);
+        change.Receive(Now, Canary);
+        change.Report(Guid.NewGuid());
+
+        var rejected = SpecimenHoldingTheCanary();
+        var reject = new SpecimenChange(rejected, rejected.Pathway, Staff, Now);
+        reject.Reject(SpecimenRejectionReason.Other, Canary);
+
+        var lost = SpecimenHoldingTheCanary();
+        var lose = new SpecimenChange(lost, lost.Pathway, Staff, Now);
+        lose.MarkLost(Canary);
+
+        var error = SpecimenHoldingTheCanary();
+        var wrong = new SpecimenChange(error, error.Pathway, Staff, Now);
+        wrong.MarkEnteredInError(Canary);
+
+        return [.. change.AuditEntries, .. reject.AuditEntries, .. lose.AuditEntries, .. wrong.AuditEntries];
+    }
+
+    [Test]
+    public void SpecimenEntries_NeverHoldFreeText()
+    {
+        // DPIA risk 29: the site, request notes, references and every detail typed live only on the specimen.
+        SpecimenEntriesHoldingTheCanary().Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_AdminSpecimenEntries_CarryTheSpecimensFreeText()
+    {
+        // Taken (its site and request notes), rejected, lost and entered in error (the detail they closed with).
+        var rows = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Action is Action.SpecimenTaken or Action.SpecimenRejected or Action.SpecimenLost or Action.SpecimenEnteredInError)
+            .ToList();
+
+        rows.Should().HaveCount(4);
+        foreach (var row in rows)
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_SpecimenEdit_GivesStructuredValuesAndOnlyTheNamesOfFreeTextFields()
+    {
+        var edited = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.SpecimenDetailsEdited);
+
+        var response = TimelineMapper.ToResponse(edited, isAdmin: false);
+
+        response.Kind.Should().Be(nameof(PatientTimelineKind.Specimens));
+        response.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
+        response.SpecimenTypeName.Should().Be(SpecimensTestConstants.UrineName);
+        response.LaboratoryName.Should().Be(SpecimensTestConstants.PartnerLabName);
+        response.Changes.Single(c => c.Field == SpecimenChange.SpecimenTypeField)
+            .Should().BeEquivalentTo(new { From = SpecimensTestConstants.BiopsyName, To = SpecimensTestConstants.UrineName });
+        response.Changes.Single(c => c.Field == SpecimenChange.RequestingUserField)
+            .Should().BeEquivalentTo(new { From = Staff.Username, To = OtherUsername });
+        response.Changes.Single(c => c.Field == SpecimenChange.SiteField)
+            .Should().BeEquivalentTo(new { From = (string?)null, To = (string?)null });
+        response.Changes.Single(c => c.Field == SpecimenChange.RequestNotesField)
+            .Should().BeEquivalentTo(new { From = (string?)null, To = (string?)null });
+    }
+
+    [Test]
+    public void ToResponse_SpecimenRejected_StaffSeeTheStatusButNotTheReason()
+    {
+        var rejected = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.SpecimenRejected);
+
+        var staff = TimelineMapper.ToResponse(rejected, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(rejected, isAdmin: true);
+
+        staff.FromStatus.Should().Be(nameof(SpecimenStatus.Taken));
+        staff.ToStatus.Should().Be(nameof(SpecimenStatus.RejectedByLab));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be($"Other: {Canary}");
     }
 
     [Test]

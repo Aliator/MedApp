@@ -12,6 +12,8 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathways.Commands.CreatePatientPathway;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Commands.RecordSpecimen;
+using MedApp.Application.Specimens.Common;
 using MediatR;
 
 namespace MedApp.UnitTests.Application.Pathways.Common;
@@ -62,6 +64,14 @@ public sealed class PathwayRestrictionGuardConventionTests
         typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler),
     ];
 
+    /// <summary>
+    /// Recording a specimen reads the pathway (it changes the specimen, not the pathway) and checks the patient's record
+    /// through the specimen rules (<see cref="SpecimenWorkflow.WhyCantTake"/>), whose message says to ask an admin.
+    /// </summary>
+    private static readonly Type[] CheckThroughSpecimenRules = [typeof(RecordSpecimenHandler)];
+
+    private static readonly MethodInfo WhyCantTake = typeof(SpecimenWorkflow).GetMethod(nameof(SpecimenWorkflow.WhyCantTake))!;
+
     private static readonly MethodInfo GetAppointmentForUpdate =
         typeof(IAppointmentRepository).GetMethod(nameof(IAppointmentRepository.GetForUpdateAsync))!;
 
@@ -93,6 +103,7 @@ public sealed class PathwayRestrictionGuardConventionTests
             var calls = CallsMadeBy(handler, includeNested: true).ToList();
             var isGuarded = calls.Any(m => Guards.Any(g => Same(m, g)))
                             || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)))
+                            || (CheckThroughSpecimenRules.Contains(handler) && calls.Any(m => Same(m, WhyCantTake)))
                             || ReadOnlyCommands.Contains(handler);
             isGuarded.Should().BeTrue($"{handler.Name} changes a pathway, so it must load it through a guard that checks the patient");
         }

@@ -120,4 +120,16 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>A referral entry: the referring practice. Admins only (it's free text).</summary>
     public string? ReferrerPractice { get; set; }
+
+    /// <summary>A specimen entry: the specimen.</summary>
+    public Guid? SpecimenId { get; set; }
+
+    /// <summary>A specimen entry: its number, e.g. MA26-000123.</summary>
+    public string? SpecimenNumber { get; set; }
+
+    /// <summary>A specimen entry: its type, an admin-written name.</summary>
+    public string? SpecimenTypeName { get; set; }
+
+    /// <summary>A specimen entry: its lab, an admin-written name.</summary>
+    public string? LaboratoryName { get; set; }
 }

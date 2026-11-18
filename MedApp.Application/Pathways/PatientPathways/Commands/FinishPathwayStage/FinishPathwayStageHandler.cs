@@ -6,6 +6,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MediatR;
 
@@ -14,6 +15,7 @@ namespace MedApp.Application.Pathways.PatientPathways.Commands.FinishPathwayStag
 public sealed class FinishPathwayStageHandler(
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
+    ISpecimenRepository specimenRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -31,6 +33,12 @@ public sealed class FinishPathwayStageHandler(
 
         if (PathwayWorkflow.WhyStageCantBeEdited(pathway, stage) is { } reason)
             throw new ConflictException(reason);
+
+        // The gates with no override (StageGates): the last stage waits for the pathway's open specimens.
+        if (StageGates.IsLastToFinish(pathway, stage)
+            && StageGates.WhyCantFinish(
+                pathway, stage, await specimenRepository.GetOpenForPathwayAsync(pathway.Id, cancellationToken)) is { } gate)
+            throw new ConflictException(gate);
 
         // The finished stage's appointments, and the next stage's (which becomes current and may need its visit asked for).
         var next = StageFinishing.NextStage(pathway, stage);

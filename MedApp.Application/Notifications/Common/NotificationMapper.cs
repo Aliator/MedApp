@@ -20,7 +20,8 @@ public static class NotificationMapper
         notification.AppointmentId,
         notification.CalendarDate,
         notification.NoteDeletionRequestId,
-        notification.MeetingId);
+        notification.MeetingId,
+        notification.SubjectId);
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>
     public static NotificationPreferencesResponse ToResponse(NotificationPreferences preferences) =>

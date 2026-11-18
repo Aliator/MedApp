@@ -76,7 +76,7 @@ public sealed class SessionAuthenticationHandlerTests
         var result = await Authenticate(SessionId.ToString());
 
         result.Principal!.FindAll(SessionAuthenticationDefaults.PermissionClaim).Select(c => c.Value)
-            .Should().BeEquivalentTo(["UseApp", "ViewPatients", "WorkPathways", "AttachFiles"]);
+            .Should().BeEquivalentTo(["UseApp", "ViewPatients", "WorkPathways", "AttachFiles", "RecordSpecimens", "ProcessSpecimens"]);
         result.Principal!.HasPermission(MedApp.Application.Common.Identity.Permission.WorkPathways).Should().BeTrue();
         result.Principal!.HasPermission(MedApp.Application.Common.Identity.Permission.ManageUsers).Should().BeFalse();
     }

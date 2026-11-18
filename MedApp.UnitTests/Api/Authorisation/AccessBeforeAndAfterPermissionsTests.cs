@@ -29,7 +29,11 @@ namespace MedApp.UnitTests.Api.Authorisation;
 [TestFixture]
 public sealed class AccessBeforeAndAfterPermissionsTests
 {
-    /// <summary>Who could call each endpoint before permissions (the Staff policy and Roles = "Admin").</summary>
+    /// <summary>
+    /// Who could call each endpoint before permissions (the Staff policy and Roles = "Admin"); for an endpoint added
+    /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
+    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74).
+    /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
         AccountSecurityController.BeginEmailCodesSetup 00011
@@ -230,6 +234,29 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SitesController.SetSiteHours 00001
         SitesController.UpdateRoom 00001
         SitesController.UpdateSite 00001
+        SpecimenSetupController.ArchiveLaboratory 00001
+        SpecimenSetupController.ArchiveType 00001
+        SpecimenSetupController.CreateLaboratory 00001
+        SpecimenSetupController.CreateType 00001
+        SpecimenSetupController.DeleteLaboratory 00001
+        SpecimenSetupController.DeleteType 00001
+        SpecimenSetupController.GetLaboratories 00011
+        SpecimenSetupController.GetTypes 00011
+        SpecimenSetupController.RestoreLaboratory 00001
+        SpecimenSetupController.RestoreType 00001
+        SpecimenSetupController.UpdateLaboratory 00001
+        SpecimenSetupController.UpdateType 00001
+        SpecimensController.EditSpecimen 00000
+        SpecimensController.FindSpecimen 00011
+        SpecimensController.GetSpecimen 00011
+        SpecimensController.MarkEnteredInError 00011
+        SpecimensController.MarkLost 00011
+        SpecimensController.MarkReceived 00000
+        SpecimensController.MarkSent 00000
+        SpecimensController.RecordSpecimen 00000
+        SpecimensController.Reject 00000
+        SpecimensController.Report 00000
+        SpecimensController.SearchSpecimens 00011
         SpecialtiesController.ArchiveSpecialty 00001
         SpecialtiesController.CreateSpecialty 00001
         SpecialtiesController.DeleteSpecialty 00001

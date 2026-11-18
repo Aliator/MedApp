@@ -4,6 +4,7 @@ using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
@@ -28,6 +29,9 @@ public abstract class PathwayHandlerTestBase
     /// <summary>Attached files: none, unless a test says otherwise.</summary>
     protected Mock<IAttachmentRepository> Attachments { get; private set; } = null!;
 
+    /// <summary>Specimens: none, unless a test says otherwise.</summary>
+    protected Mock<ISpecimenRepository> Specimens { get; private set; } = null!;
+
     /// <summary>Audit entries passed to AddAsync, SaveAsync or DeleteAsync.</summary>
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
 
@@ -42,6 +46,10 @@ public abstract class PathwayHandlerTestBase
         Appointments = new Mock<IAppointmentRepository>();
         Identity = new Mock<IIdentityReadService>();
         Attachments = new Mock<IAttachmentRepository>();
+        Specimens = new Mock<ISpecimenRepository>();
+        Specimens
+            .Setup(s => s.GetOpenForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         SavedAudit.Clear();
         SavedChanges.Clear();
         _saveTokens.Clear();
@@ -93,6 +101,7 @@ public abstract class PathwayHandlerTestBase
         Fixture.Inject(Appointments.Object);
         Fixture.Inject(Identity.Object);
         Fixture.Inject(Attachments.Object);
+        Fixture.Inject(Specimens.Object);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(PathwaysTestConstants.Now));
     }
 

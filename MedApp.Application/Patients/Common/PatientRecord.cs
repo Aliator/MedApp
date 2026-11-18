@@ -5,6 +5,7 @@ using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -58,4 +59,10 @@ public sealed record PatientRecord
 
     /// <summary>Every change to the patient's referrals, oldest first.</summary>
     public required IReadOnlyList<ReferralEvent> ReferralHistory { get; init; }
+
+    /// <summary>
+    /// The patient's specimens, in any status, oldest taken first, with their types and labs. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<Specimen> Specimens { get; init; }
 }

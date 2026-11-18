@@ -34,6 +34,12 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Whether an admin can unlock it now: it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
     public bool CanUnlock { get; set; }
 
+    /// <summary>
+    /// Whether the viewer can record a specimen taken at it now: they hold RecordSpecimens, the stage can be edited, the
+    /// pathway is open (not on hold or closed) and the record can change.
+    /// </summary>
+    public bool CanRecordSpecimen { get; set; }
+
     public DateTime? StartedAtUtc { get; set; }
     public Guid? StartedByUserId { get; set; }
     public string? StartedByUsername { get; set; }

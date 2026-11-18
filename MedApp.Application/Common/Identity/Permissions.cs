@@ -33,6 +33,9 @@ public enum Permission
 
     AttachFiles,
 
+    RecordSpecimens,
+    ProcessSpecimens,
+
     ViewInsights,
     ManageMonitoring,
 
@@ -57,6 +60,7 @@ public enum PermissionGroup
     Pathways,
     AppointmentsAndCalendars,
     Files,
+    Lab,
     Oversight,
     Setup,
 
@@ -119,6 +123,11 @@ public static class Permissions
         new(Permission.AttachFiles, PermissionGroup.Files,
             "Attach files, and delete your own."),
 
+        new(Permission.RecordSpecimens, PermissionGroup.Lab,
+            "Record specimens taken, sent and lost, and edit them before they're sent."),
+        new(Permission.ProcessSpecimens, PermissionGroup.Lab,
+            "Receive and reject specimens in the lab, mark them lost, and attach their reports."),
+
         new(Permission.ViewInsights, PermissionGroup.Oversight,
             "See Insights."),
         new(Permission.ManageMonitoring, PermissionGroup.Oversight,
@@ -150,12 +159,22 @@ public static class Permissions
         Catalogue.ToDictionary(p => p.Name, p => p.Permission, StringComparer.Ordinal);
 
     /// <summary>
-    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but
-    /// <see cref="Permission.TriageReferrals"/>, the clinical decision (an admin who triages holds a role that grants
-    /// it too).
+    /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decision 74):
+    /// triage, and recording and processing specimens. An admin who does that work holds a role that grants it too.
+    /// </summary>
+    public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
+    {
+        Permission.TriageReferrals,
+        Permission.RecordSpecimens,
+        Permission.ProcessSpecimens,
+    };
+
+    /// <summary>
+    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but the
+    /// clinical ones (<see cref="NotForAdmin"/>: triage, and recording and processing specimens).
     /// </summary>
     public static readonly IReadOnlySet<Permission> Admin =
-        Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        Enum.GetValues<Permission>().Where(p => !NotForAdmin.Contains(p)).ToHashSet();
 
     /// <summary>A permission's group and description.</summary>
     public static PermissionDescription Describe(Permission permission) => ByPermission[permission];
