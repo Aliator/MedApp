@@ -1,5 +1,7 @@
 import {ADMIN, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
+import {CLINICAL_IDS} from './slices/clinical';
+import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
 
 /** One step of the Read Me's guided tour: a button that opens the exact page or record, as the right account. */
@@ -107,6 +109,83 @@ export const TOUR: TourStep[] = [
         : null,
   },
   {
+    key: 'sign-off',
+    title: 'Sign off a result',
+    steps: [
+      `As ${STAFF.fullName}, open Priya Holloway’s biopsy result: the lab’s report, waiting for her sign-off.`,
+      'Choose Sign Off and say what’s been done about it. Nothing is chosen for you, and MedApp never reads or flags a result.',
+      'Her Results and team review stage waits for it: it can’t be finished while a result awaits sign-off.',
+    ],
+    account: STAFF.username,
+    path: `/results/${LAB_IDS.priyaResult}`,
+    buttonLabel: 'Open the result to sign off',
+    whyNot: (state) =>
+      state.results.find((r) => r.id === LAB_IDS.priyaResult)?.status === 'AwaitingSignOff'
+        ? null
+        : `You've signed off this result already in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
+    key: 'lab',
+    title: 'The specimen worklist',
+    steps: [
+      'The Lab page: specimens to send, expected at the lab, in the lab, overdue and reported.',
+      'Open one to mark it sent, received, rejected or lost; each step follows the specimen’s status. Find one by its number with the search.',
+      'A pathway’s last stage can’t be finished while any of its specimens is still with the lab.',
+    ],
+    account: ADMIN.username,
+    path: '/lab',
+    buttonLabel: 'Open the Lab worklist',
+  },
+  {
+    key: 'consent',
+    title: 'Record consent, then finish the stage',
+    steps: [
+      'Opens Harriet Quill’s pathway at Treatment: the excision was done this morning.',
+      'Choose Finish Stage first: it’s refused, because the stage needs a consent record. That’s a stage gate, with no override.',
+      'In the Consent card, record the consent: the form, who signed and the date. MedApp records what you say; it never judges capacity.',
+      'Now Finish Stage works.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.consentToRecord}`,
+    buttonLabel: 'Open the pathway that needs consent',
+    whyNot: (state) =>
+      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Treatment')?.completedAtUtc
+        ? `You've finished Treatment already in your copy of the demo. ${RESET_HINT}`
+        : null,
+  },
+  {
+    key: 'branch',
+    title: 'Choose a branch',
+    steps: [
+      'Opens Felix Moreton’s pathway at its first visit, a branch point: biopsy first, or treat directly.',
+      'Choose Finish Stage and pick the branch. Nothing is chosen for you. The other branch’s stages are skipped.',
+      'Follow-up is optional: skip it with a reason when you reach it.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.branchToChoose}`,
+    buttonLabel: 'Open the pathway at its branch point',
+    whyNot: (state) =>
+      state.pathways.find((p) => p.id === PATHWAYS.branchToChoose)?.stages.some((s) => s.chosenBranch)
+        ? `You've chosen this pathway's branch already in your copy of the demo. ${RESET_HINT}`
+        : null,
+  },
+  {
+    key: 'mdt',
+    title: 'Record an MDT outcome',
+    steps: [
+      'Opens this morning’s skin MDT: the pathways listed for the team to discuss.',
+      'Choose Record Outcome on Ellis Varden’s item, tick who was there and write the team’s outcome. MedApp never suggests one.',
+      `${STAFF.fullName}, who has the pathway, is told in her notifications.`,
+    ],
+    account: ADMIN.username,
+    path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,
+    buttonLabel: 'Open this morning’s MDT',
+    whyNot: (state) =>
+      state.mdtItems.find((i) => i.id === CLINICAL_IDS.mdtItemToDiscuss)?.status === 'Listed'
+        ? null
+        : `This item has been discussed already in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
     key: 'timeline',
     title: 'A patient’s timeline',
     steps: [
@@ -185,8 +264,25 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
     full: 'Every rule is checked on the server: calendar clashes, permissions, locks so two people can’t book the same slot, and concurrency. Here they’re simplified.',
   },
   {title: 'Server rendering', full: 'Pages are rendered on the server, so they arrive with their data and show at once.'},
-  {title: 'The activity log and exports', full: 'Every read and change of a patient’s record is logged, and admins can export everything held about a patient.'},
+  {
+    title: 'The activity log and exports',
+    full: 'Every read and change of a patient’s record is logged as it happens, and admins download everything held about a patient. Here the logs are worked out from the demo’s records, and the export page only shows what would be in it.',
+  },
+  {
+    title: 'The data-request pack’s download',
+    full: 'A subject access request’s pack is built on the server and downloaded as a file. There are no files here.',
+  },
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
-  {title: 'Background jobs', full: 'Appointment reminders to patients, purges of old operational data, and other jobs on a schedule.'},
-  {title: 'Letters, the lab and setup', full: 'Letters from templates, specimens and the lab’s worklist, and the setup pages (templates, sites, roles).'},
+  {
+    title: 'Background jobs',
+    full: 'Appointment reminders to patients, service alerts, purges of old operational data and other jobs run on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
+  },
+  {
+    title: 'Sending letters',
+    full: 'Approved letters are sent by email or post, and their PDFs made on the server. Here a letter can be written, approved and recorded as sent by hand, but not sent or printed.',
+  },
+  {
+    title: 'Changing roles and accounts',
+    full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the two accounts are fixed.',
+  },
 ];

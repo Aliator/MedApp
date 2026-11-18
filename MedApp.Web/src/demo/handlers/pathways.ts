@@ -1,27 +1,78 @@
 import type {Schemas} from '../../api/client';
-import {personById, usernameOf} from '../accounts';
-import {invalid, notFound, on, problem, refuse} from '../api/http';
+import {PEOPLE, personById, usernameOf} from '../accounts';
+import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {templateStages} from '../seed';
-import type {DemoPathway, DemoStage} from '../state';
+import {specialtyName, templateStages} from '../seed';
+import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
 import {endOfUkDay, nowUtc, today} from '../time';
 import {can, contains, flag, list, me, NO_FLAGS, paged, pathwayPatient, patientName, requirePermission, sorted} from './common';
-import {referralSummaryClock} from './referrals';
+import {canRecordConsent, clinicalGate} from './clinical';
+import {canRecordSpecimen, labGate} from './lab';
+import {pathwayReferralResponse, referralSummaryClock} from './referrals';
 
 /**
- * Pathways, their stages and notes, the templates and Insights. The rules are a simplified copy of the API's
- * `PathwayWorkflow`: stages are worked in order, the first stage started or finished starts the pathway, finishing the
- * last puts it in review. There's no audit log or monitoring.
+ * Pathways, their stages and notes, the stage library, the templates and Insights. The rules are a simplified copy of
+ * the API's `PathwayWorkflow`: stages are worked in order (the current stage is the first neither finished nor
+ * skipped), the first stage started or finished starts the pathway, and finishing or skipping the last puts it in
+ * review. Optional stages can be skipped, a branch point's branch is chosen as it's finished (never by MedApp), and
+ * the gates without an override (`StageGates`: the lab's, the letter's and consent's) are checked on every finish.
+ * There's no monitoring.
  */
 
 const OPEN: DemoPathway['status'][] = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked'];
 const isOpen = (pathway: DemoPathway) => OPEN.includes(pathway.status);
 const isDone = (stage: DemoStage) => stage.completedAtUtc !== null;
+const isSkipped = (stage: DemoStage) => stage.skippedAtUtc !== null;
+/** A stage still to be worked: neither finished nor skipped. */
+export const isToDo = (stage: DemoStage) => !isDone(stage) && !isSkipped(stage);
+const inOrder = (pathway: DemoPathway) => [...pathway.stages].sort((a, b) => a.stageOrder - b.stageOrder);
+/** Every stage finished and locked (none reopened), or skipped. */
+const allFinished = (pathway: DemoPathway) => pathway.stages.every((s) => (isDone(s) && !s.unlocked) || isSkipped(s));
 
-/** The stage being worked: the first not finished, while the pathway is open (none when it's on hold or closed). */
+/** The stage being worked: the first neither finished nor skipped, while the pathway is open (none when it's on hold or closed). */
 export const currentStage = (pathway: DemoPathway) =>
-  pathway.status === 'Blocked' || !isOpen(pathway) ? undefined : pathway.stages.find((stage) => !isDone(stage));
+  pathway.status === 'Blocked' || !isOpen(pathway) ? undefined : inOrder(pathway).find(isToDo);
+
+const SKIP_REASONS = ['NotNeeded', 'PatientDeclined', 'Other'];
+
+/** Why a stage can't be skipped now, or null (`PathwayWorkflow.WhySkipNotAllowed`). */
+function whySkipNotAllowed(pathway: DemoPathway, stage: DemoStage): string | null {
+  if (!stage.isOptional) return `The '${stage.name}' stage isn't optional, so it can't be skipped.`;
+  if (!canWorkOnStages(pathway)) return 'Stages can’t be skipped while the pathway is on hold or closed.';
+  if (isSkipped(stage)) return `The '${stage.name}' stage has already been skipped.`;
+  if (isDone(stage)) return `The '${stage.name}' stage is finished, so it can't be skipped.`;
+  const current = currentStage(pathway);
+  if (current?.id !== stage.id) return `Only the current stage can be skipped: finish the '${current?.name}' stage first.`;
+  return stage.visitRequirement === 'Required' && !can('FinishWithoutVisit')
+    ? `The '${stage.name}' stage needs a visit, so only someone who can finish a stage without its visit can skip it.`
+    : null;
+}
+
+/**
+ * A branch point's branches, in the template's order, each with its stages: the stages with a branch name after it, up
+ * to the next branch point or the end. None is ever chosen or pre-selected: the clinician chooses.
+ */
+function branchesOf(pathway: DemoPathway, branchPoint: DemoStage): {name: string; stages: DemoStage[]}[] {
+  if (!branchPoint.choosesBranch) return [];
+  const branches: {name: string; stages: DemoStage[]}[] = [];
+  for (const stage of inOrder(pathway).filter((s) => s.stageOrder > branchPoint.stageOrder)) {
+    if (stage.choosesBranch) break;
+    if (!stage.branch) continue;
+    const branch = branches.find((b) => b.name.toLowerCase() === stage.branch!.toLowerCase());
+    if (branch) branch.stages.push(stage);
+    else branches.push({name: stage.branch, stages: [stage]});
+  }
+  return branches;
+}
+
+/** Whether the pathway's last stage to do is this one (finishing it leaves none). */
+const isLastToDo = (pathway: DemoPathway, stage: DemoStage) => pathway.stages.every((s) => s.id === stage.id || !isToDo(s));
+
+/** Why a stage can't be finished yet, from the gates without an override (`StageGates`), or null. */
+function whyGated(pathway: DemoPathway, stage: DemoStage): string | null {
+  return labGate(pathway, stage, isLastToDo(pathway, stage)) ?? clinicalGate(pathway, stage);
+}
 
 const canWorkOnStages = (pathway: DemoPathway) => ['Unassigned', 'Assigned', 'InProgress', 'InReview'].includes(pathway.status);
 
@@ -47,12 +98,17 @@ function allowedStatusChanges(pathway: DemoPathway): string[] {
 }
 
 const statusFromAssignments = (pathway: DemoPathway): DemoPathway['status'] =>
-  pathway.stages.some((s) => s.startedAtUtc || isDone(s)) ? 'InProgress' : pathway.assignments.length > 0 ? 'Assigned' : 'Unassigned';
+  pathway.stages.some((s) => s.startedAtUtc || isDone(s) || isSkipped(s))
+    ? 'InProgress'
+    : pathway.assignments.length > 0
+      ? 'Assigned'
+      : 'Unassigned';
 
-function noteResponse(note: DemoPathway['notes'][number], pathway: DemoPathway): Schemas['PatientPathwayNoteResponse'] {
+function noteResponse(note: DemoNote, pathway: DemoPathway): Schemas['PatientPathwayNoteResponse'] {
   const viewer = me();
   const isMine = note.authorUserId === viewer.id;
   const takesNotes = !['Cancelled', 'Archived'].includes(pathway.status);
+  const corrects = can('CorrectRecords');
   return {
     id: note.id,
     authorUserId: note.authorUserId,
@@ -61,12 +117,20 @@ function noteResponse(note: DemoPathway['notes'][number], pathway: DemoPathway):
     createdAtUtc: note.createdAtUtc,
     lastEditedAtUtc: note.lastEditedAtUtc,
     version: note.version,
-    canEdit: isMine && takesNotes,
-    canDelete: false,
-    canRequestDeletion: false,
-    deletionRequestId: null,
+    canEdit: can('WorkPathways') && isMine && takesNotes && !note.deleted,
+    canDelete: corrects && !note.deleted,
+    canRequestDeletion: !corrects && can('WorkPathways') && !note.deleted && !note.pendingRequestId,
+    deletionRequestId: note.pendingRequestId,
   };
 }
+
+/** A branch point's branches as the page shows them. */
+const branchResponses = (pathway: DemoPathway, stage: DemoStage): Schemas['PatientPathwayBranchResponse'][] =>
+  branchesOf(pathway, stage).map((branch) => ({
+    name: branch.name,
+    stageNames: branch.stages.map((s) => s.name),
+    stageNamesToDo: branch.stages.filter(isToDo).map((s) => s.name),
+  }));
 
 /** A pathway as the API answers it, for the signed-in person. */
 export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayResponse'] {
@@ -82,18 +146,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     templateId: pathway.templateId,
     templateName: pathway.templateName,
     specialtyId: pathway.specialtyId,
-    referral: referral
-      ? {
-          id: referral.id,
-          receivedOn: referral.receivedOn,
-          specialtyName: db().specialties.find((s) => s.id === referral.specialtyId)?.name ?? null,
-          version: referral.version,
-          clock: referralSummaryClock(referral),
-          pauses: [],
-          canPauseClock: false,
-          canResumeClock: false,
-        }
-      : undefined,
+    referral: referral ? pathwayReferralResponse(referral) : undefined,
     title: pathway.title,
     dueDate: pathway.dueDate,
     dueDateUtc: endOfUkDay(pathway.dueDate),
@@ -105,17 +158,17 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     lastUpdated: pathway.lastUpdated,
     currentStageId: current?.id ?? null,
     completedStageCount: pathway.stages.filter(isDone).length,
-    skippedStageCount: 0,
+    skippedStageCount: pathway.stages.filter(isSkipped).length,
     stageCount: pathway.stages.length,
     allowedStatusChanges: canWork ? allowedStatusChanges(pathway) : [],
     canWorkOnStages: workable,
     canEditDetails: canWork && !['Cancelled', 'Archived'].includes(pathway.status),
     canAddNotes: canWork && !['Cancelled', 'Archived'].includes(pathway.status),
     canChangeAssignments: can('AssignPathways') && isOpen(pathway),
-    canBeDeleted: false,
+    canBeDeleted: can('DeletePathways') && ['Cancelled', 'Archived'].includes(pathway.status),
     readOnlyReason: null,
     patientFlags: NO_FLAGS,
-    stages: pathway.stages.map((stage) => ({
+    stages: inOrder(pathway).map((stage) => ({
       id: stage.id,
       stageDefinitionId: stage.stageDefinitionId,
       stageOrder: stage.stageOrder,
@@ -123,21 +176,29 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       description: stage.description,
       instructions: null,
       visitRequirement: stage.visitRequirement,
-      needsLetterKind: null,
+      needsLetterKind: stage.needsLetterKind,
+      needsConsent: stage.needsConsent,
+      canRecordConsent: canRecordConsent(pathway, stage),
+      waitsForResults: stage.waitsForResults,
       notes: stage.notes,
-      isOptional: false,
-      choosesBranch: false,
-      branch: null,
-      branches: [],
-      needsBranchChoice: false,
-      state: isDone(stage) ? 'Completed' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
+      isOptional: stage.isOptional,
+      choosesBranch: stage.choosesBranch,
+      branch: stage.branch,
+      branches: branchResponses(pathway, stage),
+      needsBranchChoice: stage.choosesBranch && stage.chosenBranch === null,
+      state: isDone(stage) ? 'Completed' : isSkipped(stage) ? 'Skipped' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
       isCurrent: stage.id === current?.id,
-      isLocked: isDone(stage),
-      canEdit: workable && stage.id === current?.id,
-      canUnlock: false,
-      canSkip: false,
-      canReinstate: false,
-      canRecordSpecimen: false,
+      isLocked: isDone(stage) && !stage.unlocked,
+      canEdit: workable && (stage.id === current?.id || (isDone(stage) && stage.unlocked)),
+      canUnlock: can('UnlockStages') && isDone(stage) && !stage.unlocked && (isOpen(pathway) || pathway.status === 'Completed'),
+      canSkip: canWork && whySkipNotAllowed(pathway, stage) === null,
+      canReinstate: can('UnlockStages') && isSkipped(stage) && (isOpen(pathway) || pathway.status === 'Completed'),
+      skippedAtUtc: stage.skippedAtUtc,
+      skippedByUserId: stage.skippedByUserId,
+      skippedByUsername: usernameOf(stage.skippedByUserId),
+      skipReason: stage.skipReason,
+      skipDetail: stage.skipDetail,
+      canRecordSpecimen: canRecordSpecimen(pathway, stage),
       startedAtUtc: stage.startedAtUtc,
       startedByUserId: stage.startedByUserId,
       startedByUsername: usernameOf(stage.startedByUserId),
@@ -153,7 +214,10 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       assignedAtUtc: a.assignedAtUtc,
     })),
     notes: null,
-    noteList: [...pathway.notes].sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc)).map((note) => noteResponse(note, pathway)),
+    noteList: pathway.notes
+      .filter((note) => !note.deleted)
+      .sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc))
+      .map((note) => noteResponse(note, pathway)),
   };
 }
 
@@ -172,7 +236,7 @@ export function pathwaySummary(pathway: DemoPathway): Schemas['PatientPathwaySum
     status: pathway.status,
     isOverdue: isOverdue(pathway),
     completedStageCount: pathway.stages.filter(isDone).length,
-    skippedStageCount: 0,
+    skippedStageCount: pathway.stages.filter(isSkipped).length,
     stageCount: pathway.stages.length,
     currentStageName: currentStage(pathway)?.name ?? null,
     assignees: pathway.assignments.map((a) => usernameOf(a.userId) ?? ''),
@@ -200,9 +264,30 @@ function touch(pathway: DemoPathway) {
   pathway.lastUpdated = nowUtc();
 }
 
-/** Starts the pathway when its first stage is started or finished. */
+/** Starts the pathway when its first stage is started, finished or skipped. */
 function markStarted(pathway: DemoPathway) {
   if (pathway.status === 'Unassigned' || pathway.status === 'Assigned') pathway.status = 'InProgress';
+}
+
+/** After a stage is finished or skipped: every stage done puts the pathway in review. */
+function afterStageDone(pathway: DemoPathway) {
+  markStarted(pathway);
+  if (allFinished(pathway) && pathway.status === 'InProgress') pathway.status = 'InReview';
+}
+
+/** After a stage is reopened (unlocked or reinstated): a pathway in review or discharged is in progress again. */
+function afterStageReopened(pathway: DemoPathway, userId: string) {
+  if (pathway.status === 'InReview' || pathway.status === 'Completed') {
+    if (pathway.status === 'Completed') pathway.statusChanges.push({atUtc: nowUtc(), userId, from: 'Completed', to: 'InProgress'});
+    pathway.status = 'InProgress';
+  }
+}
+
+function skipStage(stage: DemoStage, userId: string, reason: string, detail: string | null) {
+  stage.skippedAtUtc = nowUtc();
+  stage.skippedByUserId = userId;
+  stage.skipReason = reason;
+  stage.skipDetail = detail;
 }
 
 /** Makes a new pathway for a patient from a template (New Pathway, and accepting a referral). */
@@ -239,7 +324,18 @@ export function createPathway(input: {
     stages: templateStages(template, db().stageDefinitions).map((stage) => ({...stage, id: newId()})),
     assignments: input.assigneeUserId ? [{userId: input.assigneeUserId, assignedByUserId: viewer.id, assignedAtUtc: now}] : [],
     notes: input.notes?.trim()
-      ? [{id: newId(), authorUserId: viewer.id, text: input.notes.trim(), createdAtUtc: now, lastEditedAtUtc: null, version: 1}]
+      ? [
+          {
+            id: newId(),
+            authorUserId: viewer.id,
+            text: input.notes.trim(),
+            createdAtUtc: now,
+            lastEditedAtUtc: null,
+            version: 1,
+            deleted: null,
+            pendingRequestId: null,
+          },
+        ]
       : [],
     statusChanges: [],
   };
@@ -364,19 +460,101 @@ export function registerPathways() {
     const viewer = me();
     const pathway = forWork(params.id);
     const stage = pathway.stages.find((s) => s.id === params.stageId);
-    if (!stage || stage.id !== currentStage(pathway)?.id) return problem(409, 'Only the current stage can be finished.');
-    const attended = db().appointments.some((a) => a.stageId === stage.id && a.status === 'Attended');
-    if (stage.visitRequirement !== 'None' && !attended && body.withoutVisit !== true)
-      return problem(409, 'This stage involves a visit, and none was attended. Finish it without a visit, giving a reason.');
+    const reopened = stage !== undefined && isDone(stage) && stage.unlocked;
+    if (!stage || (stage.id !== currentStage(pathway)?.id && !reopened)) return problem(409, 'Only the current stage can be finished.');
+    // A branch point's branch is chosen as it's first finished, by the clinician: never by MedApp.
+    const branches = branchesOf(pathway, stage);
+    const chosen = body.branch?.trim() ? branches.find((b) => b.name.toLowerCase() === body.branch!.trim().toLowerCase()) : undefined;
+    if (stage.choosesBranch && stage.chosenBranch === null && !chosen)
+      return invalid({branch: [`Choose which branch comes next: ${branches.map((b) => b.name).join(' or ')}.`]});
+    if (body.branch?.trim() && (!stage.choosesBranch || stage.chosenBranch !== null))
+      return invalid({branch: ['The branch was chosen already. It changes only by reinstating a stage it skipped.']});
+    if (!reopened) {
+      const attended = db().appointments.some((a) => a.stageId === stage.id && a.status === 'Attended');
+      if (stage.visitRequirement !== 'None' && !attended && body.withoutVisit !== true)
+        return problem(409, 'This stage involves a visit, and none was attended. Finish it without a visit, giving a reason.');
+    }
+    const gated = whyGated(pathway, stage);
+    if (gated) return problem(409, gated);
     const now = nowUtc();
     stage.startedAtUtc ??= now;
     stage.startedByUserId ??= viewer.id;
     stage.completedAtUtc = now;
     stage.completedByUserId = viewer.id;
-    markStarted(pathway);
-    if (pathway.stages.every(isDone)) pathway.status = 'InReview';
+    stage.unlocked = false;
+    if (chosen) {
+      stage.chosenBranch = chosen.name;
+      for (const other of branches.filter((b) => b !== chosen))
+        for (const skipped of other.stages.filter(isToDo)) skipStage(skipped, viewer.id, 'BranchNotChosen', null);
+    }
+    afterStageDone(pathway);
     touch(pathway);
     return pathwayResponse(pathway);
+  });
+
+  on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/skip', ({params, body}) => {
+    const viewer = me();
+    const pathway = forWork(params.id);
+    const stage = pathway.stages.find((s) => s.id === params.stageId);
+    if (!stage) return notFound('The stage');
+    const why = whySkipNotAllowed(pathway, stage);
+    if (why) return problem(409, why);
+    if (!SKIP_REASONS.includes(body.reason ?? '')) return invalid({reason: ['Choose why it’s being skipped.']});
+    const detail = body.detail?.trim() || null;
+    if (!detail && (body.reason === 'Other' || stage.visitRequirement === 'Required'))
+      return invalid({detail: ['Say why it’s being skipped.']});
+    skipStage(stage, viewer.id, body.reason!, detail);
+    db().appointments.forEach((a) => {
+      if (a.stageId === stage.id && a.status === 'Requested') a.status = 'Cancelled';
+    });
+    afterStageDone(pathway);
+    touch(pathway);
+    return pathwayResponse(pathway);
+  });
+
+  on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/reinstate', ({params, body}) => {
+    const viewer = me();
+    requirePermission('UnlockStages');
+    const pathway = findPathway(params.id);
+    const stage = pathway.stages.find((s) => s.id === params.stageId);
+    if (!stage) return notFound('The stage');
+    if (!isSkipped(stage) || !(isOpen(pathway) || pathway.status === 'Completed'))
+      return problem(409, 'Only a skipped stage of an open or discharged pathway can be reinstated.');
+    if (!body.reason?.trim()) return invalid({reason: ['Say why it’s being reinstated.']});
+    stage.skippedAtUtc = null;
+    stage.skippedByUserId = null;
+    stage.skipReason = null;
+    stage.skipDetail = null;
+    afterStageReopened(pathway, viewer.id);
+    touch(pathway);
+    return pathwayResponse(pathway);
+  });
+
+  on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/unlock', ({params}) => {
+    const viewer = me();
+    requirePermission('UnlockStages');
+    const pathway = findPathway(params.id);
+    const stage = pathway.stages.find((s) => s.id === params.stageId);
+    if (!stage) return notFound('The stage');
+    if (!isDone(stage) || stage.unlocked || !(isOpen(pathway) || pathway.status === 'Completed'))
+      return problem(409, 'Only a finished, locked stage of an open or discharged pathway can be unlocked.');
+    stage.unlocked = true;
+    afterStageReopened(pathway, viewer.id);
+    touch(pathway);
+    return pathwayResponse(pathway);
+  });
+
+  on('delete', '/api/pathways/patient-pathways/{id}', ({params}) => {
+    requirePermission('DeletePathways');
+    const pathway = findPathway(params.id);
+    if (!['Cancelled', 'Archived'].includes(pathway.status))
+      return problem(409, 'Only a cancelled or archived pathway can be deleted.');
+    const state = db();
+    state.pathways = state.pathways.filter((p) => p.id !== pathway.id);
+    state.appointments = state.appointments.filter((a) => a.pathwayId !== pathway.id);
+    const template = state.templates.find((t) => t.id === pathway.templateId);
+    if (template) template.pathwayCount = Math.max(0, (template.pathwayCount ?? 1) - 1);
+    return undefined;
   });
 
   on('post', '/api/pathways/patient-pathways/{id}/status', ({params, body}) => {
@@ -420,7 +598,16 @@ export function registerPathways() {
     requirePermission('WorkPathways');
     const pathway = findPathway(params.id);
     if (!body.text?.trim()) return invalid({text: ['Write the note.']});
-    const note = {id: newId(), authorUserId: viewer.id, text: body.text.trim(), createdAtUtc: nowUtc(), lastEditedAtUtc: null, version: 1};
+    const note: DemoNote = {
+      id: newId(),
+      authorUserId: viewer.id,
+      text: body.text.trim(),
+      createdAtUtc: nowUtc(),
+      lastEditedAtUtc: null,
+      version: 1,
+      deleted: null,
+      pendingRequestId: null,
+    };
     pathway.notes.push(note);
     touch(pathway);
     return noteResponse(note, pathway);
@@ -440,31 +627,85 @@ export function registerPathways() {
     return noteResponse(note, pathway);
   });
 
-  on('get', '/api/pathways/patient-pathway-stage/templates', ({query}) => {
-    me();
-    const includeArchived = flag(query, 'includeArchived') === true;
-    return db().templates.filter((t) => includeArchived || !t.isArchived);
-  });
-  on('get', '/api/pathways/patient-pathway-stage/templates/{id}', ({params}) => {
-    me();
-    return db().templates.find((t) => t.id === params.id) ?? notFound('The template');
+  on('post', '/api/pathways/patient-pathways/{id}/notes/{noteId}/delete', ({params, body}) => {
+    const viewer = me();
+    requirePermission('CorrectRecords');
+    const pathway = findPathway(params.id);
+    const note = pathway.notes.find((n) => n.id === params.noteId);
+    if (!note) return notFound('The note');
+    if (note.deleted) return problem(409, 'This note has been deleted already.');
+    if (body.expectedVersion !== undefined && body.expectedVersion !== note.version)
+      return problem(409, 'This note has been edited since you opened it. Reload to see the change.');
+    const why = whyNoteDeletionInvalid(body.reason, body.detail);
+    if (why) return why;
+    deleteNote(pathway, note, viewer.id, body.reason!, body.detail?.trim() || null);
+    return undefined;
   });
 
-  on('get', '/api/pathways/patient-pathway-stage/definitions', () => {
-    me();
-    const seen = new Map<string, Schemas['PatientPathwayStageDefinitionResponse']>();
-    for (const template of db().templates)
-      for (const stage of template.stages ?? [])
-        if (stage.stageDefinitionId && !seen.has(stage.stageDefinitionId))
-          seen.set(stage.stageDefinitionId, {
-            id: stage.stageDefinitionId,
-            name: stage.name,
-            description: stage.description,
-            visitRequirement: stage.visitRequirement,
-            isArchived: false,
-          });
-    return [...seen.values()];
+  on('post', '/api/pathways/patient-pathways/{id}/notes/{noteId}/deletion-requests', ({params, body}) => {
+    const viewer = me();
+    requirePermission('WorkPathways');
+    const pathway = findPathway(params.id);
+    const note = pathway.notes.find((n) => n.id === params.noteId);
+    if (!note || note.deleted) return notFound('The note');
+    if (note.pendingRequestId) return problem(409, 'Someone has asked for this note to be deleted already.');
+    const why = whyNoteDeletionInvalid(body.reason, body.detail);
+    if (why) return why;
+    const request = {
+      id: newId(),
+      pathwayId: pathway.id,
+      noteId: note.id,
+      status: 'Pending' as const,
+      reason: body.reason!,
+      detail: body.detail?.trim() || null,
+      requestedByUserId: viewer.id,
+      requestedAtUtc: nowUtc(),
+      decidedByUserId: null,
+      decidedAtUtc: null,
+    };
+    db().noteDeletionRequests.push(request);
+    note.pendingRequestId = request.id;
+    // Everyone who can correct records is told (a fixed title; the message names nobody's text).
+    for (const person of PEOPLE.filter((p) => p.permissions.includes('CorrectRecords') && p.id !== viewer.id))
+      db().notifications.push({
+        id: newId(),
+        userId: person.id,
+        kind: 'NoteDeletionRequested',
+        title: 'Note deletion requested',
+        message: `${viewer.username} asked for a note to be deleted.`,
+        pathwayId: pathway.id,
+        noteDeletionRequestId: request.id,
+        createdAtUtc: request.requestedAtUtc,
+        isRead: false,
+      });
+    return new DemoReply(201, noteResponse(note, pathway));
   });
+
+  on('get', '/api/pathways/note-deletion-requests/{id}', ({params}) => {
+    requirePermission('CorrectRecords');
+    return noteDeletionRequestResponse(findNoteDeletionRequest(params.id));
+  });
+
+  on('post', '/api/pathways/note-deletion-requests/{id}/decision', ({params, body}) => {
+    const viewer = me();
+    requirePermission('CorrectRecords');
+    const request = findNoteDeletionRequest(params.id);
+    const pathway = findPathway(request.pathwayId);
+    const note = pathway.notes.find((n) => n.id === request.noteId);
+    if (request.status !== 'Pending' || !note || note.deleted) return problem(409, 'This request has been decided already.');
+    request.decidedByUserId = viewer.id;
+    request.decidedAtUtc = nowUtc();
+    note.pendingRequestId = null;
+    if (body.deleteNote === true) {
+      if (body.expectedVersion != null && body.expectedVersion !== note.version)
+        return problem(409, 'This note has been edited since you opened it. Reload to see the change.');
+      request.status = 'Approved';
+      deleteNote(pathway, note, viewer.id, body.reason || request.reason, body.detail?.trim() || request.detail);
+    } else request.status = 'Declined';
+    return noteDeletionRequestResponse(request);
+  });
+
+  registerSetupOfPathways();
 
   on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('SpecialtyId')));
 }
@@ -520,4 +761,305 @@ function insights(weeks: number, templateId: string | null, specialtyId: string 
       completed: 2 + ((i * 5 + 3) % 5),
     })),
   };
+}
+
+const NOTE_DELETION_REASONS = ['WrongPatient', 'WrittenInError', 'Duplicate', 'Other'];
+
+/** A note deletion's reason and detail, refused as the API's validator does, or null when they'll do. */
+function whyNoteDeletionInvalid(reason: string | null | undefined, detail: string | null | undefined): DemoReply | null {
+  if (!NOTE_DELETION_REASONS.includes(reason ?? '')) return invalid({reason: ['Choose why the note should be deleted.']});
+  if (reason === 'Other' && !detail?.trim()) return invalid({detail: ['Say why the note should be deleted.']});
+  return null;
+}
+
+/** Deletes a note (soft: hidden from the pathway, kept), and tells its author (`AuthorsNoteDeleted`). */
+function deleteNote(pathway: DemoPathway, note: DemoNote, userId: string, reason: string, detail: string | null) {
+  note.deleted = {atUtc: nowUtc(), byUserId: userId, reason, detail};
+  note.pendingRequestId = null;
+  if (note.authorUserId !== userId)
+    db().notifications.push({
+      id: newId(),
+      userId: note.authorUserId,
+      kind: 'AuthorsNoteDeleted',
+      title: 'Your note was deleted',
+      message: `${usernameOf(userId)} deleted a note you wrote.`,
+      pathwayId: pathway.id,
+      createdAtUtc: note.deleted.atUtc,
+      isRead: false,
+    });
+}
+
+function findNoteDeletionRequest(id: string) {
+  const request = db().noteDeletionRequests.find((r) => r.id === id);
+  if (!request) refuse(notFound('The request'));
+  return request;
+}
+
+function noteDeletionRequestResponse(request: DemoNoteDeletionRequest): Schemas['NoteDeletionRequestResponse'] {
+  const pathway = db().pathways.find((p) => p.id === request.pathwayId);
+  const note = pathway?.notes.find((n) => n.id === request.noteId);
+  return {
+    id: request.id,
+    status: request.status,
+    reason: request.reason,
+    detail: request.detail,
+    requestedByUsername: usernameOf(request.requestedByUserId),
+    requestedAtUtc: request.requestedAtUtc,
+    decidedByUsername: usernameOf(request.decidedByUserId),
+    decidedAtUtc: request.decidedAtUtc,
+    pathwayId: request.pathwayId,
+    pathwayTitle: pathway?.title ?? null,
+    patient: pathway ? pathwayPatient(pathway.patientId) : undefined,
+    note: note
+      ? {
+          id: note.id,
+          text: note.text,
+          authorUsername: usernameOf(note.authorUserId),
+          createdAtUtc: note.createdAtUtc,
+          lastEditedAtUtc: note.lastEditedAtUtc,
+          version: note.version,
+          deletedAtUtc: note.deleted?.atUtc ?? null,
+          deletedByUsername: usernameOf(note.deleted?.byUserId),
+          deletionReason: note.deleted?.reason ?? null,
+          deletionDetail: note.deleted?.detail ?? null,
+        }
+      : undefined,
+    canDecide: request.status === 'Pending' && note !== undefined && !note.deleted,
+    whyCantDecide: null,
+  };
+}
+
+const VISITS = ['None', 'Suggested', 'Required'];
+const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other'];
+
+/** A stage definition as the stage library shows it, with how many templates use it. */
+function definitionResponse(definition: DemoStageDefinition): Schemas['PatientPathwayStageDefinitionResponse'] {
+  const templateCount = db().templates.filter((t) => (t.stageDefinitionIdsInOrder ?? []).includes(definition.id)).length;
+  return {...definition, templateCount, canBeDeleted: templateCount === 0};
+}
+
+function findDefinition(id: string): DemoStageDefinition {
+  const definition = db().stageDefinitions.find((d) => d.id === id);
+  if (!definition) refuse(notFound('The stage'));
+  return definition;
+}
+
+/** A template's stages from its definitions in order, with each one's options (optional, a branch point, a branch). */
+function templateStageList(
+  ids: string[],
+  options: Schemas['PathwayTemplateStageOptionsRequest'][] | null | undefined,
+  clockStopStageOrder: number | null | undefined,
+): Schemas['PathwayTemplateStageResponse'][] {
+  return ids.map((id, i) => {
+    const definition = findDefinition(id);
+    return {
+      stageOrder: i + 1,
+      stageDefinitionId: id,
+      name: definition.name,
+      description: definition.description,
+      snomedCode: definition.snomedCode,
+      snomedTerm: definition.snomedTerm,
+      isArchived: definition.isArchived,
+      visitRequirement: definition.visitRequirement,
+      isOptional: options?.[i]?.isOptional ?? false,
+      choosesBranch: options?.[i]?.choosesBranch ?? false,
+      branch: options?.[i]?.branch?.trim() || null,
+      stopsClock: clockStopStageOrder === i + 1,
+    };
+  });
+}
+
+/** The template's branch rules (`TemplateBranchRules`), as 400s, or null when they hold. */
+function whyTemplateInvalid(stages: Schemas['PathwayTemplateStageResponse'][]): DemoReply | null {
+  if (stages.length === 0) return invalid({stageDefinitionIdsInOrder: ['Add at least one stage.']});
+  const last = stages[stages.length - 1];
+  if (last.isOptional || last.choosesBranch || last.branch)
+    return invalid({stageOptions: ['The last stage can’t be optional, a branch point or in a branch.']});
+  let open: {names: Set<string>} | null = null;
+  for (const stage of stages) {
+    if (stage.choosesBranch) {
+      if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
+      if (stage.isOptional || stage.branch) return invalid({stageOptions: ['A branch point can’t be optional or in a branch.']});
+      open = {names: new Set()};
+    } else if (stage.branch) {
+      if (!open) return invalid({stageOptions: ['A stage can be in a branch only after a branch point.']});
+      open.names.add(stage.branch.toLowerCase());
+    }
+  }
+  if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
+  return null;
+}
+
+function findTemplate(id: string) {
+  const template = db().templates.find((t) => t.id === id);
+  if (!template) refuse(notFound('The template'));
+  return template;
+}
+
+/** The stage library and the pathway templates (`ManageSetup` to change them). */
+function registerSetupOfPathways() {
+  on('get', '/api/pathways/patient-pathway-stage/templates', ({query}) => {
+    me();
+    const includeArchived = flag(query, 'includeArchived') === true;
+    return db().templates.filter((t) => includeArchived || !t.isArchived);
+  });
+  on('get', '/api/pathways/patient-pathway-stage/templates/{id}', ({params}) => {
+    me();
+    return findTemplate(params.id);
+  });
+
+  const saveTemplate = (
+    template: Schemas['PathwayTemplateResponse'],
+    body: Partial<Schemas['CreatePathwayTemplateRequest']> | Partial<Schemas['UpdatePathwayTemplateRequest']>,
+  ): DemoReply | null => {
+    const name = body.name?.trim() ?? template.name ?? '';
+    if (!name) return invalid({name: ['Give the template a name.']});
+    if (db().templates.some((t) => t.id !== template.id && t.name?.toLowerCase() === name.toLowerCase()))
+      return problem(409, 'A template with this name already exists.');
+    const specialtyId = body.specialtyId || template.specialtyId;
+    if (!specialtyId || !db().specialties.some((s) => s.id === specialtyId)) return invalid({specialtyId: ['Choose a specialty.']});
+    const ids = body.stageDefinitionIdsInOrder ?? template.stageDefinitionIdsInOrder ?? [];
+    const sameList = JSON.stringify(ids) === JSON.stringify(template.stageDefinitionIdsInOrder ?? []);
+    // Options left out with the same stage list keep the stored ones; with a new list, every stage is plain.
+    const options =
+      body.stageOptions ??
+      (sameList ? (template.stages ?? []).map((s) => ({isOptional: s.isOptional, choosesBranch: s.choosesBranch, branch: s.branch})) : null);
+    const clockStop = body.clockStopStageOrder === undefined ? template.clockStopStageOrder : body.clockStopStageOrder;
+    const stages = templateStageList(ids, options, clockStop);
+    const why = whyTemplateInvalid(stages);
+    if (why) return why;
+    Object.assign(template, {
+      name,
+      specialtyId,
+      specialtyName: specialtyName(specialtyId) ?? db().specialties.find((s) => s.id === specialtyId)?.name ?? null,
+      retentionClass: body.retentionClass || template.retentionClass || 'Adult',
+      clockStopStageOrder: clockStop ?? null,
+      stageDefinitionIdsInOrder: ids,
+      stages,
+    });
+    return null;
+  };
+
+  on('post', '/api/pathways/patient-pathway-stage/templates', ({body}) => {
+    requirePermission('ManageSetup');
+    const template: Schemas['PathwayTemplateResponse'] = {id: newId(), isArchived: false, pathwayCount: 0, stageDefinitionIdsInOrder: []};
+    const why = saveTemplate(template, body);
+    if (why) return why;
+    db().templates.push(template);
+    return new DemoReply(201, template);
+  });
+
+  on('patch', '/api/pathways/patient-pathway-stage/templates/{id}', ({params, body}) => {
+    requirePermission('ManageSetup');
+    const template = findTemplate(params.id);
+    const copy = structuredClone(template);
+    const why = saveTemplate(copy, body);
+    if (why) return why;
+    Object.assign(template, copy);
+    return template;
+  });
+
+  on('delete', '/api/pathways/patient-pathway-stage/templates/{id}', ({params}) => {
+    requirePermission('ManageSetup');
+    const template = findTemplate(params.id);
+    if (db().pathways.some((p) => p.templateId === template.id))
+      return problem(409, 'This template has pathways made from it, so it can’t be deleted. Archive it instead.');
+    db().templates = db().templates.filter((t) => t.id !== template.id);
+    return undefined;
+  });
+
+  for (const [action, isArchived] of [
+    ['archive', true],
+    ['restore', false],
+  ] as const) {
+    on('post', `/api/pathways/patient-pathway-stage/templates/{id}/${action}`, ({params}) => {
+      requirePermission('ManageSetup');
+      const template = findTemplate(params.id);
+      template.isArchived = isArchived;
+      return template;
+    });
+    on('post', `/api/pathways/patient-pathway-stage/definitions/{id}/${action}`, ({params}) => {
+      requirePermission('ManageSetup');
+      const definition = findDefinition(params.id);
+      definition.isArchived = isArchived;
+      for (const template of db().templates)
+        for (const stage of template.stages ?? []) if (stage.stageDefinitionId === definition.id) stage.isArchived = isArchived;
+      return definitionResponse(definition);
+    });
+  }
+
+  on('get', '/api/pathways/patient-pathway-stage/definitions', ({query}) => {
+    me();
+    const includeArchived = flag(query, 'includeArchived') === true;
+    return db()
+      .stageDefinitions.filter((d) => includeArchived || !d.isArchived)
+      .map(definitionResponse);
+  });
+
+  on('get', '/api/pathways/patient-pathway-stage/definitions/{id}', ({params}) => {
+    me();
+    return definitionResponse(findDefinition(params.id));
+  });
+
+  /** Applies a definition's details; refuses as the API's validator does. */
+  const saveDefinition = (
+    definition: DemoStageDefinition,
+    body: Partial<Schemas['CreatePatientPathwayStageDefinitionRequest']> | Partial<Schemas['UpdatePatientPathwayStageDefinitionRequest']>,
+  ): DemoReply | null => {
+    const name = body.name?.trim() ?? definition.name ?? '';
+    if (!name) return invalid({name: ['Give the stage a name.']});
+    if (db().stageDefinitions.some((d) => d.id !== definition.id && d.name?.toLowerCase() === name.toLowerCase()))
+      return problem(409, 'A stage with this name is in the library already.');
+    if (body.visitRequirement && !VISITS.includes(body.visitRequirement)) return invalid({visitRequirement: ['Choose a visit requirement.']});
+    if (body.needsLetterKind && !LETTER_KINDS.includes(body.needsLetterKind)) return invalid({needsLetterKind: ['Choose a letter kind.']});
+    Object.assign(definition, {
+      name,
+      description: body.description === undefined ? definition.description : body.description?.trim() || null,
+      instructions: body.instructions === undefined ? definition.instructions : body.instructions?.trim() || null,
+      snomedCode: body.snomedCode === undefined ? definition.snomedCode : body.snomedCode || null,
+      snomedTerm: body.snomedTerm === undefined ? definition.snomedTerm : body.snomedTerm || null,
+      visitRequirement: body.visitRequirement || definition.visitRequirement || 'None',
+      needsLetterKind: body.needsLetterKind === undefined ? definition.needsLetterKind : body.needsLetterKind || null,
+      needsConsent: body.needsConsent ?? definition.needsConsent ?? false,
+      waitsForResults: body.waitsForResults ?? definition.waitsForResults ?? false,
+    });
+    // Templates show their stages from the library; pathways keep the copies they were made with.
+    for (const template of db().templates)
+      for (const stage of template.stages ?? [])
+        if (stage.stageDefinitionId === definition.id)
+          Object.assign(stage, {name, description: definition.description, visitRequirement: definition.visitRequirement});
+    return null;
+  };
+
+  on('post', '/api/pathways/patient-pathway-stage/definitions', ({body}) => {
+    requirePermission('ManageSetup');
+    const definition: DemoStageDefinition = {id: newId(), name: '', isArchived: false, needsConsent: false, waitsForResults: false};
+    const why = saveDefinition(definition, body);
+    if (why) return why;
+    db().stageDefinitions.push(definition);
+    return new DemoReply(201, definitionResponse(definition));
+  });
+
+  on('patch', '/api/pathways/patient-pathway-stage/definitions/{id}', ({params, body}) => {
+    requirePermission('ManageSetup');
+    const definition = findDefinition(params.id);
+    const copy = {...definition};
+    const why = saveDefinition(copy, body);
+    if (why) {
+      // Put the templates' copies back as they were.
+      saveDefinition(definition, {});
+      return why;
+    }
+    Object.assign(definition, copy);
+    return definitionResponse(definition);
+  });
+
+  on('delete', '/api/pathways/patient-pathway-stage/definitions/{id}', ({params}) => {
+    requirePermission('ManageSetup');
+    const definition = findDefinition(params.id);
+    if (!definitionResponse(definition).canBeDeleted)
+      return problem(409, 'This stage is used by a template, so it can’t be deleted. Archive it instead.');
+    db().stageDefinitions = db().stageDefinitions.filter((d) => d.id !== definition.id);
+    return undefined;
+  });
 }

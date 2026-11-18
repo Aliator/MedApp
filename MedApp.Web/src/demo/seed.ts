@@ -179,6 +179,8 @@ export function templateStages(
       isOptional: stage.isOptional ?? false,
       choosesBranch: stage.choosesBranch ?? false,
       branch: stage.branch ?? null,
+      chosenBranch: null,
+      unlocked: false,
       notes: null,
       startedAtUtc: null,
       startedByUserId: null,
@@ -299,6 +301,8 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
       createdAtUtc: ago(note.daysAgo, 11, 5),
       lastEditedAtUtc: null,
       version: 1,
+      deleted: null,
+      pendingRequestId: null,
     })),
     statusChanges:
       spec.status === 'Blocked'
@@ -650,6 +654,7 @@ export function seed(): DemoState {
     stageDefinitions,
     templates,
     pathways,
+    noteDeletionRequests: [],
     referrals,
     appointments,
     blocks,

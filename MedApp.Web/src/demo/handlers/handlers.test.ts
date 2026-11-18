@@ -152,4 +152,84 @@ describe('the light demo handlers', () => {
     expect(insights.throughput).toHaveLength(4);
     expect(insights.stageTimes.length).toBeGreaterThan(0);
   });
+
+  it('asks for a branch at a branch point, and skips the branch not chosen', async () => {
+    startLightDemo(STAFF);
+    const pathway = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`)).body;
+    const point = pathway.stages.find(isCurrent);
+    expect(point).toMatchObject({choosesBranch: true, needsBranchChoice: true});
+    expect(point.branches.map((b: {name: string}) => b.name)).toEqual(['Biopsy first', 'Treat directly']);
+    const finish = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}/stages/${point.id}/finish`;
+    expect((await call('POST', finish, {})).status).toBe(400);
+    const after = (await call('POST', finish, {branch: 'treat directly'})).body;
+    expect(after.stages.find(isCurrent).name).toBe('Excision');
+    expect(after.skippedStageCount).toBe(2);
+    expect(after.stages.filter((s: {state: string}) => s.state === 'Skipped').every((s: {skipReason: string}) => s.skipReason === 'BranchNotChosen')).toBe(true);
+  });
+
+  it('skips an optional stage with a reason, and reinstates it', async () => {
+    startLightDemo(STAFF);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`;
+    let pathway = (await call('POST', `${url}/stages/${(await call('GET', url)).body.currentStageId}/finish`, {branch: 'Treat directly'})).body;
+    // Excision needs consent first: the consent gate refuses until a record is made.
+    const excision = pathway.stages.find(isCurrent);
+    db().pathways.find((p) => p.id === PATHWAYS.branchToChoose)!.stages.find((s) => s.id === excision.id)!.completedAtUtc = new Date().toISOString();
+    pathway = (await call('GET', url)).body;
+    const followUp = pathway.stages.find(isCurrent);
+    expect(followUp).toMatchObject({name: 'Follow-up', isOptional: true, canSkip: true});
+    expect((await call('POST', `${url}/stages/${followUp.id}/skip`, {})).status).toBe(400);
+    pathway = (await call('POST', `${url}/stages/${followUp.id}/skip`, {reason: 'NotNeeded'})).body;
+    expect(pathway.stages.find(isCurrent).name).toBe('Discharge letter to GP');
+    pathway = (await call('POST', `${url}/stages/${followUp.id}/reinstate`, {reason: 'Wanted after all'})).body;
+    expect(pathway.stages.find(isCurrent).id).toBe(followUp.id);
+  });
+
+  it('refuses to finish a stage that needs consent until it’s recorded', async () => {
+    startLightDemo(STAFF);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.consentToRecord}`;
+    const treatment = (await call('GET', url)).body.stages.find(isCurrent);
+    expect(treatment).toMatchObject({name: 'Treatment', needsConsent: true});
+    const refused = await call('POST', `${url}/stages/${treatment.id}/finish`, {});
+    expect(refused.status).toBe(409);
+  });
+
+  it('keeps the stage library and templates, and refuses deleting what’s in use', async () => {
+    startLightDemo(ADMIN);
+    const definitions = (await call('GET', '/api/pathways/patient-pathway-stage/definitions')).body;
+    const histology = definitions.find((d: {name: string}) => d.name === 'Histology (lab)');
+    expect(histology.canBeDeleted).toBe(false);
+    expect((await call('DELETE', `/api/pathways/patient-pathway-stage/definitions/${histology.id}`)).status).toBe(409);
+    const made = await call('POST', '/api/pathways/patient-pathway-stage/definitions', {name: 'Phone review', visitRequirement: 'None'});
+    expect(made.status).toBe(201);
+    const badBranch = await call('POST', '/api/pathways/patient-pathway-stage/templates', {
+      name: 'Phone pathway',
+      specialtyId: definitions.length && db().specialties[0].id,
+      stageDefinitionIdsInOrder: [made.body.id, histology.id],
+      stageOptions: [{choosesBranch: true}, {}],
+    });
+    expect(badBranch.status).toBe(400);
+    const template = await call('POST', '/api/pathways/patient-pathway-stage/templates', {
+      name: 'Phone pathway',
+      specialtyId: db().specialties[0].id,
+      stageDefinitionIdsInOrder: [made.body.id, histology.id],
+    });
+    expect(template.status).toBe(201);
+    expect((await call('DELETE', `/api/pathways/patient-pathway-stage/templates/${TEMPLATES.skinLesion}`)).status).toBe(409);
+    expect((await call('DELETE', `/api/pathways/patient-pathway-stage/templates/${template.body.id}`)).status).toBe(204);
+  });
+
+  it('lets staff ask for a note to be deleted, and an admin delete it', async () => {
+    startLightDemo(STAFF);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`;
+    const note = (await call('GET', url)).body.noteList[0];
+    expect(note).toMatchObject({canDelete: false, canRequestDeletion: true});
+    const asked = await call('POST', `${url}/notes/${note.id}/deletion-requests`, {reason: 'WrongPatient'});
+    expect(asked.status).toBe(201);
+    db().user = ADMIN.username;
+    const request = (await call('GET', `/api/pathways/note-deletion-requests/${asked.body.deletionRequestId}`)).body;
+    expect(request).toMatchObject({status: 'Pending', canDecide: true});
+    const decided = (await call('POST', `/api/pathways/note-deletion-requests/${request.id}/decision`, {deleteNote: true, expectedVersion: 1})).body;
+    expect(decided.status).toBe('Approved');
+    expect((await call('GET', url)).body.noteList).toHaveLength(0);
+  });
 });

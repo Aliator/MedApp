@@ -28,6 +28,10 @@ export interface DemoStage {
   choosesBranch: boolean;
   /** The branch it's in, or null. */
   branch: string | null;
+  /** A branch point's chosen branch, once it's been finished (it changes only by reinstating a stage). */
+  chosenBranch: string | null;
+  /** A finished stage reopened by someone who can unlock stages: editable until it's finished again. */
+  unlocked: boolean;
   notes: string | null;
   startedAtUtc: string | null;
   startedByUserId: string | null;
@@ -47,6 +51,24 @@ export interface DemoNote {
   createdAtUtc: string;
   lastEditedAtUtc: string | null;
   version: number;
+  /** Deleted by an admin (soft: hidden from the pathway, kept for its history), or null. */
+  deleted: {atUtc: string; byUserId: string; reason: string; detail: string | null} | null;
+  /** A member of staff's request to delete it, while it's waiting for a decision. */
+  pendingRequestId: string | null;
+}
+
+/** A request to delete a pathway's note, which someone who can correct records decides. */
+export interface DemoNoteDeletionRequest {
+  id: string;
+  pathwayId: string;
+  noteId: string;
+  status: 'Pending' | 'Approved' | 'Declined' | 'Closed';
+  reason: string;
+  detail: string | null;
+  requestedByUserId: string;
+  requestedAtUtc: string;
+  decidedByUserId: string | null;
+  decidedAtUtc: string | null;
 }
 
 export interface DemoPathway {
@@ -118,6 +140,7 @@ export interface BaseState {
   stageDefinitions: DemoStageDefinition[];
   templates: Schemas['PathwayTemplateResponse'][];
   pathways: DemoPathway[];
+  noteDeletionRequests: DemoNoteDeletionRequest[];
   referrals: DemoReferral[];
   appointments: Schemas['AppointmentResponse'][];
   blocks: Schemas['CalendarBlockResponse'][];
