@@ -2,7 +2,7 @@ import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
-import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {calls, openAlertDetails, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {BookAppointmentDialog, shownStarts, type BookAppointmentDialogProps} from './BookAppointmentDialog';
 
 const MONDAY = '2026-11-23';
@@ -527,8 +527,11 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await screen.findByRole('dialog');
     const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
-    expect(dialog().getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
-    expect(dialog().getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
+    // Why, on screen: the restricted banner above shows only its label and summary.
+    expect(dialog().getByText("This patient's record is restricted, so it can't be changed until an admin lifts the restriction.")).toBeInTheDocument();
+    const details = await openAlertDetails(user, 'Restricted record', openDialog()!);
+    expect(within(details).getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(within(details).getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Add to Requires Appointment'}))).toBe(true);
     await user.click(await dialog().findByRole('button', {name: '09:00'}));
     expect(isDisabled(dialog().getByRole('button', {name: 'Book'}))).toBe(true);
