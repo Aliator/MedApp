@@ -122,6 +122,66 @@ public sealed class PathwaySearchTests
     }
 
     [Test]
+    public void Filter_SpecialtyIds_ReturnsPathwaysInAnyOfThem()
+    {
+        var skin = Guid.NewGuid();
+        var feet = Guid.NewGuid();
+        var inSkin = CreatePathway(Status.Assigned);
+        inSkin.SpecialtyId = skin;
+        var inFeet = CreatePathway(Status.InProgress);
+        inFeet.SpecialtyId = feet;
+        var elsewhere = CreatePathway(Status.Assigned);
+        elsewhere.SpecialtyId = Guid.NewGuid();
+        var pathways = new[] { inSkin, inFeet, elsewhere }.AsQueryable();
+
+        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [skin] }, Now).Should().Equal(inSkin);
+        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [skin, feet, skin] }, Now).Should().Equal(inSkin, inFeet);
+        pathways.Filter(CreateSearchQuery() with { SpecialtyIds = [] }, Now).Should().HaveCount(3);
+    }
+
+    [Test]
+    public void Filter_StageDefinitionIds_ReturnsPathwaysWhoseCurrentStageComesFromThem()
+    {
+        // Stages: Consultation, Pathway, Consultation. Current: the first unfinished.
+        var atFirstConsultation = CreatePathway(Status.Assigned);
+        var atPathwayStage = CreatePathway(Status.InProgress, finishedStages: 1);
+        var atLastConsultation = CreatePathway(Status.InProgress, finishedStages: 2);
+        var allFinished = CreatePathway(Status.InReview, finishedStages: 3);
+        var pathways = new[] { atFirstConsultation, atPathwayStage, atLastConsultation, allFinished }.AsQueryable();
+
+        pathways.Filter(CreateSearchQuery() with { StageDefinitionIds = [PathwayDefinitionId] }, Now).Should().Equal(atPathwayStage);
+        pathways.Filter(CreateSearchQuery() with { StageDefinitionIds = [ConsultationDefinitionId] }, Now)
+            .Should().Equal(atFirstConsultation, atLastConsultation);
+        pathways.Filter(CreateSearchQuery() with { StageDefinitionIds = [ConsultationDefinitionId, PathwayDefinitionId] }, Now)
+            .Should().Equal(atFirstConsultation, atPathwayStage, atLastConsultation);
+    }
+
+    [Test]
+    public void Filter_StageDefinitionIds_UsesStageOrderNotListOrder()
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        pathway.Stages = pathway.Stages.OrderByDescending(s => s.StageOrder).ToList();
+
+        new[] { pathway }.AsQueryable().Filter(CreateSearchQuery() with { StageDefinitionIds = [PathwayDefinitionId] }, Now)
+            .Should().Equal(pathway);
+    }
+
+    [Test]
+    public void Filter_StageDefinitionIds_CountsOnHoldButNeverClosedPathways()
+    {
+        var onHold = CreatePathway(Status.Blocked, finishedStages: 1);
+        var cancelled = CreatePathway(Status.Cancelled, finishedStages: 1);
+        var archived = CreatePathway(Status.Archived, finishedStages: 1);
+        var pathways = new[] { onHold, cancelled, archived }.AsQueryable();
+
+        // Even when closed ones are asked for, by status or with IncludeClosed: a closed pathway isn't waiting at a stage.
+        var query = CreateSearchQuery() with { StageDefinitionIds = [PathwayDefinitionId] };
+        pathways.Filter(query, Now).Should().Equal(onHold);
+        pathways.Filter(query with { IncludeClosed = true }, Now).Should().Equal(onHold);
+        pathways.Filter(query with { Statuses = ["Cancelled", "Blocked"] }, Now).Should().Equal(onHold);
+    }
+
+    [Test]
     public void Sort_Default_IsSoonestDueFirst()
     {
         Pathways().Sort(null, true).Should().Equal(Archived, Completed, Overdue, BlockedPastDue, Unassigned);

@@ -31,6 +31,7 @@ import {ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../
 import {
   choiceValues,
   hasPathwayFilters,
+  idChoiceValues,
   NOBODY,
   PATHWAY_SORTS,
   PATHWAY_STATUSES,
@@ -40,6 +41,7 @@ import {
   type PathwaysListSearch,
 } from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
+import {useSpecialtyAndStageFields} from './pathwayFilterFields';
 
 /** The search's fields, as the API filters pathways, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -135,6 +137,8 @@ export function pathwaysListQuery(
     AssignedToUserId: search.assignee && search.assignee !== NOBODY ? search.assignee : undefined,
     NobodyAssigned: search.assignee === NOBODY || undefined,
     TemplateId: search.templateId,
+    SpecialtyIds: idChoiceValues(search.specialty),
+    StageDefinitionIds: idChoiceValues(search.stage),
     IncludeClosed: search.closed,
     DueFrom: search.dueFrom,
     DueTo: search.dueTo,
@@ -157,13 +161,15 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
   // Anyone can filter by who is assigned; the bar names them from the staff list.
   const staffList = useQuery(staffQuery).data;
   const templates = useQuery(allTemplatesQuery).data;
+  const specialtyAndStage = useSpecialtyAndStageFields(search);
   const fields = useMemo(
     () => [
       ...(patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS),
       assigneeField(staffList ?? [], search.assignee),
       templateField(templates ?? [], search.templateId),
+      ...specialtyAndStage,
     ],
-    [patientId, staffList, search.assignee, templates, search.templateId],
+    [patientId, staffList, search.assignee, templates, search.templateId, specialtyAndStage],
   );
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PathwayRow[];
@@ -272,7 +278,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
             list={patientId ? 'patientProcedures' : 'procedures'}
             isUnfiltered={!hasPathwayFilters(search) && search.mine === undefined}
             label="Search pathways"
-            placeholder="Search pathways by title, or filter by template, patient, status, priority, target date..."
+            placeholder="Search pathways by title, or filter by template, patient, status, stage reached, specialty..."
             textKey="title"
             favourites={FAVOURITES}
           />

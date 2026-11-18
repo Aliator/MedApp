@@ -41,8 +41,28 @@ setup('sign in and find shared records', async ({ page }, info) => {
   // And a meeting of the parity account's own, declined, for the meeting screens (best effort: they skip without it).
   const meeting = await parityMeeting(page, apiUrl, username).catch(() => undefined);
 
-  writeData(app, { patientId: patients[0].id, pathwayId, restrictedPathwayId, meetingId: meeting?.id, meetingDate: meeting?.date });
+  // And a stage and a specialty to filter by (best effort: those screens show the list unfiltered without them).
+  const stageId = await byName(page, `${apiUrl}/api/pathways/patient-pathway-stage/definitions`, 'Histology (lab)');
+  const specialtyId = await byName(page, `${apiUrl}/api/specialties`, 'Dermatology');
+
+  writeData(app, {
+    patientId: patients[0].id,
+    pathwayId,
+    restrictedPathwayId,
+    meetingId: meeting?.id,
+    meetingDate: meeting?.date,
+    stageId,
+    specialtyId,
+  });
 });
+
+/** The ID of the item a list endpoint gives with this name, or else its first; undefined if it can't be read. */
+async function byName(page: Page, url: string, name: string): Promise<string | undefined> {
+  const response = await page.request.get(url);
+  if (!response.ok()) return undefined;
+  const items = (await response.json()) as { id: string; name: string }[];
+  return (items.find((i) => i.name === name) ?? items[0])?.id;
+}
 
 const PARITY_MEETING = 'Parity check meeting (synthetic)';
 

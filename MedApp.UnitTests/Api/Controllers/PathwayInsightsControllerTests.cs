@@ -5,6 +5,7 @@ using MedApp.API.Controllers;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 using MedApp.Contracts.Pathways.Insights.Requests;
 using MedApp.Contracts.Pathways.Insights.Responses;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +26,9 @@ public sealed class PathwayInsightsControllerTests
 
         var result = await new PathwayInsightsController(mediator)
             .WithRequest(SignedIn("Admin"))
-            .GetPathwayInsights(new GetPathwayInsightsRequest { Weeks = 26, TemplateId = TemplateId }, cts.Token);
+            .GetPathwayInsights(new GetPathwayInsightsRequest { Weeks = 26, TemplateId = TemplateId, SpecialtyId = PathwaysTestConstants.SpecialtyId }, cts.Token);
 
-        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId));
+        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId, PathwaysTestConstants.SpecialtyId));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(insights);
     }
@@ -39,6 +40,7 @@ public sealed class PathwayInsightsControllerTests
 
         request.Weeks.Should().Be(GetPathwayInsightsQuery.DefaultWeeks);
         request.TemplateId.Should().BeNull();
+        request.SpecialtyId.Should().BeNull();
     }
 
     [Test]

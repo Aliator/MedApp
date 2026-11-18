@@ -2,6 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
+import {useMemo} from 'react';
 import type {PathwaySummary} from '../../api/pathways';
 import {pathwaySearchQuery, type PathwaySearch} from '../../api/search';
 import {Page} from '../../components/pages/Page';
@@ -27,6 +28,7 @@ import {TextCell} from '../../components/tables/TextCell';
 import {
   choiceValues,
   hasTaskFilters,
+  idChoiceValues,
   OPEN_PATHWAY_STATUSES,
   TASK_PRIORITIES,
   TASK_SORTS,
@@ -34,6 +36,7 @@ import {
   type TasksSearch,
 } from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
+import {useSpecialtyAndStageFields} from '../pathways/pathwayFilterFields';
 
 type TaskRow = PathwaySummary & Record<string, unknown>;
 
@@ -169,6 +172,8 @@ export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch
     PatientName: search.patient,
     Statuses: choiceValues(search.status, OPEN_PATHWAY_STATUSES),
     Priorities: choiceValues(search.priority, TASK_PRIORITIES),
+    SpecialtyIds: idChoiceValues(search.specialty),
+    StageDefinitionIds: idChoiceValues(search.stage),
     OverdueOnly: search.overdue,
     DueFrom: search.dueFrom,
     DueTo: search.dueTo,
@@ -210,6 +215,8 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
 
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(pathwaySearchQuery(taskQuery(search, pageSize)));
+  const specialtyAndStage = useSpecialtyAndStageFields(search);
+  const fields = useMemo(() => [...FILTER_FIELDS, ...specialtyAndStage], [specialtyAndStage]);
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as TaskRow[];
 
@@ -237,7 +244,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
         skeletonRows={pageSize}
         search={
           <ListFilterBar
-            fields={FILTER_FIELDS}
+            fields={fields}
             values={barValues(search)}
             onChange={(values) => onSearchChange({...search, ...fromBar(values), page: undefined})}
             list="tasks"

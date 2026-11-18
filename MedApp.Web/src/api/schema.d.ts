@@ -6681,6 +6681,7 @@ export interface paths {
                 query?: {
                     Weeks?: number;
                     TemplateId?: string;
+                    SpecialtyId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7723,6 +7724,8 @@ export interface paths {
                     PatientName?: string;
                     PatientId?: string;
                     TemplateId?: string;
+                    SpecialtyIds?: string[];
+                    StageDefinitionIds?: string[];
                     Statuses?: string[];
                     Priority?: string;
                     Priorities?: string[];
@@ -12522,6 +12525,8 @@ export interface components {
             weeks?: number;
             /** Format: uuid */
             templateId?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
             /** Format: date */
             from?: string;
             /** Format: date */

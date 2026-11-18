@@ -2,7 +2,9 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
+import {useMemo} from 'react';
 import {referralSearchQuery, type ReferralSummary} from '../../api/referrals';
+import {specialtiesQuery} from '../../api/specialties';
 import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
 import {Page, useIsNarrow} from '../../components/pages/Page';
@@ -28,6 +30,8 @@ import {
   type ReferralsListSearch,
   type ReferralView,
 } from './referralsSearch';
+import {idChoiceValues} from '../listSearch';
+import {specialtyField} from '../pathways/pathwayFilterFields';
 
 /** The search's fields: the patient's name, and the view (removing it shows every referral). */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -53,7 +57,7 @@ const FAVOURITES: ListFilterFavourite[] = [
 /** The bar's values from the URL: the view shows as Awaiting triage when the URL has none (the inbox). */
 function barValues(search: ReferralsListSearch): ListFilterValues {
   const view = referralViewOf(search);
-  return {patient: search.patient, view: view === 'all' ? undefined : view};
+  return {patient: search.patient, view: view === 'all' ? undefined : view, specialty: search.specialty};
 }
 
 /** The search from the bar's values: a removed view is `all`, and the inbox is left out of the URL. */
@@ -64,6 +68,7 @@ function fromBar(values: ListFilterValues, search: ReferralsListSearch): Referra
     asc: search.asc,
     patient: typeof values.patient === 'string' ? values.patient : undefined,
     view: view === 'awaiting' ? undefined : view,
+    specialty: typeof values.specialty === 'string' ? values.specialty : undefined,
   };
 }
 
@@ -86,6 +91,7 @@ export function referralsListQuery(search: ReferralsListSearch, pageSize: number
     Ascending: search.asc ?? true,
     Statuses: viewStatuses(referralViewOf(search)),
     Search: search.patient,
+    SpecialtyIds: idChoiceValues(search.specialty),
   });
 }
 
@@ -111,6 +117,9 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
   const {pageSize} = useListSettings();
   const canRegister = useCan('RegisterReferrals');
   const {data, isPending, isError} = useQuery(referralsListQuery(search, pageSize));
+  const specialties = useQuery(specialtiesQuery(true)).data;
+  const fields = useMemo(() => [...FILTER_FIELDS, specialtyField(specialties ?? [], search.specialty)], [specialties, search.specialty]);
+  const isSearched = Boolean(search.patient || search.specialty);
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as ReferralRow[];
 
@@ -154,7 +163,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
   const isNarrow = useIsNarrow();
   const columns = isNarrow ? allColumns.filter((c) => c.key !== 'practice' && c.key !== 'letter') : allColumns;
 
-  const subtitle = isPending ? 'Loading referrals...' : countWords(view, total, Boolean(search.patient));
+  const subtitle = isPending ? 'Loading referrals...' : countWords(view, total, isSearched);
 
   return (
     <Page
@@ -175,13 +184,13 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
         skeletonRows={pageSize}
         search={
           <ListFilterBar
-            fields={FILTER_FIELDS}
+            fields={fields}
             values={barValues(search)}
             onChange={(values) => onSearchChange(fromBar(values, search))}
             list="referrals"
-            isUnfiltered={!search.patient && search.view === undefined}
+            isUnfiltered={!isSearched && search.view === undefined}
             label="Search referrals"
-            placeholder="Search referrals by the patient's name, or show the closed ones..."
+            placeholder="Search referrals by the patient's name, or filter by specialty, or show the closed ones..."
             textKey="patient"
             favourites={FAVOURITES}
           />
@@ -195,11 +204,11 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
           onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
         }}
         emptyState={
-          search.patient ? (
+          isSearched ? (
             <EmptyState
               title="No referrals match your search"
               icon={<Icon icon={AppIcon.Search} size="lg" />}
-              actions={<Button label="Clear Search" variant="secondary" onClick={() => onSearchChange({...search, page: undefined, patient: undefined})} />}
+              actions={<Button label="Clear Search" variant="secondary" onClick={() => onSearchChange({...search, page: undefined, patient: undefined, specialty: undefined})} />}
             />
           ) : (
             <EmptyState
