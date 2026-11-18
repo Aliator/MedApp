@@ -51,7 +51,8 @@ public sealed class PermissionTests : IntegrationTest
         yield return Case(Permission.CreatePathways, "POST", "/api/pathways/patient-pathways", "Nurse", "Booking");
         yield return Case(Permission.WorkPathways, "POST", $"{pathway}/stages/{AnyId}/start", "Lab", "Booking");
         yield return Case(Permission.AssignPathways, "POST", $"{pathway}/assignments/{AnyId}", "Manager", "Clinician");
-        yield return Case(Permission.OverrideStages, "POST", $"{pathway}/stages/{AnyId}/unlock", "Clinician", "Nurse");
+        yield return Case(Permission.UnlockStages, "POST", $"{pathway}/stages/{AnyId}/unlock", SeniorClinicianRole, "Nurse");
+        yield return Case(Permission.UnlockStages, "POST", $"{pathway}/stages/{AnyId}/reinstate", "Clinician", "Lab");
         yield return Case(Permission.DeletePathways, "DELETE", pathway, AdminRole, "Clinician");
         yield return Case(Permission.BookAppointments, "POST", "/api/appointments", "Booking", "Lab");
         yield return Case(Permission.ArrangeMeetings, "GET", "/api/calendar/team", "Manager", "Nurse");

@@ -20,6 +20,9 @@ public static class IntegrationTestConstants
     /// <summary>The role every member of staff had before roles (the old User role, renamed): exactly what staff could do.</summary>
     public const string UserRole = "All staff (before roles)";
 
+    /// <summary>The starting role that, with Clinician, may finish a stage without its visit (and unlock stages); Admin may not.</summary>
+    public const string SeniorClinicianRole = "Senior clinician";
+
     public const string PatientEmailDomain = "example.test";
 
     /// <summary>A date of birth comfortably in the past.</summary>

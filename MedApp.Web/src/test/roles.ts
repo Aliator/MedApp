@@ -2,12 +2,13 @@ import type {Role} from '../api/roles';
 import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
-const NOT_FOR_ADMIN: readonly Permission[] = ['TriageReferrals', 'RecordSpecimens', 'ProcessSpecimens'];
+const NOT_FOR_ADMIN: readonly Permission[] = ['TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens'];
 
 /**
  * The permissions of the API's standard roles (`StandardRoles`): the built-in Admin's fixed set (every one but the
  * clinical ones, NOT_FOR_ADMIN), and "All staff (before roles)", the old User role, with what every member of staff could do
- * before roles. The starting roles follow decision 68 of `docs/centre-phase2-plan.md`.
+ * before roles. The starting roles follow decision 68 of `docs/centre-phase2-plan.md`, and Senior clinician decision 138
+ * of `docs/centre-phases-3-5-plan.md`.
  */
 export const ROLE_PERMISSIONS = {
   Admin: PERMISSIONS.filter((p) => !NOT_FOR_ADMIN.includes(p)),
@@ -17,7 +18,11 @@ export const ROLE_PERMISSIONS = {
   ],
   Clinician: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'OverrideStages', 'BookAppointments', 'AttachFiles', 'RecordSpecimens',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens',
+  ],
+  'Senior clinician': [
+    'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens',
   ],
   Nurse: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles',

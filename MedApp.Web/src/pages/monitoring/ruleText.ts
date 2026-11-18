@@ -69,6 +69,8 @@ export function describeRule(rule: RuleDescription): SentencePart[] {
         return [{text: ' is assigned to '}, ...what];
       case 'StageUnlocked':
         return [{text: ' unlocks '}, ...stage(rule), {text: ' on '}, ...what];
+      case 'StageFinishedWithoutVisit':
+        return [{text: ' finishes '}, ...stage(rule), {text: ' without its required visit on '}, ...what];
       case 'DueDateChanged':
         return [{text: ' changes the target date of '}, ...what];
       default:

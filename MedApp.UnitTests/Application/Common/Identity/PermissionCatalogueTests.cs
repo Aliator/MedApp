@@ -44,8 +44,8 @@ public sealed class PermissionCatalogueTests
     }
 
     /// <summary>
-    /// Column A: every permission today's admins use, which is all but the clinical ones: triage, and recording and
-    /// processing specimens (<c>docs/centre-phases-3-5-plan.md</c>, decision 74).
+    /// Column A: every permission but the clinical ones: triage, finishing a stage without its visit, and recording and
+    /// processing specimens (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74 and 138).
     /// </summary>
     [Test]
     public void Admin_HasEveryPermissionButTheClinicalOnes()
@@ -53,13 +53,12 @@ public sealed class PermissionCatalogueTests
         Permissions.Admin.Should().BeEquivalentTo(
         [
             UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, CreatePathways, WorkPathways,
-            AssignPathways, OverrideStages, DeletePathways, BookAppointments, ManageAnyCalendar, ArrangeMeetings,
+            AssignPathways, UnlockStages, DeletePathways, BookAppointments, ManageAnyCalendar, ArrangeMeetings,
             ManageClinics, AttachFiles, ViewInsights, ManageMonitoring, ManageSetup, ManageUsers, ManageRoles, ManageSecuritySettings,
             ViewAudit, ExportPatientRecords, ManagePrivacy, CorrectRecords,
         ]);
-        Permissions.Admin.Should().NotContain(TriageReferrals);
-        Permissions.Admin.Should().NotContain(RecordSpecimens);
-        Permissions.Admin.Should().NotContain(ProcessSpecimens);
+        Permissions.Admin.Should().NotContain(TriageReferrals).And.NotContain(FinishWithoutVisit);
+        Permissions.Admin.Should().NotContain(RecordSpecimens).And.NotContain(ProcessSpecimens);
     }
 
     [Test]
@@ -68,7 +67,9 @@ public sealed class PermissionCatalogueTests
         StandardRoles.AllStaffBeforeRoles.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles]);
         StandardRoles.Clinician.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, OverrideStages, BookAppointments, AttachFiles, RecordSpecimens]);
+            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles, RecordSpecimens]);
+        StandardRoles.SeniorClinician.Permissions.Should().BeEquivalentTo(
+            StandardRoles.Clinician.Permissions.Union([UnlockStages, FinishWithoutVisit]));
         StandardRoles.Nurse.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles, RecordSpecimens]);
         StandardRoles.Booking.Permissions.Should().BeEquivalentTo(
@@ -153,17 +154,22 @@ public sealed class PermissionCatalogueTests
         var allStaff = (string[])migration.GetField("AllStaffPermissions", Private)!.GetValue(null)!;
         var starting = ((string Id, string Name, string Description, string[] Permissions)[])migration.GetField("StartingRoles", Private)!.GetValue(null)!;
 
-        foreach (var name in allStaff.Concat(starting.SelectMany(r => r.Permissions)))
+        // Every name is one code knows, but OverrideStages, which SplitOverrideStages renamed to its two halves.
+        static IEnumerable<string> AsNow(IEnumerable<string> names) =>
+            names.SelectMany(n => n == "OverrideStages" ? [nameof(UnlockStages), nameof(FinishWithoutVisit)] : new[] { n });
+        foreach (var name in AsNow(allStaff.Concat(starting.SelectMany(r => r.Permissions))))
             Permissions.TryParse(name, out _).Should().BeTrue(name);
 
         allStaff.Should().BeEquivalentTo(StandardRoles.AllStaffBeforeRoles.Permissions.Select(p => p.ToString()));
+        // Senior clinician came later, with SplitOverrideStages.
+        var startedWith = StandardRoles.Starting.Where(r => r != StandardRoles.SeniorClinician).ToList();
         starting.Select(r => (Guid.Parse(r.Id), r.Name, r.Description)).Should().Equal(
-            StandardRoles.Starting.Select(r => (r.Id, r.Name, r.Description)));
+            startedWith.Select(r => (r.Id, r.Name, r.Description)));
         // Later migrations add the permissions that came after (AddedWorkingHours: ManageClinics; AddedSpecimens:
         // RecordSpecimens and ProcessSpecimens).
         Permission[] later = [ManageClinics, RecordSpecimens, ProcessSpecimens];
-        foreach (var (role, standard) in starting.Zip(StandardRoles.Starting))
-            role.Permissions.Should().BeEquivalentTo(
+        foreach (var (role, standard) in starting.Zip(startedWith))
+            AsNow(role.Permissions).Should().BeEquivalentTo(
                 standard.Permissions.Where(p => !later.Contains(p)).Select(p => p.ToString()), standard.Name);
 
         ((string)migration.GetField("AdminId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Admin.Id.ToString());
@@ -198,5 +204,26 @@ public sealed class PermissionCatalogueTests
             grants.Single(g => g.Permission == permission.ToString()).RoleIds
                 .Should().BeEquivalentTo(holders.Select(r => r.Id.ToString()), permission.ToString());
         }
+    }
+
+    /// <summary>
+    /// SplitOverrideStages writes Senior clinician as the standard role has it, and the two names it splits
+    /// OverrideStages into are the permissions'.
+    /// </summary>
+    [Test]
+    public void SplitOverrideStagesMigration_WritesSeniorClinician_AsTheStandardRoleHasIt()
+    {
+        const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Static;
+        var migration = typeof(SplitOverrideStages);
+        string Field(string name) => (string)migration.GetField(name, Private)!.GetValue(null)!;
+
+        Field("UnlockStages").Should().Be(nameof(UnlockStages));
+        Field("FinishWithoutVisit").Should().Be(nameof(FinishWithoutVisit));
+        Field("SeniorClinicianId").Should().Be(StandardRoles.SeniorClinician.Id.ToString());
+        Field("SeniorClinicianName").Should().Be(StandardRoles.SeniorClinician.Name);
+        Field("SeniorClinicianDescription").Should().Be(StandardRoles.SeniorClinician.Description);
+        ((string[])migration.GetField("SeniorClinicianPermissions", Private)!.GetValue(null)!)
+            .Should().BeEquivalentTo(StandardRoles.SeniorClinician.Permissions
+                .Where(p => p is not (RecordSpecimens or ProcessSpecimens)).Select(p => p.ToString()), "AddedSpecimens adds the specimen permissions later");
     }
 }

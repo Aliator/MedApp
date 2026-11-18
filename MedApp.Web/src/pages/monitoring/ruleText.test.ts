@@ -26,6 +26,7 @@ describe('describeRule', () => {
     ['PathwayCancelled', 'Notify me when anyone cancels a pathway'],
     ['PathwayAssigned', 'Notify me when anyone is assigned to a pathway'],
     ['StageUnlocked', 'Notify me when anyone unlocks a stage on a pathway'],
+    ['StageFinishedWithoutVisit', 'Notify me when anyone finishes a stage without its required visit on a pathway'],
     ['DueDateChanged', 'Notify me when anyone changes the target date of a pathway'],
     ['SomethingNew', 'Notify me when anyone does something to a pathway'],
   ])('reads %s with no conditions', (event, expected) => {

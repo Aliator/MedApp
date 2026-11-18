@@ -49,13 +49,13 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Whether its notes can be edited and it can be finished now.</summary>
     public bool CanEdit { get; set; }
 
-    /// <summary>Whether an admin can unlock it now: it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
+    /// <summary>Whether the viewer can unlock it now (UnlockStages): it's finished and locked, and the pathway isn't blocked, cancelled or archived.</summary>
     public bool CanUnlock { get; set; }
 
     /// <summary>Whether the viewer can skip it now: it's optional and the current stage of an open pathway.</summary>
     public bool CanSkip { get; set; }
 
-    /// <summary>Whether the viewer can reinstate it now (OverrideStages): it's skipped, and the pathway is open or discharged.</summary>
+    /// <summary>Whether the viewer can reinstate it now (UnlockStages): it's skipped, and the pathway is open or discharged.</summary>
     public bool CanReinstate { get; set; }
 
     /// <summary>When it was skipped, by whom, and why (NotNeeded, PatientDeclined, Other or BranchNotChosen); null unless skipped.</summary>

@@ -288,13 +288,14 @@ public sealed class PastAppointmentTests : IntegrationTest
     }
 
     [Test]
-    public async Task EnteredInError_AFinishedRequiredStagesOnlyVisit_TellsTheAssigneesAndAdmins_NotWhoWithdrewIt()
+    public async Task EnteredInError_AFinishedRequiredStagesOnlyVisit_TellsTheAssigneesAndWhoCanFinishWithoutAVisit_NotWhoWithdrewIt()
     {
         var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
         var template = await CreateTemplateAsync(_admin, definition.Id);
         var pathway = await CreatePathwayBeforeTheVisitAsync(template.Id);
         var stage = pathway.Stages.Single();
         var assignee = await CreateStaffAsync(UserRole);
+        var senior = await CreateStaffAsync(SeniorClinicianRole);
         await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
                 pathwayId: pathway.Id, stageId: stage.Id))
@@ -304,8 +305,8 @@ public sealed class PastAppointmentTests : IntegrationTest
         var withdrawn = await (await PostEnteredInErrorAsync(_staff.Client, recorded.Id)).ReadAsAsync<EnteredInErrorResponse>();
 
         withdrawn.VisitRequestedAgain.Should().BeFalse();
-        withdrawn.StageMessage.Should().Contain("is finished, and now has no attended visit").And.Contain("assignees and the admins are told");
-        foreach (var told in new[] { assignee.Client, _admin })
+        withdrawn.StageMessage.Should().Contain("is finished, and now has no attended visit").And.Contain("assignees and those who can finish a stage without its visit are told");
+        foreach (var told in new[] { assignee.Client, senior.Client })
         {
             var notification = (await (await told.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
                 .Items.Should().ContainSingle(n => n.Kind == "StageVisitWithdrawn").Subject;
@@ -316,6 +317,9 @@ public sealed class PastAppointmentTests : IntegrationTest
                 .And.Contain(stage.Name).And.NotContain(_patient.LastName).And.NotContain(pathway.Title).And.NotContain(CancelReason);
         }
         (await (await _staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
+            .Items.Should().NotContain(n => n.Kind == "StageVisitWithdrawn");
+        // The built-in Admin role can't finish a stage without its visit (decision 138), so isn't told.
+        (await (await _admin.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
             .Items.Should().NotContain(n => n.Kind == "StageVisitWithdrawn");
     }
 

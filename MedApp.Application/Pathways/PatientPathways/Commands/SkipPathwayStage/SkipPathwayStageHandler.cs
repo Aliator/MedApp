@@ -26,7 +26,7 @@ public sealed class SkipPathwayStageHandler(
         var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
-        if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage, request.CanOverrideStages) is { } reason)
+        if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage, request.CanFinishWithoutVisit) is { } reason)
             throw new ConflictException(reason);
 
         // A Required visit skipped, like one finished without, says why.

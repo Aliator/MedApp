@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -9,7 +9,7 @@ namespace MedApp.Infrastructure.Migrations
     /// Specimen tracking (centre plan decisions 81 to 90): <c>SpecimenTypes</c> and <c>Laboratories</c> (setup lists),
     /// <c>Specimens</c> with their numbers from the new sequence <c>SpecimenNumbers</c>, and <c>Notifications.SubjectId</c>
     /// (decision 72). Nothing exists yet, so nothing changes on deploy. Also the new permissions: <c>RecordSpecimens</c>
-    /// for the starting Clinician, Nurse and Lab roles, and <c>ProcessSpecimens</c> for Lab (decision 74's table), by
+    /// for the starting Clinician, Senior clinician, Nurse and Lab roles, and <c>ProcessSpecimens</c> for Lab (decision 74's table), by
     /// their fixed IDs, so a role an admin made with one of those names is left alone. Admin doesn't get them: they're
     /// clinical. The values are written here, not read from <c>StandardRoles</c>, so the migration never changes.
     /// </summary>
@@ -18,10 +18,11 @@ namespace MedApp.Infrastructure.Migrations
         private const string ClinicianId = "7a3b0000-0000-4000-8000-000000000003";
         private const string NurseId = "7a3b0000-0000-4000-8000-000000000004";
         private const string LabId = "7a3b0000-0000-4000-8000-000000000006";
+        private const string SeniorClinicianId = "7a3b0000-0000-4000-8000-000000000008";
 
         private static readonly (string Permission, string[] RoleIds)[] Grants =
         [
-            ("RecordSpecimens", [ClinicianId, NurseId, LabId]),
+            ("RecordSpecimens", [ClinicianId, SeniorClinicianId, NurseId, LabId]),
             ("ProcessSpecimens", [LabId]),
         ];
 

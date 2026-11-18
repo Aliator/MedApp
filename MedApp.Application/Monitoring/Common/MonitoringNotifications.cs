@@ -37,6 +37,7 @@ public static class MonitoringNotifications
         MonitoringEvent.PathwayAssigned => NotificationKind.MonitoredPathwayAssigned,
         MonitoringEvent.StageUnlocked => NotificationKind.MonitoredStageUnlocked,
         MonitoringEvent.DueDateChanged => NotificationKind.MonitoredDueDateChanged,
+        MonitoringEvent.StageFinishedWithoutVisit => NotificationKind.MonitoredStageFinishedWithoutVisit,
         _ => throw new ArgumentOutOfRangeException(nameof(monitoringEvent), monitoringEvent, null)
     };
 
@@ -51,6 +52,7 @@ public static class MonitoringNotifications
         MonitoringEvent.PathwayAssigned => "Staff assigned",
         MonitoringEvent.StageUnlocked => "Stage unlocked",
         MonitoringEvent.DueDateChanged => "Target date changed",
+        MonitoringEvent.StageFinishedWithoutVisit => "Stage finished without visit",
         _ => throw new ArgumentOutOfRangeException(nameof(monitoringEvent), monitoringEvent, null)
     };
 
@@ -75,6 +77,8 @@ public static class MonitoringNotifications
             MonitoringEvent.DueDateChanged => activity is { DueDateFrom: { } from, DueDateTo: { } to }
                 ? $"{who} moved the target date of {what} from {Format(from)} to {Format(to)}."
                 : $"{who} changed the target date of {what}.",
+            // Never the reason given: it's free text, which only the pathway's timeline shows (to those allowed to see it).
+            MonitoringEvent.StageFinishedWithoutVisit => $"{who} finished {stage} on {what} without its required visit.",
             _ => throw new ArgumentOutOfRangeException(nameof(activity), activity.Event, null)
         };
     }

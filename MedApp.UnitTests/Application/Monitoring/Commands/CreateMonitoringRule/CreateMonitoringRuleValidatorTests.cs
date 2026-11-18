@@ -63,6 +63,7 @@ public sealed class CreateMonitoringRuleValidatorTests
 
     [TestCase("StageFinished", true)]
     [TestCase("StageUnlocked", true)]
+    [TestCase("StageFinishedWithoutVisit", true)]
     [TestCase("PathwayCreated", false)]
     [TestCase("PathwayAssigned", false)]
     public void Validate_StageChosen_PassesOnlyForStageEvents(string monitoringEvent, bool isValid)
@@ -71,6 +72,6 @@ public sealed class CreateMonitoringRuleValidatorTests
 
         result.IsValid.Should().Be(isValid);
         if (!isValid)
-            result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("A stage can only be chosen for a stage being finished or unlocked.");
+            result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked.");
     }
 }

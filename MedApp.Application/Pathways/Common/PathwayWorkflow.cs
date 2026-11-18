@@ -15,21 +15,21 @@ namespace MedApp.Application.Pathways.Common;
 /// </para>
 /// <para>
 /// Stages are worked strictly in order. The current stage is the first one neither finished nor skipped; its notes can
-/// be edited until it's finished, which locks it. An admin can unlock a finished stage to reopen just that stage, which
+/// be edited until it's finished, which locks it. A holder of UnlockStages can unlock a finished stage to reopen just that stage, which
 /// moves an InReview or Completed pathway back to InProgress.
 /// </para>
 /// <para>
 /// Some stages can be skipped (docs/centre-phases-3-5-plan.md, decisions 113 to 117): an optional stage, by hand with a
 /// reason, while it's current; and at a branch point, the stages of the branches the clinician didn't choose. A skipped
-/// stage counts as done for the status, has no visit, and can be reinstated by a holder of OverrideStages, when it runs
+/// stage counts as done for the status, has no visit, and can be reinstated by a holder of UnlockStages, when it runs
 /// again in its place. MedApp never chooses or pre-selects a branch: the clinician does (<see cref="Branches"/> lists
 /// them in the template's order).
 /// </para>
 /// <para>
 /// A stage may involve a visit (<see cref="VisitRequirement"/>). When it becomes current, the app asks for an
 /// appointment (<see cref="StageVisits"/>). A Required one can't be finished without an attended appointment, except
-/// by an admin, with a reason; finishing a Suggested one without asks for confirmation in the UI. Finishing a stage
-/// again after an admin unlocked it doesn't ask for a visit again.
+/// by a holder of FinishWithoutVisit, with a reason; finishing a Suggested one without asks for confirmation in the UI. Finishing a stage
+/// again after it was unlocked doesn't ask for a visit again.
 /// </para>
 /// </summary>
 public static partial class PathwayWorkflow
@@ -138,26 +138,26 @@ public static partial class PathwayWorkflow
             : $"Stages are worked in order: finish the '{current?.Name}' stage first.";
     }
 
-    /// <summary>Whether an admin can unlock a stage: it's finished and locked, and the pathway isn't blocked or closed off.</summary>
+    /// <summary>Whether a holder of UnlockStages can unlock a stage: it's finished and locked, and the pathway isn't blocked or closed off.</summary>
     public static bool CanUnlockStage(PatientPathway pathway, PatientPathwayStage stage) =>
         stage.IsCompleted && stage.IsLocked && (IsOpen(pathway.Status) || pathway.Status == Completed);
 
     /// <summary>Whether this person can skip a stage now (<see cref="WhySkipNotAllowed"/>).</summary>
-    public static bool CanSkipStage(PatientPathway pathway, PatientPathwayStage stage, bool canOverrideStages) =>
-        WhySkipNotAllowed(pathway, stage, canOverrideStages) is null;
+    public static bool CanSkipStage(PatientPathway pathway, PatientPathwayStage stage, bool canFinishWithoutVisit) =>
+        WhySkipNotAllowed(pathway, stage, canFinishWithoutVisit) is null;
 
     /// <summary>
     /// Skipping an optional stage whose visit is Required is finishing it without its visit by another name, so only
-    /// holders of OverrideStages may, as only they may finish one without it; and, as there, with a reason (the detail).
+    /// holders of FinishWithoutVisit may, as only they may finish one without it; and, as there, with a reason (the detail).
     /// </summary>
     public static bool SkipNeedsOverride(PatientPathwayStage stage) => stage.VisitRequirement == VisitRequirement.Required;
 
     /// <summary>
     /// Why a stage can't be skipped by hand now, or null if it can: it must be optional and the current stage of an
     /// open pathway (a later optional stage is skipped when it's reached, so the choice is made with what's known then).
-    /// One whose visit is Required needs <paramref name="canOverrideStages"/> (<see cref="SkipNeedsOverride"/>).
+    /// One whose visit is Required needs <paramref name="canFinishWithoutVisit"/> (<see cref="SkipNeedsOverride"/>).
     /// </summary>
-    public static string? WhySkipNotAllowed(PatientPathway pathway, PatientPathwayStage stage, bool canOverrideStages)
+    public static string? WhySkipNotAllowed(PatientPathway pathway, PatientPathwayStage stage, bool canFinishWithoutVisit)
     {
         if (!stage.IsOptional)
             return $"The '{stage.Name}' stage isn't optional, so it can't be skipped.";
@@ -175,13 +175,13 @@ public static partial class PathwayWorkflow
         if (current?.Id != stage.Id)
             return $"Only the current stage can be skipped: finish the '{current?.Name}' stage first.";
 
-        return SkipNeedsOverride(stage) && !canOverrideStages
+        return SkipNeedsOverride(stage) && !canFinishWithoutVisit
             ? $"The '{stage.Name}' stage needs a visit, so only someone who can finish a stage without its visit can skip it."
             : null;
     }
 
     /// <summary>
-    /// Whether a holder of OverrideStages can reinstate a skipped stage: it's skipped, and the pathway is open or
+    /// Whether a holder of UnlockStages can reinstate a skipped stage: it's skipped, and the pathway is open or
     /// discharged (as for unlocking; a discharged pathway goes back to in progress).
     /// </summary>
     public static bool CanReinstateStage(PatientPathway pathway, PatientPathwayStage stage) =>
@@ -277,7 +277,7 @@ public static partial class PathwayWorkflow
     /// </summary>
     public static string? WhyStageNeedsVisit(PatientPathwayStage stage, IEnumerable<Appointment> stageAppointments) =>
         stage.VisitRequirement == VisitRequirement.Required && FinishesWithoutVisit(stage, stageAppointments)
-            ? $"The '{stage.Name}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. An admin can finish it without one."
+            ? $"The '{stage.Name}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. Someone allowed to finish a stage without its visit, such as a senior clinician, can finish it without one."
             : null;
 
     /// <summary>

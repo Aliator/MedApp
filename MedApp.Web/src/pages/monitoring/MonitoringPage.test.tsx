@@ -181,12 +181,12 @@ describe('MonitoringPage', () => {
     await findAlert('That rule no longer exists');
   });
 
-  it('offers only holders of OverrideStages for "Unlocks a stage", from the staff list a manager can read', async () => {
-    // The staff list, and with ?permission=OverrideStages, only those whose roles let them unlock.
+  it('offers only holders of UnlockStages for "Unlocks a stage", from the staff list a manager can read', async () => {
+    // The staff list, and with ?permission=UnlockStages, only those whose roles let them unlock.
     const fetch = mockApi({
       [`GET ${RULES}`]: () => json(rules),
       'GET /api/calendar/staff': (request) =>
-        json(new URL(request.url).searchParams.get('permission') === 'OverrideStages' ? [{userId: KIM, username: 'kim.clinician'}] : people),
+        json(new URL(request.url).searchParams.get('permission') === 'UnlockStages' ? [{userId: KIM, username: 'kim.clinician'}] : people),
       'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
       'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
     });
