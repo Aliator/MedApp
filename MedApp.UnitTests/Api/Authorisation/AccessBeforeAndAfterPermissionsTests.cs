@@ -76,9 +76,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.GetAllRoles 00001
         AuthController.GetAllUsers 00001
         AuthController.GetMySettings 00011
+        AuthController.GetMySpecialties 00011
         AuthController.GetSession 01111
         AuthController.GetUserByUsername 00001
         AuthController.GetUserRoles 00001
+        AuthController.GetUserSpecialties 00001
         AuthController.Login 11111
         AuthController.Logout 11111
         AuthController.ResetUserPassword 00001
@@ -86,6 +88,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
         AuthController.SetUserRoles 00001
+        AuthController.SetUserSpecialties 00001
         AuthController.SignOutEverywhere 00001
         AuthController.UpdateUserPassword 00011
         AuthController.WhoAmI 11111
@@ -214,6 +217,13 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SitesController.RestoreSite 00001
         SitesController.UpdateRoom 00001
         SitesController.UpdateSite 00001
+        SpecialtiesController.ArchiveSpecialty 00001
+        SpecialtiesController.CreateSpecialty 00001
+        SpecialtiesController.DeleteSpecialty 00001
+        SpecialtiesController.GetSpecialties 00011
+        SpecialtiesController.GetSpecialty 00011
+        SpecialtiesController.RestoreSpecialty 00001
+        SpecialtiesController.UpdateSpecialty 00001
         """;
 
     private static readonly (string Name, ClaimsPrincipal? User)[] Callers =

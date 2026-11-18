@@ -75,6 +75,21 @@ describe('route guards', () => {
     expect(await screen.findByText('Main site')).toBeInTheDocument();
   });
 
+  it('sends a non-admin away from Specialties, without asking for them', async () => {
+    const fetch = mockApi({'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
+    const {router} = renderApp({path: '/admin/specialties', user: staffUser});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('specialties'))).toBe(false);
+  });
+
+  it('lets an admin into Specialties', async () => {
+    mockApi({'GET /api/specialties': () => json([{id: 's1', name: 'Dermatology', isArchived: false, canBeDeleted: true}])});
+    renderApp({path: '/admin/specialties', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Specialties', level: 1})).toBeInTheDocument();
+    expect(await screen.findByText('Dermatology')).toBeInTheDocument();
+  });
+
   it('lets an admin into the admin pages', async () => {
     mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/roles'

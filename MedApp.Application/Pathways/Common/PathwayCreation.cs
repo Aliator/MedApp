@@ -10,7 +10,7 @@ namespace MedApp.Application.Pathways.Common;
 public static class PathwayCreation
 {
     /// <summary>
-    /// A new, unassigned pathway for a patient, with a copy of the template's stages in order (their definitions'
+    /// A new, unassigned pathway for a patient, in the template's specialty, with a copy of the template's stages in order (their definitions'
     /// names, descriptions, instructions, SNOMED CT codes and visit requirements), so later edits to the template or
     /// definitions don't change it. The template's maps must have their stage definitions loaded. A blank title
     /// becomes the template's name.
@@ -30,6 +30,7 @@ public static class PathwayCreation
             PatientId = patientId,
             TemplateId = template.Id,
             TemplateName = template.Name,
+            SpecialtyId = template.SpecialtyId,
             Title = string.IsNullOrWhiteSpace(title) ? template.Name : title.Trim(),
             DueDateUtc = DueDates.EndOfDayUtc(dueDate),
             Priority = priority,

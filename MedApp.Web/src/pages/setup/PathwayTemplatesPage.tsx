@@ -16,6 +16,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
+import {TextCell} from '../../components/tables/TextCell';
 import type {SetupListSearch} from '../listSearch';
 import {saveProblem} from '../saveProblem';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
@@ -39,7 +40,7 @@ export function stagesSummary(template: PathwayTemplate): string {
 }
 
 /**
- * Templates (admin, decision 17): the ordered stages staff create pathways from. Admins add and edit them on
+ * Templates (admin, decision 17): the ordered stages staff create pathways from, each in a specialty. Admins add and edit them on
  * their own page, archive ones no longer wanted (New pathway stops offering them; pathways made from them keep
  * their stages), restore them, and delete ones never used.
  */
@@ -68,6 +69,12 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
       header: 'Template',
       width: proportional(3, {minWidth: 120}),
       renderCell: (t) => <SetupNameCell name={t.name ?? ''} secondary={stagesSummary(t)} />,
+    },
+    {
+      key: 'specialty',
+      header: 'Specialty',
+      width: proportional(1, {minWidth: 120}),
+      renderCell: (t) => <TextCell text={t.specialtyName || 'None'} />,
     },
     {
       key: 'pathways',

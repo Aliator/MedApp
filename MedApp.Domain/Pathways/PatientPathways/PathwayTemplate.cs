@@ -1,4 +1,6 @@
-﻿namespace MedApp.Domain.Pathways.PatientPathways;
+﻿using MedApp.Domain.Specialties;
+
+namespace MedApp.Domain.Pathways.PatientPathways;
 
 /// <summary>
 /// A standard pathway: an ordered list of stages that staff create a patient's pathway from. Only admins edit
@@ -12,6 +14,13 @@ public sealed class PathwayTemplate
 
     /// <summary>Archived templates can't be used for new pathways. A template in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }
+
+    /// <summary>
+    /// The specialty it belongs to. Moving a template to another affects only pathways created afterwards: each
+    /// pathway keeps its own copy (<see cref="PatientPathway.SpecialtyId"/>).
+    /// </summary>
+    public Guid SpecialtyId { get; set; }
+    public Specialty Specialty { get; set; } = null!;
 
     public List<PathwayTemplateMap> Maps { get; set; } = [];
 }

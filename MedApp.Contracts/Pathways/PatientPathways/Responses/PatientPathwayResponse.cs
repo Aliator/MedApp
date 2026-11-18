@@ -14,6 +14,10 @@ public sealed class PatientPathwayResponse
 
     public Guid? TemplateId { get; set; }
     public string TemplateName { get; set; } = string.Empty;
+
+    /// <summary>The specialty it's in: its template's when it was created.</summary>
+    public Guid SpecialtyId { get; set; }
+
     public string Title { get; set; } = string.Empty;
 
     /// <summary>The day it's due by (UK time).</summary>

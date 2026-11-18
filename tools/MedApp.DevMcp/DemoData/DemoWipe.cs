@@ -1,4 +1,5 @@
 using MedApp.Domain.Sites;
+using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
@@ -74,6 +75,12 @@ public static class DemoWipe
                 await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
+                // Every specialty but General (which the migrations seeded), back as it was; memberships go first.
+                await db.StaffSpecialties.ExecuteDeleteAsync(cancellationToken);
+                await db.Specialties.Where(s => s.Id != Specialty.GeneralId).ExecuteDeleteAsync(cancellationToken);
+                await db.Specialties.Where(s => s.Id == Specialty.GeneralId).ExecuteUpdateAsync(u => u
+                    .SetProperty(s => s.Name, Specialty.GeneralName)
+                    .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);
                 await db.UserSessions.ExecuteDeleteAsync(cancellationToken);

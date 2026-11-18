@@ -18,6 +18,11 @@ public sealed class UpdatePathwayTemplateValidator : AbstractValidator<UpdatePat
             .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
 
+        RuleFor(x => x.SpecialtyId)
+            .Must(id => id != Guid.Empty)
+            .When(x => x.SpecialtyId is not null)
+            .WithMessage("Specialty must not be empty.");
+
         RuleFor(x => x.StageDefinitionIdsInOrder)
             .Must(ids => ids is null || ids.Count > 0)
             .WithMessage("A template needs at least one stage.")

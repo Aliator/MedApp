@@ -9,6 +9,7 @@ using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -37,6 +38,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientPathwayNote> PatientPathwayNotes => Set<PatientPathwayNote>();
     public DbSet<PatientPathwayNoteVersion> PatientPathwayNoteVersions => Set<PatientPathwayNoteVersion>();
     public DbSet<PathwayNoteDeletionRequest> PathwayNoteDeletionRequests => Set<PathwayNoteDeletionRequest>();
+    public DbSet<Specialty> Specialties => Set<Specialty>();
+    public DbSet<StaffSpecialty> StaffSpecialties => Set<StaffSpecialty>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

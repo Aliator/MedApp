@@ -1,5 +1,6 @@
-using MedApp.Infrastructure.Data;
 using MedApp.Domain.Sites;
+using MedApp.Domain.Specialties;
+using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
 using MedApp.Infrastructure.Data.Configurations.Sites;
 using MedApp.IntegrationTests.Common;
@@ -18,8 +19,8 @@ namespace MedApp.IntegrationTests;
 /// <summary>
 /// Once per run: starts SQL Server 2022 and Azurite (the Azure Storage emulator, for attached files) in Docker
 /// (Testcontainers), applies every migration to a new database, and starts the API against both. Before each test,
-/// <see cref="ResetDatabaseAsync"/> empties the database (Respawn), keeping the migrations history, the seeded default
-/// stage definition and the seeded calendar activity types.
+/// <see cref="ResetDatabaseAsync"/> empties the database (Respawn), keeping the migrations history, the seeded General
+/// specialty, the seeded default stage definition and the seeded calendar activity types.
 /// </summary>
 [SetUpFixture]
 public sealed class TestEnvironment
@@ -91,6 +92,7 @@ public sealed class TestEnvironment
                 new Table("PatientPathwayStageDefinitions"),
                 new Table("CalendarActivityTypes"),
                 new Table("Sites"),
+                new Table("Specialties"),
                 new Table("DataProtectionKeys"),
             ],
         });
@@ -166,5 +168,16 @@ public sealed class TestEnvironment
         sites.Parameters.AddWithValue("@name", Site.MainSiteName);
         sites.Parameters.AddWithValue("@createdAt", SiteConfiguration.MainSiteCreatedAt);
         await sites.ExecuteNonQueryAsync();
+
+        // Every specialty but General, which the migrations seeded (templates and memberships are gone already), and
+        // General back as it was.
+        await using var specialties = connection.CreateCommand();
+        specialties.CommandText = """
+            DELETE FROM Specialties WHERE Id <> @general;
+            UPDATE Specialties SET Name = @name, IsArchived = 0, Version = 1 WHERE Id = @general;
+            """;
+        specialties.Parameters.AddWithValue("@general", Specialty.GeneralId);
+        specialties.Parameters.AddWithValue("@name", Specialty.GeneralName);
+        await specialties.ExecuteNonQueryAsync();
     }
 }

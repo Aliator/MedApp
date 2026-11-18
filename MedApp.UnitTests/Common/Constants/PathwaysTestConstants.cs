@@ -23,6 +23,9 @@ public static class PathwaysTestConstants
     public const string ConsultationStage = "Consultation";
     public const string PathwayStage = "Procedure";
     public const string TemplateName = "Test template";
+
+    /// <summary>The specialty test templates are in (see <see cref="SpecialtiesTestConstants"/>).</summary>
+    public static readonly Guid SpecialtyId = Guid.Parse("0000005a-0000-0000-0000-0000000000aa");
     public const string PathwayTitle = "Test pathway";
     public const string Reason = "Waiting for results.";
 

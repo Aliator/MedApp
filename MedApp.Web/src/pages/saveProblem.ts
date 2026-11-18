@@ -19,18 +19,20 @@ export type SaveSubject =
   | 'day template'
   | 'week template'
   | 'site'
-  | 'room';
+  | 'room'
+  | 'specialty';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
 export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {
   const Subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  const subjects = /[^aeiou]y$/.test(subject) ? `${subject.slice(0, -1)}ies` : `${subject}s`;
   if (error instanceof ApiValidationError) return {validation: error.errors, message: null};
   if (error instanceof ApiError) {
     switch (error.status) {
       case 401:
         return {validation: null, message: 'Your session has ended. Please sign in again.'};
       case 403:
-        return {validation: null, message: `You do not have permission to change ${subject}s.`};
+        return {validation: null, message: `You do not have permission to change ${subjects}.`};
       case 404:
         return {validation: null, message: `${Subject} not found. It may have been deleted.`};
       case 409:
