@@ -1,4 +1,6 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Domain.Referrals;
 
@@ -30,6 +32,34 @@ public static class ReferralRepositoryExtensions
         if (ReferralWorkflow.WhyCantClose(referral) is { } why)
             throw new ConflictException(why);
         return referral;
+    }
+
+    /// <summary>
+    /// The referral, tracked for changes, for <paramref name="actor"/> to triage it, or a 404; a 403 unless they hold
+    /// <c>TriageReferrals</c> and belong to its specialty; a 409 once it's been decided (naming who and how), while its
+    /// record is restricted or anonymised, or if it changed since <paramref name="expectedVersion"/>
+    /// (<see cref="ReferralWorkflow.EnsureCanTriage"/>).
+    /// </summary>
+    public static async Task<Referral> GetForTriageOrThrowAsync(
+        this IReferralRepository repository, Guid id, PathwayActor actor, int expectedVersion, CancellationToken ct)
+    {
+        var referral = await GetForUpdateOrThrowAsync(repository, id, ct);
+        var isMember = actor.Has(Permission.TriageReferrals)
+                       && await repository.IsSpecialtyMemberAsync(actor.UserId, referral.SpecialtyId, ct);
+        ReferralWorkflow.EnsureCanTriage(referral, actor, isMember, expectedVersion);
+        return referral;
+    }
+
+    /// <summary>
+    /// The conflict to report when a triage's save was refused because the referral changed meanwhile: if someone
+    /// decided it first, who and how (<see cref="ReferralWorkflow.AlreadyTriagedMessage"/>); otherwise that it changed.
+    /// </summary>
+    public static async Task<ConflictException> TriageConflictAsync(this IReferralRepository repository, Guid id, CancellationToken ct)
+    {
+        var now = await repository.GetByIdAsync(id, ct);
+        return now is not null && !ReferralWorkflow.IsOpen(now.Status)
+            ? new ConflictException(ReferralWorkflow.AlreadyTriagedMessage(now))
+            : new ConflictException(ReferralWorkflow.ChangedMeanwhileMessage);
     }
 
     public static async Task<Referral> GetOrThrowAsync(this IReferralRepository repository, Guid id, CancellationToken ct) =>

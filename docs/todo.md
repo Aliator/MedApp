@@ -13,12 +13,13 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 
 **Phase 2: the front door.**
 - **Referrals and triage:** a referral record (the referring GP practice, when it arrived, the letter, the specialty asked for), an inbox of new referrals, and a clinician's triage decision (accept, reject or redirect, with a reason). Accepting creates the pathway: the clinician decides, the app records.
-  - **Referrals are built** (PR 5, `feature/referrals`: `docs/agents/referrals.md`). **Triage is next** (PR 6): accept, reject and redirect, the `TriageReferrals` permission with membership of the specialty, `ReferralTriaged` to whoever registered it, the `Duplicate` rejection reason, the Specialties page's warning when no member can triage, and the pathway page's link to its referral. **Until then nobody can triage a referral in MedApp** (the referral page says so), so referrals mustn't be used with patients (hazard H-40).
+  - **Referrals and triage are built** (PR 5, `feature/referrals`, and PR 6, `feature/triage`: `docs/agents/referrals.md`). **Referrals mustn't be used with patients until the CSO has verified the triage controls** (hazards H-40, H-41, H-44).
+  - **The accepted pathway's target date is typed by the triager** until the waiting-time clock (PR 7) sets it from the referral's target: PR 7 drops `dueDate` from the accept request (or ignores it) and moves the form's field.
+  - **A referral redirected between specialties more than once keeps only the latest redirect's detail** (`Referral.RedirectDetail`); the history records every move, without text. A table of redirections would keep each, if that's ever needed.
   - **Register Referral is shown to everyone signed in** (the Referrals page's button and the patient page's Referrals card, `TODO(useCan)` in both) until `useCan` lands (PR 3); the server refuses anyone without `RegisterReferrals` with a 403. The referral page's own actions already follow the response's flags (`CanEdit`, `CanClose`, `CanAttachFiles`).
   - **The inbox opens on every specialty:** the search takes `mine` and `specialtyIds`, and the side nav's count is already the viewer's specialties', but the page has no specialty filter yet (PR 8).
   - **Two people registering the same letter at the same moment** both pass the duplicate check (it reads before either saves). The second shows on the patient's Referrals card and is marked entered in error, or rejected as a duplicate at triage (H-44). A lock or a unique index would close it, if it's ever seen.
   - **The clinical safety case report** (`docs/clinical-safety/clinical-safety-case-report.md`) lists H-40 to H-44 but still lacks H-37 to H-39, and its summary's counts are from hazard log version 0.9: bring it up to date with the hazard log before the first release.
-  - **The device decision's function table** (`intended-purpose-and-device-decision.md`) still marks specialties and referrals "(designed)": mark them built, and check its statements against the code, in the triage PR.
 - **Specialties:** every pathway type, clinic and member of staff belongs to one, with filters, worklists and Insights by specialty.
 - **A waiting-time clock:** days since referral, the target date, and pauses with reasons; lists by longest wait, with breaches flagged. It replaces today's single target date.
 - **Roles and permissions, the rest** (the policy layer is built: `docs/agents/auth.md`):
@@ -244,8 +245,9 @@ What the security baseline left, so the app would work exactly as before (`docs/
 
 - **Split `MedApp.Web/AGENTS.md` like the root one.** It's over 50,000 characters, loaded whenever an agent works in `MedApp.Web`. Keep its core rules there and move long component and page detail to `docs/agents/web-*.md`, with a Read before you change table, as the root `AGENTS.md` does.
 - **The seeding script's rough edges** (review of #142): snapshot before applying migrations, not after (`tools/seed-demo-data.sh`, `DemoDataReset`); validate `--save-snapshot`'s name before the wipe, or print the summary first; build the connection string with the password escaped.
-- **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too), and record `PatientsSearched` with the filter names (never the term) for referral search.
+- **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too; accepting a referral checks it on the referral loaded for update, like creating a pathway).
 - **Working hours, from the review of #156:** check attendees' hours only when a meeting moves or for newly added attendees (a title-only edit is refused after someone's hours shrink); remove a person's `StaffHours` when their account is deleted or loses its staff roles, so a site isn't kept "in use" by a leaver.
+- **Triage, from the review of #158:** keep each move's redirect detail with its own history entry, so admins don't see the latest reason against earlier moves; report a pathway-save conflict that isn't the referral's row version with its real cause rather than "changed meanwhile".
 
 ## Long term
 

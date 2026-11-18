@@ -114,6 +114,16 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
     }
 
     [Test]
+    public async Task Handle_ByAClinicianOfItsSpecialty_SaysTheyCanTriageIt()
+    {
+        Repository.Setup(r => r.IsSpecialtyMemberAsync(Triager.UserId, Specialty.Id, Cts.Token)).ReturnsAsync(true);
+
+        var response = await Handler.Handle(Command() with { Actor = Triager }, Cts.Token);
+
+        response.CanTriage.Should().BeTrue();
+    }
+
+    [Test]
     public async Task Handle_UnknownPatient_IsNotFound()
     {
         var act = () => Handler.Handle(Command() with { PatientId = Guid.NewGuid() }, Cts.Token);

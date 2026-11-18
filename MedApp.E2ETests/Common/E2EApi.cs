@@ -6,6 +6,7 @@ using MedApp.Contracts.Notepads.Requests;
 using MedApp.Contracts.Notepads.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.Contracts.Referrals.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
@@ -167,6 +168,32 @@ public sealed class E2EApi(IAPIRequestContext request)
         var current = await NotepadAsync();
         return await SendAsync<NotepadResponse>("PUT", "/api/me/notepad", new SaveNotepadRequest { Text = text, ExpectedVersion = current.Version });
     }
+
+    /// <summary>The specialties a member of staff belongs to, exactly. Needs an admin.</summary>
+    public async Task SetSpecialtiesAsync(string username, params Guid[] specialtyIds) =>
+        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/specialties", new { specialtyIds });
+
+    /// <summary>The first specialty that isn't archived, the one <see cref="CreateTemplateAsync"/> puts templates in.</summary>
+    public async Task<SpecialtyResponse> FirstSpecialtyAsync() =>
+        (await SendAsync<List<SpecialtyResponse>>("GET", "/api/specialties")).First();
+
+    /// <summary>
+    /// Registers a referral for a patient, received two days ago, asking for Urgent. Referrals are never deleted, and
+    /// a patient with one can't be: both stay (README).
+    /// </summary>
+    public async Task<ReferralResponse> RegisterReferralAsync(Guid patientId, Guid specialtyId, string reason) =>
+        await SendAsync<ReferralResponse>("POST", "/api/referrals", new
+        {
+            patientId,
+            specialtyId,
+            receivedOn = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)).ToString("yyyy-MM-dd"),
+            referrerPractice = "Synthetic Lane Surgery (E2E)",
+            requestedPriority = "Urgent",
+            reason,
+            confirmPossibleDuplicate = true,
+        });
+
+    public Task<ReferralResponse?> FindReferralAsync(Guid id) => FindAsync<ReferralResponse>($"/api/referrals/{id}");
 
     private async Task<T> SendAsync<T>(string method, string url, object? body = null)
     {

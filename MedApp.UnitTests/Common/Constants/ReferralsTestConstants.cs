@@ -30,6 +30,19 @@ public static class ReferralsTestConstants
     public static readonly PathwayActor Viewer =
         new(Guid.Parse("0000007e-0000-0000-0000-000000000002"), "v.synthetic", new HashSet<Permission> { Permission.UseApp, Permission.ViewPatients });
 
+    /// <summary>A clinician: their roles grant TriageReferrals (the starting Clinician role), but not AssignPathways.</summary>
+    public static readonly PathwayActor Triager =
+        new(Guid.Parse("0000007e-0000-0000-0000-000000000003"), "c.synthetic", StandardRoles.Clinician.Permissions);
+
+    /// <summary>A clinician who can also assign staff to pathways.</summary>
+    public static readonly PathwayActor AssigningTriager =
+        new(Guid.Parse("0000007e-0000-0000-0000-000000000004"), "l.synthetic",
+            new HashSet<Permission>(StandardRoles.Clinician.Permissions) { Permission.AssignPathways });
+
+    /// <summary>Someone who can work on pathways, to assign.</summary>
+    public static readonly Guid AssigneeId = Guid.Parse("0000007e-0000-0000-0000-000000000005");
+    public const string AssigneeUsername = "n.synthetic";
+
     public static Referral CreateReferral(
         Patient? patient = null,
         Specialty? specialty = null,

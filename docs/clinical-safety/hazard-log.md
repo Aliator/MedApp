@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -73,8 +73,8 @@
 | [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-pathway) | A note from the notepad is added to the wrong patient's pathway | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
 | [H-38](#h-38-a-pathways-note-is-deleted-wrongly) | A pathway's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
 | [H-39](#h-39-a-visit-is-recorded-after-the-event-that-didnt-happen-or-on-the-wrong-patient) | A visit is recorded after the event that didn't happen, or on the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built (the patient shown, the 30-day limit, who recorded it)** | Open, draft for the CSO |
-| [H-40](#h-40-a-referral-is-lost-or-delayed-before-triage) | A referral is lost or delayed before triage | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built: `docs/centre-phase2-plan.md`) | Open, draft for the CSO |
-| [H-41](#h-41-a-referral-is-triaged-into-the-wrong-pathway-priority-or-patient) | A referral is triaged into the wrong pathway, priority or patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
+| [H-40](#h-40-a-referral-is-lost-or-delayed-before-triage) | A referral is lost or delayed before triage | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (the clock not built: `docs/centre-phase2-plan.md`) | Open, draft for the CSO |
+| [H-41](#h-41-a-referral-is-triaged-into-the-wrong-pathway-priority-or-patient) | A referral is triaged into the wrong pathway, priority or patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (built, to verify) | Open, draft for the CSO |
 | [H-42](#h-42-a-paused-waiting-time-clock-is-forgotten) | A paused waiting-time clock is forgotten | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
 | [H-43](#h-43-a-breach-of-a-waiting-time-target-goes-unnoticed-or-the-target-is-wrong) | A breach of a waiting-time target goes unnoticed, or the target is wrong | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
 | [H-44](#h-44-a-duplicate-referral-leads-to-two-pathways-for-one-need) | A duplicate referral leads to two pathways for one need | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, before first live use (not built) | Open, draft for the CSO |
@@ -115,7 +115,7 @@
 
 **Closed days and appointments recorded after the event (H-39)** (branch `feature/closed-days-walk-ins`): a new draft hazard, H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), estimated at 3 to start and 2 with its built controls; and closed days' and walk-ins' effect on H-31 to H-35's causes and controls. No earlier draft estimate changed.
 
-**Referrals, triage and the waiting-time clock (H-40 to H-44)** are drafts written from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), before anything was built, so the build includes their controls. **Referrals are built** (branch `feature/referrals`, PR 5): H-40, H-41 and H-44 now list the controls it built as existing ones, for the CSO to verify, and keep the rest (triage, PR 6; the clock, PR 7) as planned. H-42 and H-43 have no existing control yet. Draft estimates: four start at 3 (H-40 to H-43) and all come down to 2 at first live use once their planned controls are built. H-01 gains registering a referral on the wrong patient as a cause.
+**Referrals, triage and the waiting-time clock (H-40 to H-44)** are drafts written from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), before anything was built, so the build includes their controls. **Referrals and triage are built** (branches `feature/referrals`, PR 5, and `feature/triage`, PR 6): H-40, H-41 and H-44 now list the controls they built as existing ones, for the CSO to verify, and keep the rest (the clock, PR 7) as planned. H-42 and H-43 have no existing control yet. Draft estimates: four start at 3 (H-40 to H-43) and all come down to 2 at first live use once their planned controls are built. H-01 gains registering a referral on the wrong patient as a cause.
 
 **The centre's Phases 3 to 5 (H-45 to H-64)** are drafts written from the design of Phases 3, 4 and 5 of the community specialist centre (`docs/centre-phases-3-5-plan.md`), **before anything is built**, so each feature's PR builds their controls with it: H-45 to H-50 for specimens, results and letters (Phase 3), H-51 to H-57 for branching pathways, hours and clinics, reminders, scheduled jobs and retention classes (Phase 4), and H-58 to H-64 for the MDT list, consent, questionnaires, video appointments, NHS adapters, several organisations and malware scanning (Phase 5). None has an existing control. Draft estimates: 13 start at 3 (H-45, H-46, H-47, H-48, H-49, H-50, H-51, H-52, H-55, H-56, H-58, H-59 and H-62), and all come down to 2 or below at the feature's first live use, once its planned controls are built; no feature may be used with patients before then. H-01 gains the specimen label as a cause and a control.
 
@@ -136,7 +136,7 @@
 - Two pages can be open side by side (half views), and pathways can be pinned in the side navigation.
 - **A specimen labelled for the wrong patient** (planned, `docs/centre-phases-3-5-plan.md`, PR 13): the label is printed from the specimen's page, and a label stuck on another patient's pot sends their report to this patient's record (H-47).
 - The same causes can put a file on the wrong patient: H-23.
-- **A referral registered on the wrong patient** (built on branch `feature/referrals`, `docs/centre-phase2-plan.md`): the referral's patient is found by NHS number or name when it's registered, or added first (Add Patient, with the demographics lookup). Its controls are under H-41: built, the patient banner on the Register Referral page once the patient is chosen, on the referral page and in the withdraw and entered-in-error confirmations, and marking a wrong one entered in error with a detail; planned with triage (PR 6), the banner in every triage confirmation.
+- **A referral registered on the wrong patient** (built on branch `feature/referrals`, `docs/centre-phase2-plan.md`): the referral's patient is found by NHS number or name when it's registered, or added first (Add Patient, with the demographics lookup). Its controls are under H-41: built, the patient banner on the Register Referral page once the patient is chosen, on the referral page and in the withdraw and entered-in-error confirmations, and marking a wrong one entered in error with a detail; built with triage (PR 6), the banner in every triage confirmation.
 
 **Effect.** Notes are written on the wrong patient's pathway, or a stage is finished on it, and the other patient's pathway is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
@@ -1603,18 +1603,18 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Existing controls** (built on branch `feature/referrals`, Phase 2's PR 5; to be verified by the CSO):
 - **The inbox:** the Referrals page opens on every referral awaiting triage, **oldest received first**, each showing "received N days ago", and their count shows in the side navigation (`ReferralsListPage`, `AppSideNav`, `GET api/referrals/awaiting-triage/count`). Protective.
-- **No silent closing:** a referral leaves Awaiting triage only by a named person's recorded action. Today the only ways are withdrawing it and marking it entered in error, each needing a detail (500 characters) and a confirmation that shows the patient as the banner does; its history records who, when and the status, and the referral stays, closed (`ReferralWorkflow`, `ReferralChange`, `CloseReferralDialog`). Nothing closes one automatically. Protective.
+- **No silent closing:** a referral leaves Awaiting triage only by a named person's recorded action: a triage outcome (accepted into a pathway, rejected with a reason, redirected elsewhere with where to and a detail), withdrawing it or marking it entered in error (each with a detail). Every one has a confirmation that shows the patient as the banner does; its history records who, when and the outcome, and the referral stays (`ReferralWorkflow`, `ReferralChange`, the triage and close dialogs). Nothing closes one automatically. Protective.
+- **Triage** (branch `feature/triage`, PR 6): a clinician with the triage permission who belongs to the referral's specialty accepts, rejects or redirects it (`AcceptReferralHandler`, `RejectReferralHandler`, `RedirectReferralHandler`); a referral redirected to another specialty here stays awaiting triage, in that specialty's inbox, with the same date received. **Whoever registered it is told of every outcome** (`ReferralTriaged`, a fixed title and the outcome by name), so the booking team can tell the referrer. Protective.
+- **The Specialties page warns when nobody can triage a specialty:** each specialty says how many of its members hold the triage permission (`SpecialtyResponse.TriagerCount`), and the page names those with none, so an admin can give someone the role or the membership. Protective.
 - **Archiving a specialty with referrals awaiting triage is refused** (409, saying how many), so none is stranded in an archived specialty (`SpecialtyRules`). Protective.
 - **A restricted record:** registering is refused (409) with a message telling staff to give the referral letter to an admin now, so it isn't lost; for an anonymised record, to check the patient, then give the letter to an admin (`ReferralWorkflow.RestrictedRegisterMessage`, `AnonymisedRegisterMessage`). Restricting a patient counts their referrals awaiting triage, with their open pathways and appointments, and asks for confirmation (`ConfirmOpenPathways`). Information and protective.
 - **A wrong specialty can be corrected** by editing the referral while it awaits triage; the history records the old and new specialty. Corrective.
-- **Until triage is built (PR 6), nobody can triage a referral in MedApp:** the referral page says so ("Triage isn't available yet"). **Referrals mustn't be used with patients before triage and its controls are built and verified.**
+- **Someone who can't triage is told why** on the referral page (no permission, or not a member of its specialty: `ReferralWorkflow.WhyCantTriage`), and the server refuses them (403). Information.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
 **Further controls** (planned, Phase 2, before first live use unless marked):
-- **Triage outcomes** (accept, reject, redirect), each by a named triager with a reason where one applies, and the person who registered the referral told of every outcome (`ReferralTriaged`). Protective; planned (PR 6).
 - **The inbox's days waited and breach badge,** longest wait first, from the waiting-time clock (PR 7), and filtered to the viewer's specialties (PR 8). Detective; planned.
-- **The Specialties page warns** when no member of a specialty holds the triage permission. Protective; planned (PR 6).
 - **Transferred** (`dcb0160-deploying-organisations.md`):
   - a daily check of the inbox;
   - a procedure for referrals received when MedApp is unavailable;
@@ -1625,7 +1625,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Residual risk:** Draft: Major, Very low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO: registering, the inbox and its count, closing with a detail, the restricted message and the archiving guard are built; triage and the clock aren't.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: registering, the inbox and its count, triage with the registrant told, closing with a detail, the restricted message, the archiving guard and the Specialties page's warning are built; the clock isn't.
 
 ---
 
@@ -1648,21 +1648,24 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 - **The letter beside the referral:** its page shows the letter attached to it, or says plainly "No letter attached yet.", and the inbox has a Letter column. Protective.
 - **Two changes at once can't both succeed:** every edit and closing carries the version it started from, and the row version catches two saves at once (409, `ReferralWorkflow.ChangedMeanwhileMessage`). Protective.
 - **A referral on the wrong patient** is marked entered in error, with a detail, and stays in the record, closed. Corrective.
+- **Triage** (branch `feature/triage`, PR 6):
+  - **The patient as the patient banner shows them** in every triage confirmation (accept, reject, redirect), with the specialty and, for accepting, the template and priority chosen (`AcceptReferralDialog`, `RejectReferralDialog`, `RedirectReferralDialog`). Protective.
+  - **Choices kept narrow, nothing prefilled:** only the specialty's own templates are offered, by name and never ranked, and the server refuses another specialty's (400, `ReferralWorkflow.TemplateNotInSpecialtyMessage`); the priority, the template and the target date start empty and must be chosen, with the referrer's request shown beside the priority as text. Protective.
+  - **Only a clinician of the specialty decides:** the triage permission and membership of the referral's specialty, checked on the server (403). Protective.
+  - **Who decided, when and why** is recorded on the referral and in its history, and on the timeline; the pathway's Created audit entry names the referral, and the pathway page links back to it. Two decisions at once can't both succeed: the row version, and the second is told who decided and how (409, `ReferralWorkflow.AlreadyTriagedMessage`); an acceptance that loses leaves no pathway. Detective and protective.
+  - **The patient's other referrals** are listed on the referral page. Protective.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
-**Further controls** (planned, Phase 2's triage, PR 6, before first live use):
-- **The patient as the patient banner shows them** in every triage confirmation, with the specialty and the template chosen. Protective.
-- **Choices kept narrow:** only the specialty's own templates are offered, listed by name and never ranked. The priority must be chosen, with the referrer's request shown beside it. Protective.
-- **Who decided, when and why** is recorded in the referral's history and on the timeline. Two decisions at once can't both succeed (the row version; the second gets a 409 naming the first). Detective and protective.
-- **Correction:** a wrong acceptance is corrected by cancelling the pathway; the priority can be changed on the pathway, which moves its target. Corrective.
+**Further controls:**
+- **Correction:** a wrong acceptance is corrected by cancelling the pathway; the priority can be changed on the pathway. Corrective; available.
 - **Transferred:** positive patient identification, and clinical review of triage.
 
 **At first live use:** Draft: Major, Very low: **2**.
 
 **Residual risk:** Draft: Major, Very low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the triage controls are built (branch `feature/triage`), to be verified.
 
 ---
 
@@ -1749,19 +1752,19 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 **Existing controls** (built on branch `feature/referrals`; to be verified by the CSO):
 - **The duplicate check:** registering looks for the patient's open referrals to the same specialty (awaiting triage, or accepted with the pathway still open) and refuses (400) unless `ConfirmPossibleDuplicate` is set; the form shows each one inline (when it was received and its status, never its text) and asks for the confirmation (`RegisterReferralHandler`, `ReferralWorkflow.PossibleDuplicateMessage`). Protective.
 - **Correction:** a duplicate registered by mistake is marked entered in error, with a detail, after a confirmation showing the patient. Corrective.
+- **A Duplicate rejection reason** at triage (`ReferralRejectionReason.Duplicate`), and the referral page lists the patient's other referrals beside the decision (branch `feature/triage`). Protective.
 - **The patient page's Referrals card** lists the patient's referrals, so a second one is visible beside the first. Detective.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Significant, Medium: **2**.
 
 **Further controls** (planned, Phase 2's triage, PR 6, before first live use):
-- **A Duplicate rejection reason** at triage (the value exists, `ReferralRejectionReason.Duplicate`, but nothing uses it yet), and the triage page shows the patient's other referrals. Protective.
 - **Two people registering the same letter at the same moment** both pass the check, which reads before either saves; the second shows on the patient's Referrals card and is corrected as entered in error, or rejected as a duplicate at triage. Accepted.
 
 **At first live use:** Draft: Significant, Low: **2**.
 
 **Residual risk:** Draft: Significant, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO: the duplicate check and its confirmation are built; the Duplicate rejection reason comes with triage.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the duplicate check and its confirmation, and the Duplicate rejection reason at triage, are built.
 
 ---
 
@@ -2469,3 +2472,4 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 | 0.17 | 18 November 2026 | Referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), before they're built: new draft hazards H-40 (a referral lost or delayed before triage), H-41 (triaged into the wrong pathway, priority or patient), H-42 (a paused clock forgotten), H-43 (a breach unnoticed, or a wrong target) and H-44 (a duplicate referral), each with its planned controls and draft estimates; H-01 gains a referral registered on the wrong patient as a cause. No earlier draft estimate changed | AI coding agent, for review |
 | 0.18 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`; its safety PRs 11, 18 and 29 combined), before they're built: new draft hazards H-45 to H-50 (specimens, results and letters), H-51 to H-57 (branches and skipped stages, hours and clinics, reminders, missed appointments, scheduled jobs, retention classes) and H-58 to H-64 (MDT outcomes, consent, questionnaires, video links, NHS adapters, several organisations, files awaiting a scan), each with the plan's controls named by feature and PR, and draft estimates; H-01 gains the specimen label as a cause and a control; two more hazards considered and designed out (a lab value or score read by MedApp, a branch chosen by it). No earlier draft estimate changed | AI coding agent, for review |
 | 0.19 | 18 November 2026 | Referrals built (branch `feature/referrals`, Phase 2's PR 5): H-40's built controls (the inbox, oldest received first, with its count in the side navigation; no closing without a named person's action and a detail; the restricted and anonymised messages telling staff to give the letter to an admin; archiving a specialty refused while referrals await triage; correcting the specialty by editing), and a note that referrals mustn't be used with patients before triage is built; H-41's (the patient banner on the referral pages and the closing confirmations, the letter beside the referral or "No letter attached yet.", two changes at once refused); H-44's (the duplicate check and its confirmation, entered in error, the patient's Referrals card); H-01's cause marked built. Still planned: triage, its confirmations and the `Duplicate` rejection reason (PR 6), the Specialties page's warning when nobody can triage (PR 6), the clock's days waited and breach badge (PR 7), and the DCB0160 duties. No draft estimate changed | AI coding agent, for review |
+| 0.20 | 18 November 2026 | Triage built (branch `feature/triage`, Phase 2's PR 6): H-40's controls now include triage with the registrant told of every outcome (`ReferralTriaged`), the Specialties page's warning when no member can triage a specialty, and the referral page saying why someone can't triage; "nobody can triage yet" removed. H-41's planned triage controls are built (the banner, specialty and template in every confirmation; only the specialty's templates, refused otherwise; nothing prefilled; the permission and membership checked on the server; who decided recorded, with the pathway's Created entry naming the referral; two decisions at once refused, the second told who; the patient's other referrals beside the decision). H-44's Duplicate rejection reason is built. No draft estimate changed | AI coding agent, for review |

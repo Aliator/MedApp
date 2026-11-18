@@ -1,4 +1,4 @@
-import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 
 export type PathwaySummary = Schemas['PatientPathwaySummaryResponse'];
@@ -76,6 +76,14 @@ export function patientPathwayCountQuery(patientId: string) {
 
 const PATHWAY = '/api/pathways/patient-pathways/{id}';
 
+/**
+ * Puts a pathway a change returned into the cache. Only the pathway's own GET (and accepting a referral) fill its
+ * `referral`, the referral it was accepted from; the other responses leave it out, so the cached one is kept.
+ */
+function cachePathway(queryClient: QueryClient, id: string, pathway: Pathway) {
+  queryClient.setQueryData(pathwayQuery(id).queryKey, (cached) => ({...pathway, referral: pathway.referral ?? cached?.referral}));
+}
+
 /** Finishing a stage that involves a visit without an attended one: `withoutVisit`, and an admin's reason. */
 export type FinishStageRequest = Schemas['FinishPathwayStageRequest'];
 
@@ -87,7 +95,7 @@ export type FinishStageRequest = Schemas['FinishPathwayStageRequest'];
 export function usePathwayActions(id: string) {
   const queryClient = useQueryClient();
   const onSuccess = async (pathway: Pathway) => {
-    queryClient.setQueryData(pathwayQuery(id).queryKey, pathway);
+    cachePathway(queryClient, id, pathway);
     await queryClient.invalidateQueries({queryKey: ['pathways', 'search']});
     await queryClient.invalidateQueries({queryKey: pathwayKeys.timelines});
     // Finishing a stage, or cancelling the pathway, cancels Requested visits and can request the next stage's.
@@ -187,7 +195,7 @@ export function useUpdatePathway(id: string) {
     mutationFn: (input: PathwayDetailsInput) =>
       unwrap(api.PATCH(PATHWAY, {params: {path: {id}}, body: input})),
     onSuccess: async (pathway) => {
-      queryClient.setQueryData(pathwayQuery(id).queryKey, pathway);
+      cachePathway(queryClient, id, pathway);
       await queryClient.invalidateQueries({queryKey: ['pathways', 'search']});
       await queryClient.invalidateQueries({queryKey: pathwayKeys.timelines});
     },

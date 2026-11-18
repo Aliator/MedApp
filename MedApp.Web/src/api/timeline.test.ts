@@ -382,9 +382,39 @@ describe('referral entries', () => {
   });
 
   it('words a referral change it does not know yet by the status after it', () => {
-    expect(describeTimelineEntry(referralEntry({action: 'ReferralAccepted', toStatus: 'Accepted', specialtyName: null}))).toEqual({
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralPaused', toStatus: 'AwaitingTriage', specialtyName: null}))).toEqual({
       title: 'Referral changed',
-      detail: 'Now accepted',
+      detail: 'Now awaiting triage',
+    });
+  });
+
+  it('words triage: the template, priority and reason to staff; the detail and where else only to admins', () => {
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralAccepted', templateName: 'Skin check', priority: 'High'}))).toEqual({
+      title: 'Referral to Dermatology accepted',
+      detail: 'Pathway from Skin check, high priority',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralRejected', rejectionReason: 'Duplicate'}))).toEqual({
+      title: 'Referral to Dermatology rejected',
+      detail: 'Duplicate',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralRejected', rejectionReason: 'Other', reason: 'Seen privately'}))).toEqual({
+      title: 'Referral to Dermatology rejected',
+      detail: 'Other. Seen privately',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralRedirectedElsewhere'}))).toEqual({
+      title: 'Referral to Dermatology redirected elsewhere',
+      detail: '',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralRedirectedElsewhere', redirectedTo: 'Synthetic Service', reason: 'Closer'}))).toEqual({
+      title: 'Referral to Dermatology redirected elsewhere',
+      detail: 'To Synthetic Service. Closer',
+    });
+    expect(
+      describeTimelineEntry(referralEntry({action: 'ReferralSpecialtyChanged', previousSpecialtyName: 'Urology', specialtyName: 'Dermatology'})),
+    ).toEqual({title: 'Referral redirected to another specialty', detail: 'Specialty Urology → Dermatology'});
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralSpecialtyChanged', specialtyName: null, reason: 'Wrong clinic'}))).toEqual({
+      title: 'Referral redirected to another specialty',
+      detail: 'Wrong clinic',
     });
   });
 

@@ -279,6 +279,7 @@ describe('PatientExportPage', () => {
           rejectionReason: 'Duplicate',
           decisionDetail: 'Already referred.',
           redirectedTo: 'Another provider',
+          redirectDetail: 'Synthetic: sent on from Urology.',
           pathwayId,
         },
         {id: 'b', specialtyName: 'Urology', receivedOn: null, referrerPractice: '', requestedPriority: 'Low', reason: null, status: 'AwaitingTriage', registeredBy: 'k.ashford'},
@@ -298,7 +299,8 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('Synthetic Street Surgery')).toBeInTheDocument();
     expect(screen.getByText('A12345')).toBeInTheDocument();
     expect(screen.getByText('Reason for referral: A synthetic rash.')).toBeInTheDocument();
-    expect(screen.getByText('A duplicate')).toBeInTheDocument();
+    expect(screen.getByText('Duplicate')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: sent on from Urology.')).toBeInTheDocument();
     expect(screen.getByText('Already referred.')).toBeInTheDocument();
     expect(screen.getByText('Another provider')).toBeInTheDocument();
     expect(screen.getByText('Not yet')).toBeInTheDocument();
