@@ -26,6 +26,9 @@ public sealed class ReferralResponse
 
     public DateOnly ReceivedOn { get; set; }
 
+    /// <summary>The referring practice in the directory, if staff chose one; null for none.</summary>
+    public Guid? PracticeId { get; set; }
+
     public string ReferrerPractice { get; set; } = string.Empty;
 
     public string? ReferrerClinician { get; set; }

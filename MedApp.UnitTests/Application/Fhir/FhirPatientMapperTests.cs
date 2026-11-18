@@ -43,6 +43,69 @@ public sealed class FhirPatientMapperTests
     }
 
     [Test]
+    public void ToResource_ContactDetailsAndPractice_AreInUkCoresShape()
+    {
+        var practice = PracticesTestConstants.CreatePractice();
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.AddressLines = $"{PracticesTestConstants.AddressLine1}\n{PracticesTestConstants.AddressLine2}";
+        patient.Postcode = PracticesTestConstants.Postcode;
+        patient.MobilePhone = PracticesTestConstants.Mobile;
+        patient.PracticeId = practice.Id;
+
+        var resource = FhirPatientMapper.ToResource(patient, practice);
+
+        resource.Address.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Use = "home",
+            Line = new[] { PracticesTestConstants.AddressLine1, PracticesTestConstants.AddressLine2 },
+            PostalCode = PracticesTestConstants.Postcode
+        });
+        resource.Telecom.Should().BeEquivalentTo(new object[]
+        {
+            new { System = "phone", Value = PracticesTestConstants.Mobile, Use = "mobile" },
+            new { System = "email", Value = patient.Email, Use = (string?)null }
+        }, options => options.WithStrictOrdering());
+        resource.GeneralPractitioner.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Type = "Organization",
+            Identifier = new { System = FhirPatientMapper.OdsOrganisationCodeSystem, Value = PracticesTestConstants.OdsCode },
+            Display = PracticesTestConstants.PracticeName
+        });
+    }
+
+    [Test]
+    public void ToResource_PostcodeOnly_PracticeWithoutACode_OrAnotherPractice()
+    {
+        var practice = PracticesTestConstants.CreatePractice(odsCode: null);
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.Postcode = PracticesTestConstants.Postcode;
+        patient.PracticeId = practice.Id;
+
+        var resource = FhirPatientMapper.ToResource(patient, practice);
+
+        resource.Address.Should().ContainSingle().Which.Line.Should().BeNull();
+        resource.GeneralPractitioner.Should().ContainSingle().Which.Identifier.Should().BeNull();
+        FhirPatientMapper.ToResource(patient, PracticesTestConstants.CreatePractice()).GeneralPractitioner.Should().BeNull();
+        FhirPatientMapper.ToResource(patient).GeneralPractitioner.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResource_Anonymised_GivesNoContactDetailsOrPractice()
+    {
+        var practice = PracticesTestConstants.CreatePractice();
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.Postcode = PracticesTestConstants.Postcode;
+        patient.PracticeId = practice.Id;
+        patient.AnonymisedAtUtc = PracticesTestConstants.NowUtc;
+
+        var resource = FhirPatientMapper.ToResource(patient, practice);
+
+        resource.Address.Should().BeNull();
+        resource.Telecom.Should().BeNull();
+        resource.GeneralPractitioner.Should().BeNull();
+    }
+
+    [Test]
     public void ToResource_NoNumberOrEmail_LeavesThemOut()
     {
         var patient = PatientsTestConstants.CreateValidPatient();

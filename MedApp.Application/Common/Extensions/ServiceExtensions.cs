@@ -1,3 +1,4 @@
+using MedApp.Application.Practices.Common;
 using System.Reflection;
 using FluentValidation;
 using MedApp.Application.Activity.Common;
@@ -59,6 +60,8 @@ public static class ServiceExtensions
         services.AddScoped<IActivityLog, ActivityLog>();
         services.AddOptions<ActivityOptions>();
         services.AddOptions<RetentionOptions>();
+        // Which email domains a practice's secure address may be in (the host binds it, the Letters section).
+        services.AddOptions<LettersOptions>();
         // How long a notepad is kept without a change (the host binds it, the Notepad section).
         services.AddOptions<NotepadOptions>();
 

@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
@@ -18,10 +18,12 @@ using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
 using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
@@ -459,6 +461,40 @@ public sealed class AuthController(
     [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMySpecialties(CancellationToken ct) =>
         Ok(await mediator.Send(new GetMySpecialtiesQuery(User.GetUserId()), ct));
+
+    /// <summary>The signed-in user's full name and job title, as they go on letters.</summary>
+    [HttpGet("me/details")]
+    [Tags("Settings")]
+    [RequirePermission(Permission.UseApp)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyDetails(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetStaffDetailsQuery(User.Identity?.Name ?? string.Empty), ct));
+
+    /// <summary>
+    /// Sets the signed-in user's full name and job title (each at most 100 characters; empty removes one), recorded in
+    /// the activity log by field name. Returns them as they are now.
+    /// </summary>
+    [HttpPut("me/details")]
+    [Tags("Settings")]
+    [RequirePermission(Permission.UseApp)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetMyDetails(StaffDetailsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(
+            new SetStaffDetailsCommand(User.Identity?.Name ?? string.Empty, request.FullName, request.JobTitle), ct));
+
+    /// <summary>
+    /// Sets someone's full name and job title (each at most 100 characters; empty removes one), recorded in the activity
+    /// log by field name, with the account as its target. An unknown account is a 404.
+    /// </summary>
+    [HttpPut("users/{username}/details")]
+    [Tags("Authentication")]
+    [RequirePermission(Permission.ManageUsers)]
+    [ProducesResponseType(typeof(StaffDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetUserDetails(string username, StaffDetailsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetStaffDetailsCommand(username, request.FullName, request.JobTitle), ct));
 
     [HttpGet("whoami")]
     [Tags("Login")]

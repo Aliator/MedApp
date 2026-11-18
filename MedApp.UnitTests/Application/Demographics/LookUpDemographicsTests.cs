@@ -35,6 +35,9 @@ public sealed class LookUpDemographicsTests
             FirstName = "Ada",
             LastName = "Synthetic",
             DateOfBirth = new DateOnly(1980, 5, 17),
+            AddressLines = new[] { "1 Imaginary Lane", "Fictionton" },
+            Postcode = "ZZ1 1AA",
+            MobilePhone = "+447700900001",
             Source = OfflinePersonalDemographicsService.SourceName
         });
         var entry = _activity.Recorded.Should().ContainSingle().Subject;
@@ -94,6 +97,11 @@ public sealed class LookUpDemographicsTests
         {
             p.NhsNumber.Should().StartWith("999");
             MedApp.Domain.Patients.NhsNumbers.IsValid(p.NhsNumber).Should().BeTrue();
+            // Synthetic contact details: the ZZ postcode area doesn't exist, and 07700 900xxx is Ofcom's range for drama.
+            if (p.Postcode is not null)
+                p.Postcode.Should().StartWith("ZZ").And.Match(code => MedApp.Domain.Contacts.UkPostcodes.IsValidOrEmpty(code));
+            if (p.MobilePhone is not null)
+                p.MobilePhone.Should().StartWith("+447700900");
         });
     }
 

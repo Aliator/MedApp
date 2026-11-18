@@ -49,7 +49,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ConfirmPossibleDuplicate,
-            User.ToPathwayActor()), ct);
+            User.ToPathwayActor(),
+            request.PracticeId), ct);
 
         return Created($"/api/referrals/{referral.Id}", referral);
     }
@@ -108,7 +109,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ExpectedVersion,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(),
+            request.PracticeId), ct));
 
     /// <summary>Withdraws a referral awaiting triage (the referrer or the patient withdrew it), with a detail.</summary>
     [HttpPost("{id:guid}/withdraw")]

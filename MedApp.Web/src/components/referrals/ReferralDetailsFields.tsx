@@ -5,6 +5,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {fieldStatus, type ValidationErrors} from '../../api/errors';
 import {MAX_REASON, REFERRAL_PRIORITIES, type ReferralDetailsInput} from '../../api/referrals';
+import {practiceChoices, practiceLabel, practicesQuery} from '../../api/practices';
 import {specialtiesQuery} from '../../api/specialties';
 import {ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import {AnchoredSelector} from '../forms/AnchoredSelector';
@@ -15,6 +16,7 @@ import {FormSection} from '../forms/FormSection';
 export const REFERRAL_DETAILS_FIELDS: (keyof ReferralDetailsInput)[] = [
   'specialtyId',
   'receivedOn',
+  'practiceId',
   'referrerPractice',
   'referrerClinician',
   'referrerOdsCode',
@@ -32,10 +34,14 @@ export function aYearBefore(day: string): string {
   return new Date(Date.UTC(year - 1, month - 1, date)).toISOString().slice(0, 10);
 }
 
+/** The directory picker's value for "no practice from the directory": the practice is only as typed. */
+export const NO_DIRECTORY_PRACTICE = 'none';
+
 /** A new referral's details: received today, Medium priority asked for, the rest blank. */
 export const emptyReferralDetails = (today: string = ukToday()): ReferralDetailsInput => ({
   specialtyId: '',
   receivedOn: today,
+  practiceId: '',
   referrerPractice: '',
   referrerClinician: '',
   referrerOdsCode: '',
@@ -61,6 +67,10 @@ export interface ReferralDetailsFieldsProps {
  * specialty asked for (not archived), when it was received (a UK date: not in the future, at most a year back), the
  * referring practice, clinician and the practice's ODS code, the priority the referrer asked for, and the reason for
  * referral. The server checks them all; its 400 shows on the fields.
+ *
+ * The referring practice can be chosen from the GP practice directory (those not archived, and the one the referral
+ * already has, even if archived since): choosing one fills the practice and ODS code fields, which stay editable, as
+ * the letter's own words are kept as typed. Choosing "None" leaves them as they are.
  */
 export function ReferralDetailsFields({value, onChange, errors, isDisabled = false, currentSpecialty}: ReferralDetailsFieldsProps) {
   const set = <K extends keyof ReferralDetailsInput>(key: K, next: ReferralDetailsInput[K]) => onChange({...value, [key]: next});
@@ -69,6 +79,20 @@ export function ReferralDetailsFields({value, onChange, errors, isDisabled = fal
   if (currentSpecialty && !options.some((o) => o.value === currentSpecialty.id))
     options.push({value: currentSpecialty.id, label: `${currentSpecialty.name} (archived)`});
   const today = ukToday();
+  // Archived ones too, so a referral that already has one archived since still shows it.
+  const practices = useQuery(practicesQuery(true));
+  const practiceOptions = [
+    {value: NO_DIRECTORY_PRACTICE, label: 'None (as typed below)'},
+    ...practiceChoices(practices.data ?? [], value.practiceId).map((p) => ({value: p.id ?? '', label: practiceLabel(p)})),
+  ];
+  const choosePractice = (id: string) => {
+    const practice = practices.data?.find((p) => p.id === id);
+    if (!practice) {
+      onChange({...value, practiceId: ''});
+      return;
+    }
+    onChange({...value, practiceId: id, referrerPractice: practice.name ?? '', referrerOdsCode: practice.odsCode ?? ''});
+  };
 
   return (
     <>
@@ -107,6 +131,16 @@ export function ReferralDetailsFields({value, onChange, errors, isDisabled = fal
         />
       </FormSection>
       <FormSection title="Referrer">
+        <AnchoredSelector
+          label="Practice from the directory"
+          description="Fills in the practice and ODS code, which you can still change."
+          options={practiceOptions}
+          value={value.practiceId || NO_DIRECTORY_PRACTICE}
+          onChange={choosePractice}
+          isOptional
+          isDisabled={isDisabled}
+          status={fieldStatus(errors, 'practiceId')}
+        />
         <TextInput
           label="Practice"
           description="The referring practice or organisation, as on the letter."

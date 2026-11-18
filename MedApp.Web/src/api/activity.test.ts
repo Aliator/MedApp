@@ -97,6 +97,17 @@ describe('describeActivity', () => {
     expect(ACCOUNT_ACTIONS).toContain('StaffSpecialtiesChanged');
   });
 
+  it("gives which of a member of staff's details for letters changed, never their values, as an account change", () => {
+    expect(activityActionLabel('StaffDetailsChanged')).toBe('Staff details changed');
+    expect(describe_('StaffDetailsChanged', {fields: ['fullName', 'jobTitle']})).toBe('Changed full name, job title');
+    expect(describe_('StaffDetailsChanged', {})).toBe('');
+    expect(ACCOUNT_ACTIONS).toContain('StaffDetailsChanged');
+  });
+
+  it("names a patient's contact details and GP practice among the fields edited", () => {
+    expect(describe_('PatientUpdated', {fields: ['addressLines', 'postcode', 'mobilePhone', 'practice']})).toBe('Changed address, postcode, mobile, GP practice');
+  });
+
   it('gives a retention decision: until when, and why', () => {
     expect(describe_('RetentionKept', {keepUntil: '2027-11-16', reason: 'Legal hold'})).toBe('Until 16 Nov 2027: Legal hold');
     expect(describe_('RetentionKept', {reason: 'Legal hold'})).toBe('Legal hold');

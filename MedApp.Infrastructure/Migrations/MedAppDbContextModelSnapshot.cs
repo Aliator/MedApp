@@ -1566,6 +1566,10 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AddressLines")
+                        .HasMaxLength(302)
+                        .HasColumnType("nvarchar(302)");
+
                     b.Property<DateTime?>("AnonymisedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1600,10 +1604,26 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("MobilePhone")
+                        .HasMaxLength(13)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(13)");
+
                     b.Property<string>("NhsNumber")
                         .HasMaxLength(10)
                         .IsUnicode(false)
                         .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Postcode")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<Guid?>("PracticeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ReminderChannel")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("RestrictedAtUtc")
                         .HasColumnType("datetime2");
@@ -1631,7 +1651,69 @@ namespace MedApp.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[NhsNumber] IS NOT NULL");
 
+                    b.HasIndex("PracticeId");
+
                     b.ToTable("Patients", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Practices.Practice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AddressLines")
+                        .HasMaxLength(302)
+                        .HasColumnType("nvarchar(302)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OdsCode")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Postcode")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<string>("SecureEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("OdsCode")
+                        .IsUnique()
+                        .HasFilter("[OdsCode] IS NOT NULL");
+
+                    b.ToTable("Practices", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Referrals.Referral", b =>
@@ -1661,6 +1743,9 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PracticeId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Reason")
@@ -1728,6 +1813,8 @@ namespace MedApp.Infrastructure.Migrations
                         .HasFilter("[PathwayId] IS NOT NULL");
 
                     b.HasIndex("PatientId");
+
+                    b.HasIndex("PracticeId");
 
                     b.HasIndex("SpecialtyId");
 
@@ -1992,6 +2079,14 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("FullName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
@@ -2430,6 +2525,14 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("StageDefinition");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Patients.Patient", b =>
+                {
+                    b.HasOne("MedApp.Domain.Practices.Practice", null)
+                        .WithMany()
+                        .HasForeignKey("PracticeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Referrals.Referral", b =>
                 {
                     b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
@@ -2442,6 +2545,11 @@ namespace MedApp.Infrastructure.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Practices.Practice", null)
+                        .WithMany()
+                        .HasForeignKey("PracticeId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
                         .WithMany()

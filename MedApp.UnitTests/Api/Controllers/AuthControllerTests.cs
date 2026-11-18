@@ -24,10 +24,12 @@ using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetStaffDetails;
 using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
@@ -666,6 +668,52 @@ public sealed class AuthControllerTests
 
         (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn("User"))).Should().BeTrue();
         (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn())).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task GetMyDetails_AsksForTheSignedInUsers()
+    {
+        var details = new StaffDetailsResponse { FullName = "Sam Synthetic", JobTitle = "Nurse" };
+        var mediator = new RecordingMediator(_ => details);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).GetMyDetails(cts.Token);
+
+        mediator.Request.Should().Be(new GetStaffDetailsQuery(Username));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+    }
+
+    [Test]
+    public async Task SetMyDetails_SetsTheSignedInUsers_AndSetUserDetails_TheNamedAccounts()
+    {
+        var details = new StaffDetailsResponse { FullName = "Sam Synthetic" };
+        var request = new StaffDetailsRequest { FullName = "Sam Synthetic", JobTitle = null };
+        using var cts = new CancellationTokenSource();
+
+        var mine = new RecordingMediator(_ => details);
+        var mineResult = await Controller(mine).SetMyDetails(request, cts.Token);
+        var theirs = new RecordingMediator(_ => details);
+        var theirsResult = await Controller(theirs).SetUserDetails(OtherUsername, request, cts.Token);
+
+        mine.Request.Should().Be(new SetStaffDetailsCommand(Username, "Sam Synthetic", null));
+        theirs.Request.Should().Be(new SetStaffDetailsCommand(OtherUsername, "Sam Synthetic", null));
+        mine.Tokens.Single().Should().Be(cts.Token);
+        mineResult.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+        theirsResult.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(details);
+    }
+
+    [Test]
+    public async Task StaffDetails_AnyoneSetsTheirOwn_ManageUsersSetsAnyones()
+    {
+        foreach (var action in new[] { nameof(AuthController.GetMyDetails), nameof(AuthController.SetMyDetails) })
+        {
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("User"))).Should().BeTrue(action);
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn())).Should().BeFalse(action);
+        }
+
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.SetUserDetails), SignedIn("User"))).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.SetUserDetails), SignedIn("Admin"))).Should().BeTrue();
     }
 
     [Test]

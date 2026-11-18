@@ -117,5 +117,13 @@ public enum ActivityAction
     StaffSpecialtiesChanged = 42,
 
     /// <summary>Someone opened a referral's page: the referral's ID in its details.</summary>
-    ReferralViewed = 43
+    ReferralViewed = 43,
+
+    // 44 to 47 are kept for the Phase 3 views (specimens, results, letters: docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// Someone's full name or job title was changed, by themselves or by an admin: the names of the fields changed, never
+    /// their values.
+    /// </summary>
+    StaffDetailsChanged = 48
 }

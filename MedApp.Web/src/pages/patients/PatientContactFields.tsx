@@ -1,0 +1,132 @@
+import type {InputStatus} from '@astryxdesign/core/Field';
+import {TextInput} from '@astryxdesign/core/TextInput';
+import {useQuery} from '@tanstack/react-query';
+import {useState} from 'react';
+import {fieldStatus, type ValidationErrors} from '../../api/errors';
+import type {PatientInput} from '../../api/patients';
+import {practiceAddress, practiceChoices, practiceLabel, practicesQuery, type Practice, type PracticeSummary} from '../../api/practices';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
+import {isValidMobile, isValidPostcode} from '../../utils/contactDetails';
+import type {PatientFormUpdate} from './PatientFormFields';
+
+export const CONTACT_MESSAGES = {
+  postcode: 'Enter a UK postcode, such as ZZ1 1ZZ.',
+  mobilePhone: 'Enter a UK mobile number: 07 and nine more digits, or +44 7.',
+} as const;
+
+/**
+ * What's wrong with the form's postcode and mobile, if anything, as the API would say it (it checks both too, and its
+ * word is final): each is optional, so blank is fine. Null when both are fine; otherwise errors keyed by field, so a
+ * page can show them on their fields before sending anything.
+ */
+export function contactProblems(input: Pick<PatientInput, 'postcode' | 'mobilePhone'>): ValidationErrors | null {
+  const fields: Record<string, string[]> = {};
+  if (input.postcode.trim() && !isValidPostcode(input.postcode)) fields.postcode = [CONTACT_MESSAGES.postcode];
+  if (input.mobilePhone.trim() && !isValidMobile(input.mobilePhone)) fields.mobilePhone = [CONTACT_MESSAGES.mobilePhone];
+  return Object.keys(fields).length > 0 ? {title: 'Check the contact details.', fields, general: []} : null;
+}
+
+interface FieldsProps {
+  value: PatientInput;
+  onChange: (update: PatientFormUpdate) => void;
+  /** A 400's errors (or `contactProblems`'), shown on their fields. */
+  errors?: ValidationErrors | null;
+  isDisabled?: boolean;
+}
+
+/**
+ * A patient's mobile and postal address (three lines and a postcode), all optional, inside the patient form's Contact
+ * Information. The mobile and postcode are checked once the person leaves the field (`contactProblems`), so a mistyped
+ * one shows before saving; the server's own error, after a save, wins.
+ */
+export function PatientContactFields({value, onChange, errors, isDisabled = false}: FieldsProps) {
+  // Which fields the person has left, so a half-typed value isn't called wrong while they type.
+  const [left, setLeft] = useState<{postcode?: boolean; mobilePhone?: boolean}>({});
+  const own = contactProblems(value);
+  const status = (field: 'postcode' | 'mobilePhone'): InputStatus | undefined =>
+    fieldStatus(errors, field) ?? (left[field] ? fieldStatus(own, field) : undefined);
+  const set = <K extends 'postcode' | 'mobilePhone'>(key: K, next: string) => {
+    setLeft((current) => ({...current, [key]: false}));
+    onChange((current) => ({...current, [key]: next}));
+  };
+  const setLine = (index: number, next: string) =>
+    onChange((current) => {
+      const addressLines: PatientInput['addressLines'] = [...current.addressLines];
+      addressLines[index] = next;
+      return {...current, addressLines};
+    });
+
+  return (
+    <>
+      <TextInput
+        label="Mobile"
+        description="A UK mobile, e.g. 07700 900123."
+        type="tel"
+        inputMode="tel"
+        value={value.mobilePhone}
+        onChange={(next) => set('mobilePhone', next)}
+        onBlur={() => setLeft((current) => ({...current, mobilePhone: true}))}
+        autoComplete="off"
+        isOptional
+        isDisabled={isDisabled}
+        status={status('mobilePhone')}
+      />
+      {([0, 1, 2] as const).map((index) => (
+        <TextInput
+          key={index}
+          label={`Address line ${index + 1}`}
+          value={value.addressLines[index]}
+          onChange={(next) => setLine(index, next)}
+          autoComplete="off"
+          isOptional
+          isDisabled={isDisabled}
+          // The API names the lines as one field.
+          status={index === 0 ? fieldStatus(errors, 'addressLines') : undefined}
+        />
+      ))}
+      <TextInput
+        label="Postcode"
+        value={value.postcode}
+        onChange={(next) => set('postcode', next)}
+        onBlur={() => setLeft((current) => ({...current, postcode: true}))}
+        autoComplete="off"
+        hasAutoCorrect={false}
+        hasSpellCheck={false}
+        isOptional
+        isDisabled={isDisabled}
+        status={status('postcode')}
+      />
+    </>
+  );
+}
+
+/** The picker's value for no practice. */
+const NO_PRACTICE = 'none';
+
+/**
+ * The GP practice a patient is registered with, chosen from the directory (`/practices`): "None", then every practice
+ * not archived, by name. The one the patient has now (`currentPractice`) is offered even if it's archived since, marked
+ * so: they keep it, but no one can newly choose it. The chosen practice's address shows under the picker.
+ */
+export function PatientPracticeField({value, onChange, errors, isDisabled = false, currentPractice}: FieldsProps & {currentPractice?: PracticeSummary | null}) {
+  const practices = useQuery(practicesQuery(true));
+  const listed: Practice[] = [...(practices.data ?? [])];
+  if (currentPractice?.id && !listed.some((p) => p.id === currentPractice.id)) listed.push(currentPractice);
+  // The patient's own practice stays on offer while the form is open, so choosing another can be undone.
+  const choices = practiceChoices(listed, currentPractice?.id || value.practiceId);
+  const chosen = choices.find((p) => p.id === value.practiceId);
+
+  return (
+    <AnchoredSelector
+      label="Practice"
+      description={chosen ? practiceAddress(chosen) || 'No address in the directory.' : 'From the GP practice directory.'}
+      placeholder={practices.isPending ? 'Loading practices...' : undefined}
+      options={[{value: NO_PRACTICE, label: 'None'}, ...choices.map((p) => ({value: p.id ?? '', label: practiceLabel(p)}))]}
+      value={value.practiceId || NO_PRACTICE}
+      onChange={(next: string) => onChange((current) => ({...current, practiceId: next === NO_PRACTICE ? '' : next}))}
+      isOptional
+      isDisabled={isDisabled}
+      status={fieldStatus(errors, 'practiceId')}
+    />
+  );
+}

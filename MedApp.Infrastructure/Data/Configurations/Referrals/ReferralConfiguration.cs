@@ -1,3 +1,4 @@
+using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -65,6 +66,12 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
             .WithMany()
             .HasForeignKey(x => x.PathwayId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // The referring practice from the directory, if staff chose one: one any referral has is archived, never deleted.
+        builder.HasOne<Practice>()
+            .WithMany()
+            .HasForeignKey(x => x.PracticeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One referral per pathway.
         builder.HasIndex(x => x.PathwayId)

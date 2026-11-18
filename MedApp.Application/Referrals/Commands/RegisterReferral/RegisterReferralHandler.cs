@@ -3,6 +3,8 @@ using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Practices.Common;
+using MedApp.Application.Practices.Repositories;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Application.Specialties.Common;
@@ -16,13 +18,15 @@ namespace MedApp.Application.Referrals.Commands.RegisterReferral;
 /// <summary>
 /// Registers a referral. In order: the patient exists (404) and their record can change (409, saying to give the letter
 /// to an admin: hazard H-40); the specialty exists (404) and isn't archived (409); unless confirmed, the patient has no
-/// open referral to it (a 400 saying when those were received: hazard H-44). The referral and its Registered entry are
+/// open referral to it (a 400 saying when those were received: hazard H-44). A practice from the directory must exist
+/// (404) and not be archived (409); an empty typed practice or ODS code takes the directory's. The referral and its Registered entry are
 /// saved together; the change is recorded in its history, not the activity log, so it isn't written twice.
 /// </summary>
 public sealed class RegisterReferralHandler(
     IReferralRepository repository,
     IPatientRepository patients,
     ISpecialtyRepository specialties,
+    IPracticeRepository practices,
     TimeProvider timeProvider)
     : IRequestHandler<RegisterReferralCommand, ReferralResponse>
 {
@@ -51,14 +55,19 @@ public sealed class RegisterReferralHandler(
                 ]);
         }
 
+        var practice = request.PracticeId is { } practiceId
+            ? await PracticeRules.CheckChosenAsync(practices, practiceId, null, cancellationToken)
+            : null;
+
         var details = ReferralDetails.From(
             specialty.Id,
             request.ReceivedOn,
-            request.ReferrerPractice,
+            ReferralPractices.TypedOrDirectoryName(request.ReferrerPractice, practice),
             request.ReferrerClinician,
-            request.ReferrerOdsCode,
+            ReferralPractices.TypedOrDirectoryOdsCode(request.ReferrerOdsCode, practice),
             request.RequestedPriority,
-            request.Reason);
+            request.Reason,
+            practice?.Id);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
         var referral = new Referral
@@ -70,6 +79,7 @@ public sealed class RegisterReferralHandler(
             ReferrerPractice = details.ReferrerPractice,
             ReferrerClinician = details.ReferrerClinician,
             ReferrerOdsCode = details.ReferrerOdsCode,
+            PracticeId = details.PracticeId,
             RequestedPriority = details.RequestedPriority,
             Reason = details.Reason,
             Status = ReferralStatus.AwaitingTriage,

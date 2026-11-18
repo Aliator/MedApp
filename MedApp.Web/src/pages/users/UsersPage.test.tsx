@@ -3,11 +3,11 @@ import {act, screen, waitFor, within} from '@testing-library/react';
 import {parsePasswordBody} from '../../api/users';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
-import {UsersPage} from './UsersPage';
+import {staffDetailsLine, UsersPage} from './UsersPage';
 
 const users = [
   {userId: 'u1', username: 'a.hartwell', roles: ['Admin', 'User']},
-  {userId: 'u2', username: 'l.northcott', roles: ['User']},
+  {userId: 'u2', username: 'l.northcott', roles: ['User'], fullName: 'Dr Lee Test', jobTitle: 'Consultant dermatologist'},
   {userId: 'u3', username: adminUser.username, roles: ['Admin', 'User']},
 ];
 
@@ -168,6 +168,30 @@ describe('UsersPage', () => {
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await bodies(fetch, 'PUT')).toEqual([{specialtyIds: ['s1']}]);
     expect(await screen.findByText(`${adminUser.username}'s specialties have been saved.`)).toBeInTheDocument();
+  });
+
+  it("shows each user's full name and job title, and edits them, starting from theirs", async () => {
+    const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/details': () => json({fullName: 'Dr Lee Test', jobTitle: 'Consultant'})});
+
+    const row = await rowOf('l.northcott');
+    expect(within(row).getByText('Dr Lee Test, Consultant dermatologist')).toBeInTheDocument();
+    await user.click(within(row).getByRole('button', {name: 'Edit details'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('textbox', {name: /^Full name/})).toHaveValue('Dr Lee Test');
+    const title = dialog.getByRole('textbox', {name: /^Job title/});
+    await user.clear(title);
+    await user.type(title, 'Consultant');
+    await user.click(dialog.getByRole('button', {name: 'Save Details'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await bodies(fetch, 'PUT')).toEqual([{fullName: 'Dr Lee Test', jobTitle: 'Consultant'}]);
+    expect(await screen.findByText("l.northcott's details have been saved.")).toBeInTheDocument();
+  });
+
+  it('puts a full name and job title on one line', () => {
+    expect(staffDetailsLine({fullName: 'Dr Lee Test', jobTitle: null})).toBe('Dr Lee Test');
+    expect(staffDetailsLine({fullName: ' ', jobTitle: 'Nurse'})).toBe('Nurse');
+    expect(staffDetailsLine({})).toBeUndefined();
   });
 
   it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {

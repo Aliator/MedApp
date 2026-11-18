@@ -8,6 +8,15 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
+    /// The person's full name as it goes on letters ("Dr Sam Patel"), set by them in Account Settings or by an admin; null
+    /// until given. At most <c>StaffDetailsRules.MaxLength</c> characters.
+    /// </summary>
+    public string? FullName { get; set; }
+
+    /// <summary>Their job title as it goes on letters ("Consultant dermatologist"), or null.</summary>
+    public string? JobTitle { get; set; }
+
+    /// <summary>
     /// Whether the user must choose their own password before doing anything else: set when an admin's action gives
     /// them a generated one (a new account, or a reset), cleared when they change it. The API refuses everything
     /// else while it's set (<c>PasswordChangeRequired</c>).

@@ -6,6 +6,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -14,7 +15,9 @@ namespace MedApp.Application.Patients.Common;
 /// and every piece of free text become placeholders, and everything else stays, so the record's structure, its
 /// statistics (pathways, templates, statuses, dates, who did what and when) and its audit trail survive.
 /// <list type="bullet">
-/// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
+/// <item>Name and email become placeholders; the NHS number, the postal address, postcode and mobile, and the link to
+/// their GP practice are removed (the practice stays in the directory); the date of birth keeps only its year
+/// (1 January), for age statistics.</item>
 /// <item>Pathway titles become the template's name; pathway notes (every version of each, those of deleted
 /// pathways too, and the old single notes field) and stage notes become <see cref="RemovedText"/>, and so do the
 /// details given when notes were deleted, or asked to be (the reasons themselves are a fixed choice, kept). A request still waiting is closed, by whoever
@@ -25,7 +28,7 @@ namespace MedApp.Application.Patients.Common;
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
 /// <item>Referrals' reasons, referring practices and clinicians, decision details and redirect destinations become
-/// <see cref="RemovedText"/>, and their ODS codes are removed; their dates, statuses, priorities and specialties stay.
+/// <see cref="RemovedText"/>, and their ODS codes and links to the directory's practices are removed; their dates, statuses, priorities and specialties stay.
 /// Their history holds no free text, but its details are scrubbed as the others' are.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
@@ -64,6 +67,11 @@ public static class PatientAnonymiser
         patient.LastName = LastName;
         patient.Email = Email;
         patient.NhsNumber = null;
+        patient.AddressLines = null;
+        patient.Postcode = null;
+        patient.MobilePhone = null;
+        patient.PracticeId = null;
+        patient.ReminderChannel = ReminderChannel.None;
         patient.DateOfBirth = new DateOnly(patient.DateOfBirth.Year, 1, 1);
         patient.RestrictedAtUtc = null;
         patient.RestrictionReason = null;
@@ -133,6 +141,7 @@ public static class PatientAnonymiser
             if (referral.ReferrerClinician is not null)
                 referral.ReferrerClinician = Removed(referral.ReferrerClinician);
             referral.ReferrerOdsCode = null;
+            referral.PracticeId = null;
             if (referral.DecisionDetail is not null)
                 referral.DecisionDetail = Removed(referral.DecisionDetail);
             if (referral.RedirectedTo is not null)

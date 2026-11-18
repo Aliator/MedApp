@@ -165,7 +165,7 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where:** the area's `Common/` folder, named `<Thing>Mapper`, with `ToResponse(entity)` plus overloads for what the entity lacks (e.g. `ToResponse(definition, usage)`, or `ToResponseAsync(...)` to look up usernames).
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`, `PracticeMapper` (with `ToSummary`), `StaffDetailsMapper`
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
   - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`

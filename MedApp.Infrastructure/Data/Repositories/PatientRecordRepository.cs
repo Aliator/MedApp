@@ -102,6 +102,10 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         return new PatientRecord
         {
             Patient = patient,
+            // The directory's entry, read-only: anonymising clears the patient's link to it, never the practice.
+            Practice = patient.PracticeId is { } practiceId
+                ? await context.Practices.AsNoTracking().FirstOrDefaultAsync(p => p.Id == practiceId, ct)
+                : null,
             Pathways = pathways,
             PathwayHistory = history,
             NoteVersions = noteVersions,
