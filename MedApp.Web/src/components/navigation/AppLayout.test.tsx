@@ -9,7 +9,7 @@ import {SideNavTheme} from './AppLayout';
 const emptyApi = () =>
   mockFetch((request) => {
     const {pathname} = new URL(request.url);
-    const isPlainList = /\/(templates|definitions|roles)$/.test(pathname);
+    const isPlainList = /\/(templates|definitions|roles|staff)$/.test(pathname);
     return json(isPlainList ? [] : pageOf([]));
   });
 

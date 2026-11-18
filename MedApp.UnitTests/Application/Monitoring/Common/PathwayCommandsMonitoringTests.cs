@@ -1,5 +1,6 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -67,6 +68,13 @@ public sealed class PathwayCommandsMonitoringTests : PathwayHandlerTestBase
             .Callback(() => _order.Add("monitored"))
             .Returns(Task.CompletedTask);
         Fixture.Inject(_monitor.Object);
+
+        // Everyone holds every permission asked about (an assignee must work on pathways).
+        var holders = new Mock<IPermissionHolders>();
+        holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Permission>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, Permission _, CancellationToken _) => (IReadOnlySet<Guid>)ids.ToHashSet());
+        Fixture.Inject(holders.Object);
     }
 
     [Test]

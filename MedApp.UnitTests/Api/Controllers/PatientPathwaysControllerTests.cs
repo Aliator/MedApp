@@ -77,7 +77,7 @@ public sealed class PatientPathwaysControllerTests
 
     [Test]
     public async Task GetPatientPathwayById_ReturnsIt() =>
-        ExpectSentAndOk(new GetPatientPathwayByIdQuery(RecordId, UserId), await Controller.GetPatientPathwayById(RecordId, _cts.Token));
+        ExpectSentAndOk(new GetPatientPathwayByIdQuery(RecordId, UserId, TestPermissions.Staff), await Controller.GetPatientPathwayById(RecordId, _cts.Token));
 
     [Test]
     public async Task AddPathwayNote_ReturnsTheNoteWithItsPathwaysAddress()

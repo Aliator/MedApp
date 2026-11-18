@@ -12,9 +12,9 @@ import {ApiError} from '../../api/errors';
 import {
   hasStage,
   inputOf,
-  MAX_PEOPLE,
   MONITORING_EVENTS,
   monitoringPeopleQuery,
+  monitoringUnlockersQuery,
   monitoringRulesQuery,
   useDeleteMonitoringRule,
   useSaveMonitoringRule,
@@ -74,10 +74,8 @@ function problemOf(error: unknown, action: 'save' | 'add' | 'delete' | 'switch')
   return saveProblem(error, action === 'switch' ? 'save' : action, 'rule');
 }
 
-const isAdmin = (roles: readonly string[] | null | undefined) => roles?.some((r) => r.toLowerCase() === 'admin') ?? false;
-
 /**
- * Monitoring (admin): the signed-in admin's rules for being told what staff do to pathways, e.g. "Notify me when
+ * Monitoring (holders of ManageMonitoring): the signed-in person's rules for being told what staff do to pathways, e.g. "Notify me when
  * **Sam** finishes **Bloods** on a **High or Urgent** priority pathway". When a change matches one of their switched-on
  * rules, they get a notification in the bell, live. Each admin sees and changes only their own rules.
  *
@@ -88,6 +86,8 @@ const isAdmin = (roles: readonly string[] | null | undefined) => roles?.some((r)
 export function MonitoringPage() {
   const rules = useQuery(monitoringRulesQuery);
   const people = useQuery(monitoringPeopleQuery);
+  // Only holders of OverrideStages unlock stages, so "Stage unlocked" offers only them.
+  const unlockers = useQuery(monitoringUnlockersQuery);
   const templates = useQuery(allTemplatesQuery);
   const stages = useQuery(stageDefinitionsQuery);
   const save = useSaveMonitoringRule();
@@ -161,7 +161,7 @@ export function MonitoringPage() {
 
   // Names now: from the lists, or for a person past the first 100, the rule's own. Null for one since deleted.
   const personName = (id: string | null) =>
-    id ? (people.data?.items?.find((u) => sameId(u.userId, id))?.username ?? (sameId(editing?.subjectUserId, id) ? editing?.subjectUsername : null) ?? null) : null;
+    id ? (people.data?.find((u) => sameId(u.userId, id))?.username ?? (sameId(editing?.subjectUserId, id) ? editing?.subjectUsername : null) ?? null) : null;
   const templateName = (id: string | null) => (id ? (templates.data?.find((t) => sameId(t.id, id))?.name ?? null) : null);
   const stageName = (id: string | null) => (id ? (stages.data?.find((d) => sameId(d.id, id))?.name ?? null) : null);
 
@@ -169,24 +169,19 @@ export function MonitoringPage() {
   // them), and a rule's own choice stays offered even when it's no longer in a list.
   const withChosen = (options: {value: string; label: string}[], id: string | null, label: string) =>
     id && !options.some((o) => sameId(o.value, id)) ? [...options, {value: id.toLowerCase(), label}] : options;
-  // Only admins unlock stages, so "Stage unlocked" offers only admins (the API refuses anyone else).
-  const onlyAdmins = form.event === 'StageUnlocked';
+  // Only holders of OverrideStages unlock stages, so "Stage unlocked" offers only them (the API refuses anyone else).
+  const onlyUnlockers = form.event === 'StageUnlocked';
   const personOptions = withChosen(
     [
       {value: ANY, label: 'Anyone'},
-      ...(people.data?.items ?? [])
-        .filter((u) => !onlyAdmins || isAdmin(u.roles))
-        .map((u) => ({value: u.userId?.toLowerCase() ?? '', label: u.username ?? ''})),
+      ...((onlyUnlockers ? unlockers.data : people.data) ?? []).map((u) => ({value: u.userId?.toLowerCase() ?? '', label: u.username ?? ''})),
     ],
     form.subjectUserId,
     personName(form.subjectUserId) ?? 'Deleted user',
   );
-  const personHint = [
-    onlyAdmins ? 'Only admins unlock stages, so only admins are listed.' : 'For an assignment, the person assigned.',
-    (people.data?.totalCount ?? 0) > MAX_PEOPLE ? `Only the first ${MAX_PEOPLE} accounts by username are listed for now.` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const personHint = onlyUnlockers
+    ? 'Only people whose roles let them unlock stages are listed.'
+    : 'For an assignment, the person assigned.';
   const templateOptions = withChosen(
     [
       {value: ANY, label: 'Any template'},

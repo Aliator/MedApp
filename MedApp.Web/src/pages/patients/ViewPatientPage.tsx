@@ -13,7 +13,7 @@ import {patientAppointmentsQuery, type Appointment} from '../../api/appointments
 import {ApiError} from '../../api/errors';
 import {patientQuery, useSetPatientFlag, whyCantChange, type Patient} from '../../api/patients';
 import {NO_TIMELINE_FILTERS, type TimelineFilters} from '../../api/timeline';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
@@ -77,14 +77,14 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   }, [error, navigate]);
 
   const timeline = <PatientTimeline patientId={id} filters={filters} onFiltersChange={setFilters} />;
-  const actions = patient && <Actions patient={patient} isAdmin={me.isAdmin} onBook={() => setIsBooking(true)} onProblem={setProblem} />;
+  const actions = patient && <Actions patient={patient} onBook={() => setIsBooking(true)} onProblem={setProblem} />;
   // Everything attached to the patient, anywhere; what's added here is attached to the patient themselves. Nothing
   // can be added or deleted while the record is restricted or anonymised.
   const isLocked = patient !== undefined && whyCantChange(patient) !== null;
   const files = <Attachments target={{patientId: id}} canChange={!isLocked} isLocked={isLocked} state={attachments} />;
   const details = patient && <PatientDetails patient={patient} />;
-  // For admins, who has accessed the record: under the details (and, in the wide layout, the files).
-  const accessReport = me.isAdmin && <PatientAccessReport patientId={id} />;
+  // For holders of ViewAudit, who has accessed the record: under the details (and, in the wide layout, the files).
+  const accessReport = can(me, 'ViewAudit') && <PatientAccessReport patientId={id} />;
 
   return (
     <Page
@@ -164,27 +164,21 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
 }
 
 /**
- * Book Appointment, Pathways and Edit Patient (not booking or editing while the record is restricted or anonymised,
- * when it can't be changed), and an admin's Privacy menu.
+ * Book Appointment (BookAppointments), Pathways and Edit Patient (EditPatients), not booking or editing while the
+ * record is restricted or anonymised, when it can't be changed; and the Privacy menu, for holders of ManagePrivacy or
+ * ExportPatientRecords.
  */
-function Actions({
-  patient,
-  isAdmin,
-  onBook,
-  onProblem,
-}: {
-  patient: Patient;
-  isAdmin: boolean;
-  onBook: () => void;
-  onProblem: (problem: SaveProblem) => void;
-}) {
+function Actions({patient, onBook, onProblem}: {patient: Patient; onBook: () => void; onProblem: (problem: SaveProblem) => void}) {
+  const me = useCurrentUser();
   const canChange = whyCantChange(patient) === null;
   return (
     <>
-      {isAdmin && <PrivacyActions patient={patient} onProblem={onProblem} />}
-      {canChange && <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />}
+      {(can(me, 'ManagePrivacy') || can(me, 'ExportPatientRecords')) && <PrivacyActions patient={patient} onProblem={onProblem} />}
+      {canChange && can(me, 'BookAppointments') && (
+        <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />
+      )}
       <Button label="Pathways" variant="secondary" icon={<Icon icon={AppIcon.Pathways} />} href={`/patients/${patient.id}/pathways`} />
-      {canChange && (
+      {canChange && can(me, 'EditPatients') && (
         <Button label="Edit Patient" variant="secondary" icon={<Icon icon={AppIcon.Edit} />} href={`/patients/${patient.id}/edit`} />
       )}
     </>
@@ -281,11 +275,15 @@ function PatientDetails({patient}: {patient: Patient}) {
 }
 
 /**
- * An admin's privacy actions for the record, behind one Privacy button: export everything held (a subject access
+ * The privacy actions for the record (each for the permission it needs), behind one Privacy button: export everything held (a subject access
  * request), restrict or lift the restriction, mark or clear a dispute, and anonymise. Each asks to confirm first.
  */
 function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (problem: SaveProblem) => void}) {
   const id = patient.id ?? '';
+  // Exporting (ExportPatientRecords), and the rest (ManagePrivacy): each person sees the ones their roles allow.
+  const me = useCurrentUser();
+  const canExport = can(me, 'ExportPatientRecords');
+  const canManagePrivacy = can(me, 'ManagePrivacy');
   const setFlag = useSetPatientFlag(id);
   const [change, setChange] = useState<PatientFlagChange | null>(null);
   // Why the flag change failed: shown in its dialog, which stays open with the reason as typed.
@@ -312,8 +310,14 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
     );
   };
 
-  const items: DropdownMenuItemData[] = [
-    {id: 'export', label: 'Export Record', description: 'Everything held, for a subject access request', icon: AppIcon.View, href: `/patients/${id}/export`},
+  const exportItem: DropdownMenuItemData = {
+    id: 'export',
+    label: 'Export Record',
+    description: 'Everything held, for a subject access request',
+    icon: AppIcon.View,
+    href: `/patients/${id}/export`,
+  };
+  const privacyItems: DropdownMenuItemData[] = [
     patient.isRestricted
       ? {id: 'restrict', label: 'Lift Restriction', icon: AppIcon.Lock, onClick: () => open({flag: 'restriction', set: false})}
       : {
@@ -348,6 +352,7 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
       },
     },
   ];
+  const items = [...(canExport ? [exportItem] : []), ...(canManagePrivacy ? privacyItems : [])];
 
   return (
     <>

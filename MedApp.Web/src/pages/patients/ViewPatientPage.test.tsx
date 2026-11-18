@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
-import {adminUser, calls, isDisabled, json, openAlertDetails, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, openAlertDetails, mockApi, openDialog, pageOf, renderWithApp, staffUser, userWithRoles} from '../../test/render';
 import {ViewPatientPage} from './ViewPatientPage';
 
 const id = 'c184a7b8-2585-4437-bcd4-e1700be38299';
@@ -45,6 +45,25 @@ describe('ViewPatientPage, privacy', () => {
     expect(screen.queryByText('Access Report')).not.toBeInTheDocument();
     // The patient and their timeline, but not the activity log.
     expect(calls(fetch).some((call) => call.startsWith(`GET ${ACCESS}`))).toBe(false);
+  });
+
+  it('shows a lab member neither Book Appointment nor Edit Patient, which their roles do not allow', async () => {
+    renderPage(oriel, userWithRoles('test-lab', 'Lab'));
+
+    expect(await screen.findByText('Oriel')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Pathways'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Privacy'})).not.toBeInTheDocument();
+  });
+
+  it('offers in the Privacy menu only what the roles allow: export alone, for someone with only that', async () => {
+    const {user} = renderPage(oriel, {...staffUser, permissions: [...staffUser.permissions, 'ExportPatientRecords']});
+
+    expect(await privacyItem(user, 'Export Record')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Restrict Record/, hidden: true})).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Anonymise Record/, hidden: true})).not.toBeInTheDocument();
+    expect(screen.queryByText('Access Report')).not.toBeInTheDocument();
   });
 
   it('shows admins the access report and the Privacy menu, with the export page', async () => {

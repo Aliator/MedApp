@@ -5,14 +5,15 @@ import {preload} from '../../../../api/preload';
 import {patientQuery} from '../../../../api/patients';
 import {patientAppointmentsQuery} from '../../../../api/appointments';
 import {patientTimelineOverviewQuery, patientTimelineQuery} from '../../../../api/timeline';
-import {whoamiQuery} from '../../../../auth/auth';
+import {can, whoamiQuery} from '../../../../auth/auth';
 import {patientAccessQuery} from '../../../../components/patients/PatientAccessReport';
 
 export const Route = createFileRoute('/_app/patients/$id/')({
   // The patient, their appointments and files, what's due, and the first page of their timeline (unfiltered, as the
-  // page opens); for admins, the record's access report too.
+  // page opens); for holders of ViewAudit, the record's access report too.
   loader: ({context, params}) => {
-    const isAdmin = context.queryClient.getQueryData(whoamiQuery.queryKey)?.isAdmin === true;
+    const me = context.queryClient.getQueryData(whoamiQuery.queryKey);
+    const canViewAudit = me !== undefined && can(me, 'ViewAudit');
     return preload(
       context.queryClient,
       patientQuery(params.id),
@@ -20,7 +21,7 @@ export const Route = createFileRoute('/_app/patients/$id/')({
       attachmentsQuery({patientId: params.id}),
       patientTimelineOverviewQuery(params.id),
       patientTimelineQuery(params.id),
-      ...(isAdmin ? [patientAccessQuery(params.id)] : []),
+      ...(canViewAudit ? [patientAccessQuery(params.id)] : []),
     );
   },
   component: function ViewPatientRoute() {

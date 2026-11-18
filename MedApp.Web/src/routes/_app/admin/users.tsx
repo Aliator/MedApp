@@ -1,5 +1,5 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {requireAdmin} from '../../../auth/auth';
+import {requirePermission} from '../../../auth/auth';
 import {parseUsersSearch} from '../../../pages/listSearch';
 import {UsersPage} from '../../../pages/users/UsersPage';
 import {preload} from '../../../api/preload';
@@ -8,9 +8,9 @@ import {featuresQuery} from '../../../api/account';
 import {listSettingsFor} from '../../../app/listSettings';
 import {usersListQuery} from '../../../pages/users/UsersPage';
 
-/** Admin only. Anyone else is sent home, as the Blazor Users page does. */
+/** For holders of ManageUsers; anyone else is told the page needs it. */
 export const Route = createFileRoute('/_app/admin/users')({
-  beforeLoad: requireAdmin,
+  beforeLoad: requirePermission('ManageUsers'),
   validateSearch: parseUsersSearch,
   loaderDeps: ({search}) => search,
   // The list's query takes every role (an "is any of" every role is no filter), so the roles come first: waited for

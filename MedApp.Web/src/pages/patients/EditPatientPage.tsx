@@ -21,6 +21,7 @@ import {formatDate} from '../../utils/dates';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {PATIENT_FIELDS, PatientFormFields, usePatientLookUp} from './PatientFormFields';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
+import {useCan} from '../../auth/auth';
 
 const toInput = (p: Patient): PatientInput => ({
   firstName: p.firstName ?? '',
@@ -113,6 +114,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const navigate = useNavigate();
   const update = useUpdatePatient(id);
   const remove = useDeletePatient(id);
+  const canDelete = useCan('DeletePatients');
   const announce = useAnnounce();
   const [form, setForm] = useState<PatientInput>(() => toInput(patient));
   const [dialog, setDialog] = useState<'save' | 'delete' | null>(null);
@@ -225,7 +227,8 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
           setDialog('save');
         }}
         onCancel={backToPatient}
-        onDelete={() => setDialog('delete')}
+        // Deleting a patient needs DeletePatients.
+        onDelete={canDelete ? () => setDialog('delete') : undefined}
         deleteText="Delete Patient"
         isProcessing={isBusy}
         // The form scrolls inside its card, under the banner, which stays in view.

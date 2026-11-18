@@ -11,7 +11,7 @@ import {appointmentQuery, canMarkEnteredInError, useAppointmentActions, type App
 import {ApiValidationError, fieldStatus, problemMessage} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {formatCalendarDay, formatTimeRange, sameMoment} from '../../utils/calendarSlots';
 import {formatDateTime, ukDay} from '../../utils/dates';
 import {useSaveShortcut} from '../forms/SaveShortcut';
@@ -110,7 +110,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
       },
     );
   };
-  useSaveShortcut(content, isOpen && mode === 'view' && appointment?.canEditNotes ? saveNotes : undefined);
+  useSaveShortcut(content, isOpen && mode === 'view' && appointment?.canEditNotes && can(user, 'BookAppointments') ? saveNotes : undefined);
 
   const record = (outcome: 'Attended' | 'DidNotAttend') => {
     setProblem(null);
@@ -163,9 +163,11 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
   const isBusy =
     actions.recordOutcome.isPending || actions.saveNotes.isPending || actions.cancel.isPending || actions.markEnteredInError.isPending;
   const canWithdraw = canMarkEnteredInError(appointment, user);
+  // Every change to an appointment needs BookAppointments: without it, the dialog only shows the appointment.
+  const canBook = can(user, 'BookAppointments');
   // Only once the patient is known to be bookable (not restricted or anonymised), as booking needs their details.
   const patient = patientState.patient;
-  const canBookAnother = (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
+  const canBookAnother = canBook && (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
   const purpose = appointmentPurpose(appointment);
 
   // One recorded after the event (a walk-in) was never asked for, unless it was a visit waiting in Requires Appointment (asked
@@ -203,7 +205,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         purpose={isBusy ? 'required' : 'info'}
         footer={
           <HStack gap={2} wrap="wrap" hAlign="end">
-            {appointment.canCancel && (
+            {canBook && appointment.canCancel && (
               <Button label="Cancel Appointment" variant="destructive" isDisabled={isBusy} onClick={() => setMode('cancel')} />
             )}
             {canWithdraw && (
@@ -218,7 +220,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
                 }}
               />
             )}
-            {appointment.canRecordOutcome && (
+            {canBook && appointment.canRecordOutcome && (
               <>
                 <Button
                   label="Did not attend"
@@ -239,8 +241,8 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               </>
             )}
             {canBookAnother && <Button label="Book Another" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setMode('bookAnother')} />}
-            {appointment.canReschedule && <Button label="Reschedule" variant="secondary" isDisabled={isBusy} onClick={() => setMode('book')} />}
-            {appointment.canBook && <Button label="Book" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setMode('book')} />}
+            {canBook && appointment.canReschedule && <Button label="Reschedule" variant="secondary" isDisabled={isBusy} onClick={() => setMode('book')} />}
+            {canBook && appointment.canBook && <Button label="Book" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setMode('book')} />}
             <Button label="Close" variant="secondary" isDisabled={isBusy} onClick={onClose} />
           </HStack>
         }>
@@ -281,7 +283,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               <MetadataListItem label={status === 'EnteredInError' ? 'Why entered in error' : 'Why cancelled'}>{appointment.cancelReason}</MetadataListItem>
             )}
           </MetadataList>
-          {appointment.canEditNotes ? (
+          {canBook && appointment.canEditNotes ? (
             <VStack gap={2} hAlign="stretch">
               <TextArea
                 label="Notes"

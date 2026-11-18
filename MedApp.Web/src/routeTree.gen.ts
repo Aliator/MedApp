@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
+import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -108,6 +109,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
   id: '/accessibility',
   path: '/accessibility',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
+  id: '/no-permission',
+  path: '/no-permission',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -336,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/no-permission': typeof AppNoPermissionRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/email': typeof AppAccountEmailRoute
@@ -387,6 +394,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/no-permission': typeof AppNoPermissionRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -441,6 +449,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
+  '/_app/no-permission': typeof AppNoPermissionRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -496,6 +505,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/no-permission'
     | '/tasks'
     | '/account/colours'
     | '/account/email'
@@ -547,6 +557,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/no-permission'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
+    | '/_app/no-permission'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -725,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/accessibility'
       fullPath: '/accessibility'
       preLoaderRoute: typeof AppAccessibilityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/no-permission': {
+      id: '/_app/no-permission'
+      path: '/no-permission'
+      fullPath: '/no-permission'
+      preLoaderRoute: typeof AppNoPermissionRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1019,6 +1038,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
+  AppNoPermissionRoute: typeof AppNoPermissionRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -1065,6 +1085,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
+  AppNoPermissionRoute: AppNoPermissionRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,

@@ -29,7 +29,7 @@ import {problemMessage} from '../../api/errors';
 import {preload} from '../../api/preload';
 import {useAnnounce} from '../../app/announcements';
 import {useListSettings} from '../../app/listSettings';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {AppointmentDialog, appointmentWhen} from '../../components/calendar/AppointmentDialog';
 import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
 import {BlockDialog} from '../../components/calendar/BlockDialog';
@@ -97,12 +97,13 @@ export function calendarRange(date: string, view: CalendarView): {from: string; 
 }
 
 /**
- * The view shown for a search: the one it names (the team view only for admins), or by default the week, and in a
+ * The view shown for a search: the one it names (the team view only for holders of ArrangeMeetings: `canSeeTeam`), or
+ * by default the week, and in a
  * narrow window or a half view the day. A week asked for there is kept (compact if its card is too narrow for the
  * full one); the team view works there too, scrolling sideways.
  */
-export function shownView(search: CalendarSearch, isAdmin: boolean, isNarrow = false): CalendarView {
-  const view = search.view === 'team' && !isAdmin ? undefined : search.view;
+export function shownView(search: CalendarSearch, canSeeTeam: boolean, isNarrow = false): CalendarView {
+  const view = search.view === 'team' && !canSeeTeam ? undefined : search.view;
   return view ?? (isNarrow ? 'day' : 'week');
 }
 
@@ -111,7 +112,7 @@ export function calendarPageQuery(search: CalendarSearch, today: string = ukToda
   return calendarQuery({staffUserId: search.staff, ...calendarRange(search.date ?? today, search.view === 'day' ? 'day' : 'week')});
 }
 
-/** The team view's day for a search (admins): everyone with a staff role, or those in `who`. */
+/** The team view's day for a search (holders of ArrangeMeetings): everyone with a staff role, or those in `who`. */
 export function teamPageQuery(search: CalendarSearch, today: string = ukToday()) {
   return teamCalendarQuery({date: search.date ?? today, staffUserIds: search.who ?? []});
 }
@@ -120,14 +121,14 @@ export function teamPageQuery(search: CalendarSearch, today: string = ukToday())
 export const requiresAppointmentCountQuery = appointmentsQuery({Statuses: ['Requested'], PageSize: 1});
 
 /**
- * What the Calendar page reads, for its route's loader: the team view's day (admins), or the person's calendar and
+ * What the Calendar page reads, for its route's loader: the team view's day (`canSeeTeam`), or the person's calendar and
  * then (once it's known whose it is) their week templates. Rendering on the server it all waits; in the browser the
  * templates start only if the calendar is already here. Their day templates aren't preloaded: only Apply Template
  * shows them, and the page reads them after mount when it offers that.
  */
-export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, isAdmin: boolean, today: string = ukToday()) {
+export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, canSeeTeam: boolean, today: string = ukToday()) {
   const shared = [staffQuery, requiresAppointmentCountQuery];
-  if (shownView(search, isAdmin) === 'team') return preload(queryClient, teamPageQuery(search, today), ...shared);
+  if (shownView(search, canSeeTeam) === 'team') return preload(queryClient, teamPageQuery(search, today), ...shared);
   const query = calendarPageQuery(search, today);
   await preload(queryClient, query, ...shared);
   const calendar = queryClient.getQueryData(query.queryKey);
@@ -193,7 +194,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const announce = useAnnounce();
   const [today] = useState(() => ukToday());
   const date = search.date ?? today;
-  const view = shownView(search, me.isAdmin, isNarrow);
+  // Meetings, the team view and suggested times; booking appointments; and other people's calendars and templates.
+  const canArrangeMeetings = can(me, 'ArrangeMeetings');
+  const canBook = can(me, 'BookAppointments');
+  const canManageAnyCalendar = can(me, 'ManageAnyCalendar');
+  const view = shownView(search, canArrangeMeetings, isNarrow);
   const isTeam = view === 'team';
   // A week in a card too narrow for the full one (a narrow window, a half view, a phone): Monday to Friday, squeezed in.
   // Measured, so it's the full week on the server and at first, and the window's width doesn't matter. A rem over the
@@ -222,7 +227,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const staffUserId = person?.staffUserId ?? search.staff ?? myId ?? '';
   const isOwn = search.staff === undefined || search.staff === myId;
   const canEdit = person?.canEdit === true;
-  const canSetDefaultWeek = !isTeam && (isOwn || me.isAdmin);
+  const canSetDefaultWeek = !isTeam && (isOwn || canManageAnyCalendar);
   const personName = person?.staffUsername ?? staff.data?.find((s) => s.userId === search.staff)?.username ?? '';
   const whose = isTeam ? 'Team' : isOwn ? 'My calendar' : `${personName}'s calendar`;
   const rangeLabel = view === 'week' ? formatRange(from, to) : formatDayHeading(`${date}T12:00:00Z`);
@@ -293,6 +298,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const onSelectRange = (selection: CalendarSelection, anchor: HTMLElement | null) => {
     setMessage(null);
     const owner = calendarOf(selection.column);
+    // Nothing to do with a time on someone else's calendar for anyone who can't book.
+    if (selection.column !== EVERYONE_FREE && owner?.canEdit !== true && !canBook) return;
     if (selection.column === EVERYONE_FREE || owner?.canEdit === true) {
       heldAnchor.current = anchor;
       // The slot it ended at is as wide as the selection: its column.
@@ -433,12 +440,12 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     );
   }
 
-  // Their calendar templates: your own, or for an admin, whoever's calendar this is.
+  // Their calendar templates: your own, or for a holder of ManageAnyCalendar, whoever's calendar this is.
   const templatesLink = isTeam
     ? null
     : isOwn
       ? {label: 'My calendar templates', href: '/calendar/templates'}
-      : me.isAdmin && personName
+      : canManageAnyCalendar && personName
         ? {label: `${personName}'s calendar templates`, href: `/calendar/templates?staff=${staffUserId}`}
         : null;
 
@@ -466,7 +473,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
         }
       : person;
   const columns: CalendarColumn[] = !isTeam
-    ? dayColumns(days, calendarItems(shownPerson, {movableBlocks: isEditingBlocks && movingBlock === null}), {weekdaysOnly: isCompactWeek})
+    ? dayColumns(days, calendarItems(shownPerson, {movableBlocks: isEditingBlocks && movingBlock === null, canBook}), {weekdaysOnly: isCompactWeek})
     : teamDay
       ? [
           {key: EVERYONE_FREE, label: 'Everyone free', date: teamDate, day: teamDay, items: [], freeTime: team.data?.everyoneFree ?? []},
@@ -475,7 +482,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             label: m.staffUsername ?? '',
             date: teamDate,
             day: m.days?.find((d) => d.date === teamDate) ?? teamDay,
-            items: calendarItems(m),
+            items: calendarItems(m, {canBook}),
           })),
         ]
       : [];
@@ -484,9 +491,29 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const viewChoices: {value: CalendarView; label: string}[] = [
     {value: 'day', label: 'Day'},
     {value: 'week', label: 'Week'},
-    ...(me.isAdmin ? [{value: 'team' as const, label: 'Team'}] : []),
+    ...(canArrangeMeetings ? [{value: 'team' as const, label: 'Team'}] : []),
   ];
   const requestedCount = requiresAppointment.data?.totalCount ?? 0;
+  // What New offers: what this person's roles allow here (nothing at all, and no New, for someone who can't book on a
+  // calendar they can't change).
+  const newItems = [
+    ...(canBook
+      ? [
+          {label: 'Book appointment', icon: <Icon icon={AppIcon.Book} />, onClick: () => setBooking({})},
+          {label: 'Record past appointment', icon: <Icon icon={AppIcon.RecordPast} />, onClick: () => setIsRecordingPast(true)},
+        ]
+      : []),
+    ...(canEdit ? [{label: 'Block time', icon: <Icon icon={AppIcon.BlockTime} />, onClick: () => setBlocking({calendar: person})}] : []),
+    ...(canArrangeMeetings
+      ? [
+          {
+            label: 'New meeting',
+            icon: <Icon icon={AppIcon.Meeting} />,
+            onClick: () => setMeeting({initial: newMeetingWith ? {attendeeUserIds: newMeetingWith} : undefined}),
+          },
+        ]
+      : []),
+  ];
 
   const chooseRows = (minutes: CalendarRowMinutes) => {
     setCalendarRows(minutes);
@@ -660,23 +687,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               }}
             />
           )}
-          <DropdownMenu
-            button={{label: 'New', variant: 'primary', icon: <Icon icon={AppIcon.Add} />}}
-            items={[
-              {label: 'Book appointment', icon: <Icon icon={AppIcon.Book} />, onClick: () => setBooking({})},
-              {label: 'Record past appointment', icon: <Icon icon={AppIcon.RecordPast} />, onClick: () => setIsRecordingPast(true)},
-              ...(canEdit ? [{label: 'Block time', icon: <Icon icon={AppIcon.BlockTime} />, onClick: () => setBlocking({calendar: person})}] : []),
-              ...(me.isAdmin
-                ? [
-                    {
-                      label: 'New meeting',
-                      icon: <Icon icon={AppIcon.Meeting} />,
-                      onClick: () => setMeeting({initial: newMeetingWith ? {attendeeUserIds: newMeetingWith} : undefined}),
-                    },
-                  ]
-                : []),
-            ]}
-          />
+          {newItems.length > 0 && (
+            <DropdownMenu button={{label: 'New', variant: 'primary', icon: <Icon icon={AppIcon.Add} />}} items={newItems} />
+          )}
         </>
       }
       dialogs={
@@ -768,15 +781,17 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                   />
                 ) : (
                   <>
-                    <Button
-                      label="Book appointment"
-                      variant="ghost"
-                      icon={<Icon icon={AppIcon.Book} />}
-                      onClick={() => {
-                        setBooking({selection: held ?? undefined, staffUserId: heldOwner?.staffUserId});
-                        setHeld(null);
-                      }}
-                    />
+                    {canBook && (
+                      <Button
+                        label="Book appointment"
+                        variant="ghost"
+                        icon={<Icon icon={AppIcon.Book} />}
+                        onClick={() => {
+                          setBooking({selection: held ?? undefined, staffUserId: heldOwner?.staffUserId});
+                          setHeld(null);
+                        }}
+                      />
+                    )}
                     <Button
                       label="Block time"
                       variant="ghost"

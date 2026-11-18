@@ -15,7 +15,7 @@ import {
   type PathwayNote,
 } from '../../api/pathways';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {useCan} from '../../auth/auth';
 import {formatDateTime} from '../../utils/dates';
 import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 import {RichTextField, type RichTextFieldHandle} from '../forms/RichTextField';
@@ -47,9 +47,13 @@ const toProblem = (error: unknown, fallback: string, noteId: string | null): Not
   return {message: problemMessage(error, isConflict ? NOTE_CONFLICT_FALLBACK : fallback), isConflict, noteId};
 };
 
-/** Why notes can't be added now, as the stage section says why its stages can't be worked on. */
-export function whyNoNotes(pathway: Pathway): string {
+/**
+ * Why notes can't be added now, as the stage section says why its stages can't be worked on: the record, the
+ * pathway's status, or the person's roles (`canWork`: WorkPathways).
+ */
+export function whyNoNotes(pathway: Pathway, canWork = true): string {
   if (pathway.readOnlyReason) return pathway.readOnlyReason;
+  if (!canWork) return "Your roles don't allow adding notes to pathways.";
   const status = pathway.status === 'Cancelled' ? 'cancelled' : pathway.status === 'Archived' ? 'archived' : null;
   return status ? `Notes can't be added or edited while the pathway is ${status}.` : "Notes can't be added or edited now.";
 }
@@ -98,7 +102,9 @@ export function PathwayNotes({pathway}: PathwayNotesProps) {
   const announce = useAnnounce();
   const canAdd = pathway.canAddNotes ?? false;
   const notes = pathway.noteList ?? [];
-  const {isAdmin} = useCurrentUser();
+  // Deciding deletion requests is for holders of CorrectRecords.
+  const canCorrectRecords = useCan('CorrectRecords');
+  const canWork = useCan('WorkPathways');
   const deletion = useNoteDeletionActions(id);
   // The note whose deletion is being confirmed (an admin's Delete) or asked for (Request deletion).
   const [asking, setAsking] = useState<{note: PathwayNote; kind: 'delete' | 'request'} | null>(null);
@@ -157,7 +163,7 @@ export function PathwayNotes({pathway}: PathwayNotesProps) {
     <VStack gap={4} hAlign="stretch">
       {!canAdd && (
         <Text type="body" color="secondary">
-          {whyNoNotes(pathway)}
+          {whyNoNotes(pathway, canWork)}
         </Text>
       )}
       {canAdd && (
@@ -242,7 +248,7 @@ export function PathwayNotes({pathway}: PathwayNotesProps) {
                     {note.deletionRequestId && (
                       <HStack gap={1} vAlign="center">
                         <Token label="Deletion requested" size="sm" color="orange" />
-                        {isAdmin && (
+                        {canCorrectRecords && (
                           <Button
                             label="Review Request"
                             aria-label={noteButtonName.review(note)}

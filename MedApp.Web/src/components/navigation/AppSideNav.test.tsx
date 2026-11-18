@@ -1,7 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
@@ -55,7 +55,20 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: /retention review/i})).toHaveAttribute('href', '/admin/retention');
     expect(screen.getByRole('link', {name: 'Admin Settings'})).toHaveAttribute('href', '/admin/settings');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
-    expect(screen.getByText('Administrator')).toBeInTheDocument();
+    // Their roles, Admin first, in a few words.
+    expect(screen.getByText('Admin +1')).toBeInTheDocument();
+  });
+
+  it('shows a manager only the pages their roles allow: Insights and Monitoring', async () => {
+    renderWithApp(<AppSideNav />, {user: managerUser});
+
+    expect(await screen.findByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
+    expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
+    expect(screen.queryByRole('link', {name: /^users$/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Stage Library'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /audit log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Admin Settings'})).not.toBeInTheDocument();
+    expect(screen.getByText('Manager')).toBeInTheDocument();
   });
 
   it('hides the admin pages from other users', async () => {
@@ -67,8 +80,9 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /activity log/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /retention review/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Admin Settings'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Insights'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Scheduled Jobs'})).not.toBeInTheDocument();
-    expect(screen.getByText('User')).toBeInTheDocument();
+    expect(screen.getByText('All staff (before roles)')).toBeInTheDocument();
   });
 
   it('marks the current section', async () => {

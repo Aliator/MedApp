@@ -5,24 +5,28 @@ import userEvent from '@testing-library/user-event';
 import {StrictMode, type ReactNode} from 'react';
 import {AppProviders} from '../app/AppProviders';
 import {whoamiQuery, type CurrentUser} from '../auth/auth';
+import {PERMISSIONS, type Permission} from '../auth/permissions';
+import {ROLE_PERMISSIONS} from './roles';
+
+export {ROLE_PERMISSIONS};
 import {routeTree} from '../routeTree.gen';
 
-export const adminUser: CurrentUser = {
+/** A signed-in member of staff with these roles, and the permissions they grant together. */
+export const userWithRoles = (username: string, ...roles: (keyof typeof ROLE_PERMISSIONS)[]): CurrentUser => ({
   isAuthenticated: true,
-  username: 'test-admin',
-  roles: ['Admin', 'User'],
-  isAdmin: true,
+  username,
+  roles,
+  permissions: PERMISSIONS.filter((p) => roles.some((role) => (ROLE_PERMISSIONS[role] as readonly Permission[]).includes(p))),
   mustChangePassword: false,
   mustSetUpTwoFactor: false,
-};
-export const staffUser: CurrentUser = {
-  isAuthenticated: true,
-  username: 'test-user',
-  roles: ['User'],
-  isAdmin: false,
-  mustChangePassword: false,
-  mustSetUpTwoFactor: false,
-};
+});
+
+export const adminUser: CurrentUser = userWithRoles('test-admin', 'Admin', 'All staff (before roles)');
+export const staffUser: CurrentUser = userWithRoles('test-user', 'All staff (before roles)');
+/** A manager: assigns work, arranges meetings, Insights and monitoring, but works on no pathway and books nothing. */
+export const managerUser: CurrentUser = userWithRoles('test-manager', 'Manager');
+/** A nurse: works on pathways and books, but can't assign, unlock or delete. */
+export const nurseUser: CurrentUser = userWithRoles('test-nurse', 'Nurse');
 /** A staff member signed in with a password an admin gave them, which they must change before anything else. */
 export const mustChangePasswordUser: CurrentUser = {...staffUser, username: 'test-new-user', mustChangePassword: true};
 /** An admin held to setting up two-factor authentication, which Admin Settings requires of admins. */
@@ -31,7 +35,7 @@ export const signedOutUser: CurrentUser = {
   isAuthenticated: false,
   username: '',
   roles: [],
-  isAdmin: false,
+  permissions: [],
   mustChangePassword: false,
   mustSetUpTwoFactor: false,
 };
