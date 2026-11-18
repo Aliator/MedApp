@@ -1,4 +1,5 @@
 import {createFileRoute} from '@tanstack/react-router';
+import {requirePermission} from '../../../auth/auth';
 import {NewPathwayPage} from '../../../pages/pathways/NewPathwayPage';
 import {preload} from '../../../api/preload';
 import {patientQuery} from '../../../api/patients';
@@ -6,6 +7,7 @@ import {pathwayTemplatesQuery} from '../../../api/pathways';
 
 /** `?patientId=`: the patient the new pathway is for. */
 export const Route = createFileRoute('/_app/pathways/new')({
+  beforeLoad: requirePermission('CreatePathways'),
   validateSearch: (search: Record<string, unknown>): {patientId?: string} => ({
     patientId: typeof search.patientId === 'string' && search.patientId ? search.patientId : undefined,
   }),

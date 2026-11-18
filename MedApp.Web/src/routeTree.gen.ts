@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
+import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -31,6 +32,7 @@ import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminCalendarTemplatesRouteImport } from './routes/_app/admin/calendar-templates'
 import { Route as AppAdminClosedDaysRouteImport } from './routes/_app/admin/closed-days'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
+import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
 import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
 import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
@@ -109,6 +111,11 @@ const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
   path: '/accessibility',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
+  id: '/no-permission',
+  path: '/no-permission',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTasksRoute = AppTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -168,6 +175,11 @@ const AppAdminClosedDaysRoute = AppAdminClosedDaysRouteImport.update({
 const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
   id: '/admin/insights',
   path: '/admin/insights',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminJobsRoute = AppAdminJobsRouteImport.update({
+  id: '/admin/jobs',
+  path: '/admin/jobs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminMonitoringRoute = AppAdminMonitoringRouteImport.update({
@@ -330,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/no-permission': typeof AppNoPermissionRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/email': typeof AppAccountEmailRoute
@@ -341,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
@@ -380,6 +394,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/no-permission': typeof AppNoPermissionRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -392,6 +407,7 @@ export interface FileRoutesByTo {
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
@@ -433,6 +449,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
+  '/_app/no-permission': typeof AppNoPermissionRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -445,6 +462,7 @@ export interface FileRoutesById {
   '/_app/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/_app/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
+  '/_app/admin/jobs': typeof AppAdminJobsRoute
   '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
   '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
@@ -487,6 +505,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/no-permission'
     | '/tasks'
     | '/account/colours'
     | '/account/email'
@@ -498,6 +517,7 @@ export interface FileRouteTypes {
     | '/admin/calendar-templates'
     | '/admin/closed-days'
     | '/admin/insights'
+    | '/admin/jobs'
     | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
@@ -537,6 +557,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/no-permission'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -549,6 +570,7 @@ export interface FileRouteTypes {
     | '/admin/calendar-templates'
     | '/admin/closed-days'
     | '/admin/insights'
+    | '/admin/jobs'
     | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
@@ -589,6 +611,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
+    | '/_app/no-permission'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -601,6 +624,7 @@ export interface FileRouteTypes {
     | '/_app/admin/calendar-templates'
     | '/_app/admin/closed-days'
     | '/_app/admin/insights'
+    | '/_app/admin/jobs'
     | '/_app/admin/monitoring'
     | '/_app/admin/retention'
     | '/_app/admin/settings'
@@ -715,6 +739,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccessibilityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/no-permission': {
+      id: '/_app/no-permission'
+      path: '/no-permission'
+      fullPath: '/no-permission'
+      preLoaderRoute: typeof AppNoPermissionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tasks': {
       id: '/_app/tasks'
       path: '/tasks'
@@ -797,6 +828,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/insights'
       fullPath: '/admin/insights'
       preLoaderRoute: typeof AppAdminInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/jobs': {
+      id: '/_app/admin/jobs'
+      path: '/admin/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AppAdminJobsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/monitoring': {
@@ -1000,6 +1038,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
+  AppNoPermissionRoute: typeof AppNoPermissionRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -1012,6 +1051,7 @@ interface AppRouteChildren {
   AppAdminCalendarTemplatesRoute: typeof AppAdminCalendarTemplatesRoute
   AppAdminClosedDaysRoute: typeof AppAdminClosedDaysRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
+  AppAdminJobsRoute: typeof AppAdminJobsRoute
   AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
   AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
@@ -1045,6 +1085,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
+  AppNoPermissionRoute: AppNoPermissionRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,
@@ -1057,6 +1098,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminCalendarTemplatesRoute: AppAdminCalendarTemplatesRoute,
   AppAdminClosedDaysRoute: AppAdminClosedDaysRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
+  AppAdminJobsRoute: AppAdminJobsRoute,
   AppAdminMonitoringRoute: AppAdminMonitoringRoute,
   AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,

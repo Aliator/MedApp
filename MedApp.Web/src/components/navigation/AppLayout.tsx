@@ -15,6 +15,7 @@ import {NotepadSheet} from '../notepad/NotepadSheet';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
+import {PermissionMissingWatcher} from './PermissionMissingWatcher';
 import {SessionTimeout} from './SessionTimeout';
 
 const STORAGE_KEY = 'medapp.halfView';
@@ -198,6 +199,8 @@ function MainLayout() {
         <LiveNotifications />
         {/* The warning before the session times out, and the way back to the login page when it has. */}
         <SessionTimeout />
+        {/* A request refused for a permission the person's roles don't grant: say so, and hide what it allowed. */}
+        <PermissionMissingWatcher />
         <style data-medapp-layout="">{STABLE_SCROLLBAR}</style>
         <AppShell
           sideNav={

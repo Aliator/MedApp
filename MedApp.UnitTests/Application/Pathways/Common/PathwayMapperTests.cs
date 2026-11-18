@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
@@ -33,6 +34,60 @@ public sealed class PathwayMapperTests
         response.AllowedStatusChanges.Should().Equal("Blocked", "Cancelled");
         response.CanWorkOnStages.Should().BeTrue();
         response.CanBeDeleted.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToResponse_ViewerWithoutWorkPathways_CantWorkOnItOrChangeItsStatus()
+    {
+        // A Manager assigns work but doesn't do it, nor unlock stages.
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+
+        var response = PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: StandardRoles.Manager.Permissions);
+
+        response.CanWorkOnStages.Should().BeFalse();
+        response.CanEditDetails.Should().BeFalse();
+        response.CanAddNotes.Should().BeFalse();
+        response.AllowedStatusChanges.Should().BeEmpty();
+        response.Stages.Should().OnlyContain(s => !s.CanEdit && !s.CanUnlock);
+        response.CanChangeAssignments.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToResponse_ViewerWhoWorksOnPathways_CanWorkOnItButNotAssignOrUnlock()
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+
+        var response = PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: StandardRoles.Nurse.Permissions);
+
+        response.CanWorkOnStages.Should().BeTrue();
+        response.CanEditDetails.Should().BeTrue();
+        response.CanAddNotes.Should().BeTrue();
+        response.AllowedStatusChanges.Should().Equal("Blocked", "Cancelled");
+        response.Stages.Select(s => s.CanEdit).Should().Equal(false, true, false);
+        response.CanChangeAssignments.Should().BeFalse();
+        response.Stages.Should().OnlyContain(s => !s.CanUnlock);
+    }
+
+    [Test]
+    public void ToResponse_ViewerWhoOverridesStages_CanUnlockAFinishedStage()
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+
+        var response = PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: StandardRoles.Clinician.Permissions);
+
+        response.Stages.Select(s => s.CanUnlock).Should().Equal(true, false, false);
+    }
+
+    [Test]
+    public void ToResponse_CancelledPathway_CanBeDeletedOnlyByAHolderOfDeletePathways()
+    {
+        var pathway = CreatePathway(Status.Cancelled);
+
+        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: TestPermissions.Admin).CanBeDeleted.Should().BeTrue();
+        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: StandardRoles.Clinician.Permissions)
+            .CanBeDeleted.Should().BeFalse();
+        // No viewer known: only what the pathway allows.
+        PathwayMapper.ToResponse(pathway, Usernames, Now).CanBeDeleted.Should().BeTrue();
     }
 
     [Test]

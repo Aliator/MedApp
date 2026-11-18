@@ -93,6 +93,14 @@ describe('calendarItems', () => {
     expect(appointmentItem({})).toMatchObject({date: '', label: '', sublabel: null, colour: 'blue', isMovable: false});
   });
 
+  it("never lets someone who can't book move an appointment, even one that can be rescheduled", () => {
+    const appointment = testAppointment({id: 'a1', canReschedule: true});
+    expect(appointmentItem(appointment).isMovable).toBe(true);
+    expect(appointmentItem(appointment, {canBook: false}).isMovable).toBe(false);
+    const calendar = testCalendar({from: MONDAY, dayCount: 1, today: MONDAY, appointments: [appointment]});
+    expect(calendarItems(calendar, {canBook: false}).filter((i) => i.kind === 'appointment').every((i) => !i.isMovable)).toBe(true);
+  });
+
   it('says what an appointment is for', () => {
     expect(appointmentPurpose({pathwayTitle: 'Knee review', stageName: 'Assessment'})).toBe('Knee review: Assessment');
     expect(appointmentPurpose({pathwayTitle: 'Knee review', stageName: null})).toBe('Knee review');

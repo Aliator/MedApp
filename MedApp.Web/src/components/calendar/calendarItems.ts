@@ -102,8 +102,11 @@ export function meetingItem(meeting: Meeting, calendarOwnerId?: string | null): 
   };
 }
 
-/** An appointment on a calendar, coloured by its status; movable while it can be rescheduled. */
-export function appointmentItem(appointment: Appointment): CalendarGridItem {
+/**
+ * An appointment on a calendar, coloured by its status; movable while it can be rescheduled, by someone whose roles
+ * allow booking (`canBook`, BookAppointments).
+ */
+export function appointmentItem(appointment: Appointment, {canBook = true}: {canBook?: boolean} = {}): CalendarGridItem {
   const start = appointment.startUtc ?? '';
   const end = appointment.endUtc ?? '';
   const status = appointment.status ?? '';
@@ -120,7 +123,7 @@ export function appointmentItem(appointment: Appointment): CalendarGridItem {
     label: patient,
     sublabel: purpose,
     description: `${patient}, ${purpose ?? 'appointment'}, ${formatTimeRange(start, end)}, ${appointmentStatusLabel(status)}`,
-    isMovable: appointment.canReschedule === true,
+    isMovable: canBook && appointment.canReschedule === true,
   };
 }
 
@@ -157,19 +160,20 @@ export function blockItem(block: CalendarBlock, {isMovable = false}: {isMovable?
 
 /**
  * Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them.
- * Appointments and meetings are movable by their own flags; blocks only with `movableBlocks` (the Calendar page's Edit
+ * Appointments and meetings are movable by their own flags (appointments only for someone who can book: `canBook`);
+ * blocks only with `movableBlocks` (the Calendar page's Edit
  * blocks mode), and never on a day the calendar says is past. A meeting the calendar's owner (`staffUserId`) declined
  * is faded (`meetingItem`).
  */
 export function calendarItems(
   calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId'> | undefined,
-  {movableBlocks = false}: {movableBlocks?: boolean} = {},
+  {movableBlocks = false, canBook = true}: {movableBlocks?: boolean; canBook?: boolean} = {},
 ): CalendarGridItem[] {
   if (!calendar) return [];
   const pastDays = new Set((calendar.days ?? []).filter((d) => d.isPast).map((d) => d.date));
   return [
     ...(calendar.blocks ?? []).map((b) => blockItem(b, {isMovable: movableBlocks && !pastDays.has(b.date)})),
     ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map((m) => meetingItem(m, calendar.staffUserId)),
-    ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map(appointmentItem),
+    ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map((a) => appointmentItem(a, {canBook})),
   ];
 }

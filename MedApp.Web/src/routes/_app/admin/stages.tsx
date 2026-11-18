@@ -1,12 +1,12 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {requireAdmin} from '../../../auth/auth';
+import {requirePermission} from '../../../auth/auth';
 import {parseSetupSearch} from '../../../pages/listSearch';
 import {StageDefinitionsPage} from '../../../pages/setup/StageDefinitionsPage';
 import {preload} from '../../../api/preload';
 import {stageDefinitionsQuery} from '../../../api/pathwaySetup';
 
 export const Route = createFileRoute('/_app/admin/stages')({
-  beforeLoad: requireAdmin,
+  beforeLoad: requirePermission('ManageSetup'),
   validateSearch: parseSetupSearch,
   loader: ({context}) => preload(context.queryClient, stageDefinitionsQuery),
   component: function StageDefinitionsRoute() {

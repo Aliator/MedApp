@@ -94,7 +94,14 @@ public sealed class CalendarControllerTests
     public async Task GetStaff_ReturnsThem()
     {
         IReadOnlyList<StaffMemberResponse> staff = _fixture.CreateMany<StaffMemberResponse>().ToList();
-        await ExpectOk(staff, new GetCalendarStaffQuery(), c => c.GetStaff(_cts.Token));
+        await ExpectOk(staff, new GetCalendarStaffQuery(), c => c.GetStaff(null, _cts.Token));
+    }
+
+    [Test]
+    public async Task GetStaff_WithAPermission_AsksForItsHolders()
+    {
+        IReadOnlyList<StaffMemberResponse> staff = _fixture.CreateMany<StaffMemberResponse>().ToList();
+        await ExpectOk(staff, new GetCalendarStaffQuery("WorkPathways"), c => c.GetStaff("WorkPathways", _cts.Token));
     }
 
     [TestCase("User", false)]

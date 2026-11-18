@@ -1,6 +1,15 @@
 import createClient from 'openapi-fetch';
 import {SSR_KEY_HEADER, ssrRequestContext} from '../ssr/requestContext';
-import {ApiError, ApiValidationError, parseValidationErrors, problemCode, problemTitle} from './errors';
+import {
+  ApiError,
+  ApiValidationError,
+  parseValidationErrors,
+  PERMISSION_MISSING,
+  problemCode,
+  problemDetail,
+  problemPermission,
+  problemTitle,
+} from './errors';
 import type {components, paths} from './schema';
 
 /** Where requests start from outside a browser, until a page request's context says where the API is. */
@@ -82,12 +91,54 @@ api.use({
   },
 });
 
+/** A request the API refused because the person's roles don't grant a permission it needs. */
+export interface PermissionRefusal {
+  /** The permission, by name, as the API sent it (one this copy of the app may not know yet). */
+  permission: string | undefined;
+  /** The API's words for it: "Your roles don't allow this. It needs the permission to: …". */
+  message: string | undefined;
+}
+
+const permissionRefusalListeners = new Set<(refusal: PermissionRefusal) => void>();
+
+/**
+ * Calls `listener` whenever the API refuses a request for a permission the person's roles don't grant (a 403 with
+ * `code: "permission_missing"`), in the browser: someone may have taken it from one of their roles since the page
+ * loaded. `PermissionMissingWatcher` uses it to say so and to read whoami again. Returns a function that stops it.
+ */
+export function onPermissionRefused(listener: (refusal: PermissionRefusal) => void) {
+  permissionRefusalListeners.add(listener);
+  return () => {
+    permissionRefusalListeners.delete(listener);
+  };
+}
+
+api.use({
+  async onResponse({response}) {
+    if (typeof window === 'undefined' || response.status !== 403 || permissionRefusalListeners.size === 0) return;
+    const body: unknown = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (problemCode(body) !== PERMISSION_MISSING) return;
+    const refusal = {permission: problemPermission(body), message: problemDetail(body)};
+    for (const listener of permissionRefusalListeners) listener(refusal);
+  },
+});
+
 export type Schemas = components['schemas'];
 
-/** Returns the response body, or throws {@link ApiValidationError} for a 400 and {@link ApiError} otherwise. */
+/**
+ * Returns the response body, or throws {@link ApiValidationError} for a 400 and {@link ApiError} otherwise. For a
+ * permission the person's roles don't grant, the error's `title` is the API's words for what it needs (its `detail`),
+ * so wherever a page shows the API's reason, it names what's missing.
+ */
 export async function unwrap<T>(request: Promise<{data?: T; error?: unknown; response: Response}>): Promise<T> {
   const {data, error, response} = await request;
   if (response.ok) return data as T;
   if (response.status === 400) throw new ApiValidationError(parseValidationErrors(error));
-  throw new ApiError(response.status, undefined, problemTitle(error), problemCode(error));
+  const code = problemCode(error);
+  if (response.status === 403 && code === PERMISSION_MISSING)
+    throw new ApiError(403, undefined, problemDetail(error) ?? problemTitle(error), code, problemPermission(error));
+  throw new ApiError(response.status, undefined, problemTitle(error), code);
 }

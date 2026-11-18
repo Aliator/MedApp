@@ -30,7 +30,7 @@ import {
 } from '../../api/attachments';
 import {problemMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {useCan} from '../../auth/auth';
 import {formatDateTime} from '../../utils/dates';
 import {formatFileSize} from '../../utils/fileSize';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
@@ -87,7 +87,8 @@ export interface AttachmentsProps {
  * Files attached to a patient, a pathway or a stage: an add area (drop files on it, or press it to choose them,
  * several at once), each file's progress as it's sent, and the list, newest first. Each file shows a thumbnail
  * (pictures) or its type's icon, its name, type, size, who attached it and when, and whether it was scanned, with
- * Download and (where allowed) Delete. Admins can show deleted files too.
+ * Download and (where allowed) Delete. Holders of CorrectRecords can show deleted files too; the add area is only
+ * for holders of AttachFiles.
  *
  * Files are never shown inline: Download always downloads, and only the server's small re-encoded thumbnails are
  * shown as images. Use it in a card's section, padded by its container (it lays out no padding of its own).
@@ -95,13 +96,15 @@ export interface AttachmentsProps {
 export function Attachments({target, canChange, isLocked = false, state}: AttachmentsProps) {
   const ownState = useAttachmentsState();
   const {uploads, add, cancel, dismissFailed, isShowingDeleted, setShowingDeleted} = state ?? ownState;
-  const {isAdmin} = useCurrentUser();
+  // Deleting anyone's file, wherever it is, and seeing deleted ones; and attaching files (and deleting your own).
+  const canCorrectRecords = useCan('CorrectRecords');
+  const canAttach = useCan('AttachFiles');
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
   const remove = useDeleteAttachment();
   const targetKey = attachmentTargetKey(target);
   const targetKind = attachedToOf(target);
-  const isShowingAll = isAdmin && isShowingDeleted(targetKey);
+  const isShowingAll = canCorrectRecords && isShowingDeleted(targetKey);
   const list = useQuery(attachmentsQuery(target, isShowingAll));
   const limits = attachmentLimits(list.data);
   const items = list.data?.items ?? [];
@@ -112,14 +115,14 @@ export function Attachments({target, canChange, isLocked = false, state}: Attach
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   /**
-   * Admins may delete any file; staff their own (`canDelete`), and only where files can change now. Nobody can while
-   * the record is locked.
+   * Holders of CorrectRecords may delete any file; staff their own (`canDelete`, which the API sets for holders of
+   * AttachFiles), and only where files can change now. Nobody can while the record is locked.
    */
   const canDelete = (attachment: Attachment) =>
     !isLocked &&
     (attachment.canDelete ?? false) &&
     !attachment.isDeleted &&
-    (isAdmin || (canChange && attachment.attachedTo === targetKind));
+    (canCorrectRecords || (canChange && attachment.attachedTo === targetKind));
 
   const confirmDelete = (attachment: Attachment) =>
     remove.mutate(attachment.id ?? '', {
@@ -137,7 +140,7 @@ export function Attachments({target, canChange, isLocked = false, state}: Attach
 
   return (
     <VStack gap={4}>
-      {canChange && !isLocked && (
+      {canChange && canAttach && !isLocked && (
         <FileInput
           label="Add files"
           mode="dropzone"
@@ -173,7 +176,7 @@ export function Attachments({target, canChange, isLocked = false, state}: Attach
           <Button label="Dismiss" variant="ghost" size="sm" onClick={() => setDeleteError(null)} />
         </VStack>
       )}
-      {isAdmin && (
+      {canCorrectRecords && (
         <Switch
           label="Show deleted files"
           size="sm"

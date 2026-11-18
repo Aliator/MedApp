@@ -3,10 +3,13 @@ import {
   ApiValidationError,
   allMessages,
   fieldStatus,
+  isPermissionMissing,
   otherMessages,
   parseValidationErrors,
   problemCode,
+  problemDetail,
   problemMessage,
+  problemPermission,
   problemTitle,
   refusalMessage,
   soleFieldStatus,
@@ -199,5 +202,29 @@ describe('otherMessages', () => {
 
     expect(otherMessages(errors, ['password', 'code'])).toEqual(['Missing.', 'Something else.']);
     expect(otherMessages(null, ['password'])).toEqual([]);
+  });
+});
+
+describe('a permission the roles do not grant', () => {
+  const missing = new ApiError(403, undefined, "Your roles don't allow this. It needs the permission to: See Insights.", 'permission_missing', 'ViewInsights');
+
+  it('is a 403 with its code, and nothing else is', () => {
+    expect(isPermissionMissing(missing)).toBe(true);
+    expect(isPermissionMissing(new ApiError(403, undefined, 'Password change required', 'password_change_required'))).toBe(false);
+    expect(isPermissionMissing(new ApiError(409, undefined, 'x', 'permission_missing'))).toBe(false);
+    expect(isPermissionMissing(new TypeError('offline'))).toBe(false);
+  });
+
+  it("gives the API's words wherever a refusal or a problem is shown", () => {
+    expect(problemMessage(missing, 'Failed.')).toBe(missing.title);
+    expect(refusalMessage(missing, 'Failed.')).toBe(missing.title);
+    expect(problemMessage(new ApiError(403, undefined, 'Forbidden'), 'Failed.')).toBe('Failed.');
+  });
+
+  it("reads a ProblemDetails body's detail and permission", () => {
+    expect(problemDetail({detail: 'Why.'})).toBe('Why.');
+    expect(problemDetail({detail: ''})).toBeUndefined();
+    expect(problemPermission({permission: 'ViewInsights'})).toBe('ViewInsights');
+    expect(problemPermission(['x'])).toBeUndefined();
   });
 });

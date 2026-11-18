@@ -5,12 +5,17 @@ import {api, unwrap, type Schemas} from '../api/client';
 import {settingsQuery} from '../api/settings';
 import {currentStartPagePath} from '../app/navSettings';
 import {appSettings, clearStorageAtSignOut, flushSettings} from '../app/settingsStore';
+import {can, knownPermissions, type Permission} from './permissions';
+
+export {can};
 
 export interface CurrentUser {
   isAuthenticated: boolean;
   username: string;
+  /** Their roles' names (Admin, Clinician, ...), for showing. Never check a role's name: check a permission (`useCan`). */
   roles: string[];
-  isAdmin: boolean;
+  /** What their roles allow, all together (`whoami`'s `permissions`), read afresh on every request by the API. */
+  permissions: Permission[];
   /**
    * They were given a generated password (a new account, or an admin's reset) and must choose their own before
    * anything else: the API refuses everything but that, so the signed-in layout sends them to `/change-password`.
@@ -28,7 +33,7 @@ const signedOut: CurrentUser = {
   isAuthenticated: false,
   username: '',
   roles: [],
-  isAdmin: false,
+  permissions: [],
   mustChangePassword: false,
   mustSetUpTwoFactor: false,
 };
@@ -44,7 +49,7 @@ export const whoamiQuery = queryOptions({
       isAuthenticated: true,
       username: data.name ?? '',
       roles,
-      isAdmin: roles.some((r) => r.toLowerCase() === 'admin'),
+      permissions: knownPermissions(data.permissions),
       mustChangePassword: data.mustChangePassword === true,
       mustSetUpTwoFactor: data.mustSetUpTwoFactor === true,
     };
@@ -86,17 +91,29 @@ export async function requireTwoFactorSetup({context}: {context: {queryClient: Q
 }
 
 /**
- * An admin page's `beforeLoad`: anyone who isn't an admin is sent home, as the Blazor Users page did. The API
- * refuses them anyway; this keeps them off a page that would only show errors.
+ * A page's `beforeLoad` for a page that needs a permission: anyone whose roles don't grant it goes to `/no-permission`,
+ * which says what the page needs (its description), rather than a page the API would only refuse. The API refuses
+ * them anyway; this keeps them off a page that would only show errors.
  */
-export async function requireAdmin({context}: {context: {queryClient: QueryClient}}) {
-  const user = await context.queryClient.ensureQueryData(whoamiQuery);
-  if (!user.isAdmin) throw redirect({to: '/'});
-}
+export const requirePermission =
+  (permission: Permission) =>
+  async ({context}: {context: {queryClient: QueryClient}}) => {
+    const user = await context.queryClient.ensureQueryData(whoamiQuery);
+    if (!can(user, permission)) throw redirect({to: '/no-permission', search: {permission}, replace: true});
+  };
 
 /** The signed-in user. Only use it under the signed-in layout, whose guard has already loaded it. */
 export function useCurrentUser(): CurrentUser {
   return useSuspenseQuery(whoamiQuery).data;
+}
+
+/**
+ * Whether the signed-in person's roles grant `permission`, to show or hide what they can do. Only under the signed-in
+ * layout. When the API refuses something for a missing permission, whoami is read again (`PermissionMissingWatcher`),
+ * and this follows.
+ */
+export function useCan(permission: Permission): boolean {
+  return can(useCurrentUser(), permission);
 }
 
 export interface LoginInput {

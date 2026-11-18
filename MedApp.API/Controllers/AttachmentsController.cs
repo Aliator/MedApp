@@ -41,7 +41,8 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             request.StageId,
             request.IncludeDeleted,
             User.GetUserId(),
-            CanCorrectRecords), ct));
+            CanCorrectRecords,
+            User.HasPermission(Permission.AttachFiles)), ct));
 
     /// <summary>
     /// Attaches a file to one patient, pathway or stage. The body is the file's bytes

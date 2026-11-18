@@ -61,6 +61,8 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         builder.UseSetting("LoginThrottling:EmailChangesPerAccountPermitLimit", "100000");
         builder.UseSetting("LoginThrottling:EmailCodesPerAccountPermitLimit", "100000");
         builder.UseSetting("Email:LinkBaseUrl", LinkBaseUrl);
+        // No scheduled jobs on a timer: tests run them themselves (IScheduledJobRunner.RunNowAsync), at known times.
+        builder.UseSetting("Jobs:Enabled", "false");
 
         // Emails are kept, not sent, and the clock can be moved on.
         builder.ConfigureTestServices(services =>

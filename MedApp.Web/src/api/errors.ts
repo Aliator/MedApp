@@ -47,14 +47,37 @@ export class ApiError extends Error {
   readonly title?: string;
   /** The ProblemDetails `code` the API sent, if any, e.g. `password_change_required` on a 403. */
   readonly code?: string;
+  /**
+   * For a 403 with `code: "permission_missing"`, the permission the person's roles don't grant, by name (e.g.
+   * `AssignPathways`); its `title` then says what it allows, in words meant for the user.
+   */
+  readonly permission?: string;
 
-  constructor(status: number, message?: string, title?: string, code?: string) {
+  constructor(status: number, message?: string, title?: string, code?: string, permission?: string) {
     super(message ?? `The request failed (${status}).`);
     this.name = 'ApiError';
     this.status = status;
     this.title = title;
     this.code = code;
+    this.permission = permission;
   }
+}
+
+/** The 403's `code` when the signed-in person's roles don't grant a permission the request needs. */
+export const PERMISSION_MISSING = 'permission_missing';
+
+/** Whether this is the API refusing something the person's roles don't allow (a 403 naming the permission). */
+export const isPermissionMissing = (error: unknown): error is ApiError =>
+  error instanceof ApiError && error.status === 403 && error.code === PERMISSION_MISSING;
+
+/** The `detail` of a ProblemDetails body, if the body is one. */
+export function problemDetail(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.detail === 'string' && body.detail ? body.detail : undefined;
+}
+
+/** The `permission` extension of a `permission_missing` ProblemDetails body, if it has one. */
+export function problemPermission(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.permission === 'string' && body.permission ? body.permission : undefined;
 }
 
 /** The `title` of a ProblemDetails body, if the body is one. */
@@ -134,20 +157,25 @@ export function allMessages(errors: ValidationErrors): string[] {
 
 /**
  * What to tell the user about a failed request: the validation messages for a 400, the API's own reason for a
- * 404 or 409 (e.g. "Stages are worked in order: finish the 'Consent' stage first."), otherwise `fallback`.
+ * 404 or 409 (e.g. "Stages are worked in order: finish the 'Consent' stage first."), or for a permission their roles
+ * don't grant, otherwise `fallback`.
  */
 export function problemMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiValidationError) return allMessages(error.errors).join(' ') || error.errors.title;
-  if (error instanceof ApiError && error.title && (error.status === 404 || error.status === 409)) return error.title;
+  if (error instanceof ApiError && error.title && (error.status === 404 || error.status === 409 || isPermissionMissing(error)))
+    return error.title;
   return fallback;
 }
 
 /**
- * What to tell the user about a refusal that explains itself in its title: a conflict (409), a locked account (423)
- * or too many tries (429, saying when to try again). The API's own words for one of those, otherwise `fallback`.
+ * What to tell the user about a refusal that explains itself in its title: a conflict (409), a permission their roles
+ * don't grant (403, naming it), a locked account (423) or too many tries (429, saying when to try again). The API's
+ * own words for one of those, otherwise `fallback`.
  */
 export function refusalMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError && (error.status === 409 || error.status === 423 || error.status === 429) && error.title
+  return error instanceof ApiError &&
+    (error.status === 409 || error.status === 423 || error.status === 429 || isPermissionMissing(error)) &&
+    error.title
     ? error.title
     : fallback;
 }

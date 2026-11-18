@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, json, mockApi, openAlertDetails, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {calls, findAlert, json, managerUser, mockApi, openAlertDetails, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {HalfViewContext} from '../../components/pages/halfView';
 import type {PathwaysListSearch} from '../listSearch';
@@ -7,7 +7,7 @@ import {PathwaysListPage} from './PathwaysListPage';
 
 const SEARCH = 'GET /api/pathways/patient-pathways/search';
 const patientId = 'patient-1';
-const USERS = 'GET /api/auth/users/search';
+const STAFF = 'GET /api/calendar/staff';
 const TEMPLATES = 'GET /api/pathways/patient-pathway-stage/templates';
 const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
 /** The list's own searches, leaving out what it asks for its filters' choices (accounts, templates). */
@@ -47,7 +47,7 @@ function renderList(
     [SEARCH]: () =>
       json(options.body ?? pageOf([summary(), summary({id: 'proc-2', title: 'Biopsy', assignees: [], status: 'Unassigned'})], 23), options.status),
     [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com', ...options.patientFlags}),
-    [USERS]: () => json(pageOf([{userId: STAFF_ID, username: 'k.ashford', roles: ['User']}])),
+    [STAFF]: () => json([{userId: STAFF_ID, username: 'k.ashford'}]),
     [TEMPLATES]: () => json([{id: TEMPLATE_ID, name: 'Knee review', isArchived: false, stages: [], stageDefinitionIdsInOrder: []}]),
     [SPECIALTIES]: () =>
       json([
@@ -234,6 +234,13 @@ describe('PathwaysListPage', () => {
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
   });
 
+  it("offers New Pathway only to someone whose roles let them start one (CreatePathways)", async () => {
+    renderList({}, {patientId, user: managerUser});
+
+    expect(await screen.findByRole('heading', {name: 'Pathways for Test Patient', level: 1})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'New Pathway'})).not.toBeInTheDocument();
+  });
+
   it("shows the patient's banner on one patient's pathways, and none on the full list", async () => {
     const {unmount} = renderList({}, {patientId});
 
@@ -253,12 +260,12 @@ describe('PathwaysListPage', () => {
     expect(screen.getByRole('button', {name: 'Restricted record: changes paused, show details'})).toBeInTheDocument();
   });
 
-  it("shows someone's pathways, named from the accounts for an admin", async () => {
-    const {fetch} = renderList({overdue: true, assignee: STAFF_ID}, {user: adminUser});
+  it("shows someone's pathways, named from the staff list, which anyone can read", async () => {
+    const {fetch} = renderList({overdue: true, assignee: STAFF_ID}, {user: managerUser});
 
     await screen.findByText('Colonoscopy');
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&OverdueOnly=true&AssignedToUserId=${STAFF_ID}`);
-    await waitFor(() => expect(calls(fetch)).toContain(`${USERS}?PageSize=100&Sort=username`));
+    await waitFor(() => expect(calls(fetch)).toContain(STAFF));
     await waitFor(() => expect(searchBar()).toHaveTextContent(/Assigned to: is\s*k\.ashford/));
   });
 
@@ -285,8 +292,8 @@ describe('PathwaysListPage', () => {
     expect(searchBar()).toHaveTextContent(/From template: iss*Selected template/);
   });
 
-  it("names someone it can't look up (staff can't list the accounts) as the selected person", async () => {
-    renderList({assignee: STAFF_ID});
+  it("names someone it can't find in the staff list (an account since deleted) as the selected person", async () => {
+    renderList({assignee: '0000000a-0000-0000-0000-000000000099'});
 
     await screen.findByText('Colonoscopy');
     expect(searchBar()).toHaveTextContent(/Assigned to: is\s*Selected person/);

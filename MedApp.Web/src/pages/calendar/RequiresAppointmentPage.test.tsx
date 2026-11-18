@@ -1,12 +1,12 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testCalendar, testRequested} from '../../test/calendar';
-import {calls, json, mockApi, openDialog, pageOf, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {calls, json, managerUser, mockApi, openDialog, pageOf, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {RequiresAppointmentSearch} from './calendarSearch';
 import {RequiresAppointmentPage, requiresAppointmentQuery} from './RequiresAppointmentPage';
 
 const MONDAY = '2026-11-23';
 
-function renderPage(search: RequiresAppointmentSearch = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
+function renderPage(search: RequiresAppointmentSearch = {}, handlers: Parameters<typeof mockApi>[0] = {}, user = staffUser) {
   const onSearchChange = vi.fn();
   const fetch = mockApi({
     'GET /api/appointments/search': () =>
@@ -22,7 +22,7 @@ function renderPage(search: RequiresAppointmentSearch = {}, handlers: Parameters
     'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
-  const result = renderWithApp(<RequiresAppointmentPage search={search} onSearchChange={onSearchChange} />, {user: staffUser});
+  const result = renderWithApp(<RequiresAppointmentPage search={search} onSearchChange={onSearchChange} />, {user});
   return {...result, fetch, onSearchChange};
 }
 
@@ -52,6 +52,14 @@ describe('RequiresAppointmentPage', () => {
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(screen.queryByText('None')).not.toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/appointments/search?Statuses=Requested&Page=1&PageSize=10&Sort=dueDate&Ascending=true');
+  });
+
+  it("lists them for someone who can't book (a manager), with nothing to book them with", async () => {
+    renderPage({}, {}, managerUser);
+
+    expect(await screen.findByText('2 appointments to book')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', {name: 'Actions'})).not.toBeInTheDocument();
   });
 
   it("books one, suggesting the pathway's only assignee", async () => {

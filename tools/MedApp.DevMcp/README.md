@@ -32,6 +32,7 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 | Sessions | `list_sessions`, `revoke_sessions` (sign an account out everywhere) |
 | Patients | `list_patients`, `create_patient`, `seed_patients`, `delete_patient` |
 | Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore, files in the git-ignored `.backups/`; the AppHost bind-mounts that folder into the SQL container at `/var/opt/mssql/backups`) |
+| Jobs | `run_job`: runs one of the API's scheduled jobs now (e.g. `operational-purge`), with the API's runner and lease (`docs/agents/jobs.md`); the purge is a dry run unless `Retention:Operational:DryRun` is false |
 | Demo data | `reset_demo_data` (needs `confirm: true`): the same seeder as `tools/seed-demo-data.sh` |
 
 ### The test login: `admin` / `admin`

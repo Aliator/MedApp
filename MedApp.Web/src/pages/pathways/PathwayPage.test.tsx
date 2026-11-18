@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, json, mockApi, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, json, managerUser, mockApi, nurseUser, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage} from './PathwayPage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
@@ -382,14 +382,13 @@ describe('PathwayPage: working on it', () => {
     expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
 
-  it('lets an admin assign staff', async () => {
+  it('lets a manager (AssignPathways) assign staff, offering only those whose roles let them work on pathways', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
-      'GET /api/auth/users/search': () =>
-        json(pageOf([{userId: 'u1', username: 'test-user', roles: ['User']}, {userId: 'u3', username: 'k.other', roles: ['User']}])),
+      'GET /api/calendar/staff': () => json([{userId: 'u1', username: 'test-user'}, {userId: 'u3', username: 'k.other'}]),
       [`POST ${PATH}/assignments/u3`]: () => json(working()),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: managerUser});
 
     await user.click(await screen.findByRole('button', {name: 'Assign Staff'}));
     const dialog = openDialog()!;
@@ -399,6 +398,31 @@ describe('PathwayPage: working on it', () => {
     await user.click(within(dialog).getByRole('button', {name: 'Assign'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/assignments/u3`));
+    // Holders of WorkPathways only, from the staff list (a manager can't read the Users page's).
+    expect(calls(fetch)).toContain('GET /api/calendar/staff?permission=WorkPathways');
+  });
+
+  it("shows a manager what their roles allow: assigning, but no work on the stages, no booking, no deleting", async () => {
+    // The API's flags say the stages can't be worked on (no WorkPathways): the page says why, by roles, not status.
+    mockApi({[`GET ${PATH}`]: () => json(working({canWorkOnStages: false, allowedStatusChanges: [], canChangeAssignments: true, canBeDeleted: false}))});
+    renderWithApp(<PathwayPage id={id} />, {user: managerUser});
+
+    expect(await screen.findByText("Your roles don't allow working on pathways, so this is read only.")).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Assign Staff'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete Pathway'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Audit Log'})).not.toBeInTheDocument();
+  });
+
+  it("offers a nurse no Assign Staff or Unlock Stage, whatever the pathway's flags say", async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working({canChangeAssignments: true}))});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: nurseUser});
+
+    expect(await screen.findByRole('textbox', {name: 'Notes'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Book Appointment'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Assign Staff'})).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: /^1\. Consultation/}));
+    expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
 
   it('lets an admin unlock a finished stage', async () => {
@@ -443,7 +467,7 @@ describe('PathwayPage: working on it', () => {
   it('says why staff could not be assigned', async () => {
     mockApi({
       [`GET ${PATH}`]: () => json(working()),
-      'GET /api/auth/users/search': () => json(pageOf([{userId: 'u3', username: 'k.other', roles: ['User']}])),
+      'GET /api/calendar/staff': () => json([{userId: 'u3', username: 'k.other'}]),
       [`POST ${PATH}/assignments/u3`]: () => json({title: 'k.other can no longer be assigned.'}, 409),
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
@@ -459,7 +483,7 @@ describe('PathwayPage: working on it', () => {
   it('assigns nobody when Assign Staff is cancelled, and starts afresh next time', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
-      'GET /api/auth/users/search': () => json(pageOf([{userId: 'u3', username: 'k.other', roles: ['User']}])),
+      'GET /api/calendar/staff': () => json([{userId: 'u3', username: 'k.other'}]),
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
 

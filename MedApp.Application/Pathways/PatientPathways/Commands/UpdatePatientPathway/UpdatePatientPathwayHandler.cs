@@ -40,6 +40,6 @@ public sealed class UpdatePatientPathwayHandler(
             await pathwayMonitor.NotifyAsync(change, cancellationToken);
         }
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
     }
 }

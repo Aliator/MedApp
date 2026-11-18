@@ -1,11 +1,11 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {requireAdmin} from '../../../auth/auth';
+import {requirePermission} from '../../../auth/auth';
 import {parseSetupSearch} from '../../../pages/listSearch';
 import {SpecialtiesPage, specialtiesPageQuery} from '../../../pages/setup/SpecialtiesPage';
 import {preload} from '../../../api/preload';
 
 export const Route = createFileRoute('/_app/admin/specialties')({
-  beforeLoad: requireAdmin,
+  beforeLoad: requirePermission('ManageSetup'),
   validateSearch: parseSetupSearch,
   loader: ({context}) => preload(context.queryClient, specialtiesPageQuery),
   component: function SpecialtiesRoute() {

@@ -15,7 +15,7 @@ public sealed class AttachmentMapperTests
         var pathway = CreatePathway();
         var attachment = AttachmentOn(pathway, stageOrder: 2);
 
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, PathwayTitle, PathwayStage), Staff.UserId, isAdmin: false);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, PathwayTitle, PathwayStage), Staff.UserId, canCorrectRecords: false, canAttachFiles: true);
 
         response.Should().BeEquivalentTo(new
         {
@@ -45,7 +45,7 @@ public sealed class AttachmentMapperTests
     [Test]
     public void ToResponse_PatientFile_HasNoPathwayOrStage()
     {
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(CreateAttachment(), "stray", "stray"), Staff.UserId, false);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(CreateAttachment(), "stray", "stray"), Staff.UserId, false, true);
 
         response.AttachedTo.Should().Be("Patient");
         response.PathwayId.Should().BeNull();
@@ -59,7 +59,7 @@ public sealed class AttachmentMapperTests
         var pathway = CreatePathway();
         var target = new AttachmentTarget(pathway.PatientId, pathway, null);
 
-        var response = AttachmentMapper.ToResponse(AttachmentOn(pathway), target, Staff.UserId, false);
+        var response = AttachmentMapper.ToResponse(AttachmentOn(pathway), target, Staff.UserId, false, true);
 
         response.AttachedTo.Should().Be("Pathway");
         response.PathwayTitle.Should().Be(PathwayTitle);
@@ -71,7 +71,7 @@ public sealed class AttachmentMapperTests
     {
         var attachment = CreateAttachment(deleted: true, hasThumbnail: true);
 
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, null, null), Admin.UserId, isAdmin: true);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, null, null), Admin.UserId, canCorrectRecords: true, canAttachFiles: true);
 
         response.IsDeleted.Should().BeTrue();
         response.DeletedByUsername.Should().Be(Admin.Username);
@@ -83,7 +83,7 @@ public sealed class AttachmentMapperTests
     [Test]
     public void ToResponse_UnknownContentType_UsesItAsTheTypeName()
     {
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(CreateAttachment(contentType: "image/gif"), null, null), Staff.UserId, false);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(CreateAttachment(contentType: "image/gif"), null, null), Staff.UserId, false, true);
 
         response.TypeName.Should().Be("image/gif");
     }
@@ -93,20 +93,33 @@ public sealed class AttachmentMapperTests
     {
         var attachment = new Attachment { ScanStatus = AttachmentScanStatus.Clean, ContentType = "text/plain; charset=utf-8" };
 
-        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, null, null), Staff.UserId, false);
+        var response = AttachmentMapper.ToResponse(new AttachmentRow(attachment, null, null), Staff.UserId, false, true);
 
         response.ScanStatus.Should().Be("Clean");
         response.TypeName.Should().Be("Text");
     }
 
-    [TestCase(true, false, true)]
-    [TestCase(false, false, false)]
-    [TestCase(false, true, true)]
-    public void CanDelete_OwnFileOrAdmin(bool own, bool isAdmin, bool expected)
+    [TestCase(true, false, true, true)]
+    [TestCase(false, false, true, false)]
+    [TestCase(false, true, true, true)]
+    [TestCase(true, false, false, false)]
+    [TestCase(false, true, false, false)]
+    public void CanDelete_OwnFileOrCorrectRecords_WhileTheyCanAttachFiles(
+        bool own, bool canCorrectRecords, bool canAttachFiles, bool expected)
     {
         var attachment = CreateAttachment(uploadedBy: own ? Staff.UserId : OtherUserId);
 
-        AttachmentMapper.CanDelete(attachment, Staff.UserId, isAdmin).Should().Be(expected);
+        AttachmentMapper.CanDelete(attachment, Staff.UserId, canCorrectRecords, canAttachFiles).Should().Be(expected);
+    }
+
+    [Test]
+    public void ToListResponse_ViewerWithoutAttachFiles_CantDeleteTheirOwnFiles()
+    {
+        var rows = new[] { new AttachmentRow(CreateAttachment(uploadedBy: Staff.UserId), null, null) };
+
+        var response = AttachmentMapper.ToListResponse(rows, 1, Staff.UserId, canCorrectRecords: false, canAttachFiles: false);
+
+        response.Items.Single().CanDelete.Should().BeFalse();
     }
 
     [Test]
@@ -114,7 +127,7 @@ public sealed class AttachmentMapperTests
     {
         var rows = new[] { new AttachmentRow(CreateAttachment(), null, null), new AttachmentRow(CreateAttachment(), null, null) };
 
-        var response = AttachmentMapper.ToListResponse(rows, 250, Staff.UserId, false);
+        var response = AttachmentMapper.ToListResponse(rows, 250, Staff.UserId, false, true);
 
         response.Items.Should().HaveCount(2);
         response.TotalCount.Should().Be(250);

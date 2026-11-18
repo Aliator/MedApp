@@ -1,7 +1,7 @@
 import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryClient} from '@tanstack/react-query';
 import {formatFileSize} from '../utils/fileSize';
 import {api, unwrap, type Schemas} from './client';
-import {allMessages, ApiError, parseValidationErrors, problemTitle} from './errors';
+import {allMessages, ApiError, parseValidationErrors, PERMISSION_MISSING, problemCode, problemDetail, problemTitle} from './errors';
 import {pathwayKeys} from './pathways';
 
 export type Attachment = Schemas['AttachmentResponse'];
@@ -165,6 +165,8 @@ function uploadErrorMessage(status: number, body: unknown): string {
     const messages = allMessages(errors);
     if (messages.length > 0) return messages.join(' ');
   }
+  // The API's words for a permission the person's roles don't grant ("… It needs the permission to: Attach files …").
+  if (status === 403 && problemCode(body) === PERMISSION_MISSING && problemDetail(body)) return problemDetail(body)!;
   return problemTitle(body) ?? UPLOAD_MESSAGES[status] ?? UPLOAD_FALLBACK;
 }
 

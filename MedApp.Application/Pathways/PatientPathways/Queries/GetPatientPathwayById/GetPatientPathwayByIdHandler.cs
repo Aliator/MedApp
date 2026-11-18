@@ -25,6 +25,6 @@ public sealed class GetPatientPathwayByIdHandler(
         await activityLog.RecordViewsAsync(ActivityAction.PathwayViewed, [pathway.PatientId], cancellationToken, pathway.Id);
 
         return await PathwayMapper.ToResponseAsync(
-            pathway, identityReadService, timeProvider.GetUtcNow().UtcDateTime, cancellationToken, viewerId: request.ViewerId, viewerCanCorrectRecords: request.ViewerCanCorrectRecords);
+            pathway, identityReadService, timeProvider.GetUtcNow().UtcDateTime, cancellationToken, viewerId: request.ViewerId, viewerPermissions: request.ViewerPermissions);
     }
 }

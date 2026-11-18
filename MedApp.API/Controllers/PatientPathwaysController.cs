@@ -62,7 +62,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientPathwayById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.HasPermission(Permission.CorrectRecords)), ct));
+        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.GetPermissions()), ct));
 
     /// <summary>
     /// Pathways' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
@@ -217,6 +217,10 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
         return NoContent();
     }
 
+    /// <summary>
+    /// Assigns someone to the pathway. Only holders of <c>WorkPathways</c> can be assigned: anyone else is a 400 on
+    /// <c>UserId</c>.
+    /// </summary>
     [HttpPost("{id:guid}/assignments/{userId:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
