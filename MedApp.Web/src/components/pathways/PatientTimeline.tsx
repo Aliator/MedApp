@@ -10,7 +10,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Heading, Text} from '@astryxdesign/core/Text';
 import {ToggleButton} from '@astryxdesign/core/ToggleButton';
 import {Token} from '@astryxdesign/core/Token';
-import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
+import {keepPreviousData, useInfiniteQuery, useQuery} from '@tanstack/react-query';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {useCan} from '../../auth/auth';
@@ -413,9 +413,13 @@ function TimelineFilterChips({
 /** The feed itself: days, newest first, each with its entries, and "Load more" while there are older ones. */
 function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProps) {
   const announce = useAnnounce();
-  const feed = useInfiniteQuery(patientTimelineQuery(patientId, filters));
+  // A new choice of filters keeps the entries already shown until its own arrive. Swapping them for a spinner made
+  // the page shorter for a moment, so it jumped under the pointer (another chip lit up) and flickered.
+  const feed = useInfiniteQuery({...patientTimelineQuery(patientId, filters), placeholderData: keepPreviousData});
   const entries = feed.data?.pages.flatMap((page) => page.items ?? []) ?? [];
   const isFiltered = hasTimelineFilters(filters);
+  // Showing the last choice's entries while this one loads.
+  const isUpdating = feed.isPlaceholderData;
   // The first entry "Load more" brought in, which takes the focus, so it is never left on the button (which goes
   // once the last page is in).
   const [focusEntryId, setFocusEntryId] = useState<string | null>(null);
@@ -433,7 +437,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
 
   if (feed.isError && entries.length === 0) return <AlertMessage message="The timeline could not be loaded. Please try again." />;
 
-  if (entries.length === 0)
+  if (entries.length === 0 && !isUpdating)
     return (
       <EmptyState
         title={isFiltered ? 'Nothing matches these filters' : 'Nothing has happened yet'}
@@ -455,7 +459,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
   };
 
   return (
-    <VStack gap={6}>
+    <VStack gap={6} aria-busy={isUpdating}>
       {groupByDay(entries).map(({day, entries: dayEntries}) => (
         <List key={day} edge="flush" hasDividers header={<Heading level={3}>{formatDayHeading(dayEntries[0].atUtc ?? '')}</Heading>}>
           {dayEntries.map((entry) => (
@@ -463,8 +467,13 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
           ))}
         </List>
       ))}
-      {feed.isFetchNextPageError && <AlertMessage message="Older entries could not be loaded. Please try again." />}
-      {feed.hasNextPage && (
+      {feed.isFetchNextPageError && !isUpdating && <AlertMessage message="Older entries could not be loaded. Please try again." />}
+      {isUpdating ? (
+        // At the end, so nothing above it moves.
+        <Center axis="horizontal" padding={2}>
+          <Spinner label="Updating the timeline..." />
+        </Center>
+      ) : feed.hasNextPage && (
         <HStack hAlign="center">
           <Button
             label="Load More"
