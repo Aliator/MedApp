@@ -20,7 +20,7 @@ public sealed class AddBankHolidaysHandler(
     TimeProvider timeProvider)
     : IRequestHandler<AddBankHolidaysCommand, AddBankHolidaysResponse>
 {
-    /// <summary>The date is in the list already (under any name).</summary>
+    /// <summary>The date is closed everywhere already (under any name).</summary>
     public const string AlreadyClosed = "AlreadyClosed";
 
     /// <summary>The date is before today: past days don't change.</summary>
@@ -32,7 +32,9 @@ public sealed class AddBankHolidaysHandler(
         var today = UkTime.DateOf(now);
 
         var holidays = BankHolidays.EnglandAndWales(request.Year);
+        // Dates closed everywhere; a site's closed day doesn't stop the bank holiday closing everywhere.
         var closed = (await repository.GetAsync(holidays[0].Date, holidays[^1].Date, cancellationToken))
+            .Where(d => d.SiteId is null)
             .Select(d => d.Date)
             .ToHashSet();
 

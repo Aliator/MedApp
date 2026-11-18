@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
 
-/// <summary>The days the clinic is closed, one per date (a unique index).</summary>
+/// <summary>The days the clinic is closed, one everywhere per date and one per site per date (a unique index).</summary>
 public sealed class ClosedDayRepository(MedAppDbContext context) : IClosedDayRepository
 {
     public async Task<IReadOnlyList<ClosedDay>> GetAsync(DateOnly? from, DateOnly? to, CancellationToken ct) =>
@@ -20,8 +20,8 @@ public sealed class ClosedDayRepository(MedAppDbContext context) : IClosedDayRep
     public async Task<ClosedDay?> GetByIdAsync(Guid id, CancellationToken ct) =>
         await context.ClosedDays.FirstOrDefaultAsync(d => d.Id == id, ct);
 
-    public async Task<ClosedDay?> GetOnAsync(DateOnly date, CancellationToken ct) =>
-        await context.ClosedDays.AsNoTracking().FirstOrDefaultAsync(d => d.Date == date, ct);
+    public async Task<IReadOnlyList<ClosedDay>> GetOnAsync(DateOnly date, CancellationToken ct) =>
+        await context.ClosedDays.AsNoTracking().Where(d => d.Date == date).ToListAsync(ct);
 
     public async Task AddAsync(IReadOnlyCollection<ClosedDay> days, CancellationToken ct)
     {
@@ -31,14 +31,16 @@ public sealed class ClosedDayRepository(MedAppDbContext context) : IClosedDayRep
             await context.SaveChangesAsync(ct);
         }
         // Another request closed one of the dates after this one's check.
-        catch (DbUpdateException e) when (e.IsViolationOf(ClosedDayConfiguration.DateIndex))
+        catch (DbUpdateException e) when (e.IsViolationOf(ClosedDayConfiguration.DateAndSiteIndex))
         {
             foreach (var day in days)
                 context.Entry(day).State = EntityState.Detached;
 
             throw new ConflictException(
                 days.Count == 1
-                    ? $"{UkTime.DescribeDate(days.First().Date)} was made a closed day just now, by someone else."
+                    ? days.First().SiteId is null
+                        ? $"{UkTime.DescribeDate(days.First().Date)} was made a closed day just now, by someone else."
+                        : $"{UkTime.DescribeDate(days.First().Date)} was made a closed day at that site just now, by someone else."
                     : "Someone else added closed days in that year just now. Try again: those already added are skipped.");
         }
     }

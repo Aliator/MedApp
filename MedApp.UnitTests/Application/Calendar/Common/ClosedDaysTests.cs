@@ -3,6 +3,7 @@ using FluentValidation;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -29,6 +30,30 @@ public sealed class ClosedDaysTests
     public void ClosedDaySet_TheSameDateTwice_KeepsTheFirstName()
     {
         new ClosedDaySet([(ClosedWednesday, "First"), (ClosedWednesday, "Second")]).NameOn(ClosedWednesday).Should().Be("First");
+    }
+
+    [Test]
+    public void ClosedDaySet_ASitesDay_ClosesOnlyThatSite_NeverACalendar()
+    {
+        var set = new ClosedDaySet([InMemoryClosedDays.On(NextMonday, "Boiler repair", SitesTestConstants.SiteId), CreateClosedDay()]);
+
+        set.IsClosed(NextMonday).Should().BeFalse("a site's closed day isn't closed everywhere");
+        set.NameOn(NextMonday).Should().BeNull();
+        set.Dates.Should().Equal(ClosedWednesday);
+        set.IsClosedAt(NextMonday, SitesTestConstants.SiteId).Should().BeTrue();
+        set.NameAt(NextMonday, SitesTestConstants.SiteId).Should().Be("Boiler repair");
+        set.IsClosedAt(NextMonday, SitesTestConstants.OtherSiteId).Should().BeFalse();
+        set.NameAt(NextMonday, SitesTestConstants.OtherSiteId).Should().BeNull();
+        WorkingHours.IsWorkingDay(NextMonday, set).Should().BeTrue();
+    }
+
+    [Test]
+    public void ClosedDaySet_ADayClosedEverywhere_ClosesEverySite_WithItsName()
+    {
+        var set = new ClosedDaySet([CreateClosedDay(), InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", SitesTestConstants.SiteId)]);
+
+        set.NameAt(ClosedWednesday, SitesTestConstants.SiteId).Should().Be(ClosedDayName);
+        set.IsClosedAt(ClosedWednesday, SitesTestConstants.OtherSiteId).Should().BeTrue();
     }
 
     [Test]
@@ -161,6 +186,33 @@ public sealed class ClosedDaysTests
         response.IsPast.Should().BeFalse();
         ClosedDayMapper.ToResponse(day, ClosedWednesday).IsPast.Should().BeFalse("today isn't past");
         ClosedDayMapper.ToResponse(day, ClosedWednesday.AddDays(1)).IsPast.Should().BeTrue();
+    }
+
+    [Test]
+    public void ClosedDayMapper_ToResponse_NamesTheSiteOnlyForASitesDay()
+    {
+        var everywhere = ClosedDayMapper.ToResponse(CreateClosedDay(), Today, "Ignored");
+        everywhere.SiteId.Should().BeNull();
+        everywhere.SiteName.Should().BeNull();
+
+        var atSite = ClosedDayMapper.ToResponse(InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", SitesTestConstants.SiteId), Today, SitesTestConstants.SiteName);
+        atSite.SiteId.Should().Be(SitesTestConstants.SiteId);
+        atSite.SiteName.Should().Be(SitesTestConstants.SiteName);
+    }
+
+    [Test]
+    public void ClosedDayRules_EnsureNotClosed_EverywhereStopsAll_ASiteStopsOnlyItself()
+    {
+        var everywhere = CreateClosedDay();
+        var atSite = InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", SitesTestConstants.SiteId);
+
+        ((Action)(() => ClosedDayRules.EnsureNotClosed([everywhere], null, null))).Should().Throw<ConflictException>();
+        ((Action)(() => ClosedDayRules.EnsureNotClosed([everywhere], SitesTestConstants.OtherSiteId, "Other"))).Should().Throw<ConflictException>();
+        ((Action)(() => ClosedDayRules.EnsureNotClosed([atSite], SitesTestConstants.SiteId, SitesTestConstants.SiteName)))
+            .Should().Throw<ConflictException>().WithMessage($"*already a closed day at {SitesTestConstants.SiteName}: Boiler repair.");
+        ClosedDayRules.EnsureNotClosed([atSite], null, null);
+        ClosedDayRules.EnsureNotClosed([atSite], SitesTestConstants.OtherSiteId, "Other");
+        ClosedDayRules.EnsureNotClosed([], SitesTestConstants.SiteId, SitesTestConstants.SiteName);
     }
 
     [Test]

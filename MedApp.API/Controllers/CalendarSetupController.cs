@@ -306,18 +306,20 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new GetClosedDayBookingsQuery(date), ct));
 
     /// <summary>
-    /// Closes the clinic on a day, today or later. What's already on it stays, flagged; the response says what, and the
-    /// staff with something on it are told.
+    /// Closes the clinic on a day, today or later, everywhere or at one site. Closed everywhere, what's already on it
+    /// stays, flagged; the response says what, and the staff with something on it are told. A site's closed day closes
+    /// that site's rooms, and tells no one.
     /// </summary>
     [HttpPost("closed-days")]
     [ProducesResponseType(typeof(ClosedDayResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Tags(ClosedDaysTag)]
     [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> CreateClosedDay([FromBody] CreateClosedDayRequest request, CancellationToken ct)
     {
-        var day = await mediator.Send(new CreateClosedDayCommand(request.Date, request.Name, User.ToCalendarActor()), ct);
+        var day = await mediator.Send(new CreateClosedDayCommand(request.Date, request.Name, User.ToCalendarActor(), request.SiteId), ct);
         return Created($"/api/calendar/closed-days?from={day.Date:yyyy-MM-dd}&to={day.Date:yyyy-MM-dd}", day);
     }
 

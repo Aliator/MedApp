@@ -60,6 +60,17 @@ public sealed class AddBankHolidaysHandlerTests
     }
 
     [Test]
+    public async Task Handle_ASiteClosedOnABankHoliday_StillClosesItEverywhere()
+    {
+        _existing.Add(InMemoryClosedDays.On(new DateOnly(2027, 5, 3), "Boiler repair", SitesTestConstants.SiteId));
+
+        var response = await _handler.Handle(new AddBankHolidaysCommand(2027, AdminActor), CancellationToken.None);
+
+        _adds.Should().ContainSingle().Which.Should().Contain(d => d.Date == new DateOnly(2027, 5, 3) && d.SiteId == null);
+        response.Skipped.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Handle_NextYear_AddsAllEightInOneSave()
     {
         using var cts = new CancellationTokenSource();

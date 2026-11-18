@@ -20,9 +20,9 @@ public sealed class InMemoryClosedDays(params ClosedDay[] days) : IClosedDayRepo
     /// <summary>The working day's rules with these closed days.</summary>
     public static WorkingDays WorkingDays(params ClosedDay[] days) => new(new InMemoryClosedDays(days));
 
-    /// <summary>A closed day on a date.</summary>
-    public static ClosedDay On(DateOnly date, string name = "Christmas Day") =>
-        new() { Id = Guid.NewGuid(), Date = date, Name = name };
+    /// <summary>A closed day on a date: everywhere, or at a site.</summary>
+    public static ClosedDay On(DateOnly date, string name = "Christmas Day", Guid? siteId = null) =>
+        new() { Id = Guid.NewGuid(), Date = date, Name = name, SiteId = siteId };
 
     public Task<IReadOnlyList<ClosedDay>> GetAsync(DateOnly? from, DateOnly? to, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<ClosedDay>>(_days
@@ -33,8 +33,8 @@ public sealed class InMemoryClosedDays(params ClosedDay[] days) : IClosedDayRepo
     public Task<ClosedDay?> GetByIdAsync(Guid id, CancellationToken ct) =>
         Task.FromResult(_days.FirstOrDefault(d => d.Id == id));
 
-    public Task<ClosedDay?> GetOnAsync(DateOnly date, CancellationToken ct) =>
-        Task.FromResult(_days.FirstOrDefault(d => d.Date == date));
+    public Task<IReadOnlyList<ClosedDay>> GetOnAsync(DateOnly date, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ClosedDay>>(_days.Where(d => d.Date == date).ToList());
 
     public Task AddAsync(IReadOnlyCollection<ClosedDay> days, CancellationToken ct)
     {
