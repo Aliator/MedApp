@@ -13,6 +13,9 @@ public sealed class PathwayInsightsResponse
     /// <summary>The template it's limited to, if any.</summary>
     public Guid? TemplateId { get; set; }
 
+    /// <summary>The specialty it's limited to, if any.</summary>
+    public Guid? SpecialtyId { get; set; }
+
     /// <summary>The Monday the first week starts on (UK).</summary>
     public DateOnly From { get; set; }
 

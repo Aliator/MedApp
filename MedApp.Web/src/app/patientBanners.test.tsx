@@ -100,7 +100,7 @@ function answerApi() {
     if (pathname === '/api/demographics/status') return json({isAvailable: false, source: null});
     if (pathname === '/api/notifications') return json({items: [], unreadCount: 0});
     if (pathname === '/api/auth/me/settings') return json({settings: null});
-    if (/\/(templates|definitions)$/.test(pathname)) return json([]);
+    if (/\/(templates|definitions|specialties)$/.test(pathname)) return json([]);
     return json(pageOf([]));
   });
 }

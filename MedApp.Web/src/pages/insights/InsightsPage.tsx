@@ -6,6 +6,7 @@ import {useRouter} from '@tanstack/react-router';
 import {useState} from 'react';
 import {type OverdueByAssignee, type OverdueByPriority, type StageTime, type WeeklyThroughput} from '../../api/insights';
 import {allTemplatesQuery} from '../../api/pathwaySetup';
+import {specialtiesQuery} from '../../api/specialties';
 import {BarChart, type ChartSeries} from '../../components/charts/BarChart';
 import {ChartCard, type ChartView} from '../../components/charts/ChartCard';
 import {ChartTable} from '../../components/charts/ChartTable';
@@ -32,13 +33,14 @@ import {insightsPageQuery} from './insightsPageQuery';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 export interface InsightsPageProps {
-  /** The period and template, from the URL. */
+  /** The period, specialty and template, from the URL. */
   search: InsightsSearch;
   /** Updates the URL; the route passes navigate({search}). */
   onSearchChange: (search: InsightsSearch) => void;
 }
 
 const ALL_TEMPLATES = 'all';
+const ALL_SPECIALTIES = 'all';
 const DIMMED = {opacity: 0.6};
 const LAST_WEEK = 'this time last week';
 
@@ -60,7 +62,7 @@ type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
  * Insights (admin): an overview of the pathway work, to keep an eye on it. Headline counts against this time last
  * week (open, in progress, overdue, discharged), where the overdue work is (by assignee and by priority), how many
  * were created and discharged each week, and how long each template's stages take, waiting and being worked on. A
- * period (4, 12 or 26 weeks) and a template filter everything, from the URL.
+ * period (4, 12 or 26 weeks), a specialty (the pathways' own) and a template filter everything, from the URL.
  *
  * Each chart is in a `ChartCard`, with a summary and a table of its numbers. A tile, or an overdue bar or row, opens
  * the pathways list filtered to what it counts.
@@ -73,19 +75,40 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
   const viewOf = (card: CardName) => ({view: views[card], onViewChange: (view: ChartView) => setViews({...views, [card]: view})});
 
   const templates = useQuery(allTemplatesQuery);
+  const specialties = useQuery(specialtiesQuery(true));
   const {data, isPending, isError, isPlaceholderData} = useQuery(insightsPageQuery(search));
-  // The template the numbers on screen are for: while another loads, the last one's stay, under their own name.
+  // The template and specialty the numbers on screen are for: while others load, the last ones' stay, under their names.
   const templateId = data?.templateId?.toLowerCase();
+  const specialtyId = data?.specialtyId?.toLowerCase();
+  const scope = {templateId, specialtyId};
   const templateNameOf = (id: string | null | undefined) => templates.data?.find((t) => t.id?.toLowerCase() === id?.toLowerCase())?.name;
   const templateName = templateId ? (templateNameOf(templateId) ?? 'one template') : undefined;
+  const specialtyName = specialtyId
+    ? (specialties.data?.find((s) => s.id?.toLowerCase() === specialtyId)?.name ?? 'one specialty')
+    : undefined;
   const open = (href: string) => void router.navigate({href});
+  const isInSpecialty = (templateSpecialty: string | undefined, specialty: string | undefined) =>
+    !specialty || templateSpecialty?.toLowerCase() === specialty;
 
+  const specialtyOptions = [
+    {value: ALL_SPECIALTIES, label: 'All specialties'},
+    ...(specialties.data ?? []).map((s) => ({value: s.id?.toLowerCase() ?? '', label: s.isArchived ? `${s.name} (archived)` : (s.name ?? '')})),
+  ];
+  // With a specialty chosen, only its templates (a pathway's specialty is its template's when it was made).
   const templateOptions = [
     {value: ALL_TEMPLATES, label: 'All templates'},
     ...[...(templates.data ?? [])]
+      .filter((t) => isInSpecialty(t.specialtyId, search.specialty) || t.id?.toLowerCase() === search.template)
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
       .map((t) => ({value: t.id?.toLowerCase() ?? '', label: t.isArchived ? `${t.name} (archived)` : (t.name ?? '')})),
   ];
+
+  /** A new specialty keeps the template only if it's one of the specialty's. */
+  const chooseSpecialty = (value: string) => {
+    const specialty = value === ALL_SPECIALTIES ? undefined : value;
+    const template = templates.data?.find((t) => t.id?.toLowerCase() === search.template);
+    onSearchChange({...search, specialty, template: template && isInSpecialty(template.specialtyId, specialty) ? search.template : undefined});
+  };
 
   const filters = (
     <HStack gap={4} vAlign="end" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
@@ -99,6 +122,15 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
         }
         variant="secondary"
         width={180}
+      />
+      <AnchoredSelector
+        label="Specialty"
+        isLabelHidden
+        options={specialtyOptions}
+        value={search.specialty ?? ALL_SPECIALTIES}
+        onChange={chooseSpecialty}
+        variant="secondary"
+        width={220}
       />
       <AnchoredSelector
         label="Template"
@@ -123,7 +155,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
     ? 'Loading insights...'
     : isPlaceholderData
       ? 'Updating...'
-      : `${formatShortDate(data.from ?? '')} to ${formatShortDate(data.to ?? '')}, ${templateName ?? 'all templates'}`;
+      : `${formatShortDate(data.from ?? '')} to ${formatShortDate(data.to ?? '')}, ${[specialtyName, templateName ?? 'all templates'].filter(Boolean).join(', ')}`;
 
   return (
     <Page
@@ -145,14 +177,14 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   value={data.open?.current ?? 0}
                   previous={data.open?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={pathwaysHref({}, templateId)}
+                  href={pathwaysHref({}, scope)}
                 />
                 <StatTile
                   label="In progress"
                   value={data.inProgress?.current ?? 0}
                   previous={data.inProgress?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={pathwaysHref({status: 'InProgress'}, templateId)}
+                  href={pathwaysHref({status: 'InProgress'}, scope)}
                 />
                 <StatTile
                   label="Overdue"
@@ -160,7 +192,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   previous={data.overdue?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood={false}
-                  href={pathwaysHref({overdue: 'true'}, templateId)}
+                  href={pathwaysHref({overdue: 'true'}, scope)}
                 />
                 <StatTile
                   label="Discharged this week"
@@ -180,7 +212,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                         data={assignees}
                         categoryKey="name"
                         series={COUNT}
-                        onSelect={(row) => open(assigneeHref(row, templateId))}
+                        onSelect={(row) => open(assigneeHref(row, scope))}
                         description={`Bar chart. ${overdueByAssigneeSummary(data)}`}
                       />
                     )
@@ -190,7 +222,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryKey="name"
                       categoryHeader="Assigned to"
                       series={COUNT}
-                      hrefFor={(row) => assigneeHref(row, templateId)}
+                      hrefFor={(row) => assigneeHref(row, scope)}
                       label="Overdue pathways by assignee"
                     />
                   )}
@@ -201,7 +233,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       data={priorities}
                       categoryKey="priority"
                       series={COUNT}
-                      onSelect={(row: OverdueByPriority) => open(priorityHref(row, templateId))}
+                      onSelect={(row: OverdueByPriority) => open(priorityHref(row, scope))}
                       description={`Bar chart. ${overdueByPrioritySummary(data)}`}
                     />
                   ) : (
@@ -210,7 +242,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryKey="priority"
                       categoryHeader="Priority"
                       series={COUNT}
-                      hrefFor={(row) => priorityHref(row, templateId)}
+                      hrefFor={(row) => priorityHref(row, scope)}
                       label="Overdue pathways by priority"
                     />
                   )}

@@ -210,7 +210,7 @@ public sealed class PathwayInsightsQueriesTests
     }
 
     [Test]
-    public void ForTemplate_AuditEntries_KeepsOnlyThoseOfTheTemplatesPathways()
+    public void InScope_AuditEntries_KeepsOnlyThoseOfTheTemplatesPathways()
     {
         var mine = CreatePathway();
         mine.TemplateId = TemplateId;
@@ -220,20 +220,52 @@ public sealed class PathwayInsightsQueriesTests
         var audit = new[] { Created(mine, Moment), Created(other, Moment), Created(deleted, Moment) }.AsQueryable();
         var pathways = new[] { mine, other }.AsQueryable();
 
-        audit.ForTemplate(pathways, TemplateId).Select(e => e.PatientPathwayId).Should().Equal(mine.Id);
-        audit.ForTemplate(pathways, null).Should().HaveCount(3);
+        audit.InScope(pathways, new InsightsScope(TemplateId)).Select(e => e.PatientPathwayId).Should().Equal(mine.Id);
+        audit.InScope(pathways, InsightsScope.Everything).Should().HaveCount(3);
     }
 
     [Test]
-    public void ForTemplate_Pathways_KeepsOnlyThatTemplatesWhenGiven()
+    public void InScope_Pathways_KeepsOnlyThatTemplatesWhenGiven()
     {
         var mine = CreatePathway();
         mine.TemplateId = TemplateId;
         var other = CreatePathway();
         var pathways = new[] { mine, other }.AsQueryable();
 
-        pathways.ForTemplate(TemplateId).Should().Equal(mine);
-        pathways.ForTemplate(null).Should().Equal(mine, other);
+        pathways.InScope(new InsightsScope(TemplateId)).Should().Equal(mine);
+        pathways.InScope(InsightsScope.Everything).Should().Equal(mine, other);
+    }
+
+    [Test]
+    public void InScope_Pathways_KeepsOnlyThatSpecialtysAndBothWhenBothGiven()
+    {
+        var specialty = Guid.NewGuid();
+        var inBoth = CreatePathway();
+        inBoth.TemplateId = TemplateId;
+        inBoth.SpecialtyId = specialty;
+        var specialtyOnly = CreatePathway();
+        specialtyOnly.SpecialtyId = specialty;
+        var templateOnly = CreatePathway();
+        templateOnly.TemplateId = TemplateId;
+        var pathways = new[] { inBoth, specialtyOnly, templateOnly }.AsQueryable();
+
+        pathways.InScope(new InsightsScope(SpecialtyId: specialty)).Should().Equal(inBoth, specialtyOnly);
+        pathways.InScope(new InsightsScope(TemplateId, specialty)).Should().Equal(inBoth);
+    }
+
+    [Test]
+    public void InScope_AuditEntries_KeepsOnlyThoseOfTheSpecialtysExistingPathways()
+    {
+        var specialty = Guid.NewGuid();
+        var mine = CreatePathway();
+        mine.SpecialtyId = specialty;
+        var other = CreatePathway();
+        var deleted = CreatePathway();
+        deleted.SpecialtyId = specialty;
+        var audit = new[] { Created(mine, Moment), Created(other, Moment), Created(deleted, Moment) }.AsQueryable();
+        var pathways = new[] { mine, other }.AsQueryable();
+
+        audit.InScope(pathways, new InsightsScope(SpecialtyId: specialty)).Select(e => e.PatientPathwayId).Should().Equal(mine.Id);
     }
 
     // Overdue ------------------------------------------------------------------------------------------------

@@ -148,6 +148,8 @@ public sealed class ReferralQueriesTests
         validator.Validate(Search() with { Sort = "daysWaited" }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { Statuses = ["Open"] }).IsValid.Should().BeFalse();
         validator.Validate(Search() with { Search = new string('a', 201) }).IsValid.Should().BeFalse();
+        validator.Validate(Search() with { SpecialtyIds = Enumerable.Range(0, 100).Select(_ => Guid.NewGuid()).ToList() }).IsValid.Should().BeTrue();
+        validator.Validate(Search() with { SpecialtyIds = Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToList() }).IsValid.Should().BeFalse();
     }
 }
 
