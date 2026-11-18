@@ -84,8 +84,8 @@ export interface PracticesPageProps {
 }
 
 /**
- * The GP practice directory (`/practices`, for anyone who can view patients; docs/centre-phases-3-5-plan.md,
- * decision 79): each practice's name and address, ODS code, postcode, phone, how many patients and referrals have it,
+ * The GP practice directory (`/practices`, for admins with ManageSetup since #195, in the nav's Calendar folder; staff
+ * still choose practices on the patient form through the API; docs/centre-phases-3-5-plan.md, decision 79): each practice's name and address, ODS code, postcode, phone, how many patients and referrals have it,
  * and whether it's archived, searched by name or ODS code. Holders of EditPatients add and edit practices (name, ODS
  * code, three address lines, postcode, phone and a secure email for letters), archive one no longer used (patients and
  * referrals keep it, but it isn't offered for anything new), restore it, and delete one nothing has used. Each change

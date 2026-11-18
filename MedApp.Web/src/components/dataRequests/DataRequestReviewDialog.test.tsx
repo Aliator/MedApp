@@ -96,4 +96,17 @@ describe('DataRequestReviewDialog', () => {
     render({[`GET ${BASE}/review-items`]: () => json({title: 'Boom'}, 500)});
     expect(await screen.findByText("The record's items could not be loaded. Please try again.")).toBeInTheDocument();
   });
+
+  it("shows a 400's messages, and an item with no date or author by its title only", async () => {
+    const {user} = render({
+      [`GET ${BASE}/review-items`]: () => json([{...testReviewItems()[0], atUtc: null, by: null}]),
+      [`PUT ${BASE}/review`]: () => json({title: 'Invalid', status: 400, errors: {'Withheld[0].ItemId': ["That item isn't in this patient's record."]}}, 400),
+    });
+    const dialog = within(await dialogOpen());
+
+    expect(await dialog.findByRole('group', {name: 'Note: Skin check'})).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Save Review'}));
+    expect(await dialog.findByText("That item isn't in this patient's record.")).toBeInTheDocument();
+  });
 });
+

@@ -683,7 +683,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             href="/calendar/requires-appointment"
             icon={<Icon icon={AppIcon.RequiresAppointment} />}
           />
-          <Button label="Clinics" variant="secondary" href="/calendar/clinics" icon={<Icon icon={AppIcon.Clinics} />} />
+          {/* The MDT list, where Clinics was (the owner, 18 November 2026): Clinics is deprecated, its page still there
+              by address (/calendar/clinics), and the MDT list left the side nav for here. */}
+          {can(me, 'ViewPatients') && <Button label="MDT" variant="secondary" href="/mdt" icon={<Icon icon={AppIcon.Mdt} />} />}
           {/* One person's calendar they can change (never the team view): their day templates on days of this week. */}
           {canEdit && (
             <Button

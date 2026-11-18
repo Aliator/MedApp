@@ -58,4 +58,30 @@ describe('LogDataRequestDialog', () => {
     expect(await dialog.findByText("It can't be in the future.")).toBeInTheDocument();
     expect(openDialog()).not.toBeNull();
   });
+
+  it('sends the day chosen, and shows a 400 about no field of its own above the fields', async () => {
+    const {user, fetch} = render(() => json({status: 400, errors: {PatientId: ['That patient is anonymised.']}}, 400));
+    const dialog = within(await dialogOpen());
+
+    await user.clear(dialog.getByRole('combobox', {name: /Received on/}));
+    await user.type(dialog.getByRole('combobox', {name: /Received on/}), '03/11/2026');
+    await user.tab();
+    await user.click(dialog.getByRole('radio', {name: 'The patient'}));
+    await user.click(dialog.getByRole('button', {name: 'Log Data Request'}));
+
+    expect(await dialog.findByText('That patient is anonymised.')).toBeInTheDocument();
+    const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await post.json()).toMatchObject({receivedOn: '2026-11-03'});
+  });
+
+  it("shows any other refusal in the API's words, or its own", async () => {
+    const {user} = render(() => json({}, 500));
+    const dialog = within(await dialogOpen());
+
+    await user.click(dialog.getByRole('radio', {name: 'The patient'}));
+    await user.click(dialog.getByRole('button', {name: 'Log Data Request'}));
+
+    expect(await dialog.findByText('The data request could not be logged. Please try again.')).toBeInTheDocument();
+  });
 });
+

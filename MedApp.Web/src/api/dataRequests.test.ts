@@ -3,6 +3,8 @@ import {DATA_REQUEST_ID} from '../test/dataRequests';
 import {
   attachmentFileName,
   dataRequestStatusWords,
+  dataRequestViewLabel,
+  type DataRequestView,
   downloadDataRequestPack,
   identityCheckMethodWords,
   packProblem,
@@ -29,6 +31,14 @@ describe('dataRequests', () => {
     expect(reviewItemKindWords('MdtItem')).toBe('MDT item');
     expect(reviewItemKindWords('Something')).toBe('Something');
     expect(sendMethodWords(null)).toBe('');
+    expect(sendMethodWords('Pigeon')).toBe('Pigeon');
+    expect(dataRequestStatusWords('Lost')).toBe('Lost');
+    expect(dataRequestStatusWords(undefined)).toBe('');
+    expect(identityCheckMethodWords('Fingerprint')).toBe('Fingerprint');
+    expect(identityCheckMethodWords(null)).toBe('');
+    expect(reviewItemKindWords(null)).toBe('');
+    expect(dataRequestViewLabel('AwaitingReview')).toBe('Awaiting review');
+    expect(dataRequestViewLabel('Other' as DataRequestView)).toBe('Other');
   });
 
   it("reads a download's file name from its Content-Disposition", () => {

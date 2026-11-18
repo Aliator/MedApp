@@ -4,9 +4,12 @@ import {requirePermission} from '../../auth/auth';
 import {parseSetupSearch} from '../../pages/listSearch';
 import {PracticesPage, practicesPageQuery} from '../../pages/practices/PracticesPage';
 
-/** The GP practice directory, for anyone who can view patients; holders of EditPatients keep it. */
+/**
+ * The GP practice directory, for admins (ManageSetup), in the side nav's Calendar category (the owner, 18 November
+ * 2026). Staff still choose a patient's practice on the patient form, through the API, whose permissions are unchanged.
+ */
 export const Route = createFileRoute('/_app/practices')({
-  beforeLoad: requirePermission('ViewPatients'),
+  beforeLoad: requirePermission('ManageSetup'),
   validateSearch: parseSetupSearch,
   loader: ({context}) => preload(context.queryClient, practicesPageQuery),
   component: function PracticesRoute() {

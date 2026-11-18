@@ -85,13 +85,24 @@ public sealed class PdfSharpLetterRenderer : ILetterRenderer
     }
 
     /// <summary>The four faces, at any size: a character missing from any of them is unsupported.</summary>
-    private static readonly XFont[] Faces =
-    [
-        new(LetterFonts.FamilyName, 10, XFontStyleEx.Regular),
-        new(LetterFonts.FamilyName, 10, XFontStyleEx.Bold),
-        new(LetterFonts.FamilyName, 10, XFontStyleEx.Italic),
-        new(LetterFonts.FamilyName, 10, XFontStyleEx.BoldItalic),
-    ];
+    private static readonly XFont[] Faces = CreateFaces();
+
+    /// <summary>
+    /// Installs the fonts first: this runs in the type's initializer, which the first touch of any static (the
+    /// <see cref="Gate"/> in <see cref="RenderAsync"/>) starts, before any method's own <c>Install</c>. Without it the
+    /// first render in a fresh process fails, and stays failed, as a type initializer's failure is kept.
+    /// </summary>
+    private static XFont[] CreateFaces()
+    {
+        LetterFonts.Install();
+        return
+        [
+            new(LetterFonts.FamilyName, 10, XFontStyleEx.Regular),
+            new(LetterFonts.FamilyName, 10, XFontStyleEx.Bold),
+            new(LetterFonts.FamilyName, 10, XFontStyleEx.Italic),
+            new(LetterFonts.FamilyName, 10, XFontStyleEx.BoldItalic),
+        ];
+    }
 
     /// <summary>Spaces, line breaks and other controls: they're laid out, never drawn as glyphs.</summary>
     private static bool IsLayout(int codePoint) =>

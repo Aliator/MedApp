@@ -2,7 +2,10 @@ import {createFileRoute} from '@tanstack/react-router';
 import {parseClinicsSearch} from '../../../../pages/calendar/calendarSearch';
 import {ClinicsPage, preloadClinicsPage} from '../../../../pages/calendar/ClinicsPage';
 
-/** Anyone signed in: a week's clinic sessions. Holders of ManageClinics add, change and cancel them. */
+/**
+ * Anyone signed in: a week's clinic sessions. Holders of ManageClinics add, change and cancel them. Deprecated: no new
+ * work, kept working by address; the Calendar page no longer links here.
+ */
 export const Route = createFileRoute('/_app/calendar/clinics/')({
   validateSearch: parseClinicsSearch,
   loaderDeps: ({search}) => ({date: search.date, site: search.site}),

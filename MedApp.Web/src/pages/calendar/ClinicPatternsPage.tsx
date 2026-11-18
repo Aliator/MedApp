@@ -35,6 +35,9 @@ export const patternRepeat = (p: Pick<ClinicPattern, 'everyWeeks' | 'fromDate' |
  * with its clinician, room, specialty, day and times, slot length and how often. **Create sessions** makes a pattern's
  * sessions for the next 1 to 13 weeks, when asked (nothing makes them in the background), and lists what it made and the
  * dates it skipped, with why (already made, a closed day, a clash).
+ *
+ * **Deprecated** (the owner, 18 November 2026): no new work, kept building and working by address, with its tests;
+ * nothing links to it from the Calendar page any more (docs/agents/calendar.md).
  */
 export function ClinicPatternsPage() {
   const patterns = useQuery(patternsQuery);
