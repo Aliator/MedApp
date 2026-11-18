@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.NoteDeletionRequests.Commands.RequestNoteDeletion;
 using MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayNote;
@@ -41,7 +42,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.CreatePathways)]
     public async Task<IActionResult> CreatePatientPathway([FromBody] CreatePatientPathwayRequest request, CancellationToken ct)
     {
         var pathway = await mediator.Send(new CreatePatientPathwayCommand(
@@ -59,9 +60,9 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientPathwayById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.IsInRole("Admin")), ct));
+        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.HasPermission(Permission.CorrectRecords)), ct));
 
     /// <summary>
     /// Pathways' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
@@ -70,7 +71,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [HttpGet("labels")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientPathwayLabelResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientPathwayLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPatientPathwayLabelsQuery(ids ?? []), ct));
 
@@ -78,7 +79,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<PatientPathwaySummaryResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> SearchPatientPathways([FromQuery] SearchPatientPathwaysRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchPatientPathwaysQuery(
             request.Page,
@@ -109,7 +110,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> UpdatePatientPathway(Guid id, [FromBody] UpdatePatientPathwayRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdatePatientPathwayCommand(
             id,
@@ -129,7 +130,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> AddPathwayNote(Guid id, [FromBody] AddPathwayNoteRequest request, CancellationToken ct)
     {
         var note = await mediator.Send(new AddPathwayNoteCommand(id, request.Text, User.ToPathwayActor()), ct);
@@ -147,7 +148,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> EditPathwayNote(Guid id, Guid noteId, [FromBody] EditPathwayNoteRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EditPathwayNoteCommand(id, noteId, request.Text, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
@@ -162,7 +163,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.CorrectRecords)]
     public async Task<IActionResult> DeletePathwayNote(Guid id, Guid noteId, [FromBody] DeletePathwayNoteRequest request, CancellationToken ct)
     {
         await mediator.Send(new DeletePathwayNoteCommand(
@@ -181,7 +182,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> RequestNoteDeletion(Guid id, Guid noteId, [FromBody] RequestNoteDeletionRequest request, CancellationToken ct)
     {
         var note = await mediator.Send(new RequestNoteDeletionCommand(id, noteId, request.Reason, request.Detail, User.ToPathwayActor()), ct);
@@ -194,7 +195,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> ChangePatientPathwayStatus(Guid id, [FromBody] ChangePatientPathwayStatusRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new ChangePatientPathwayStatusCommand(
             id,
@@ -207,7 +208,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.DeletePathways)]
     public async Task<IActionResult> DeletePatientPathway(Guid id, CancellationToken ct)
     {
         await mediator.Send(new DeletePatientPathwayCommand(id, User.ToPathwayActor()), ct);
@@ -219,7 +220,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.AssignPathways)]
     public async Task<IActionResult> AssignPatientPathway(Guid id, Guid userId, CancellationToken ct) =>
         Ok(await mediator.Send(new AssignPatientPathwayCommand(id, userId, User.ToPathwayActor()), ct));
 
@@ -228,7 +229,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.AssignPathways)]
     public async Task<IActionResult> UnassignPatientPathway(Guid id, Guid userId, CancellationToken ct) =>
         Ok(await mediator.Send(new UnassignPatientPathwayCommand(id, userId, User.ToPathwayActor()), ct));
 
@@ -236,7 +237,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> StartPathwayStage(Guid id, Guid stageId, CancellationToken ct) =>
         Ok(await mediator.Send(new StartPathwayStageCommand(id, stageId, User.ToPathwayActor()), ct));
 
@@ -245,7 +246,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> UpdatePathwayStageNotes(Guid id, Guid stageId, [FromBody] UpdatePathwayStageNotesRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdatePathwayStageNotesCommand(id, stageId, request.Notes, User.ToPathwayActor()), ct));
 
@@ -258,7 +259,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> FinishPathwayStage(
         Guid id,
         Guid stageId,
@@ -270,14 +271,14 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             User.ToPathwayActor(),
             request?.WithoutVisit ?? false,
             request?.Reason,
-            User.IsInRole("Admin")), ct));
+            User.HasPermission(Permission.OverrideStages)), ct));
 
     /// <summary>Reopens a finished stage for editing.</summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/unlock")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.OverrideStages)]
     public async Task<IActionResult> UnlockPathwayStage(Guid id, Guid stageId, CancellationToken ct) =>
         Ok(await mediator.Send(new UnlockPathwayStageCommand(id, stageId, User.ToPathwayActor()), ct));
 }

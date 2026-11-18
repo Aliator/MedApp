@@ -67,19 +67,21 @@ public static class MonitoringRuleInput
     public static bool HasStage(MonitoringEvent monitoringEvent) =>
         monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked;
 
-    /// <summary>The message when "Stage unlocked" names someone who isn't an admin.</summary>
-    public const string UnlockNeedsAdmin = "Only admins unlock stages, so choose an admin, or anyone.";
+    /// <summary>The message when "Stage unlocked" names someone who can't unlock stages.</summary>
+    public const string UnlockNeedsAdmin = "Only people who can override stages unlock them, so choose one of them, or anyone.";
 
     /// <summary>
     /// Checks what the input newly names: every person, template and stage it names (all of them for a new rule; for an
     /// edit, only those that differ from the stored rule's, so a rule may keep naming something since deleted) must
-    /// exist, archived or not (404 otherwise). And a person named for "Stage unlocked" must be an admin, as only admins
-    /// unlock (400 otherwise; checked again whenever the person or the event changes, as roles do).
+    /// exist, archived or not (404 otherwise). And a person named for "Stage unlocked" must hold
+    /// <see cref="Permission.OverrideStages"/>, as only they unlock (400 otherwise; checked again whenever the person or
+    /// the event changes, as roles do).
     /// </summary>
     public static async Task CheckAsync(
         IMonitoringRuleInput input,
         MonitoringRule? existing,
         IIdentityReadService identityReadService,
+        IPermissionHolders permissionHolders,
         IPatientPathwayStagesRepository stagesRepository,
         CancellationToken cancellationToken)
     {
@@ -89,16 +91,16 @@ public static class MonitoringRuleInput
         if (Newly(input.SubjectUserId, existing?.SubjectUserId) is { } userId)
         {
             var usernames = await identityReadService.GetUsernamesByIdAsync([userId], cancellationToken);
-            if (!usernames.TryGetValue(userId, out var username))
+            if (!usernames.ContainsKey(userId))
                 throw new NotFoundException($"User '{userId}' was not found.");
             if (monitoringEvent == MonitoringEvent.StageUnlocked)
-                await CheckIsAdminAsync(username, identityReadService, cancellationToken);
+                await CheckCanUnlockAsync(userId, permissionHolders, cancellationToken);
         }
         else if (input.SubjectUserId is { } sameUser
                  && monitoringEvent == MonitoringEvent.StageUnlocked
                  && existing?.Event != MonitoringEvent.StageUnlocked
-                 && (await identityReadService.GetUsernamesByIdAsync([sameUser], cancellationToken)).TryGetValue(sameUser, out var name))
-            await CheckIsAdminAsync(name, identityReadService, cancellationToken);
+                 && (await identityReadService.GetUsernamesByIdAsync([sameUser], cancellationToken)).ContainsKey(sameUser))
+            await CheckCanUnlockAsync(sameUser, permissionHolders, cancellationToken);
 
         if (Newly(input.TemplateId, existing?.TemplateId) is { } templateId
             && !(await stagesRepository.GetPathwayTemplateNamesAsync([templateId], cancellationToken)).ContainsKey(templateId))
@@ -109,10 +111,10 @@ public static class MonitoringRuleInput
             throw new NotFoundException($"Stage '{stageId}' was not found.");
     }
 
-    private static async Task CheckIsAdminAsync(string username, IIdentityReadService identityReadService, CancellationToken cancellationToken)
+    private static async Task CheckCanUnlockAsync(Guid userId, IPermissionHolders permissionHolders, CancellationToken cancellationToken)
     {
-        var roles = await identityReadService.GetRolesForUserAsync(username, cancellationToken);
-        if (!roles.Contains(AppRoles.Admin, StringComparer.OrdinalIgnoreCase))
+        var holders = await permissionHolders.WhoHoldsAsync([userId], Permission.OverrideStages, cancellationToken);
+        if (!holders.Contains(userId))
             throw new ValidationException([new ValidationFailure(nameof(IMonitoringRuleInput.SubjectUserId), UnlockNeedsAdmin)]);
     }
 

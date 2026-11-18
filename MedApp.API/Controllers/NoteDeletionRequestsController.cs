@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.NoteDeletionRequests.Commands.DecideNoteDeletionRequest;
 using MedApp.Application.Pathways.NoteDeletionRequests.Queries.GetNoteDeletionRequest;
@@ -16,7 +17,7 @@ namespace MedApp.API.Controllers;
 [ApiController]
 [Route("api/pathways/note-deletion-requests")]
 [Tags("Note Deletion Requests")]
-[Authorize(Roles = "Admin")]
+[RequirePermission(Permission.CorrectRecords)]
 public sealed class NoteDeletionRequestsController(IMediator mediator) : ControllerBase
 {
     /// <summary>

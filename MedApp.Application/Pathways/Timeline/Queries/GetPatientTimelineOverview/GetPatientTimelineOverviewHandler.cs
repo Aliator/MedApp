@@ -45,7 +45,7 @@ public sealed class GetPatientTimelineOverviewHandler(
             .Select(TimelineMapper.ToPathwayResponse)
             .ToList();
 
-        if (request.IsAdmin)
+        if (request.FullView)
         {
             var existing = pathways.Select(p => p.Id).ToHashSet();
             var deletions = await auditRepository.GetDeletionsAsync(request.PatientId, cancellationToken);

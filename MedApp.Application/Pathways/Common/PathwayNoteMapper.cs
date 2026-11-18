@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -13,7 +14,7 @@ public static class PathwayNoteMapper
     /// <paramref name="canChange"/> (the pathway's notes can change, and its patient's record isn't restricted or
     /// anonymised). It can be deleted, or its deletion asked for, in any status, while <paramref name="recordCanChange"/>
     /// (the patient's record isn't restricted or anonymised; <paramref name="canChange"/> when not given): deleted only by
-    /// an admin (<paramref name="viewerIsAdmin"/>), and asked for by anyone else, so the flags say what this viewer can do.
+    /// an admin (<paramref name="viewerCanCorrectRecords"/>), and asked for by anyone else, so the flags say what this viewer can do.
     /// </summary>
     public static PatientPathwayNoteResponse ToResponse(
         PatientPathwayNote note,
@@ -21,7 +22,7 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        bool viewerIsAdmin = false) => new()
+        bool viewerCanCorrectRecords = false) => new()
     {
         Id = note.Id,
         AuthorUserId = note.AuthorUserId,
@@ -31,8 +32,8 @@ public static class PathwayNoteMapper
         LastEditedAtUtc = note.LastEditedAtUtc,
         Version = note.Version,
         CanEdit = canChange && !note.IsDeleted && note.AuthorUserId is not null && note.AuthorUserId == viewerId,
-        CanDelete = viewerIsAdmin && (recordCanChange ?? canChange) && !note.IsDeleted,
-        CanRequestDeletion = !viewerIsAdmin && (recordCanChange ?? canChange) && !note.IsDeleted && note.PendingDeletionRequestId is null,
+        CanDelete = viewerCanCorrectRecords && (recordCanChange ?? canChange) && !note.IsDeleted,
+        CanRequestDeletion = !viewerCanCorrectRecords && (recordCanChange ?? canChange) && !note.IsDeleted && note.PendingDeletionRequestId is null,
         DeletionRequestId = note.PendingDeletionRequestId
     };
 
@@ -43,12 +44,12 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        bool viewerIsAdmin = false) =>
+        bool viewerCanCorrectRecords = false) =>
         notes
             .Where(n => !n.IsDeleted)
             .OrderByDescending(n => n.CreatedAtUtc)
             .ThenByDescending(n => n.Id)
-            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerIsAdmin))
+            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerCanCorrectRecords))
             .ToList();
 
     /// <summary>

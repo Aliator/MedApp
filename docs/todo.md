@@ -15,6 +15,12 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Referrals and triage:** a referral record (the referring GP practice, when it arrived, the letter, the specialty asked for), an inbox of new referrals, and a clinician's triage decision (accept, reject or redirect, with a reason). Accepting creates the pathway: the clinician decides, the app records.
 - **Specialties:** every pathway type, clinic and member of staff belongs to one, with filters, worklists and Insights by specialty.
 - **A waiting-time clock:** days since referral, the target date, and pauses with reasons; lists by longest wait, with breaches flagged. It replaces today's single target date.
+- **Roles and permissions, the rest** (the policy layer is built: `docs/agents/auth.md`):
+  - **The web app follows permissions** (Phase 2 PR 3): `useCan(permission)` from `whoami`'s `permissions` in place of every `isAdmin` check, and on a 403 with `code: "permission_missing"` reload `whoami` and hide what's gone, keeping an open dialog open. Until then it shows actions by `isAdmin`, so a starting role may see a button that answers 403.
+  - **The response flags follow permissions too:** a pathway's `Can...` flags, a note's `CanRequestDeletion` and the like don't yet ask the viewer's permissions (a Manager without `WorkPathways` gets `CanEdit`; the server still refuses the change).
+  - **The Roles and Permissions page** (Phase 2 PR 4): `api/permissions` and `api/roles`, `RoleChanged = 44` logged with permission names only, other admins told, the old role endpoints (`api/auth/roles…`) removed; until then they still work, guarded (the built-in role can't be deleted, nobody revokes their own role, the last admin keeps Admin).
+  - **Assigning by permission:** only holders of `WorkPathways` may be assigned a pathway (decision 68); today anyone with an account can be.
+  - **After every account is on a starting role:** take the everyday clinical and booking permissions from Admin and archive "All staff (before roles)" (open question 10), as a small change of its own before a real team uses MedApp.
 
 **Phase 3: clinic to lab to result to letter.**
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
@@ -24,7 +30,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
 - **Clinics, rooms and longer hours:** clinic sessions with a set number of slots, in a named room at a named site; evening and weekend clinics; working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday, except closed days).
-- **Roles beyond Admin and User:** clinician, nurse, booking, lab and manager, each seeing and doing only what they need (today any member of staff can work on any patient). The privacy items naming roles (hiding restricted patients from lists, an `Auditor` role) build on it.
+- **Roles that limit what people see:** the starting roles (Clinician, Nurse, Booking, Lab, Manager) limit what each does since Phase 2, but every role still sees every patient. The privacy items naming roles (hiding restricted patients from lists, an `Auditor` read permission) build on it.
 - **Patient reminders:** texts or emails before an appointment, and the rule for a missed one. Needs a scheduled job, which MedApp doesn't have yet.
 - **Adjusted with them:**
   - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked.

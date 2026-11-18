@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using FluentAssertions;
@@ -63,6 +64,45 @@ public sealed class SessionAuthenticationHandlerTests
         var result = await Authenticate(SessionId.ToString(), Environments.Development, SessionAuthenticationDefaults.DevelopmentCookieName);
 
         result.Succeeded.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Authenticate_ValidSession_AddsAClaimForEachPermissionTheRolesGrant()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(UserId, Username, ["Lab"], Permissions: MedApp.Application.Common.Identity.StandardRoles.Lab.Permissions));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindAll(SessionAuthenticationDefaults.PermissionClaim).Select(c => c.Value)
+            .Should().BeEquivalentTo(["UseApp", "ViewPatients", "WorkPathways", "AttachFiles"]);
+        result.Principal!.HasPermission(MedApp.Application.Common.Identity.Permission.WorkPathways).Should().BeTrue();
+        result.Principal!.HasPermission(MedApp.Application.Common.Identity.Permission.ManageUsers).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Authenticate_NoPermissions_AddsNoPermissionClaims()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(UserId, Username, []));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindAll(SessionAuthenticationDefaults.PermissionClaim).Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetPermissions_LeavesOutNamesCodeDoesNotKnow()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(SessionAuthenticationDefaults.PermissionClaim, "ViewPatients"),
+            new Claim(SessionAuthenticationDefaults.PermissionClaim, "RemovedLongAgo"),
+        ], "Session"));
+
+        user.GetPermissions().Should().BeEquivalentTo([MedApp.Application.Common.Identity.Permission.ViewPatients]);
     }
 
     [Test]
@@ -209,7 +249,7 @@ public sealed class ClaimsPrincipalExtensionsTests
         var user = SignedIn("User");
 
         user.GetUserId().Should().Be(UserId);
-        user.ToPathwayActor().Should().Be(new MedApp.Application.Pathways.Common.PathwayActor(UserId, Username));
+        user.ToPathwayActor().Should().Be(new MedApp.Application.Pathways.Common.PathwayActor(UserId, Username, TestPermissions.Staff));
     }
 
     [Test]
@@ -238,11 +278,12 @@ public sealed class ClaimsPrincipalExtensionsTests
     [TestCase("User", false)]
     [TestCase("Admin", true)]
     [TestCase("User", true, "Admin")]
-    public void ToCalendarActor_SignedIn_ReadsTheirIdNameAndWhetherTheyAreAnAdmin(string role, bool isAdmin, params string[] moreRoles)
+    public void ToCalendarActor_SignedIn_ReadsTheirIdNameAndPermissions(string role, bool isAdmin, params string[] moreRoles)
     {
         var user = SignedIn([role, .. moreRoles]);
 
-        user.ToCalendarActor().Should().Be(new MedApp.Application.Calendar.Common.CalendarActor(UserId, Username, isAdmin));
+        user.ToCalendarActor().Should().Be(new MedApp.Application.Calendar.Common.CalendarActor(UserId, Username, TestPermissions.ForRoles([role, .. moreRoles])));
+        user.ToCalendarActor().CanArrangeMeetings.Should().Be(isAdmin);
     }
 
     [Test]
@@ -253,7 +294,7 @@ public sealed class ClaimsPrincipalExtensionsTests
         var actor = user.ToCalendarActor();
 
         actor.Username.Should().BeEmpty();
-        actor.IsAdmin.Should().BeFalse();
+        actor.Permissions.Should().BeEmpty();
     }
 
     [Test]

@@ -35,4 +35,10 @@ public static class SessionAuthenticationDefaults
     /// (their password) can end their other sessions and keep this one.
     /// </summary>
     public const string SessionIdClaim = "medapp:session_id";
+
+    /// <summary>
+    /// One claim per permission the session's roles grant (the permission's name), read with the roles on every request.
+    /// Permission policies (<see cref="RequirePermissionAttribute"/>) check these, never role names.
+    /// </summary>
+    public const string PermissionClaim = "medapp:permission";
 }

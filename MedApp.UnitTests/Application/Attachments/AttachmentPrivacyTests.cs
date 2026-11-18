@@ -89,7 +89,7 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
             Id = Guid.NewGuid(), PatientId = patient.Id, FileName = FileName, ContentType = "application/pdf", UploadedByUserId = Staff.UserId,
         });
 
-        var act = () => Fixture.Create<DeleteAttachmentHandler>().Handle(new DeleteAttachmentCommand(attachment.Id, Admin, IsAdmin: true), CancellationToken.None);
+        var act = () => Fixture.Create<DeleteAttachmentHandler>().Handle(new DeleteAttachmentCommand(attachment.Id, Admin, CanCorrectRecords: true), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.RestrictedMessage);
         attachment.IsDeleted.Should().BeFalse();
@@ -101,7 +101,7 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
         var pathway = GivenPathway(CreatePathway(Status.InProgress, patient: Restricted()));
         var attachment = GivenAttachment(AttachmentOn(pathway));
 
-        var act = () => Fixture.Create<DeleteAttachmentHandler>().Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
+        var act = () => Fixture.Create<DeleteAttachmentHandler>().Handle(new DeleteAttachmentCommand(attachment.Id, Staff, CanCorrectRecords: false), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.RestrictedMessage);
     }

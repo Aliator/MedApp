@@ -13,7 +13,7 @@ public static class PatientTimelineSearch
     /// The page's entries, newest first, then by ID so the order is unique (entries one change writes are a tick
     /// apart, <c>PathwayChange.Audit</c>, so they already sort in the order they happened), each with its
     /// pathway's title now. It takes one more than the page size, so the handler can tell whether there's more.
-    /// Staff (not <see cref="GetPatientTimelineQuery.IsAdmin"/>) only get entries for pathways that still exist, and
+    /// Staff (not <see cref="GetPatientTimelineQuery.FullView"/>) only get entries for pathways that still exist, and
     /// for files attached to the patient themselves (<see cref="PatientPathwayAuditEntry.NoPathway"/>). Downloads
     /// are in the audit log, never on the timeline.
     /// </summary>
@@ -26,7 +26,7 @@ public static class PatientTimelineSearch
         var noPathway = PatientPathwayAuditEntry.NoPathway;
         var filtered = entries.Where(e => e.PatientId == patientId && e.Action != PatientPathwayAuditAction.AttachmentDownloaded);
 
-        if (!query.IsAdmin)
+        if (!query.FullView)
             filtered = filtered.Where(e => e.PatientPathwayId == noPathway || pathways.Any(p => p.Id == e.PatientPathwayId));
 
         var kinds = PatientTimelineKinds.Parse(query.Kinds);

@@ -15,7 +15,7 @@ namespace MedApp.UnitTests.Infrastructure.Common.Identity;
 public sealed class FirstAdminSetupTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
-    private Mock<RoleManager<IdentityRole<Guid>>> _roleManager = null!;
+    private Mock<RoleManager<ApplicationRole>> _roleManager = null!;
     private Mock<IIdentityTransactions> _transactions = null!;
     private FirstAdminSetup _setup = null!;
 
@@ -24,8 +24,8 @@ public sealed class FirstAdminSetupTests
     {
         _userManager = new Mock<UserManager<ApplicationUser>>(
             new Mock<IUserStore<ApplicationUser>>().Object, null!, null!, null!, null!, null!, null!, null!, null!);
-        _roleManager = new Mock<RoleManager<IdentityRole<Guid>>>(
-            new Mock<IRoleStore<IdentityRole<Guid>>>().Object, null!, null!, null!, null!);
+        _roleManager = new Mock<RoleManager<ApplicationRole>>(
+            new Mock<IRoleStore<ApplicationRole>>().Object, null!, null!, null!, null!);
 
         // The transaction runs the work as given (committing or rolling back is IdentityTransactions' job).
         _transactions = new Mock<IIdentityTransactions>();
@@ -35,13 +35,13 @@ public sealed class FirstAdminSetupTests
 
         // A new database: no roles, no accounts, and Identity accepts what it's given.
         _roleManager.Setup(r => r.RoleExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
-        _roleManager.Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>())).ReturnsAsync(IdentityResult.Success);
+        _roleManager.Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>())).ReturnsAsync(IdentityResult.Success);
         _userManager.SetupGet(u => u.Users).Returns(AsyncQueryable.Of<ApplicationUser>([]));
         _userManager
             .Setup(u => u.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
         _userManager
-            .Setup(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()))
+            .Setup(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
 
         _setup = CreateSetup();
@@ -71,7 +71,7 @@ public sealed class FirstAdminSetupTests
     }
 
     [Test]
-    public async Task RunAsync_NewDatabase_MakesTheRolesAndTheAdminWithBoth()
+    public async Task RunAsync_NewDatabase_MakesTheBuiltInAdminRoleAndTheAdminWithIt()
     {
         var result = await _setup.RunAsync(
             AuthTestConstants.FirstAdminUsername,
@@ -81,8 +81,9 @@ public sealed class FirstAdminSetupTests
         result.Outcome.Should().Be(FirstAdminOutcome.Created);
         result.Errors.Should().BeEmpty();
 
-        _roleManager.Verify(r => r.CreateAsync(It.Is<IdentityRole<Guid>>(x => x.Name == "Admin")), Times.Once);
-        _roleManager.Verify(r => r.CreateAsync(It.Is<IdentityRole<Guid>>(x => x.Name == "User")), Times.Once);
+        _roleManager.Verify(r => r.CreateAsync(It.Is<ApplicationRole>(x =>
+            x.Name == "Admin" && x.IsBuiltIn && x.Id == StandardRoles.Admin.Id && x.CreatedAt == AuthTestConstants.FirstAdminCreatedAtUtc)), Times.Once);
+        _roleManager.Verify(r => r.CreateAsync(It.IsAny<ApplicationRole>()), Times.Once);
         _userManager.Verify(u => u.CreateAsync(
             It.Is<ApplicationUser>(x =>
                 x.UserName == AuthTestConstants.FirstAdminUsername
@@ -90,10 +91,11 @@ public sealed class FirstAdminSetupTests
                 // Its password was chosen by whoever deploys, not generated and handed on, so it needn't change it.
                 && !x.MustChangePassword),
             AuthTestConstants.ValidPassword), Times.Once);
-        // User too, or the admin couldn't change their own password.
-        _userManager.Verify(u => u.AddToRolesAsync(
+        // Admin alone: its permissions include UseApp, so the admin can change their own password.
+        _userManager.Verify(u => u.AddToRoleAsync(
             It.Is<ApplicationUser>(x => x.UserName == AuthTestConstants.FirstAdminUsername),
-            It.Is<IEnumerable<string>>(roles => roles.SequenceEqual(new[] { "Admin", "User" }))), Times.Once);
+            "Admin"), Times.Once);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 
     [Test]
@@ -119,7 +121,7 @@ public sealed class FirstAdminSetupTests
             CancellationToken.None);
 
         result.Outcome.Should().Be(FirstAdminOutcome.Created);
-        _roleManager.Verify(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()), Times.Never);
+        _roleManager.Verify(r => r.CreateAsync(It.IsAny<ApplicationRole>()), Times.Never);
     }
 
     [Test]
@@ -134,7 +136,7 @@ public sealed class FirstAdminSetupTests
 
         result.Outcome.Should().Be(FirstAdminOutcome.AccountsExist);
         _userManager.Verify(u => u.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
-        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _userManager.Verify(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Test]
@@ -142,7 +144,7 @@ public sealed class FirstAdminSetupTests
     {
         var error = new IdentityError { Code = "RoleError", Description = "The role couldn't be made." };
         _roleManager
-            .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
+            .Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>()))
             .ReturnsAsync(IdentityResult.Failed(error));
 
         var result = await _setup.RunAsync(
@@ -170,15 +172,15 @@ public sealed class FirstAdminSetupTests
 
         result.Outcome.Should().Be(FirstAdminOutcome.Failed);
         result.Errors.Should().ContainSingle().Which.Code.Should().Be("PasswordTooShort");
-        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _userManager.Verify(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Test]
-    public async Task RunAsync_RolesCannotBeAdded_ReturnsFailedWithTheErrors()
+    public async Task RunAsync_RoleCannotBeAdded_ReturnsFailedWithTheErrors()
     {
         var error = new IdentityError { Code = "RoleNotAdded", Description = "No." };
         _userManager
-            .Setup(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()))
+            .Setup(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Failed(error));
 
         var result = await _setup.RunAsync(

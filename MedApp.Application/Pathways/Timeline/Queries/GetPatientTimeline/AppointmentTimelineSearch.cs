@@ -15,7 +15,7 @@ public static class AppointmentTimelineSearch
     /// The page's entries, newest first, then by ID, each with whether its pathway still exists and its title now,
     /// taking one more than the page size. Every entry is of the Appointments kind, so a kinds filter without it
     /// leaves nothing (the handler doesn't ask then). Filtering by pathways leaves out appointments not for one.
-    /// Staff (not <see cref="GetPatientTimelineQuery.IsAdmin"/>) only get entries not for a pathway, or for one that
+    /// Staff (not <see cref="GetPatientTimelineQuery.FullView"/>) only get entries not for a pathway, or for one that
     /// still exists.
     /// </summary>
     public static IQueryable<AppointmentTimelineRow> Page(
@@ -30,7 +30,7 @@ public static class AppointmentTimelineSearch
         if (kinds.Count > 0 && !kinds.Contains(PatientTimelineKind.Appointments))
             filtered = filtered.Where(e => false);
 
-        if (!query.IsAdmin)
+        if (!query.FullView)
             filtered = filtered.Where(e => e.PathwayId == null || pathways.Any(p => p.Id == e.PathwayId));
 
         var pathwayIds = (query.PathwayIds ?? []).Distinct().ToList();

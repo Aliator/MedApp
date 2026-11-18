@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
@@ -18,7 +19,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class AttachmentsControllerTests
 {
-    private static readonly PathwayActor Actor = new(UserId, Username);
+    // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
 
     [TestCase("User", false)]
     [TestCase("Admin", true)]
@@ -112,7 +114,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).Delete(RecordId, cts.Token);
 
-        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor with { IsAdmin = isAdmin }, isAdmin));
+        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor with { Permissions = TestPermissions.For(isAdmin) }, isAdmin));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<NoContentResult>();
     }

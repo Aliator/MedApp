@@ -15,7 +15,7 @@ Roadmap step 9's first part (`docs/architecture.md`, `docs/todo.md`).
   - **Return resources through `FhirResult`** (`FhirJson`): `application/fhir+json`, `Cache-Control: no-store`, no nulls or empty arrays (leave a list null, not empty).
   - **JSON only:** `FhirFormatFilter` answers a `_format` or `Accept` that doesn't allow JSON with a 406.
   - **Errors are OperationOutcomes, never ProblemDetails:** `FhirExceptionFilter` 400 `invalid` and 404 `not-found`, `FhirAuthorizationResultHandler` 401 `login` and 403 `forbidden`, `FhirFormatFilter` 406 `not-supported`, an unknown path under `/api/fhir` 404 `not-supported` (`FhirJson.NotFoundAsync`, before the generic `/api` 404). The forced password change's 403 stays ProblemDetails.
-  - **Who:** the Staff policy, with the session cookie; no OAuth clients yet.
+  - **Who:** holders of `ViewPatients`, with the session cookie; no OAuth clients yet.
   - **Logged as the pages are:** a read records `PatientViewed`; a search `PatientsSearched` (filters `["nhsNumber"]`, or `["identifier"]` when it couldn't match an NHS number; the count; `via: "fhir"`) and `PatientListed` per patient found.
   - The number's verification status is always `02` ("Number present but not traced"): MedApp doesn't trace with PDS.
 - **SNOMED CT codes on stage definitions** (`SnomedCode` and `SnomedTerm`, both or neither): `SnomedCt` (`MedApp.Domain/Terminology`), through `SnomedRules`, checks the format only (SCTID: 6 to 18 digits, no leading zero, partition `00` or `10`, Verhoeff check digit). No terminology server, so nothing checks the concept exists, is active or matches the term. Copied onto a pathway's stages at creation.

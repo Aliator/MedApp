@@ -1,3 +1,4 @@
+using MedApp.Infrastructure.Common.Identity;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Domain.Monitoring;
@@ -35,20 +36,16 @@ public sealed class MonitoringRuleRepository(MedAppDbContext context) : IMonitor
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlySet<Guid>> GetAdminsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
+    public async Task<IReadOnlySet<Guid>> GetOwnersWhoCanMonitorAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
     {
         var ids = userIds.Distinct().ToList();
         if (ids.Count == 0)
             return new HashSet<Guid>();
 
-        var admin = AppRoles.Admin.ToUpperInvariant();
-        var admins = await (
-                from userRole in context.UserRoles.AsNoTracking()
-                join role in context.Roles.AsNoTracking() on userRole.RoleId equals role.Id
-                where role.NormalizedName == admin && ids.Contains(userRole.UserId)
-                select userRole.UserId)
+        var owners = await RolePermissionQueries.HoldersOf(context, Permission.ManageMonitoring)
+            .Where(id => ids.Contains(id))
             .ToListAsync(cancellationToken);
-        return admins.ToHashSet();
+        return owners.ToHashSet();
     }
 
     public async Task AddAsync(MonitoringRule rule, CancellationToken cancellationToken)

@@ -53,7 +53,7 @@ public sealed class PathwayMonitor(
     }
 
     private Task<IReadOnlyList<MonitoringMatch>> FindMatchesAsync(PathwayChange change, CancellationToken cancellationToken) =>
-        FindMatchesAsync(change.Pathway, change.AuditEntries, change.Actor.UserId, rules.GetEnabledAsync, rules.GetAdminsAsync,
+        FindMatchesAsync(change.Pathway, change.AuditEntries, change.Actor.UserId, rules.GetEnabledAsync, rules.GetOwnersWhoCanMonitorAsync,
             cancellationToken);
 
     /// <summary>

@@ -10,9 +10,10 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 
 /// <summary>
-/// Sets a user's roles; the activity log records the change, with the roles before and after. Taking away every staff
-/// role (Admin and User) from someone with upcoming Booked appointments is refused, as deleting them is: their calendar
-/// would go, leaving the appointments on a calendar nobody can open. It takes them off their meetings still to come.
+/// Sets a user's roles; the activity log records the change, with the roles before and after. Taking away every role
+/// (each makes its holder staff) from someone with upcoming Booked appointments is refused, as deleting them is: their
+/// calendar would go, leaving the appointments on a calendar nobody can open. It takes them off their meetings still to
+/// come. Nobody changes their own roles, and the last active admin keeps Admin (<see cref="ILastAdminGuard"/>, a 409).
 /// The roles, the meetings and the log entry are saved in one transaction, so a failure in any (another admin changing
 /// one of those meetings at that moment is a 409) leaves all three as they were.
 /// </summary>
@@ -23,7 +24,8 @@ public sealed class SetUserRolesHandler(
     IMeetingRepository meetingRepository,
     IIdentityTransactions transactions,
     TimeProvider timeProvider,
-    IActivityLog activityLog)
+    IActivityLog activityLog,
+    ILastAdminGuard lastAdmin)
     : IRequestHandler<SetUserRolesCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(
@@ -37,7 +39,8 @@ public sealed class SetUserRolesHandler(
         // No appointment may be left with nobody: someone who stops being staff loses their calendar.
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var stopsBeingStaff = !AppRoles.IncludesStaff(request.Roles);
-        var user = stopsBeingStaff ? await readService.GetUserAsync(request.Username, ct) : null;
+        var target = await readService.GetUserAsync(request.Username, ct);
+        var user = stopsBeingStaff ? target : null;
         if (user is not null
             && await appointmentRepository.WhyCantStopBeingStaffAsync(user.UserId, user.Username, now, ct) is { } upcoming)
             return IdentityResult.Failed(upcoming);
@@ -45,8 +48,13 @@ public sealed class SetUserRolesHandler(
         var before = await readService.GetRolesForUserAsync(request.Username, ct);
 
         // SetRolesAsync's own transaction joins this one. A retry runs it all again, from the database as it was.
+        var losesAdmin = !request.Roles.Contains(AppRoles.Admin, StringComparer.OrdinalIgnoreCase);
         return await transactions.RunAsync(async () =>
         {
+            // Checked under the guard's lock, in this transaction, so two admins can't take Admin from each other at once.
+            if (losesAdmin && target is not null && await lastAdmin.WouldLeaveNoAdminAsync(target.UserId, ct))
+                return IdentityResult.Failed(IdentityErrors.LastAdmin);
+
             var result = await roleService.SetRolesAsync(request.Username, request.Roles, ct);
             if (!result.Succeeded)
                 return result;

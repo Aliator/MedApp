@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
@@ -21,6 +22,7 @@ public sealed class RequestNoteDeletionHandlerTests : PathwayHandlerTestBase
     private Mock<INoteDeletionRequestRepository> _requests = null!;
     private List<PathwayNoteDeletionRequest> _added = null!;
     private List<Notification> _sent = null!;
+    private Mock<IPermissionHolders> _holders = null!;
 
     [SetUp]
     public void SetUp()
@@ -35,9 +37,11 @@ public sealed class RequestNoteDeletionHandlerTests : PathwayHandlerTestBase
         sender.Setup(s => s.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
             .Callback((Notification n, CancellationToken _) => _sent.Add(n))
             .Returns(Task.CompletedTask);
-        // Two admins, and the requester has the Admin role too: everyone but them is told.
-        Identity.Setup(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>()))
+        // Two holders of CorrectRecords, and the requester holds it too: everyone but them is told.
+        _holders = new Mock<IPermissionHolders>();
+        _holders.Setup(h => h.GetUserIdsAsync(Permission.CorrectRecords, It.IsAny<CancellationToken>()))
             .ReturnsAsync([Admin.UserId, OtherUserId, Staff.UserId]);
+        Fixture.Inject(_holders.Object);
         Fixture.Inject(_requests.Object);
         Fixture.Inject(sender.Object);
     }
@@ -203,6 +207,6 @@ public sealed class RequestNoteDeletionHandlerTests : PathwayHandlerTestBase
 
         Repository.Verify(r => r.GetForUpdateAsync(pathway.Id, cts.Token), Times.Once);
         _requests.Verify(r => r.AddAsync(It.IsAny<PathwayNoteDeletionRequest>(), cts.Token), Times.Once);
-        Identity.Verify(i => i.GetAdminIdsAsync(cts.Token), Times.Once);
+        _holders.Verify(h => h.GetUserIdsAsync(Permission.CorrectRecords, cts.Token), Times.Once);
     }
 }

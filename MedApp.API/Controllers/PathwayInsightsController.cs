@@ -1,3 +1,5 @@
+using MedApp.Application.Common.Identity;
+using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 using MedApp.Contracts.Pathways.Insights.Requests;
 using MedApp.Contracts.Pathways.Insights.Responses;
@@ -20,7 +22,7 @@ public sealed class PathwayInsightsController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(PathwayInsightsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ViewInsights)]
     public async Task<IActionResult> GetPathwayInsights([FromQuery] GetPathwayInsightsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPathwayInsightsQuery(request.Weeks, request.TemplateId), ct));
 }
