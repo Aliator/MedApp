@@ -216,6 +216,7 @@ const ORDER = [
   'AssignPathways',
   'BookAppointments',
   'AttachFiles',
+  'RecordSpecimens',
   'WriteLetters',
   'SendLetters',
 ];

@@ -92,6 +92,18 @@ public enum NotificationKind
     ReferralTriaged = 23,
 
     /// <summary>
+    /// The lab rejected a specimen the user asked for or took (never sent to whoever recorded the rejection). Its
+    /// <see cref="Notification.SubjectId"/> is the specimen.
+    /// </summary>
+    SpecimenRejectedByLab = 24,
+
+    /// <summary>
+    /// A specimen the user asked for or took was marked lost (never sent to whoever marked it). Its
+    /// <see cref="Notification.SubjectId"/> is the specimen.
+    /// </summary>
+    SpecimenLost = 25,
+
+    /// <summary>
     /// A letter was submitted to the user to approve (decision 102). A fixed title ("Letter to approve"); the author's
     /// username and the letter's kind. Its <see cref="Notification.SubjectId"/> is the letter.
     /// </summary>
@@ -116,7 +128,7 @@ public enum NotificationKind
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 28 and 32 to 38
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 26 to 28 and 32 to 38
     /// are taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40

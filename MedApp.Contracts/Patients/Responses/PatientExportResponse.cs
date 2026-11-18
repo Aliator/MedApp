@@ -71,6 +71,12 @@ public sealed class PatientExportResponse
     /// Their history is in <c>PathwayHistory</c>; their approved PDFs are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedLetterResponse> Letters { get; set; } = [];
+
+    /// <summary>
+    /// The patient's specimens, oldest taken first: where each came from, where it went and what happened to it. Their
+    /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
 }
 
 /// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>
@@ -142,6 +148,54 @@ public sealed class ExportedLetterRecipientResponse
     public DateOnly? SentOn { get; set; }
 
     public string? SentBy { get; set; }
+}
+
+/// <summary>A specimen in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedSpecimenResponse
+{
+    public Guid Id { get; set; }
+
+    public string Number { get; set; } = string.Empty;
+
+    public Guid PathwayId { get; set; }
+
+    public Guid StageId { get; set; }
+
+    public string SpecimenTypeName { get; set; } = string.Empty;
+
+    public string LaboratoryName { get; set; } = string.Empty;
+
+    public string? Site { get; set; }
+
+    public string? RequestNotes { get; set; }
+
+    public string RequestedBy { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTime TakenAtUtc { get; set; }
+
+    public string TakenBy { get; set; } = string.Empty;
+
+    public DateTime? SentAtUtc { get; set; }
+
+    public string? CourierReference { get; set; }
+
+    public DateTime? ReceivedAtUtc { get; set; }
+
+    public string? LabReference { get; set; }
+
+    public DateTime? ReportedAtUtc { get; set; }
+
+    public Guid? ReportAttachmentId { get; set; }
+
+    public string? RejectionReason { get; set; }
+
+    public string? ClosedDetail { get; set; }
+
+    public DateTime? ClosedAtUtc { get; set; }
+
+    public string? ClosedBy { get; set; }
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>

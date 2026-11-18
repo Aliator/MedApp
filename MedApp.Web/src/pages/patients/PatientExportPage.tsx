@@ -18,6 +18,7 @@ import {messageKindLabel, messageOutcome, reminderChannelLabel, type ExportedPat
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
 import {describeSkipReason} from '../../api/stageSkips';
+import {rejectionReasonLabel, specimenStatusLabel} from '../../api/specimens';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -445,6 +446,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const files = data.attachments ?? [];
   const referrals = data.referrals ?? [];
   const referralHistory = data.referralHistory ?? [];
+  // Where each specimen came from and went; their history is under Pathway History, their reports under Files.
+  const specimens = data.specimens ?? [];
   // Each referral by its specialty and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
@@ -595,6 +598,43 @@ function ExportContent({data}: {data: PatientExport}) {
                   </MetadataList>
                   <Text type="body">{`Reason for referral: ${referral.reason ?? ''}`}</Text>
                   <ReferralClock referral={referral} />
+                </VStack>
+              ))}
+            </VStack>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Specimens (${specimens.length})`}>
+        {specimens.length === 0
+          ? nothing('No specimens.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {specimens.map((specimen) => (
+                <VStack key={specimen.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{`Specimen ${specimen.number}: ${specimen.specimenTypeName}`}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
+                    <MetadataListItem label="Pathway">{pathwayTitles.get(specimen.pathwayId) || 'A deleted pathway'}</MetadataListItem>
+                    <MetadataListItem label="Lab">{specimen.laboratoryName}</MetadataListItem>
+                    <MetadataListItem label="Requested By">{specimen.requestedBy}</MetadataListItem>
+                    <MetadataListItem label="Taken">{`${when(specimen.takenAtUtc)} by ${specimen.takenBy}`}</MetadataListItem>
+                    <MetadataListItem label="Site">{specimen.site || '—'}</MetadataListItem>
+                    <MetadataListItem label="Sent">
+                      {specimen.sentAtUtc ? `${when(specimen.sentAtUtc)}${specimen.courierReference ? `, reference ${specimen.courierReference}` : ''}` : 'Not sent'}
+                    </MetadataListItem>
+                    <MetadataListItem label="Received">
+                      {specimen.receivedAtUtc ? `${when(specimen.receivedAtUtc)}${specimen.labReference ? `, lab's reference ${specimen.labReference}` : ''}` : 'Not received'}
+                    </MetadataListItem>
+                    <MetadataListItem label="Reported">
+                      {specimen.reportedAtUtc ? `${when(specimen.reportedAtUtc)}${specimen.reportAttachmentId ? ', its report is under Files' : ''}` : 'Not reported'}
+                    </MetadataListItem>
+                    {specimen.closedAtUtc && (
+                      <MetadataListItem label="Closed">{`${when(specimen.closedAtUtc)} by ${specimen.closedBy ?? 'unknown'}`}</MetadataListItem>
+                    )}
+                    {specimen.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonLabel(specimen.rejectionReason)}</MetadataListItem>}
+                    {specimen.closedDetail && <MetadataListItem label="Detail">{specimen.closedDetail}</MetadataListItem>}
+                  </MetadataList>
+                  <Text type="body">{`Notes for the lab: ${specimen.requestNotes || 'none'}`}</Text>
                 </VStack>
               ))}
             </VStack>

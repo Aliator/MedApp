@@ -49,6 +49,7 @@ public static class PatientTimelineKinds
         // Downloads are files too, though the timeline never shows them (PatientTimelineSearch leaves them out).
         AttachmentAdded or AttachmentDeleted or AttachmentDownloaded => PatientTimelineKind.Files,
         >= LetterDrafted and <= LetterWithdrawn => PatientTimelineKind.Letters,
+        >= SpecimenTaken and <= SpecimenDetailsEdited => PatientTimelineKind.Specimens,
         _ => PatientTimelineKind.Details
     };
 
@@ -71,6 +72,7 @@ public static class PatientTimelineKinds
         var deleted = kinds.Contains(PatientTimelineKind.Deleted);
         var files = kinds.Contains(PatientTimelineKind.Files);
         var letters = kinds.Contains(PatientTimelineKind.Letters);
+        var specimens = kinds.Contains(PatientTimelineKind.Specimens);
 
         return entries.Where(e =>
             (created && e.Action == Created)
@@ -86,7 +88,8 @@ public static class PatientTimelineKinds
             || (details && e.Action == DetailsUpdated && !e.Details.Contains(DueDateChange))
             || (deleted && e.Action == Deleted)
             || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded))
-            || (letters && e.Action >= LetterDrafted && e.Action <= LetterWithdrawn));
+            || (letters && e.Action >= LetterDrafted && e.Action <= LetterWithdrawn)
+            || (specimens && e.Action >= SpecimenTaken && e.Action <= SpecimenDetailsEdited));
     }
 
     /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>

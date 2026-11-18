@@ -41,6 +41,7 @@ public sealed class NotificationPreferencesTests
                             || k.ToString().StartsWith("Letter")
                             || k == NotificationKind.ReferralTriaged
                             || k == NotificationKind.ClinicSessionCancelled
+                            || k.ToString().StartsWith("Specimen")
                             || k == NotificationKind.ScheduledJobFailing));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }

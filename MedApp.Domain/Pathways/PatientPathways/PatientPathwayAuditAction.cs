@@ -35,7 +35,35 @@ public enum PatientPathwayAuditAction
     /// </summary>
     NoteDeleted = 15,
 
-    // 16 to 28 are kept for specimens and results (docs/centre-phases-3-5-plan.md, section 5).
+    // Specimens (docs/centre-phases-3-5-plan.md, section 5). Not changes to the pathway: they don't go through
+    // PathwayChange and don't move its LastUpdated. Details hold the specimen's ID and number, its type and lab by ID and
+    // name, statuses and fixed choices by name; never its site, request notes or any detail typed (SpecimenAudit).
+
+    /// <summary>A specimen was taken at a stage.</summary>
+    SpecimenTaken = 16,
+
+    /// <summary>A specimen was sent to the lab.</summary>
+    SpecimenSent = 17,
+
+    /// <summary>The lab received a specimen.</summary>
+    SpecimenReceived = 18,
+
+    /// <summary>A specimen's report was attached (the file's ID in the details).</summary>
+    SpecimenReported = 19,
+
+    /// <summary>The lab rejected a specimen: the reason by name, never its detail.</summary>
+    SpecimenRejected = 20,
+
+    /// <summary>A specimen was marked lost.</summary>
+    SpecimenLost = 21,
+
+    /// <summary>A specimen was marked entered in error.</summary>
+    SpecimenEnteredInError = 22,
+
+    /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
+    SpecimenDetailsEdited = 23,
+
+    // 24 to 28 are kept for results (docs/centre-phases-3-5-plan.md, section 5).
 
     /// <summary>
     /// A letter was started (a draft, from a template). Letters' entries (29 to 34) hold the letter's ID, kind and

@@ -72,6 +72,7 @@ public static class DemoDataSeeder
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
         var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
         var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, definitions.ToDictionary(d => d.Key, d => d.Value.Id), timeline, ct);
+        var specimenSetup = await DemoSpecimens.CreateSetupAsync(services, timeline, ct);
 
         var plans = PathwayPlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
@@ -188,6 +189,8 @@ public static class DemoDataSeeder
                     meetingsDeclined = calendars.Meetings.Sum(m => m.Attendees.Count(a => a.Reply == MeetingReply.Declined)),
                 },
                 monitoringRules = rules.Count,
+                specimenTypes = specimenSetup.Types,
+                laboratories = specimenSetup.Labs,
                 activityEntries = activity,
             },
             ["privacy"] = privacy,

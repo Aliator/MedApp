@@ -29,6 +29,7 @@ using MedApp.Application.PatientMessages.Common;
 using MedApp.Application.PatientMessages.Repositories;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Referrals.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
@@ -287,6 +288,7 @@ public static class ServiceExtensions
         services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
         services.AddScoped<ILetterRepository, LetterRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
+        services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         
         return services;
     }

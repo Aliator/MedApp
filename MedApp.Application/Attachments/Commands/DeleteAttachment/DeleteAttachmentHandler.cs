@@ -5,6 +5,8 @@ using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Common;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
@@ -15,6 +17,7 @@ public sealed class DeleteAttachmentHandler(
     IPatientRepository patients,
     IPatientPathwayRepository pathways,
     ILetterRepository letters,
+    ISpecimenRepository specimens,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
 {
@@ -39,6 +42,10 @@ public sealed class DeleteAttachmentHandler(
         PatientRules.EnsureCanChange(target.Owner);
         if (!request.CanCorrectRecords && target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);
+
+        // A specimen's report goes only with the specimen's own correction, never on its own (decision 71).
+        if (await specimens.IsReportAsync(attachment.Id, cancellationToken))
+            throw new ConflictException(SpecimenWorkflow.ReportedFileMessage);
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         attachment.DeletedAtUtc = nowUtc;

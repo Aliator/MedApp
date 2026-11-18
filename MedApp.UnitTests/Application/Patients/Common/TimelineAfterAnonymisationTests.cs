@@ -102,7 +102,8 @@ public sealed class TimelineAfterAnonymisationTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
-            Letters = []
+            Letters = [],
+            Specimens = []
         };
 
         PatientAnonymiser.Apply(record, Now);

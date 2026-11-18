@@ -10,6 +10,7 @@ using MedApp.API.ServerRendering;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Jobs.Common;
 using MedApp.Application.Notepads.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using Microsoft.AspNetCore.Authentication;
@@ -82,6 +83,11 @@ public static class ServiceExtensions
         services.AddOptions<NotepadOptions>()
             .BindConfiguration(NotepadOptions.Section)
             .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
+            .ValidateOnStart();
+        // A specimen number's prefix must fit its column and read as letters: stop at startup otherwise.
+        services.AddOptions<SpecimenOptions>()
+            .BindConfiguration(SpecimenOptions.Section)
+            .Validate(options => options.IsValid, SpecimenOptions.InvalidPrefix)
             .ValidateOnStart();
 
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.

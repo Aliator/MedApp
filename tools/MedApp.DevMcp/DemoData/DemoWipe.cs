@@ -44,6 +44,10 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
+                // Specimens hold their pathways, types and labs (foreign keys), so they go first.
+                await db.Specimens.ExecuteDeleteAsync(cancellationToken);
+                await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
+                await db.Laboratories.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 // Clinic sessions (after the appointments booked into them), then the patterns that made them; both

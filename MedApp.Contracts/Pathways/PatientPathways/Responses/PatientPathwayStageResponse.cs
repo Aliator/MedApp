@@ -73,6 +73,12 @@ public sealed class PatientPathwayStageResponse
     /// <summary>The detail given with the skip reason (free text, shown on the pathway page as notes are).</summary>
     public string? SkipDetail { get; set; }
 
+    /// <summary>
+    /// Whether the viewer can record a specimen taken at it now: they hold RecordSpecimens, the stage can be edited, the
+    /// pathway is open (not on hold or closed) and the record can change.
+    /// </summary>
+    public bool CanRecordSpecimen { get; set; }
+
     public DateTime? StartedAtUtc { get; set; }
     public Guid? StartedByUserId { get; set; }
     public string? StartedByUsername { get; set; }

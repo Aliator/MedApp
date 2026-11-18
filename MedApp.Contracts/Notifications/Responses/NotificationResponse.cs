@@ -5,7 +5,7 @@ namespace MedApp.Contracts.Notifications.Responses;
 /// it's about, if any, or to the Calendar on <c>CalendarDate</c> (a meeting's day). An admin's "Note deletion requested"
 /// opens the request (<c>NoteDeletionRequestId</c>) on its pathway's page. A meeting's notification opens
 /// the meeting (<c>MeetingId</c>) when it has one. "Referral triaged" opens the referral (<c>ReferralId</c>). Other kinds name what they're
-/// about in <c>SubjectId</c>: a letter for the letter kinds.
+/// about in <c>SubjectId</c>: a letter for the letter kinds, a specimen for "SpecimenRejectedByLab" and "SpecimenLost".
 /// </summary>
 public sealed record NotificationResponse(
     Guid Id,
