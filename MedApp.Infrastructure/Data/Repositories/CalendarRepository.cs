@@ -91,6 +91,12 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
             .AsSplitQuery()
             .ToListAsync(ct);
 
+        // The range's closed days are everyone's.
+        var closedDays = new ClosedDaySet(await context.ClosedDays
+            .AsNoTracking()
+            .Where(d => d.Date >= from && d.Date <= to)
+            .ToListAsync(ct));
+
         // Each person's own share of what was loaded for them all.
         return ids.Select(staffUserId =>
         {
@@ -115,7 +121,8 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
                 appointments.Where(a => a.StaffUserId == staffUserId).ToList(),
                 dayTemplateNames.Where(n => theirDayTemplateIds.Contains(n.Key)).ToDictionary(n => n.Key, n => n.Value))
             {
-                Meetings = meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == staffUserId)).ToList()
+                Meetings = meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == staffUserId)).ToList(),
+                ClosedDays = closedDays
             };
         }).ToList();
     }

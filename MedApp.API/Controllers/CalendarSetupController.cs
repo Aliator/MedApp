@@ -5,6 +5,10 @@ using MedApp.Application.Calendar.ActivityTypes.Commands.SetActivityTypeArchived
 using MedApp.Application.Calendar.ActivityTypes.Commands.UpdateActivityType;
 using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypeById;
 using MedApp.Application.Calendar.ActivityTypes.Queries.GetActivityTypes;
+using MedApp.Application.Calendar.ClosedDays.Commands.AddBankHolidays;
+using MedApp.Application.Calendar.ClosedDays.Commands.CreateClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Commands.DeleteClosedDay;
+using MedApp.Application.Calendar.ClosedDays.Queries.GetClosedDays;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.DayTemplates.Commands.CreateDayTemplate;
 using MedApp.Application.Calendar.DayTemplates.Commands.DeleteDayTemplate;
@@ -28,7 +32,8 @@ namespace MedApp.API.Controllers;
 
 /// <summary>
 /// What calendars are set up with: activity types (the preset list for blocked time, organisation-wide: admins manage
-/// them, staff read them), and each member of staff's own day templates and week templates (their owner or an admin
+/// them, staff read them), closed days (bank holidays and other days the clinic is closed, organisation-wide: admins
+/// manage them, staff read them), and each member of staff's own day templates and week templates (their owner or an admin
 /// changes them, 403 otherwise; anyone reads them). One that has been used can't be deleted, only archived (it can't be
 /// chosen again) and restored. Editing a template applies from today; past days keep what they had.
 /// </summary>
@@ -40,6 +45,7 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
     private const string ActivityTypesTag = "Calendar Activity Types";
     private const string DayTemplatesTag = "Calendar Day Templates";
     private const string WeekTemplatesTag = "Calendar Week Templates";
+    private const string ClosedDaysTag = "Calendar Closed Days";
 
     [HttpGet("activity-types")]
     [ProducesResponseType(typeof(IReadOnlyList<ActivityTypeResponse>), StatusCodes.Status200OK)]
@@ -258,6 +264,50 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DeleteWeekTemplate(Guid id, CancellationToken ct)
     {
         await mediator.Send(new DeleteWeekTemplateCommand(id, User.ToCalendarActor()), ct);
+        return NoContent();
+    }
+
+    /// <summary>The closed days in a range of UK dates (either end may be left open), by date.</summary>
+    [HttpGet("closed-days")]
+    [ProducesResponseType(typeof(IReadOnlyList<ClosedDayResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Tags(ClosedDaysTag)]
+    public async Task<IActionResult> GetClosedDays([FromQuery] GetClosedDaysRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetClosedDaysQuery(request.From, request.To), ct));
+
+    /// <summary>Closes the clinic on a day, today or later. What's already on it stays, flagged.</summary>
+    [HttpPost("closed-days")]
+    [ProducesResponseType(typeof(ClosedDayResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    [Tags(ClosedDaysTag)]
+    public async Task<IActionResult> CreateClosedDay([FromBody] CreateClosedDayRequest request, CancellationToken ct)
+    {
+        var day = await mediator.Send(new CreateClosedDayCommand(request.Date, request.Name, User.ToCalendarActor()), ct);
+        return Created($"/api/calendar/closed-days?from={day.Date:yyyy-MM-dd}&to={day.Date:yyyy-MM-dd}", day);
+    }
+
+    /// <summary>Adds a year's England and Wales bank holidays as closed days; dates already closed, and past ones, are skipped.</summary>
+    [HttpPost("closed-days/bank-holidays")]
+    [ProducesResponseType(typeof(AddBankHolidaysResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    [Tags(ClosedDaysTag)]
+    public async Task<IActionResult> AddBankHolidays([FromBody] AddBankHolidaysRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new AddBankHolidaysCommand(request.Year, User.ToCalendarActor()), ct));
+
+    /// <summary>Opens the clinic again on a closed day, today or later.</summary>
+    [HttpDelete("closed-days/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    [Tags(ClosedDaysTag)]
+    public async Task<IActionResult> DeleteClosedDay(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new DeleteClosedDayCommand(id), ct);
         return NoContent();
     }
 

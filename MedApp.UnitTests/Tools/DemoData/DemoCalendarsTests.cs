@@ -78,8 +78,10 @@ public sealed class DemoCalendarsTests
         calendars.DefaultWeeks.Where(d => d.StaffUserId == partTime.Id).OrderBy(d => d.ValidFrom).Select(d => (d.ValidTo, d.ValidFrom))
             .Should().HaveCount(2).And.Satisfy(d => d.ValidTo == changed.AddDays(-1), d => d.ValidFrom == changed && d.ValidTo == null);
 
-        // Monday list days (not on leave) before the change, and after it: the lunch moved later.
-        var mondays = Enumerable.Range(1, 20).Select(w => timeline.ThisMonday.AddDays(-7 * w)).Where(d => !calendars.IsOnLeave(endoscopist.Id, d)).ToList();
+        // Monday list days (not on leave, nor bank holidays, when no template applies) before the change, and after it:
+        // the lunch moved later.
+        var mondays = Enumerable.Range(1, 20).Select(w => timeline.ThisMonday.AddDays(-7 * w))
+            .Where(d => !calendars.IsOnLeave(endoscopist.Id, d) && DemoClosedDays.IsWorkingDay(d)).ToList();
         LunchOn(mondays.First(d => d < timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(12, 45));
         LunchOn(mondays.First(d => d >= timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(13, 15));
 

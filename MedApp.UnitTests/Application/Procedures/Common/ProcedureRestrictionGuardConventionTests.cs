@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
@@ -53,7 +54,7 @@ public sealed class ProcedureRestrictionGuardConventionTests
     private static readonly Type[] CheckTheirOwnPatient =
     [
         typeof(CreatePatientProcedureHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
-        typeof(DeleteAttachmentHandler),
+        typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler),
     ];
 
     private static readonly MethodInfo GetAppointmentForUpdate =

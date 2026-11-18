@@ -10,7 +10,9 @@ namespace MedApp.Application.Appointments.Common;
 /// <para>
 /// Requested (needs booking) has no member of staff or time. Booking gives it both (in the future, clash-free), and a
 /// Booked one can be moved the same way. Once its start has passed, it's marked Attended or Did not attend, which can
-/// be corrected either way. Requested and Booked ones can be Cancelled, with a reason; Cancelled is final.
+/// be corrected either way. Requested and Booked ones can be Cancelled, with a reason; Cancelled is final. An
+/// appointment that already happened (a walk-in) is recorded after the event straight to Attended or Did not attend,
+/// within <see cref="BookingTimes.RecordAfterEventDays"/> days; a stage's visit in Needs booking becomes that one.
 /// </para>
 /// </summary>
 public static partial class AppointmentWorkflow
@@ -88,6 +90,19 @@ public static partial class AppointmentWorkflow
             "This stage already has a visit in Needs booking. Book that one instead.",
         _ => "This stage already has a visit requested or booked. Reload it and try again."
     };
+
+    /// <summary>
+    /// Why an appointment can't be recorded after the event for a stage that has a visit Booked (one in Needs booking
+    /// becomes the recorded one instead): record that one's outcome, or cancel it, so the stage isn't left with two.
+    /// </summary>
+    public static string StageHasBookedVisit(Appointment booked, string? staffUsername) =>
+        $"This stage already has a visit booked, on {UkTime.Describe(booked.StartUtc!.Value)}" +
+        $"{(staffUsername is null ? "" : $" with {staffUsername}")}. " +
+        "If that's the one that happened, record its outcome instead; otherwise cancel it first.";
+
+    /// <summary>A stage's visit in Needs booking that someone booked or cancelled while it was being recorded.</summary>
+    public const string RequestedVisitChangedMeanwhileMessage =
+        "Someone else changed this stage's visit just now. Reload it and try again.";
 
     /// <summary>A status in words, e.g. "did not attend".</summary>
     public static string Describe(AppointmentStatus status) =>

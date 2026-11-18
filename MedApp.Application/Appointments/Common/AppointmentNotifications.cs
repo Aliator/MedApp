@@ -7,7 +7,7 @@ namespace MedApp.Application.Appointments.Common;
 
 /// <summary>
 /// What to tell members of staff when someone else changes their appointments: booked with them (or moved to them),
-/// moved to another time, or cancelled (or moved to someone else). Nobody is told about their own change. A
+/// moved to another time, cancelled (or moved to someone else), or recorded after the event. Nobody is told about their own change. A
 /// notification's title is a fixed phrase for its kind (<see cref="TitleOf"/>), so no free text ever reaches it; its
 /// message says who and when, never the patient's name, the procedure's title or the notes.
 /// </summary>
@@ -19,6 +19,7 @@ public static class AppointmentNotifications
         NotificationKind.AppointmentBooked => "Appointment booked",
         NotificationKind.AppointmentRescheduled => "Appointment moved",
         NotificationKind.AppointmentCancelled => "Appointment cancelled",
+        NotificationKind.AppointmentRecorded => "Appointment recorded",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
@@ -67,6 +68,22 @@ public static class AppointmentNotifications
                 notifications.Add(Create(kind, userId, appointment, message, nowUtc));
         }
     }
+
+    /// <summary>
+    /// After recording an appointment that already happened (a walk-in) with someone else: who recorded it, when it was
+    /// and its outcome, never the patient.
+    /// </summary>
+    public static IReadOnlyList<Notification> AfterRecording(Appointment appointment, ProcedureActor actor, DateTime nowUtc) =>
+        appointment is { StaffUserId: { } staffUserId, StartUtc: { } startUtc }
+        && staffUserId != actor.UserId
+        && AppointmentWorkflow.IsOutcome(appointment.Status)
+            ? [Create(
+                NotificationKind.AppointmentRecorded,
+                staffUserId,
+                appointment,
+                $"{actor.Username} recorded an appointment you had on {UkTime.Describe(startUtc)}, as {AppointmentWorkflow.Describe(appointment.Status)}.",
+                nowUtc)]
+            : [];
 
     /// <summary>After cancelling an appointment that was booked with someone else.</summary>
     public static IReadOnlyList<Notification> AfterCancelling(

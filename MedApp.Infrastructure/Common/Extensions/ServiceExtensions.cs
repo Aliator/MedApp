@@ -169,6 +169,7 @@ public static class ServiceExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
+        services.AddScoped<IClosedDayRepository, ClosedDayRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();

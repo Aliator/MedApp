@@ -11,18 +11,18 @@ namespace MedApp.UnitTests.Application.Appointments.Commands.BookAppointment;
 [TestFixture]
 public sealed class BookAppointmentValidatorTests
 {
-    private readonly BookAppointmentValidator _validator = new(new FixedTimeProvider(Now));
+    private readonly BookAppointmentValidator _validator = new(new FixedTimeProvider(Now), InMemoryClosedDays.WorkingDays(CreateClosedDay()));
 
     private static BookAppointmentCommand Valid() =>
         new(Guid.NewGuid(), StaffUserId, At(NextMonday, 10), At(NextMonday, 10, 30), "Requested", Colleague);
 
     private IEnumerable<string> Errors(BookAppointmentCommand command) =>
-        _validator.Validate(command).Errors.Select(e => e.ErrorMessage);
+        _validator.ValidateNow(command).Errors.Select(e => e.ErrorMessage);
 
     [Test]
     public void Validate_FutureWorkingTime_Passes()
     {
-        _validator.Validate(Valid()).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid()).IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -42,7 +42,7 @@ public sealed class BookAppointmentValidatorTests
     [TestCase("booked")]
     public void Validate_ExpectedStatusOpen_Passes(string expected)
     {
-        _validator.Validate(Valid() with { ExpectedStatus = expected }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { ExpectedStatus = expected }).IsValid.Should().BeTrue();
     }
 
     [TestCase("")]
@@ -87,5 +87,13 @@ public sealed class BookAppointmentValidatorTests
     public void Validate_NotOnAFiveMinuteBoundary_Fails()
     {
         Errors(Valid() with { StartUtc = At(NextMonday, 10, 2) }).Should().Equal(WorkingHours.NotOnBoundary);
+    }
+
+    [Test]
+    public void Validate_OnAClosedDay_SaysTheClinicIsClosed()
+    {
+        _validator.ValidateNow(Valid() with { StartUtc = At(ClosedWednesday, 10), EndUtc = At(ClosedWednesday, 10, 30) })
+            .Errors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
     }
 }

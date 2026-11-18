@@ -5,6 +5,7 @@ using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
+using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
@@ -72,6 +73,22 @@ public sealed class AppointmentsControllerTests
         await Controller.CreateAppointment(request, _cts.Token);
 
         _mediator.Request.Should().Be(new CreateAppointmentCommand(RecordId, null, null, null, null, null, null, Actor));
+    }
+
+    [Test]
+    public async Task RecordPastAppointment_SendsEveryValueAsTheUserAndReturnsItWithItsAddress()
+    {
+        var request = _fixture.Create<RecordPastAppointmentRequest>();
+
+        var result = await Controller.RecordPastAppointment(request, _cts.Token);
+
+        _mediator.Request.Should().Be(new RecordPastAppointmentCommand(
+            request.PatientId, request.ProcedureId, request.StageId, request.StaffUserId, request.StartUtc, request.EndUtc,
+            request.Outcome, request.Notes, Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be($"/api/appointments/{_appointment.Id}");
+        created.Value.Should().Be(_appointment);
     }
 
     [Test]

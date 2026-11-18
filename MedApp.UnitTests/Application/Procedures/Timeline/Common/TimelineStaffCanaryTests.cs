@@ -232,6 +232,12 @@ public sealed class TimelineStaffCanaryTests
         var cancel = new AppointmentChange(other, Staff, Now.AddMinutes(2), procedureTitle: Canary);
         cancel.Cancel(Canary);
 
-        return [.. procedureChange.AppointmentEvents, .. change.Events, .. cancel.Events];
+        // A walk-in recorded after the event, as the stage's visit in Needs booking, with notes.
+        var walkIn = procedureChange.RequestVisit(procedure.StageAt(3));
+        walkIn.Notes = Canary;
+        var recorded = new AppointmentChange(walkIn, Staff, Now.AddMinutes(3), procedureTitle: Canary, stageName: ConsultationStage);
+        recorded.RecordAfterEvent(OtherUserId, OtherUsername, Now.AddDays(-1), Now.AddDays(-1).AddMinutes(30), AppointmentStatus.Attended, wasRequested: true);
+
+        return [.. procedureChange.AppointmentEvents, .. change.Events, .. cancel.Events, .. recorded.Events];
     }
 }

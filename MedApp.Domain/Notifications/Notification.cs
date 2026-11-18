@@ -42,10 +42,10 @@ public sealed class Notification
         kind is >= NotificationKind.MonitoredProcedureCreated and <= NotificationKind.MonitoredDueDateChanged;
 
     /// <summary>
-    /// Whether notifications of this kind have a fixed title (the appointment kinds' "Appointment booked", the meeting
-    /// kinds' "Meeting invitation", the monitoring kinds' "Stage finished"), rather than the procedure's title, so
-    /// anonymising a patient leaves it as it is.
+    /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
+    /// "Appointment booked", the meeting kinds' "Meeting invitation"; and the monitoring kinds' "Stage finished"),
+    /// rather than the procedure's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
-        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingCancelled || IsMonitoring(kind);
+        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.AppointmentRecorded || IsMonitoring(kind);
 }

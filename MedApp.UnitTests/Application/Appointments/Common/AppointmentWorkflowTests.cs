@@ -156,4 +156,16 @@ public sealed class AppointmentWorkflowTests
         AppointmentWorkflow.StageHasOpenVisit(null, null)
             .Should().Be("This stage already has a visit requested or booked. Reload it and try again.");
     }
+
+    [Test]
+    public void StageHasBookedVisit_SaysWhenAndWithWhom_AndWhatToDoInstead()
+    {
+        var booked = CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11));
+
+        AppointmentWorkflow.StageHasBookedVisit(booked, StaffUsername).Should().Be(
+            $"This stage already has a visit booked, on Monday 23 November at 11:00 with {StaffUsername}. " +
+            "If that's the one that happened, record its outcome instead; otherwise cancel it first.");
+        AppointmentWorkflow.StageHasBookedVisit(booked, null)
+            .Should().StartWith("This stage already has a visit booked, on Monday 23 November at 11:00. ");
+    }
 }

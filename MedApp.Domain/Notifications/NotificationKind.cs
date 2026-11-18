@@ -27,6 +27,12 @@ public enum NotificationKind
     /// <summary>An admin cancelled a meeting the user was going to, or took them off it.</summary>
     MeetingCancelled = 6,
 
+    /// <summary>
+    /// Someone recorded an appointment with the user after the event (a walk-in, or one booked outside MedApp). 9, not
+    /// 7, leaving 7 and 8 for the meeting kinds being added alongside it.
+    /// </summary>
+    AppointmentRecorded = 9,
+
     /// <summary>Monitoring: someone created a procedure.</summary>
     MonitoredProcedureCreated = 10,
 

@@ -56,6 +56,32 @@ public static class CalendarClashes
     public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
         BusyTimes(data, null, null, ignoreMeetingId, (null, default));
 
+    /// <summary>
+    /// For an appointment recorded after the event: a message naming the first of the person's appointments (Booked,
+    /// Attended or Did not attend) that the time overlaps, or null. Blocks and meetings don't count: what happened,
+    /// happened, and they show flagged as overlapping it.
+    /// </summary>
+    public static string? FindAppointment(CalendarData data, DateTime startUtc, DateTime endUtc, Guid? ignoreAppointmentId = null)
+    {
+        var start = UkTime.Utc(startUtc);
+        var end = UkTime.Utc(endUtc);
+        var clash = data.Appointments
+            .Where(a => a.Id != ignoreAppointmentId
+                        && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
+                        && a is { StartUtc: not null, EndUtc: not null }
+                        && Overlaps(start, end, a.StartUtc.Value, a.EndUtc.Value))
+            .OrderBy(a => a.StartUtc)
+            .ThenBy(a => a.EndUtc)
+            .FirstOrDefault();
+
+        return clash is null
+            ? null
+            : $"That time overlaps {AnotherAppointment}, {UkTime.DescribeTime(clash.StartUtc!.Value)} to {UkTime.DescribeTime(clash.EndUtc!.Value)}.";
+    }
+
+    /// <summary>What an appointment is called in a clash: never its patient.</summary>
+    public const string AnotherAppointment = "another appointment";
+
     /// <summary>What a meeting is called in a clash or a busy time: "the meeting 'MDT'".</summary>
     public static string Describe(Domain.Calendar.Meeting meeting) => $"the meeting '{meeting.Title}'";
 
@@ -74,7 +100,7 @@ public static class CalendarClashes
             .Where(a => a.Id != ignoreAppointmentId
                         && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
                         && a is { StartUtc: not null, EndUtc: not null })
-            .Select(a => new CalendarClash(a.StartUtc!.Value, a.EndUtc!.Value, "another appointment"));
+            .Select(a => new CalendarClash(a.StartUtc!.Value, a.EndUtc!.Value, AnotherAppointment));
 
         var blocks = data.Blocks
             .Where(b => b.Id != ignoreBlockId)

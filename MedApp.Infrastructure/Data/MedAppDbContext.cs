@@ -42,6 +42,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<CalendarBlockException> CalendarBlockExceptions => Set<CalendarBlockException>();
     public DbSet<CalendarDayOverride> CalendarDayOverrides => Set<CalendarDayOverride>();
+    public DbSet<ClosedDay> ClosedDays => Set<ClosedDay>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
     public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();

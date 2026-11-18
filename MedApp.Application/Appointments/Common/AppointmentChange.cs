@@ -74,6 +74,44 @@ public sealed class AppointmentChange(
         Record(AppointmentEventAction.Booked);
     }
 
+    /// <summary>
+    /// Records an appointment that has already happened (a walk-in, or one booked outside MedApp), with its member of
+    /// staff, time and outcome, as one history entry (<see cref="AppointmentEventAction.RecordedAfterEvent"/>, with the
+    /// outcome and, for a stage's visit in Needs booking, its previous status). The actor recorded it, now: they're
+    /// its booker and the outcome's recorder. A new appointment, or a Requested one (a stage's visit in Needs booking,
+    /// <paramref name="wasRequested"/>), only.
+    /// </summary>
+    public void RecordAfterEvent(
+        Guid staffUserId,
+        string recordedStaffUsername,
+        DateTime startUtc,
+        DateTime endUtc,
+        AppointmentStatus outcome,
+        bool wasRequested = false)
+    {
+        if (!AppointmentWorkflow.IsOutcome(outcome))
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "An outcome is Attended or DidNotAttend.");
+        if (appointment.Status != Requested)
+            throw new InvalidOperationException("Only a new or Requested appointment can be recorded after the event.");
+
+        appointment.StaffUserId = staffUserId;
+        appointment.StartUtc = startUtc;
+        appointment.EndUtc = endUtc;
+        appointment.Status = outcome;
+        appointment.IsRecordedAfterEvent = true;
+        appointment.BookedAtUtc = nowUtc;
+        appointment.BookedByUserId = actor.UserId;
+        appointment.OutcomeAtUtc = nowUtc;
+        appointment.OutcomeByUserId = actor.UserId;
+        _staffUsername = recordedStaffUsername;
+
+        Record(
+            AppointmentEventAction.RecordedAfterEvent,
+            wasRequested
+                ? new { outcome = outcome.ToString(), previousStatus = Requested.ToString() }
+                : new { outcome = outcome.ToString() });
+    }
+
     /// <summary>Marks it Attended or Did not attend, or corrects one to the other. Nothing happens if it's already that.</summary>
     public void RecordOutcome(AppointmentStatus outcome)
     {

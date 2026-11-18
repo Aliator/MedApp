@@ -250,4 +250,14 @@ public sealed class AppointmentMapperTests
         response.CanRecordOutcome.Should().BeFalse();
         response.CanEditNotes.Should().BeFalse();
     }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ToResponse_RecordedAfterTheEvent_SaysSo(bool recorded)
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Attended, At(Today, 8));
+        appointment.IsRecordedAfterEvent = recorded;
+
+        AppointmentMapper.ToResponse(appointment, new Dictionary<Guid, string>(), Now).IsRecordedAfterEvent.Should().Be(recorded);
+    }
 }

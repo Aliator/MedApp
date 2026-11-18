@@ -48,6 +48,12 @@ public sealed class Appointment
     public DateTime? BookedAtUtc { get; set; }
     public Guid? BookedByUserId { get; set; }
 
+    /// <summary>
+    /// Recorded after the event (a walk-in, or one booked outside MedApp), with its outcome, rather than booked ahead.
+    /// <see cref="BookedAtUtc"/> and <see cref="BookedByUserId"/> are then when and by whom it was recorded.
+    /// </summary>
+    public bool IsRecordedAfterEvent { get; set; }
+
     /// <summary>When and by whom Attended or Did not attend was last recorded.</summary>
     public DateTime? OutcomeAtUtc { get; set; }
     public Guid? OutcomeByUserId { get; set; }

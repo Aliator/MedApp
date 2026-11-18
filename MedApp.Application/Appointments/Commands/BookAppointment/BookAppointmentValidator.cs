@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 
@@ -9,7 +10,7 @@ public sealed class BookAppointmentValidator : AbstractValidator<BookAppointment
 {
     public const string ExpectedStatusMessage = "Expected status must be Requested (to book it) or Booked (to move it).";
 
-    public BookAppointmentValidator(TimeProvider timeProvider)
+    public BookAppointmentValidator(TimeProvider timeProvider, WorkingDays workingDays)
     {
         RuleFor(x => x.AppointmentId).NotEmpty().WithMessage("Appointment id is required.");
 
@@ -20,9 +21,10 @@ public sealed class BookAppointmentValidator : AbstractValidator<BookAppointment
             .WithMessage(ExpectedStatusMessage);
 
         RuleFor(x => x.StartUtc)
-            .Custom((start, context) =>
+            .CustomAsync(async (start, context, ct) =>
             {
-                if (BookingTimes.WhyNot(start, context.InstanceToValidate.EndUtc, timeProvider.GetUtcNow().UtcDateTime) is { } why)
+                if (await BookingTimes.WhyNotAsync(
+                        workingDays, start, context.InstanceToValidate.EndUtc, timeProvider.GetUtcNow().UtcDateTime, ct) is { } why)
                     context.AddFailure(why);
             });
     }

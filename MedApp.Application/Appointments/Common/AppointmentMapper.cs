@@ -71,6 +71,7 @@ public static class AppointmentMapper
             IsAutomatic = appointment.IsAutomatic,
             CreatedAtUtc = appointment.CreatedAtUtc,
             CreatedByUsername = Username(usernames, appointment.CreatedByUserId),
+            IsRecordedAfterEvent = appointment.IsRecordedAfterEvent,
             BookedAtUtc = appointment.BookedAtUtc,
             BookedByUsername = Username(usernames, appointment.BookedByUserId),
             OutcomeAtUtc = appointment.OutcomeAtUtc,

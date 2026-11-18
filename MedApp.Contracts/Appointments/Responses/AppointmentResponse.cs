@@ -51,6 +51,12 @@ public sealed class AppointmentResponse
     /// <summary>Who asked for it (for an automatic one, whoever made the change that caused it).</summary>
     public string CreatedByUsername { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Recorded after the event (a walk-in, or one booked outside MedApp) rather than booked ahead: then
+    /// <see cref="BookedAtUtc"/> and <see cref="BookedByUsername"/> say when and by whom it was recorded.
+    /// </summary>
+    public bool IsRecordedAfterEvent { get; set; }
+
     public DateTime? BookedAtUtc { get; set; }
 
     public string? BookedByUsername { get; set; }

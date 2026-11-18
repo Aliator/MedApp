@@ -51,6 +51,7 @@ public sealed class AppointmentNotificationsTests
     [TestCase(NotificationKind.AppointmentBooked, "Appointment booked")]
     [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved")]
     [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled")]
+    [TestCase(NotificationKind.AppointmentRecorded, "Appointment recorded")]
     public void TitleOf_EachAppointmentKind_IsAFixedPhrase(NotificationKind kind, string title)
     {
         AppointmentNotifications.TitleOf(kind).Should().Be(title);
@@ -235,5 +236,54 @@ public sealed class AppointmentNotificationsTests
 
         AppointmentNotifications.AfterCancelling(appointment, AppointmentStatus.Booked, Colleague, Now)
             .Should().BeEmpty();
+    }
+
+    // After recording one after the event
+
+    private static Appointment Recorded(AppointmentStatus outcome, Guid? staffUserId = null)
+    {
+        var appointment = BookedAt(At(Today.AddDays(-3), 10), staffUserId);
+        appointment.Status = outcome;
+        appointment.IsRecordedAfterEvent = true;
+        return appointment;
+    }
+
+    [TestCase(AppointmentStatus.Attended, "attended")]
+    [TestCase(AppointmentStatus.DidNotAttend, "did not attend")]
+    public void AfterRecording_BySomeoneElse_TellsTheStaffMemberWhenAndTheOutcome(AppointmentStatus outcome, string words)
+    {
+        var appointment = Recorded(outcome);
+
+        var notification = AppointmentNotifications.AfterRecording(appointment, Colleague, Now).Should().ContainSingle().Subject;
+
+        notification.UserId.Should().Be(StaffUserId);
+        notification.Kind.Should().Be(NotificationKind.AppointmentRecorded);
+        notification.Title.Should().Be("Appointment recorded");
+        notification.Message.Should().Be($"calendar.colleague recorded an appointment you had on Friday 13 November at 10:00, as {words}.");
+        notification.AppointmentId.Should().Be(appointment.Id);
+        notification.ProcedureId.Should().Be(appointment.ProcedureId);
+        notification.CreatedAtUtc.Should().Be(Now);
+        notification.Message.Should().NotContain(Notes).And.NotContain(PatientLastName);
+    }
+
+    [Test]
+    public void AfterRecording_ByTheStaffMemberThemselves_TellsNobody()
+    {
+        AppointmentNotifications.AfterRecording(Recorded(AppointmentStatus.Attended), Self, Now).Should().BeEmpty();
+    }
+
+    [Test]
+    public void AfterRecording_NotAnOutcome_TellsNobody()
+    {
+        AppointmentNotifications.AfterRecording(BookedAt(At(NextMonday, 10)), Colleague, Now).Should().BeEmpty();
+    }
+
+    [Test]
+    public void HasFixedTitle_EveryCalendarKind_AndNotTheProcedureAssignment()
+    {
+        Notification.HasFixedTitle(NotificationKind.AppointmentRecorded).Should().BeTrue();
+        Notification.HasFixedTitle((NotificationKind)7).Should().BeTrue("7 and 8 are kept for calendar kinds, which have fixed titles");
+        Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+        Notification.IsMonitoring(NotificationKind.AppointmentRecorded).Should().BeFalse();
     }
 }

@@ -3,6 +3,7 @@ using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
+using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
@@ -41,6 +42,31 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StaffUserId,
             request.StartUtc,
             request.EndUtc,
+            request.Notes,
+            User.ToProcedureActor()), ct);
+
+        return Created($"/api/appointments/{appointment.Id}", appointment);
+    }
+
+    /// <summary>
+    /// Records an appointment that has already happened (a walk-in, or one booked outside MedApp) with its outcome:
+    /// started within the last 30 days, on a working day. A stage's visit in Needs booking becomes this one.
+    /// </summary>
+    [HttpPost("past")]
+    [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RecordPastAppointment([FromBody] RecordPastAppointmentRequest request, CancellationToken ct)
+    {
+        var appointment = await mediator.Send(new RecordPastAppointmentCommand(
+            request.PatientId,
+            request.ProcedureId,
+            request.StageId,
+            request.StaffUserId,
+            request.StartUtc,
+            request.EndUtc,
+            request.Outcome,
             request.Notes,
             User.ToProcedureActor()), ct);
 
