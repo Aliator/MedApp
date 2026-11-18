@@ -20,7 +20,7 @@ public sealed class TwoFactorTests : E2ETest
     {
         // A member of staff with their own password (made through the API).
         var username = E2EData.UniqueName("twofactor").Replace(' ', '-').ToLowerInvariant();
-        var firstPassword = await Api.CreateUserAsync(username, "User");
+        var firstPassword = await Api.CreateUserAsync(username, "All staff (before roles)");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         var theirApi = await SignInToApiAsync(username, firstPassword);
         await theirApi.UpdateOwnPasswordAsync(username, firstPassword, ChosenPassword);

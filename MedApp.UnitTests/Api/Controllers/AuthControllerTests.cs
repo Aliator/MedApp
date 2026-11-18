@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using System.Net;
 using System.Reflection;
 using AutoFixture;
@@ -72,6 +73,10 @@ public sealed class AuthControllerTests
 
     private AuthController Controller(RecordingMediator mediator, Action<HttpContext>? configure = null, params string[] roles) =>
         new AuthController(mediator, _cookies.Object).WithRequest(SignedIn(roles), configure);
+
+    /// <summary>Permission names as whoami lists them: sorted.</summary>
+    private static string[] Names(IEnumerable<MedApp.Application.Common.Identity.Permission> permissions) =>
+        permissions.Select(p => p.ToString()).Order(StringComparer.Ordinal).ToArray();
 
     private static IdentityResult Failed(string code = "Problem") => IdentityResult.Failed(new IdentityError { Code = code, Description = "Synthetic problem." });
 
@@ -551,7 +556,7 @@ public sealed class AuthControllerTests
         var revoked = await Controller(mediator).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
         var refused = await Controller(new RecordingMediator()).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
 
-        mediator.Request.Should().Be(new RevokeRoleCommand(OtherUsername, "Admin"));
+        mediator.Request.Should().Be(new RevokeRoleCommand(OtherUsername, "Admin", Username));
         revoked.Should().BeOfType<NoContentResult>();
         refused.Should().BeOfType<BadRequestResult>();
     }
@@ -694,7 +699,7 @@ public sealed class AuthControllerTests
     {
         var result = Controller(new RecordingMediator(), roles: ["Admin", "User"]).WhoAmI();
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["Admin", "User"], false));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["Admin", "User"], false, Permissions: Names(TestPermissions.ForRoles("Admin", "User"))));
     }
 
     [Test]
@@ -704,7 +709,7 @@ public sealed class AuthControllerTests
 
         var result = controller.WhoAmI();
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["User"], true));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["User"], true, Permissions: Names(TestPermissions.Staff)));
     }
 
     [Test]
@@ -714,7 +719,7 @@ public sealed class AuthControllerTests
 
         var result = controller.WhoAmI();
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: []));
     }
 
     [Test]
@@ -787,6 +792,6 @@ public sealed class AuthControllerTests
         var controller = new AuthController(new RecordingMediator(), _cookies.Object);
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new System.Security.Claims.ClaimsPrincipal() } };
 
-        controller.WhoAmI().Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false));
+        controller.WhoAmI().Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: []));
     }
 }

@@ -52,20 +52,20 @@ public sealed class GetPatientTimelineHandler(
         var page = merged.Take(request.PageSize).ToList();
 
         // Admins see the text of the notes added and edited, from the note versions (the audit holds none).
-        if (request.IsAdmin)
+        if (request.FullView)
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
 
         return new PatientTimelinePageResponse
         {
             // The searches already leave deleted pathways out for staff; this makes sure nothing slips through.
             Items = page
-                .Where(e => request.IsAdmin
+                .Where(e => request.FullView
                             || (e.Audit is { } audit
                                 ? audit.CurrentPathwayTitle is not null || audit.IsAboutPatient
                                 : e.Appointment!.IsVisibleToStaff))
                 .Select(e => e.Audit is { } audit
-                    ? TimelineMapper.ToResponse(audit, request.IsAdmin)
-                    : TimelineMapper.ToResponse(e.Appointment!, request.IsAdmin))
+                    ? TimelineMapper.ToResponse(audit, request.FullView)
+                    : TimelineMapper.ToResponse(e.Appointment!, request.FullView))
                 .ToList(),
             NextCursor = merged.Count > request.PageSize ? page[^1].Position.Encode() : null,
         };

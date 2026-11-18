@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.CreatePatientPathwayStageDefinition;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.DeletePatientPathwayStageDefinition;
@@ -33,8 +34,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(typeof(PatientPathwayStageDefinitionResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> CreatePatientPathwayStageDefinition([FromBody] CreatePatientPathwayStageDefinitionRequest request, CancellationToken ct)
     {
         var definition = await mediator.Send(new CreatePatientPathwayStageDefinitionCommand(
@@ -53,8 +54,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> UpdatePatientPathwayStageDefinition(Guid id, [FromBody] UpdatePatientPathwayStageDefinitionRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdatePatientPathwayStageDefinitionCommand(
             id,
@@ -68,16 +69,16 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [HttpPost("definitions/{id:guid}/archive")]
     [ProducesResponseType(typeof(PatientPathwayStageDefinitionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> ArchivePatientPathwayStageDefinition(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPatientPathwayStageDefinitionArchivedCommand(id, true), ct));
 
     [HttpPost("definitions/{id:guid}/restore")]
     [ProducesResponseType(typeof(PatientPathwayStageDefinitionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> RestorePatientPathwayStageDefinition(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPatientPathwayStageDefinitionArchivedCommand(id, false), ct));
 
@@ -86,8 +87,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> DeletePatientPathwayStageDefinition(Guid id, CancellationToken ct)
     {
         await mediator.Send(new DeletePatientPathwayStageDefinitionCommand(id), ct);
@@ -96,16 +97,16 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
 
     [HttpGet("definitions")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientPathwayStageDefinitionResponse>), StatusCodes.Status200OK)]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetAllPatientPathwayStageDefinitions([FromQuery] bool includeArchived, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAllPatientPathwayStageDefinitionsQuery(includeArchived), ct));
 
     [HttpGet("definitions/{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayStageDefinitionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Pathway Stage Definitions")]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetPatientPathwayStageDefinitionById(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPatientPathwayStageDefinitionByIdQuery(id), ct));
 
@@ -114,8 +115,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> CreatePathwayTemplate([FromBody] CreatePathwayTemplateRequest request, CancellationToken ct)
     {
         var template = await mediator.Send(new CreatePathwayTemplateCommand(
@@ -131,8 +132,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> UpdatePathwayTemplate(Guid id, [FromBody] UpdatePathwayTemplateRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdatePathwayTemplateCommand(
             id,
@@ -143,16 +144,16 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [HttpPost("templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> ArchivePathwayTemplate(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPathwayTemplateArchivedCommand(id, true), ct));
 
     [HttpPost("templates/{id:guid}/restore")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> RestorePathwayTemplate(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new SetPathwayTemplateArchivedCommand(id, false), ct));
 
@@ -161,8 +162,8 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.ManageSetup)]
     public async Task<IActionResult> DeletePathwayTemplate(Guid id, CancellationToken ct)
     {
         await mediator.Send(new DeletePathwayTemplateCommand(id), ct);
@@ -171,16 +172,16 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
 
     [HttpGet("templates")]
     [ProducesResponseType(typeof(IReadOnlyList<PathwayTemplateResponse>), StatusCodes.Status200OK)]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetAllPathwayTemplates([FromQuery] bool includeArchived, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAllPathwayTemplatesQuery(includeArchived), ct));
 
     [HttpGet("templates/{id:guid}")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Pathway Templates")]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetPathwayTemplateById(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPathwayTemplateByIdQuery(id), ct));
 }

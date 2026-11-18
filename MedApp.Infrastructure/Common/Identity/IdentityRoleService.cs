@@ -5,8 +5,9 @@ namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager,
-    IIdentityTransactions transactions) : IIdentityRoleService
+    RoleManager<ApplicationRole> roleManager,
+    IIdentityTransactions transactions,
+    TimeProvider timeProvider) : IIdentityRoleService
 {
     public async Task<IdentityRole<Guid>?> CreateRoleAsync(
         string roleName,
@@ -16,7 +17,9 @@ public sealed class IdentityRoleService(
         if (existingRole is not null)
             return existingRole;
 
-        var role = new IdentityRole<Guid>(roleName);
+        // A role made here has no permissions but UseApp, which every role grants.
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var role = new ApplicationRole(roleName) { CreatedAt = now, LastUpdated = now };
         var result = await roleManager.CreateAsync(role);
 
         return result.Succeeded ? role : null;
@@ -73,6 +76,7 @@ public sealed class IdentityRoleService(
 
             // Every role must exist; their stored names are the ones Identity matches on.
             var wanted = new List<string>();
+            var archived = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var roleName in roleNames.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var role = await roleManager.FindByNameAsync(roleName);
@@ -80,11 +84,17 @@ public sealed class IdentityRoleService(
                     return IdentityResult.Failed(IdentityErrors.RoleNotFound);
 
                 wanted.Add(role.Name);
+                if (role.IsArchived)
+                    archived.Add(role.Name);
             }
 
             var current = await userManager.GetRolesAsync(user);
             var toRemove = current.Except(wanted, StringComparer.OrdinalIgnoreCase).ToList();
             var toAdd = wanted.Except(current, StringComparer.OrdinalIgnoreCase).ToList();
+
+            // An archived role stays with those who hold it, but nobody new is given it.
+            if (toAdd.FirstOrDefault(archived.Contains) is { } archivedRole)
+                return IdentityResult.Failed(IdentityErrors.RoleArchived(archivedRole));
 
             if (toRemove.Count > 0)
             {
@@ -106,6 +116,10 @@ public sealed class IdentityRoleService(
         var role = await roleManager.FindByNameAsync(roleName);
         if (role is null)
             return IdentityResult.Failed(IdentityErrors.RoleNotFound);
+
+        // Deleting Admin would take it from every admin at once.
+        if (role.IsBuiltIn)
+            return IdentityResult.Failed(IdentityErrors.BuiltInRole);
 
         return await roleManager.DeleteAsync(role);
     }

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Fhir;
 using MedApp.Application.Fhir.Queries.GetFhirCapabilityStatement;
@@ -18,10 +19,10 @@ namespace MedApp.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/fhir")]
-[Authorize(Policy = AuthPolicies.Staff)]
 [TypeFilter<FhirExceptionFilter>]
 [TypeFilter<FhirFormatFilter>]
 [Tags("FHIR")]
+[RequirePermission(Permission.ViewPatients)]
 public sealed class FhirController(IMediator mediator) : ControllerBase
 {
     /// <summary>
@@ -29,9 +30,9 @@ public sealed class FhirController(IMediator mediator) : ControllerBase
     /// it says nothing about any patient.
     /// </summary>
     [HttpGet("metadata")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(FhirCapabilityStatement), StatusCodes.Status200OK, FhirJson.ContentType)]
     [ProducesResponseType(typeof(FhirOperationOutcome), StatusCodes.Status406NotAcceptable, FhirJson.ContentType)]
+    [AllowAnonymous]
     public async Task<IActionResult> Metadata(CancellationToken ct) =>
         new FhirResult<FhirCapabilityStatement>(await mediator.Send(new GetFhirCapabilityStatementQuery(), ct));
 

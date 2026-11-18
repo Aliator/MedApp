@@ -40,7 +40,7 @@ public sealed class SignInTests : E2ETest
     {
         // An account of its own, so a wrong password never counts towards locking out the E2E account.
         var username = E2EData.UniqueName("Login").Replace(' ', '-').ToLowerInvariant();
-        await Api.CreateUserAsync(username, "User");
+        await Api.CreateUserAsync(username, "All staff (before roles)");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         await OpenAsync("/login");
 

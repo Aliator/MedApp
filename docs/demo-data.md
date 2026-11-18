@@ -53,8 +53,8 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 
 | Who | Username | What to show with them |
 |---|---|---|
-| **The clinical lead** (Admin and User) | `admin` / `admin` | The main demo account: an admin who also works clinically (a consultant physician who leads some diabetes reviews) |
-| **The service manager** (Admin and User) | `j.whitlock` | A second admin, with two-factor on |
+| **The clinical lead** (Admin and Clinician) | `admin` / `admin` | The main demo account: an admin who also works clinically (a consultant physician who leads some diabetes reviews) |
+| **The service manager** (Manager, then Admin too) | `j.whitlock` | A second admin, with two-factor on |
 | **A consultant dermatologist** | `n.thornbury` | Skin lesions and inflammatory skin; two minor surgery lists a week; 50 rows per page and a saved search |
 | **A GP with a special interest in skin** | `t.hallworth` | The same work; operates on Friday mornings |
 | **A visiting consultant gynaecologist** | `f.linton` | The post-menopausal bleeding pathway; here on Tuesdays and Thursday afternoons; has turned off assignment notifications |
@@ -67,6 +67,8 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 | **A healthcare assistant** | `c.dunmore` | Takes bloods and samples. Locked out after wrong passwords; no email address |
 | **A new starter** | `e.rowntree` | Must change the generated password at first sign-in; email not confirmed yet |
 | **A leaver** | `g.harrow` (deleted) | A GP with a special interest in skin who left 16 weeks ago. Appears only on closed pathways, as "Deleted user" |
+
+**Roles:** everyone has the starting role for their job, never "All staff (before roles)": the consultants, the GPs with a special interest, the podiatrist and the pharmacist **Clinician**; the nurse specialists, the healthcare assistant and the new starter **Nurse**; the booking coordinator **Booking**; the biomedical scientist **Lab**; the service manager **Manager** (and Admin, later). Each run puts the standard roles' permissions back as they start.
 
 **Signing in as someone:** use the password from the summary. For `j.whitlock`, type the summary's `authenticatorKey` into an authenticator app, or use one of the `recoveryCodes`. The passwords are new each run, so they're not written here.
 

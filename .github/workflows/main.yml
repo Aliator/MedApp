@@ -930,7 +930,7 @@ jobs:
           # Generated code (obj/: OpenAPI XML comments, regex source generators) isn't ours to test.
           filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs;-**/obj/**'
           classfilters: >-
-            -*Command;-*Query;-*Result;-*ServiceExtensions;-*ApplicationBuilderExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService;-MedApp.Infrastructure.Common.Identity.IdentityTransactions
+            -*Command;-*Query;-*Result;-*ServiceExtensions;-*ApplicationBuilderExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService;-MedApp.Infrastructure.Common.Identity.IdentityTransactions;-MedApp.Infrastructure.Common.Identity.RolePermissionQueries;-MedApp.Infrastructure.Common.Identity.PermissionHolders;-MedApp.Infrastructure.Common.Identity.LastAdminGuard;-MedApp.Infrastructure.Common.Identity.StandardRoleSetup
 
       
       - name: Upload coverage report

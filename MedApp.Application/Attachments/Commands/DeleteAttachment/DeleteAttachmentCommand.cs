@@ -9,4 +9,4 @@ namespace MedApp.Application.Attachments.Commands.DeleteAttachment;
 /// (to remove a file attached to the wrong patient from a finished stage, say), except while the patient's record is
 /// restricted or anonymised, when nobody can.
 /// </summary>
-public sealed record DeleteAttachmentCommand(Guid Id, PathwayActor Actor, bool IsAdmin) : IRequest;
+public sealed record DeleteAttachmentCommand(Guid Id, PathwayActor Actor, bool CanCorrectRecords) : IRequest;

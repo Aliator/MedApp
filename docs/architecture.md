@@ -58,7 +58,7 @@ MedApp is a patient and pathway management app for clinical staff. It records pa
 | **Accessibility** | The target is WCAG 2.2 level AA (the Web Content Accessibility Guidelines). There's an accessibility statement at `/accessibility`, keyboard shortcuts, screen reader announcements, and an automated audit. |
 | **Half views** | Any two pages side by side, opened from the side navigation. |
 
-There are two roles. **Staff** (role `User`) can do nearly everything: patients, creating and working on pathways, booking and changing any appointment, and blocking time on their own calendar. **Admins** (role `Admin`) can also manage users and roles, stage definitions and templates, activity types and calendar templates, anyone's calendar, assign staff, unlock stages, finish a stage whose visit is required without one, delete cancelled or archived pathways, and read the audit log. An admin account normally holds both roles.
+**Roles grant permissions** (`docs/centre-phase2-plan.md`, decisions 51 to 68; `docs/agents/auth.md`). Permissions are fixed in code; roles are data. The built-in **Admin** role has every permission but triage, fixed in code, including the administration ones no other role can have (users, roles, security settings, the audit and activity logs, exports, privacy, corrections). The starting roles (**Clinician**, **Nurse**, **Booking**, **Lab**, **Manager**) give each job what it needs. **"All staff (before roles)"**, the old `User` role, keeps exactly what staff could do before: patients, creating and working on pathways, booking and changing any appointment, and blocking time on their own calendar.
 
 ### 1.2 Who uses it
 
@@ -590,7 +590,7 @@ stateDiagram-v2
 
 ### 5.7 The API surface
 
-57 HTTP endpoints in seven controllers at #53, plus the SignalR hub (rows marked with a branch came later; staff calendars add the calendar and appointment endpoints in the last rows, `docs/calendar-plan.md`, section 4). "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers at #53, plus the SignalR hub (rows marked with a branch came later; staff calendars add the calendar and appointment endpoints in the last rows, `docs/calendar-plan.md`, section 4). "Staff" meant role `User` or `Admin` (the `Staff` policy); since `feature/permissions` each endpoint names a permission instead (`[RequirePermission]`), "Staff" rows being those "All staff (before roles)" has and "Admin" rows those only Admin has (`AccessBeforeAndAfterPermissionsTests`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -1093,9 +1093,9 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 #### Authorisation
 
-- **Two roles,** `User` (staff) and `Admin`, checked on every endpoint with `[Authorize(Policy = AuthPolicies.Staff)]` or `[Authorize(Roles = "Admin")]`. [Section 5.7](#57-the-api-surface) has the full matrix.
+- **Permissions,** granted by roles, checked on every endpoint with `[RequirePermission(Permission.X)]` (`docs/agents/auth.md`). [Section 5.7](#57-the-api-surface) has the matrix as it was before roles; the permissions keep it exactly.
 - **The API is the only enforcement.** The React app's guards (`_app`, `requireAdmin`) and hidden admin buttons are conveniences.
-- **Roles are re-read on every request,** so a change applies to the user's next request, without ending their session.
+- **Roles and their permissions are re-read on every request,** so a change applies to the user's next request, without ending their session.
 - **"Not assigned to you" is not a permission.** Any staff member may work on any pathway; the confirmation is a UI safeguard, and the audit log records who acted (pathways plan, decision 18).
 - **All staff see all patients,** and all calendars and appointments. There's no restriction by team, ward or care relationship. Any staff member may book, move or cancel any appointment (only cancel, a restricted patient's; none of an anonymised patient's); a calendar's blocks and its day and week templates are changed only by its owner or an admin.
 - **Only two endpoints' attributes are tested.** The own-password change (#51) and creating a user (#53) have tests that evaluate their `[Authorize]` attributes with the API's real policies. The other controller tests call actions directly through a recording mediator, so a missing or wrong `[Authorize]` anywhere else wouldn't fail a test ([11.1](#111-security-and-privacy)).

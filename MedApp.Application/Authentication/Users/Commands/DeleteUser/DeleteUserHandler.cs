@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Authentication.Users.Commands.DeleteUser;
 
 /// <summary>
-/// Deletes an account, once the admin has confirmed with their own password and it has no upcoming appointments. In
+/// Deletes an account, once the admin has confirmed with their own password and it has no upcoming appointments, unless
+/// it's the last active admin (<see cref="ILastAdminGuard"/>). In
 /// one transaction with the deletion, it takes the person off their meetings still to come and records the deletion in
 /// the activity log, so a failure in either (another admin changing one of those meetings at that moment is a 409)
 /// leaves the account, its meetings and the log as they were.
@@ -22,7 +23,8 @@ public sealed class DeleteUserHandler(
     IMeetingRepository meetingRepository,
     IIdentityTransactions transactions,
     TimeProvider timeProvider,
-    IActivityLog activityLog)
+    IActivityLog activityLog,
+    ILastAdminGuard lastAdmin)
     : IRequestHandler<DeleteUserCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(
@@ -44,6 +46,10 @@ public sealed class DeleteUserHandler(
         // A retry runs it all again, from the database as it was.
         return await transactions.RunAsync(async () =>
         {
+            // The last active admin stays (a 409), checked under the guard's lock in this transaction.
+            if (user is not null && await lastAdmin.WouldLeaveNoAdminAsync(user.UserId, ct))
+                return IdentityResult.Failed(IdentityErrors.LastAdmin);
+
             var result = await userService.DeleteUserAsync(request.Username, ct);
             if (!result.Succeeded)
                 return result;

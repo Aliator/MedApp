@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Monitoring;
@@ -99,6 +100,10 @@ public sealed class DemoWorld
     /// <summary>Whether a rule's owner was an admin at a moment (rules of someone who isn't are skipped, as the app does).</summary>
     public bool IsAdminAt(Guid userId, DateTime utc) => Staff.Any(s => s.Id == userId && s.IsAdminAt(utc));
 
+    /// <summary>Whether a rule's owner could have monitoring rules at a moment (ManageMonitoring), as the app checks.</summary>
+    public bool CanMonitorAt(Guid userId, DateTime utc) =>
+        Staff.Any(s => s.Id == userId && s.PermissionsAt(utc).Contains(Permission.ManageMonitoring));
+
     /// <summary>
     /// What the app's monitor would send after a change (<c>PathwayMonitor</c>): its own matching
     /// (<c>PathwayMonitor.FindMatchesAsync</c>)
@@ -112,7 +117,7 @@ public sealed class DemoWorld
                 entries,
                 actorUserId,
                 (events, _) => Task.FromResult<IReadOnlyList<MonitoringRule>>(RulesEnabledAt(atUtc).Where(r => events.Contains(r.Event)).ToList()),
-                (owners, _) => Task.FromResult<IReadOnlySet<Guid>>(owners.Where(o => IsAdminAt(o, atUtc)).ToHashSet()),
+                (owners, _) => Task.FromResult<IReadOnlySet<Guid>>(owners.Where(o => CanMonitorAt(o, atUtc)).ToHashSet()),
                 CancellationToken.None)
             .GetAwaiter().GetResult();
 

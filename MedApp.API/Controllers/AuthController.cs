@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
@@ -63,6 +63,7 @@ public sealed class AuthController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var outcome = await mediator.Send(
@@ -93,6 +94,7 @@ public sealed class AuthController(
     
     [HttpPost("logout")]
     [Tags("Login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Logout()
     {
         await mediator.Send(
@@ -109,10 +111,10 @@ public sealed class AuthController(
     /// session that has ended is a 401, as for any other request.
     /// </summary>
     [HttpGet("session")]
-    [Authorize]
     [Tags("Login")]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [Authorize]
     public async Task<IActionResult> GetSession(CancellationToken ct)
     {
         if (CurrentSessionId() is not { } sessionId)
@@ -127,10 +129,10 @@ public sealed class AuthController(
     /// 24 hours from sign-in, and sends its cookie again with the new expiry.
     /// </summary>
     [HttpPost("session/extend")]
-    [Authorize]
     [Tags("Login")]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [Authorize]
     public async Task<IActionResult> ExtendSession(CancellationToken ct)
     {
         if (CurrentSessionId() is not { } sessionId)
@@ -152,10 +154,10 @@ public sealed class AuthController(
     /// for the admin to pass on securely. An optional email address is sent a link to confirm it (never the password).
     /// </summary>
     [HttpPost("users")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var created = await mediator.Send(
@@ -173,10 +175,10 @@ public sealed class AuthController(
     /// every user from <c>GET api/auth/users</c>. The literal route wins over <c>users/{username}</c>.
     /// </summary>
     [HttpGet("users/search")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(typeof(PagedResponse<UserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> SearchUsers([FromQuery] SearchUsersRequest request, CancellationToken ct)
     {
         var query = new SearchUsersQuery(
@@ -191,9 +193,9 @@ public sealed class AuthController(
     }
 
     [HttpGet("users")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await mediator.Send(new GetAllUsersQuery());
@@ -201,9 +203,9 @@ public sealed class AuthController(
     }
 
     [HttpGet("users/{username}")]
-    [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> GetUserByUsername(string username)
     {
         var user = await mediator.Send(new GetUserByUsernameQuery(username));
@@ -215,9 +217,9 @@ public sealed class AuthController(
     
     // Any staff member (either role), and only for themselves: both policies must pass.
     [HttpPut("users/{username}/update-password")]
-    [Authorize(Policy = AuthPolicies.Staff)]
-    [Authorize(Policy = AuthPolicies.SelfUserOnly)]
     [Tags("Authentication")]
+    [RequirePermission(Permission.UseApp)]
+    [Authorize(Policy = AuthPolicies.SelfUserOnly)]
     public async Task<IActionResult> UpdateUserPassword(
         string username,
         UpdateUserPasswordRequest request)
@@ -236,9 +238,9 @@ public sealed class AuthController(
     }
     
     [HttpPut("users/{username}/reset-password")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [Tags("Authentication")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> ResetUserPassword(string username)
     {
         var response = await mediator.Send(
@@ -256,10 +258,10 @@ public sealed class AuthController(
     /// unknown user is a 404.
     /// </summary>
     [HttpPost("users/{username}/sign-out-everywhere")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Tags("Authentication")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> SignOutEverywhere(string username, CancellationToken ct)
     {
         var found = await mediator.Send(new SignOutEverywhereCommand(username), ct);
@@ -272,11 +274,12 @@ public sealed class AuthController(
     /// (<c>HasUpcomingAppointments</c>) until they're moved or cancelled.
     /// </summary>
     [HttpDelete("users/{username}")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status409Conflict)]
     [Tags("Authentication")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> DeleteUser(string username, [FromBody] DeleteUserRequest request)
     {
         var result = await mediator.Send(
@@ -288,13 +291,17 @@ public sealed class AuthController(
         if (result.Errors.Any(e => e.Code == IdentityErrors.UserNotFoundCode))
             return NotFound();
 
+        // The last active admin keeps Admin, and their account.
+        if (result.Errors.Any(e => e.Code == IdentityErrors.LastAdminCode))
+            return Conflict(result.Errors);
+
         return BadRequest(result.Errors);
     }
 
     [HttpGet("roles")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> GetAllRoles()
     {
         var roles = await mediator.Send(new GetAllRolesQuery());
@@ -302,9 +309,9 @@ public sealed class AuthController(
     }
     
     [HttpGet("users/{username}/roles")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> GetUserRoles(string username)
     {
         var roles = await mediator.Send(
@@ -314,8 +321,8 @@ public sealed class AuthController(
     }
     
     [HttpPost("roles")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
+    [RequirePermission(Permission.ManageRoles)]
     public async Task<IActionResult> CreateRole(CreateRoleRequest request)
     {
         var role = await mediator.Send(
@@ -328,8 +335,8 @@ public sealed class AuthController(
     }
 
     [HttpPost("roles/assign")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> AssignRole(AssignRoleRequest request)
     {
         var role = await mediator.Send(
@@ -346,11 +353,12 @@ public sealed class AuthController(
     /// Admins can't change their own roles (400), so they can't lock themselves out.
     /// </summary>
     [HttpPut("users/{username}/roles")]
-    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status409Conflict)]
     [Tags("Roles")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> SetUserRoles(string username, SetUserRolesRequest request)
     {
         var result = await mediator.Send(
@@ -362,12 +370,16 @@ public sealed class AuthController(
         if (result.Errors.Any(e => e.Code == IdentityErrors.UserNotFoundCode))
             return NotFound();
 
+        // The last active admin keeps Admin, and their account.
+        if (result.Errors.Any(e => e.Code == IdentityErrors.LastAdminCode))
+            return Conflict(result.Errors);
+
         return BadRequest(result.Errors);
     }
 
     /// <summary>The specialties a member of staff belongs to, sorted by name.</summary>
     [HttpGet("users/{username}/specialties")]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageUsers)]
     [Tags("Specialties")]
     [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -379,7 +391,7 @@ public sealed class AuthController(
     /// 404; an archived one can be kept but not newly given (409). Returns them as they are now.
     /// </summary>
     [HttpPut("users/{username}/specialties")]
-    [Authorize(Roles = "Admin")]
+    [RequirePermission(Permission.ManageUsers)]
     [Tags("Specialties")]
     [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -389,12 +401,12 @@ public sealed class AuthController(
         Ok(await mediator.Send(new SetUserSpecialtiesCommand(username, request.SpecialtyIds ?? []), ct));
 
     [HttpPost("roles/revoke")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
+    [RequirePermission(Permission.ManageUsers)]
     public async Task<IActionResult> RevokeRole(RevokeRoleRequest request)
     {
         var role = await mediator.Send(
-            new RevokeRoleCommand(request.Username, request.Role));
+            new RevokeRoleCommand(request.Username, request.Role, User.Identity?.Name ?? string.Empty));
 
         if (role is null)
             return BadRequest();
@@ -404,11 +416,15 @@ public sealed class AuthController(
 
     
     [HttpDelete("roles/{roleName}")]
-    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
+    [RequirePermission(Permission.ManageRoles)]
     public async Task<IActionResult> DeleteRole(string roleName)
     {
         var result = await mediator.Send(new DeleteRoleCommand(roleName));
+
+        // The built-in Admin role can't be deleted.
+        if (result.Errors.Any(e => e.Code == IdentityErrors.BuiltInRoleCode))
+            return Conflict(result.Errors);
 
         if (!result.Succeeded)
             return NotFound();
@@ -418,18 +434,18 @@ public sealed class AuthController(
     
     /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
     [HttpGet("me/settings")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Settings")]
     [ProducesResponseType(typeof(UserSettingsResponse), StatusCodes.Status200OK)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetMySettings(CancellationToken ct) =>
         Ok(await mediator.Send(new GetMySettingsQuery(User.GetUserId()), ct));
 
     /// <summary>Saves the signed-in user's app settings, replacing any they had.</summary>
     [HttpPut("me/settings")]
-    [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Settings")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> SaveMySettings(SaveSettingsRequest request, CancellationToken ct)
     {
         await mediator.Send(new SaveMySettingsCommand(User.GetUserId(), request.Settings ?? string.Empty), ct);
@@ -438,7 +454,7 @@ public sealed class AuthController(
 
     /// <summary>The specialties the signed-in user belongs to (admins set them on the Users page).</summary>
     [HttpGet("me/specialties")]
-    [Authorize(Policy = AuthPolicies.Staff)]
+    [RequirePermission(Permission.UseApp)]
     [Tags("Specialties")]
     [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMySpecialties(CancellationToken ct) =>
@@ -447,6 +463,7 @@ public sealed class AuthController(
     [HttpGet("whoami")]
     [Tags("Login")]
     [ProducesResponseType(typeof(WhoAmIResponse), StatusCodes.Status200OK)]
+    [AllowAnonymous]
     public IActionResult WhoAmI()
     {
         var roles = User.Claims
@@ -459,7 +476,8 @@ public sealed class AuthController(
             User.Identity?.Name,
             roles,
             User.MustChangePassword(),
-            User.MustSetUpTwoFactor()));
+            User.MustSetUpTwoFactor(),
+            User.GetPermissions().Select(permission => permission.ToString()).Order(StringComparer.Ordinal).ToArray()));
     }
 
     /// <summary>

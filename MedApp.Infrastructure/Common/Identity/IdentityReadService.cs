@@ -9,7 +9,7 @@ namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityReadService(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager)
+    RoleManager<ApplicationRole> roleManager)
     : IIdentityReadService
 {
     public Task<IReadOnlyList<string>> GetUsernamesAsync(CancellationToken ct)
@@ -102,9 +102,10 @@ public sealed class IdentityReadService(
 
     public async Task<IReadOnlyList<(Guid UserId, string Username)>> GetStaffAsync(CancellationToken ct)
     {
-        // Staff are users with either role (the Staff policy); someone with both is listed once.
+        // Staff are users with any role (every role grants UseApp); someone with several is listed once. Roles are few.
+        ct.ThrowIfCancellationRequested();
         var staff = new Dictionary<Guid, string>();
-        foreach (var role in FirstAdminSetup.Roles)
+        foreach (var role in roleManager.Roles.Select(r => r.Name!).ToList())
         {
             ct.ThrowIfCancellationRequested();
             foreach (var user in await userManager.GetUsersInRoleAsync(role))
@@ -116,12 +117,6 @@ public sealed class IdentityReadService(
             .ThenBy(s => s.Key)
             .Select(s => (s.Key, s.Value))
             .ToList();
-    }
-
-    public async Task<IReadOnlyList<Guid>> GetAdminIdsAsync(CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        return (await userManager.GetUsersInRoleAsync(AppRoles.Admin)).Select(u => u.Id).ToList();
     }
 
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)

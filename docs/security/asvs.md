@@ -38,7 +38,7 @@ A few terms used throughout:
 
 ## Summary
 
-Of the 253 requirements, 67 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 1 because it has no phone factor, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 186 that apply, **111 are met (60%)**, 56 partly met, 17 planned and 2 accepted as risks. (`feature/email-2fa-codes` added two-factor codes by email, which brought the two out-of-band rows, 6.6.2 and 6.6.3, into scope, both met, and made 6.4.3 partly met: for those accounts a reset link and a sign-in code reach the same mailbox.) (`feature/email-2fa` added optional two-factor authentication and a reset link by email, which brought six MFA rows into scope and met five of them; after its review, 16.3.1 and 16.3.3, which the activity log of sign-ins and security events covers, moved from planned to partly met.) At Level 1 alone, 39 of the 60 that apply are met, and the one planned is removing the password composition rules (6.2.5). File handling (V5) applies since file attachments (#85): 8 of its 9 rows are met, and malware scanning is planned.
+Of the 253 requirements, 67 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 1 because it has no phone factor, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 186 that apply, **112 are met (60%)**, 55 partly met, 17 planned and 2 accepted as risks. (`feature/email-2fa-codes` added two-factor codes by email, which brought the two out-of-band rows, 6.6.2 and 6.6.3, into scope, both met, and made 6.4.3 partly met: for those accounts a reset link and a sign-in code reach the same mailbox.) (`feature/email-2fa` added optional two-factor authentication and a reset link by email, which brought six MFA rows into scope and met five of them; after its review, 16.3.1 and 16.3.3, which the activity log of sign-ins and security events covers, moved from planned to partly met.) At Level 1 alone, 40 of the 60 that apply are met, and the one planned is removing the password composition rules (6.2.5). File handling (V5) applies since file attachments (#85): 8 of its 9 rows are met, and malware scanning is planned.
 
 The strongest chapters are encoding and sanitisation (V1), the browser protections this branch added (V3) and configuration (V13). The weakest are authentication (V6: MFA optional rather than required, composition rules, no breached-password check), session management (V7: a GUID token, no idle timeout) and security logging (V16: sign-ins and refusals aren't recorded). The roadmap already plans most of what's missing; [Gaps, in priority order](#gaps-in-priority-order) lists the ones that matter most, and the ones the roadmap doesn't name yet.
 
@@ -51,7 +51,7 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V5 File Handling](#v5-file-handling) | 8 | 0 | 1 | 0 | 0 | 9 |
 | [V6 Authentication](#v6-authentication) | 18 | 8 | 4 | 0 | 5 | 35 |
 | [V7 Session Management](#v7-session-management) | 8 | 5 | 3 | 0 | 2 | 18 |
-| [V8 Authorization](#v8-authorization) | 3 | 2 | 1 | 0 | 1 | 7 |
+| [V8 Authorization](#v8-authorization) | 4 | 1 | 1 | 0 | 1 | 7 |
 | [V9 Self-contained Tokens](#v9-self-contained-tokens) | 0 | 0 | 0 | 0 | 7 | 7 |
 | [V10 OAuth and OIDC](#v10-oauth-and-oidc) | 0 | 0 | 0 | 0 | 29 | 29 |
 | [V11 Cryptography](#v11-cryptography) | 8 | 3 | 2 | 0 | 1 | 14 |
@@ -61,8 +61,8 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V15 Secure Coding and Architecture](#v15-secure-coding-and-architecture) | 7 | 6 | 0 | 0 | 0 | 13 |
 | [V16 Security Logging and Error Handling](#v16-security-logging-and-error-handling) | 7 | 6 | 3 | 0 | 0 | 16 |
 | [V17 WebRTC](#v17-webrtc) | 0 | 0 | 0 | 0 | 7 | 7 |
-| **All chapters** | **111** | **56** | **17** | **2** | **67** | **253** |
-| Of which Level 1 | 39 | 20 | 1 | 0 | 10 | 70 |
+| **All chapters** | **112** | **55** | **17** | **2** | **67** | **253** |
+| Of which Level 1 | 40 | 19 | 1 | 0 | 10 | 70 |
 | Of which Level 2 only | 72 | 36 | 16 | 2 | 57 | 183 |
 
 ## V1 Encoding and Sanitization
@@ -259,18 +259,18 @@ Sessions are reference tokens: a database row, checked on every request, so revo
 
 ## V8 Authorization
 
-[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x17-V8-Authorization.md). 7 requirements at Levels 1 and 2: 3 met, 2 partly met, 1 planned, 1 not applicable.
+[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x17-V8-Authorization.md). 7 requirements at Levels 1 and 2: 4 met, 1 partly met, 1 planned, 1 not applicable.
 
-Two roles, enforced only by the API, on every endpoint. The design choice that matters most is that every member of staff can see every patient; restriction by organisation comes with Step 8.
+**Updated on `feature/permissions`** (18 November 2026): permissions fixed in code, granted by roles that are data (`docs/centre-phase2-plan.md`, decisions 51 to 68), enforced only by the API, on every endpoint, deny by default for anything a role doesn't grant. Least privilege comes from the starting roles (Clinician, Nurse, Booking, Lab, Manager); "All staff (before roles)" keeps exactly what staff could do before, until admins move people onto them. The design choice that matters most is unchanged: every member of staff can see every patient (decision 67); restriction by organisation comes with Step 8.
 
 | ID | Requirement (paraphrased) | L | Status | Evidence or reason |
 |---|---|---|---|---|
-| 8.1.1 | Documented function-level and data-level access rules | 1 | **Partly met** | `docs/architecture.md` 5.7 gives the role for each group of endpoints, including sign-out-everywhere, and 8.1 says every member of staff sees every patient; `AuthorisationTests` (#65) lists and tests the admin-only and staff endpoints. Not yet a written rule per endpoint (data-level rules don't exist: every member of staff sees every patient). Step 2. |
-| 8.1.2 | Documented field-level access rules | 2 | **Planned** | None written (today no field differs by role). Step 2, with 8.1.1. |
-| 8.2.1 | Function-level access needs explicit permission | 1 | Met | Every action has `[Authorize(Policy = AuthPolicies.Staff)]` or `[Authorize(Roles = "Admin")]`, except sign-in, sign-out and who-am-I, and the session endpoints from #63 (`GET api/auth/session`, `POST api/auth/session/extend`), which are `[Authorize]` only: any signed-in user, for their own session (`MedApp.API/Controllers`); the hub needs `Staff`. `AuthorisationTests` (#65) checks every admin-only and staff endpoint for each role and signed out. Weakness: no fallback policy, so a new endpoint without an attribute would be open until the matrix gains it. |
+| 8.1.1 | Documented function-level and data-level access rules | 1 | Met | The permission catalogue (`MedApp.Application/Common/Identity/Permissions.cs`: each permission's group and what it allows) and decision 68's table of who has each; every endpoint names its permission in code, and `AccessBeforeAndAfterPermissionsTests` lists who can call each one. Data-level: every member of staff sees every patient, by design (decision 67, `docs/architecture.md` 8.1). |
+| 8.1.2 | Documented field-level access rules | 2 | **Planned** | The one field-level rule (the timeline's free text and deleted pathways, for holders of `ViewAudit`) is in `docs/agents/timeline.md`; no written list of field rules yet. Step 2. |
+| 8.2.1 | Function-level access needs explicit permission | 1 | Met | Every action has `[RequirePermission(Permission.X)]` (a policy per permission, checked against the permissions the session's roles grant, read on every request), except the anonymous sign-in endpoints (`[AllowAnonymous]`) and five plain `[Authorize]` ones for anyone signed in (the session's expiry and extension, the notepad, confirming an email address); the hub needs `UseApp`. `AuthorisationConventionTests` fails any action without one, and any role check by name in the API; `PermissionTests` checks a role with and without each permission through the real pipeline. Still no fallback policy, but the convention test means a new endpoint can't merge without one. |
 | 8.2.2 | Data-level access needs explicit permission (no insecure direct object references) | 1 | **Partly met** | A user's own data is scoped to their ID: notifications (`NotificationRepository`), settings, and their own password (`SelfUserOnly`). Patients and pathways are open to all staff by design (`docs/architecture.md` 8.1). Restriction by organisation is Step 8; by team or care relationship isn't planned (risk S11). |
-| 8.2.3 | Field-level access restricted | 2 | Met | Each action takes its own request DTO and returns a mapped response (`MedApp.Contracts`, the `…Mapper` classes). No field differs by role; admin-only changes (assignments, unlocking a stage) have their own admin endpoints. |
-| 8.3.1 | Authorisation enforced at a trusted service layer | 1 | Met | Only the API enforces it. The React app's guards and hidden buttons are conveniences (`docs/architecture.md` 8.1). |
+| 8.2.3 | Field-level access restricted | 2 | Met | Each action takes its own request DTO and returns a mapped response (`MedApp.Contracts`, the `…Mapper` classes). Where a field differs, the handler asks a permission (the timeline's full view, `ViewAudit`); changes that need more (assigning, unlocking a stage) have their own endpoints with their own permission. |
+| 8.3.1 | Authorisation enforced at a trusted service layer | 1 | Met | Only the API enforces it: endpoint policies, and handlers for the rules they check themselves (another person's calendar, anyone's file), from the caller's permissions, never a role name. The React app's guards and hidden buttons are conveniences (`docs/architecture.md` 8.1); `whoami` lists the caller's permissions for them. |
 | 8.4.1 | Cross-tenant controls in multi-tenant apps | 2 | Not applicable | One deployment serves one organisation today. Applies from Step 8 (multi-tenancy). |
 
 ## V9 Self-contained Tokens
@@ -512,8 +512,8 @@ Level 3 controls that matter for an app holding medical records, and where MedAp
 - **No account enumeration** (6.3.8): not met. A locked account answers 423 even to a wrong password, which confirms the account exists, and an unknown username skips password hashing, so it answers faster. Step 2 plans one answer for all three cases; the timing needs a dummy hash as well.
 - **Telling users about suspicious sign-ins and credential changes** (6.3.5, 6.3.7): not met; needs email or in-app notices (Step 4).
 - **Step-up authentication for highly sensitive operations** (7.5.3): partly. Deleting a user needs the admin's password; resetting a password and changing roles don't.
-- **Authorisation changes applied at once** (8.3.2): met for requests, since roles are read on every request (a role change applies to the user's next request, without ending the session); an open live connection isn't closed (7.4.1).
-- **Layered protection for admin interfaces** (8.4.2): only the role today; MFA for admins (Step 4) is the first layer to add.
+- **Authorisation changes applied at once** (8.3.2): met for requests, since roles and their permissions are read on every request, in one query with no cache (a role change, or a permission taken from a role, applies to the user's next request, without ending the session); an open live connection isn't closed (7.4.1).
+- **Layered protection for admin interfaces** (8.4.2): the administration permissions belong to the built-in Admin role alone (no editable role can grant them), the last active admin can't be removed, and two-factor can be required for admins.
 - **Logging every access to sensitive data** (16.3.2 at Level 3): reads of patient records aren't recorded. Step 7 audits every view and search.
 - **Returning only the minimum sensitive data** (14.2.6): `GET api/patients` returns every patient; Step 2 removes it.
 - **Automatic retention** (14.2.7): nothing is ever deleted; Step 7 builds a retention engine.

@@ -90,16 +90,22 @@ The migrations Job is a Helm hook:
 - **Before each upgrade:** the schema is migrated before the new API rolls out, and a failure fails the upgrade, so the old API keeps running.
 - **After the first install:** once the chart's SQL Server exists. On a new database the API starts before the schema exists, briefly.
 
-After migrating, the Job runs the API's `create-first-admin` command. It adds the Admin and User roles if they're missing, then the admin from the first admin Secret, but only while the database has no accounts at all. So it's safe on every upgrade: once anyone exists, it changes nothing, and it never resets a password. Turn it off with `firstAdmin.enabled=false`.
+After migrating, the Job runs the API's `create-first-admin` command. It adds the built-in Admin role if it's missing (the migrations make it), then the admin from the first admin Secret, with Admin, but only while the database has no accounts at all. So it's safe on every upgrade: once anyone exists, it changes nothing, and it never resets a password. Turn it off with `firstAdmin.enabled=false`.
+
+**If every admin is locked out,** whoever deploys gives an existing account the Admin role with `grant-admin`, run in an API pod's `api` container (it has the database's connection string), and the account then signs in as an admin: `kubectl exec deploy/medapp-api -c api -- dotnet MedApp.API.dll grant-admin <username>`. It's logged as a security event (the activity log's `RolesChanged`, by nobody) and exits 0 when the account is an admin afterwards. Locally, `medapp-dev`'s `set_roles` does the same.
 
 The Job is deleted when it succeeds. A failed one stays, so you can read its logs (`kubectl logs job/medapp-migrations`), until the next run replaces it.
 
 Because migrations run before the new API is up, a migration that removes or renames something the old API still uses breaks it during the rollout. Make such changes in two releases: first add the new thing, then remove the old.
 
-**One migration broke that rule on purpose,** before MedApp had real users, and a later one must not:
+**Two migrations broke that rule on purpose,** before MedApp had real users, and a later one must not:
 - **The rename to pathways** (`RenamedProceduresToPathways`, `docs/glossary.md`): ten tables, their columns, keys and indexes are renamed in place, and the API's addresses moved with them (`api/pathways/…`), with no aliases.
   - **Old pods stop working for pathways.** Once the Job has run, every request an old pod makes for a pathway, a stage, a note, the timeline or the audit log fails (a 500: the tables it names are gone), and pages loaded before the deploy call addresses the new API answers with a 404. Nothing is written wrongly, and it lasts until the rollout has replaced every pod. Deploy it when nobody is working, or scale the API to zero first.
   - **A rollback needs the database rolled back too.** Reverting on `main` brings back an API that can't read the renamed tables. Run the migrations bundle down to the migration before it first (`/app/efbundle AddedMeetingIdToNotifications`, from the image that has the rename): its `Down` renames everything back and keeps every row.
+
+- **Roles and permissions** (`AddedRolePermissions`): the `User` role is renamed "All staff (before roles)", keeping its ID and members, and the API checks permissions instead of role names.
+  - **Old pods refuse staff.** Old pods still ask for the role `User`, which no longer exists by that name, so once the Job has run, staff who aren't admins get 403s from old pods until the rollout has replaced them; admins are unaffected. Deploy it when nobody is working, or scale the API to zero first.
+  - **A rollback needs the database rolled back too:** run the migrations bundle down to the migration before it (`/app/efbundle RenamedProceduresToPathways`, from the image that has it): its `Down` removes the starting roles (and who held them) and renames "All staff (before roles)" back to `User`.
 
 Changes that leave the old API partly working, until every pod runs the new one (the end of the rollout, or after a rollback, which doesn't roll the database back, the next deploy):
 - **Personal calendar templates and meetings** (`MadeCalendarTemplatesPersonal` and `AddedMeetings`, #99):

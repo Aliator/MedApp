@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
+using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using ModelContextProtocol.Server;
 
@@ -16,18 +18,18 @@ public sealed class TestAdminTools
     public const string Username = "admin";
     public const string Password = "admin";
 
-    private static readonly string[] Roles = ["Admin", "User"];
+    /// <summary>Admin, and Clinician beside it, so the test login can also do a clinician's work (triage, later).</summary>
+    public static readonly string[] Roles = [AppRoles.Admin, StandardRoles.Clinician.Name];
 
     [McpServerTool(Name = "ensure_test_admin", Idempotent = true)]
-    [Description("Makes sure the local test login admin / admin exists, with the Admin and User roles, and isn't locked out. Creates the account if it's missing; otherwise puts the password back to 'admin'. It's never made to change its password. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
+    [Description("Makes sure the local test login admin / admin exists, with the Admin and Clinician roles, and isn't locked out. Creates the account (and any missing standard role) if it's missing; otherwise puts the password back to 'admin'. It's never made to change its password. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
     public static async Task<object> EnsureTestAdmin(
         UserManager<ApplicationUser> users,
-        RoleManager<IdentityRole<Guid>> roles,
+        MedAppDbContext context,
         CancellationToken ct = default)
     {
-        foreach (var role in Roles)
-            if (!await roles.RoleExistsAsync(role))
-                Guards.Check(await roles.CreateAsync(new IdentityRole<Guid>(role)), $"Create role {role}");
+        // Missing standard roles are added; ones an admin has edited locally are left as they are.
+        await StandardRoleSetup.EnsureAsync(context, DateTime.UtcNow, resetPermissions: false, ct);
 
         var user = await users.FindByNameAsync(Username);
         var created = user is null;

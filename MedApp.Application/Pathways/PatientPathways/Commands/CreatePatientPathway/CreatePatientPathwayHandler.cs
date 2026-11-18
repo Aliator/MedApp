@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Common;
@@ -51,6 +52,6 @@ public sealed class CreatePatientPathwayHandler(
 
         // The creator's own note, if any, is the only one, so the actor is the only username it names.
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return PathwayMapper.ToResponse(pathway, usernames, now, patient: patient, viewerId: request.Actor.UserId, viewerIsAdmin: request.Actor.IsAdmin);
+        return PathwayMapper.ToResponse(pathway, usernames, now, patient: patient, viewerId: request.Actor.UserId, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
     }
 }

@@ -113,7 +113,7 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
         GivenAMeeting();
 
         var response = await _handler.Handle(
-            new GetCalendarQuery(StaffUserId, NextMonday, NextFriday, StaffActor with { IsAdmin = isAdmin }), Token);
+            new GetCalendarQuery(StaffUserId, NextMonday, NextFriday, StaffActor with { Permissions = TestPermissions.For(isAdmin) }), Token);
 
         response.CanEdit.Should().BeTrue("it's their own calendar");
         response.Meetings.Single().CanEdit.Should().Be(canEdit);

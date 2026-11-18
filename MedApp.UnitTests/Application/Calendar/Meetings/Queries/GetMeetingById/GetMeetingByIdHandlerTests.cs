@@ -1,3 +1,4 @@
+using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Calendar.Meetings.Queries.GetMeetingById;
@@ -41,7 +42,7 @@ public sealed class GetMeetingByIdHandlerTests : MeetingHandlerTestBase
     {
         GivenMeeting(NewMeeting(At(NextMonday, 10), At(NextMonday, 11)));
 
-        var response = await _handler.Handle(new GetMeetingByIdQuery(MeetingId, StaffActor with { IsAdmin = isAdmin }), Token);
+        var response = await _handler.Handle(new GetMeetingByIdQuery(MeetingId, StaffActor with { Permissions = TestPermissions.For(isAdmin) }), Token);
 
         response.CanEdit.Should().Be(canEdit);
     }

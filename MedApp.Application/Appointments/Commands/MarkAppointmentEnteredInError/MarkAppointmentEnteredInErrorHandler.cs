@@ -18,6 +18,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
     IPatientPathwayRepository pathwayRepository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    IPermissionHolders permissionHolders,
     TimeProvider timeProvider)
     : IRequestHandler<MarkAppointmentEnteredInErrorCommand, EnteredInErrorResponse>
 {
@@ -31,11 +32,11 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
         var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
-        if (!request.IsAdmin && appointment.BookedByUserId != request.Actor.UserId && appointment.IsRecordedAfterEvent)
+        if (!request.CanCorrectRecords && appointment.BookedByUserId != request.Actor.UserId && appointment.IsRecordedAfterEvent)
             throw new ForbiddenException(AppointmentWorkflow.NotYourRecordMessage);
 
         // Admins at any time; whoever recorded it within the window it could be recorded in.
-        if (AppointmentWorkflow.WhyCantMarkEnteredInError(appointment, now, request.IsAdmin) is { } why)
+        if (AppointmentWorkflow.WhyCantMarkEnteredInError(appointment, now, request.CanCorrectRecords) is { } why)
             throw new ConflictException(why);
 
         var staffUsername = await identityReadService.GetStaffUsernameAsync(appointment, cancellationToken);
@@ -61,11 +62,12 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
             await repository.SaveAsync(change.Events, cancellationToken);
         }
 
-        // A finished stage that requires a visit, left without one: only an admin can put it right, so the pathway's
-        // assignees and the admins are told, not only the person withdrawing it.
+        // A finished stage that requires a visit, left without one: only someone who can override stages (unlock it, or
+        // finish it without a visit) can put it right, so the pathway's assignees and they are told, not only the person
+        // withdrawing it.
         if (stage.FinishedWithoutVisit is (var pathway, var finished))
         {
-            var admins = await identityReadService.GetAdminIdsAsync(cancellationToken);
+            var admins = await permissionHolders.GetUserIdsAsync(Permission.OverrideStages, cancellationToken);
             foreach (var notification in AppointmentNotifications.AfterStageVisitWithdrawn(appointment, pathway, finished, admins, request.Actor, now))
                 await notificationSender.SendAsync(notification, cancellationToken);
         }

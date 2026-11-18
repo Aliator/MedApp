@@ -28,6 +28,8 @@ public sealed class SetUserRolesHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
+        // Not the last admin, unless a test says so.
+        _fixture.Inject(new Mock<ILastAdminGuard>().Object);
 
         _service = new Mock<IIdentityRoleService>();
         _read = new Mock<IIdentityReadService>();
@@ -93,6 +95,36 @@ public sealed class SetUserRolesHandlerTests
         var act = () => _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(MeetingLimits.ChangedMeanwhile);
+    }
+
+    [Test]
+    public async Task Handle_TakingAdminFromTheLastActiveAdmin_FailsWithLastAdmin_InsideTheTransaction()
+    {
+        var target = AuthTestConstants.SessionUser("Admin");
+        _read.Setup(r => r.GetUserAsync(AuthTestConstants.Usernames[1], It.IsAny<CancellationToken>())).ReturnsAsync(target);
+        var guard = new Mock<ILastAdminGuard>();
+        guard.Setup(g => g.WouldLeaveNoAdminAsync(target.UserId, It.IsAny<CancellationToken>()))
+            .Callback(() => _transactions.IsRunning.Should().BeTrue())
+            .ReturnsAsync(true);
+        _fixture.Inject(guard.Object);
+
+        var result = await _fixture.Create<SetUserRolesHandler>().Handle(
+            new SetUserRolesCommand(AuthTestConstants.Usernames[1], ["Clinician"], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.LastAdminCode);
+        _service.Verify(s => s.SetRolesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_KeepingAdmin_DoesNotAskTheGuard()
+    {
+        var guard = new Mock<ILastAdminGuard>();
+        _fixture.Inject(guard.Object);
+
+        await _fixture.Create<SetUserRolesHandler>().Handle(
+            new SetUserRolesCommand(AuthTestConstants.Usernames[1], ["admin", "Clinician"], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        guard.Verify(g => g.WouldLeaveNoAdminAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

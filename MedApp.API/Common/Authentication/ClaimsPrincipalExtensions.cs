@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MedApp.Application.Calendar.Common;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 
 namespace MedApp.API.Common.Authentication;
@@ -32,11 +33,28 @@ public static class ClaimsPrincipalExtensions
     public static bool MustSetUpTwoFactor(this ClaimsPrincipal user) =>
         user.HasClaim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true");
 
-    /// <summary>The signed-in user, as pathway changes record them, and whether they're an admin.</summary>
-    public static PathwayActor ToPathwayActor(this ClaimsPrincipal user) =>
-        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.IsInRole("Admin"));
+    /// <summary>
+    /// What the signed-in user's roles allow, from the session's <see cref="SessionAuthenticationDefaults.PermissionClaim"/>
+    /// claims. Names code no longer knows are left out.
+    /// </summary>
+    public static IReadOnlySet<Permission> GetPermissions(this ClaimsPrincipal user) =>
+        user.FindAll(SessionAuthenticationDefaults.PermissionClaim)
+            .Select(claim => Permissions.TryParse(claim.Value, out var permission) ? permission : (Permission?)null)
+            .OfType<Permission>()
+            .ToHashSet();
 
-    /// <summary>The signed-in user, for calendar changes: their own calendar, or anyone's for an admin.</summary>
+    /// <summary>Whether the signed-in user's roles grant this permission.</summary>
+    public static bool HasPermission(this ClaimsPrincipal user, Permission permission) =>
+        user.HasClaim(SessionAuthenticationDefaults.PermissionClaim, permission.ToString());
+
+    /// <summary>The signed-in user, as pathway changes record them, with what their roles allow.</summary>
+    public static PathwayActor ToPathwayActor(this ClaimsPrincipal user) =>
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions());
+
+    /// <summary>
+    /// The signed-in user, for calendar changes: their own calendar, or anyone's with
+    /// <see cref="Permission.ManageAnyCalendar"/>; meetings with <see cref="Permission.ArrangeMeetings"/>.
+    /// </summary>
     public static CalendarActor ToCalendarActor(this ClaimsPrincipal user) =>
-        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.IsInRole("Admin"));
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions());
 }

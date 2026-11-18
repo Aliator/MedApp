@@ -17,8 +17,8 @@ namespace MedApp.IntegrationTests.Migrations;
 [TestFixture]
 public sealed class SpecialtiesMigrationTests
 {
-    private const string Before = "20261118075440_RenamedProceduresToPathways";
-    private const string Migration = "20261118111154_AddedSpecialties";
+    private const string Before = "20261118111735_AddedRolePermissions";
+    private const string Migration = "20261118120357_AddedSpecialties";
 
     private static readonly Guid Patient = Guid.Parse("aaaaaaaa-0000-0000-0000-00000000005a");
     private static readonly Guid Template = Guid.Parse("bbbbbbbb-0000-0000-0000-00000000005a");

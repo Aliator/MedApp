@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using MedApp.Application.Common.Identity;
 using MedApp.DevMcp.Tools;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -41,19 +43,25 @@ public static class DemoDataSeeder
         await using var services = new SeedServices(configuration, timeline.NowUtc);
 
         var keep = options.KeepUsers.Append(TestAdminTools.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        await services.Run(async sp =>
-        {
-            var roles = sp.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-            foreach (var role in new[] { "Admin", "User" })
-                if (!await roles.RoleExistsAsync(role))
-                    Guards.Check(await roles.CreateAsync(new IdentityRole<Guid>(role)), $"Create role {role}");
-        });
+        // The standard roles, with their permissions put back as they start (an admin may have edited them locally).
+        await services.Run(sp => StandardRoleSetup.EnsureAsync(
+            sp.GetRequiredService<MedAppDbContext>(), timeline.NowUtc, resetPermissions: true, ct));
 
         var removed = await DemoWipe.RunAsync(services, keep, ct);
         Mark("wipe");
         await services.Run(sp => TestAdminTools.EnsureTestAdmin(
-            sp.GetRequiredService<UserManager<Infrastructure.Common.Identity.ApplicationUser>>(),
-            sp.GetRequiredService<RoleManager<IdentityRole<Guid>>>(), ct));
+            sp.GetRequiredService<UserManager<ApplicationUser>>(),
+            sp.GetRequiredService<MedAppDbContext>(), ct));
+
+        // The clinical lead holds exactly Admin and Clinician in the demo (a kept account may have had others).
+        await services.Run(async sp =>
+        {
+            var users = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var admin = await users.FindByNameAsync(TestAdminTools.Username) ?? throw new InvalidOperationException("No admin account.");
+            var extra = (await users.GetRolesAsync(admin)).Except(TestAdminTools.Roles, StringComparer.OrdinalIgnoreCase).ToList();
+            if (extra.Count > 0)
+                Guards.Check(await users.RemoveFromRolesAsync(admin, extra), "Set the admin account's roles");
+        });
 
         var staff = await DemoStaff.CreateAsync(services, timeline, ct);
         var specialties = await DemoSpecialties.CreateAsync(services, staff[0], timeline, ct);
@@ -128,7 +136,7 @@ public static class DemoDataSeeder
                 username = s.Username,
                 name = s.Seed.Name,
                 job = s.Seed.JobTitle,
-                roles = s.Username == DemoStaff.ManagerUsername ? new[] { "Admin", "User" } : ["User"],
+                roles = s.Username == DemoStaff.ManagerUsername ? new[] { AppRoles.Admin, s.Role.Name } : [s.Role.Name],
                 specialties = DemoSpecialties.For(s.Kind),
                 password = s.Password,
                 note = s.Username switch

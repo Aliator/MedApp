@@ -99,7 +99,7 @@ public sealed class SpecialtyTests : IntegrationTest
     [Test]
     public async Task Staff_ReadThemButCantChangeThem()
     {
-        var staff = await CreateStaffAsync("User");
+        var staff = await CreateStaffAsync(UserRole);
 
         await (await staff.Client.GetAsync(Specialties)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await staff.Client.PostAsJsonAsync(Specialties, new CreateSpecialtyRequest { Name = UniqueName("Specialty") }))
@@ -172,7 +172,7 @@ public sealed class SpecialtyTests : IntegrationTest
     {
         var dermatology = await CreateSpecialtyAsync();
         var urology = await CreateSpecialtyAsync();
-        var staff = await CreateStaffAsync("User");
+        var staff = await CreateStaffAsync(UserRole);
 
         var set = await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/specialties",
                 new SetUserSpecialtiesRequest([urology.Id, dermatology.Id])))

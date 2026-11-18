@@ -48,7 +48,7 @@ public sealed class PathwayMonitorTests
 
     private void GivenAdmins(params Guid[] ids) =>
         _rules
-            .Setup(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetOwnersWhoCanMonitorAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyCollection<Guid> asked, CancellationToken _) => asked.Where(ids.Contains).ToHashSet());
 
     private void GivenRules(params MonitoringRule[] rules) =>
@@ -85,7 +85,7 @@ public sealed class PathwayMonitorTests
         });
         _rules.Verify(r => r.GetEnabledAsync(
             It.Is<IReadOnlyCollection<MonitoringEvent>>(e => e.SequenceEqual(new[] { MonitoringEvent.StageFinished })), cts.Token), Times.Once);
-        _rules.Verify(r => r.GetAdminsAsync(
+        _rules.Verify(r => r.GetOwnersWhoCanMonitorAsync(
             It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { OwnerId })), cts.Token), Times.Once);
         _sender.Verify(s => s.SendAsync(It.IsAny<Notification>(), cts.Token), Times.Once);
     }
@@ -110,7 +110,7 @@ public sealed class PathwayMonitorTests
 
         await _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
 
-        _rules.Verify(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _rules.Verify(r => r.GetOwnersWhoCanMonitorAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
         _sent.Should().BeEmpty();
     }
 
@@ -229,7 +229,7 @@ public sealed class PathwayMonitorTests
     {
         GivenRules(CreateRule(MonitoringEvent.StageFinished));
         _rules
-            .Setup(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetOwnersWhoCanMonitorAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
         await _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);

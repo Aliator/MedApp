@@ -63,7 +63,7 @@ public sealed class NotificationBellTests : E2ETest
     private async Task<(string Username, E2EApi Api)> CreateOtherAdminAsync()
     {
         var username = E2EData.UniqueName("admin").Replace(' ', '-').ToLowerInvariant();
-        var firstPassword = await Api.CreateUserAsync(username, "Admin", "User");
+        var firstPassword = await Api.CreateUserAsync(username, "Admin", "All staff (before roles)");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
 
         var firstSession = await SignInToApiAsync(username, firstPassword);

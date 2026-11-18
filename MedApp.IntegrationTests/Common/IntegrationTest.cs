@@ -45,7 +45,7 @@ public abstract class IntegrationTest
     /// <summary>"Now" by the API's clock.</summary>
     protected static DateTime Now => Clock.GetUtcNow().UtcDateTime;
 
-    /// <summary>Whether to make the first admin (and the Admin and User roles) before each test.</summary>
+    /// <summary>Whether to make the first admin (with the built-in Admin role) before each test.</summary>
     protected virtual bool MakesFirstAdmin => true;
 
     [SetUp]
@@ -54,6 +54,10 @@ public abstract class IntegrationTest
         Clock.Reset();
         await TestEnvironment.ResetDatabaseAsync();
         Api.Emails.Clear();
+
+        // The standard roles, as the migration makes them (Respawn emptied the roles with everything else).
+        await RunInScopeAsync(services => StandardRoleSetup.EnsureAsync(
+            services.GetRequiredService<MedAppDbContext>(), Now, resetPermissions: true, CancellationToken.None));
 
         if (MakesFirstAdmin)
         {
@@ -98,8 +102,8 @@ public abstract class IntegrationTest
     /// <summary>
     /// Makes an account through the admin API, with the given roles, then has its user swap the generated password
     /// for one of their own before anything else (every account an admin makes must), and signs them in again with it.
-    /// With no roles the account can't change its password (that needs the Staff policy), so it keeps the generated one
-    /// and stays held by the forced password change: give it a role, then remove it, to test the Staff policy itself.
+    /// With no roles the account can't change its password (that needs UseApp, which every role grants), so it keeps the
+    /// generated one and stays held by the forced password change: give it a role, then remove it, to test that.
     /// </summary>
     protected static async Task<StaffAccount> CreateStaffAsync(params string[] roles)
     {

@@ -20,11 +20,42 @@ public sealed class RevokeRoleHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
+        // Not the last admin, unless a test says so.
+        _fixture.Inject(new Mock<ILastAdminGuard>().Object);
 
         _service = new Mock<IIdentityRoleService>();
         _fixture.Inject<IIdentityRoleService>(_service.Object);
 
         _handler = _fixture.Create<RevokeRoleHandler>();
+    }
+
+    [Test]
+    public async Task Handle_OwnRole_IsRefusedWithoutRevoking()
+    {
+        var result = await _handler.Handle(
+            new RevokeRoleCommand(AuthTestConstants.Usernames[0], "Admin", AuthTestConstants.Usernames[0].ToUpperInvariant()),
+            CancellationToken.None);
+
+        result.Should().BeNull();
+        _service.Verify(s => s.RevokeRoleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_AdminFromTheLastActiveAdmin_IsRefusedWithoutRevoking()
+    {
+        var user = new MedApp.Contracts.Authentication.Responses.UserResponse(Guid.NewGuid(), AuthTestConstants.Usernames[0], ["Admin"]);
+        var read = new Mock<IIdentityReadService>();
+        read.Setup(r => r.GetUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        var guard = new Mock<ILastAdminGuard>();
+        guard.Setup(g => g.WouldLeaveNoAdminAsync(user.UserId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _fixture.Inject(read.Object);
+        _fixture.Inject(guard.Object);
+
+        var result = await _fixture.Create<RevokeRoleHandler>().Handle(
+            new RevokeRoleCommand(AuthTestConstants.Usernames[0], "admin", AuthTestConstants.Usernames[1]), CancellationToken.None);
+
+        result.Should().BeNull();
+        _service.Verify(s => s.RevokeRoleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

@@ -39,10 +39,10 @@ public static class PathwayMapper
         CancellationToken ct,
         string? patientName = null,
         Guid? viewerId = null,
-        bool viewerIsAdmin = false)
+        bool viewerCanCorrectRecords = false)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(pathway), ct);
-        return ToResponse(pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerIsAdmin: viewerIsAdmin);
+        return ToResponse(pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerCanCorrectRecords: viewerCanCorrectRecords);
     }
 
     public static PatientPathwayResponse ToResponse(
@@ -52,7 +52,7 @@ public static class PathwayMapper
         string? patientName = null,
         Patient? patient = null,
         Guid? viewerId = null,
-        bool viewerIsAdmin = false)
+        bool viewerCanCorrectRecords = false)
     {
         // The patient comes with the pathway when it was loaded with them, or separately for one just created.
         patient ??= pathway.Patient;
@@ -135,7 +135,7 @@ public static class PathwayMapper
                 .ToList(),
             Notes = PathwayNoteMapper.FirstNoteText(pathway),
             NoteList = PathwayNoteMapper.ToResponses(
-                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerIsAdmin)
+                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerCanCorrectRecords)
         };
     }
 
