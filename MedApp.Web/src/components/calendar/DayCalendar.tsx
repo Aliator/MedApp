@@ -33,7 +33,7 @@ export interface DayCalendarProps {
 
 /**
  * One person's day (decision 32): its appointments, blocked time and meetings on a read-only `CalendarGrid`, with
- * Previous day, Today and Next day (working days). Clicking an appointment opens its pathway, or its patient when it
+ * Previous day and Next day (working days), and Open Calendar, which opens the full calendar on the day shown. Clicking an appointment opens its pathway, or its patient when it
  * isn't for one; blocks and meetings are only shown. It fills the height it's given, in a card. Use it where someone wants to see a day at a glance, like Home;
  * the Calendar page is where the time is changed.
  */
@@ -71,13 +71,20 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
                 icon={<Icon icon={AppIcon.ChevronLeft} />}
                 onClick={() => setDate(nextWeekday(date, -1))}
               />
-              <Button label="Today" variant="secondary" size="sm" isDisabled={date === today} onClick={() => setDate(today)} />
               <IconButton
                 label="Next day"
                 tooltip="Next day"
                 variant="ghost"
                 icon={<Icon icon={AppIcon.ChevronRight} />}
                 onClick={() => setDate(nextWeekday(date, 1))}
+              />
+              {/* In place of a Today button (the owner's choice): it opens the full calendar on the day shown. */}
+              <Button
+                label="Open Calendar"
+                variant="secondary"
+                size="sm"
+                icon={<Icon icon={AppIcon.Calendar} />}
+                href={`/calendar?date=${date}${staffUserId ? `&staff=${encodeURIComponent(staffUserId)}` : ''}`}
               />
               {actions}
             </HStack>

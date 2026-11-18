@@ -23,7 +23,7 @@ export interface TourStep {
   whyNot?: (state: DemoState) => string | null;
 }
 
-const RESET_HINT = 'Reset (in the banner at the top) brings it back.';
+const RESET_HINT = 'Reset (in the banner at the top of the Read Me) brings it back.';
 
 export const TOUR: TourStep[] = [
   {

@@ -1014,7 +1014,9 @@ describe('AppSideNav with a half view open', () => {
     expect(rowOf(pathways).style.backgroundColor).toBe(HALF_VIEW_SHADE);
   });
 
-  it('opens a clicked page on its own, but leaves a modified click to the browser', async () => {
+  it('opens a clicked page on its own when that is chosen, but leaves a modified click to the browser', async () => {
+    // Off by default; this is the setting turned on (Account Settings).
+    localStorage.setItem('medapp.navClosesHalfView', 'true');
     const {user, halfViews} = renderWithHalf('/pathways', '/admin/audit');
     await user.click(await categoryRow('Account Management'));
     const users = await screen.findByRole('link', {name: /^users$/i});
