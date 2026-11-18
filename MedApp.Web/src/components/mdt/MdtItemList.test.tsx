@@ -125,7 +125,7 @@ describe('MdtItemList', () => {
       pathwayTitle: null,
       question: null,
       listedByUsername: null,
-      listedAtUtc: null,
+      listedAtUtc: undefined,
       version: undefined,
       specialtyName: null,
       status: 'Discussed',
