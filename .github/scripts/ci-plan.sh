@@ -64,12 +64,19 @@ has() { [[ $labels == *" $1 "* ]]; }
 
 # ---- The tier. ----
 everything=false
-if [ "$event" != pull_request ]; then
-  tier=full; everything=true; reason="not a pull request ($event): main always gets the full suite"
+if [ "$event" = workflow_dispatch ]; then
+  # Run by hand: `phase` at the end of each phase (the unit and web suites), `full` at the end of each stage.
+  if [ "${DISPATCH_TIER:-full}" = phase ]; then tier=phase; reason="dispatched: the phase run (unit and web suites)"
+  else tier=full; reason="dispatched: the full suite"; fi
+  everything=true
+elif [ "$event" != pull_request ]; then
+  # The owner, 18 November 2026: main gets the same quick checks as a pull request; more runs only when dispatched.
+  tier=light; everything=true; reason="a push to main: builds and type checks only"
 elif [ "$known" != true ]; then
   tier=full; everything=true; reason="the list of changed files isn't complete (the comparison failed, or has 300 files or more)"
 elif [ -n "$workflow" ]; then
-  tier=full; everything=true; reason="$workflow changed: a workflow change runs everything, whatever the label"
+  # Never the full suite by itself (the owner, 18 November 2026: it runs only when asked): both sides' quick checks.
+  tier=light; everything=true; reason="$workflow changed: both sides' builds and type checks"
 elif [ "$web$dotnet$image$deploy" = falsefalsefalsefalse ]; then
   tier=none; reason="only docs changed (docs/, a Markdown file at the root, tools/ui-parity/)"
 elif has ci:full; then
@@ -96,7 +103,12 @@ case "$tier" in
     # The sticky coverage comment is a pull request's.
     [ "$event" != pull_request ] || coverage=true
     ;;
+  phase)
+    web_job=full; web_build=true; dotnet_job=true
+    ;;
   light)
+    # Builds, lint and type checks only: no tests (the owner, 18 November 2026).
+    if [ "$everything" = true ]; then web=true; dotnet=true; fi
     [ "$web" = false ] || web_job=light
     dotnet_job=$dotnet; image_job=$image; helm=$deploy
     ;;

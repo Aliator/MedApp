@@ -89,10 +89,10 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one. Kubernetes (`deploy/kind/up.sh`), Argo CD and Azure: `docs/agents/deploy.md`. After changing the chart run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: a PR's CI runs a light tier by default, `main` gets the full suite after each merge, and what that finds is fixed afterwards ([CI](#ci)). Locally and in CI, run only what checks your change:
+**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: PR and `main` CI run builds, lint and type checks only (the light tier, under 2 minutes; the owner, 18 November 2026); the unit and web suites run by hand at each phase's end (`gh workflow run main.yml -f tier=phase`), and the full suite at each stage's end (`-f tier=full`). What they find is fixed then ([CI](#ci)).
 - **Which CI tier:**
   - **A small fix** (as [Effort](#effort-for-each-stage-of-a-change) defines small): label the PR `ci:none`, and CI builds and tests nothing.
-  - **A UI change:** the default light tier (lint, type check, the changed files' own Vitest tests), plus the screenshots below, looked at locally.
+  - **A UI change:** the default light tier (lint and type check; no tests), plus the screenshots below, looked at locally.
   - **A minor backend change:** the default light tier (the solution's build and the unit tests).
   - **Integration and E2E tests are for major changes, and the owner decides.** Before running them, locally or with the `ci:full` label, ask the owner and say why (a migration, SQL translation, sign-in, sessions or permissions, a race, the image or server rendering). Don't run them unasked.
 - **Use Release** (`-c Release`): a Debug build of either test project rebuilds `medapp-dev` into the folder the running tool has locked (see `docs/agents/dev-mcp.md`).
@@ -241,9 +241,9 @@ Docker, memory, the dev server, server-side rendering and the production image: 
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and in full on `main` after every merge and nightly. Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
-- **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` always runs everything, `deploy/` runs `helm`, and image inputs run `image`.
-- **`main`'s full run gates nothing** (Publish deploys alongside it). A failure opens or updates the issue "Full suite failing on main".
+`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and on pushes to `main` (builds, lint and type checks only); the `phase` and `full` runs are started by hand (`workflow_dispatch`). Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
+- **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` gets both sides' light checks, `deploy/` runs `helm`, and image inputs run `image`.
+- **`main` runs the light tier; `phase` and `full` runs are dispatched by hand** and gate nothing (Publish deploys alongside). A failure opens or updates the issue "Full suite failing on main".
 - **The six required checks** (`web`, `helm`, `unit-tests`, `image`, `integration-tests`, `e2e`) mean "what the tier asked for passed".
 - **Never put a file that a build or test reads under `docs/`:** a docs-only push skips every job.
 - **New code comes with tests.** Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
