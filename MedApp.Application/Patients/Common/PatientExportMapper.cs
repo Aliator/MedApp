@@ -96,7 +96,12 @@ public static class PatientExportMapper
                             StartedAtUtc = s.StartedAtUtc,
                             StartedBy = s.StartedByUserId is null ? null : Username(s.StartedByUserId),
                             FinishedAtUtc = s.CompletedAtUtc,
-                            FinishedBy = s.CompletedByUserId is null ? null : Username(s.CompletedByUserId)
+                            FinishedBy = s.CompletedByUserId is null ? null : Username(s.CompletedByUserId),
+                            SkippedAtUtc = s.SkippedAtUtc,
+                            SkippedBy = s.SkippedByUserId is null ? null : Username(s.SkippedByUserId),
+                            SkipReason = s.SkipReason?.ToString(),
+                            SkipDetail = s.SkipDetail,
+                            Branch = s.Branch
                         })
                         .ToList()
                 })

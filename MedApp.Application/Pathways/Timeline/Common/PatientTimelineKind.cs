@@ -10,7 +10,7 @@ public enum PatientTimelineKind
     /// <summary>A pathway was created.</summary>
     Created,
 
-    /// <summary>A stage was started, finished or unlocked.</summary>
+    /// <summary>A stage was started, finished, unlocked, skipped or reinstated, or a branch chosen.</summary>
     Stages,
 
     /// <summary>A stage's notes were saved, or a note was added to a pathway or edited.</summary>

@@ -133,7 +133,7 @@ public static class PathwaySearch
     }
 
     /// <summary>
-    /// The stage reached: pathways whose current stage (the first unfinished one by order, as
+    /// The stage reached: pathways whose current stage (the first one by order neither finished nor skipped, as
     /// <see cref="PathwayWorkflow.CurrentStage"/> has it) comes from any of these stage definitions, so "Waiting for
     /// histology" is the Histology definition. Only pathways not yet closed: a discharged, cancelled or archived one has
     /// stopped wherever it was, so it isn't waiting at a stage. On hold counts, since it still sits at that stage.
@@ -146,7 +146,7 @@ public static class PathwaySearch
         return pathways.Where(p =>
             !closed.Contains(p.Status)
             && ids.Contains(p.Stages
-                .Where(s => !s.IsCompleted)
+                .Where(s => !s.IsCompleted && s.SkippedAtUtc == null)
                 .OrderBy(s => s.StageOrder)
                 .Select(s => (Guid?)s.StageDefinitionId)
                 .FirstOrDefault()));

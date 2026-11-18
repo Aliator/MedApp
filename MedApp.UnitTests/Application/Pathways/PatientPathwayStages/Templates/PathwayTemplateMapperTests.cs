@@ -93,4 +93,21 @@ public sealed class PathwayTemplateMapperTests
 
         response.Stages.Single().VisitRequirement.Should().Be("None");
     }
+
+    [Test]
+    public void ToMaps_WithOptions_CopiesThemTrimmingBranchNames()
+    {
+        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId],
+            [new TemplateStageOptions(ChoosesBranch: true), new TemplateStageOptions(IsOptional: true, Branch: "  ")]);
+
+        maps.Select(m => (m.IsOptional, m.ChoosesBranch, m.Branch)).Should().Equal((false, true, null), (true, false, null));
+    }
+
+    [Test]
+    public void ToMaps_WithoutOptions_MakesPlainStages()
+    {
+        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId]);
+
+        maps.Should().AllSatisfy(m => (m.IsOptional, m.ChoosesBranch, m.Branch).Should().Be((false, false, (string?)null)));
+    }
 }

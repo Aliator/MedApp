@@ -16,6 +16,15 @@ public sealed class PathwayTemplateMapConfiguration : IEntityTypeConfiguration<P
         builder.Property(x => x.StageOrder)
             .IsRequired();
 
+        builder.Property(x => x.IsOptional)
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.ChoosesBranch)
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.Branch)
+            .HasMaxLength(PathwayBranchLimits.MaxBranchLength);
+
         builder.HasOne(x => x.Template)
             .WithMany(x => x.Maps)
             .HasForeignKey(x => x.TemplateId)

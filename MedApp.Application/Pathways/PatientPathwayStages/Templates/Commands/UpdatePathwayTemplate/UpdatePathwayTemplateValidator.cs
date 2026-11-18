@@ -32,5 +32,16 @@ public sealed class UpdatePathwayTemplateValidator : AbstractValidator<UpdatePat
         RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()
             .WithMessage("Stage definition id is required.");
+
+        RuleFor(x => x.StageOptions)
+            .Must((command, options) => options is null || options.Count == (command.StageDefinitionIdsInOrder?.Count ?? -1))
+            .WithMessage(TemplateBranchRules.CountMismatchMessage)
+            .DependentRules(() =>
+                RuleFor(x => x.StageOptions)
+                    .Custom((options, context) =>
+                    {
+                        if (options is not null && TemplateBranchRules.WhyInvalid(options) is { } problem)
+                            context.AddFailure(problem);
+                    }));
     }
 }

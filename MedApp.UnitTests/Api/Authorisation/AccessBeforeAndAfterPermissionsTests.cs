@@ -185,8 +185,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientPathwaysController.FinishPathwayStage 00011
         PatientPathwaysController.GetPatientPathwayById 00011
         PatientPathwaysController.GetPatientPathwayLabels 00011
+        PatientPathwaysController.ReinstatePathwayStage 00001
         PatientPathwaysController.RequestNoteDeletion 00011
         PatientPathwaysController.SearchPatientPathways 00011
+        PatientPathwaysController.SkipPathwayStage 00011
         PatientPathwaysController.StartPathwayStage 00011
         PatientPathwaysController.UnassignPatientPathway 00001
         PatientPathwaysController.UnlockPathwayStage 00001

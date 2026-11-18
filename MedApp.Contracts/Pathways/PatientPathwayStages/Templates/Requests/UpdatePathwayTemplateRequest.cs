@@ -10,4 +10,10 @@ public sealed class UpdatePathwayTemplateRequest
 
     /// <summary>The template's stages in order; the same definition may appear more than once.</summary>
     public List<Guid>? StageDefinitionIdsInOrder { get; set; }
+
+    /// <summary>
+    /// Each stage's options, one for each of <see cref="StageDefinitionIdsInOrder"/> in the same order (only with it);
+    /// left out with a new stage list, every stage is plain.
+    /// </summary>
+    public List<PathwayTemplateStageOptionsRequest>? StageOptions { get; set; }
 }

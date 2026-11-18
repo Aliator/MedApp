@@ -37,7 +37,10 @@ public static class PathwayTemplateMapper
                         SnomedCode = definition?.SnomedCode,
                         SnomedTerm = definition?.SnomedTerm,
                         IsArchived = definition?.IsArchived ?? false,
-                        VisitRequirement = (definition?.VisitRequirement ?? VisitRequirement.None).ToString()
+                        VisitRequirement = (definition?.VisitRequirement ?? VisitRequirement.None).ToString(),
+                        IsOptional = m.IsOptional,
+                        ChoosesBranch = m.ChoosesBranch,
+                        Branch = m.Branch
                     };
                 })
                 .ToList(),
@@ -45,14 +48,27 @@ public static class PathwayTemplateMapper
         };
     }
 
-    /// <summary>A stage list as template rows, numbered from 1 in the order given (repeats allowed).</summary>
-    public static List<PathwayTemplateMap> ToMaps(Guid templateId, IEnumerable<Guid> stageDefinitionIdsInOrder) =>
+    /// <summary>
+    /// A stage list as template rows, numbered from 1 in the order given (repeats allowed), each with its options
+    /// (plain stages when <paramref name="options"/> is null; validators check the counts match).
+    /// </summary>
+    public static List<PathwayTemplateMap> ToMaps(
+        Guid templateId,
+        IEnumerable<Guid> stageDefinitionIdsInOrder,
+        IReadOnlyList<TemplateStageOptions>? options = null) =>
         stageDefinitionIdsInOrder
-            .Select((id, index) => new PathwayTemplateMap
+            .Select((id, index) =>
             {
-                TemplateId = templateId,
-                StageDefinitionId = id,
-                StageOrder = index + 1
+                var option = options is not null && index < options.Count ? options[index] : TemplateStageOptions.Plain;
+                return new PathwayTemplateMap
+                {
+                    TemplateId = templateId,
+                    StageDefinitionId = id,
+                    StageOrder = index + 1,
+                    IsOptional = option.IsOptional,
+                    ChoosesBranch = option.ChoosesBranch,
+                    Branch = option.BranchName
+                };
             })
             .ToList();
 }

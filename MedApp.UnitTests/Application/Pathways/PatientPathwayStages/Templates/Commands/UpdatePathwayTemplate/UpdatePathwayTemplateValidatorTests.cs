@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
@@ -58,4 +59,26 @@ public sealed class UpdatePathwayTemplateValidatorTests
     [Test]
     public void Validate_EmptySpecialty_IsInvalid() =>
         _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, Guid.Empty, null)).IsValid.Should().BeFalse();
+
+    [Test]
+    public void Validate_OptionsWithoutAStageList_Fails()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, null, [TemplateStageOptions.Plain]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
+    }
+
+    [Test]
+    public void Validate_BranchWithoutABranchPoint_Fails()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null,
+                [ConsultationDefinitionId, PathwayDefinitionId], [new(Branch: "Benign"), TemplateStageOptions.Plain]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.BranchWithoutPointMessage);
+    }
+
+    [Test]
+    public void Validate_StagesWithoutOptions_PassesAsBefore()
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, [ConsultationDefinitionId]))
+            .IsValid.Should().BeTrue();
+    }
 }

@@ -20,6 +20,7 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
 {
     public const string StageFinishedReason = "The stage was finished.";
     public const string PathwayCancelledReason = "The pathway was cancelled.";
+    public const string StageSkippedReason = "The stage was skipped.";
 
     private readonly List<PatientPathwayAuditEntry> _auditEntries = [];
     private readonly List<Appointment> _newAppointments = [];
@@ -238,12 +239,26 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     }
 
     /// <summary>
-    /// Finishes and locks a stage. Once every stage is finished, the pathway goes to InReview. Finishing a stage
-    /// that involves a visit without an attended one (<paramref name="withoutVisit"/>) records that, the requirement
-    /// and the reason given, in the StageFinished entry.
+    /// Finishes and locks a stage. Once every stage is finished (or skipped), the pathway goes to InReview. Finishing a
+    /// stage that involves a visit without an attended one (<paramref name="withoutVisit"/>) records that, the
+    /// requirement and the reason given, in the StageFinished entry.
+    /// <para>
+    /// Finishing a branch point for the first time with the clinician's <paramref name="branch"/> (checked first with
+    /// <see cref="PathwayWorkflow.WhyBranchChoiceInvalid"/>) skips the other branches' stages after it, with reason
+    /// <see cref="StageSkipReason.BranchNotChosen"/>, and records one BranchChosen entry listing them.
+    /// </para>
     /// </summary>
-    public void FinishStage(PatientPathwayStage stage, FinishedWithoutVisit? withoutVisit = null)
+    /// <returns>The stages the branch choice skipped (none without one).</returns>
+    public IReadOnlyList<PatientPathwayStage> FinishStage(
+        PatientPathwayStage stage, FinishedWithoutVisit? withoutVisit = null, string? branch = null)
     {
+        var skipped = stage.ChoosesBranch && !stage.IsCompleted
+            ? PathwayWorkflow.StagesSkippedByBranch(pathway, stage, branch)
+            : [];
+        var chosen = stage.ChoosesBranch && !stage.IsCompleted && !string.IsNullOrWhiteSpace(branch)
+            ? PathwayWorkflow.Branches(pathway, stage).FirstOrDefault(b => PathwayWorkflow.SameBranch(b.Name, branch))?.Name
+            : null;
+
         StartStage(stage);
         stage.IsCompleted = true;
         stage.IsLocked = true;
@@ -257,8 +272,70 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
                 : new { withoutVisit = true, visitRequirement = withoutVisit.Requirement.ToString(), reason = withoutVisit.Reason },
             stage);
 
+        if (chosen is not null)
+        {
+            foreach (var other in skipped)
+                MarkSkipped(other, StageSkipReason.BranchNotChosen, null);
+
+            Audit(Action.BranchChosen, new
+            {
+                branch = chosen,
+                skippedStageIds = skipped.Select(s => s.Id).ToList(),
+                skippedStages = skipped.Select(s => s.Name).ToList()
+            }, stage);
+        }
+
         if (PathwayWorkflow.AllStagesFinished(pathway))
             SetStatus(InReview, null, automatic: true);
+
+        return chosen is null ? [] : skipped;
+    }
+
+    /// <summary>
+    /// Skips an optional stage by hand, with a reason (never <see cref="StageSkipReason.BranchNotChosen"/>) and its
+    /// detail: a StageSkipped entry with the reason by name (<c>skipReason</c>) and the <c>detail</c>. Skipping is work
+    /// on the pathway, so an unstarted one goes to InProgress; once every stage is finished or skipped, to InReview.
+    /// Handlers check first that it can be skipped (<see cref="PathwayWorkflow.WhySkipNotAllowed"/>).
+    /// </summary>
+    public void SkipStage(PatientPathwayStage stage, StageSkipReason reason, string? detail)
+    {
+        MarkSkipped(stage, reason, detail);
+        Audit(Action.StageSkipped, new { skipReason = reason.ToString(), detail = stage.SkipDetail }, stage);
+
+        if (pathway.Status is Unassigned or Assigned)
+            SetStatus(InProgress, null, automatic: true);
+
+        if (PathwayWorkflow.AllStagesFinished(pathway))
+            SetStatus(InReview, null, automatic: true);
+    }
+
+    /// <summary>
+    /// Reinstates a skipped stage, with a reason: it's to do again, in its place, so if it's before the current stage it
+    /// becomes current, as unlocking reopens one. A StageReinstated entry records the reason and how it had been
+    /// skipped (<c>skipReason</c>). An InReview or Completed pathway goes back to InProgress. Handlers check first that
+    /// it can be reinstated (<see cref="PathwayWorkflow.CanReinstateStage"/>).
+    /// </summary>
+    public void ReinstateStage(PatientPathwayStage stage, string reason)
+    {
+        var previous = stage.SkipReason;
+        stage.SkippedAtUtc = null;
+        stage.SkippedByUserId = null;
+        stage.SkipReason = null;
+        stage.SkipDetail = null;
+        stage.LastUpdated = nowUtc;
+        Audit(Action.StageReinstated, new { reason, skipReason = previous?.ToString() }, stage);
+
+        if (pathway.Status is InReview or Completed)
+            SetStatus(InProgress, null, automatic: true);
+    }
+
+    private void MarkSkipped(PatientPathwayStage stage, StageSkipReason reason, string? detail)
+    {
+        stage.SkippedAtUtc = nowUtc;
+        stage.SkippedByUserId = actor.UserId;
+        stage.SkipReason = reason;
+        stage.SkipDetail = string.IsNullOrWhiteSpace(detail) ? null : detail.Trim();
+        stage.LastUpdated = nowUtc;
     }
 
     /// <summary>Reopens a finished stage for editing; an InReview or Completed pathway goes back to InProgress.</summary>

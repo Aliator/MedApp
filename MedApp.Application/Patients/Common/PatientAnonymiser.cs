@@ -95,7 +95,11 @@ public static class PatientAnonymiser
                 note.PendingDeletionRequestId = null;
             }
             foreach (var stage in pathway.Stages)
+            {
                 stage.Notes = Removed(stage.Notes);
+                if (stage.SkipDetail is not null)
+                    stage.SkipDetail = Removed(stage.SkipDetail);
+            }
             titles[pathway.Id] = pathway.Title;
         }
 
