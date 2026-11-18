@@ -106,7 +106,11 @@ PROTECTED: list[tuple[str | None, str]] = [
     (r"PatientExportPage\.tsx$", r"\bd\.(?:previousSpecialty|specialty)Name\b"),
     (r"PatientExportPage\.test\.tsx$", r"\"(?:previousSpecialty|specialty)Name\""),
     (r"src/api/(?:referrals|timeline)\.test\.ts$|src/demo/handlers/referrals\.test\.ts$",
-     r"(?<=changedFields: \[)[^\]]*'specialty'[^\]]*|(?<=field: )'specialty'|(?<=toContain\()'specialty'"),
+     r"(?<=changedFields: \[)[^\]]*'specialty'[^\]]*"
+     r"|(?<=field: )'specialty'|(?<=toContain\()'specialty'"),
+
+    # --- The area guide's note of the old names ---
+    (r"docs/agents/teams\.md$", r"(?m)^\*\*Called specialties until MC2\*\*.*$"),
 ]
 
 # Applied before shielding: an anonymous member written by shorthand, whose name is a stored key, is spelt out so the
