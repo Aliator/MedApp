@@ -6,7 +6,7 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>Who works a stage: the pathway's lead clinician, or someone in a supporting role.</summary>
 public enum StageRole
 {
-    /// <summary>The booking coordinator: referrals as they arrive.</summary>
+    /// <summary>The booking coordinator (no stage of today's templates: referrals are records of their own now).</summary>
     Coordinator,
 
     /// <summary>The pathway's lead clinician (its assignee): the consultant, GP, nurse specialist or podiatrist.</summary>
@@ -55,7 +55,12 @@ public sealed record StageSpec(
     DayKind Prefer = DayKind.Any,
     double VisitChance = 1);
 
-/// <summary>A pathway: its template, its stages in order, due dates, priorities and the kinds of referral it takes.</summary>
+/// <summary>
+/// A pathway: its template, its stages in order, due dates, priorities and the kinds of referral it takes, and its
+/// clock-stop stage: the stage whose finishing stops the waiting-time clock of a referral accepted into it (the first
+/// with that definition; <c>PathwayTemplateMap.StopsClock</c>). The due weeks are the target date a pathway created
+/// without a referral is given by hand, and the one its lead sets once the clock has stopped.
+/// </summary>
 public sealed record PathwayKindSpec(
     PathwayKind PathwayKind,
     string TemplateName,
@@ -63,7 +68,12 @@ public sealed record PathwayKindSpec(
     int DueWeeks,
     int UrgentDueWeeks,
     (Priority Priority, int Weight)[] Priorities,
-    bool IsArchived = false);
+    string ClockStop,
+    bool IsArchived = false)
+{
+    /// <summary>The index of the clock-stop stage in <see cref="Stages"/>.</summary>
+    public int ClockStopIndex => Array.FindIndex(Stages, s => s.Definition == ClockStop);
+}
 
 /// <summary>A stage definition the seed creates: what admins wrote, with its visit and SNOMED CT code.</summary>
 public sealed record DefinitionSpec(
@@ -101,12 +111,14 @@ public static class DemoPathwayKinds
     /// </summary>
     public static readonly DefinitionSpec[] Definitions =
     [
+        // Retired when referrals became records of their own, registered and triaged on the Referrals page: archived, so
+        // admins see them in the stage library but can't add them to templates.
         new(ReferralReceived, "The referral has been received, logged and checked.",
-            "Check the referral is complete and the patient's details match the GP record. Note the reason and any urgency the referrer gave.",
-            VisitRequirement.None, "3457005", "Patient referral"),
+            "No longer used: register the referral on the Referrals page.",
+            VisitRequirement.None, "3457005", "Patient referral", IsArchived: true),
         new(Triage, "A clinician has read the referral and decided the route and the priority.",
-            "Read the referral and anything sent with it (photographs, results). Decide which clinic, and the priority.",
-            VisitRequirement.None, "225390008", "Triage"),
+            "No longer used: triage the referral on its page (Accept, Reject or Redirect).",
+            VisitRequirement.None, "225390008", "Triage", IsArchived: true),
         new(FirstClinicVisit, "The patient has been seen in clinic for the first time.",
             "Take the history, examine, explain what happens next and record what was agreed.",
             VisitRequirement.Required, "11429006", "Consultation"),
@@ -143,9 +155,9 @@ public static class DemoPathwayKinds
         new(BiomechanicsSession, "A biomechanics session has taken place.",
             "Assess, treat and progress the home programme. Record measurements against the goals.",
             VisitRequirement.Required),
-        // Retired: triage is recorded with the Triage stage now. Archived, so admins see it but can't add it to templates.
+        // Retired long before: triage was recorded on a paper form. Archived, so admins see it but can't add it to templates.
         new("Paper triage form (retired)", "Triage recorded on the old paper form.",
-            "No longer used: record the outcome with the Triage stage.",
+            "No longer used: triage the referral on its page.",
             VisitRequirement.None, IsArchived: true),
     ];
 
@@ -160,8 +172,6 @@ public static class DemoPathwayKinds
     [
         new(PathwayKind.SkinLesion, "Skin lesion pathway",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
-            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
             new(FirstClinicVisit, StageRole.Lead, new(1, 4), default, 30, 30, new(4, 11), DayKind.Clinic),
             new(BiopsyOrSample, StageRole.Lead, new(0.5, 3), default, 30, 45, new(2, 7), DayKind.MinorSurgery),
             new(Histology, StageRole.Lab, new(0.3, 1.5), new(5, 11)),
@@ -169,70 +179,61 @@ public static class DemoPathwayKinds
             new(Treatment, StageRole.Lead, new(1, 4), default, 45, 60, new(4, 9), DayKind.MinorSurgery),
             new(FollowUp, StageRole.Nurse, new(5, 9), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
             new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
-        ], DueWeeks: 12, UrgentDueWeeks: 6, SkinLesionPriorities),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, SkinLesionPriorities, ClockStop: FirstClinicVisit),
 
         new(PathwayKind.SkinLesion2024, "Skin lesion pathway (2024)",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 2), new(0.1, 1)),
             new(FirstClinicVisit, StageRole.Lead, new(2, 6), default, 30, 30, new(3, 10), DayKind.Clinic),
             new(BiopsyOrSample, StageRole.Lead, new(1, 4), default, 30, 45, new(3, 8), DayKind.MinorSurgery),
             new(Histology, StageRole.Lab, new(0.5, 2), new(6, 14)),
             new(FollowUp, StageRole.Lead, new(4, 8), new(0.2, 1), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.5),
-        ], DueWeeks: 8, UrgentDueWeeks: 4, SkinLesionPriorities, IsArchived: true),
+        ], DueWeeks: 8, UrgentDueWeeks: 4, SkinLesionPriorities, ClockStop: FirstClinicVisit, IsArchived: true),
 
         new(PathwayKind.InflammatorySkin, "Inflammatory skin review",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
-            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
             new(FirstClinicVisit, StageRole.Lead, new(2, 7), default, 30, 30, new(3, 9), DayKind.Clinic),
             new(MedicinesReview, StageRole.Pharmacist, new(1, 4), new(0.2, 1.5), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
             new(FollowUp, StageRole.Lead, new(10, 20), new(0.1, 0.5), 20, 20, new(1, 4), DayKind.Clinic, VisitChance: 0.6),
             new(DischargeLetter, StageRole.Lead, new(0.1, 1.5), new(0.05, 0.5)),
-        ], DueWeeks: 8, UrgentDueWeeks: 4, [(Priority.Low, 45), (Priority.Medium, 45), (Priority.High, 10)]),
+        ], DueWeeks: 8, UrgentDueWeeks: 4, [(Priority.Low, 45), (Priority.Medium, 45), (Priority.High, 10)], ClockStop: FirstClinicVisit),
 
         new(PathwayKind.PostMenopausalBleeding, "Post-menopausal bleeding pathway",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 0.5), new(0.05, 0.3)),
-            new(Triage, StageRole.Lead, new(0.2, 2), new(0.05, 0.5)),
             new(FirstClinicVisit, StageRole.Lead, new(1, 5), default, 45, 45, new(3, 10), DayKind.Clinic),
             new(BiopsyOrSample, StageRole.Lead, new(0.3, 2), default, 30, 30, new(2, 8), DayKind.Clinic),
             new(Histology, StageRole.Lab, new(0.3, 1), new(4, 9)),
             new(ResultsAndTeamReview, StageRole.Lead, new(0.5, 3), new(0.2, 2), 20, 20, new(2, 7), DayKind.Clinic, VisitChance: 0.4),
             new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
-        ], DueWeeks: 6, UrgentDueWeeks: 3, [(Priority.Medium, 25), (Priority.High, 30), (Priority.Urgent, 45)]),
+        ], DueWeeks: 6, UrgentDueWeeks: 3, [(Priority.Medium, 25), (Priority.High, 30), (Priority.Urgent, 45)], ClockStop: FirstClinicVisit),
 
         new(PathwayKind.Prostate, "Prostate assessment",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
-            new(Triage, StageRole.Lead, new(0.5, 4), new(0.05, 0.5)),
             new(BloodAndUrineTests, StageRole.Samples, new(2, 8), default, 15, 15, new(2, 8)),
             new(LabTests, StageRole.Lab, new(0.1, 0.5), new(1, 3)),
             new(FirstClinicVisit, StageRole.Lead, new(8, 24), default, 30, 30, new(7, 18), DayKind.Clinic),
             new(ResultsAndTeamReview, StageRole.Lead, new(2, 8), new(0.5, 3), 20, 20, new(3, 10), DayKind.Clinic, VisitChance: 0.5),
             new(FollowUp, StageRole.Lead, new(20, 34), new(0.2, 1), 20, 20, new(3, 10), DayKind.Clinic, VisitChance: 0.5),
             new(DischargeLetter, StageRole.Lead, new(0.5, 3), new(0.1, 1)),
-        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 15), (Priority.Medium, 50), (Priority.High, 30), (Priority.Urgent, 5)]),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 15), (Priority.Medium, 50), (Priority.High, 30), (Priority.Urgent, 5)], ClockStop: FirstClinicVisit),
 
         new(PathwayKind.Diabetes, "Diabetes review",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
             new(BloodAndUrineTests, StageRole.Samples, new(1, 5), default, 15, 15, new(2, 7)),
             new(LabTests, StageRole.Lab, new(0.1, 0.5), new(1, 3)),
             new(ClinicReview, StageRole.Lead, new(2, 7), default, 30, 30, new(3, 10), DayKind.Clinic),
             new(MedicinesReview, StageRole.Pharmacist, new(0.5, 4), new(0.2, 1.5), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
             new(FollowUp, StageRole.Nurse, new(14, 28), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.4),
             new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
-        ], DueWeeks: 10, UrgentDueWeeks: 4, RoutinePriorities),
+        ], DueWeeks: 10, UrgentDueWeeks: 4, RoutinePriorities, ClockStop: ClinicReview),
 
         new(PathwayKind.Biomechanics, "Biomechanics course",
         [
-            new(ReferralReceived, StageRole.Coordinator, new(0, 1), new(0.05, 0.5)),
             new(FirstClinicVisit, StageRole.Lead, new(1, 5), default, 45, 45, new(2, 7), DayKind.Clinic),
             new(BiomechanicsSession, StageRole.Lead, new(0.5, 2), default, 30, 30, new(5, 8), DayKind.Clinic),
             new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(8, 12), DayKind.Clinic),
             new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(10, 16), DayKind.Clinic),
             new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
-        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 40), (Priority.Medium, 55), (Priority.High, 5)]),
+        ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 40), (Priority.Medium, 55), (Priority.High, 5)], ClockStop: FirstClinicVisit),
     ];
 
     public static PathwayKindSpec For(PathwayKind pathwayKind) => PathwayKinds.Single(p => p.PathwayKind == pathwayKind);

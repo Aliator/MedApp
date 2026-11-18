@@ -7,6 +7,7 @@ using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using MedApp.Infrastructure.Attachments;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,7 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// Attached files, uploaded through the app's own command (its type sniffing, SHA-256, thumbnails, scan state, audit
 /// entry and record), by the staff working on each record, at moments in the record's story: referral letters on
-/// patients; histology reports, blood results, clinic and discharge letters, a lesion's site map (the site its notes
+/// referrals (most of the last two months'; the rest show they have none); histology reports, blood results, clinic and discharge letters, a lesion's site map (the site its notes
 /// name) and a flow test's trace on pathway records; and a home programme and a phone note on stages under way (files go on a stage only
 /// while it can be edited). Two are deleted, one by its uploader and one
 /// by an admin. Some are listed and downloaded, as the activity log and audit record. Only when the attachment store
@@ -58,25 +59,36 @@ public static class DemoFiles
         var uploaded = new List<(Guid Id, StaffMember By, Guid PatientId, DateTime At)>();
         var deleted = 0;
 
-        async Task<Guid?> Upload(StaffMember by, DateTime at, string name, byte[] bytes, Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null)
+        async Task<Guid?> Upload(StaffMember by, DateTime at, string name, byte[] bytes, Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null,
+            Referral? referral = null)
         {
             if (at >= now)
                 at = now.AddMinutes(-random.Next(5, 60));
             services.At(at, by.ActivityActor);
             await using var content = new MemoryStream(bytes, writable: false);
             var response = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
-                new UploadAttachmentCommand(patientId, pathwayId, stageId, null, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
-            var patient = patientId ?? world.Pathways.Single(p => p.Id == pathwayId || p.Stages.Any(s => s.Id == stageId)).PatientId;
+                new UploadAttachmentCommand(patientId, pathwayId, stageId, referral?.Id, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
+            var patient = patientId ?? referral?.PatientId ?? world.Pathways.Single(p => p.Id == pathwayId || p.Stages.Any(s => s.Id == stageId)).PatientId;
             uploaded.Add((response.Id, by, patient, at));
             return response.Id;
         }
 
-        // Referral letters on patients registered in the last two months.
-        var referred = patients.Where(p => p.Role == PatientRole.Active && !p.Restricted && p.CreatedUtc >= recent).OrderBy(p => p.CreatedUtc).Take(10).ToList();
-        foreach (var patient in referred)
-            await Upload(world.Coordinator, patient.CreatedUtc.AddMinutes(random.Next(5, 90)), "Referral letter.pdf",
-                SyntheticFiles.Pdf("Referral letter (synthetic)", ["From: the GP", "Reason for referral: see the pathway record.", "Please see and advise."]),
-                patientId: patient.Id);
+        // Referral letters, scanned by the coordinator when they registered the referral: most of the last two months'
+        // (a few are left without one, as when a request is phoned or emailed and the letter follows), never on a
+        // restricted record (the app refuses) or a referral entered in error.
+        var restrictedPatients = patients.Where(p => p.Restricted).Select(p => p.Id).ToHashSet();
+        var referred = world.Referrals
+            .Where(r => r.RegisteredAtUtc >= recent && r.Status != ReferralStatus.EnteredInError && !restrictedPatients.Contains(r.PatientId))
+            .OrderBy(r => r.RegisteredAtUtc).ToList();
+        var letters = 0;
+        foreach (var referral in referred.Where(_ => random.NextDouble() < 0.7).Take(30))
+        {
+            await Upload(world.Coordinator, referral.RegisteredAtUtc.AddMinutes(random.Next(2, 30)), "Referral letter.pdf",
+                SyntheticFiles.Pdf("Referral letter (synthetic)",
+                    [$"From: {referral.ReferrerPractice}", "Reason for referral: as on the referral's record.", "Please see and advise."]),
+                referral: referral);
+            letters++;
+        }
 
         // On pathway records that are open or completed (files can't be added to cancelled or archived ones).
         var restricted = patients.Where(p => p.Restricted).Select(p => p.Id).ToHashSet();
@@ -173,18 +185,18 @@ public static class DemoFiles
                 stageId: stage.Id);
         }
 
-        // Two deleted: one attached to the wrong record by its uploader, one removed by an admin.
+        // Two deleted: a second scan of a referral letter, by its uploader, and a letter on the wrong patient, by an admin.
         if (referred.Count > 2)
         {
-            var wrong = await Upload(world.Coordinator, referred[1].CreatedUtc.AddMinutes(100), "Referral letter (duplicate).pdf",
-                SyntheticFiles.Pdf("Referral letter (synthetic duplicate)", ["Duplicate scan."]), patientId: referred[1].Id);
-            services.At(referred[1].CreatedUtc.AddMinutes(104), world.Coordinator.ActivityActor);
+            var wrong = await Upload(world.Coordinator, referred[1].RegisteredAtUtc.AddMinutes(40), "Referral letter (duplicate).pdf",
+                SyntheticFiles.Pdf("Referral letter (synthetic duplicate)", ["Duplicate scan."]), referral: referred[1]);
+            services.At(referred[1].RegisteredAtUtc.AddMinutes(44), world.Coordinator.ActivityActor);
             await services.Run(sp => sp.GetRequiredService<IMediator>().Send(new DeleteAttachmentCommand(wrong!.Value, world.Coordinator.Actor, false), ct));
             deleted++;
 
-            var extra = await Upload(world.Coordinator, referred[2].CreatedUtc.AddMinutes(60), "Scanned letter.pdf",
-                SyntheticFiles.Pdf("Scanned letter (synthetic)", ["Belongs to another record."]), patientId: referred[2].Id);
-            var deleteAt = Max(referred[2].CreatedUtc.AddDays(2), recent);
+            var extra = await Upload(world.Coordinator, referred[2].RegisteredAtUtc.AddMinutes(60), "Scanned letter.pdf",
+                SyntheticFiles.Pdf("Scanned letter (synthetic)", ["Belongs to another record."]), patientId: referred[2].PatientId);
+            var deleteAt = Max(referred[2].RegisteredAtUtc.AddDays(2), recent);
             services.At(deleteAt, world.Lead.ActivityActor);
             await services.Run(sp => sp.GetRequiredService<IMediator>().Send(new DeleteAttachmentCommand(extra!.Value, world.Lead.Actor, true), ct));
             deleted++;
@@ -219,7 +231,7 @@ public static class DemoFiles
                 downloads++;
         }
 
-        return new { uploaded = uploaded.Count, deleted, downloaded = downloads };
+        return new { uploaded = uploaded.Count, referralLetters = letters, deleted, downloaded = downloads };
     }
 
     /// <summary>Who worked on a stage of a pathway (who started it), else its first assignee, else the coordinator.</summary>
