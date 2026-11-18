@@ -1,13 +1,13 @@
 import {createFileRoute} from '@tanstack/react-router';
 import {dataRequestQuery} from '../../../api/dataRequests';
 import {preload} from '../../../api/preload';
-import {requirePermissions} from '../../../auth/auth';
+import {requirePermission} from '../../../auth/auth';
 import {DataRequestPage} from '../../../pages/dataRequests/DataRequestPage';
 import {lowerCaseId} from '../../../utils/routeIds';
 
-/** One data request, for holders of ManagePrivacy and SignOffResults. */
+/** One data request, for holders of ManagePrivacy only: only admins deal with data requests. */
 export const Route = createFileRoute('/_app/data-requests/$id')({
-  beforeLoad: requirePermissions('ViewPatients', ['ManagePrivacy', 'SignOffResults']),
+  beforeLoad: requirePermission('ManagePrivacy'),
   // The ID in lower case, as the API returns it, so the page and its changes share one cache entry.
   params: lowerCaseId,
   loader: ({context, params}) => preload(context.queryClient, dataRequestQuery(params.id)),

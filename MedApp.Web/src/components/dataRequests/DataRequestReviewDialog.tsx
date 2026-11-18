@@ -58,9 +58,9 @@ export interface DataRequestReviewDialogProps {
 }
 
 /**
- * The clinician review of a data request (holders of SignOffResults, while it's open: `canReview`): every item of the
- * record a clinician may withhold (notes, files, letters, results, MDT items and referrals), with its kind, date, title,
- * who wrote it, whether it's deleted, and its text folded under it. **The clinician decides; MedApp suggests nothing:**
+ * The review of a data request (holders of ManagePrivacy, while it's open: `canReview`; they take an appropriate health
+ * professional's opinion outside MedApp): every item of the record they may withhold (notes, files, letters, results, MDT items and referrals), with its kind, date, title,
+ * who wrote it, whether it's deleted, and its text folded under it. **The reviewer decides; MedApp suggests nothing:**
  * an item starts withheld only where the last review withheld it, or where the API says it starts so (a note about
  * another patient), with its reason. Ticking Withhold asks for a reason. Save sends the ticked items, replacing any
  * earlier review, from the version the page showed; a 400 shows its messages, a 409 or 403 the API's words. Mount it

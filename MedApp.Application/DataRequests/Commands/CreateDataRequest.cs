@@ -56,6 +56,7 @@ public sealed class CreateDataRequestHandler(
 {
     public async Task<DataRequestResponse> Handle(CreateDataRequestCommand request, CancellationToken cancellationToken)
     {
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var patient = await patients.GetByIdAsync(request.PatientId, cancellationToken)
                       ?? throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
         if (PatientRules.IsAnonymised(patient))

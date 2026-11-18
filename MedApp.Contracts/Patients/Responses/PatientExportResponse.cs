@@ -378,6 +378,9 @@ public sealed class ExportedPatientResponse
     /// <summary>That practice's ODS code, or null.</summary>
     public string? PracticeOdsCode { get; set; }
 
+    /// <summary>Their GP practice when it isn't in the directory (its name, address and phone, held on them), or null.</summary>
+    public UnlistedPracticeResponse? UnlistedPractice { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
     public DateTime? RestrictedAtUtc { get; set; }

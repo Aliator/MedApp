@@ -69,6 +69,51 @@ public sealed class LetterHandlersTests : LetterHandlerTestBase
     }
 
     [Test]
+    public async Task Create_ForAPatientWithAnUnlistedPractice_StartsWithIt_AndItsMergeFieldsUseIt()
+    {
+        Patient.PracticeId = null;
+        Patient.UnlistedPracticeName = PracticesTestConstants.UnlistedName;
+        Patient.UnlistedPracticeAddressLines = PracticesTestConstants.UnlistedLine;
+        Patient.UnlistedPracticePostcode = PracticesTestConstants.UnlistedPostcode;
+        Patient.UnlistedPracticePhone = PracticesTestConstants.UnlistedPhone;
+        var template = CreateTemplate(specialtyId: Pathway.SpecialtyId);
+        GivenTemplate(template);
+
+        await Fixture.Create<CreateLetterHandler>().Handle(new CreateLetterCommand(template.Id, Pathway.Id, null, Author), _cts.Token);
+
+        var letter = Added.Single();
+        letter.Recipients[0].Should().BeEquivalentTo(new
+        {
+            Kind = LetterRecipientKind.GpPractice, PracticeId = (Guid?)null, Name = PracticesTestConstants.UnlistedName,
+            AddressLines = PracticesTestConstants.UnlistedLine, Postcode = PracticesTestConstants.UnlistedPostcode, Email = (string?)null,
+        });
+
+        var records = Fixture.Create<LetterRecords>();
+        var record = new LetterRecord(letter, Patient, Pathway, null);
+        var values = await records.MergeValuesAsync(record, null, new DateOnly(2026, 11, 18), _cts.Token);
+        values[LetterMergeFields.PracticeName].Should().Be(PracticesTestConstants.UnlistedName);
+        values[LetterMergeFields.PracticeAddress].Should().Be($"{PracticesTestConstants.UnlistedLine}\n{PracticesTestConstants.UnlistedPostcode}");
+        (await records.RefreshRecipientsAsync(record, _cts.Token)).Should().BeNull();
+
+        // Once the patient's unlisted practice is gone, the letter can't be approved to it.
+        Patient.UnlistedPracticeName = null;
+        (await records.RefreshRecipientsAsync(record, _cts.Token)).Should().Contain("outside the directory is no longer recorded");
+    }
+
+    [Test]
+    public async Task Recipients_ThePatientsUnlistedPractice_NeedsThePatientToHaveOne()
+    {
+        var records = Fixture.Create<LetterRecords>();
+        var record = new LetterRecord(OnPathway(), Patient, Pathway, null);
+
+        var act = () => records.RecipientsAsync(
+            record, [new LetterRecipientInput(LetterRecipientKind.GpPractice, null, null, null, null, null)], _cts.Token);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.ErrorMessage == LetterRecords.NoUnlistedPracticeMessage);
+    }
+
+    [Test]
     public async Task Create_ArchivedTemplate_IsAConflict()
     {
         var template = CreateTemplate(isArchived: true);

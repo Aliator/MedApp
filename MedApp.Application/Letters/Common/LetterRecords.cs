@@ -55,6 +55,9 @@ public sealed class LetterRecords(
 
     public static NotFoundException NotFound(Guid id) => new($"Letter '{id}' was not found.");
 
+    public const string NoUnlistedPracticeMessage =
+        "This patient has no GP practice outside the directory recorded. Choose the practice from the directory.";
+
     /// <summary>A pathway to write a letter about, with its patient, read-only (letters never change a pathway).</summary>
     public Task<Domain.Pathways.PatientPathways.PatientPathway?> GetPathwayAsync(Guid id, CancellationToken ct) =>
         pathways.GetByIdAsync(id, ct);
@@ -87,7 +90,7 @@ public sealed class LetterRecords(
 
     /// <summary>
     /// The merge fields' values for this letter now (decision 99): the patient's identity and address, their registered
-    /// practice, the referral's date received, the last attended appointment on the pathway, the author's and (when
+    /// practice (from the directory, or held on the patient when it isn't listed), the referral's date received, the last attended appointment on the pathway, the author's and (when
     /// known) approver's names and job titles, today and the main site. <b>Never a clinical value.</b>
     /// </summary>
     public async Task<IReadOnlyDictionary<string, string?>> MergeValuesAsync(
@@ -106,8 +109,11 @@ public sealed class LetterRecords(
             [LetterMergeFields.PatientDateOfBirth] = LetterMergeFields.FormatDate(patient.DateOfBirth),
             [LetterMergeFields.PatientNhsNumber] = patient.NhsNumber is { } nhs ? NhsNumbers.Format(nhs) : null,
             [LetterMergeFields.PatientAddress] = Address(patient.AddressLines, patient.Postcode),
-            [LetterMergeFields.PracticeName] = practice?.Name,
-            [LetterMergeFields.PracticeAddress] = practice is null ? null : Address(practice.AddressLines, practice.Postcode),
+            // The directory's practice, or the one held on the patient when it isn't listed (never both).
+            [LetterMergeFields.PracticeName] = practice?.Name ?? patient.UnlistedPracticeName,
+            [LetterMergeFields.PracticeAddress] = practice is not null
+                ? Address(practice.AddressLines, practice.Postcode)
+                : Address(patient.UnlistedPracticeAddressLines, patient.UnlistedPracticePostcode),
             [LetterMergeFields.ReferralReceivedDate] = record.Referral is { } referral ? LetterMergeFields.FormatDate(referral.ReceivedOn) : null,
             [LetterMergeFields.LastAttendedAppointmentDate] = lastAttended is { } at ? LetterMergeFields.FormatDate(UkTime.DateOf(at)) : null,
             [LetterMergeFields.AuthorName] = author?.FullName,
@@ -138,7 +144,7 @@ public sealed class LetterRecords(
 
     /// <summary>
     /// The recipients an author chose, checked against the record and filled from it: a GP practice from the
-    /// directory, the patient at their address, the referrer from the referral, or another typed. 400 for one that
+    /// directory (or the patient's own practice that isn't listed), the patient at their address, the referrer from the referral, or another typed. 400 for one that
     /// can't be (a referrer without a referral; a practice that isn't in the directory is a 404).
     /// </summary>
     public async Task<List<LetterRecipient>> RecipientsAsync(
@@ -164,6 +170,12 @@ public sealed class LetterRecords(
 
             switch (input.Kind)
             {
+                case LetterRecipientKind.GpPractice when input.PracticeId is null:
+                    // The patient's own practice that isn't in the directory, filled from the patient.
+                    if (!UnlistedPractices.Has(record.Patient))
+                        throw Invalid("Recipients", NoUnlistedPracticeMessage);
+                    break;
+
                 case LetterRecipientKind.GpPractice:
                     var practice = known.GetValueOrDefault(input.PracticeId!.Value)
                                    ?? throw new NotFoundException($"Practice '{input.PracticeId}' was not found.");
@@ -217,6 +229,12 @@ public sealed class LetterRecords(
                 continue;
             }
 
+            if (recipient is { Kind: LetterRecipientKind.GpPractice, PracticeId: null } && !UnlistedPractices.Has(record.Patient))
+            {
+                problems.Add($"{Describe(recipient)}: the patient's practice outside the directory is no longer recorded");
+                continue;
+            }
+
             Refresh(recipient, record, known);
             if (recipient.Kind != LetterRecipientKind.Patient && string.IsNullOrWhiteSpace(recipient.AddressLines)
                                                               && string.IsNullOrWhiteSpace(recipient.Email))
@@ -254,6 +272,14 @@ public sealed class LetterRecords(
 
             case LetterRecipientKind.GpPractice when recipient.PracticeId is { } id && known.TryGetValue(id, out var practice):
                 FromPractice(recipient, practice);
+                break;
+
+            case LetterRecipientKind.GpPractice when recipient.PracticeId is null && UnlistedPractices.Has(record.Patient):
+                // Held on the patient, not in the directory: no secure email, so it's posted.
+                recipient.Name = record.Patient.UnlistedPracticeName!;
+                recipient.AddressLines = record.Patient.UnlistedPracticeAddressLines;
+                recipient.Postcode = record.Patient.UnlistedPracticePostcode;
+                recipient.Email = null;
                 break;
 
             case LetterRecipientKind.Referrer when record.Referral is { } referral:

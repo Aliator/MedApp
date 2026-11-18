@@ -93,6 +93,7 @@ public static class PatientAnonymiser
         patient.Postcode = null;
         patient.MobilePhone = null;
         patient.PracticeId = null;
+        UnlistedPractices.Clear(patient);
         patient.ReminderChannel = ReminderChannel.None;
         patient.DateOfBirth = new DateOnly(patient.DateOfBirth.Year, 1, 1);
         patient.RestrictedAtUtc = null;
@@ -197,8 +198,9 @@ public static class PatientAnonymiser
             entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
 
         // Letters keep their kinds, statuses, dates, templates and who did what; their text goes, and so do the names
-        // and addresses of the patient, the referrer (a referring clinician is a third party) and anyone else typed. A
-        // practice from the directory is an organisation, and stays. Their PDFs are files, deleted with the rest.
+        // and addresses of the patient, the referrer (a referring clinician is a third party), the patient's unlisted GP
+        // practice (copied from the record, and identifying with it) and anyone else typed. A practice from the
+        // directory is an organisation, and stays. Their PDFs are files, deleted with the rest.
         foreach (var letter in record.Letters)
         {
             letter.Body = Removed(letter.Body);
@@ -207,7 +209,7 @@ public static class PatientAnonymiser
                 letter.ReturnComment = Removed(letter.ReturnComment);
             if (letter.WithdrawnReason is not null)
                 letter.WithdrawnReason = Removed(letter.WithdrawnReason);
-            foreach (var recipient in letter.Recipients.Where(r => r.Kind != LetterRecipientKind.GpPractice))
+            foreach (var recipient in letter.Recipients.Where(r => r.Kind != LetterRecipientKind.GpPractice || r.PracticeId is null))
             {
                 recipient.Name = Removed(recipient.Name);
                 recipient.AddressLines = null;

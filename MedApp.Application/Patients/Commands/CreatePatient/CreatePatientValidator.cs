@@ -42,5 +42,10 @@ public sealed class CreatePatientValidator
         RuleFor(x => x.PracticeId)
             .Must(id => id != Guid.Empty)
             .WithMessage("Practice id must not be empty: leave it out for none.");
+        RuleFor(x => x.UnlistedPractice).UnlistedPractice();
+        RuleFor(x => x.UnlistedPractice)
+            .Null()
+            .When(x => x.PracticeId.HasValue)
+            .WithMessage(UnlistedPractices.BothMessage);
     }
 }

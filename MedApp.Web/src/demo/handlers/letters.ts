@@ -366,6 +366,18 @@ function recipientsFrom(letter: DemoLetter, requests: Schemas['LetterRecipientRe
         // A practice already on the letter (the seed's are copied, with no directory entry) is kept as it is.
         const kept = letter.recipients.find((r) => r.kind === 'GpPractice' && r.practiceId === practiceId);
         if (kept) return {...kept, id: newId()};
+        // No practice ID: the patient's own practice that isn't in the directory, copied from the patient.
+        if (!practiceId) {
+          const unlisted = db().patients.find((p) => p.id === letter.patientId)?.unlistedPractice;
+          if (!unlisted)
+            refuse(invalid({recipients: ['This patient has no GP practice outside the directory recorded. Choose the practice from the directory.']}));
+          return blankRecipient({
+            kind,
+            name: unlisted.name ?? null,
+            addressLines: (unlisted.addressLines ?? []).join('\n') || null,
+            postcode: unlisted.postcode ?? null,
+          });
+        }
         const practice = practices().find((p) => p.id === practiceId);
         if (!practice) refuse(invalid({practiceId: ['Choose the GP practice from the directory.']}));
         return blankRecipient({

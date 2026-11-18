@@ -19,7 +19,7 @@ public static class DataRequestTestConstants
     public static readonly PathwayActor Admin = new(
         Guid.Parse("0d4f0000-0000-0000-0000-000000000001"), "admin", Permissions.Admin);
 
-    /// <summary>A clinician: SignOffResults, no ManagePrivacy.</summary>
+    /// <summary>A clinician: SignOffResults, no ManagePrivacy, so no data requests.</summary>
     public static readonly PathwayActor Clinician = new(
         Guid.Parse("0d4f0000-0000-0000-0000-000000000002"), "k.ashford",
         new HashSet<Permission> { Permission.UseApp, Permission.ViewPatients, Permission.SignOffResults });

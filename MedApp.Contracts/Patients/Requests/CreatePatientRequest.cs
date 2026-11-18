@@ -24,6 +24,12 @@ public sealed class CreatePatientRequest
     /// <summary>The GP practice they're registered with, from the directory (not archived). Left out, none.</summary>
     public Guid? PracticeId { get; set; }
 
+    /// <summary>
+    /// Their GP practice when it isn't in the directory ("Not listed here"), held on this patient only. Left out, none.
+    /// Not with <see cref="PracticeId"/>: a patient has one or the other.
+    /// </summary>
+    public UnlistedPracticeRequest? UnlistedPractice { get; set; }
+
     /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail. Left out, None.</summary>
     public string? ReminderChannel { get; set; }
 }

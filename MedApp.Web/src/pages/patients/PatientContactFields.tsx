@@ -4,7 +4,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {fieldStatus, type ValidationErrors} from '../../api/errors';
 import {REMINDER_CHANNELS, reminderChannelLabel, wantsEmails, wantsTexts} from '../../api/patientMessages';
-import type {PatientInput} from '../../api/patients';
+import {UNLISTED_PRACTICE, type PatientInput} from '../../api/patients';
 import {practiceAddress, practiceChoices, practiceLabel, practicesQuery, type Practice, type PracticeSummary} from '../../api/practices';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {isValidMobile, isValidPostcode} from '../../utils/contactDetails';
@@ -140,10 +140,15 @@ export function PatientReminderField({value, onChange, errors, isDisabled = fals
 /** The picker's value for no practice. */
 const NO_PRACTICE = 'none';
 
+/** What the picker says under "Not listed here". */
+export const UNLISTED_HINT = 'Its details are kept on this patient only, not added to the directory.';
+
 /**
  * The GP practice a patient is registered with, chosen from the directory (`/practices`): "None", then every practice
- * not archived, by name. The one the patient has now (`currentPractice`) is offered even if it's archived since, marked
- * so: they keep it, but no one can newly choose it. The chosen practice's address shows under the picker.
+ * not archived, by name, then "Not listed here". The one the patient has now (`currentPractice`) is offered even if it's
+ * archived since, marked so: they keep it, but no one can newly choose it. The chosen practice's address shows under
+ * the picker. "Not listed here" asks for the practice's name, address and phone, which are kept on this patient only
+ * (`UnlistedPracticeFields`), never added to the directory.
  */
 export function PatientPracticeField({value, onChange, errors, isDisabled = false, currentPractice}: FieldsProps & {currentPractice?: PracticeSummary | null}) {
   const practices = useQuery(practicesQuery(true));
@@ -152,18 +157,91 @@ export function PatientPracticeField({value, onChange, errors, isDisabled = fals
   // The patient's own practice stays on offer while the form is open, so choosing another can be undone.
   const choices = practiceChoices(listed, currentPractice?.id || value.practiceId);
   const chosen = choices.find((p) => p.id === value.practiceId);
+  const isUnlisted = value.practiceId === UNLISTED_PRACTICE;
 
   return (
-    <AnchoredSelector
-      label="Practice"
-      description={chosen ? practiceAddress(chosen) || 'No address in the directory.' : 'From the GP practice directory.'}
-      placeholder={practices.isPending ? 'Loading practices...' : undefined}
-      options={[{value: NO_PRACTICE, label: 'None'}, ...choices.map((p) => ({value: p.id ?? '', label: practiceLabel(p)}))]}
-      value={value.practiceId || NO_PRACTICE}
-      onChange={(next: string) => onChange((current) => ({...current, practiceId: next === NO_PRACTICE ? '' : next}))}
-      isOptional
-      isDisabled={isDisabled}
-      status={fieldStatus(errors, 'practiceId')}
-    />
+    <>
+      <AnchoredSelector
+        label="Practice"
+        description={
+          isUnlisted ? UNLISTED_HINT : chosen ? practiceAddress(chosen) || 'No address in the directory.' : 'From the GP practice directory.'
+        }
+        placeholder={practices.isPending ? 'Loading practices...' : undefined}
+        options={[
+          {value: NO_PRACTICE, label: 'None'},
+          ...choices.map((p) => ({value: p.id ?? '', label: practiceLabel(p)})),
+          {value: UNLISTED_PRACTICE, label: 'Not listed here'},
+        ]}
+        value={value.practiceId || NO_PRACTICE}
+        onChange={(next: string) => onChange((current) => ({...current, practiceId: next === NO_PRACTICE ? '' : next}))}
+        isOptional
+        isDisabled={isDisabled}
+        status={fieldStatus(errors, 'practiceId') ?? fieldStatus(errors, 'unlistedPractice')}
+      />
+      {isUnlisted && <UnlistedPracticeFields value={value} onChange={onChange} errors={errors} isDisabled={isDisabled} />}
+    </>
+  );
+}
+
+/**
+ * A GP practice that isn't in the directory: its name (required), address (three lines and a postcode) and phone, kept
+ * on this patient only. The API checks them (its errors show on these fields).
+ */
+export function UnlistedPracticeFields({value, onChange, errors, isDisabled = false}: FieldsProps) {
+  const set = <K extends 'unlistedPracticeName' | 'unlistedPracticePostcode' | 'unlistedPracticePhone'>(key: K, next: string) =>
+    onChange((current) => ({...current, [key]: next}));
+  const setLine = (index: number, next: string) =>
+    onChange((current) => {
+      const lines: PatientInput['unlistedPracticeAddressLines'] = [...current.unlistedPracticeAddressLines];
+      lines[index] = next;
+      return {...current, unlistedPracticeAddressLines: lines};
+    });
+
+  return (
+    <>
+      <TextInput
+        label="Practice name"
+        value={value.unlistedPracticeName}
+        onChange={(next) => set('unlistedPracticeName', next)}
+        autoComplete="off"
+        isRequired
+        isDisabled={isDisabled}
+        status={fieldStatus(errors, 'unlistedPracticeName')}
+      />
+      {([0, 1, 2] as const).map((index) => (
+        <TextInput
+          key={index}
+          label={`Practice address line ${index + 1}`}
+          value={value.unlistedPracticeAddressLines[index]}
+          onChange={(next) => setLine(index, next)}
+          autoComplete="off"
+          isOptional
+          isDisabled={isDisabled}
+          status={index === 0 ? fieldStatus(errors, 'unlistedPracticeAddressLines') : undefined}
+        />
+      ))}
+      <TextInput
+        label="Practice postcode"
+        value={value.unlistedPracticePostcode}
+        onChange={(next) => set('unlistedPracticePostcode', next)}
+        autoComplete="off"
+        hasAutoCorrect={false}
+        hasSpellCheck={false}
+        isOptional
+        isDisabled={isDisabled}
+        status={fieldStatus(errors, 'unlistedPracticePostcode')}
+      />
+      <TextInput
+        label="Practice phone"
+        type="tel"
+        inputMode="tel"
+        value={value.unlistedPracticePhone}
+        onChange={(next) => set('unlistedPracticePhone', next)}
+        autoComplete="off"
+        isOptional
+        isDisabled={isDisabled}
+        status={fieldStatus(errors, 'unlistedPracticePhone')}
+      />
+    </>
   );
 }

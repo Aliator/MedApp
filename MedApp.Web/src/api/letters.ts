@@ -2,6 +2,7 @@ import {keepPreviousData, queryOptions, useMutation, useQueryClient, type QueryC
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
 import {pathwayKeys} from './pathways';
+import {NO_PRACTICE_ID} from './practices';
 import type {paths} from './schema';
 
 /**
@@ -220,13 +221,19 @@ export function recipientInput(recipient: LetterRecipient): RecipientInput {
   return {
     key: recipient.id ?? newRecipientKey(),
     kind: (RECIPIENT_KINDS.find((k) => k.value === recipient.kind)?.value ?? 'Other') as RecipientKind,
-    practiceId: recipient.practiceId ?? '',
+    practiceId: recipient.practiceId ?? (recipient.kind === 'GpPractice' ? PATIENTS_UNLISTED_PRACTICE : ''),
     name: recipient.name ?? '',
     addressLines: recipient.addressLines ?? '',
     postcode: recipient.postcode ?? '',
     email: recipient.email ?? '',
   };
 }
+
+/**
+ * A GP practice recipient's `practiceId` for the patient's own practice that isn't in the directory: sent with no
+ * practice ID, and the API fills it from the patient (400 when they have none).
+ */
+export const PATIENTS_UNLISTED_PRACTICE = 'patients-unlisted-practice';
 
 /** A new recipient of a kind, empty. */
 export const emptyRecipient = (kind: RecipientKind): RecipientInput => ({
@@ -251,7 +258,11 @@ const optional = (text: string) => (text.trim() ? text.trim() : null);
 export function toRecipientRequest(recipient: RecipientInput): LetterRecipientRequest {
   switch (recipient.kind) {
     case 'GpPractice':
-      return {kind: 'GpPractice', practiceId: recipient.practiceId || null};
+      // None chosen goes as the empty ID, which the API refuses with "Choose the GP practice from the directory."
+      return {
+        kind: 'GpPractice',
+        practiceId: recipient.practiceId === PATIENTS_UNLISTED_PRACTICE ? null : recipient.practiceId || NO_PRACTICE_ID,
+      };
     case 'Patient':
       return {kind: 'Patient'};
     case 'Referrer':

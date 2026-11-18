@@ -56,15 +56,18 @@ public sealed class DataRequestTests : IntegrationTest
         })).ReadAsAsync<DataRequestResponse>();
         (await _admin.GetAsync($"/api/data-requests/{request.Id}/pack")).StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        // The admin can't review (it's clinical); the clinician sees the items and withholds one.
-        (await _admin.PutAsJsonAsync($"/api/data-requests/{request.Id}/review", new RecordDataRequestReviewRequest
+        // Only admins deal with data requests: a clinician can't see it nor review it; the admin sees the items and
+        // withholds one.
+        (await _clinician.Client.GetAsync($"/api/data-requests/{request.Id}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await _clinician.Client.GetAsync($"/api/data-requests/{request.Id}/review-items")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await _clinician.Client.PutAsJsonAsync($"/api/data-requests/{request.Id}/review", new RecordDataRequestReviewRequest
         {
             ExpectedVersion = request.Version
         })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        var items = await (await _clinician.Client.GetAsync($"/api/data-requests/{request.Id}/review-items"))
+        var items = await (await _admin.GetAsync($"/api/data-requests/{request.Id}/review-items"))
             .ReadAsAsync<List<DataRequestReviewItemResponse>>();
         items.Should().Contain(i => i.Kind == "Note" && i.ItemId == kept.Id);
-        (await _clinician.Client.PutAsJsonAsync($"/api/data-requests/{request.Id}/review", new RecordDataRequestReviewRequest
+        (await _admin.PutAsJsonAsync($"/api/data-requests/{request.Id}/review", new RecordDataRequestReviewRequest
         {
             Withheld = [new WithheldItemRequest { Kind = "Note", ItemId = withheld.Id, Reason = "Synthetic serious harm reason." }],
             ExpectedVersion = request.Version

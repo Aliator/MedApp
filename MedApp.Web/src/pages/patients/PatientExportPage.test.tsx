@@ -1,5 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
+import type {CurrentUser} from '../../auth/auth';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {
   ANOTHER_PATIENTS_DETAILS,
@@ -14,6 +15,7 @@ import {
   PatientExportPage,
   referralChangeLabel,
   referralName,
+  unlistedPracticeText,
 } from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
@@ -149,9 +151,9 @@ const data: PatientExport = {
   ],
 };
 
-function renderExport(body: unknown = data, status = 200, strict = false) {
+function renderExport(body: unknown = data, status = 200, strict = false, user: CurrentUser = adminUser) {
   const fetch = mockApi({[`GET ${EXPORT}`]: () => json(body, status)});
-  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user: adminUser, strict})};
+  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user, strict})};
 }
 
 describe('PatientExportPage', () => {
@@ -766,6 +768,29 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/ by s\.brightwell$/)).toBeInTheDocument();
     expect(screen.getByText(`Note withheld (${noteId})`)).toBeInTheDocument();
     expect(screen.getByText('Synthetic serious harm reason')).toBeInTheDocument();
+  });
+
+  it('shows data requests only to admins (ManagePrivacy): someone who can only export sees the rest', async () => {
+    const exporter: CurrentUser = {...adminUser, permissions: adminUser.permissions.filter((p) => p !== 'ManagePrivacy')};
+    renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}, dataRequests: []}, 200, false, exporter);
+
+    expect(await screen.findByText('No texts or emails to the patient.')).toBeInTheDocument();
+    expect(screen.queryByText('Data Requests (0)')).not.toBeInTheDocument();
+  });
+
+  it('shows a GP practice that is not in the directory, with its address and phone', async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {
+        id,
+        firstName: 'Oriel',
+        unlistedPractice: {name: 'Nowhereville Health Centre', addressLines: ['2 Pretend Road'], postcode: 'ZZ9 9ZZ', phone: '01632 960111'},
+      },
+    });
+
+    expect(await screen.findByText('Nowhereville Health Centre (not in the directory), 2 Pretend Road, ZZ9 9ZZ, 01632 960111')).toBeInTheDocument();
+    expect(unlistedPracticeText({name: 'Nowhereville Health Centre'})).toBe('Nowhereville Health Centre (not in the directory)');
   });
 
   it("lists a refused data request, one the patient made, and one with only what's required, in words for what's missing", async () => {

@@ -35,6 +35,7 @@ import {formatAppointmentTime, formatDate, formatDateTime} from '../../utils/dat
 import {formatFileSize} from '../../utils/fileSize';
 import {formatMobile, oneLineAddress} from '../../utils/contactDetails';
 import {formatNhsNumber} from '../../utils/nhsNumber';
+import {useCan} from '../../auth/auth';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
 const PRINT_CSS = '@media print { .astryx-side-nav, button { display: none !important; } }';
@@ -433,7 +434,16 @@ function attachedToText(file: ExportedFile, pathwayTitles: Map<string | undefine
   return file.attachedTo === 'Stage' ? `Attached to ${file.stageName ?? 'a stage'}, in ${title}.` : `Attached to ${title}.`;
 }
 
+/** A GP practice that isn't in the directory, as the export shows it: its name, then its address and phone. */
+export function unlistedPracticeText(practice: NonNullable<NonNullable<PatientExport['patient']>['unlistedPractice']>): string {
+  return [`${practice.name ?? ''} (not in the directory)`, oneLineAddress(practice.addressLines, practice.postcode), practice.phone]
+    .filter(Boolean)
+    .join(', ');
+}
+
 function ExportContent({data}: {data: PatientExport}) {
+  // Data requests are for admins only (ManagePrivacy): others who can export see the rest of the record.
+  const canSeeDataRequests = useCan('ManagePrivacy');
   const patient = data.patient;
   const pathways = data.pathways ?? [];
   const history = data.pathwayHistory ?? [];
@@ -486,7 +496,11 @@ function ExportContent({data}: {data: PatientExport}) {
           <MetadataListItem label="Reminders">{reminderChannelLabel(patient?.reminderChannel)}</MetadataListItem>
           <MetadataListItem label="Address">{oneLineAddress(patient?.addressLines, patient?.postcode) || '—'}</MetadataListItem>
           <MetadataListItem label="GP Practice">
-            {patient?.practiceName ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}` : '—'}
+            {patient?.practiceName
+              ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}`
+              : patient?.unlistedPractice
+                ? unlistedPracticeText(patient.unlistedPractice)
+                : '—'}
           </MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
           <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>
@@ -986,33 +1000,34 @@ function ExportContent({data}: {data: PatientExport}) {
           )}
       </ExportSection>
 
-      <ExportSection title={`Data Requests (${dataRequests.length})`}>
-        {dataRequests.length === 0
-          ? nothing('No data requests.')
-          : (
-            <VStack gap={6} hAlign="stretch">
-              {dataRequests.map((request) => (
-                <VStack key={request.id} gap={3} hAlign="stretch">
-                  <Heading level={3}>{`Received ${request.receivedOn ? formatDate(request.receivedOn) : '—'}`}</Heading>
-                  <MetadataList columns={2} label={{position: 'top'}}>
-                    <MetadataListItem label="Asked by">
-                      {request.requestedByPatient
-                        ? 'The patient'
-                        : `${request.requesterName ?? 'Someone on their behalf'}${request.requesterRelationship ? ` (${request.requesterRelationship})` : ''}`}
-                    </MetadataListItem>
-                    <MetadataListItem label="Logged">{`${when(request.createdAtUtc)} by ${request.createdBy ?? 'unknown'}`}</MetadataListItem>
-                    <MetadataListItem label="Identity check">
-                      {request.identityCheckedOn
-                        ? `${formatDate(request.identityCheckedOn)}, ${identityCheckMethodWords(request.identityCheckMethod).toLowerCase()}, by ${request.identityCheckedBy ?? 'unknown'}${request.identityCheckDetail ? `: ${request.identityCheckDetail}` : ''}`
-                        : 'Not checked'}
-                    </MetadataListItem>
-                    <MetadataListItem label="Due">
-                      {`${request.dueOn ? formatDate(request.dueOn) : '—'}${request.extensionMonths ? `, extended by ${request.extensionMonths} ${request.extensionMonths === 1 ? 'month' : 'months'}${request.extensionReason ? `: ${request.extensionReason}` : ''}` : ''}`}
-                    </MetadataListItem>
-                    <MetadataListItem label="Status">{dataRequestStatusWords(request.status)}</MetadataListItem>
-                    {request.sentOn && (
-                      <MetadataListItem label="Sent">{`${formatDate(request.sentOn)}${request.sendMethod ? `, ${sendMethodWords(request.sendMethod).toLowerCase()}` : ''}`}</MetadataListItem>
-                    )}
+      {canSeeDataRequests && (
+        <ExportSection title={`Data Requests (${dataRequests.length})`}>
+          {dataRequests.length === 0
+            ? nothing('No data requests.')
+            : (
+              <VStack gap={6} hAlign="stretch">
+                {dataRequests.map((request) => (
+                  <VStack key={request.id} gap={3} hAlign="stretch">
+                    <Heading level={3}>{`Received ${request.receivedOn ? formatDate(request.receivedOn) : '—'}`}</Heading>
+                    <MetadataList columns={2} label={{position: 'top'}}>
+                      <MetadataListItem label="Asked by">
+                        {request.requestedByPatient
+                          ? 'The patient'
+                          : `${request.requesterName ?? 'Someone on their behalf'}${request.requesterRelationship ? ` (${request.requesterRelationship})` : ''}`}
+                      </MetadataListItem>
+                      <MetadataListItem label="Logged">{`${when(request.createdAtUtc)} by ${request.createdBy ?? 'unknown'}`}</MetadataListItem>
+                      <MetadataListItem label="Identity check">
+                        {request.identityCheckedOn
+                          ? `${formatDate(request.identityCheckedOn)}, ${identityCheckMethodWords(request.identityCheckMethod).toLowerCase()}, by ${request.identityCheckedBy ?? 'unknown'}${request.identityCheckDetail ? `: ${request.identityCheckDetail}` : ''}`
+                          : 'Not checked'}
+                      </MetadataListItem>
+                      <MetadataListItem label="Due">
+                        {`${request.dueOn ? formatDate(request.dueOn) : '—'}${request.extensionMonths ? `, extended by ${request.extensionMonths} ${request.extensionMonths === 1 ? 'month' : 'months'}${request.extensionReason ? `: ${request.extensionReason}` : ''}` : ''}`}
+                      </MetadataListItem>
+                      <MetadataListItem label="Status">{dataRequestStatusWords(request.status)}</MetadataListItem>
+                      {request.sentOn && (
+                        <MetadataListItem label="Sent">{`${formatDate(request.sentOn)}${request.sendMethod ? `, ${sendMethodWords(request.sendMethod).toLowerCase()}` : ''}`}</MetadataListItem>
+      )}
                     {request.refusalReason && <MetadataListItem label="Why it was refused">{request.refusalReason}</MetadataListItem>}
                     {request.closedAtUtc && (
                       <MetadataListItem label="Closed">{`${when(request.closedAtUtc)} by ${request.closedBy ?? 'unknown'}`}</MetadataListItem>
@@ -1041,7 +1056,8 @@ function ExportContent({data}: {data: PatientExport}) {
               ))}
             </VStack>
           )}
-      </ExportSection>
+        </ExportSection>
+      )}
 
       <ExportSection title={`Access Log (${access.length})`}>
         {access.length === 0

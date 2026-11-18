@@ -63,6 +63,7 @@ function exportOf(patient: Patient): Schemas['PatientExportResponse'] {
       reminderChannel: patient.reminderChannel,
       practiceName: practice?.name ?? null,
       practiceOdsCode: practice?.odsCode ?? null,
+      unlistedPractice: patient.unlistedPractice,
       createdAt: pathways.map((p) => p.createdAt).sort()[0] ?? undefined,
       lastUpdated: undefined,
       restrictedAtUtc: patient.restrictedAtUtc ?? null,

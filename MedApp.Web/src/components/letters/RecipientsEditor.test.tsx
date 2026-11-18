@@ -1,9 +1,9 @@
 import {screen, within} from '@testing-library/react';
 import {useState} from 'react';
-import {emptyRecipient, MAX_RECIPIENTS, recipientInput, type RecipientInput} from '../../api/letters';
+import {emptyRecipient, MAX_RECIPIENTS, PATIENTS_UNLISTED_PRACTICE, recipientInput, type RecipientInput} from '../../api/letters';
 import {isDisabled, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {LETTER_PRACTICE_ID, patientRecipient, practiceRecipient} from '../../test/letters';
-import {RecipientsEditor} from './RecipientsEditor';
+import {RecipientsEditor, UNLISTED_PRACTICE_LABEL} from './RecipientsEditor';
 
 const OTHER_PRACTICE_ID = '00000061-0000-0000-0000-000000000099';
 
@@ -65,6 +65,11 @@ describe('RecipientsEditor', () => {
     await user.click(practice);
     await user.click(await screen.findByRole('option', {name: 'Example Lane Practice'}));
     expect(last()[0].practiceId).toBe(OTHER_PRACTICE_ID);
+
+    // Or the patient's own practice that isn't in the directory, filled from their record by the API.
+    await user.click(practice);
+    await user.click(await screen.findByRole('option', {name: UNLISTED_PRACTICE_LABEL}));
+    expect(last()[0].practiceId).toBe(PATIENTS_UNLISTED_PRACTICE);
   });
 
   it("adds someone else, typing their name, address, postcode and secure email; the referrer only for a referral's letter", async () => {

@@ -18,8 +18,9 @@ namespace MedApp.Application.DataRequests.Commands;
 public sealed record WithheldItemInput(string Kind, Guid ItemId, string Reason);
 
 /// <summary>
-/// The clinician review (decision 161, SignOffResults as the proxy for a clinician): what's withheld from the pack under
-/// the serious harm test, each with why; empty when nothing is. Replaces any earlier review; who reviewed and when are
+/// The review (decision 161; by a holder of ManagePrivacy, as only admins deal with data requests, who takes an
+/// appropriate health professional's opinion outside MedApp for the serious harm test): what's withheld from the pack
+/// under that test, each with why; empty when nothing is. Replaces any earlier review; who reviewed and when are
 /// kept on the request.
 /// </summary>
 public sealed record RecordDataRequestReviewCommand(
@@ -71,6 +72,7 @@ public sealed class RecordDataRequestReviewHandler(
 {
     public async Task<DataRequestResponse> Handle(RecordDataRequestReviewCommand request, CancellationToken cancellationToken)
     {
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var dataRequest = await repository.GetForUpdateAsync(request.DataRequestId, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{request.DataRequestId}' was not found.");
         DataRequestRules.EnsureCanChange(dataRequest, request.ExpectedVersion);

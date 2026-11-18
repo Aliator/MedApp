@@ -64,8 +64,9 @@ public static class LetterValidation
                 .Must(kind => PathwayEnums.TryParse<LetterRecipientKind>(kind, out _))
                 .WithMessage($"Kind must be one of: {RecipientKindNames}.");
 
+            // No practice ID is the patient's own practice that isn't in the directory (checked against the patient).
             recipient.RuleFor(r => r.PracticeId)
-                .Must(id => id is not null && id != Guid.Empty)
+                .Must(id => id != Guid.Empty)
                 .When(r => r.Kind == nameof(LetterRecipientKind.GpPractice))
                 .WithMessage("Choose the GP practice from the directory.");
 

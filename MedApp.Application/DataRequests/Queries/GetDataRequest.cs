@@ -17,7 +17,7 @@ using MediatR;
 
 namespace MedApp.Application.DataRequests.Queries;
 
-/// <summary>One data request, for holders of ManagePrivacy or SignOffResults (403 otherwise). Recorded as viewing the patient.</summary>
+/// <summary>One data request, for holders of ManagePrivacy (403 otherwise). Recorded as viewing the patient.</summary>
 public sealed record GetDataRequestQuery(Guid DataRequestId, PathwayActor Actor) : IRequest<DataRequestResponse>;
 
 public sealed class GetDataRequestHandler(
@@ -28,7 +28,7 @@ public sealed class GetDataRequestHandler(
 {
     public async Task<DataRequestResponse> Handle(GetDataRequestQuery request, CancellationToken cancellationToken)
     {
-        DataRequestRules.EnsureCanRead(request.Actor);
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var dataRequest = await repository.GetAsync(request.DataRequestId, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{request.DataRequestId}' was not found.");
 
@@ -40,7 +40,7 @@ public sealed class GetDataRequestHandler(
 }
 
 /// <summary>
-/// The items of the record the review may withhold, with their text (ManagePrivacy or SignOffResults; 403 otherwise).
+/// The items of the record the review may withhold, with their text (ManagePrivacy; 403 otherwise).
 /// Recorded as viewing the patient.
 /// </summary>
 public sealed record GetDataRequestReviewItemsQuery(Guid DataRequestId, PathwayActor Actor)
@@ -57,7 +57,7 @@ public sealed class GetDataRequestReviewItemsHandler(
     public async Task<IReadOnlyList<DataRequestReviewItemResponse>> Handle(
         GetDataRequestReviewItemsQuery request, CancellationToken cancellationToken)
     {
-        DataRequestRules.EnsureCanRead(request.Actor);
+        DataRequestRules.EnsureCanHandle(request.Actor);
         var dataRequest = await repository.GetAsync(request.DataRequestId, cancellationToken)
                           ?? throw new NotFoundException($"Data request '{request.DataRequestId}' was not found.");
         var record = await records.GetAsync(dataRequest.PatientId, forUpdate: false, cancellationToken)
@@ -74,7 +74,7 @@ public sealed class GetDataRequestReviewItemsHandler(
 }
 
 /// <summary>
-/// The data requests list (ManagePrivacy or SignOffResults; 403 otherwise): a status, one patient's, or the open ones
+/// The data requests list (ManagePrivacy; 403 otherwise): a status, one patient's, or the open ones
 /// not yet reviewed. Records each patient listed.
 /// </summary>
 public sealed record SearchDataRequestsQuery(
@@ -111,7 +111,7 @@ public sealed class SearchDataRequestsHandler(
     public async Task<PagedResponse<DataRequestSummaryResponse>> Handle(
         SearchDataRequestsQuery request, CancellationToken cancellationToken)
     {
-        DataRequestRules.EnsureCanRead(request.Actor);
+        DataRequestRules.EnsureCanHandle(request.Actor);
 
         var status = string.IsNullOrWhiteSpace(request.Status) ? (DataRequestStatus?)null : PathwayEnums.Parse<DataRequestStatus>(request.Status);
         var today = UkTime.Today(timeProvider);
