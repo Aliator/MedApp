@@ -49,6 +49,8 @@ export const ACTIVITY_ACTIONS = [
   'EmailConfirmed',
   'EmailRemoved',
   'TwoFactorRequirementChanged',
+  'EmailCodesEnabled',
+  'EmailCodesDisabled',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -93,6 +95,8 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   EmailConfirmed: 'Email address confirmed',
   EmailRemoved: 'Email address removed',
   TwoFactorRequirementChanged: 'Two-factor requirement changed',
+  EmailCodesEnabled: 'Codes by email turned on',
+  EmailCodesDisabled: 'Codes by email turned off',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -129,6 +133,8 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'EmailConfirmed',
   'EmailRemoved',
   'TwoFactorRequirementChanged',
+  'EmailCodesEnabled',
+  'EmailCodesDisabled',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -177,12 +183,20 @@ const FIELD_NAMES: Record<string, string> = {
 const SIGN_IN_FAILURES: Record<string, string> = {
   InvalidCredentials: 'Wrong username or password',
   LockedOut: 'Account locked',
-  InvalidCode: 'Wrong authenticator code',
+  // An authenticator code, or (for an account using codes by email) an emailed one.
+  InvalidCode: 'Wrong two-factor code',
   InvalidRecoveryCode: 'Wrong recovery code',
-  InvalidCodeLockedOut: 'Wrong authenticator code: account locked',
+  InvalidCodeLockedOut: 'Wrong two-factor code: account locked',
   InvalidRecoveryCodeLockedOut: 'Wrong recovery code: account locked',
   ChallengeExpired: 'Code step timed out',
   TooManyCodes: 'Too many codes for the account',
+};
+
+/** How a sign-in's second step was made. */
+const SECOND_STEPS: Record<string, string> = {
+  authenticator: 'With an authenticator code',
+  email: 'With an emailed code',
+  recoveryCode: 'With a recovery code',
 };
 
 const fieldNames = (value: unknown) =>
@@ -217,7 +231,11 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     case 'SignInFailed':
       return SIGN_IN_FAILURES[String(d.reason)] ?? 'Wrong username or password';
     case 'SignedIn':
-      return d.secondStep === 'recoveryCode' ? 'With a recovery code' : d.secondStep === 'authenticator' ? 'With an authenticator code' : '';
+      return SECOND_STEPS[String(d.secondStep)] ?? '';
+    case 'TwoFactorChallenged':
+      return d.method === 'email' ? 'Code emailed' : '';
+    case 'TwoFactorEnabled':
+      return d.switchedFrom === 'email' ? 'Switched from codes by email' : '';
     case 'RecoveryCodeUsed':
       return typeof d.codesLeft === 'number' ? `${d.codesLeft} left` : '';
     case 'PasswordResetRequested':

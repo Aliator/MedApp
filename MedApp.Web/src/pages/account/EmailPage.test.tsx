@@ -12,7 +12,8 @@ import {
   staffUser,
   withAnnouncements,
 } from '../../test/render';
-import {EMAIL_UNAVAILABLE, EmailPage} from './EmailPage';
+import {emailCodeSent} from '../../test/twoFactor';
+import {CODE_FOR_CHANGE, EMAIL_UNAVAILABLE, EmailPage} from './EmailPage';
 
 const ME = 'GET /api/auth/me/email';
 const CHANGE = 'PUT /api/auth/me/email';
@@ -237,6 +238,11 @@ describe('EmailPage', () => {
 
   it.each([
     ['locked', () => json({title: 'This account is locked. Try again in 5 minutes.', status: 423}, 423), 'This account is locked. Try again in 5 minutes.'],
+    [
+      'it signs in with codes by email',
+      () => json({title: 'You sign in with codes sent to this address. Turn off two-factor authentication first.', status: 409}, 409),
+      'You sign in with codes sent to this address. Turn off two-factor authentication first.',
+    ],
     ['a server error', () => json({title: 'Server error'}, 500), 'Your email address could not be removed. Please try again.'],
   ])('says in the dialog when the address could not be removed: %s', async (_, respond, message) => {
     const {user} = renderPage({extra: {[REMOVE]: respond}});
@@ -283,5 +289,121 @@ describe('EmailPage', () => {
 
     expect(await findAlert('Your email address could not be loaded. Please try again.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('None')).toBeInTheDocument());
+  });
+});
+
+describe('EmailPage, while the account signs in with codes by email', () => {
+  const STATUS = 'GET /api/auth/me/two-factor';
+  const SEND_CODE = 'POST /api/auth/me/two-factor/email/code';
+  const usingEmailCodes = {enabled: true, method: 'Email', recoveryCodesLeft: 10, required: false, canUseEmailCodes: true};
+
+  it('asks for a code too, emailed after the password or a recovery code, and sends it with the change', async () => {
+    const {user, fetch} = renderPage({
+      extra: {
+        [STATUS]: () => json(usingEmailCodes),
+        [SEND_CODE]: () => json(emailCodeSent, 202),
+        [CHANGE]: () => json({email: 'test.user@example.org', pendingEmail: 'test.user.new@example.org'}, 202),
+      },
+    });
+
+    expect(await screen.findByText(CODE_FOR_CHANGE)).toBeInTheDocument();
+    expect(isDisabled(screen.getByRole('button', {name: 'Email me a code'}))).toBe(true);
+    await user.type(screen.getByLabelText(/new email address/i), 'test.user.new@example.org');
+    await user.type(screen.getByLabelText(/your password/i), PASSWORD);
+    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    expect(await screen.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), '654321');
+    await user.click(screen.getByRole('button', {name: 'Send confirmation link'}));
+
+    expect(await screen.findByText(/We've sent a link to test.user.new@example.org/)).toBeInTheDocument();
+    expect(await bodyOf(fetch, 'PUT')).toEqual({email: 'test.user.new@example.org', password: PASSWORD, code: '654321'});
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
+
+  it('shows a wrong code on its field', async () => {
+    const {user} = renderPage({
+      extra: {
+        [STATUS]: () => json(usingEmailCodes),
+        [CHANGE]: () =>
+          json({title: 'One or more validation errors occurred.', status: 400, errors: {Code: ["That code isn't right."]}}, 400),
+      },
+    });
+
+    await user.type(await screen.findByLabelText(/new email address/i), 'test.user.new@example.org');
+    await user.type(screen.getByLabelText(/your password/i), PASSWORD);
+    await user.type(await screen.findByLabelText(/code from the email, or a recovery code/i), 'ABCDE-23456');
+    await user.click(screen.getByRole('button', {name: 'Send confirmation link'}));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true'),
+    );
+  });
+
+  it('shows a wrong password from sending the code on the password field', async () => {
+    const {user} = renderPage({
+      extra: {
+        [STATUS]: () => json(usingEmailCodes),
+        [SEND_CODE]: () =>
+          json({title: 'One or more validation errors occurred.', status: 400, errors: {Password: ['That password is wrong.']}}, 400),
+      },
+    });
+
+    await user.type(await screen.findByLabelText(/your password/i), 'not-it');
+    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+
+    await waitFor(() => expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true'));
+  });
+
+  const CODE_NEEDED = "Enter the code we emailed you, or one of your recovery codes, to confirm it's you.";
+  const codeNeeded = () =>
+    json({title: 'One or more validation errors occurred.', status: 400, errors: {Code: [CODE_NEEDED]}}, 400);
+
+  it("says a code is needed in the banner when its field isn't showing, and checks the status again", async () => {
+    // The status says the app (out of date: codes by email were turned on elsewhere), so there's no code field.
+    const {user, fetch} = renderPage({
+      extra: {[STATUS]: () => json({...usingEmailCodes, method: 'Authenticator'}), [CHANGE]: codeNeeded},
+    });
+    await screen.findByLabelText(/new email address/i);
+    await waitFor(() => expect(calls(fetch).filter((c) => c === STATUS)).toHaveLength(1));
+
+    await change(user);
+
+    expect(await findAlert(CODE_NEEDED)).toBeInTheDocument();
+    await waitFor(() => expect(calls(fetch).filter((c) => c === STATUS)).toHaveLength(2));
+  });
+
+  it('shows the code field once the status, checked again, says codes by email', async () => {
+    let statusReads = 0;
+    const {user} = renderPage({
+      extra: {
+        [STATUS]: () => json(statusReads++ === 0 ? {...usingEmailCodes, method: 'Authenticator'} : usingEmailCodes),
+        [CHANGE]: codeNeeded,
+      },
+    });
+    await screen.findByLabelText(/new email address/i);
+    await waitFor(() => expect(statusReads).toBe(1));
+    expect(screen.queryByText(CODE_FOR_CHANGE)).not.toBeInTheDocument();
+
+    await change(user);
+
+    expect(await screen.findByText(CODE_FOR_CHANGE)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true'),
+    );
+  });
+
+  it("asks for no code when the account doesn't use codes by email", async () => {
+    const {user, fetch} = renderPage({
+      extra: {
+        [STATUS]: () => json({...usingEmailCodes, method: 'Authenticator'}),
+        [CHANGE]: () => json({email: 'test.user@example.org', pendingEmail: 'test.user.new@example.org'}, 202),
+      },
+    });
+
+    await change(user);
+
+    expect(await screen.findByText(/We've sent a link/)).toBeInTheDocument();
+    expect(screen.queryByText(CODE_FOR_CHANGE)).not.toBeInTheDocument();
+    expect(await bodyOf(fetch, 'PUT')).toEqual({email: 'test.user.new@example.org', password: PASSWORD});
   });
 });

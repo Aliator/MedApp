@@ -2,7 +2,6 @@ using MailKit;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Common.Email;
 
@@ -15,12 +14,10 @@ namespace MedApp.Infrastructure.Common.Email;
 public sealed class EmailDispatcher(
     EmailQueue queue,
     IEmailTransport transport,
-    IOptions<EmailDeliveryOptions> options,
-    TimeProvider timeProvider,
     ILogger<EmailDispatcher> logger)
     : BackgroundService
 {
-    private readonly EmailBudget _budget = new(options.Value.MaxPerHour, timeProvider);
+    private readonly EmailBudget _budget = queue.Budget;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

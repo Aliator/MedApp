@@ -15,14 +15,29 @@ public sealed class AccountAttemptLimiterTests
     private static readonly Guid Account = new("0000000f-0000-0000-0000-0000000000a1");
     private static readonly Guid OtherAccount = new("0000000f-0000-0000-0000-0000000000a2");
 
-    private static AccountAttemptLimiter Limiter(int codes = 2, int emailChanges = 1) =>
+    private static AccountAttemptLimiter Limiter(int codes = 2, int emailChanges = 1, int emailCodes = 1) =>
         new(Options.Create(new LoginThrottlingOptions
         {
             TwoFactorCodesPerAccountPermitLimit = codes,
             TwoFactorCodeWindow = TimeSpan.FromMinutes(15),
             EmailChangesPerAccountPermitLimit = emailChanges,
             EmailChangeWindow = TimeSpan.FromMinutes(15),
+            EmailCodesPerAccountPermitLimit = emailCodes,
+            EmailCodeWindow = TimeSpan.FromMinutes(15),
         }));
+
+    [Test]
+    public void Attempt_EmailedCodes_HaveTheirOwnLimit()
+    {
+        using var limiter = Limiter(codes: 1, emailCodes: 1);
+
+        limiter.Attempt(AccountAttempt.TwoFactorCode, Account);
+        limiter.Attempt(AccountAttempt.EmailCode, Account);
+
+        var act = () => limiter.Attempt(AccountAttempt.EmailCode, Account);
+        act.Should().Throw<TooManyAttemptsException>().Which.Message.Should().StartWith("Too many codes emailed to this account.");
+        new LoginThrottlingOptions().EmailCodesPerAccountPermitLimit.Should().Be(10);
+    }
 
     [Test]
     public void Attempt_OverTheAccountsLimit_IsRefusedWithAWait()

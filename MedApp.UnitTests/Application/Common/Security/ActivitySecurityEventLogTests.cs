@@ -88,6 +88,8 @@ public sealed class ActivitySecurityEventLogTests
     [TestCase(SecurityEventKind.TwoFactorReset, ActivityAction.TwoFactorReset)]
     [TestCase(SecurityEventKind.RecoveryCodesRegenerated, ActivityAction.RecoveryCodesRegenerated)]
     [TestCase(SecurityEventKind.RecoveryCodeUsed, ActivityAction.RecoveryCodeUsed)]
+    [TestCase(SecurityEventKind.EmailCodesEnabled, ActivityAction.EmailCodesEnabled)]
+    [TestCase(SecurityEventKind.EmailCodesDisabled, ActivityAction.EmailCodesDisabled)]
     [TestCase(SecurityEventKind.TwoFactorRequirementChanged, ActivityAction.TwoFactorRequirementChanged)]
     public void ActionFor_EveryKind(SecurityEventKind kind, ActivityAction action) =>
         ActivitySecurityEventLog.ActionFor(kind).Should().Be(action);

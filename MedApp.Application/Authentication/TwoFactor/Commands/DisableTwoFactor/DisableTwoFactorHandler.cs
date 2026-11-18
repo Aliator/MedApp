@@ -12,8 +12,9 @@ namespace MedApp.Application.Authentication.TwoFactor.Commands.DisableTwoFactor;
 
 /// <summary>
 /// Turns two-factor off, after checking the password (a wrong one counts towards the lockout, as everywhere) and a
-/// current code (which does too). Refused (409) for an account that must use it. Turning it off and ending the other
-/// sessions happen together. The owner is told by email.
+/// current code (which does too): from the app, or, for codes by email, the one emailed to confirm it
+/// (<c>SendTwoFactorEmailCodeCommand</c>), or a recovery code. Refused (409) for an account that must use it. Turning it
+/// off and ending the other sessions happen together. The owner is told by email.
 /// </summary>
 public sealed class DisableTwoFactorHandler(
     ITwoFactorService twoFactor,
@@ -23,7 +24,8 @@ public sealed class DisableTwoFactorHandler(
     IIdentityTransactions transactions,
     ISecurityNotices notices,
     ISecurityEventLog events,
-    IAccountAttemptLimiter attempts)
+    IAccountAttemptLimiter attempts,
+    IEmailCodeService emailCodes)
     : IRequestHandler<DisableTwoFactorCommand>
 {
     public async Task Handle(DisableTwoFactorCommand request, CancellationToken ct)
@@ -38,7 +40,8 @@ public sealed class DisableTwoFactorHandler(
             throw new ConflictException("Admin accounts must use two-factor authentication here, so it can't be turned off.");
 
         await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
-        await twoFactor.VerifyOrThrowAsync(attempts, notices, request.UserId, request.Code, nameof(request.Code), allowRecoveryCode: true, ct);
+        await twoFactor.VerifyOrThrowAsync(
+            emailCodes, attempts, notices, request.UserId, state.Method, request.Code, nameof(request.Code), allowRecoveryCode: true, ct);
 
         var result = await transactions.RunAsync(async () =>
         {
@@ -53,7 +56,8 @@ public sealed class DisableTwoFactorHandler(
         if (!result.Succeeded)
             throw new ConflictException(string.Join(" ", result.Errors.Select(e => e.Description)));
 
-        await events.RecordAsync(new SecurityEvent(SecurityEventKind.TwoFactorDisabled, request.UserId, state.Username), ct);
+        var kind = state.UsesEmailCodes ? SecurityEventKind.EmailCodesDisabled : SecurityEventKind.TwoFactorDisabled;
+        await events.RecordAsync(new SecurityEvent(kind, request.UserId, state.Username), ct);
         await notices.SendAsync(request.UserId, SecurityNotice.TwoFactorDisabled, ct);
         if (state.IsAdmin)
             await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, request.UserId, state.Username, ct);
