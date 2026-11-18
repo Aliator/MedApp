@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.UnitTests.Common.Fixtures;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Meetings.Commands.CreateMeeting;
 using MedApp.UnitTests.Application.Calendar.StaffCalendars;
@@ -10,7 +11,7 @@ namespace MedApp.UnitTests.Application.Calendar.Meetings.Commands.CreateMeeting;
 [TestFixture]
 public sealed class CreateMeetingValidatorTests
 {
-    private readonly CreateMeetingValidator _validator = new();
+    private readonly CreateMeetingValidator _validator = new(InMemoryClosedDays.WorkingDays(CreateClosedDay()));
 
     private static CreateMeetingCommand Valid() =>
         new(Title, Notes, At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, OtherStaffUserId], AdminActor);
@@ -21,26 +22,26 @@ public sealed class CreateMeetingValidatorTests
     [Test]
     public void Validate_ValidMeeting_Passes()
     {
-        _validator.Validate(Valid()).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid()).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_WholeWorkingDayWithoutNotes_Passes()
     {
-        _validator.Validate(Valid() with { StartUtc = At(NextMonday, 8), EndUtc = At(NextMonday, 18), Notes = null })
+        _validator.ValidateNow(Valid() with { StartUtc = At(NextMonday, 8), EndUtc = At(NextMonday, 18), Notes = null })
             .IsValid.Should().BeTrue();
     }
 
     [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.ValidInSummer))]
     public void Validate(DateTime start, DateTime end)
     {
-        _validator.Validate(Valid() with { StartUtc = start, EndUtc = end }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end }).IsValid.Should().BeTrue();
     }
 
     [TestCaseSource(typeof(BlockTimeCases), nameof(BlockTimeCases.Invalid))]
     public void Validate(DateTime start, DateTime end, string message)
     {
-        _validator.Validate(Valid() with { StartUtc = start, EndUtc = end })
+        _validator.ValidateNow(Valid() with { StartUtc = start, EndUtc = end })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(message);
     }
 
@@ -48,47 +49,47 @@ public sealed class CreateMeetingValidatorTests
     [TestCase("   ")]
     public void Validate_NoTitle_Fails(string title)
     {
-        _validator.Validate(Valid() with { Title = title })
+        _validator.ValidateNow(Valid() with { Title = title })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("Title is required.");
     }
 
     [Test]
     public void Validate_TitleAtTheLimit_Passes()
     {
-        _validator.Validate(Valid() with { Title = new string('a', MeetingLimits.MaxTitleLength) }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { Title = new string('a', MeetingLimits.MaxTitleLength) }).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_TitleTooLong_Fails()
     {
-        _validator.Validate(Valid() with { Title = new string('a', MeetingLimits.MaxTitleLength + 1) })
+        _validator.ValidateNow(Valid() with { Title = new string('a', MeetingLimits.MaxTitleLength + 1) })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("Title must not exceed 100 characters.");
     }
 
     [Test]
     public void Validate_NotesAtTheLimit_Passes()
     {
-        _validator.Validate(Valid() with { Notes = new string('a', MeetingLimits.MaxNotesLength) }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { Notes = new string('a', MeetingLimits.MaxNotesLength) }).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_NotesTooLong_Fails()
     {
-        _validator.Validate(Valid() with { Notes = new string('a', MeetingLimits.MaxNotesLength + 1) })
+        _validator.ValidateNow(Valid() with { Notes = new string('a', MeetingLimits.MaxNotesLength + 1) })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("Notes must not exceed 500 characters.");
     }
 
     [Test]
     public void Validate_NoAttendees_Fails()
     {
-        _validator.Validate(Valid() with { AttendeeUserIds = [] })
+        _validator.ValidateNow(Valid() with { AttendeeUserIds = [] })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(MeetingValidation<CreateMeetingCommand>.NoAttendees);
     }
 
     [Test]
     public void Validate_AttendeesLeftOut_Fails()
     {
-        _validator.Validate(Valid() with { AttendeeUserIds = null! })
+        _validator.ValidateNow(Valid() with { AttendeeUserIds = null! })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(MeetingValidation<CreateMeetingCommand>.NoAttendees);
     }
 
@@ -97,20 +98,28 @@ public sealed class CreateMeetingValidatorTests
     {
         var ids = DistinctIds(MeetingLimits.MaxAttendees);
 
-        _validator.Validate(Valid() with { AttendeeUserIds = [.. ids, ids[0], ids[1]] }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Valid() with { AttendeeUserIds = [.. ids, ids[0], ids[1]] }).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_TooManyAttendees_Fails()
     {
-        _validator.Validate(Valid() with { AttendeeUserIds = DistinctIds(MeetingLimits.MaxAttendees + 1) })
+        _validator.ValidateNow(Valid() with { AttendeeUserIds = DistinctIds(MeetingLimits.MaxAttendees + 1) })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("A meeting can have at most 100 attendees.");
     }
 
     [Test]
     public void Validate_EmptyAttendeeId_Fails()
     {
-        _validator.Validate(Valid() with { AttendeeUserIds = [StaffUserId, Guid.Empty] })
+        _validator.ValidateNow(Valid() with { AttendeeUserIds = [StaffUserId, Guid.Empty] })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be("Attendee ids must not be empty.");
+    }
+
+    [Test]
+    public void Validate_OnAClosedDay_SaysTheClinicIsClosed()
+    {
+        _validator.ValidateNow(Valid() with { StartUtc = At(ClosedWednesday, 10), EndUtc = At(ClosedWednesday, 11) })
+            .Errors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
     }
 }

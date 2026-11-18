@@ -19,6 +19,12 @@ public interface ICalendarRepository
     Task<IReadOnlyList<CalendarData>> GetCalendarsAsync(
         IReadOnlyCollection<Guid> staffUserIds, DateOnly from, DateOnly to, CancellationToken ct);
 
+    /// <summary>
+    /// What each member of staff has on a UK date: Booked, Attended and Did not attend appointments, stored blocks and
+    /// meetings, counted. Only people with something on it.
+    /// </summary>
+    Task<IReadOnlyList<StaffBookings>> GetBookingsOnAsync(DateOnly date, CancellationToken ct);
+
     /// <summary>Everyone's default week template row valid on a date, each with its week template.</summary>
     Task<IReadOnlyList<StaffWeekTemplate>> GetStaffWeekTemplatesOnAsync(DateOnly date, CancellationToken ct);
 

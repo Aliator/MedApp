@@ -393,6 +393,20 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     });
   });
 
+  it('says a meeting on a day that has since closed must move, and asks only for the closed days still to come', async () => {
+    const {user, fetch} = renderDialog(
+      {meeting: MEETING},
+      {handlers: {'GET /api/calendar/closed-days': () => json([{id: 'c1', date: MEETING.date, name: 'Staff training day', isPast: false}])}},
+    );
+
+    await user.click(await dialog().findByRole('button', {name: 'Change'}));
+
+    expect(await dialog().findByText('The clinic is closed then: Staff training day. Choose another day.')).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Save'}))).toBe(true);
+    expect(dialog().queryByText('Everyone is free then.')).not.toBeInTheDocument();
+    expect(requests(fetch, 'GET', '/api/calendar/closed-days').map((r) => new URL(r.url).search)).toContain('?From=2026-11-16');
+  });
+
   it('cancels a meeting once confirmed, and shows why when it cannot', async () => {
     withAnnouncements();
     let answer = json({title: 'This meeting has already been cancelled.'}, 404);

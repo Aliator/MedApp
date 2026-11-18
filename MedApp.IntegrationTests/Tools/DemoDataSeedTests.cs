@@ -161,7 +161,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
     /// <summary>
     /// Every appointment and every stored block, checked as the app checks a new one (<see cref="CalendarClashes"/>)
-    /// against everything else on that person's calendar: appointments, stored blocks and the day templates' blocks.
+    /// against everything else on that person's calendar: appointments, stored blocks and the day templates' blocks; and
+    /// none on a weekend or a closed day (the seeded bank holidays).
     /// </summary>
     [Test]
     public async Task Calendars_NoAppointmentOrStoredBlockOverlapsAnythingElse_NorFallsOutsideTheWorkingDay()
@@ -187,14 +188,35 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             foreach (var appointment in appointments.Where(a => a.StaffUserId == person))
             {
                 var (start, end) = (appointment.StartUtc!.Value, appointment.EndUtc!.Value);
-                WorkingHours.WhyOutside(start, end).Should().BeNull($"appointment {appointment.Id}");
+                WorkingHours.WhyOutside(start, end, data.ClosedDays).Should().BeNull($"appointment {appointment.Id}");
                 CalendarClashes.Find(On(start), start, end, ignoreAppointmentId: appointment.Id).Should().BeNull($"appointment {appointment.Id}");
             }
 
             foreach (var block in blocks.Where(b => b.StaffUserId == person))
+            {
+                WorkingHours.WhyOutside(block.StartUtc, block.EndUtc, data.ClosedDays).Should().BeNull($"block {block.Id}");
                 CalendarClashes.Find(On(block.StartUtc), block.StartUtc, block.EndUtc, ignoreBlockId: block.Id)
                     .Should().BeNull($"block {block.Id}, {UkTime.Describe(block.StartUtc)}");
+            }
         }
+    }
+
+    /// <summary>
+    /// The clinic's closed days are England and Wales bank holidays, for every year the story covers and the next, and
+    /// the calendars know them.
+    /// </summary>
+    [Test]
+    public async Task ClosedDays_AreTheBankHolidaysOfTheSeededYears()
+    {
+        var closed = await Query(db => db.ClosedDays.AsNoTracking().OrderBy(d => d.Date).ToListAsync());
+        var firstYear = closed.Min(d => d.Date.Year);
+
+        firstYear.Should().BeLessThanOrEqualTo(UkTime.DateOf(Now).Year - 1, "the story goes back about 18 months");
+        closed.Max(d => d.Date.Year).Should().Be(UkTime.DateOf(Now).Year + 1);
+        closed.Select(d => (d.Date, d.Name)).Should().Equal(
+            Enumerable.Range(firstYear, UkTime.DateOf(Now).Year + 2 - firstYear)
+                .SelectMany(BankHolidays.EnglandAndWales)
+                .Select(h => (h.Date, h.Name)));
     }
 
     /// <summary>
@@ -228,7 +250,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             foreach (var meeting in meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == person && a.Reply != MeetingReply.Declined)))
             {
                 var on = data with { From = UkTime.DateOf(meeting.StartUtc), To = UkTime.DateOf(meeting.StartUtc) };
-                WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc).Should().BeNull($"meeting '{meeting.Title}'");
+                WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc, data.ClosedDays).Should().BeNull($"meeting '{meeting.Title}'");
                 CalendarClashes.Find(on, meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id)
                     .Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)} is clear on every attendee's calendar");
             }

@@ -168,6 +168,14 @@ export function formatShortDay(date: string): string {
   return `${part.weekday} ${part.day}`;
 }
 
+const SHORT_DATE_NAME = new Intl.DateTimeFormat('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+
+/** A date with its weekday, short, for a list: "Fri 25 Dec 2026", or without the year, "Fri 25 Dec". */
+export function formatShortDayDate(date: string, {withYear = true}: {withYear?: boolean} = {}): string {
+  const part = dayParts(SHORT_DATE_NAME, date);
+  return `${part.weekday} ${part.day} ${part.month}${withYear ? ` ${part.year}` : ''}`;
+}
+
 /** A stretch of time, UK time: "09:00 to 09:30". */
 export function formatTimeRange(startUtc: string, endUtc: string): string {
   return `${formatTime(startUtc)} to ${formatTime(endUtc)}`;

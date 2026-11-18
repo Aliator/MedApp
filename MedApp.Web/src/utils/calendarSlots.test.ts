@@ -6,6 +6,7 @@ import {
   dayOfWeek,
   formatCalendarDay,
   formatShortDay,
+  formatShortDayDate,
   formatWeekday,
   formatTimeRange,
   freeStarts,
@@ -216,6 +217,8 @@ describe('words', () => {
     expect(formatCalendarDay(MONDAY)).toBe('Monday 23 November');
     expect(formatShortDay(MONDAY)).toBe('Mon 23');
     expect(formatWeekday(MONDAY)).toBe('Monday');
+    expect(formatShortDayDate('2026-12-25')).toBe('Fri 25 Dec 2026');
+    expect(formatShortDayDate('2026-12-25', {withYear: false})).toBe('Fri 25 Dec');
     expect(formatTimeRange(ukTime(MONDAY, '09:00'), ukTime(MONDAY, '09:30'))).toBe('09:00 to 09:30');
   });
 });

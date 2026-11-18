@@ -15,7 +15,9 @@ public static class CalendarMapper
     /// <summary>
     /// A calendar: its days and template blocks worked out from <paramref name="data"/> (<see cref="CalendarProjection"/>),
     /// its stored blocks, its appointments and its meetings, by start time. Blocks can be changed when <paramref name="canEdit"/> and
-    /// they aren't on a past day.
+    /// they aren't on a past day. Blocks and meetings an appointment overlaps are flagged (a later template change, or
+    /// an appointment recorded after the event, can make them overlap); so is a closed day, by name, and whatever is
+    /// on it shows as it is.
     /// </summary>
     /// <param name="defaultWeek">The person's default week template row valid today, with its week template.</param>
     /// <param name="usernames">The usernames the appointments and meetings name (<see cref="UserIds"/>).</param>
@@ -58,7 +60,12 @@ public static class CalendarMapper
             Meetings = data.Meetings
                 .OrderBy(m => m.StartUtc)
                 .ThenBy(m => m.Id)
-                .Select(m => MeetingMapper.ToResponse(m, usernames, viewer ?? Nobody, nowUtc))
+                .Select(m =>
+                {
+                    var meeting = MeetingMapper.ToResponse(m, usernames, viewer ?? Nobody, nowUtc);
+                    meeting.OverlapsAppointment = OverlapsAny(appointments, m.StartUtc, m.EndUtc);
+                    return meeting;
+                })
                 .ToList()
         };
     }
@@ -73,6 +80,7 @@ public static class CalendarMapper
     {
         Date = day.Date,
         IsWorkingDay = day.IsWorkingDay,
+        ClosedDayName = day.ClosedDayName,
         IsPast = day.IsPast,
         IsToday = day.IsToday,
         WorkStartUtc = day.WorkStartUtc,

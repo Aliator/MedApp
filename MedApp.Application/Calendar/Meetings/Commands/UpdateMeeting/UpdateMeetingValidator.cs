@@ -7,7 +7,7 @@ public sealed class UpdateMeetingValidator : MeetingValidation<UpdateMeetingComm
 {
     public const string NoExpectedLastUpdated = "The meeting's last updated time, as you last saw it, is required.";
 
-    public UpdateMeetingValidator()
+    public UpdateMeetingValidator(WorkingDays workingDays) : base(workingDays)
     {
         RuleFor(x => x.MeetingId).NotEmpty().WithMessage("Meeting id is required.");
 

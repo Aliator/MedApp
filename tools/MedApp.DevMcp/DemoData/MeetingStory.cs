@@ -11,7 +11,7 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// One meeting's history, replayed through the app's own meeting steps in memory: each version checked by the
 /// commands' validators (<see cref="CreateMeetingValidator"/>, <see cref="UpdateMeetingValidator"/>: the working
-/// day's rules, the title, notes and attendees), the past-day guard (<see cref="CalendarGuards.EnsureNotPast"/>), and
+/// day's rules, bank holidays included, the title, notes and attendees), the past-day guard (<see cref="CalendarGuards.EnsureNotPast"/>), and
 /// its notifications made by <see cref="MeetingNotifications"/>, as the create, update and cancel handlers send them.
 /// Whoever changes it must be an admin then. Clashes are the caller's to check (<see cref="CalendarClashes"/>), on
 /// every attendee's calendar, as the handlers do before each step. Attendees' replies go through
@@ -19,8 +19,8 @@ namespace MedApp.DevMcp.DemoData;
 /// </summary>
 public sealed class MeetingStory
 {
-    private static readonly CreateMeetingValidator CreateValidator = new();
-    private static readonly UpdateMeetingValidator UpdateValidator = new();
+    private static readonly CreateMeetingValidator CreateValidator = new(DemoClosedDays.WorkingDays);
+    private static readonly UpdateMeetingValidator UpdateValidator = new(DemoClosedDays.WorkingDays);
     private static readonly ReplyToMeetingValidator ReplyValidator = new();
 
     private readonly List<Notification> _notifications = [];
@@ -43,7 +43,7 @@ public sealed class MeetingStory
         string title, string notes, DateTime startUtc, DateTime endUtc, IReadOnlyCollection<Guid> attendees, StaffMember by, DateTime atUtc)
     {
         var actor = ActorAt(by, atUtc);
-        CreateValidator.ValidateAndThrow(new CreateMeetingCommand(title, notes, startUtc, endUtc, attendees.ToList(), actor));
+        DemoClosedDays.Validate(CreateValidator, new CreateMeetingCommand(title, notes, startUtc, endUtc, attendees.ToList(), actor));
         CalendarGuards.EnsureNotPast(UkTime.DateOf(startUtc), UkTime.DateOf(atUtc));
 
         var id = Guid.NewGuid();
@@ -72,7 +72,7 @@ public sealed class MeetingStory
         EnsureOpen(atUtc);
         var meeting = Meeting;
         var actor = ActorAt(by, atUtc);
-        UpdateValidator.ValidateAndThrow(new UpdateMeetingCommand(
+        DemoClosedDays.Validate(UpdateValidator, new UpdateMeetingCommand(
             meeting.Id, meeting.Title, meeting.Notes, startUtc, endUtc, attendees.ToList(), meeting.LastUpdated, actor));
         var today = UkTime.DateOf(atUtc);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(meeting.StartUtc), today);

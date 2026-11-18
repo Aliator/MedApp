@@ -223,6 +223,6 @@ public sealed class AppointmentSearchTests
     [Test]
     public void StatusNames_ListsEveryStatus()
     {
-        AppointmentSearch.StatusNames.Should().Be("Requested, Booked, Attended, DidNotAttend, Cancelled");
+        AppointmentSearch.StatusNames.Should().Be("Requested, Booked, Attended, DidNotAttend, Cancelled, EnteredInError");
     }
 }

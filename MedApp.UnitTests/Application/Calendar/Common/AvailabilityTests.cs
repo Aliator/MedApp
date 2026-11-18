@@ -365,4 +365,31 @@ public sealed class AvailabilityTests
 
     private static DateTime Utc(int year, int month, int day, int hour, int minute = 0) =>
         new(year, month, day, hour, minute, 0, DateTimeKind.Utc);
+
+    // Closed days
+
+    [Test]
+    public void FreeTime_ClosedDay_IsLeftOutLikeAWeekend()
+    {
+        var closed = new ClosedDaySet([CreateClosedDay()]);
+        var data = Empty(StaffUserId, NextMonday, NextFriday) with { ClosedDays = closed };
+
+        var days = Availability.FreeTime([data], NextMonday, NextFriday, LongBefore);
+
+        days.Select(d => d.Date).Should().Equal(NextMonday, NextMonday.AddDays(1), NextMonday.AddDays(3), NextFriday);
+        Availability.Suggestions(days, 60).Should().NotContain(s => UkTime.DateOf(s.StartUtc) == ClosedWednesday);
+    }
+
+    [Test]
+    public void FreeTime_ClosedDayKnownToAnyOfThePeople_IsLeftOut()
+    {
+        var closed = new ClosedDaySet([CreateClosedDay()]);
+        var people = new[]
+        {
+            Empty(StaffUserId, ClosedWednesday),
+            Empty(OtherStaffUserId, ClosedWednesday) with { ClosedDays = closed }
+        };
+
+        Availability.FreeTime(people, ClosedWednesday, ClosedWednesday, LongBefore).Should().BeEmpty();
+    }
 }

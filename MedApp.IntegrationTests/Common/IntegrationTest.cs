@@ -284,6 +284,45 @@ public abstract class IntegrationTest
         return date;
     }
 
+    /// <summary>The last weekday (Monday to Friday) before today by the API's clock: a day a walk-in can be recorded on.</summary>
+    protected static DateOnly PreviousWorkingDay()
+    {
+        var date = UkToday.AddDays(-1);
+        while (!WorkingHours.IsWorkingDay(date))
+            date = date.AddDays(-1);
+        return date;
+    }
+
+    /// <summary>Records an appointment after the event (a walk-in): the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostPastAppointmentAsync(
+        HttpClient client,
+        Guid patientId,
+        Guid staffUserId,
+        DateTime startUtc,
+        string outcome = "Attended",
+        int minutes = AppointmentMinutes,
+        Guid? procedureId = null,
+        Guid? stageId = null,
+        string? notes = null) =>
+        client.PostAsJsonAsync("/api/appointments/past", new RecordPastAppointmentRequest
+        {
+            PatientId = patientId,
+            ProcedureId = procedureId,
+            StageId = stageId,
+            StaffUserId = staffUserId,
+            StartUtc = startUtc,
+            EndUtc = startUtc.AddMinutes(minutes),
+            Outcome = outcome,
+            Notes = notes,
+        });
+
+    /// <summary>Closes the clinic on a day (an admin's request): the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostClosedDayAsync(HttpClient client, DateOnly date, string name = ClosedDayName) =>
+        client.PostAsJsonAsync("/api/calendar/closed-days", new CreateClosedDayRequest { Date = date, Name = name });
+
+    protected static async Task<ClosedDayResponse> AddClosedDayAsync(HttpClient admin, DateOnly date, string name = ClosedDayName) =>
+        await (await PostClosedDayAsync(admin, date, name)).ReadAsAsync<ClosedDayResponse>(HttpStatusCode.Created);
+
     /// <summary>Moves the API's clock to a minute after this moment (e.g. an appointment's start), so it has passed.</summary>
     protected static void MoveClockPast(DateTime utc) => Clock.SetUtcNow(utc.AddMinutes(1));
 

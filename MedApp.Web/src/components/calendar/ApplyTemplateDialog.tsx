@@ -7,7 +7,7 @@ import {useState} from 'react';
 import {calendarDaysQuery, dayTemplatesQuery, useCalendarActions, type CalendarDay} from '../../api/calendar';
 import {ApiError, problemMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {addDays, formatShortDay, weekStart} from '../../utils/calendarSlots';
+import {addDays, formatShortDay, isWeekday, weekStart} from '../../utils/calendarSlots';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
@@ -36,7 +36,8 @@ export interface ApplyTemplateDialogProps {
 /**
  * Apply Template (docs/calendar-plan.md, decision 69): one of a person's day templates, an empty day ("No template"),
  * or "The default week's" (the day's override removed), on any of the working days of a week, ticked. Each day says
- * what applies now, and past days are shown but can't be ticked, as the API refuses them (409). There's no batch
+ * what applies now, and past days and closed days ("Closed: Christmas Day") are shown but can't be ticked, as the API
+ * refuses them (409). There's no batch
  * endpoint, so each day is its own call, all at once; days that fail are named with the API's reason and stay ticked,
  * and the dialog stays open, while those that worked stay applied.
  *
@@ -83,8 +84,9 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
   const week = useQuery({...daysQuery, enabled: isOpen, refetchOnMount: 'always'});
   const templates = useQuery({...dayTemplatesQuery(staffUserId), enabled: isOpen && staffUserId !== ''});
 
-  const days = (week.data?.days ?? []).filter((d) => d.isWorkingDay);
-  const canChange = (d: CalendarDay) => !d.isPast;
+  // The weekdays: a closed one (a bank holiday) shows, but can't change, as a past one can't.
+  const days = (week.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && isWeekday(d.date ?? '')));
+  const canChange = (d: CalendarDay) => !d.isPast && !d.closedDayName;
 
   const [choice, setChoice] = useState<string | undefined>(undefined);
   // What's ticked: until someone ticks or unticks, the start date when it's a day that can change.
@@ -197,7 +199,9 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
               key={d.date}
               value={d.date ?? ''}
               label={dayLabel(d)}
-              description={!canChange(d) ? "Past days can't change" : d.isDayTemplateOverridden ? 'Changed for this day' : undefined}
+              description={
+                d.isPast ? "Past days can't change" : d.closedDayName ? `Closed: ${d.closedDayName}` : d.isDayTemplateOverridden ? 'Changed for this day' : undefined
+              }
               isDisabled={!canChange(d)}
             />
           ))}

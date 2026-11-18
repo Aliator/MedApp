@@ -2,6 +2,8 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
+using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.AppointmentsTestConstants;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
@@ -51,6 +53,8 @@ public sealed class AppointmentNotificationsTests
     [TestCase(NotificationKind.AppointmentBooked, "Appointment booked")]
     [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved")]
     [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled")]
+    [TestCase(NotificationKind.AppointmentRecorded, "Appointment recorded")]
+    [TestCase(NotificationKind.StageVisitWithdrawn, "Stage visit withdrawn")]
     public void TitleOf_EachAppointmentKind_IsAFixedPhrase(NotificationKind kind, string title)
     {
         AppointmentNotifications.TitleOf(kind).Should().Be(title);
@@ -235,5 +239,114 @@ public sealed class AppointmentNotificationsTests
 
         AppointmentNotifications.AfterCancelling(appointment, AppointmentStatus.Booked, Colleague, Now)
             .Should().BeEmpty();
+    }
+
+    // After recording one after the event
+
+    private static Appointment Recorded(AppointmentStatus outcome, Guid? staffUserId = null)
+    {
+        var appointment = BookedAt(At(Today.AddDays(-3), 10), staffUserId);
+        appointment.Status = outcome;
+        appointment.IsRecordedAfterEvent = true;
+        return appointment;
+    }
+
+    [TestCase(AppointmentStatus.Attended, "attended")]
+    [TestCase(AppointmentStatus.DidNotAttend, "did not attend")]
+    public void AfterRecording_BySomeoneElse_TellsTheStaffMemberWhenAndTheOutcome(AppointmentStatus outcome, string words)
+    {
+        var appointment = Recorded(outcome);
+
+        var notification = AppointmentNotifications.AfterRecording(appointment, Colleague, Now).Should().ContainSingle().Subject;
+
+        notification.UserId.Should().Be(StaffUserId);
+        notification.Kind.Should().Be(NotificationKind.AppointmentRecorded);
+        notification.Title.Should().Be("Appointment recorded");
+        notification.Message.Should().Be($"calendar.colleague recorded an appointment you had on Friday 13 November at 10:00, as {words}.");
+        notification.AppointmentId.Should().Be(appointment.Id);
+        notification.ProcedureId.Should().Be(appointment.ProcedureId);
+        notification.CreatedAtUtc.Should().Be(Now);
+        notification.Message.Should().NotContain(Notes).And.NotContain(PatientLastName);
+    }
+
+    [Test]
+    public void AfterRecording_ByTheStaffMemberThemselves_TellsNobody()
+    {
+        AppointmentNotifications.AfterRecording(Recorded(AppointmentStatus.Attended), Self, Now).Should().BeEmpty();
+    }
+
+    [Test]
+    public void AfterRecording_NotAnOutcome_TellsNobody()
+    {
+        AppointmentNotifications.AfterRecording(BookedAt(At(NextMonday, 10)), Colleague, Now).Should().BeEmpty();
+    }
+
+    /// <summary>A walk-in for a finished stage, withdrawn, on a procedure assigned to the member of staff.</summary>
+    private static (Appointment Withdrawn, PatientProcedure Procedure, PatientProcedureStage Stage) WithdrawnFromFinishedStage()
+    {
+        var withdrawn = Recorded(AppointmentStatus.Attended);
+        withdrawn.Status = AppointmentStatus.EnteredInError;
+        var procedure = LinkToProcedure(withdrawn);
+        var stage = procedure.StageAt(1);
+        stage.IsCompleted = true;
+        stage.CompletedAtUtc = At(Today.AddDays(-3), 15);
+        procedure.Assignments.Clear();
+        procedure.Assignments.Add(new PatientProcedureAssignment { PatientProcedureId = procedure.Id, UserId = StaffUserId });
+        return (withdrawn, procedure, stage);
+    }
+
+    private static readonly Guid OtherAdmin = Guid.Parse("0000000b-0000-0000-0000-0000000000ad");
+
+    [Test]
+    public void AfterStageVisitWithdrawn_TellsTheAssigneesAndAdmins_ButNotWhoWithdrewIt()
+    {
+        var (withdrawn, procedure, stage) = WithdrawnFromFinishedStage();
+
+        var notifications = AppointmentNotifications.AfterStageVisitWithdrawn(
+            withdrawn, procedure, stage, [OtherAdmin, Colleague.UserId, StaffUserId], Colleague, Now);
+
+        notifications.Select(n => n.UserId).Should().Equal(StaffUserId, OtherAdmin);
+        notifications.Should().AllSatisfy(n =>
+        {
+            n.Kind.Should().Be(NotificationKind.StageVisitWithdrawn);
+            n.Title.Should().Be("Stage visit withdrawn");
+            n.Message.Should().Be(
+                $"calendar.colleague marked the visit on Friday 13 November at 10:00 for the '{StageName}' stage entered in error. " +
+                "The stage was finished on Friday 13 November and now has no attended visit, though it requires one. " +
+                "If it still needs its visit, an admin can unlock it, and then book one.");
+            n.ProcedureId.Should().Be(procedure.Id);
+            n.AppointmentId.Should().BeNull("the appointment is off the calendar; the link is to the procedure");
+            n.CreatedAtUtc.Should().Be(Now);
+            n.Message.Should().NotContain(ProcedureTitle).And.NotContain(Notes).And.NotContain(PatientLastName);
+        });
+    }
+
+    [Test]
+    public void AfterStageVisitWithdrawn_WithNoTimes_SaysAVisit()
+    {
+        var (withdrawn, procedure, stage) = WithdrawnFromFinishedStage();
+        withdrawn.StartUtc = null;
+        stage.CompletedAtUtc = null;
+
+        AppointmentNotifications.AfterStageVisitWithdrawn(withdrawn, procedure, stage, [], Colleague, Now)
+            .Should().ContainSingle().Which.Message.Should().StartWith(
+                $"calendar.colleague marked a visit for the '{StageName}' stage entered in error. The stage was finished and now");
+    }
+
+    [Test]
+    public void HasFixedTitle_StageVisitWithdrawn_NotMonitoring()
+    {
+        Notification.HasFixedTitle(NotificationKind.StageVisitWithdrawn).Should().BeTrue();
+        Notification.IsMonitoring(NotificationKind.StageVisitWithdrawn).Should().BeFalse();
+        ((int)NotificationKind.StageVisitWithdrawn).Should().Be(22);
+    }
+
+    [Test]
+    public void HasFixedTitle_EveryCalendarKind_AndNotTheProcedureAssignment()
+    {
+        Notification.HasFixedTitle(NotificationKind.AppointmentRecorded).Should().BeTrue();
+        Notification.HasFixedTitle((NotificationKind)7).Should().BeTrue("7 and 8 are kept for calendar kinds, which have fixed titles");
+        Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+        Notification.IsMonitoring(NotificationKind.AppointmentRecorded).Should().BeFalse();
     }
 }

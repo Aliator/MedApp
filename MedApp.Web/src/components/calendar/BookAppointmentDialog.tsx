@@ -36,6 +36,7 @@ import {
   formatTimeRange,
   freeStartsByDay,
   isMorning,
+  isWeekday,
   minutesBetween,
   sameMoment,
   SLOT_MINUTES,
@@ -229,7 +230,8 @@ function BookingForm({
     () => (calendar.data && isFine ? freeStartsByDay(calendar.data, length, now, appointment?.id, stepMinutes) : undefined),
     [calendar.data, length, now, appointment?.id, stepMinutes, isFine],
   );
-  const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay);
+  // Monday to Friday: a closed one (a bank holiday) shows as closed, so the days stay under their weekdays.
+  const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && isWeekday(d.date ?? '')));
   const firstFreeDay = weekDays.find((d) => (free[d.date ?? '']?.length ?? 0) > 0)?.date;
 
   // Nothing free this week when it opens (a Friday evening, a full week): look a few weeks on for the first free day.
@@ -451,13 +453,13 @@ function BookingForm({
             <Grid columns={5} gap={1.5}>
               {weekDays.map((d) => {
                 const count = free[d.date ?? '']?.length ?? 0;
-                const words = d.isPast ? 'Past' : count === 0 ? 'Full' : `${count} free`;
+                const words = d.closedDayName ? 'Closed' : d.isPast ? 'Past' : count === 0 ? 'Full' : `${count} free`;
                 const isChosen = d.date === day;
                 return (
                   <ToggleButton
                     key={d.date}
                     // The words people see, in order (WCAG 2.5.3, label in name): "Mon 23, 35 free times".
-                    label={`${formatShortDay(d.date ?? '')}, ${count === 0 ? words : `${count} free ${count === 1 ? 'time' : 'times'}`}`}
+                    label={`${formatShortDay(d.date ?? '')}, ${d.closedDayName ? `closed: ${d.closedDayName}` : count === 0 ? words : `${count} free ${count === 1 ? 'time' : 'times'}`}`}
                     isPressed={isChosen}
                     isDisabled={count === 0}
                     // Two lines (the day, then how many times are free): a button's own height fits one.
@@ -570,7 +572,8 @@ function BookingForm({
   );
 }
 
-function visitWords(requirement: string | null | undefined): string | null {
+/** A stage's visit in words, for a list of stages: "Visit required", "Visit suggested", or nothing. */
+export function visitWords(requirement: string | null | undefined): string | null {
   return requirement === 'Required' ? 'Visit required' : requirement === 'Suggested' ? 'Visit suggested' : null;
 }
 
@@ -616,10 +619,14 @@ function TimeChoices({
 }
 
 /** A patient found by the picker, with who they are for their banner once chosen. */
-type PatientItem = SearchableItem<AppointmentPatientDetails>;
+export type PatientItem = SearchableItem<AppointmentPatientDetails>;
 
-/** Finds a patient by name as it's typed: one word matches first or last names, two or more a first and a last name. */
-function PatientPicker({
+/**
+ * Finds a patient by name as it's typed: one word matches first or last names, two or more a first and a last name. Each
+ * is listed with their date of birth and NHS number, to tell patients with the same name apart. The appointment dialogs
+ * use it (booking, and recording a past appointment).
+ */
+export function PatientPicker({
   value,
   onChange,
   status,

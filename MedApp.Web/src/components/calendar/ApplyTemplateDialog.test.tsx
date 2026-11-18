@@ -93,6 +93,20 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29&WithoutAppointments=true');
   });
 
+  it("shows a closed day, saying so, but won't tick it, even as the start day", async () => {
+    const calendar = week();
+    calendar.days = calendar.days!.map((d) => (d.date === WEDNESDAY ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
+    const {user} = renderDialog({}, {'GET /api/calendar': () => json(calendar)});
+
+    const days = await dialog().findByRole('group', {name: /Days/});
+    expect(within(days).getAllByRole('checkbox')).toHaveLength(5);
+    expect(dialog().getByText('Closed: Staff training day')).toBeInTheDocument();
+    expect(isDisabled(day(/^Wed 25/))).toBe(true);
+    expect(day(/^Wed 25/)).not.toBeChecked();
+    await user.click(day(/^Wed 25/));
+    expect(day(/^Wed 25/)).not.toBeChecked();
+  });
+
   it('reads the week again each time it opens', async () => {
     const fetch = mockApi({
       'GET /api/calendar': () => json(week()),
@@ -210,6 +224,53 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     expect(dialog().getByText(/^Wed 25: It still has a day template of its own/)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     expect(day(/^Wed 25/)).toBeChecked();
+  });
+
+  it("names a day the default week's couldn't go back to, and one still with a template of its own", async () => {
+    withAnnouncements();
+    const {user, onClose} = renderDialog(
+      {},
+      {
+        // Wednesday was given a template meanwhile, which is still there after; Thursday's can't be cleared.
+        'GET /api/calendar': () => {
+          const calendar = week();
+          calendar.days = calendar.days!.map((d) => (d.date === WEDNESDAY ? {...d, isDayTemplateOverridden: true} : d));
+          return json(calendar);
+        },
+        [`DELETE ${DAY('2026-11-25')}`]: () => new Response(null, {status: 204}),
+        [`DELETE ${DAY('2026-11-26')}`]: () => json({title: 'Something went wrong.'}, 500),
+      },
+    );
+
+    await dialog().findByRole('group', {name: /Days/});
+    await choose(user, "The default week's");
+    await user.click(day(/^Thu 26/));
+    await user.click(dialog().getByRole('button', {name: 'Apply'}));
+
+    expect(await dialog().findByText(/^Wed 25: It still has a day template of its own/)).toBeInTheDocument();
+    // Thursday is named for why it failed, not again for still having its own template.
+    expect(dialog().getByText("2 days couldn't be changed")).toBeInTheDocument();
+    expect(dialog().queryByText(/^Thu 26: It still has a day template/)).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes once every day went back to the default week's, even if the week can't be read again to check", async () => {
+    withAnnouncements();
+    let reads = 0;
+    const {user, onClose} = renderDialog(
+      {},
+      {
+        'GET /api/calendar': () => (++reads === 1 ? json(week()) : json({title: 'Down'}, 500)),
+        [`DELETE ${DAY('2026-11-25')}`]: NOTHING_TO_CLEAR,
+      },
+    );
+
+    await dialog().findByRole('group', {name: /Days/});
+    await choose(user, "The default week's");
+    await user.click(dialog().getByRole('button', {name: 'Apply'}));
+
+    await expectAnnounced("Back to the default week's template on Wed 25");
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('keeps the dialog open and names the days that failed, leaving only those ticked', async () => {

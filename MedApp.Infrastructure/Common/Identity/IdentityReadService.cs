@@ -121,7 +121,7 @@ public sealed class IdentityReadService(
     public async Task<IReadOnlyList<Guid>> GetAdminIdsAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return (await userManager.GetUsersInRoleAsync(FirstAdminSetup.AdminRole)).Select(u => u.Id).ToList();
+        return (await userManager.GetUsersInRoleAsync(AppRoles.Admin)).Select(u => u.Id).ToList();
     }
 
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)

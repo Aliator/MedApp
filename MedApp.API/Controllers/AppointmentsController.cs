@@ -2,7 +2,9 @@ using MedApp.API.Common.Authentication;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Commands.RecordAppointmentOutcome;
+using MedApp.Application.Appointments.Commands.RecordPastAppointment;
 using MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
@@ -41,6 +43,31 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StaffUserId,
             request.StartUtc,
             request.EndUtc,
+            request.Notes,
+            User.ToProcedureActor()), ct);
+
+        return Created($"/api/appointments/{appointment.Id}", appointment);
+    }
+
+    /// <summary>
+    /// Records an appointment that has already happened (a walk-in, or one booked outside MedApp) with its outcome:
+    /// started within the last 30 days, on a working day. A stage's visit in Requires Appointment becomes this one.
+    /// </summary>
+    [HttpPost("past")]
+    [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RecordPastAppointment([FromBody] RecordPastAppointmentRequest request, CancellationToken ct)
+    {
+        var appointment = await mediator.Send(new RecordPastAppointmentCommand(
+            request.PatientId,
+            request.ProcedureId,
+            request.StageId,
+            request.StaffUserId,
+            request.StartUtc,
+            request.EndUtc,
+            request.Outcome,
             request.Notes,
             User.ToProcedureActor()), ct);
 
@@ -95,6 +122,19 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RecordOutcome(Guid id, [FromBody] RecordAppointmentOutcomeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RecordAppointmentOutcomeCommand(id, request.Outcome, User.ToProcedureActor()), ct));
+
+    /// <summary>
+    /// Withdraws an appointment recorded after the event as entered in error (it didn't happen, or it's on the wrong
+    /// patient), with a reason: by whoever recorded it, or an admin, within 30 days of it.
+    /// </summary>
+    [HttpPost("{id:guid}/entered-in-error")]
+    [ProducesResponseType(typeof(EnteredInErrorResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] MarkEnteredInErrorRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToProcedureActor(), User.IsInRole("Admin")), ct));
 
     [HttpPost("{id:guid}/cancel")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]

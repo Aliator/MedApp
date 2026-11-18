@@ -534,6 +534,27 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments'));
   });
 
+  it('shows a closed day in its week as closed, with nothing to choose', async () => {
+    atMondayMorning();
+    renderDialog(
+      {patient: TEST_PATIENT},
+      {
+        'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+        'GET /api/calendar': (request) => {
+          const from = new URL(request.url).searchParams.get('From')!;
+          const calendar = testCalendar({from, dayCount: 5, today: MONDAY});
+          calendar.days = calendar.days!.map((d) => (d.date === '2026-11-25' ? {...d, isWorkingDay: false, closedDayName: 'Staff training day'} : d));
+          return json(calendar);
+        },
+      },
+    );
+
+    const closed = await screen.findByRole('button', {name: 'Wed 25, closed: Staff training day'});
+    expect(closed).toHaveTextContent('Closed');
+    expect(isDisabled(closed)).toBe(true);
+    expect(dialog().getByRole('button', {name: 'Thu 26, 39 free times'})).toBeInTheDocument();
+  });
+
   it("won't book a restricted patient, and says why", async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(

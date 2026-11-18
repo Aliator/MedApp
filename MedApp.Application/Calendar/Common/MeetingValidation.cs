@@ -14,13 +14,14 @@ public interface IMeetingCommand
 
 /// <summary>
 /// The rules for a meeting: a title of at most 100 characters, notes of at most 500, the working day's rules for its
-/// time (one weekday, 08:00 to 18:00 UK time, on 5-minute boundaries), and at least one attendee.
+/// time (one working day, not a weekend or a closed day, 08:00 to 18:00 UK time, on 5-minute boundaries), and at least
+/// one attendee.
 /// </summary>
 public abstract class MeetingValidation<T> : AbstractValidator<T> where T : IMeetingCommand
 {
     public const string NoAttendees = "A meeting needs at least one attendee.";
 
-    protected MeetingValidation()
+    protected MeetingValidation(WorkingDays workingDays)
     {
         RuleFor(x => x.Title)
             .Must(title => !string.IsNullOrWhiteSpace(title))
@@ -32,9 +33,7 @@ public abstract class MeetingValidation<T> : AbstractValidator<T> where T : IMee
             .MaximumLength(MeetingLimits.MaxNotesLength)
             .WithMessage($"Notes must not exceed {MeetingLimits.MaxNotesLength} characters.");
 
-        RuleFor(x => x.StartUtc)
-            .Must((x, start) => WorkingHours.WhyOutside(start, x.EndUtc) is null)
-            .WithMessage(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc)!);
+        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
 
         RuleFor(x => x.AttendeeUserIds)
             .Cascade(CascadeMode.Stop)

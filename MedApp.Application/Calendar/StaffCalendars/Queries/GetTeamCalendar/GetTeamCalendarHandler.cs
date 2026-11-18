@@ -15,6 +15,7 @@ namespace MedApp.Application.Calendar.StaffCalendars.Queries.GetTeamCalendar;
 /// </summary>
 public sealed class GetTeamCalendarHandler(
     ICalendarRepository repository,
+    IClosedDayRepository closedDays,
     IIdentityReadService identityReadService,
     IActivityLog activityLog,
     TimeProvider timeProvider)
@@ -40,7 +41,13 @@ public sealed class GetTeamCalendarHandler(
         return new TeamCalendarResponse
         {
             Date = request.Date,
-            Day = CalendarMapper.ToResponse(CalendarProjection.Days(CalendarData.Empty(Guid.Empty, request.Date, request.Date), today)[0]),
+            // The day itself, closed or not (the "Everyone free" column), whoever is shown, even nobody.
+            Day = CalendarMapper.ToResponse(CalendarProjection.Days(
+                CalendarData.Empty(Guid.Empty, request.Date, request.Date) with
+                {
+                    ClosedDays = new ClosedDaySet(await closedDays.GetAsync(request.Date, request.Date, cancellationToken))
+                },
+                today)[0]),
             Members = staff
                 .Select(s =>
                 {

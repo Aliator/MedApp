@@ -263,6 +263,7 @@
   - **`NotificationResponse`** keeps `main`'s `NoteDeletionRequestId` then adds `MeetingId`, both nullable and last; the mapper passes them in that order, and `schema.d.ts` has both.
   - **`NotificationBell`** keeps `main`'s note deletion link and icons, and adds `&meeting=` and the decline's icon.
   - **Documents:** both sides' text kept; this PR's version entries renumbered after `main`'s (data inventory 0.11, DPIA 0.13, privacy notice 0.6, rights procedure 0.6, governance README 0.5).
+  - **Merged `main` again at `43c6bbe`** (#119, closed days and walk-ins). Its migration `20261118063757_AddedClosedDaysAndPastAppointments` sorts before this PR's two, so they keep their IDs; their designers were regenerated so they include #119's model, and `has-pending-model-changes` reports none. `NotificationKind` has both sides: `MeetingDeclined = 7` here, `DayClosed = 8`, `AppointmentRecorded = 9` and `StageVisitWithdrawn = 22` from #119, whose `HasFixedTitle` (1 to 9, and 22) already covers 7. A meeting on a calendar is now both faded for its decliner (`isFaded`) and flagged when an appointment overlaps it (`isFlagged`, `OverlapsAppointment`), and the meeting mapper keeps this PR's viewer and clock. DPIA 0.14 records this PR after #119's 0.13.
 
 ### Remaining risks after the follow-up
 

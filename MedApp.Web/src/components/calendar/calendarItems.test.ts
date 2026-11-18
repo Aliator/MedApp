@@ -29,9 +29,17 @@ describe('calendarItems', () => {
       description: 'MDT, meeting, 09:00 to 10:00, 2 attending',
       isMovable: true,
       isFaded: false,
+      isFlagged: false,
     });
     expect(MEETING_COLOUR).toBe('teal');
     expect(meetingKey('m1')).toBe('meeting-m1');
+  });
+
+  it('flags a meeting an appointment overlaps (one recorded after the event may), saying so', () => {
+    const item = meetingItem(testMeeting({date: MONDAY, start: '09:00', end: '10:00', overlapsAppointment: true}));
+
+    expect(item.isFlagged).toBe(true);
+    expect(item.description).toBe('Team huddle, meeting, 09:00 to 10:00, 2 attending, overlaps an appointment');
   });
 
   it('lets only those who can change a meeting move it, and copes with missing details', () => {

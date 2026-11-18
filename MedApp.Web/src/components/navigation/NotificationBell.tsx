@@ -17,8 +17,9 @@ import {AppIcon} from '../shared/icons';
 /**
  * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
  * procedure's page (for the admin to decide), a procedure on its page, and anything else about a day on the calendar
- * (a meeting) opens that day there, with the meeting itself open when it has one (an invitation, a move, a decline; not
- * a cancellation), so an organiser told of a decline sees who, even if they aren't going.
+ * (a meeting, a day closed with something of yours on it) opens that day there, with the meeting itself open when it
+ * has one (an invitation, a move, a decline; not a cancellation), so an organiser told of a decline sees who, even if
+ * they aren't going.
  */
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
@@ -37,10 +38,13 @@ const KIND_ICONS: Record<string, IconType> = {
   AppointmentBooked: AppIcon.AppointmentBooked,
   AppointmentRescheduled: AppIcon.Book,
   AppointmentCancelled: AppIcon.StatusCancelled,
+  AppointmentRecorded: AppIcon.RecordPast,
   MeetingInvited: AppIcon.Meeting,
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,
   MeetingDeclined: AppIcon.MeetingDeclined,
+  DayClosed: AppIcon.ClosedDays,
+  StageVisitWithdrawn: AppIcon.EnteredInError,
   NoteDeletionRequested: AppIcon.Delete,
   NoteDeletionApproved: AppIcon.Delete,
   NoteDeletionDeclined: AppIcon.Notes,
