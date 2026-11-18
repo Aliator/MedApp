@@ -41,7 +41,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.AddressLines,
             request.Postcode,
             request.MobilePhone,
-            request.PracticeId
+            request.PracticeId,
+            request.ReminderChannel
         );
 
         var patient = await mediator.Send(command);
@@ -138,7 +139,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.AddressLines,
             request.Postcode,
             request.MobilePhone,
-            request.PracticeId
+            request.PracticeId,
+            request.ReminderChannel
         );
 
         var patient = await mediator.Send(command);

@@ -10,6 +10,7 @@ using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
+using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Practices;
@@ -73,6 +74,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<StaffWeekTemplate> StaffWeekTemplates => Set<StaffWeekTemplate>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentEvent> AppointmentEvents => Set<AppointmentEvent>();
+    public DbSet<PatientMessage> PatientMessages => Set<PatientMessage>();
     public DbSet<SignInChallenge> SignInChallenges => Set<SignInChallenge>();
     public DbSet<EmailCode> EmailCodes => Set<EmailCode>();
     public DbSet<SecuritySettings> SecuritySettings => Set<SecuritySettings>();

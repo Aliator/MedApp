@@ -35,6 +35,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {ageOn, formatDate, parseUtc} from '../../utils/dates';
+import {reminderChannelLabel} from '../../api/patientMessages';
 import {formatMobile} from '../../utils/contactDetails';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
@@ -296,6 +297,7 @@ function PatientDetails({patient}: {patient: Patient}) {
         <MetadataListItem label="Address">
           <AddressLines lines={patient.addressLines} postcode={patient.postcode} />
         </MetadataListItem>
+        <MetadataListItem label="Reminders">{reminderChannelLabel(patient.reminderChannel)}</MetadataListItem>
       </ViewSection>
       <ViewSection title="GP Practice" useGrid={false}>
         {patient.practice ? (

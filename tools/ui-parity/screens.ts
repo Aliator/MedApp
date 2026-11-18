@@ -323,6 +323,11 @@ export const screens: Screen[] = [
     },
   },
   { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
+  {
+    name: 'requires-appointment-dna',
+    title: 'Requires Appointment, Did not attend: missed appointments with no later one, oldest first, with their follow-up',
+    path: '/calendar/requires-appointment?view=didNotAttend',
+  },
   { name: 'my-tasks', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',

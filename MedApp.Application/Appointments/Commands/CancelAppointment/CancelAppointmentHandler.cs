@@ -3,7 +3,10 @@ using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.PatientMessages.Common;
 using MedApp.Contracts.Appointments.Responses;
+using MedApp.Domain.Appointments;
+using MedApp.Domain.PatientMessages;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.CancelAppointment;
@@ -12,6 +15,7 @@ public sealed class CancelAppointmentHandler(
     IAppointmentRepository repository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    IPatientMessageOutbox patientMessages,
     TimeProvider timeProvider)
     : IRequestHandler<CancelAppointmentCommand, AppointmentResponse>
 {
@@ -30,6 +34,11 @@ public sealed class CancelAppointmentHandler(
 
         var change = new AppointmentChange(appointment, request.Actor, now, staffUsername);
         change.Cancel(request.Reason.Trim());
+
+        // Telling the patient, saved with the cancellation (the job sends it): only for a booking still to come.
+        if (request.TellPatient && previousStatus == AppointmentStatus.Booked && appointment.StartUtc > now)
+            await patientMessages.StageAsync(
+                appointment, PatientMessageKind.AppointmentCancelled, request.Actor.UserId, now, cancellationToken);
 
         await repository.SaveAsync(change.Events, cancellationToken);
 

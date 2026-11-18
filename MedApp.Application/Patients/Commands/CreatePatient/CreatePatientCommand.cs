@@ -12,5 +12,7 @@ public sealed record CreatePatientCommand(
     IReadOnlyList<string>? AddressLines = null,
     string? Postcode = null,
     string? MobilePhone = null,
-    Guid? PracticeId = null
+    Guid? PracticeId = null,
+    // None, Text, Email or TextAndEmail; null is None.
+    string? ReminderChannel = null
 ) : IRequest<PatientResponse>;

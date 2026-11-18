@@ -3,10 +3,12 @@ import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import type {Appointment} from '../../api/appointments';
 import {STAFF_ME, TEST_PATIENT, testAppointment, testCalendar, testRequested} from '../../test/calendar';
-import {adminUser, expectAnnounced, isDisabled, json, managerUser, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, calls, expectAnnounced, isDisabled, json, managerUser, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
 
 const MONDAY = '2026-11-23';
+/** Patient messages switched on (to the development mailbox). */
+const MESSAGES_ON = {mode: 'Offline', isOn: true, sendsMissedAppointmentMessages: true, reminderDaysBefore: 2};
 
 function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}, stepMinutes?: number, user = staffUser) {
   const onClose = vi.fn();
@@ -191,6 +193,189 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     await expectAnnounced('Appointment cancelled');
     expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/cancel')).toEqual({reason: 'Patient unwell.'});
     expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+  });
+
+  it('offers to tell the patient of a cancellation while messages are on, ticked when they chose a channel', async () => {
+    const appointment = testAppointment({id: 'appt-1', patientReminderChannel: 'Email'});
+    const {user, fetch} = renderDialog(appointment, {
+      'GET /api/appointments/patient-messages/status': () => json(MESSAGES_ON),
+      'GET /api/appointments/appt-1/messages': () => json([]),
+      'POST /api/appointments/appt-1/cancel': () => json({...appointment, status: 'Cancelled'}),
+    });
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Appointment'}));
+    await screen.findByRole('heading', {name: 'Cancel Appointment'});
+    const tell = dialog().getByRole('checkbox', {name: 'Tell the patient by text or email'});
+    expect(tell).toBeChecked();
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Clinic closed.');
+    await user.click(dialog().getByRole('button', {name: 'Cancel Appointment'}));
+
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(true));
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/cancel')).toEqual({reason: 'Clinic closed.', tellPatient: true});
+  });
+
+  it("doesn't tick Tell the patient for one who chose no reminders, and sends what was chosen", async () => {
+    const appointment = testAppointment({id: 'appt-1', patientReminderChannel: 'None'});
+    const {user, fetch} = renderDialog(appointment, {
+      'GET /api/appointments/patient-messages/status': () => json(MESSAGES_ON),
+      'POST /api/appointments/appt-1/cancel': () => json({...appointment, status: 'Cancelled'}),
+    });
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Appointment'}));
+    await screen.findByRole('heading', {name: 'Cancel Appointment'});
+    expect(dialog().getByRole('checkbox', {name: 'Tell the patient by text or email'})).not.toBeChecked();
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Clinic closed.');
+    await user.click(dialog().getByRole('button', {name: 'Cancel Appointment'}));
+
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(true));
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/cancel')).toEqual({reason: 'Clinic closed.', tellPatient: false});
+  });
+
+  describe('messages to the patient', () => {
+    const reminder = {
+      id: 'message-1',
+      appointmentId: 'appt-1',
+      kind: 'AppointmentReminder',
+      channel: 'Text',
+      destination: '+447700900123',
+      body: 'Reminder: your appointment at Main site is on Mon 23 Nov at 09:00.',
+      subject: null,
+      appointmentStartUtc: '2026-11-23T09:00:00Z',
+      status: 'Delivered',
+      createdAtUtc: '2026-11-21T09:00:00Z',
+      sentAtUtc: '2026-11-21T09:00:00Z',
+      statusAtUtc: '2026-11-21T09:01:00Z',
+    };
+    const notSent = {
+      ...reminder,
+      id: 'message-2',
+      channel: 'Email',
+      destination: '',
+      body: '',
+      status: 'NotSent',
+      statusReason: 'NoEmail',
+      sentAtUtc: null,
+      statusAtUtc: null,
+    };
+
+    it('lists each message: what it was, how and where it went, where it stands, when, and its text', async () => {
+      renderDialog(testAppointment({id: 'appt-1'}), {
+        'GET /api/appointments/patient-messages/status': () => json(MESSAGES_ON),
+        'GET /api/appointments/appt-1/messages': () => json([reminder, notSent]),
+      });
+
+      const list = await dialog().findByRole('list', {name: 'Messages to the patient'});
+      const items = within(list).getAllByRole('listitem');
+      expect(items[0]).toHaveTextContent('Reminder: Text to 07700 900123');
+      expect(items[0]).toHaveTextContent('Delivered · 21 Nov 2026, 09:01');
+      expect(items[0]).toHaveTextContent(reminder.body);
+      expect(items[1]).toHaveTextContent('Reminder: Email');
+      expect(items[1]).toHaveTextContent('No reminder: no consent or contact (no email address)');
+    });
+
+    it('says when there are none while messages are on, and shows nothing while they are off', async () => {
+      const {unmount} = renderDialog(testAppointment({id: 'appt-1'}), {
+        'GET /api/appointments/patient-messages/status': () => json(MESSAGES_ON),
+        'GET /api/appointments/appt-1/messages': () => json([]),
+      });
+      expect(await dialog().findByText('No messages.')).toBeInTheDocument();
+      unmount();
+
+      const {fetch} = renderDialog(testAppointment({id: 'appt-1'}), {
+        'GET /api/appointments/patient-messages/status': () => json({...MESSAGES_ON, mode: 'Off', isOn: false}),
+        'GET /api/appointments/appt-1/messages': () => json([]),
+      });
+      await waitFor(() => expect(calls(fetch)).toContain('GET /api/appointments/appt-1/messages'));
+      expect(await dialog().findByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
+      expect(dialog().queryByText('No messages.')).not.toBeInTheDocument();
+      expect(dialog().queryByRole('heading', {name: 'Messages to the patient'})).not.toBeInTheDocument();
+    });
+
+    it("lists messages sent before they were turned off, and doesn't ask for an appointment with no time", async () => {
+      const {unmount} = renderDialog(testAppointment({id: 'appt-1'}), {'GET /api/appointments/appt-1/messages': () => json([reminder])});
+      expect(await dialog().findByRole('list', {name: 'Messages to the patient'})).toBeInTheDocument();
+      unmount();
+
+      const {fetch} = renderDialog(testRequested({id: 'req-1'}));
+      expect(await dialog().findByText('Not booked yet')).toBeInTheDocument();
+      expect(calls(fetch)).not.toContain('GET /api/appointments/req-1/messages');
+    });
+  });
+
+  describe('did not attend follow-up', () => {
+    const missed = testAppointment({
+      id: 'appt-1',
+      status: 'DidNotAttend',
+      canCancel: false,
+      canReschedule: false,
+      canRecordOutcome: true,
+      canRecordDnaFollowUp: true,
+    });
+
+    it('records a follow-up, saying it changes nothing else, with a detail required for No further appointment', async () => {
+      withAnnouncements();
+      let shown: Appointment = missed;
+      const {user, fetch} = renderDialog(missed, {
+        'GET /api/appointments/appt-1': () => json(shown),
+        'POST /api/appointments/appt-1/dna-follow-up': () => {
+          shown = {...missed, dnaFollowUp: 'NoFurtherAppointment', dnaFollowUpDetail: 'Dr Test: discharged to GP.', dnaFollowUpByUsername: 'test-user', dnaFollowUpAtUtc: '2026-11-23T07:00:00Z'};
+          return json(shown);
+        },
+      });
+
+      await user.click(await dialog().findByRole('button', {name: 'Record Follow-up'}));
+      expect(await screen.findByRole('heading', {name: 'Record Follow-up'})).toBeInTheDocument();
+      expect(dialog().getByText(/MedApp never discharges a patient or changes a pathway because of a missed appointment/)).toBeInTheDocument();
+      // Who the patient is, and which appointment was missed.
+      expect(await dialog().findByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+      expect(dialog().getByText('Mon 23 Nov 2026, 09:00 to 09:30 with test-user')).toBeInTheDocument();
+      // Nothing is chosen to start with.
+      const confirm = dialog().getByRole('button', {name: 'Record Follow-up'});
+      expect(dialog().getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
+      expect(isDisabled(confirm)).toBe(true);
+      await user.click(dialog().getByRole('radio', {name: 'No further appointment'}));
+      expect(isDisabled(confirm)).toBe(true);
+      expect(dialog().getByText("Say who decided there's to be no further appointment, and why.")).toBeInTheDocument();
+      await user.type(dialog().getByRole('textbox', {name: /Detail/}), ' Dr Test: discharged to GP. ');
+      await user.click(confirm);
+
+      await expectAnnounced('Follow-up recorded: No further appointment');
+      expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/dna-follow-up')).toEqual({decision: 'NoFurtherAppointment', detail: 'Dr Test: discharged to GP.'});
+      // Back on the appointment, with the follow-up recorded.
+      expect(await dialog().findByText('No further appointment, by test-user, 23 Nov 2026, 07:00')).toBeInTheDocument();
+      expect(dialog().getByText('Dr Test: discharged to GP.')).toBeInTheDocument();
+    });
+
+    it("shows the API's refusals: a 400 on its field, anything else in its words", async () => {
+      let status = 400;
+      const {user} = renderDialog(missed, {
+        'POST /api/appointments/appt-1/dna-follow-up': () =>
+          status === 400 ? json({errors: {Detail: ['Detail must be 500 characters or fewer.']}}, 400) : json({title: 'The record is restricted.'}, 409),
+      });
+
+      await user.click(await dialog().findByRole('button', {name: 'Record Follow-up'}));
+      await user.click(await dialog().findByRole('radio', {name: 'Rebook'}));
+      await user.click(dialog().getByRole('button', {name: 'Record Follow-up'}));
+      expect(await dialog().findByText('Detail must be 500 characters or fewer.')).toBeInTheDocument();
+
+      status = 409;
+      await user.click(dialog().getByRole('button', {name: 'Record Follow-up'}));
+      expect(await dialog().findByText('The record is restricted.')).toBeInTheDocument();
+      // Called off: back to the appointment.
+      await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+      expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+    });
+
+    it("isn't offered without the API's flag, or to someone who can't book", async () => {
+      const {unmount} = renderDialog({...missed, canRecordDnaFollowUp: false});
+      expect(await dialog().findByRole('button', {name: 'Book Another'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Record Follow-up'})).not.toBeInTheDocument();
+      unmount();
+
+      renderDialog(missed, {}, undefined, managerUser);
+      expect(await dialog().findByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Record Follow-up'})).not.toBeInTheDocument();
+    });
   });
 
   it('goes back to the appointment when cancelling fails or is called off', async () => {

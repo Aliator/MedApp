@@ -55,6 +55,12 @@ public interface IAppointmentRepository
     /// </summary>
     Task<IReadOnlyList<AppointmentTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct);
 
+    /// <summary>
+    /// For each of these appointments, how many appointments were marked Did not attend on its pathway (for one not for
+    /// a pathway, among the patient's appointments not for a pathway), it included.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> CountMissedAsync(IReadOnlyCollection<Appointment> appointments, CancellationToken ct);
+
     /// <summary>How many Booked appointments a member of staff has starting after <paramref name="nowUtc"/>.</summary>
     Task<int> CountUpcomingForStaffAsync(Guid staffUserId, DateTime nowUtc, CancellationToken ct);
 }

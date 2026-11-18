@@ -113,7 +113,7 @@ public sealed class ClinicsControllerTests
 
         var result = await controller.CancelSession(RecordId, request, _cts.Token);
 
-        ExpectSent(mediator, new CancelClinicSessionCommand(RecordId, request.Reason, request.ExpectedLastUpdated, AdminActor));
+        ExpectSent(mediator, new CancelClinicSessionCommand(RecordId, request.Reason, request.ExpectedLastUpdated, AdminActor, request.TellPatients));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(cancelled);
         controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
     }

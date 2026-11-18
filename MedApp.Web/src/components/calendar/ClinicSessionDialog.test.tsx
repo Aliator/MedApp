@@ -60,6 +60,50 @@ describe('ClinicSessionDialog', () => {
     expect(await request.clone().json()).toEqual({reason: 'Clinician away', expectedLastUpdated: SESSION.lastUpdated});
   });
 
+  it('offers to tell the patients while messages are on, ticked, and says messages will go', async () => {
+    const cancelled = {
+      session: {...SESSION, status: 'Cancelled', cancelReason: 'Clinician away'},
+      patientsToTell: [{appointmentId: 'appointment-0', patientId: 'patient-0', patientName: 'Test Patient', nhsNumber: '9990000018', startUtc: SESSION.startUtc}],
+    };
+    const {user, fetch} = renderDialog(
+      {},
+      {
+        'GET /api/appointments/patient-messages/status': () => json({mode: 'Offline', isOn: true, sendsMissedAppointmentMessages: false, reminderDaysBefore: 2}),
+        'POST /api/clinics/sessions/session-1/cancel': () => json(cancelled),
+      },
+    );
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Session'}));
+    const tell = await dialog().findByRole('checkbox', {name: 'Tell the patients by text or email'});
+    expect(tell).toBeChecked();
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Clinician away');
+    await user.click(dialog().getAllByRole('button', {name: 'Cancel Session'}).at(-1)!);
+
+    expect(await dialog().findByText(/A text or email will go to the patient if they chose one; please tell anyone who didn't\./)).toBeInTheDocument();
+    const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await request.clone().json()).toEqual({reason: 'Clinician away', expectedLastUpdated: SESSION.lastUpdated, tellPatients: true});
+  });
+
+  it('sends tellPatients false when it is unticked, and asks staff to tell them', async () => {
+    const cancelled = {session: {...SESSION, status: 'Cancelled'}, patientsToTell: [{appointmentId: 'a', patientName: 'Test Patient', startUtc: SESSION.startUtc}]};
+    const {user, fetch} = renderDialog(
+      {},
+      {
+        'GET /api/appointments/patient-messages/status': () => json({mode: 'Live', isOn: true}),
+        'POST /api/clinics/sessions/session-1/cancel': () => json(cancelled),
+      },
+    );
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Session'}));
+    await user.click(await dialog().findByRole('checkbox', {name: 'Tell the patients by text or email'}));
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Room closed');
+    await user.click(dialog().getAllByRole('button', {name: 'Cancel Session'}).at(-1)!);
+
+    expect(await dialog().findByText('Clinic session cancelled, with its appointment. Please tell this patient.')).toBeInTheDocument();
+    const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+    expect(await request.clone().json()).toMatchObject({tellPatients: false});
+  });
+
   it("shows the API's words when cancelling is refused", async () => {
     const {user} = renderDialog({}, {'POST /api/clinics/sessions/session-1/cancel': () => json({title: 'Someone changed this clinic session.'}, 409)});
 
@@ -107,6 +151,10 @@ describe('ClinicSessionDialog', () => {
   it('describes a cancellation with nobody booked', () => {
     expect(cancelledWords({session: SESSION, patientsToTell: []})).toBe('Clinic session cancelled. Nobody was booked into it.');
     expect(cancelledWords({session: SESSION, patientsToTell: [{}, {}]})).toBe('Clinic session cancelled, with its 2 appointments. Please tell these patients.');
+    expect(cancelledWords({session: SESSION, patientsToTell: [{}, {}]}, true)).toBe(
+      "Clinic session cancelled, with its 2 appointments. A text or email will go to each patient who chose one; please tell anyone who didn't.",
+    );
+    expect(cancelledWords({session: SESSION, patientsToTell: []}, true)).toBe('Clinic session cancelled. Nobody was booked into it.');
   });
 
   it('closes, goes back from cancelling, and words outcomes already recorded', async () => {

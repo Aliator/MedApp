@@ -18,5 +18,11 @@ public enum AppointmentEventAction
     RecordedAfterEvent = 7,
 
     /// <summary>An appointment recorded after the event was withdrawn as entered in error, with a reason.</summary>
-    EnteredInError = 8
+    EnteredInError = 8,
+
+    /// <summary>
+    /// After a Did not attend, booking staff recorded a follow-up (<see cref="DnaFollowUpDecision"/>, with an optional
+    /// detail of free text).
+    /// </summary>
+    DnaFollowUpRecorded = 9
 }

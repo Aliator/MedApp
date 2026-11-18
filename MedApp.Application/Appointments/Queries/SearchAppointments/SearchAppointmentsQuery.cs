@@ -7,6 +7,8 @@ namespace MedApp.Application.Appointments.Queries.SearchAppointments;
 /// <summary>
 /// One page of appointments. Every filter is optional; <paramref name="Statuses"/> is any of several, and
 /// <paramref name="From"/> and <paramref name="To"/> are UK dates the start falls within (inclusive).
+/// <paramref name="View"/> <c>didNotAttend</c> narrows them to the Did not attend list (<c>AppointmentSearch.AwaitingFollowUp</c>),
+/// each with how many appointments were missed on its pathway.
 /// </summary>
 public sealed record SearchAppointmentsQuery(
     int Page,
@@ -20,5 +22,6 @@ public sealed record SearchAppointmentsQuery(
     IReadOnlyList<string>? Statuses,
     DateOnly? From,
     DateOnly? To,
-    string? Search)
+    string? Search,
+    string? View = null)
     : IRequest<PagedResponse<AppointmentResponse>>;

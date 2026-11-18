@@ -30,6 +30,7 @@ public static class PatientMapper
         AddressLines = PostalAddress.Split(patient.AddressLines),
         Postcode = patient.Postcode,
         MobilePhone = patient.MobilePhone,
+        ReminderChannel = patient.ReminderChannel.ToString(),
         PracticeId = patient.PracticeId,
         Practice = practice is not null && practice.Id == patient.PracticeId ? PracticeMapper.ToSummary(practice) : null,
         IsRestricted = patient.RestrictedAtUtc is not null,

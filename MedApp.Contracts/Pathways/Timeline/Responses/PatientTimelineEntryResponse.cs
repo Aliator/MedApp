@@ -113,6 +113,9 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>AppointmentRescheduled: its member of staff before.</summary>
     public string? PreviousStaffUsername { get; set; }
 
+    /// <summary>For a Did not attend's follow-up: Rebook, ClinicianToReview or NoFurtherAppointment (its detail is the reason, for admins).</summary>
+    public string? DnaFollowUp { get; set; }
+
     /// <summary>A file attached or deleted (AttachmentAdded, AttachmentDeleted): which one.</summary>
     public Guid? AttachmentId { get; set; }
 

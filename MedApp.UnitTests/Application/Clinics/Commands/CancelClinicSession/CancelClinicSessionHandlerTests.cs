@@ -8,7 +8,9 @@ using MedApp.Application.Clinics.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
+using MedApp.Application.PatientMessages.Common;
 using MedApp.Domain.Clinics;
+using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Notifications;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -57,6 +59,33 @@ public sealed class CancelClinicSessionHandlerTests : ClinicHandlerTestBase
         var view = Activity.Views.Should().ContainSingle().Subject;
         view.Action.Should().Be(ActivityAction.PatientListed);
         view.PatientIds.Should().BeEquivalentTo([first.PatientId, second.PatientId]);
+    }
+
+    [Test]
+    public async Task Handle_TellPatients_StagesACancellationForEachCancelledAppointment()
+    {
+        var outbox = new Mock<IPatientMessageOutbox>();
+        Fixture.Inject(outbox.Object);
+        var booked = InSession(_session, At(NextMonday, 9));
+        var attended = InSession(_session, At(NextMonday, 9, 20), AppointmentStatus.Attended);
+        Clinics.Setup(r => r.GetSessionAppointmentsForUpdateAsync(_session.Id, Token)).ReturnsAsync([booked, attended]);
+
+        await Fixture.Create<CancelClinicSessionHandler>().Handle(Command() with { TellPatients = true }, Token);
+
+        outbox.Verify(o => o.StageAsync(booked, PatientMessageKind.AppointmentCancelled, AdminUserId, Now, Token), Times.Once);
+        outbox.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_NotTellingPatients_StagesNothing()
+    {
+        var outbox = new Mock<IPatientMessageOutbox>();
+        Fixture.Inject(outbox.Object);
+        Clinics.Setup(r => r.GetSessionAppointmentsForUpdateAsync(_session.Id, Token)).ReturnsAsync([InSession(_session, At(NextMonday, 9))]);
+
+        await Fixture.Create<CancelClinicSessionHandler>().Handle(Command(), Token);
+
+        outbox.VerifyNoOtherCalls();
     }
 
     [Test]

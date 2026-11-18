@@ -1,8 +1,8 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testCalendar, testRequested} from '../../test/calendar';
+import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testCalendar, testRequested} from '../../test/calendar';
 import {calls, json, managerUser, mockApi, openDialog, pageOf, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {RequiresAppointmentSearch} from './calendarSearch';
-import {RequiresAppointmentPage, requiresAppointmentQuery} from './RequiresAppointmentPage';
+import {DID_NOT_ATTEND_INTRO, missedWords, RequiresAppointmentPage, requiresAppointmentPageQuery, requiresAppointmentQuery} from './RequiresAppointmentPage';
 
 const MONDAY = '2026-11-23';
 
@@ -118,5 +118,113 @@ describe('RequiresAppointmentPage', () => {
     renderPage({}, {'GET /api/appointments/search': () => json({}, 500)});
 
     expect(await screen.findByText('The appointments could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  describe('Did not attend', () => {
+    const missed = testAppointment({
+      id: 'missed-1',
+      date: '2026-11-16',
+      status: 'DidNotAttend',
+      canCancel: false,
+      canReschedule: false,
+      canEditNotes: true,
+      canRecordDnaFollowUp: true,
+      missedOnPathwayCount: 2,
+    });
+    const reviewed = testAppointment({
+      id: 'missed-2',
+      date: '2026-11-18',
+      start: '14:00',
+      end: '14:30',
+      status: 'DidNotAttend',
+      patientName: 'Alex Sample',
+      pathwayId: null,
+      pathwayTitle: null,
+      stageName: null,
+      canRecordDnaFollowUp: true,
+      missedOnPathwayCount: 1,
+      dnaFollowUp: 'ClinicianToReview',
+      dnaFollowUpByUsername: 'b.staff',
+      dnaFollowUpAtUtc: '2026-11-19T10:00:00Z',
+    });
+    const dnaList = {'GET /api/appointments/search': () => json(pageOf([missed, reviewed]))};
+
+    it('asks the API for the Did not attend view, oldest first, keeping the page and patient search', () => {
+      expect(requiresAppointmentPageQuery({view: 'didNotAttend', page: 2, patient: 'Sam'}, 20)).toEqual({
+        View: 'didNotAttend',
+        Sort: 'start',
+        Ascending: true,
+        Page: 2,
+        PageSize: 20,
+        Search: 'Sam',
+      });
+      expect(requiresAppointmentPageQuery({}, 20)).toEqual(requiresAppointmentQuery({}, 20));
+      expect(missedWords({pathwayId: 'p', missedOnPathwayCount: 3})).toBe('Missed on this pathway: 3');
+      expect(missedWords({pathwayId: null, missedOnPathwayCount: null})).toBe('Missed, not for a pathway: 1');
+    });
+
+    it('lists missed appointments: who, when, what for, how many were missed there, and the follow-up so far', async () => {
+      const {fetch} = renderPage({view: 'didNotAttend'}, dnaList);
+
+      expect(await screen.findByText('2 missed appointments to follow up')).toBeInTheDocument();
+      expect(screen.getByText(DID_NOT_ATTEND_INTRO)).toBeInTheDocument();
+      expect(screen.getByText('Mon 16 Nov 2026, 09:00 to 09:30')).toBeInTheDocument();
+      expect(screen.getByRole('link', {name: 'Knee review: Assessment'})).toHaveAttribute('href', '/pathways/pathway-1');
+      expect(screen.getByText('Missed on this pathway: 2')).toBeInTheDocument();
+      expect(screen.getByText('Missed, not for a pathway: 1')).toBeInTheDocument();
+      expect(screen.getByText('None yet')).toBeInTheDocument();
+      expect(screen.getByText('Clinician to review, by b.staff, 19 Nov 2026, 10:00')).toBeInTheDocument();
+      expect(calls(fetch)).toContain('GET /api/appointments/search?View=didNotAttend&Sort=start&Ascending=true&Page=1&PageSize=10');
+    });
+
+    it('records a follow-up from a row, showing who the patient is', async () => {
+      const {user, fetch} = renderPage({view: 'didNotAttend'}, {
+        ...dnaList,
+        'POST /api/appointments/missed-1/dna-follow-up': () => json({...missed, dnaFollowUp: 'Rebook'}),
+      });
+
+      await user.click(await screen.findByRole('button', {name: 'Record Follow-up for Test Patient'}));
+      const dialog = within(openDialog()!);
+      expect(await dialog.findByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+      await user.click(dialog.getByRole('radio', {name: 'Rebook'}));
+      await user.click(dialog.getByRole('button', {name: 'Record Follow-up'}));
+
+      await waitFor(() => expect(openDialog()).toBeNull());
+      const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+      expect(await request.clone().json()).toEqual({decision: 'Rebook', detail: null});
+    });
+
+    it('opens a missed appointment, to book another from it', async () => {
+      const {user} = renderPage({view: 'didNotAttend'}, {...dnaList, 'GET /api/appointments/missed-1': () => json(missed)});
+
+      await user.click(await screen.findByRole('button', {name: 'Open the appointment for Test Patient'}));
+      expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+      expect(await within(openDialog()!).findByRole('button', {name: 'Book Another'})).toBeInTheDocument();
+    });
+
+    it("offers only Open to someone who can't book (a manager)", async () => {
+      renderPage({view: 'didNotAttend'}, dnaList, managerUser);
+
+      expect(await screen.findAllByRole('button', {name: /^Open the appointment/})).toHaveLength(2);
+      expect(screen.queryByRole('button', {name: /^Record Follow-up/})).not.toBeInTheDocument();
+    });
+
+    it('switches between the lists through the URL, keeping the patient search', async () => {
+      const {user, onSearchChange, unmount} = renderPage({patient: 'Sam', page: 3});
+
+      await user.click(await screen.findByRole('radio', {name: 'Did not attend'}));
+      expect(onSearchChange).toHaveBeenLastCalledWith({view: 'didNotAttend', patient: 'Sam'});
+      unmount();
+
+      const second = renderPage({view: 'didNotAttend'}, dnaList);
+      await second.user.click(await screen.findByRole('radio', {name: 'To book'}));
+      expect(second.onSearchChange).toHaveBeenLastCalledWith({view: undefined, patient: undefined});
+    });
+
+    it('says when nothing is waiting for a follow-up', async () => {
+      renderPage({view: 'didNotAttend'}, {'GET /api/appointments/search': () => json(pageOf([]))});
+
+      expect(await screen.findByText('No missed appointments waiting for a follow-up')).toBeInTheDocument();
+    });
   });
 });

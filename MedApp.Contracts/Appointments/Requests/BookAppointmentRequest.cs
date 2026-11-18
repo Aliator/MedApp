@@ -24,4 +24,10 @@ public sealed class BookAppointmentRequest
     /// "book" can't quietly move someone else's booking.
     /// </summary>
     public string ExpectedStatus { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When moving a Booked one to another time or room: text or email the patient, as they chose (only when patient
+    /// messages are on).
+    /// </summary>
+    public bool TellPatient { get; set; }
 }
