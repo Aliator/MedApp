@@ -22,13 +22,13 @@ public sealed class DeleteAttachmentHandler(
         if (attachment is null || attachment.IsDeleted)
             throw new NotFoundException($"File '{request.Id}' was not found.");
 
-        if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.IsAdmin))
+        if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");
 
         var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, cancellationToken);
         // A restricted or anonymised record can't change, for admins too (an admin lifts the restriction first).
         PatientRules.EnsureCanChange(target.Owner);
-        if (!request.IsAdmin && target.WhyFilesCantChange() is { } reason)
+        if (!request.CanCorrectRecords && target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;

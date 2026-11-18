@@ -18,6 +18,10 @@ var app = builder.Build();
 if (args is [FirstAdminSetup.Command])
     return await FirstAdminSetup.RunCommandAsync(app.Services, CancellationToken.None);
 
+// Recovery when every admin is locked out, run by whoever deploys: give an existing account the Admin role, then exit.
+if (args is [AdminGrant.Command, var username])
+    return await AdminGrant.RunCommandAsync(app.Services, username, CancellationToken.None);
+
 app.MapDefaultEndpoints();
 app.UseApi();
 

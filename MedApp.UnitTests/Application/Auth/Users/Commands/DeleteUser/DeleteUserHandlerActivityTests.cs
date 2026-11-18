@@ -27,6 +27,8 @@ public sealed class DeleteUserHandlerActivityTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
+        // Not the last admin, unless a test says so.
+        _fixture.Inject(new Mock<ILastAdminGuard>().Object);
         _users = new Mock<IIdentityUserService>();
         _users.Setup(u => u.VerifyPasswordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(IdentityResult.Success);

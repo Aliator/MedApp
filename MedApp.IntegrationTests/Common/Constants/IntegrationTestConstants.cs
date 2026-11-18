@@ -17,7 +17,8 @@ public static class IntegrationTestConstants
 
     public const string AdminRole = "Admin";
 
-    public const string UserRole = "User";
+    /// <summary>The role every member of staff had before roles (the old User role, renamed): exactly what staff could do.</summary>
+    public const string UserRole = "All staff (before roles)";
 
     public const string PatientEmailDomain = "example.test";
 

@@ -302,7 +302,7 @@ public sealed class DemoCalendars
         _days[(owner.Id, spec.Name)] = day;
     }
 
-    private static CalendarActor OwnerActor(StaffMember owner) => new(owner.Id, owner.Username, IsAdmin: false);
+    private static CalendarActor OwnerActor(StaffMember owner) => new(owner.Id, owner.Username);
 
     private DayTemplateBlockValue ValueOf(BlockSpec block) => new(_types[block.Type].Id, block.From, block.To, block.Note);
 

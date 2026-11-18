@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Pathways.Common;
@@ -31,7 +32,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class PatientPathwaysControllerTests
 {
-    private static readonly PathwayActor Actor = new(UserId, Username);
+    // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
     private IFixture _fixture = null!;
     private PatientPathwayResponse _pathway = null!;
     private RecordingMediator _mediator = null!;
@@ -226,7 +228,7 @@ public sealed class PatientPathwaysControllerTests
     {
         var result = await Controller.FinishPathwayStage(RecordId, OtherId, new FinishPathwayStageRequest(), _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, IsAdmin: false), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, CanOverrideStages: false), result);
     }
 
     [TestCase("User", false)]
@@ -238,7 +240,7 @@ public sealed class PatientPathwaysControllerTests
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, request, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { IsAdmin = isAdmin }, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.For(isAdmin) }, WithoutVisit: true, Reason: "Synthetic reason.", CanOverrideStages: isAdmin), result);
     }
 
     [Test]
@@ -248,7 +250,7 @@ public sealed class PatientPathwaysControllerTests
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, null, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { IsAdmin = true }, WithoutVisit: false, Reason: null, IsAdmin: true), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.Admin }, WithoutVisit: false, Reason: null, CanOverrideStages: true), result);
     }
 
     [Test]

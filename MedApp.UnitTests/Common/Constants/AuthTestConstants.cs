@@ -104,8 +104,8 @@ public static class AuthTestConstants
         };
     }
 
-    public static IdentityRole<Guid> CreateValidRole()
+    public static ApplicationRole CreateValidRole()
     {
-        return new IdentityRole<Guid>(Roles[0]);
+        return new ApplicationRole(Roles[0]);
     }
 }

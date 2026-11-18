@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Appointments.Commands.BookAppointment;
 using MedApp.Application.Appointments.Commands.CancelAppointment;
@@ -25,7 +26,6 @@ namespace MedApp.API.Controllers;
 [ApiController]
 [Route("api/appointments")]
 [Tags("Appointments")]
-[Authorize(Policy = AuthPolicies.Staff)]
 public sealed class AppointmentsController(IMediator mediator) : ControllerBase
 {
     /// <summary>Books an appointment (with a member of staff, a start and an end) or adds one to Requires Appointment (with none of them).</summary>
@@ -34,6 +34,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentRequest request, CancellationToken ct)
     {
         var appointment = await mediator.Send(new CreateAppointmentCommand(
@@ -58,6 +59,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> RecordPastAppointment([FromBody] RecordPastAppointmentRequest request, CancellationToken ct)
     {
         var appointment = await mediator.Send(new RecordPastAppointmentCommand(
@@ -77,6 +79,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetAppointmentById(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetAppointmentByIdQuery(id), ct));
 
@@ -84,6 +87,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<AppointmentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> SearchAppointments([FromQuery] SearchAppointmentsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchAppointmentsQuery(
             request.Page,
@@ -105,6 +109,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> BookAppointment(Guid id, [FromBody] BookAppointmentRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new BookAppointmentCommand(
             id,
@@ -120,6 +125,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> RecordOutcome(Guid id, [FromBody] RecordAppointmentOutcomeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RecordAppointmentOutcomeCommand(id, request.Outcome, User.ToPathwayActor()), ct));
 
@@ -133,14 +139,16 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] MarkEnteredInErrorRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToPathwayActor(), User.IsInRole("Admin")), ct));
+        Ok(await mediator.Send(new MarkAppointmentEnteredInErrorCommand(id, request.Reason, User.ToPathwayActor(), User.HasPermission(Permission.CorrectRecords)), ct));
 
     [HttpPost("{id:guid}/cancel")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new CancelAppointmentCommand(id, request.Reason, User.ToPathwayActor()), ct));
 
@@ -149,6 +157,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.BookAppointments)]
     public async Task<IActionResult> UpdateNotes(Guid id, [FromBody] UpdateAppointmentNotesRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateAppointmentNotesCommand(id, request.Notes, User.ToPathwayActor()), ct));
 }

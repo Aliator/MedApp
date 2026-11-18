@@ -10,7 +10,7 @@ namespace MedApp.Application.Calendar.Common;
 public static class CalendarMapper
 {
     /// <summary>A viewer who is neither an admin nor going to any meeting.</summary>
-    private static readonly CalendarActor Nobody = new(Guid.Empty, string.Empty, IsAdmin: false);
+    private static readonly CalendarActor Nobody = new(Guid.Empty, string.Empty);
 
     /// <summary>
     /// A calendar: its days and template blocks worked out from <paramref name="data"/> (<see cref="CalendarProjection"/>),

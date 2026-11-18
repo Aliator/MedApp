@@ -47,10 +47,10 @@ public sealed class UserTests : E2ETest
         var row = Main.GetByRole(AriaRole.Row).Filter(new() { HasText = username });
         await row.GetByRole(AriaRole.Button, new() { Name = "Edit roles" }).ClickAsync();
         var roles = Page.GetByRole(AriaRole.Dialog, new() { Name = "Edit Roles" });
-        await roles.GetByRole(AriaRole.Checkbox, new() { Name = "User", Exact = true }).CheckAsync();
+        await roles.GetByRole(AriaRole.Checkbox, new() { Name = "All staff (before roles)", Exact = true }).CheckAsync();
         await roles.GetByRole(AriaRole.Button, new() { Name = "Save Roles" }).ClickAsync();
         await Expect(roles).ToBeHiddenAsync();
-        await Expect(row).ToContainTextAsync("User");
+        await Expect(row).ToContainTextAsync("All staff (before roles)");
 
         // The new user, in a browser of their own, signs in with the password they were given...
         var options = ContextOptions();
@@ -88,7 +88,7 @@ public sealed class UserTests : E2ETest
     public async Task DeleteUser_ConfirmedWithYourPassword_RemovesTheAccount()
     {
         var username = NewUsername();
-        await Api.CreateUserAsync(username, "User");
+        await Api.CreateUserAsync(username, "All staff (before roles)");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         await OpenAsync("/admin/users");
         await SearchUsersAsync(username);
