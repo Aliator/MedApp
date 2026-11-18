@@ -79,6 +79,7 @@ public sealed class UploadAttachmentHandler(
                 PatientId = target.PatientId,
                 PathwayId = target.Pathway?.Id,
                 StageId = target.Stage?.Id,
+                ReferralId = target.Referral?.Id,
                 FileName = fileName,
                 ContentType = type.ContentType,
                 SizeBytes = size,
@@ -113,7 +114,7 @@ public sealed class UploadAttachmentHandler(
     private async Task<AttachmentTarget> CheckTargetAsync(UploadAttachmentCommand request, CancellationToken ct)
     {
         var target = await AttachmentTargets.ResolveAsync(
-            request.PatientId, request.PathwayId, request.StageId, patients, pathways, attachments, ct);
+            request.PatientId, request.PathwayId, request.StageId, request.ReferralId, patients, pathways, attachments, ct);
         PatientRules.EnsureCanChange(target.Owner);
         if (target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);

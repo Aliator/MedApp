@@ -39,6 +39,7 @@ public sealed class GetPatientTimelineOverviewHandlerTests
         fixture.Inject(_patients.Object);
         fixture.Inject(_pathways.Object);
         fixture.Inject(_audit.Object);
+        fixture.Inject(EmptyReferrals.Repository());
         fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
         _handler = fixture.Create<GetPatientTimelineOverviewHandler>();
     }

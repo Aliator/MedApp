@@ -135,5 +135,8 @@ public sealed class SessionEndingActivityTests
 
         public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null) =>
             _inner.RecordViewsAsync(action, patientIds, ct, pathwayId);
+
+        public Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct) =>
+            _inner.RecordViewAsync(action, patientId, details, ct);
     }
 }

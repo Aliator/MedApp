@@ -4,6 +4,7 @@ using MedApp.Domain.Attachments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -47,8 +48,14 @@ public sealed record PatientRecord
     public required IReadOnlyList<Notification> Notifications { get; init; }
 
     /// <summary>
-    /// The files attached to the patient, their pathways and stages, oldest first, deleted ones included (their
-    /// records, and bytes, are kept until the purge). Their bytes are in the file store, not here.
+    /// The files attached to the patient, their pathways, stages and referrals, oldest first, deleted ones included
+    /// (their records, and bytes, are kept until the purge). Their bytes are in the file store, not here.
     /// </summary>
     public required IReadOnlyList<Attachment> Attachments { get; init; }
+
+    /// <summary>The patient's referrals, in any status, oldest received first, with their specialties.</summary>
+    public required IReadOnlyList<Referral> Referrals { get; init; }
+
+    /// <summary>Every change to the patient's referrals, oldest first.</summary>
+    public required IReadOnlyList<ReferralEvent> ReferralHistory { get; init; }
 }

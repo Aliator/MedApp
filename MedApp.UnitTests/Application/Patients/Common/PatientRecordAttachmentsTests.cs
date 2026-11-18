@@ -61,7 +61,9 @@ public sealed class PatientRecordAttachmentsTests
             Notifications = record.Notifications,
             Attachments = [live, deleted],
             NoteVersions = [],
-            NoteDeletionRequests = []
+            NoteDeletionRequests = [],
+            Referrals = [],
+            ReferralHistory = []
         }, live, deleted, pathway);
     }
 
@@ -155,7 +157,9 @@ public sealed class PatientRecordAttachmentsTests
             Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications, Attachments = [live, odd],
             NoteVersions = [],
-            NoteDeletionRequests = []
+            NoteDeletionRequests = [],
+            Referrals = [],
+            ReferralHistory = []
         };
 
         PatientAnonymiser.Apply(withOdd, AnonymisedAt);

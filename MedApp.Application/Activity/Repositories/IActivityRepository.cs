@@ -21,6 +21,18 @@ public interface IActivityRepository
         DateTime sinceUtc,
         CancellationToken ct);
 
+    /// <summary>
+    /// Whether this user already has an entry with this action, about this patient and with exactly these details, since
+    /// <paramref name="sinceUtc"/>.
+    /// </summary>
+    Task<bool> HasRecentEntryAsync(
+        Guid? userId,
+        ActivityAction action,
+        Guid patientId,
+        string details,
+        DateTime sinceUtc,
+        CancellationToken ct);
+
     /// <summary>One page of entries matching the query (see <c>ActivitySearch</c>).</summary>
     Task<PagedResult<ActivityEntry>> SearchAsync(SearchActivityQuery query, CancellationToken ct);
 }

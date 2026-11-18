@@ -114,5 +114,8 @@ public enum ActivityAction
     EmailCodesDisabled = 41,
 
     /// <summary>An admin changed which specialties someone belongs to: the specialties' IDs and names before and after.</summary>
-    StaffSpecialtiesChanged = 42
+    StaffSpecialtiesChanged = 42,
+
+    /// <summary>Someone opened a referral's page: the referral's ID in its details.</summary>
+    ReferralViewed = 43
 }
