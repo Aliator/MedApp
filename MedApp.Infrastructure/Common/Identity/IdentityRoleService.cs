@@ -6,25 +6,8 @@ namespace MedApp.Infrastructure.Common.Identity;
 public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
-    IIdentityTransactions transactions,
-    TimeProvider timeProvider) : IIdentityRoleService
+    IIdentityTransactions transactions) : IIdentityRoleService
 {
-    public async Task<IdentityRole<Guid>?> CreateRoleAsync(
-        string roleName,
-        CancellationToken ct)
-    {
-        var existingRole = await roleManager.FindByNameAsync(roleName);
-        if (existingRole is not null)
-            return existingRole;
-
-        // A role made here has no permissions but UseApp, which every role grants.
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var role = new ApplicationRole(roleName) { CreatedAt = now, LastUpdated = now };
-        var result = await roleManager.CreateAsync(role);
-
-        return result.Succeeded ? role : null;
-    }
-
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
@@ -107,20 +90,5 @@ public sealed class IdentityRoleService(
                 ? await userManager.AddToRolesAsync(user, toAdd)
                 : IdentityResult.Success;
         }, ct);
-    }
-
-    public async Task<IdentityResult> DeleteRoleAsync(
-        string roleName,
-        CancellationToken ct)
-    {
-        var role = await roleManager.FindByNameAsync(roleName);
-        if (role is null)
-            return IdentityResult.Failed(IdentityErrors.RoleNotFound);
-
-        // Deleting Admin would take it from every admin at once.
-        if (role.IsBuiltIn)
-            return IdentityResult.Failed(IdentityErrors.BuiltInRole);
-
-        return await roleManager.DeleteAsync(role);
     }
 }

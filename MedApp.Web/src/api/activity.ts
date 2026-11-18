@@ -53,6 +53,7 @@ export const ACTIVITY_ACTIONS = [
   'EmailCodesDisabled',
   'StaffSpecialtiesChanged',
   'ReferralViewed',
+  'RoleChanged',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -101,6 +102,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   EmailCodesDisabled: 'Codes by email turned off',
   StaffSpecialtiesChanged: 'Specialties changed',
   ReferralViewed: 'Referral viewed',
+  RoleChanged: 'Role changed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -140,6 +142,7 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'EmailCodesEnabled',
   'EmailCodesDisabled',
   'StaffSpecialtiesChanged',
+  'RoleChanged',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -211,6 +214,21 @@ const roles = (value: unknown) => (Array.isArray(value) && value.length ? value.
 
 const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : '');
 
+const names = (value: unknown) => (Array.isArray(value) ? value.map(String).join(', ') : '');
+
+/** A role change in words: "Nurse: renamed from Nurses; added AssignPathways; removed DeletePatients". */
+function roleChange(d: Record<string, unknown>): string {
+  const parts = [
+    text(d.renamedFrom) && `renamed from ${text(d.renamedFrom)}`,
+    d.descriptionChanged === true && 'description changed',
+    names(d.added) && `added ${names(d.added)}`,
+    names(d.removed) && `removed ${names(d.removed)}`,
+    d.archived === true && 'archived',
+    d.archived === false && 'restored',
+  ].filter(Boolean);
+  return [text(d.role), parts.join('; ')].filter(Boolean).join(': ');
+}
+
 /**
  * What an entry's details say, in a line of words, e.g. "Changed first name, email", "By last name: 3 found",
  * "By NHS number (FHIR API): 1 found", "A file on the patient" or "User → Admin, User". Empty when the action says
@@ -255,9 +273,14 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     // By name, as they were then (a specialty renamed since keeps its old name here).
     case 'StaffSpecialtiesChanged':
       return `${roles(d.from)} → ${roles(d.to)}`;
+    // Role and permission names only: a description's words are never recorded.
     case 'RoleCreated':
-    case 'RoleDeleted':
-      return text(d.role);
+    case 'RoleDeleted': {
+      const permissions = Array.isArray(d.permissions) && d.permissions.length ? d.permissions.map(String).join(', ') : '';
+      return [text(d.role), permissions].filter(Boolean).join(': ');
+    }
+    case 'RoleChanged':
+      return roleChange(d);
     case 'RetentionKept':
       return [typeof d.keepUntil === 'string' ? `Until ${formatShortDate(d.keepUntil)}` : '', text(d.reason)].filter(Boolean).join(': ');
     // Recorded with the pathway when the files are a pathway's or a stage's; the file's name is never recorded.

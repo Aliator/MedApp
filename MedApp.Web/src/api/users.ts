@@ -1,13 +1,6 @@
-import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap} from './client';
 import {ApiError} from './errors';
-
-/** Every role (`GET api/auth/roles`), e.g. Admin and User. */
-export const rolesQuery = queryOptions({
-  queryKey: ['roles'],
-  queryFn: async () => [...((await unwrap(api.GET('/api/auth/roles'))) ?? [])].sort(),
-  staleTime: 5 * 60 * 1000,
-});
 
 /**
  * Every users query is keyed under ['users'], so writes refresh them all. `carriesPassword` is for a mutation whose

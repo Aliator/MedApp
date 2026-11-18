@@ -23,7 +23,8 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Specialties:** every pathway type, clinic and member of staff belongs to one, with filters, worklists and Insights by specialty.
 - **A waiting-time clock:** days since referral, the target date, and pauses with reasons; lists by longest wait, with breaches flagged. It replaces today's single target date.
 - **Roles and permissions, the rest** (the policy layer is built: `docs/agents/auth.md`):
-  - **The Roles and Permissions page** (Phase 2 PR 4): `api/permissions` and `api/roles` (and the Users page's role picker from it, listing roles that aren't archived, with their descriptions: until then it lists every role's name from `api/auth/roles`, archived ones too, and the API refuses an archived one with a 400), `RoleChanged = 44` logged with permission names only, other admins told, the old role endpoints (`api/auth/roles…`) removed; until then they still work, guarded (the built-in role can't be deleted, nobody revokes their own role, the last admin keeps Admin).
+  - **`GET api/auth/roles` (every role's name), kept one release** after the Roles and Permissions page so a page loaded before it still works during a rollout: remove it (and `GetAllRolesQuery`, `IIdentityReadService.GetRoleNamesAsync`) in the next release. The Users page reads `GET api/roles`.
+  - **The roles page, later:** step-up (the admin's password again) before a role change, as for other admin actions (ASVS 7.5.3); a preview of exactly whose access changes (today it says how many hold the role, though someone with another role granting the same permission isn't affected).
   - **After every account is on a starting role:** take the everyday clinical and booking permissions from Admin and archive "All staff (before roles)" (open question 10), as a small change of its own before a real team uses MedApp.
 
 **Phase 3: clinic to lab to result to letter.**

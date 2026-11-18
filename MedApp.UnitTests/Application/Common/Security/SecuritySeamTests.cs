@@ -38,6 +38,8 @@ public sealed class SecuritySeamTests
         LoggingSecurityEventLog.Describe(null).Should().Be("none");
         LoggingSecurityEventLog.Describe(new Dictionary<string, object?>()).Should().Be("none");
         LoggingSecurityEventLog.Describe(new Dictionary<string, object?> { ["a"] = 1, ["b"] = true }).Should().Be("a=1, b=True");
+        LoggingSecurityEventLog.Describe(new Dictionary<string, object?> { ["added"] = new List<string> { "A", "B" }, ["role"] = "R", ["x"] = null })
+            .Should().Be("added=[A, B], role=R, x=");
     }
 
     [Test]

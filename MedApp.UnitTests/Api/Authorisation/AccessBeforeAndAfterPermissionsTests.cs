@@ -67,10 +67,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AttachmentsController.GetAttachments 00011
         AttachmentsController.Thumbnail 00011
         AttachmentsController.Upload 00011
-        AuthController.AssignRole 00001
-        AuthController.CreateRole 00001
         AuthController.CreateUser 00001
-        AuthController.DeleteRole 00001
         AuthController.DeleteUser 00001
         AuthController.ExtendSession 01111
         AuthController.GetAllRoles 00001
@@ -84,7 +81,6 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.Login 11111
         AuthController.Logout 11111
         AuthController.ResetUserPassword 00001
-        AuthController.RevokeRole 00001
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
         AuthController.SetUserRoles 00001
@@ -218,6 +214,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.RejectReferral 00000
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        RolesController.ArchiveRole 00001
+        RolesController.CreateRole 00001
+        RolesController.DeleteRole 00001
+        RolesController.GetPermissions 00001
+        RolesController.GetRole 00001
+        RolesController.GetRoles 00001
+        RolesController.RestoreRole 00001
+        RolesController.UpdateRole 00001
         SitesController.ArchiveRoom 00001
         SitesController.ArchiveSite 00001
         SitesController.CreateRoom 00001
