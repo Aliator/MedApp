@@ -9,7 +9,7 @@ failed=0
 # EVENT and KNOWN come from the environment (a pull request whose files are all known, unless a case says otherwise).
 check() {
   local name=$1 labels=$2 files=$3 expected=$4 plan got
-  plan=$(LABELS="$labels" EVENT="${EVENT:-pull_request}" KNOWN="${KNOWN:-true}" ./ci-plan.sh <<< "${files// /$'\n'}") || { echo "FAIL $name: ci-plan.sh failed"; failed=1; return; }
+  plan=$(LABELS="$labels" EVENT="${EVENT:-pull_request}" DISPATCH_TIER="${DISPATCH_TIER:-}" KNOWN="${KNOWN:-true}" ./ci-plan.sh <<< "${files// /$'\n'}") || { echo "FAIL $name: ci-plan.sh failed"; failed=1; return; }
   got=$(sed -n -E 's/^(tier|web|web_build|dotnet|integration|image|e2e|helm|coverage)=//p' <<< "$plan" | tr '\n' ' ')
   if [ "${got% }" = "$expected" ]; then
     echo "ok   $name"
@@ -48,7 +48,7 @@ check 'ci:none, .NET'         'ci:none' "$handler"              'none none false
 check 'ci:none, a migration'  'ci:none' "$migration"            'none none false false false false false false false'
 check 'ci:none among others'  'bug ci:none' "$page $handler"    'none none false false false false false false false'
 # ...but never a workflow, deploy/, the Dockerfile or a package manifest or lock.
-check 'ci:none, workflow'     'ci:none' ".github/workflows/main.yml $page" 'full full true true true true true true true'
+check 'ci:none, workflow'     'ci:none' ".github/workflows/main.yml $page" 'light light false true false false false false false'
 check 'ci:none, deploy'       'ci:none' "deploy/helm/medapp/values.yaml $handler" 'light none false true false false false true false'
 check 'ci:none, Dockerfile'   'ci:none' MedApp.API/Dockerfile   'light none false false false true false false false'
 check 'ci:none, .dockerignore' 'ci:none' .dockerignore          'light none false false false true false false false'
@@ -56,8 +56,8 @@ check 'ci:none, npm lock'     'ci:none' MedApp.Web/package-lock.json 'light ligh
 check 'ci:none, image csproj' 'ci:none' MedApp.API/MedApp.API.csproj 'light none false true false true false false false'
 
 # Never light, without a label.
-check 'workflow'              '' .github/workflows/main.yml     'full full true true true true true true true'
-check 'CI script'             '' .github/scripts/ci-plan.sh     'full full true true true true true true true'
+check 'workflow'              '' .github/workflows/main.yml     'light light false true false false false false false'
+check 'CI script'             '' .github/scripts/ci-plan.sh     'light light false true false false false false false'
 check 'deploy only'           '' deploy/kind/values.yaml        'light none false false false false false true false'
 check 'Dockerfile'            '' MedApp.API/Dockerfile          'light none false false false true false false false'
 check 'package.json'          '' MedApp.Web/package.json        'light light true false false true false false false'
@@ -86,7 +86,8 @@ check 'nested Markdown'       '' MedApp.Web/README.md           'light light fal
 # Not known, or not a pull request: everything.
 KNOWN=false check '300 files or more'   '' "$page"              'full full true true true true true true true'
 KNOWN=false check 'not known, ci:none'  'ci:none' docs/todo.md  'full full true true true true true true true'
-EVENT=push check 'a push to main'       '' "$page"              'full full true true true true true true false'
-EVENT=schedule check 'the nightly run'  '' ''                   'full full true true true true true true false'
+EVENT=push check 'a push to main'       '' "$page"              'light light false true false false false false false'
+EVENT=workflow_dispatch DISPATCH_TIER=phase check 'a phase run' '' '' 'phase full true true false false false false false'
+EVENT=workflow_dispatch DISPATCH_TIER=full check 'a full run'   '' '' 'full full true true true true true true false'
 
 [ "$failed" = 0 ] && echo "All cases passed." || { echo "Some cases failed."; exit 1; }

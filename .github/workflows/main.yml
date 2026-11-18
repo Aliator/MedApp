@@ -3,8 +3,9 @@ name: CI
 #   - A pull request to main runs a tier, chosen by the `changes` job from the pull request's labels and what it changed:
 #     none (only docs changed, or the `ci:none` label), light (the default: quick checks of the side that changed) or
 #     full (the `ci:full` label: everything). Adding or removing a label starts a run, so a label takes effect at once.
-#   - Every push to main, and a nightly run, get the full suite. It gates nothing (Publish deploys alongside it): it's
-#     how what a light pull request missed is found, and a failure opens or updates one issue (the main-report job).
+#   - The owner, 18 November 2026: a pull request and a push to main run builds, lint and type checks only (the light
+#     tier, under 2 minutes). The rest is run by hand (workflow_dispatch): `phase` at the end of each phase (the unit
+#     and web suites), `full` at the end of each stage (everything). A failure on main opens or updates one issue.
 # The light tiers are a deliberate choice while MedApp isn't live (docs/todo.md, Testing).
 on:
   pull_request:
@@ -15,9 +16,13 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-  schedule:
-    # Nightly, for what changes without a commit: a new advisory, a rebuilt base image, a date a test depends on.
-    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'phase (unit and web suites) or full (everything)'
+        type: choice
+        options: [ phase, full ]
+        default: phase
 # Each job asks for what it needs beyond reading the repository.
 permissions:
   contents: read
@@ -74,6 +79,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
+          DISPATCH_TIER: ${{ inputs.tier }}
           ACTION: ${{ github.event.action }}
           LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           BEFORE: ${{ github.event.before }}
@@ -92,7 +98,7 @@ jobs:
             files=$(tail -n +2 <<< "$listed")
             if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -ge 300 ]; then known=false; fi
           fi
-          plan=$(EVENT="$EVENT" LABELS="$labels" KNOWN="$known" bash .github/scripts/ci-plan.sh <<< "$files")
+          plan=$(EVENT="$EVENT" DISPATCH_TIER="$DISPATCH_TIER" LABELS="$labels" KNOWN="$known" bash .github/scripts/ci-plan.sh <<< "$files")
           get() { sed -n "s/^$1=//p" <<< "$plan"; }
           tier=$(get tier); reason=$(get reason)
           web=$(get web); web_build=$(get web_build); dotnet=$(get dotnet); integration=$(get integration)
@@ -264,37 +270,6 @@ jobs:
 
       - name: Check the built theme is up to date
         run: npm run theme:check
-
-      # Light tier only: the tests of the files the pull request changed. That's each changed test file, and the test
-      # beside each changed source file (Page.tsx has Page.test.tsx). Not the tests that import them: the route tree
-      # imports every page, so `vitest related` ran three quarters of the suite for one page. What a change breaks
-      # elsewhere is found by main's run. The names come from the pull request, so they're only ever passed as
-      # arguments, by their full paths (never read by the shell, and never mistaken for an option).
-      - name: Unit tests of the changed files
-        if: ${{ needs.changes.outputs.web == 'light' }}
-        env:
-          WEB_FILES: ${{ needs.changes.outputs.web_files }}
-        run: |
-          tests=()
-          while IFS= read -r file; do
-            [ -n "$file" ] || continue
-            path="$GITHUB_WORKSPACE/$file"
-            case "$file" in
-              *.test.*) candidates=("$path") ;;
-              *.*) candidates=("${path%.*}.test.tsx" "${path%.*}.test.ts") ;;
-              *) candidates=() ;;
-            esac
-            for test in "${candidates[@]}"; do
-              # A deleted file has nothing to run.
-              if [ -f "$test" ] && [[ " ${tests[*]} " != *" $test "* ]]; then tests+=("$test"); fi
-            done
-          done <<< "$WEB_FILES"
-          if [ "${#tests[@]}" -eq 0 ]; then
-            echo "None of the changed files has a test of its own."
-            exit 0
-          fi
-          printf 'Running %s\n' "${tests[@]#"$GITHUB_WORKSPACE/MedApp.Web/"}"
-          npx vitest run "${tests[@]}"
 
       # The whole production build, as the image's Dockerfile runs it: tsc, the client build, the server rendering
       # bundle (vite build --ssr) and the copy of the page server.
@@ -927,6 +902,7 @@ jobs:
         run: dotnet build tools/MedApp.DevMcp --configuration Release
 
       - name: Run unit tests with coverage
+        if: ${{ needs.changes.outputs.tier != 'light' }}
         run: |
           dotnet test MedApp.UnitTests \
             --configuration Release \
@@ -934,6 +910,7 @@ jobs:
             --results-directory ./coverage
       
       - name: Generate coverage report
+        if: ${{ needs.changes.outputs.tier != 'light' }}
         uses: danielpalme/ReportGenerator-GitHub-Action@5f3701a41d14548c9b8e575a5c235230e515cbc0 # v5.6.0
         with:
           reports: 'coverage/**/coverage.cobertura.xml'
@@ -948,12 +925,14 @@ jobs:
 
       
       - name: Upload coverage report
+        if: ${{ needs.changes.outputs.tier != 'light' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-report
           path: coverage-report
       
       - name: Create detailed coverage comment
+        if: ${{ needs.changes.outputs.tier != 'light' }}
         run: |
           echo "## 📊 Coverage Report" > coverage-details.md
           echo "" >> coverage-details.md

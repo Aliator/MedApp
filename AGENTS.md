@@ -89,7 +89,7 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one. Kubernetes (`deploy/kind/up.sh`), Argo CD and Azure: `docs/agents/deploy.md`. After changing the chart run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: a PR's CI runs a light tier by default, `main` gets the full suite after each merge, and what that finds is fixed afterwards ([CI](#ci)). Locally and in CI, run only what checks your change:
+**Testing a change: the least that checks it.** MedApp isn't live yet, so speed comes first, deliberately: PR and `main` CI run builds, lint and type checks only (the light tier, under 2 minutes; the owner, 18 November 2026); the unit and web suites run by hand at each phase's end (`gh workflow run main.yml -f tier=phase`), and the full suite at each stage's end (`-f tier=full`). What they find is fixed then ([CI](#ci)).
 - **Which CI tier:**
   - **A small fix** (as [Effort](#effort-for-each-stage-of-a-change) defines small): label the PR `ci:none`, and CI builds and tests nothing.
   - **A UI change:** the default light tier (lint, type check, the changed files' own Vitest tests), plus the screenshots below, looked at locally.
@@ -241,7 +241,7 @@ Docker, memory, the dev server, server-side rendering and the production image: 
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and in full on `main` after every merge and nightly. Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
+`.github/workflows/main.yml` runs on PRs to `main` in a **tier** chosen by the `changes` job from the PR's labels and diff, and on pushes to `main` (builds, lint and type checks only); the `phase` and `full` runs are started by hand (`workflow_dispatch`). Detail (the tiers' path rules, each job, coverage, CodeQL, Dependabot, the supply chain rules): `docs/agents/ci.md`.
 - **Tiers:** `none` (docs only, or the `ci:none` label for a small fix); **light**, the default (`web-checks` for the web app, `unit-tests` for .NET); **full** (the `ci:full` label, which the owner decides). A change under `.github/` always runs everything, `deploy/` runs `helm`, and image inputs run `image`.
 - **`main`'s full run gates nothing** (Publish deploys alongside it). A failure opens or updates the issue "Full suite failing on main".
 - **The six required checks** (`web`, `helm`, `unit-tests`, `image`, `integration-tests`, `e2e`) mean "what the tier asked for passed".
