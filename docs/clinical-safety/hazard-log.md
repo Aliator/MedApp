@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -73,6 +73,11 @@
 | [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-pathway) | A note from the notepad is added to the wrong patient's pathway | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
 | [H-38](#h-38-a-pathways-note-is-deleted-wrongly) | A pathway's note is deleted wrongly | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, built (admins only, a reason, the confirmation, kept) | Open, draft for the CSO |
 | [H-39](#h-39-a-visit-is-recorded-after-the-event-that-didnt-happen-or-on-the-wrong-patient) | A visit is recorded after the event that didn't happen, or on the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built (the patient shown, the 30-day limit, who recorded it)** | Open, draft for the CSO |
+| [H-40](#h-40-a-referral-is-lost-or-delayed-before-triage) | A referral is lost or delayed before triage | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built: `docs/centre-phase2-plan.md`) | Open, draft for the CSO |
+| [H-41](#h-41-a-referral-is-triaged-into-the-wrong-pathway-priority-or-patient) | A referral is triaged into the wrong pathway, priority or patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
+| [H-42](#h-42-a-paused-waiting-time-clock-is-forgotten) | A paused waiting-time clock is forgotten | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
+| [H-43](#h-43-a-breach-of-a-waiting-time-target-goes-unnoticed-or-the-target-is-wrong) | A breach of a waiting-time target goes unnoticed, or the target is wrong | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
+| [H-44](#h-44-a-duplicate-referral-leads-to-two-pathways-for-one-need) | A duplicate referral leads to two pathways for one need | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, before first live use (not built) | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -90,6 +95,8 @@
 
 **Closed days and appointments recorded after the event (H-39)** (branch `feature/closed-days-walk-ins`): a new draft hazard, H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), estimated at 3 to start and 2 with its built controls; and closed days' and walk-ins' effect on H-31 to H-35's causes and controls. No earlier draft estimate changed.
 
+**Referrals, triage and the waiting-time clock (H-40 to H-44)** are drafts written from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), **before anything is built**, so the build includes their controls. None has an existing control; each lists the planned ones. Draft estimates: four start at 3 (H-40 to H-43) and all come down to 2 at first live use once their planned controls are built. H-01 gains registering a referral on the wrong patient as a cause.
+
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
 ---
@@ -106,6 +113,7 @@
 - Task lists and pathway lists show the patient's name only (`MyTasksPage.tsx`, `PathwaysListPage.tsx`). Search matches on part of a name (`PathwaySearch.Filter`).
 - Two pages can be open side by side (half views), and pathways can be pinned in the side navigation.
 - The same causes can put a file on the wrong patient: H-23.
+- **A referral registered on the wrong patient** (planned, `docs/centre-phase2-plan.md`): the referral's patient is chosen by name or NHS number when it's registered, or added from the demographics lookup. Its controls (the patient banner on the referral page and in every triage confirmation, entered in error with a reason) are under H-41.
 
 **Effect.** Notes are written on the wrong patient's pathway, or a stage is finished on it, and the other patient's pathway is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
@@ -1540,6 +1548,189 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
+## Referrals, triage and waiting times: draft hazards for the CSO
+
+H-40 to H-44 come from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), drafted **before the features are built**, so the build can include their controls. "Decision n" refers to section 1 of that plan. In short:
+- **Referrals:** staff register each referral the centre receives (the patient, the referring practice, when it arrived, the specialty and priority asked for, the letter), and it waits in an inbox.
+- **Triage:** a clinician with the triage permission in that specialty accepts it into a pathway (choosing the template and the priority), rejects it or redirects it, with a reason.
+- **The waiting-time clock:** counts the days since the referral arrived, less pauses staff record, against the organisation's target for the specialty and priority, and shows a breach.
+
+**Ratings:** left for the CSO to assign. Each entry gives a draft estimate as a starting point.
+- **Existing controls:** there are none yet, because nothing here is built. Today the centre handles referrals outside MedApp.
+- **Further controls:** the plan's controls are listed as **planned (Phase 2)**, before first live use.
+- **Check each control** against the code once it's built.
+
+---
+
+## H-40: A referral is lost or delayed before triage
+
+**Description.** A referral the centre received isn't triaged, or is triaged late, so the patient isn't seen when they should be.
+
+**Causes:**
+- **Never registered:** the letter arrives by post or email and is set aside, or registering it is refused (a restricted patient's record can't gain a referral, decision 44).
+- **Registered under the wrong specialty,** so it waits in an inbox nobody of the right specialty reads.
+- **Nobody can triage the specialty:** no member of it has the triage permission (a new specialty, someone away, a role edited).
+- **The inbox isn't read,** or is read without sorting by wait.
+- **Closed by mistake:** withdrawn or marked entered in error.
+
+**Effect.** The patient waits without anyone deciding about their referral; the referrer believes it's in hand.
+
+**Possible harm.** A delayed diagnosis or treatment (for an urgent skin referral, a delayed cancer diagnosis). One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
+
+**Further controls** (all planned, Phase 2, before first live use unless marked):
+- **The inbox** lists every referral awaiting triage, longest wait first, with its days waited and a breach badge, and its count shows in the side navigation. Protective.
+- **No silent closing:** a referral is closed only by a named person with a recorded outcome and reason (accepted, rejected, redirected, withdrawn, entered in error), and the person who registered it is told the outcome. Protective.
+- **The Specialties page warns** when no member of a specialty holds the triage permission, and archiving a specialty with referrals waiting is refused. Protective.
+- **A restricted record:** the refusal to register says to give the letter to an admin. Restricting a patient counts their referrals awaiting triage, and asks for confirmation. Information and protective.
+- **Transferred** (`dcb0160-deploying-organisations.md`):
+  - a daily check of the inbox;
+  - a procedure for referrals received when MedApp is unavailable;
+  - making sure every specialty has a triager.
+- **A monitoring rule for referrals not triaged in N days.** Protective; planned for Phase 4 (it needs a scheduled job); later.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-41: A referral is triaged into the wrong pathway, priority or patient
+
+**Description.** The triage decision recorded isn't the one the clinician meant, or is made on the wrong patient's referral: the wrong pathway template, a lower priority than intended, or a referral registered on the wrong patient.
+
+**Causes:**
+- **Similar names:** templates with similar names, or two patients with the same name (H-01).
+- **The letter not read:** the clinician decides from the typed reason without the letter, or no letter is attached.
+- **A priority accepted without thought:** a default priority would invite this, so the plan prefills none (decision 19).
+- **Two clinicians at once** on one referral.
+
+**Effect.** The patient follows the wrong pathway, or waits against a longer target than their condition needs, or another patient is booked in their place.
+
+**Possible harm.** A delayed or inappropriate investigation or treatment. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, Phase 2, before first live use):
+- **The patient as the patient banner shows them** on the referral page and in every triage confirmation, with the specialty and the template chosen. Protective.
+- **The letter beside the decision,** and a plain note when there's none. Protective.
+- **Choices kept narrow:** only the specialty's own templates are offered, listed by name and never ranked. The priority must be chosen, with the referrer's request shown beside it. Protective.
+- **Who decided, when and why** is recorded in the referral's history and on the timeline. Two decisions at once can't both succeed (the row version; the second gets a 409 naming the first). Detective and protective.
+- **Correction:** a wrong acceptance is corrected by cancelling the pathway; the priority can be changed on the pathway, which moves its target. Corrective.
+- **Transferred:** positive patient identification, and clinical review of triage.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-42: A paused waiting-time clock is forgotten
+
+**Description.** A clock is paused for a patient-initiated delay (the patient chose to wait, or is unavailable), and nobody comes back to it, so the patient drops off the waiting list's attention.
+
+**Causes:**
+- **No follow-up:** the person who paused it leaves or forgets.
+- **A far-off review date:** set too far ahead.
+- **A false breach picture:** a paused clock shows no breach, so the list looks healthy.
+
+**Effect.** The pathway sits without progress, and the waiting figures hide it.
+
+**Possible harm.** A delayed investigation or treatment. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, Phase 2, before first live use):
+- **A review date is required,** at most 90 days ahead. The pause records its reason, who paused it and when. Protective.
+- **While paused, the pathway's target date is the review date,** so a missed review shows as Overdue on every list and task list. Detective.
+- **The Paused clocks view** lists every open pause by review date, with past ones flagged. Detective.
+- **Only patient-initiated reasons,** only after acceptance: On hold doesn't pause the clock. Design.
+- **A notification or monitoring rule when a review date passes.** Protective; planned for Phase 4 (it needs a scheduled job); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-43: A breach of a waiting-time target goes unnoticed, or the target is wrong
+
+**Description.** A referral or pathway passes its target and nobody acts, or the target itself is wrong, so a breach isn't shown when it should be.
+
+**Causes:**
+- **Unread lists:** breaches are shown, never sent, and nobody looks at the lists.
+- **Wrong targets:** a specialty's targets entered wrongly (too long), or a priority set too low (H-41).
+- **A target changed later:** a specialty's targets changed after clocks started, which don't follow (by design, decision 30).
+- **Waiting wrongly paused:** a pause used for the centre's own delay instead of a patient-initiated one.
+
+**Effect.** Long waits accumulate unseen.
+
+**Possible harm.** A delayed diagnosis or treatment. Several patients; Considerable in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, Phase 2, before first live use unless marked):
+- **Breached** on every referral and pathway list, with "Day n of target". Sorting by days waited, and a "Breached only" filter. Detective.
+- **The target's source is visible:** each clock shows its target days, and each specialty's targets are on its admin page. Changes to targets are recorded. Information.
+- **Pause reasons are a fixed list** of patient-initiated reasons. Design.
+- **Transferred:**
+  - the organisation sets and reviews its targets;
+  - it reviews its waiting list on a set schedule.
+- **Breach notifications, and reports by specialty.** Protective; planned for Phases 4 and 5; later. They stay administrative: never derived from clinical values (`intended-purpose-and-device-decision.md`).
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-44: A duplicate referral leads to two pathways for one need
+
+**Description.** The same referral is registered twice (sent twice, or by post and email), and both are accepted, so the patient has two pathways for one problem.
+
+**Causes:**
+- **One referral, two copies:** sent twice, or by post and by email.
+- **A patient recorded twice** (H-01).
+- **Two people at once:** two coordinators register the same letter.
+
+**Effect.** Duplicate appointments, or one pathway discharged while staff think the other covers the patient, or results filed on the wrong one.
+
+**Possible harm.** Confusion about the patient's care, and a missed step if each pathway is assumed to be the other's. One patient; Significant in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Significant, Medium: **2**.
+
+**Further controls** (planned, Phase 2, before first live use):
+- **The duplicate check:** registering shows the patient's open referrals to the same specialty, and needs a confirmation to continue. Protective.
+- **A Duplicate rejection reason** at triage, and the triage page shows the patient's other referrals. Protective.
+- **Correction:** a duplicate registered by mistake is marked entered in error, with a reason. Corrective.
+
+**At first live use:** Draft: Significant, Low: **2**.
+
+**Residual risk:** Draft: Significant, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`PathwayWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -1574,3 +1765,4 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.14 | 18 November 2026 | Deleting pathway notes (branch `feature/note-deletion`): new draft hazard H-38 (a note deleted wrongly), with its controls (admins only, a reason, a confirmation showing the patient, the pathway and the note, the note kept and in the export and the admins' timeline, the requester told, restricted and anonymised records refused); H-37's "entered in error" further control is now built as admin deletion, and its cause updated. After the review of #115: a new cause (the note edited after the admin read it) with its control (only the version read is deleted), the reason a fixed choice, the author told, and the patient in the direct delete's confirmation. Ratings left for the CSO | AI coding agent, for review |
 | 0.15 | 18 November 2026 | Two-factor codes by email (branch `feature/email-2fa-codes`, after its review): an emailed code that doesn't arrive added to H-10's causes for the CSO, with its controls (codes' own share of the email allowance, no promise of a code that can't be sent, resending, recovery codes and the app) | AI coding agent, for review |
 | 0.16 | 18 November 2026 | Closed days and appointments recorded after the event (branch `feature/closed-days-walk-ins`): new draft hazard H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), with its built controls; closed days and walk-ins added to H-31 (a walk-in may overlap blocked time or a meeting, flagged; never another appointment), H-32 (an Attended walk-in counts as the visit), H-33 (a closed day that's wrong; the working day rule now includes closed days; bank holidays tested against gov.uk), H-34 (the walk-in dialog shows the patient) and H-35 (a day closed after appointments were booked on it: they stay, flagged; listing them when a day closes proposed). No draft estimate changed. Still a draft, not an issued version After the review of #119: H-39 gets entered in error as a corrective control (a wrong walk-in withdrawn with a reason, its stage's visit asked for again), walk-ins on a closed day allowed, the pathway and stage checks, the visit's notes kept, and the races named; H-35's control for a day closed with bookings made true (what's on it shown before closing, and those staff told). No draft estimate changed. After its follow-up review: H-39's entered in error by admins at any time, no visit asked for again on a restricted record, and a new detective control (a finished stage's only visit withdrawn is told to the pathway's assignees and the admins); a visit earlier on the day its pathway was created is allowed. No draft estimate changed | AI coding agent, for review |
+| 0.17 | 18 November 2026 | Referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), before they're built: new draft hazards H-40 (a referral lost or delayed before triage), H-41 (triaged into the wrong pathway, priority or patient), H-42 (a paused clock forgotten), H-43 (a breach unnoticed, or a wrong target) and H-44 (a duplicate referral), each with its planned controls and draft estimates; H-01 gains a referral registered on the wrong patient as a cause. No earlier draft estimate changed | AI coding agent, for review |
