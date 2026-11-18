@@ -8,22 +8,22 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 |---|---|
 | `Auth/SignInTests` | Signing in and out through the login page, and a wrong password ("Invalid credentials"). |
 | `Patients/PatientTests` | Adding a patient through the form and finding them with the filter bar; editing; deleting, confirmed and cancelled. |
-| `Procedures/ProcedureTests` | A new procedure for a patient from a template, then its stages worked: notes, Finish Stage, the status from Unassigned to In progress to In review. |
-| `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
+| `Pathways/PathwayTests` | A new pathway for a patient from a template, then its stages worked: notes, Finish Stage, the status from Unassigned to In progress to In review. |
+| `Tasks/MyTasksTests` | A pathway assigned to you in My Worklist, under Not started, then Started, and opening it. |
 | `Auth/TwoFactorTests` | Two-factor authentication: a member of staff sets up an authenticator app in Account Settings, Security (the key is read from the page, and codes made from it as an app makes them), sees their recovery codes once, then signs in again with their password and a code. Needs no email, so it runs against the production image as CI starts it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
 | `Calendar/BookingTests` | Booking an appointment from the patient page (with you, 30 minutes, the first free day and time), finding it on your Calendar that day, opening it and cancelling it with a reason. |
 | `Calendar/MeetingTests` | Arranging a meeting: the admin opens the Calendar's team view narrowed to themselves and a new member of staff, takes the first suggested time in New Meeting, finds the meeting on the member of staff's calendar that day, and cancels it there. |
 | `Calendar/BlockTimeTests` | Selecting time with the mouse: dragging over free time on your Calendar (an hour, three weeks ahead), the menu that opens staying open, Block time blocking exactly that hour, and deleting the block again. jsdom can't show the menu closing itself, so this is the test for it. |
 | `Calendar/StageVisitTests` | The visit rule: a stage that requires a visit shows "Requires appointment"; an admin's Finish Stage asks "Finish without a visit?" with a reason; the stage finishes, its requested visit comes off Requires Appointment, and the patient's timeline says it was finished without a visit, and why. |
-| `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
-| `Security/ContentSecurityPolicyTests` | Each main page (home, patients, procedures, My Tasks, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
+| `Notifications/NotificationBellTests` | Another admin assigns you a pathway: the bell's count goes up live (SignalR, no reload), and the notification opens the pathway and is marked read. |
+| `Security/ContentSecurityPolicyTests` | Each main page (home, patients, pathways, My Worklist, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
 
 ## What's here
 
 | File | Purpose |
 |---|---|
-| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It fails any test whose pages break the Content Security Policy (a `securitypolicyviolation` listener on every page, reported through the console), so a refused script or connection fails the suite against the production image even when the journey still works. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
+| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It fails any test whose pages break the Content Security Policy (a `securitypolicyviolation` listener on every page, reported through the console), so a refused script or connection fails the suite against the production image even when the journey still works. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and pathways. |
 | `Common/E2ESession.cs` | Signs in once per run through `POST /api/auth/login`, saves the session for every signed-in test, and signs it out at the end. |
 | `Common/E2EApi.cs` | The app's API, for a test's setup, its checks and its clean-up. |
 | `Common/E2EData.cs` | Unique synthetic names, and the clean-ups a test registers, run newest first when it ends, pass or fail. |
@@ -34,7 +34,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | Variable | Default | Purpose |
 |---|---|---|
 | `E2E_BASE_URL` | `http://localhost:5173` | The app under test (the React dev server the AppHost runs) |
-| `E2E_USERNAME` / `E2E_PASSWORD` | none | An **admin** account (Users and procedures' admin actions need one). Without them the suite is **skipped** locally but **fails** in CI (where `CI=true`), so a green CI run always ran the journeys. |
+| `E2E_USERNAME` / `E2E_PASSWORD` | none | An **admin** account (Users and pathways' admin actions need one). Without them the suite is **skipped** locally but **fails** in CI (where `CI=true`), so a green CI run always ran the journeys. |
 | `E2E_TRACE_DIR` | none | Saves a Playwright trace (screenshots, DOM, network) of each failed test there. A trace records what was typed, passwords included, so only CI's throwaway run (`main.yml`) sets it; never set it against a deployment. Open one with `pwsh bin/Release/net10.0/playwright.ps1 show-trace <file>.zip`. |
 
 Never commit credentials. Locally, use the dev-only `admin` / `admin` login that `medapp-dev` makes (it exists only in local dev databases).
@@ -49,7 +49,7 @@ E2E_USERNAME=admin E2E_PASSWORD=admin dotnet test MedApp.E2ETests
 ```
 
 The whole suite takes about a minute. The tests write to the database the app uses (locally, your dev database) and delete what they made. What the app has no way to delete stays:
-- the audit log entries of the procedures they made (by design: the audit log outlives deletes)
+- the audit log entries of the pathways they made (by design: the audit log outlives deletes)
 - the notification the bell test sends (marked read)
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
 - nothing from the meeting journey: it cancels its meeting, and its clean-up cancels it too if the test fails first

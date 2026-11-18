@@ -170,7 +170,7 @@ export const AppIcon = {
   SortDesc: remix(RiSortDesc),
   // Added in the React app
   Account: remix(RiUserLine),
-  Procedures: remix(RiStethoscopeLine),
+  Pathways: remix(RiStethoscopeLine),
   Tasks: remix(RiTaskLine),
   /** Favourites: a list's saved quick look-ups. */
   Favourite: remix(RiStarLine),
@@ -182,7 +182,7 @@ export const AppIcon = {
   Unpin: remix(RiUnpinLine),
   NotPorted: remix(RiToolsLine),
   NotFound: remix(RiCompassDiscoverLine),
-  // Procedure setup and the audit log (admin)
+  // Pathway setup and the audit log (admin)
   StageDefinitions: remix(RiListCheck3),
   Templates: remix(RiFileList3Line),
   AuditLog: remix(RiHistoryLine),

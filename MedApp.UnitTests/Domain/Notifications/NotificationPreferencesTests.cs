@@ -20,9 +20,9 @@ public sealed class NotificationPreferencesTests
     [Test]
     public void Wants_AssignedTurnedOff_RefusesOnlyThatKind()
     {
-        var preferences = new NotificationPreferences { UserId = UserId, ProcedureAssigned = false };
+        var preferences = new NotificationPreferences { UserId = UserId, PathwayAssigned = false };
 
-        preferences.Wants(NotificationKind.ProcedureAssigned).Should().BeFalse();
+        preferences.Wants(NotificationKind.PathwayAssigned).Should().BeFalse();
         preferences.Wants(NotificationKind.MonitoredStageFinished).Should().BeTrue();
     }
 
@@ -38,7 +38,7 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
                             || k == NotificationKind.StageVisitWithdrawn));
-        Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+        Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }
 
     [Test]
@@ -47,7 +47,7 @@ public sealed class NotificationPreferencesTests
         Notification.IsMonitoring(NotificationKind.MeetingInvited).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingDeclined).Should().BeFalse();
-        Notification.IsMonitoring(NotificationKind.MonitoredProcedureCreated).Should().BeTrue();
+        Notification.IsMonitoring(NotificationKind.MonitoredPathwayCreated).Should().BeTrue();
         Notification.IsMonitoring(NotificationKind.NoteDeletionRequested).Should().BeFalse();
     }
 
@@ -76,6 +76,6 @@ public sealed class NotificationPreferencesTests
     public void IsOptional_OnlyTheAssignedKind()
     {
         Enum.GetValues<NotificationKind>().Where(NotificationPreferences.IsOptional)
-            .Should().Equal(NotificationKind.ProcedureAssigned);
+            .Should().Equal(NotificationKind.PathwayAssigned);
     }
 }

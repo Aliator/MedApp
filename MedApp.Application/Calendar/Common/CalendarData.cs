@@ -17,7 +17,7 @@ namespace MedApp.Application.Calendar.Common;
 /// <param name="BlockExceptions">Template blocks left off a date (changed or removed that day).</param>
 /// <param name="Blocks">Stored blocks in the range, each with its activity type.</param>
 /// <param name="Appointments">
-/// The person's Booked, Attended and Did not attend appointments in the range, with their patient, procedure and stage.
+/// The person's Booked, Attended and Did not attend appointments in the range, with their patient, pathway and stage.
 /// </param>
 /// <param name="DayTemplateNames">The names of the day templates the days and overrides use, by ID.</param>
 public sealed record CalendarData(

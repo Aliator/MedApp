@@ -143,33 +143,33 @@ public sealed class AppointmentConcurrencyTests : IntegrationTest
     [Test]
     public async Task CreateAppointment_TwoVisitsForOneStageAtOnce_OneWinsAndTheOtherGets409()
     {
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 4)).Id);
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 4)).Id);
 
-        foreach (var stage in procedure.Stages)
+        foreach (var stage in pathway.Stages)
         {
             var responses = await Task.WhenAll(
-                PostRequestAsync(_ana.Client, procedure.Id, stage.Id),
-                PostRequestAsync(_ben.Client, procedure.Id, stage.Id));
+                PostRequestAsync(_ana.Client, pathway.Id, stage.Id),
+                PostRequestAsync(_ben.Client, pathway.Id, stage.Id));
 
             responses.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.Created, HttpStatusCode.Conflict]);
             var loser = await responses.Single(r => r.StatusCode == HttpStatusCode.Conflict).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
             loser.Title.Should().Be("This stage already has a visit in Requires Appointment. Book that one instead.");
         }
 
-        var open = await SearchAppointmentsAsync(_admin, $"procedureId={procedure.Id}");
-        open.Should().HaveCount(procedure.Stages.Count);
+        var open = await SearchAppointmentsAsync(_admin, $"pathwayId={pathway.Id}");
+        open.Should().HaveCount(pathway.Stages.Count);
         open.Select(a => a.StageId).Should().OnlyHaveUniqueItems();
     }
 
     [Test]
     public async Task CreateAppointment_ForAStageWithABookedVisit_Returns409SayingWhenAndWithWhom()
     {
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 1)).Id);
-        var stageId = procedure.Stages.Single().Id;
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 1)).Id);
+        var stageId = pathway.Stages.Single().Id;
         var start = NextBookableStart();
-        await BookNewAppointmentAsync(_ana.Client, _patient.Id, _ana.UserId, start, procedureId: procedure.Id, stageId: stageId);
+        await BookNewAppointmentAsync(_ana.Client, _patient.Id, _ana.UserId, start, pathwayId: pathway.Id, stageId: stageId);
 
-        var refused = await PostRequestAsync(_ben.Client, procedure.Id, stageId);
+        var refused = await PostRequestAsync(_ben.Client, pathway.Id, stageId);
 
         (await refused.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Be(
             $"This stage already has a visit booked, on {UkTime.Describe(start)} with {_ana.Username}. " +
@@ -180,36 +180,36 @@ public sealed class AppointmentConcurrencyTests : IntegrationTest
     [Test]
     public async Task AddAsync_ASecondOpenAppointmentForAStage_ThrowsAndSavesNothing_ButAClosedOneIsFine()
     {
-        var procedure = await CreateProcedureAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 1)).Id);
-        var stageId = procedure.Stages.Single().Id;
-        var first = await RequestAppointmentAsync(_admin, _patient.Id, procedure.Id, stageId);
+        var pathway = await CreatePathwayAsync(_admin, _patient.Id, (await CreateTemplateWithStagesAsync(_admin, 1)).Id);
+        var stageId = pathway.Stages.Single().Id;
+        var first = await RequestAppointmentAsync(_admin, _patient.Id, pathway.Id, stageId);
 
         var act = () => RunInScopeAsync(services => services.GetRequiredService<IAppointmentRepository>()
-            .AddAsync(NewAppointment(procedure.Id, stageId, AppointmentStatus.Requested), [], CancellationToken.None));
+            .AddAsync(NewAppointment(pathway.Id, stageId, AppointmentStatus.Requested), [], CancellationToken.None));
 
         (await act.Should().ThrowAsync<StageHasOpenAppointmentException>()).Which.StageId.Should().Be(stageId);
         (await SearchAppointmentsAsync(_admin, $"stageId={stageId}")).Select(a => a.Id).Should().Equal(first.Id);
 
         // Closed appointments don't count: once the first is cancelled, a new one can be asked for.
         await RunInScopeAsync(services => services.GetRequiredService<IAppointmentRepository>()
-            .AddAsync(NewAppointment(procedure.Id, stageId, AppointmentStatus.Cancelled), [], CancellationToken.None));
+            .AddAsync(NewAppointment(pathway.Id, stageId, AppointmentStatus.Cancelled), [], CancellationToken.None));
         await (await PostCancelAsync(_admin, first.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await PostRequestAsync(_ana.Client, procedure.Id, stageId)).ShouldHaveStatusAsync(HttpStatusCode.Created);
+        await (await PostRequestAsync(_ana.Client, pathway.Id, stageId)).ShouldHaveStatusAsync(HttpStatusCode.Created);
     }
 
-    private Task<HttpResponseMessage> PostRequestAsync(HttpClient client, Guid procedureId, Guid stageId) =>
+    private Task<HttpResponseMessage> PostRequestAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
         client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = _patient.Id,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             StageId = stageId,
         });
 
-    private Appointment NewAppointment(Guid procedureId, Guid stageId, AppointmentStatus status) => new()
+    private Appointment NewAppointment(Guid pathwayId, Guid stageId, AppointmentStatus status) => new()
     {
         Id = Guid.NewGuid(),
         PatientId = _patient.Id,
-        ProcedureId = procedureId,
+        PathwayId = pathwayId,
         StageId = stageId,
         Status = status,
         CancelReason = status == AppointmentStatus.Cancelled ? CancelReason : null,

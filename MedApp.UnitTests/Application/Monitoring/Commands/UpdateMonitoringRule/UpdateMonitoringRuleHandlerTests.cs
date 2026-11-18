@@ -8,8 +8,8 @@ using MedApp.Domain.Monitoring;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.MonitoringTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePriority;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 
 namespace MedApp.UnitTests.Application.Monitoring.Commands.UpdateMonitoringRule;
 
@@ -21,7 +21,7 @@ public sealed class UpdateMonitoringRuleHandlerTests : MonitoringHandlerTestBase
     [Test]
     public async Task Handle_TheirRule_ReplacesItsFieldsAndKeepsWhenItWasMade()
     {
-        var rule = CreateRule(MonitoringEvent.ProcedureCreated, id: RuleId);
+        var rule = CreateRule(MonitoringEvent.PathwayCreated, id: RuleId);
         Rules.Setup(r => r.GetAsync(RuleId, OwnerId, It.IsAny<CancellationToken>())).ReturnsAsync(rule);
         using var cts = new CancellationTokenSource();
 

@@ -1,5 +1,5 @@
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Notifications;
 
@@ -35,7 +35,7 @@ public static class ClosedDayBookings
                 .Select(b => new DayBookingsStaffResponse
                 {
                     UserId = b.StaffUserId,
-                    Username = usernames.GetValueOrDefault(b.StaffUserId) ?? ProcedureMapper.DeletedUser,
+                    Username = usernames.GetValueOrDefault(b.StaffUserId) ?? PathwayMapper.DeletedUser,
                     Appointments = b.Appointments,
                     Blocks = b.Blocks,
                     Meetings = b.Meetings

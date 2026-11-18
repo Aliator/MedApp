@@ -4,7 +4,7 @@ using MedApp.Domain.Calendar;
 
 namespace MedApp.Application.Calendar.Common;
 
-/// <summary>Checks what a template is being given, as <c>TemplateStages</c> does for procedure templates.</summary>
+/// <summary>Checks what a template is being given, as <c>TemplateStages</c> does for pathway templates.</summary>
 public static class TemplateChecks
 {
     /// <summary>

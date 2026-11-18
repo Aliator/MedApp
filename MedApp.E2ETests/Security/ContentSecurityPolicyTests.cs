@@ -14,7 +14,7 @@ public sealed class ContentSecurityPolicyTests : E2ETest
 {
     [TestCase("/")]
     [TestCase("/patients")]
-    [TestCase("/procedures")]
+    [TestCase("/pathways")]
     [TestCase("/tasks")]
     [TestCase("/account")]
     [TestCase("/admin/users")]

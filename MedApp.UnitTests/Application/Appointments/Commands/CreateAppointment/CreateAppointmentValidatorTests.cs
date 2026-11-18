@@ -35,9 +35,9 @@ public sealed class CreateAppointmentValidatorTests
     }
 
     [Test]
-    public void Validate_NoProcedureOrStageOrNotes_Passes()
+    public void Validate_NoPathwayOrStageOrNotes_Passes()
     {
-        _validator.ValidateNow(Request() with { ProcedureId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
+        _validator.ValidateNow(Request() with { PathwayId = null, StageId = null, Notes = null }).IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -47,9 +47,9 @@ public sealed class CreateAppointmentValidatorTests
     }
 
     [Test]
-    public void Validate_StageWithoutItsProcedure_Fails()
+    public void Validate_StageWithoutItsPathway_Fails()
     {
-        Errors(Request() with { ProcedureId = null }).Should().Equal("A stage needs its procedure.");
+        Errors(Request() with { PathwayId = null }).Should().Equal("A stage needs its pathway.");
     }
 
     [Test]

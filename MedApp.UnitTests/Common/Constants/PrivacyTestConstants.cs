@@ -3,7 +3,7 @@ using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.UnitTests.Common.Constants;
 
@@ -33,15 +33,15 @@ public static class PrivacyTestConstants
     }
 
     /// <summary>
-    /// A patient's record holding one of each kind of thing about them, with the procedures given. With a procedure, it
-    /// has one appointment, for the first procedure's first stage, with notes, cancelled with a reason, and its history.
+    /// A patient's record holding one of each kind of thing about them, with the pathways given. With a pathway, it
+    /// has one appointment, for the first pathway's first stage, with notes, cancelled with a reason, and its history.
     /// </summary>
     /// <summary>The record with these note versions.</summary>
-    public static PatientRecord WithNoteVersions(PatientRecord record, params PatientProcedureNoteVersion[] versions) => new()
+    public static PatientRecord WithNoteVersions(PatientRecord record, params PatientPathwayNoteVersion[] versions) => new()
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         NoteVersions = versions,
         NoteDeletionRequests = record.NoteDeletionRequests,
         Activity = record.Activity,
@@ -52,11 +52,11 @@ public static class PrivacyTestConstants
     };
 
     /// <summary>The record with these requests to delete notes.</summary>
-    public static PatientRecord WithNoteDeletionRequests(PatientRecord record, params ProcedureNoteDeletionRequest[] requests) => new()
+    public static PatientRecord WithNoteDeletionRequests(PatientRecord record, params PathwayNoteDeletionRequest[] requests) => new()
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         NoteVersions = record.NoteVersions,
         NoteDeletionRequests = requests,
         Activity = record.Activity,
@@ -66,32 +66,32 @@ public static class PrivacyTestConstants
         Attachments = record.Attachments
     };
 
-    public static PatientRecord CreateRecord(Patient? patient = null, params PatientProcedure[] procedures)
+    public static PatientRecord CreateRecord(Patient? patient = null, params PatientPathway[] pathways)
     {
         patient ??= PatientsTestConstants.CreateValidPatient();
-        foreach (var procedure in procedures)
+        foreach (var pathway in pathways)
         {
-            procedure.Patient = patient;
-            procedure.PatientId = patient.Id;
+            pathway.Patient = patient;
+            pathway.PatientId = patient.Id;
         }
 
-        var appointments = procedures.Take(1).Select(p => CreateAppointment(patient, p)).ToList();
+        var appointments = pathways.Take(1).Select(p => CreateAppointment(patient, p)).ToList();
 
         return new PatientRecord
         {
             Patient = patient,
-            Procedures = procedures,
-            ProcedureHistory = procedures
-                .Select(p => new PatientProcedureAuditEntry
+            Pathways = pathways,
+            PathwayHistory = pathways
+                .Select(p => new PatientPathwayAuditEntry
                 {
                     Id = Guid.NewGuid(),
-                    PatientProcedureId = p.Id,
-                    ProcedureTitle = p.Title,
+                    PatientPathwayId = p.Id,
+                    PathwayTitle = p.Title,
                     PatientId = patient.Id,
-                    Action = PatientProcedureAuditAction.Created,
-                    UserId = ProceduresTestConstants.Staff.UserId,
-                    Username = ProceduresTestConstants.Staff.Username,
-                    AtUtc = ProceduresTestConstants.Now.AddDays(-7),
+                    Action = PatientPathwayAuditAction.Created,
+                    UserId = PathwaysTestConstants.Staff.UserId,
+                    Username = PathwaysTestConstants.Staff.Username,
+                    AtUtc = PathwaysTestConstants.Now.AddDays(-7),
                     Details = """{"template":"Test template"}"""
                 })
                 .ToList(),
@@ -100,25 +100,25 @@ public static class PrivacyTestConstants
                 new ActivityEntry
                 {
                     Id = Guid.NewGuid(),
-                    AtUtc = ProceduresTestConstants.Now.AddDays(-1),
+                    AtUtc = PathwaysTestConstants.Now.AddDays(-1),
                     Action = ActivityAction.PatientViewed,
-                    UserId = ProceduresTestConstants.Staff.UserId,
-                    Username = ProceduresTestConstants.Staff.Username,
+                    UserId = PathwaysTestConstants.Staff.UserId,
+                    Username = PathwaysTestConstants.Staff.Username,
                     PatientId = patient.Id
                 }
             ],
             Appointments = appointments,
-            AppointmentHistory = appointments.SelectMany(a => CreateAppointmentHistory(a, procedures[0])).ToList(),
-            Notifications = procedures
+            AppointmentHistory = appointments.SelectMany(a => CreateAppointmentHistory(a, pathways[0])).ToList(),
+            Notifications = pathways
                 .Select(p => new Notification
                 {
                     Id = Guid.NewGuid(),
-                    UserId = ProceduresTestConstants.Staff.UserId,
-                    Kind = NotificationKind.ProcedureAssigned,
+                    UserId = PathwaysTestConstants.Staff.UserId,
+                    Kind = NotificationKind.PathwayAssigned,
                     Title = p.Title,
-                    Message = "test.admin assigned you to this procedure.",
-                    ProcedureId = p.Id,
-                    CreatedAtUtc = ProceduresTestConstants.Now.AddDays(-6)
+                    Message = "test.admin assigned you to this pathway.",
+                    PathwayId = p.Id,
+                    CreatedAtUtc = PathwaysTestConstants.Now.AddDays(-6)
                 })
                 .ToList(),
             NoteVersions = [],
@@ -127,39 +127,39 @@ public static class PrivacyTestConstants
         };
     }
 
-    /// <summary>An appointment for the procedure's first stage, with notes, cancelled with a reason.</summary>
-    private static Appointment CreateAppointment(Patient patient, PatientProcedure procedure) => new()
+    /// <summary>An appointment for the pathway's first stage, with notes, cancelled with a reason.</summary>
+    private static Appointment CreateAppointment(Patient patient, PatientPathway pathway) => new()
     {
         Id = Guid.NewGuid(),
         PatientId = patient.Id,
         Patient = patient,
-        ProcedureId = procedure.Id,
-        StageId = procedure.Stages.OrderBy(s => s.StageOrder).FirstOrDefault()?.Id,
+        PathwayId = pathway.Id,
+        StageId = pathway.Stages.OrderBy(s => s.StageOrder).FirstOrDefault()?.Id,
         Status = AppointmentStatus.Cancelled,
         Notes = NotesText,
         CancelReason = Reason,
-        CreatedAtUtc = ProceduresTestConstants.Now.AddDays(-5),
-        CreatedByUserId = ProceduresTestConstants.Staff.UserId,
-        LastUpdated = ProceduresTestConstants.Now.AddDays(-4)
+        CreatedAtUtc = PathwaysTestConstants.Now.AddDays(-5),
+        CreatedByUserId = PathwaysTestConstants.Staff.UserId,
+        LastUpdated = PathwaysTestConstants.Now.AddDays(-4)
     };
 
     /// <summary>The appointment's notes being written, then its cancellation.</summary>
-    private static IEnumerable<AppointmentEvent> CreateAppointmentHistory(Appointment appointment, PatientProcedure procedure) =>
+    private static IEnumerable<AppointmentEvent> CreateAppointmentHistory(Appointment appointment, PatientPathway pathway) =>
     [
         new AppointmentEvent
         {
-            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, ProcedureId = procedure.Id,
-            ProcedureTitle = procedure.Title, Action = AppointmentEventAction.NotesUpdated,
-            UserId = ProceduresTestConstants.Staff.UserId, Username = ProceduresTestConstants.Staff.Username,
-            AtUtc = ProceduresTestConstants.Now.AddDays(-5),
+            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, PathwayId = pathway.Id,
+            PathwayTitle = pathway.Title, Action = AppointmentEventAction.NotesUpdated,
+            UserId = PathwaysTestConstants.Staff.UserId, Username = PathwaysTestConstants.Staff.Username,
+            AtUtc = PathwaysTestConstants.Now.AddDays(-5),
             Details = $$"""{"from":"","to":"{{NotesText}}"}"""
         },
         new AppointmentEvent
         {
-            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, ProcedureId = procedure.Id,
-            ProcedureTitle = procedure.Title, Action = AppointmentEventAction.Cancelled,
-            UserId = ProceduresTestConstants.Staff.UserId, Username = ProceduresTestConstants.Staff.Username,
-            AtUtc = ProceduresTestConstants.Now.AddDays(-4),
+            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, PathwayId = pathway.Id,
+            PathwayTitle = pathway.Title, Action = AppointmentEventAction.Cancelled,
+            UserId = PathwaysTestConstants.Staff.UserId, Username = PathwaysTestConstants.Staff.Username,
+            AtUtc = PathwaysTestConstants.Now.AddDays(-4),
             Details = $$"""{"reason":"{{Reason}}","automatic":false}"""
         }
     ];
@@ -168,10 +168,10 @@ public static class PrivacyTestConstants
     public static RetentionCandidate CreateCandidate(
         DateOnly dateOfBirth,
         DateTime lastUpdatedUtc,
-        DateTime? lastProcedureChangedUtc = null,
+        DateTime? lastPathwayChangedUtc = null,
         DateOnly? keptUntil = null,
         string firstName = "Test",
         string lastName = "Patient") =>
-        new(Guid.NewGuid(), firstName, lastName, dateOfBirth, lastUpdatedUtc, lastProcedureChangedUtc, keptUntil,
+        new(Guid.NewGuid(), firstName, lastName, dateOfBirth, lastUpdatedUtc, lastPathwayChangedUtc, keptUntil,
             keptUntil is null ? null : Reason);
 }

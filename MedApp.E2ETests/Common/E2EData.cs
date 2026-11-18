@@ -1,7 +1,7 @@
 namespace MedApp.E2ETests.Common;
 
 /// <summary>
-/// What a test made, to delete when it ends, pass or fail: the clean-ups run newest first (a procedure before its
+/// What a test made, to delete when it ends, pass or fail: the clean-ups run newest first (a pathway before its
 /// patient and template, a template before its stages). Every one runs even if another fails; the failures are
 /// reported together.
 /// </summary>

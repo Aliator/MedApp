@@ -239,7 +239,7 @@ describe('server rendering', () => {
     expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
     expect(html).toContain('Opening the notepad...');
     expect(html).not.toContain('aria-label="Notepad"');
-    expect(html).not.toContain('My Tasks');
+    expect(html).not.toContain('My Worklist');
     expect(requests.map((r) => new URL(r.url).pathname)).not.toContain('/api/me/notepad');
   });
 
@@ -372,9 +372,9 @@ describe('server rendering', () => {
       '/api/notifications': {items: [], unreadCount: 0},
       [`/api/patients/${patient.id}`]: patient,
       [`/api/patients/${patient.id}/timeline/overview`]: {
-        upcoming: [{procedureId: '0000000d-0000-0000-0000-000000000002', title: 'Knee assessment', status: 'Assigned', dueDate: '2026-06-30', isOverdue: false}],
+        upcoming: [{pathwayId: '0000000d-0000-0000-0000-000000000002', title: 'Knee assessment', status: 'Assigned', dueDate: '2026-06-30', isOverdue: false}],
         openCount: 1,
-        procedures: [],
+        pathways: [],
       },
       [`/api/patients/${patient.id}/timeline`]: {
         items: [
@@ -384,8 +384,8 @@ describe('server rendering', () => {
             action: 'StageFinished',
             atUtc: '2026-06-15T09:00:00Z',
             username: 'test.staff',
-            procedureId: '0000000d-0000-0000-0000-000000000002',
-            procedureTitle: 'Knee assessment',
+            pathwayId: '0000000d-0000-0000-0000-000000000002',
+            pathwayTitle: 'Knee assessment',
             stageName: 'Consultation',
             changes: [],
           },
@@ -395,8 +395,8 @@ describe('server rendering', () => {
             action: 'AppointmentBooked',
             atUtc: '2026-06-15T08:00:00Z',
             username: 'test.staff',
-            procedureId: null,
-            procedureTitle: null,
+            pathwayId: null,
+            pathwayTitle: null,
             appointmentStartUtc: '2026-06-22T09:00:00Z',
             appointmentEndUtc: '2026-06-22T09:30:00Z',
             appointmentStaffUsername: 'test.doctor',
@@ -593,14 +593,14 @@ describe('server rendering', () => {
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
   });
 
-  it("renders a procedure's page with its own files", async () => {
-    const procedureId = '0000000d-0000-0000-0000-000000000002';
+  it("renders a pathway's page with its own files", async () => {
+    const pathwayId = '0000000d-0000-0000-0000-000000000002';
     const requests = api({
       '/api/auth/whoami': signedIn,
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
-      [`/api/procedures/patient-procedures/${procedureId}`]: {
-        id: procedureId,
+      [`/api/pathways/patient-pathways/${pathwayId}`]: {
+        id: pathwayId,
         patientId: patient.id,
         patientName: 'Test Patient',
         title: 'Knee assessment',
@@ -612,15 +612,15 @@ describe('server rendering', () => {
         stages: [],
         assignments: [],
       },
-      '/api/attachments': fileList({attachedTo: 'Procedure', procedureId, procedureTitle: 'Knee assessment', fileName: 'consent-form.pdf'}),
+      '/api/attachments': fileList({attachedTo: 'Pathway', pathwayId, pathwayTitle: 'Knee assessment', fileName: 'consent-form.pdf'}),
     });
 
-    const html = await (await page(`/procedures/${procedureId}`, 'medapp_session=abc')).text();
+    const html = await (await page(`/pathways/${pathwayId}`, 'medapp_session=abc')).text();
 
     expect(html).toContain('Knee assessment');
     expect(html).toContain('consent-form.pdf');
     const files = requests.find((r) => new URL(r.url).pathname === '/api/attachments')!;
-    expect(new URL(files.url).search).toBe(`?ProcedureId=${procedureId}`);
+    expect(new URL(files.url).search).toBe(`?PathwayId=${pathwayId}`);
   });
 
   it("renders the patient's banner on the server, with their NHS number", async () => {
@@ -693,16 +693,16 @@ describe('server rendering', () => {
       '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
-      '/api/procedures/insights': insights,
-      '/api/procedures/patient-procedure-stage/templates': templates,
+      '/api/pathways/insights': insights,
+      '/api/pathways/patient-pathway-stage/templates': templates,
     });
 
     const response = await page('/admin/insights', 'medapp_session=abc');
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(html).toContain('Completed this week');
-    expect(html).toContain('5 procedures are overdue. k.ashford has the most (3). 2 have nobody assigned.');
+    expect(html).toContain('Discharged this week');
+    expect(html).toContain('5 pathways are overdue. k.ashford has the most (3). 2 have nobody assigned.');
     expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
     expect(html).not.toContain('recharts-surface');
   });

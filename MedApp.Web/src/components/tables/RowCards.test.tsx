@@ -6,7 +6,7 @@ import {RowCards} from './RowCards';
 type Row = {id: string; name: string; status: string};
 
 const columns: TableColumn<Row>[] = [
-  {key: 'name', header: 'Procedure', sortable: true, renderCell: (r) => r.name},
+  {key: 'name', header: 'Pathway', sortable: true, renderCell: (r) => r.name},
   {key: 'status', header: 'Status', sortable: true, renderCell: (r) => r.status},
   {key: 'actions', header: 'Actions', renderCell: (r) => <button type="button">View {r.name}</button>},
 ];
@@ -27,7 +27,7 @@ describe('RowCards', () => {
     expect(first.getByText('Status')).toBeInTheDocument();
     expect(first.getByText('In progress')).toBeInTheDocument();
     // Its title and actions aren't repeated as labelled values.
-    expect(first.queryByText('Procedure')).not.toBeInTheDocument();
+    expect(first.queryByText('Pathway')).not.toBeInTheDocument();
   });
 
   it('sorts from a menu, turning the sorted column round when chosen again', async () => {
@@ -66,7 +66,7 @@ describe('RowCards sorting', () => {
     const {user} = renderWithApp(<RowCards data={rows} columns={columns} idKey="id" skeletonRows={3} sort={null} onSortChange={onSortChange} />);
 
     const menu = await openSort(user, 'Sort');
-    await user.click(menu.getByRole('menuitem', {name: /^Procedure/, hidden: true}));
+    await user.click(menu.getByRole('menuitem', {name: /^Pathway/, hidden: true}));
 
     expect(onSortChange).toHaveBeenLastCalledWith({column: 'name', ascending: true});
   });
@@ -83,13 +83,13 @@ describe('RowCards sorting', () => {
     expect(onSortChange).toHaveBeenLastCalledWith({column: 'status', ascending: true});
 
     const again = await openSort(user, 'Sort by Status, descending');
-    await user.click(again.getByRole('menuitem', {name: /^Procedure/, hidden: true}));
+    await user.click(again.getByRole('menuitem', {name: /^Pathway/, hidden: true}));
     expect(onSortChange).toHaveBeenLastCalledWith({column: 'name', ascending: true});
   });
 
   it('names a column by its key when its header is not text, and has no menu without sortable columns', async () => {
     const plain: TableColumn<Row>[] = [
-      {key: 'name', header: <strong>Procedure</strong>, sortable: true, renderCell: (r) => r.name},
+      {key: 'name', header: <strong>Pathway</strong>, sortable: true, renderCell: (r) => r.name},
       {key: 'status', header: <strong>Status</strong>, renderCell: (r) => r.status},
     ];
     const {unmount} = renderWithApp(

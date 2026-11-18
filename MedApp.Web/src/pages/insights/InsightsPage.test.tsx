@@ -6,8 +6,8 @@ import type {InsightsSearch} from '../listSearch';
 import {InsightsPage} from './InsightsPage';
 import {givenWidth} from '../../test/layout';
 
-const INSIGHTS = '/api/procedures/insights';
-const TEMPLATES = '/api/procedures/patient-procedure-stage/templates';
+const INSIGHTS = '/api/pathways/insights';
+const TEMPLATES = '/api/pathways/patient-pathway-stage/templates';
 
 /** Answers with `body`, for the template asked for (as the API says which template its numbers are for). */
 function renderInsights(search: InsightsSearch = {}, body: unknown = insights, status = 200) {
@@ -23,18 +23,18 @@ function renderInsights(search: InsightsSearch = {}, body: unknown = insights, s
 const card = (title: string) => screen.getByRole('heading', {name: title}).closest<HTMLElement>('.astryx-card')!;
 
 describe('InsightsPage', () => {
-  it('shows each headline count against this time last week, linking to the procedures it counts', async () => {
+  it('shows each headline count against this time last week, linking to the pathways it counts', async () => {
     const {fetch} = renderInsights();
 
-    expect(await screen.findByRole('link', {name: 'Open: 14. 2 more than this time last week.'})).toHaveAttribute('href', '/procedures?mine=false');
+    expect(await screen.findByRole('link', {name: 'Open: 14. 2 more than this time last week.'})).toHaveAttribute('href', '/pathways?mine=false');
     expect(screen.getByRole('link', {name: 'In progress: 6. Same as this time last week.'})).toHaveAttribute(
       'href',
-      '/procedures?status=InProgress&mine=false',
+      '/pathways?status=InProgress&mine=false',
     );
-    expect(screen.getByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+    expect(screen.getByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'})).toHaveAttribute('href', '/pathways?overdue=true&mine=false');
     // No list shows what was completed when, so that tile isn't a link.
-    expect(screen.getByText('Completed this week')).toBeInTheDocument();
-    expect(screen.queryByRole('link', {name: /^Completed this week/})).not.toBeInTheDocument();
+    expect(screen.getByText('Discharged this week')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Discharged this week/})).not.toBeInTheDocument();
     expect(screen.getByText('31 Aug 2026 to 16 Nov 2026, all templates')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12`);
   });
@@ -43,7 +43,7 @@ describe('InsightsPage', () => {
     localStorage.setItem('medapp.proceduresStartOnMine', 'true');
     renderInsights();
 
-    expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+    expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/pathways?overdue=true&mine=false');
   });
 
   it('says it is updating, and dims the last numbers, while another template loads', async () => {
@@ -72,7 +72,7 @@ describe('InsightsPage', () => {
     expect(await screen.findByText('Updating...')).toBeInTheDocument();
     expect(document.querySelector('[aria-label="Insights"]')).toHaveAttribute('aria-busy', 'true');
     // The numbers on screen are still everyone's, so the links are too.
-    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/pathways?overdue=true&mine=false');
     answer(json({...insights, templateId: TEMPLATE_ID}));
     expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12&TemplateId=${TEMPLATE_ID}`);
@@ -82,25 +82,25 @@ describe('InsightsPage', () => {
     givenWidth();
     renderInsights();
 
-    expect(await screen.findByText('5 procedures are overdue. k.ashford has the most (3). 2 have nobody assigned.')).toBeInTheDocument();
+    expect(await screen.findByText('5 pathways are overdue. k.ashford has the most (3). 2 have nobody assigned.')).toBeInTheDocument();
     expect(screen.getByRole('img', {name: 'Bar chart. Of 5 overdue, 1 is urgent and 2 high priority.'})).toBeInTheDocument();
-    expect(screen.getByText(/^Over 3 weeks, 8 procedures created and 10 completed/)).toBeInTheDocument();
+    expect(screen.getByText(/^Over 3 weeks, 8 pathways created and 10 discharged/)).toBeInTheDocument();
     expect(screen.getByText('The longest is Procedure: 2 d 6 h on average, 2 d 2 h of it waiting to be started.')).toBeInTheDocument();
     expect(screen.getByRole('img', {name: /^Stacked bar chart of the average time at each stage of Knee review/})).toBeInTheDocument();
   });
 
-  it('opens the overdue procedures an assignee bar counts', async () => {
+  it('opens the overdue pathways an assignee bar counts', async () => {
     givenWidth();
     const {user, router} = renderInsights();
 
-    const chart = await screen.findByRole('img', {name: /^Bar chart\. 5 procedures are overdue/});
+    const chart = await screen.findByRole('img', {name: /^Bar chart\. 5 pathways are overdue/});
     await waitFor(() => expect(chart.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
     await user.click(chart.querySelectorAll('.recharts-bar-rectangle path')[1]);
 
-    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&assignee=none&mine=false'));
+    await waitFor(() => expect(router.state.location.href).toBe('/pathways?overdue=true&assignee=none&mine=false'));
   });
 
-  it('opens the overdue procedures of a priority from its bar', async () => {
+  it('opens the overdue pathways of a priority from its bar', async () => {
     givenWidth();
     const {user, router} = renderInsights();
 
@@ -108,29 +108,29 @@ describe('InsightsPage', () => {
     await waitFor(() => expect(chart.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
     await user.click(chart.querySelectorAll('.recharts-bar-rectangle path')[0]);
 
-    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&priority=Urgent&mine=false'));
+    await waitFor(() => expect(router.state.location.href).toBe('/pathways?overdue=true&priority=Urgent&mine=false'));
   });
 
   it("shows each chart's numbers as a table, whose rows link where the bars do", async () => {
     const {user} = renderInsights();
 
     await screen.findByRole('heading', {name: 'Overdue by assignee'});
-    for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and completed', 'Time at each stage']) {
+    for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and discharged', 'Time at each stage']) {
       await user.click(within(card(title)).getByRole('button', {name: `Show Table of ${title}`}));
     }
 
-    const assignees = screen.getByRole('table', {name: 'Overdue procedures by assignee'});
-    expect(within(assignees).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', `/procedures?overdue=true&assignee=${STAFF_ID}&mine=false`);
-    expect(within(assignees).getByRole('link', {name: 'Nobody'})).toHaveAttribute('href', '/procedures?overdue=true&assignee=none&mine=false');
-    const priorities = screen.getByRole('table', {name: 'Overdue procedures by priority'});
-    expect(within(priorities).getByRole('link', {name: 'High'})).toHaveAttribute('href', '/procedures?overdue=true&priority=High&mine=false');
-    const weeks = screen.getByRole('table', {name: 'Procedures created and completed each week'});
+    const assignees = screen.getByRole('table', {name: 'Overdue pathways by assignee'});
+    expect(within(assignees).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', `/pathways?overdue=true&assignee=${STAFF_ID}&mine=false`);
+    expect(within(assignees).getByRole('link', {name: 'Nobody'})).toHaveAttribute('href', '/pathways?overdue=true&assignee=none&mine=false');
+    const priorities = screen.getByRole('table', {name: 'Overdue pathways by priority'});
+    expect(within(priorities).getByRole('link', {name: 'High'})).toHaveAttribute('href', '/pathways?overdue=true&priority=High&mine=false');
+    const weeks = screen.getByRole('table', {name: 'Pathways created and discharged each week'});
     expect(within(weeks).getByText('9 Nov 2026')).toBeInTheDocument();
     const stages = screen.getByRole('table', {name: 'Average time at each stage of Knee review'});
-    const procedure = within(stages).getByText('2. Procedure').closest('tr')!;
-    expect(within(procedure).getByText('2 d 2 h')).toBeInTheDocument();
-    expect(within(procedure).getByText('4 h')).toBeInTheDocument();
-    expect(within(procedure).getByText('3')).toBeInTheDocument();
+    const pathway = within(stages).getByText('2. Procedure').closest('tr')!;
+    expect(within(pathway).getByText('2 d 2 h')).toBeInTheDocument();
+    expect(within(pathway).getByText('4 h')).toBeInTheDocument();
+    expect(within(pathway).getByText('3')).toBeInTheDocument();
   });
 
   it('changes the period, keeping 12 weeks (the default) out of the URL', async () => {
@@ -155,12 +155,12 @@ describe('InsightsPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID});
   });
 
-  it('on a template, asks for its insights, names it, and links to its procedures', async () => {
+  it('on a template, asks for its insights, names it, and links to its pathways', async () => {
     const {fetch, user, onSearchChange} = renderInsights({weeks: 26, template: TEMPLATE_ID});
 
     expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=26&TemplateId=${TEMPLATE_ID}`);
-    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', `/procedures?overdue=true&mine=false&templateId=${TEMPLATE_ID}`);
+    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', `/pathways?overdue=true&mine=false&templateId=${TEMPLATE_ID}`);
 
     await user.click(screen.getByRole('combobox', {name: /Template/}));
     await user.click(screen.getByRole('option', {name: 'All templates'}));
@@ -178,7 +178,7 @@ describe('InsightsPage', () => {
     };
     renderInsights({}, several);
 
-    expect(await screen.findByRole('heading', {name: 'Procedures (no template)'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Pathways (no template)'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Knee review (no template)'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Knee review'})).toBeInTheDocument();
   });

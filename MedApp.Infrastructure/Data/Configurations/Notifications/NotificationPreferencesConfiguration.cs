@@ -13,7 +13,7 @@ public sealed class NotificationPreferencesConfiguration : IEntityTypeConfigurat
         // One row per user who has chosen; no row means the defaults. No foreign key, as with UserSettings.
         builder.HasKey(preferences => preferences.UserId);
 
-        builder.Property(preferences => preferences.ProcedureAssigned)
+        builder.Property(preferences => preferences.PathwayAssigned)
             .IsRequired();
 
         builder.Property(preferences => preferences.UpdatedAtUtc)

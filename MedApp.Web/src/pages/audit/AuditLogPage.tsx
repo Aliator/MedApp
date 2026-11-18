@@ -32,7 +32,7 @@ export interface AuditLogPageProps {
 
 /** The search's fields, as the API filters the log, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
-  {kind: 'text', key: 'q', label: 'Procedure, stage or user'},
+  {kind: 'text', key: 'q', label: 'Pathway, stage or user'},
   {kind: 'choice', key: 'action', label: 'Action', options: AUDIT_ACTIONS.map((a) => ({value: a, label: auditActionLabel(a)})), isMultiple: true},
   {kind: 'date', key: 'when', label: 'When', fromKey: 'from', toKey: 'to'},
 ];
@@ -48,9 +48,9 @@ const favourites = (): ListFilterFavourite[] => [
 ];
 
 /**
- * The procedure audit log (admin, decision 16): every change to every procedure, newest first, a page at a time.
- * Its power search filters by procedure, stage or user, actions and dates, and a procedure's View Audit Log opens it
- * on just that procedure. Entries outlive their procedures, so a deleted procedure's history is still here.
+ * The pathway audit log (admin, decision 16): every change to every pathway, newest first, a page at a time.
+ * Its power search filters by pathway, stage or user, actions and dates, and a pathway's View Audit Log opens it
+ * on just that pathway. Entries outlive their pathways, so a deleted pathway's history is still here.
  */
 /** The log's page of entries, for its search and page size (the route's loader fetches it too). */
 export function auditListQuery(search: AuditListSearch, pageSize: number) {
@@ -60,7 +60,7 @@ export function auditListQuery(search: AuditListSearch, pageSize: number) {
     Ascending: search.asc ?? false,
     Search: search.q,
     Actions: choiceValues(search.action, AUDIT_ACTIONS),
-    ProcedureId: search.procedureId,
+    PathwayId: search.pathwayId,
     From: search.from,
     To: search.to,
   });
@@ -74,9 +74,9 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
   const {data, isPending, isError} = useQuery(auditListQuery(search, pageSize));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as EntryRow[];
-  const procedureTitle = search.procedureId ? rows[0]?.procedureTitle : null;
+  const pathwayTitle = search.pathwayId ? rows[0]?.pathwayTitle : null;
 
-  /** Keeps the order; clears the filters and the procedure. */
+  /** Keeps the order; clears the filters and the pathway. */
   const clearSearch = () => onSearchChange({asc: search.asc});
 
   const columns: DataTableColumn<EntryRow>[] = [
@@ -88,19 +88,19 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
       renderCell: (e) => <TextCell text={e.atUtc ? formatDateTime(e.atUtc) : ''} />,
     },
     {
-      key: 'procedure',
-      header: 'Procedure',
+      key: 'pathway',
+      header: 'Pathway',
       width: proportional(2, {minWidth: 96}),
       renderCell: (e) => (
         <VStack gap={0}>
           {isPatientFileEntry(e) ? (
-            // A patient's own file has no procedure to link to.
+            // A patient's own file has no pathway to link to.
             <Text type="body" weight="semibold" maxLines={1}>
               <Link href={`/patients/${e.patientId}`}>Patient file</Link>
             </Text>
           ) : (
             <Text type="body" weight="semibold" maxLines={1}>
-              <Link href={`/procedures/${e.patientProcedureId}`}>{e.procedureTitle}</Link>
+              <Link href={`/pathways/${e.patientPathwayId}`}>{e.pathwayTitle}</Link>
             </Text>
           )}
           {e.stageName && (
@@ -124,16 +124,16 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
   const noun = total === 1 ? 'entry' : 'entries';
   const subtitle = isPending
     ? 'Loading the audit log...'
-    : procedureTitle
-      ? `${total} ${noun} for ${procedureTitle}`
+    : pathwayTitle
+      ? `${total} ${noun} for ${pathwayTitle}`
       : `${total} ${noun}${isFiltered ? ' found' : ''}`;
 
   return (
     <Page
       title="Audit Log"
       subtitle={subtitle}
-      backHref={search.procedureId ? `/procedures/${search.procedureId}` : undefined}
-      backLabel="Back to the procedure"
+      backHref={search.pathwayId ? `/pathways/${search.pathwayId}` : undefined}
+      backLabel="Back to the pathway"
       fill
       message={isError && <AlertMessage message="The audit log could not be loaded. Please try again." />}
 >
@@ -142,7 +142,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
         columns={columns}
         idKey="id"
         isLoading={isPending}
-        // The search, keeping the procedure the log is opened on (it's not one of the bar's filters).
+        // The search, keeping the pathway the log is opened on (it's not one of the bar's filters).
         search={
           <ListFilterBar
             fields={FILTER_FIELDS}
@@ -150,7 +150,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
             onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
             list="audit"
             label="Search the audit log"
-            placeholder="Search by procedure, stage or user, or filter by action and date..."
+            placeholder="Search by pathway, stage or user, or filter by action and date..."
             textKey="q"
             favourites={favourites()}
           />
@@ -166,7 +166,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
         emptyState={
           <EmptyState
             title={isFiltered ? 'No entries match your search' : 'Nothing in the audit log yet'}
-            description={isFiltered ? 'Try different terms or dates, or clear the search.' : 'Changes to procedures are recorded here.'}
+            description={isFiltered ? 'Try different terms or dates, or clear the search.' : 'Changes to pathways are recorded here.'}
             isCompact
             actions={isFiltered ? <Button label="Clear Search" variant="secondary" onClick={clearSearch} /> : undefined}
           />

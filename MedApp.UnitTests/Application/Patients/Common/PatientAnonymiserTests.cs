@@ -2,14 +2,14 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Patients.Common;
 
@@ -21,14 +21,14 @@ public sealed class PatientAnonymiserTests
     [Test]
     public void Apply_NoteDeletions_LoseTheirReasons_AndWaitingRequestsAreClosedByWhoeverAnonymises()
     {
-        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
-        var deleted = procedure.AddNote();
-        var waiting = procedure.AddNote(text: "Synthetic second note.");
-        var approved = procedure.RequestDeletion(deleted);
-        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
+        var pathway = CreatePathway(Status.Completed, finishedStages: 3);
+        var deleted = pathway.AddNote();
+        var waiting = pathway.AddNote(text: "Synthetic second note.");
+        var approved = pathway.RequestDeletion(deleted);
+        new PathwayChange(pathway, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
         approved.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
-        var pending = procedure.RequestDeletion(waiting);
-        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, procedure), approved, pending);
+        var pending = pathway.RequestDeletion(waiting);
+        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, pathway), approved, pending);
         var by = new ActivityActor(Admin.UserId, Admin.Username, null);
 
         PatientAnonymiser.Apply(record, AnonymisedAt, by);
@@ -79,19 +79,19 @@ public sealed class PatientAnonymiserTests
     }
 
     [Test]
-    public void Apply_Procedures_TakeTheTemplateName_AndLoseTheirNotes()
+    public void Apply_Pathways_TakeTheTemplateName_AndLoseTheirNotes()
     {
-        var withNotes = CreateProcedure(Status.Completed, finishedStages: 3, title: "Synthetic title naming a condition");
+        var withNotes = CreatePathway(Status.Completed, finishedStages: 3, title: "Synthetic title naming a condition");
         withNotes.LegacyNotes = PrivacyTestConstants.NotesText;
         var note = withNotes.AddNote(text: PrivacyTestConstants.NotesText, version: 2);
-        var noTemplate = CreateProcedure(Status.Cancelled, finishedStages: 0);
+        var noTemplate = CreatePathway(Status.Cancelled, finishedStages: 0);
         noTemplate.TemplateName = " ";
         var record = PrivacyTestConstants.WithNoteVersions(
             PrivacyTestConstants.CreateRecord(null, withNotes, noTemplate),
             NoteVersion(withNotes, note.Id, 1, PrivacyTestConstants.NotesText),
             NoteVersion(withNotes, note.Id, 2, PrivacyTestConstants.NotesText + " Edited."),
-            // A deleted procedure's note: only its versions remain, found by the patient.
-            NoteVersion(withNotes, Guid.NewGuid(), 1, PrivacyTestConstants.NotesText, procedureId: Guid.NewGuid()));
+            // A deleted pathway's note: only its versions remain, found by the patient.
+            NoteVersion(withNotes, Guid.NewGuid(), 1, PrivacyTestConstants.NotesText, pathwayId: Guid.NewGuid()));
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
@@ -101,20 +101,20 @@ public sealed class PatientAnonymiserTests
         record.NoteVersions.Should().HaveCount(3).And.AllSatisfy(v => v.Text.Should().Be(PatientAnonymiser.RemovedText));
         withNotes.Stages.Should().AllSatisfy(s => s.Notes.Should().Be(PatientAnonymiser.RemovedText));
         withNotes.Stages[0].Name.Should().Be(ConsultationStage, "stage names come from definitions, not the patient");
-        noTemplate.Title.Should().Be(PatientAnonymiser.ProcedureTitle);
+        noTemplate.Title.Should().Be(PatientAnonymiser.PathwayTitle);
         noTemplate.LegacyNotes.Should().BeEmpty("empty text stays empty");
         noTemplate.Notes.Should().BeEmpty();
         noTemplate.Stages.Should().AllSatisfy(s => s.Notes.Should().BeEmpty());
     }
 
-    private static PatientProcedureNoteVersion NoteVersion(
-        PatientProcedure procedure, Guid noteId, int version, string text, Guid? procedureId = null) => new()
+    private static PatientPathwayNoteVersion NoteVersion(
+        PatientPathway pathway, Guid noteId, int version, string text, Guid? pathwayId = null) => new()
     {
         Id = Guid.NewGuid(),
         NoteId = noteId,
         Version = version,
-        PatientProcedureId = procedureId ?? procedure.Id,
-        PatientId = procedure.PatientId,
+        PatientPathwayId = pathwayId ?? pathway.Id,
+        PatientId = pathway.PatientId,
         Text = text,
         UserId = Staff.UserId,
         Username = Staff.Username,
@@ -122,25 +122,25 @@ public sealed class PatientAnonymiserTests
     };
 
     [Test]
-    public void Apply_ProcedureHistory_TakesTheNewTitles_AndADeletedProceduresGetsThePlaceholder()
+    public void Apply_PathwayHistory_TakesTheNewTitles_AndADeletedPathwaysGetsThePlaceholder()
     {
-        var procedure = CreateProcedure(Status.Completed);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
-        var deleted = new PatientProcedureAuditEntry
+        var pathway = CreatePathway(Status.Completed);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
+        var deleted = new PatientPathwayAuditEntry
         {
             Id = Guid.NewGuid(),
-            PatientProcedureId = Guid.NewGuid(),
-            ProcedureTitle = "Deleted synthetic title",
+            PatientPathwayId = Guid.NewGuid(),
+            PathwayTitle = "Deleted synthetic title",
             PatientId = record.Patient.Id,
-            Action = PatientProcedureAuditAction.Deleted,
+            Action = PatientPathwayAuditAction.Deleted,
             Details = """{"status":"Cancelled"}"""
         };
         record = WithHistory(record, deleted);
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
-        record.ProcedureHistory[0].ProcedureTitle.Should().Be(TemplateName);
-        deleted.ProcedureTitle.Should().Be(PatientAnonymiser.ProcedureTitle);
+        record.PathwayHistory[0].PathwayTitle.Should().Be(TemplateName);
+        deleted.PathwayTitle.Should().Be(PatientAnonymiser.PathwayTitle);
         deleted.Details.Should().Be("""{"status":"Cancelled"}""");
     }
 
@@ -215,47 +215,47 @@ public sealed class PatientAnonymiserTests
     [Test]
     public void Apply_Notifications_TakeTheNewTitles()
     {
-        var procedure = CreateProcedure(Status.Completed);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
-        var forDeleted = new Notification { Id = Guid.NewGuid(), Title = "Old", ProcedureId = Guid.NewGuid() };
-        var noProcedure = new Notification { Id = Guid.NewGuid(), Title = "Old" };
-        record = WithNotifications(record, forDeleted, noProcedure);
+        var pathway = CreatePathway(Status.Completed);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
+        var forDeleted = new Notification { Id = Guid.NewGuid(), Title = "Old", PathwayId = Guid.NewGuid() };
+        var noPathway = new Notification { Id = Guid.NewGuid(), Title = "Old" };
+        record = WithNotifications(record, forDeleted, noPathway);
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
         record.Notifications[0].Title.Should().Be(TemplateName);
-        forDeleted.Title.Should().Be(PatientAnonymiser.ProcedureTitle);
-        noProcedure.Title.Should().Be(PatientAnonymiser.ProcedureTitle);
+        forDeleted.Title.Should().Be(PatientAnonymiser.PathwayTitle);
+        noPathway.Title.Should().Be(PatientAnonymiser.PathwayTitle);
     }
 
     [Test]
     public void Apply_MonitoringNotification_KeepsItsFixedTitleAndMessage()
     {
-        var procedure = CreateProcedure(Status.Completed);
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.Completed);
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var monitoring = new Notification
         {
             Id = Guid.NewGuid(),
             Kind = NotificationKind.MonitoredStageFinished,
             Title = "Stage finished",
-            Message = "test.staff finished a stage on a Medium priority Test template procedure.",
-            ProcedureId = procedure.Id,
+            Message = "test.staff finished a stage on a Medium priority Test template pathway.",
+            PathwayId = pathway.Id,
         };
         record = WithNotifications(record, monitoring);
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
         monitoring.Title.Should().Be("Stage finished");
-        monitoring.Message.Should().Be("test.staff finished a stage on a Medium priority Test template procedure.");
+        monitoring.Message.Should().Be("test.staff finished a stage on a Medium priority Test template pathway.");
     }
 
     private static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
-    private static PatientRecord WithHistory(PatientRecord record, PatientProcedureAuditEntry entry) => new PatientRecord
+    private static PatientRecord WithHistory(PatientRecord record, PatientPathwayAuditEntry entry) => new PatientRecord
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = [.. record.ProcedureHistory, entry],
+        Pathways = record.Pathways,
+        PathwayHistory = [.. record.PathwayHistory, entry],
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
@@ -268,8 +268,8 @@ public sealed class PatientAnonymiserTests
     private static PatientRecord WithActivity(PatientRecord record, ActivityEntry entry) => new PatientRecord
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         Activity = [.. record.Activity, entry],
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
@@ -282,8 +282,8 @@ public sealed class PatientAnonymiserTests
     private static PatientRecord WithNotifications(PatientRecord record, params Notification[] notifications) => new PatientRecord
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
@@ -296,7 +296,7 @@ public sealed class PatientAnonymiserTests
     [Test]
     public void Apply_Appointments_ReplaceTheirNotesAndCancellationReasons()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway(Status.InProgress));
         var appointment = record.Appointments.Single();
         var booked = new Appointment
         {
@@ -316,14 +316,14 @@ public sealed class PatientAnonymiserTests
     [Test]
     public void Apply_AppointmentHistory_TakesTheNewTitle_AndLosesItsFreeText()
     {
-        var procedure = CreateProcedure(Status.InProgress);
-        procedure.TemplateName = TemplateName;
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.InProgress);
+        pathway.TemplateName = TemplateName;
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
         record.AppointmentHistory.Should().HaveCount(2);
-        record.AppointmentHistory.Should().OnlyContain(e => e.ProcedureTitle == TemplateName);
+        record.AppointmentHistory.Should().OnlyContain(e => e.PathwayTitle == TemplateName);
         var notes = Parse(record.AppointmentHistory.Single(e => e.Action == AppointmentEventAction.NotesUpdated).Details);
         notes["from"]!.GetValue<string>().Should().BeEmpty();
         notes["to"]!.GetValue<string>().Should().Be(PatientAnonymiser.RemovedText);
@@ -333,7 +333,7 @@ public sealed class PatientAnonymiserTests
     }
 
     [Test]
-    public void Apply_AppointmentHistoryNotForAProcedure_KeepsItsEmptyTitle()
+    public void Apply_AppointmentHistoryNotForAPathway_KeepsItsEmptyTitle()
     {
         var record = PrivacyTestConstants.CreateRecord();
         var entry = new AppointmentEvent
@@ -345,23 +345,23 @@ public sealed class PatientAnonymiserTests
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
-        entry.ProcedureTitle.Should().BeEmpty();
+        entry.PathwayTitle.Should().BeEmpty();
     }
 
     [TestCase(NotificationKind.AppointmentBooked, "Appointment booked", false)]
     [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved", true)]
     [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled", true)]
     [TestCase(NotificationKind.StageVisitWithdrawn, "Stage visit withdrawn", true)]
-    public void Apply_AppointmentNotification_KeepsItsFixedTitleAndMessage(NotificationKind kind, string title, bool forProcedure)
+    public void Apply_AppointmentNotification_KeepsItsFixedTitleAndMessage(NotificationKind kind, string title, bool forPathway)
     {
-        var procedure = CreateProcedure(Status.InProgress);
-        procedure.TemplateName = TemplateName;
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway(Status.InProgress);
+        pathway.TemplateName = TemplateName;
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         var notification = new Notification
         {
             Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = kind,
             Title = title, Message = "test.staff moved your appointment to Monday 23 November at 10:00.",
-            ProcedureId = forProcedure ? procedure.Id : null, AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
+            PathwayId = forPathway ? pathway.Id : null, AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
         };
         record = WithNotifications(record, notification);
 
@@ -374,8 +374,8 @@ public sealed class PatientAnonymiserTests
     private static PatientRecord WithAppointments(PatientRecord record, params Appointment[] appointments) => new PatientRecord
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         Activity = record.Activity,
         Appointments = [.. record.Appointments, .. appointments],
         AppointmentHistory = record.AppointmentHistory,
@@ -388,8 +388,8 @@ public sealed class PatientAnonymiserTests
     private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new PatientRecord
     {
         Patient = record.Patient,
-        Procedures = record.Procedures,
-        ProcedureHistory = record.ProcedureHistory,
+        Pathways = record.Pathways,
+        PathwayHistory = record.PathwayHistory,
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = [.. record.AppointmentHistory, .. entries],

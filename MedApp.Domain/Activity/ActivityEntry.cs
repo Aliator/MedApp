@@ -25,8 +25,8 @@ public sealed class ActivityEntry
     /// <summary>The patient it's about, if any.</summary>
     public Guid? PatientId { get; init; }
 
-    /// <summary>The procedure it's about, if any.</summary>
-    public Guid? ProcedureId { get; init; }
+    /// <summary>The pathway it's about, if any.</summary>
+    public Guid? PathwayId { get; init; }
 
     /// <summary>The account it's about, for account and role changes.</summary>
     public string? TargetUsername { get; init; }

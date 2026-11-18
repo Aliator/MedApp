@@ -103,13 +103,13 @@ describe('ChartTooltip', () => {
         label="2026-11-02"
         payload={[{name: 'Created', value: 4, color: SERIES_COLOURS[0]}, {name: 'Completed', value: 2}]}
         formatCategory={(c) => `Week of ${c}`}
-        formatValue={(v) => `${v} procedures`}
+        formatValue={(v) => `${v} pathways`}
       />,
     );
 
     expect(screen.getByText('Week of 2026-11-02')).toBeInTheDocument();
-    expect(screen.getByText('Created: 4 procedures')).toBeInTheDocument();
-    expect(screen.getByText('Completed: 2 procedures')).toBeInTheDocument();
+    expect(screen.getByText('Created: 4 pathways')).toBeInTheDocument();
+    expect(screen.getByText('Completed: 2 pathways')).toBeInTheDocument();
   });
 
   it('shows plain values and categories by default', () => {

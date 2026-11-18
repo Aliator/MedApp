@@ -6,10 +6,10 @@ using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Demographics.Requests;
 using MedApp.Contracts.Demographics.Responses;
-using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Requests;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
-using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Requests;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
+using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +20,7 @@ namespace MedApp.IntegrationTests.Nhs;
 
 /// <summary>
 /// The demographics (PDS) lookup, off by default and with the offline stub switched on, and SNOMED CT codes on stage
-/// definitions, copied onto a procedure's stages.
+/// definitions, copied onto a pathway's stages.
 /// </summary>
 [TestFixture]
 public sealed class DemographicsAndSnomedTests : IntegrationTest
@@ -78,33 +78,33 @@ public sealed class DemographicsAndSnomedTests : IntegrationTest
     }
 
     [Test]
-    public async Task SnomedCode_OnADefinition_IsShownOnTheTemplate_AndCopiedOntoNewProcedures()
+    public async Task SnomedCode_OnADefinition_IsShownOnTheTemplate_AndCopiedOntoNewPathways()
     {
         var admin = await SignInAsAdminAsync();
-        var definition = await (await admin.PostAsJsonAsync("/api/procedures/patient-procedure-stage/definitions",
-            new CreatePatientProcedureStageDefinitionRequest
+        var definition = await (await admin.PostAsJsonAsync("/api/pathways/patient-pathway-stage/definitions",
+            new CreatePatientPathwayStageDefinitionRequest
             {
                 Name = UniqueName("Coded"),
                 Description = "Synthetic coded stage",
                 Instructions = "Synthetic instructions",
                 SnomedCode = SnomedCode,
                 SnomedTerm = SnomedTerm,
-            })).ReadAsAsync<PatientProcedureStageDefinitionResponse>(HttpStatusCode.Created);
+            })).ReadAsAsync<PatientPathwayStageDefinitionResponse>(HttpStatusCode.Created);
         var template = await CreateTemplateAsync(admin, definition.Id, (await CreateStageDefinitionAsync(admin)).Id);
         var patient = await CreatePatientAsync(admin);
 
-        var procedure = await CreateProcedureAsync(admin, patient.Id, template.Id);
+        var pathway = await CreatePathwayAsync(admin, patient.Id, template.Id);
 
         definition.SnomedCode.Should().Be(SnomedCode);
         template.Stages[0].Should().BeEquivalentTo(new { SnomedCode, SnomedTerm });
-        procedure.Stages[0].Should().BeEquivalentTo(new { SnomedCode, SnomedTerm });
-        procedure.Stages[1].SnomedCode.Should().BeNull();
-        procedure.Patient!.Id.Should().Be(patient.Id);
+        pathway.Stages[0].Should().BeEquivalentTo(new { SnomedCode, SnomedTerm });
+        pathway.Stages[1].SnomedCode.Should().BeNull();
+        pathway.Patient!.Id.Should().Be(patient.Id);
 
-        // Removing the code from the definition later leaves the procedure's copy as it was.
-        var cleared = await (await admin.PatchAsJsonAsync($"/api/procedures/patient-procedure-stage/definitions/{definition.Id}",
-            new UpdatePatientProcedureStageDefinitionRequest { SnomedCode = "" })).ReadAsAsync<PatientProcedureStageDefinitionResponse>();
-        var reread = await (await admin.GetAsync(ProcedureUrl(procedure.Id))).ReadAsAsync<PatientProcedureResponse>();
+        // Removing the code from the definition later leaves the pathway's copy as it was.
+        var cleared = await (await admin.PatchAsJsonAsync($"/api/pathways/patient-pathway-stage/definitions/{definition.Id}",
+            new UpdatePatientPathwayStageDefinitionRequest { SnomedCode = "" })).ReadAsAsync<PatientPathwayStageDefinitionResponse>();
+        var reread = await (await admin.GetAsync(PathwayUrl(pathway.Id))).ReadAsAsync<PatientPathwayResponse>();
 
         cleared.SnomedCode.Should().BeNull();
         cleared.SnomedTerm.Should().BeNull();
@@ -116,8 +116,8 @@ public sealed class DemographicsAndSnomedTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
 
-        var response = await admin.PostAsJsonAsync("/api/procedures/patient-procedure-stage/definitions",
-            new CreatePatientProcedureStageDefinitionRequest
+        var response = await admin.PostAsJsonAsync("/api/pathways/patient-pathway-stage/definitions",
+            new CreatePatientPathwayStageDefinitionRequest
             {
                 Name = UniqueName("Coded"),
                 Description = "d",

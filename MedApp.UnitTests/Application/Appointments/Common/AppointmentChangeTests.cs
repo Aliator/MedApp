@@ -4,18 +4,18 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
-using ProcedureData = MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using PathwayData = MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Appointments.Common;
 
 [TestFixture]
 public sealed class AppointmentChangeTests
 {
-    private const string ProcedureTitle = "Synthetic procedure";
+    private const string PathwayTitle = "Synthetic pathway";
     private const string StageName = "Consultation";
 
     private static AppointmentChange ChangeOf(Appointment appointment, string? staffUsername = StaffUsername) =>
-        new(appointment, ProcedureData.Staff, Now, staffUsername, ProcedureTitle, StageName);
+        new(appointment, PathwayData.Staff, Now, staffUsername, PathwayTitle, StageName);
 
     private static JsonElement Details(AppointmentEvent entry) => JsonDocument.Parse(entry.Details).RootElement;
 
@@ -30,8 +30,8 @@ public sealed class AppointmentChangeTests
         var entry = change.Events.Should().ContainSingle().Subject;
         entry.Action.Should().Be(AppointmentEventAction.Requested);
         entry.Details.Should().Be("{}");
-        entry.UserId.Should().Be(ProcedureData.Staff.UserId);
-        entry.Username.Should().Be(ProcedureData.Staff.Username);
+        entry.UserId.Should().Be(PathwayData.Staff.UserId);
+        entry.Username.Should().Be(PathwayData.Staff.Username);
         entry.AtUtc.Should().Be(Now);
         entry.StaffUserId.Should().BeNull();
         entry.StaffUsername.Should().BeNull();
@@ -62,7 +62,7 @@ public sealed class AppointmentChangeTests
         appointment.StartUtc.Should().Be(At(NextMonday, 10));
         appointment.EndUtc.Should().Be(At(NextMonday, 10, 30));
         appointment.BookedAtUtc.Should().Be(Now);
-        appointment.BookedByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.BookedByUserId.Should().Be(PathwayData.Staff.UserId);
         var entry = change.Events.Should().ContainSingle().Subject;
         entry.Action.Should().Be(AppointmentEventAction.Booked);
         entry.StaffUserId.Should().Be(StaffUserId);
@@ -119,7 +119,7 @@ public sealed class AppointmentChangeTests
 
         appointment.Status.Should().Be(AppointmentStatus.Attended);
         appointment.OutcomeAtUtc.Should().Be(Now);
-        appointment.OutcomeByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.OutcomeByUserId.Should().Be(PathwayData.Staff.UserId);
         var entry = change.Events.Should().ContainSingle().Subject;
         entry.Action.Should().Be(AppointmentEventAction.Attended);
         entry.StaffUsername.Should().Be(StaffUsername);
@@ -228,10 +228,10 @@ public sealed class AppointmentChangeTests
     }
 
     [Test]
-    public void Events_ForAProcedureStage_CopyTheTitleAndStageGiven()
+    public void Events_ForAPathwayStage_CopyTheTitleAndStageGiven()
     {
         var appointment = CreateAppointment(AppointmentStatus.Requested, stageId: Guid.NewGuid());
-        appointment.ProcedureId = Guid.NewGuid();
+        appointment.PathwayId = Guid.NewGuid();
         var change = ChangeOf(appointment, null);
 
         change.Request();
@@ -239,49 +239,49 @@ public sealed class AppointmentChangeTests
         var entry = change.Events.Single();
         entry.AppointmentId.Should().Be(appointment.Id);
         entry.PatientId.Should().Be(appointment.PatientId);
-        entry.ProcedureId.Should().Be(appointment.ProcedureId);
-        entry.ProcedureTitle.Should().Be(ProcedureTitle);
+        entry.PathwayId.Should().Be(appointment.PathwayId);
+        entry.PathwayTitle.Should().Be(PathwayTitle);
         entry.StageName.Should().Be(StageName);
     }
 
     [Test]
-    public void Events_ForAProcedureStage_TakeTheTitleAndStageFromTheAppointmentWhenNotGiven()
+    public void Events_ForAPathwayStage_TakeTheTitleAndStageFromTheAppointmentWhenNotGiven()
     {
-        var procedure = ProcedureData.CreateProcedure();
-        var appointment = CreateAppointment(AppointmentStatus.Requested, stageId: procedure.StageAt(1).Id);
-        appointment.ProcedureId = procedure.Id;
-        appointment.Procedure = procedure;
-        appointment.Stage = procedure.StageAt(1);
-        var change = new AppointmentChange(appointment, ProcedureData.Staff, Now);
+        var pathway = PathwayData.CreatePathway();
+        var appointment = CreateAppointment(AppointmentStatus.Requested, stageId: pathway.StageAt(1).Id);
+        appointment.PathwayId = pathway.Id;
+        appointment.Pathway = pathway;
+        appointment.Stage = pathway.StageAt(1);
+        var change = new AppointmentChange(appointment, PathwayData.Staff, Now);
 
         change.Request();
 
-        change.Events.Single().ProcedureTitle.Should().Be(procedure.Title);
-        change.Events.Single().StageName.Should().Be(ProcedureData.ConsultationStage);
+        change.Events.Single().PathwayTitle.Should().Be(pathway.Title);
+        change.Events.Single().StageName.Should().Be(PathwayData.ConsultationStage);
     }
 
     [Test]
-    public void Events_NotForAProcedure_HaveNoTitleOrStage()
+    public void Events_NotForAPathway_HaveNoTitleOrStage()
     {
         var change = ChangeOf(CreateAppointment(AppointmentStatus.Requested), null);
 
         change.Request();
 
-        change.Events.Single().ProcedureId.Should().BeNull();
-        change.Events.Single().ProcedureTitle.Should().BeEmpty();
+        change.Events.Single().PathwayId.Should().BeNull();
+        change.Events.Single().PathwayTitle.Should().BeEmpty();
         change.Events.Single().StageName.Should().BeNull();
     }
 
     [Test]
-    public void Events_ForAProcedureStageNotLoadedOrGiven_HaveAnEmptyTitleAndNoStageName()
+    public void Events_ForAPathwayStageNotLoadedOrGiven_HaveAnEmptyTitleAndNoStageName()
     {
         var appointment = CreateAppointment(AppointmentStatus.Requested, stageId: Guid.NewGuid());
-        appointment.ProcedureId = Guid.NewGuid();
-        var change = new AppointmentChange(appointment, ProcedureData.Staff, Now);
+        appointment.PathwayId = Guid.NewGuid();
+        var change = new AppointmentChange(appointment, PathwayData.Staff, Now);
 
         change.Request();
 
-        change.Events.Single().ProcedureTitle.Should().BeEmpty();
+        change.Events.Single().PathwayTitle.Should().BeEmpty();
         change.Events.Single().StageName.Should().BeNull();
     }
 
@@ -327,9 +327,9 @@ public sealed class AppointmentChangeTests
         appointment.StartUtc.Should().Be(start);
         appointment.EndUtc.Should().Be(start.AddMinutes(20));
         appointment.BookedAtUtc.Should().Be(Now);
-        appointment.BookedByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.BookedByUserId.Should().Be(PathwayData.Staff.UserId);
         appointment.OutcomeAtUtc.Should().Be(Now);
-        appointment.OutcomeByUserId.Should().Be(ProcedureData.Staff.UserId);
+        appointment.OutcomeByUserId.Should().Be(PathwayData.Staff.UserId);
         appointment.LastUpdated.Should().Be(Now);
 
         var entry = change.Events.Should().ContainSingle().Subject;
@@ -337,7 +337,7 @@ public sealed class AppointmentChangeTests
         entry.StaffUserId.Should().Be(OtherStaffUserId);
         entry.StaffUsername.Should().Be(OtherStaffUsername);
         entry.StartUtc.Should().Be(start);
-        entry.Username.Should().Be(ProcedureData.Staff.Username);
+        entry.Username.Should().Be(PathwayData.Staff.Username);
         Details(entry).GetProperty("outcome").GetString().Should().Be("DidNotAttend");
         Details(entry).TryGetProperty("previousStatus", out _).Should().BeFalse();
     }

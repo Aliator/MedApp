@@ -6,7 +6,7 @@ using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Application.Attachments.Queries.GetAttachmentThumbnail;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Attachments.Requests;
 using MedApp.Contracts.Attachments.Responses;
 using MedApp.UnitTests.Common.Fixtures;
@@ -18,7 +18,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class AttachmentsControllerTests
 {
-    private static readonly ProcedureActor Actor = new(UserId, Username);
+    private static readonly PathwayActor Actor = new(UserId, Username);
 
     [TestCase("User", false)]
     [TestCase("Admin", true)]

@@ -1,16 +1,17 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
-import {NO_PROCEDURE} from './attachments';
+import {statusWords} from '../utils/statusWords';
+import {NO_PATHWAY} from './attachments';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
 export type TimelineChange = Schemas['PatientTimelineChangeResponse'];
 export type TimelineOverview = Schemas['PatientTimelineOverviewResponse'];
 export type TimelineUpcoming = Schemas['PatientTimelineUpcomingResponse'];
-export type TimelineProcedure = Schemas['PatientTimelineProcedureResponse'];
+export type TimelinePathway = Schemas['PatientTimelinePathwayResponse'];
 
-/** The most procedures a timeline can be filtered to at once (the API's `GetPatientTimelineValidator.MaxProcedureIds`). */
-export const MAX_TIMELINE_PROCEDURES = 50;
+/** The most pathways a timeline can be filtered to at once (the API's `GetPatientTimelineValidator.MaxPathwayIds`). */
+export const MAX_TIMELINE_PATHWAYS = 50;
 
 /** Entries per page of a timeline (each "Load more" adds as many again). */
 export const TIMELINE_PAGE_SIZE = 20;
@@ -25,37 +26,37 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Appointments: 'Appointments',
   Notes: 'Notes',
   Assignments: 'Assignments',
-  Blocks: 'Blocks',
+  Blocks: 'On hold',
   Status: 'Status',
-  DueDates: 'Due dates',
+  DueDates: 'Target dates',
   Details: 'Other edits',
   Files: 'Files',
   Deleted: 'Deleted',
 };
 
-/** A kind in words, for its filter chip: "DueDates" → "Due dates". */
+/** A kind in words, for its filter chip: "DueDates" → "Target dates". */
 export const timelineKindLabel = (kind: TimelineKind) => KIND_LABELS[kind];
 
-/** What a timeline is narrowed to: any of these kinds, and any of these procedures (none of either means all). */
+/** What a timeline is narrowed to: any of these kinds, and any of these pathways (none of either means all). */
 export interface TimelineFilters {
   kinds: TimelineKind[];
-  procedureIds: string[];
+  pathwayIds: string[];
 }
 
-export const NO_TIMELINE_FILTERS: TimelineFilters = {kinds: [], procedureIds: []};
+export const NO_TIMELINE_FILTERS: TimelineFilters = {kinds: [], pathwayIds: []};
 
-export const hasTimelineFilters = (filters: TimelineFilters) => filters.kinds.length > 0 || filters.procedureIds.length > 0;
+export const hasTimelineFilters = (filters: TimelineFilters) => filters.kinds.length > 0 || filters.pathwayIds.length > 0;
 
 /**
  * A patient's timeline (`GET api/patients/{id}/timeline`), newest first, a page at a time: each page's `nextCursor`
- * fetches the one after it. Keyed under ['procedures'], so a change to any procedure refreshes it. The filters are
+ * fetches the one after it. Keyed under ['pathways'], so a change to any pathway refreshes it. The filters are
  * sorted, so the same choice made in another order is the same query.
  */
 export function patientTimelineQuery(patientId: string, filters: TimelineFilters = NO_TIMELINE_FILTERS) {
   const kinds = [...filters.kinds].sort();
-  const procedureIds = [...filters.procedureIds].sort();
+  const pathwayIds = [...filters.pathwayIds].sort();
   return infiniteQueryOptions({
-    queryKey: ['procedures', 'timeline', patientId, {kinds, procedureIds}],
+    queryKey: ['pathways', 'timeline', patientId, {kinds, pathwayIds}],
     queryFn: ({pageParam}) =>
       unwrap(
         api.GET('/api/patients/{id}/timeline', {
@@ -65,7 +66,7 @@ export function patientTimelineQuery(patientId: string, filters: TimelineFilters
               PageSize: TIMELINE_PAGE_SIZE,
               ...(pageParam ? {Before: pageParam} : {}),
               ...(kinds.length > 0 ? {Kinds: kinds} : {}),
-              ...(procedureIds.length > 0 ? {ProcedureIds: procedureIds} : {}),
+              ...(pathwayIds.length > 0 ? {PathwayIds: pathwayIds} : {}),
             },
           },
         }),
@@ -75,10 +76,10 @@ export function patientTimelineQuery(patientId: string, filters: TimelineFilters
   });
 }
 
-/** What's due for a patient, and their procedures to filter the timeline by (`GET api/patients/{id}/timeline/overview`). */
+/** What's due for a patient, and their pathways to filter the timeline by (`GET api/patients/{id}/timeline/overview`). */
 export function patientTimelineOverviewQuery(patientId: string) {
   return queryOptions({
-    queryKey: ['procedures', 'timeline', patientId, 'overview'],
+    queryKey: ['pathways', 'timeline', patientId, 'overview'],
     queryFn: () => unwrap(api.GET('/api/patients/{id}/timeline/overview', {params: {path: {id: patientId}}})),
   });
 }
@@ -101,8 +102,8 @@ export function groupByDay(entries: readonly TimelineEntry[]): TimelineDay[] {
   return days;
 }
 
-/** A status or priority in words, lower case: "InReview" → "in review". */
-const words = (value: string | null | undefined) => (value ?? '').replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase();
+/** A status or priority in words, lower case: "InProgress" → "in progress", "Blocked" → "on hold". */
+const words = (value: string | null | undefined) => statusWords(value ?? '');
 const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const date = (value: string | null | undefined) => (value ? formatShortDate(value) : 'none');
 const quoted = (value: string | null | undefined) => (value?.trim() ? `"${value.trim()}"` : 'nothing');
@@ -111,7 +112,7 @@ const hasValues = (change: TimelineChange) => change.from != null || change.to !
 const FIELD_NAMES: Record<string, string> = {
   title: 'title',
   notes: 'notes',
-  dueDate: 'due date',
+  dueDate: 'target date',
   priority: 'priority',
   stageNotes: 'notes',
   appointmentNotes: 'notes',
@@ -119,7 +120,7 @@ const FIELD_NAMES: Record<string, string> = {
 };
 
 /**
- * One edited field in words. Values come only where the API sends them (due dates and priorities to everyone, free
+ * One edited field in words. Values come only where the API sends them (target dates and priorities to everyone, free
  * text only to admins); otherwise it says what changed.
  */
 function describeChange(change: TimelineChange): string {
@@ -128,7 +129,7 @@ function describeChange(change: TimelineChange): string {
   if (!hasValues(change)) return `${name} changed`;
   switch (field) {
     case 'dueDate':
-      return `Due date ${date(change.from)} → ${date(change.to)}`;
+      return `Target date ${date(change.from)} → ${date(change.to)}`;
     case 'priority':
       return `Priority ${words(change.from)} → ${words(change.to)}`;
     case 'title':
@@ -142,7 +143,7 @@ function describeChange(change: TimelineChange): string {
 export interface TimelineWording {
   title: string;
   detail: string;
-  /** A procedure note's text, as Markdown (admins only), shown formatted under the detail. */
+  /** A pathway note's text, as Markdown (admins only), shown formatted under the detail. */
   noteText?: string;
 }
 
@@ -150,7 +151,7 @@ export interface TimelineWording {
 const noteTextOf = (changes: TimelineChange[]) => changes.find((c) => c.to?.trim())?.to?.trim();
 
 /**
- * An entry in words, e.g. {title: "Blocked", detail: "Was in progress. Awaiting results"}. It says only what the API
+ * An entry in words, e.g. {title: "Put on hold", detail: "Was in progress. Awaiting results"}. It says only what the API
  * sent: staff never get notes, titles or reasons from the log, so for them those lines just say what changed.
  */
 export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
@@ -159,7 +160,7 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
   switch (entry.action) {
     case 'Created':
       return {
-        title: 'Procedure created',
+        title: 'Pathway created',
         detail: [
           entry.templateName ? `From ${entry.templateName}` : null,
           entry.stageCount != null ? `${entry.stageCount} ${entry.stageCount === 1 ? 'stage' : 'stages'}` : null,
@@ -205,11 +206,11 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return describeStatusChange(entry);
     case 'DetailsUpdated':
       return {
-        title: entry.kind === 'DueDates' ? 'Due date changed' : 'Details edited',
+        title: entry.kind === 'DueDates' ? 'Target date changed' : 'Details edited',
         detail: changes.map(describeChange).join('; '),
       };
     case 'Deleted':
-      return {title: 'Procedure deleted', detail: entry.fromStatus ? `Was ${words(entry.fromStatus)}` : ''};
+      return {title: 'Pathway deleted', detail: entry.fromStatus ? `Was ${words(entry.fromStatus)}` : ''};
     case 'AttachmentAdded':
       return {title: `Attached ${entry.fileName?.trim() || 'a file'}`, detail: `To ${attachedToWords(entry)}`};
     case 'AttachmentDeleted':
@@ -292,16 +293,16 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
 }
 
 /**
- * Whether an entry is about the patient's own file, not one of their procedures: it has no procedure to link to
- * (its `procedureId` is all zeros and its title empty).
+ * Whether an entry is about the patient's own file, not one of their pathways: it has no pathway to link to
+ * (its `pathwayId` is all zeros and its title empty).
  */
-export const isPatientEntry = (entry: TimelineEntry) => entry.attachedTo === 'Patient' || entry.procedureId === NO_PROCEDURE;
+export const isPatientEntry = (entry: TimelineEntry) => entry.attachedTo === 'Patient' || entry.pathwayId === NO_PATHWAY;
 
-/** What a file was attached to, in words: "the patient", "the procedure", "the Consultation stage". */
+/** What a file was attached to, in words: "the patient", "the pathway", "the Consultation stage". */
 function attachedToWords(entry: TimelineEntry): string {
   if (isPatientEntry(entry)) return 'the patient';
   if (entry.attachedTo === 'Stage') return entry.stageName ? `the ${entry.stageName} stage` : 'a stage';
-  return 'the procedure';
+  return 'the pathway';
 }
 
 const OPEN_STATUSES = new Set(['Unassigned', 'Assigned', 'InProgress', 'InReview']);
@@ -309,10 +310,10 @@ const OPEN_STATUSES = new Set(['Unassigned', 'Assigned', 'InProgress', 'InReview
 function describeStatusChange(entry: TimelineEntry): TimelineWording {
   const reason = entry.reason?.trim();
   if (entry.toStatus === 'Blocked')
-    return {title: 'Blocked', detail: [`Was ${words(entry.fromStatus)}`, reason].filter(Boolean).join('. ')};
-  // Unblocking puts it back where it was; cancelling a blocked procedure is a status change like any other.
+    return {title: 'Put on hold', detail: [`Was ${words(entry.fromStatus)}`, reason].filter(Boolean).join('. ')};
+  // Taking it off hold puts it back where it was; cancelling a pathway on hold is a status change like any other.
   if (entry.fromStatus === 'Blocked' && OPEN_STATUSES.has(entry.toStatus ?? ''))
-    return {title: 'Unblocked', detail: `Back to ${words(entry.toStatus)}`};
+    return {title: 'Taken off hold', detail: `Back to ${words(entry.toStatus)}`};
   const was = `Was ${words(entry.fromStatus)}${entry.isAutomatic ? ', changed automatically' : ''}`;
   return {title: `Status changed to ${words(entry.toStatus)}`, detail: [was, reason].filter(Boolean).join('. ')};
 }

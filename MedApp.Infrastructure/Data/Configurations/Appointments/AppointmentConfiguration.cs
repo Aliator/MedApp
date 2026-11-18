@@ -41,10 +41,10 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
             .HasForeignKey(x => x.PatientId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // Deleting a procedure detaches its appointments in the same save (PatientProcedureRepository.DeleteAsync).
-        builder.HasOne(x => x.Procedure)
+        // Deleting a pathway detaches its appointments in the same save (PatientPathwayRepository.DeleteAsync).
+        builder.HasOne(x => x.Pathway)
             .WithMany()
-            .HasForeignKey(x => x.ProcedureId)
+            .HasForeignKey(x => x.PathwayId)
             .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasOne(x => x.Stage)
@@ -52,14 +52,14 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
             .HasForeignKey(x => x.StageId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // No foreign keys to the users table (staff, creator, booker), as with procedure assignments.
+        // No foreign keys to the users table (staff, creator, booker), as with pathway assignments.
 
         // A calendar's appointments in a range of dates.
         builder.HasIndex(x => new { x.StaffUserId, x.StartUtc });
         // What requires an appointment (the Requires Appointment list), and a patient's appointments.
         builder.HasIndex(x => new { x.Status, x.CreatedAtUtc });
         builder.HasIndex(x => x.PatientId);
-        builder.HasIndex(x => x.ProcedureId);
+        builder.HasIndex(x => x.PathwayId);
         builder.HasIndex(x => x.StageId);
         // One open (Requested or Booked) appointment per stage: checked in CreateAppointmentHandler, and enforced here
         // too, so two requests at once can't both add one. A violation is recognised by the index's name

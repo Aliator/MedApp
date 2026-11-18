@@ -113,7 +113,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways'));
   });
 
   it("brings back the account's settings first (signing out cleared them here), so it opens the account's start page", async () => {

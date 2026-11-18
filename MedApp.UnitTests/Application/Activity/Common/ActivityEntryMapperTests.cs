@@ -17,7 +17,7 @@ public sealed class ActivityEntryMapperTests
         Username = ActivityTestConstants.Username,
         IpAddress = ActivityTestConstants.IpAddress,
         PatientId = patientId,
-        ProcedureId = Guid.NewGuid(),
+        PathwayId = Guid.NewGuid(),
         TargetUsername = "target",
         Details = """{"reason":"x"}"""
     };
@@ -38,7 +38,7 @@ public sealed class ActivityEntryMapperTests
         response.IpAddress.Should().Be(entry.IpAddress);
         response.PatientId.Should().Be(patientId);
         response.PatientName.Should().Be("Test Patient");
-        response.ProcedureId.Should().Be(entry.ProcedureId);
+        response.PathwayId.Should().Be(entry.PathwayId);
         response.TargetUsername.Should().Be("target");
         response.Details.Should().Be(entry.Details);
     }

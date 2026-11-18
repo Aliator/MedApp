@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using MedApp.Application.Common.Identity;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Authentication.Requests;
-using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Infrastructure.Data;
 using MedApp.IntegrationTests.Common;
@@ -16,7 +16,7 @@ using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 namespace MedApp.IntegrationTests.Appointments;
 
 /// <summary>
-/// What deleting does to appointments: a patient with appointments stays, a deleted procedure's appointments are
+/// What deleting does to appointments: a patient with appointments stays, a deleted pathway's appointments are
 /// detached in the same save (their history keeps it), and an account with upcoming bookings stays.
 /// </summary>
 [TestFixture]
@@ -45,48 +45,48 @@ public sealed class AppointmentDeletionTests : IntegrationTest
     }
 
     /// <summary>
-    /// PatientProcedureRepository.DeleteAsync clears the appointments' procedure and stage in the same save that
-    /// deletes the procedure, so neither the foreign keys nor a half-done delete get in the way.
+    /// PatientPathwayRepository.DeleteAsync clears the appointments' pathway and stage in the same save that
+    /// deletes the pathway, so neither the foreign keys nor a half-done delete get in the way.
     /// </summary>
     [Test]
-    public async Task DeleteProcedure_Cancelled_KeepsItsAppointmentsDetached()
+    public async Task DeletePathway_Cancelled_KeepsItsAppointmentsDetached()
     {
         var patient = await CreatePatientAsync(_staff.Client);
         var first = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
         var second = await CreateStageDefinitionAsync(_admin);
         var template = await CreateTemplateAsync(_admin, first.Id, second.Id);
-        var procedure = await CreateProcedureAsync(_staff.Client, patient.Id, template.Id);
-        var requested = (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Single();
+        var pathway = await CreatePathwayAsync(_staff.Client, patient.Id, template.Id);
+        var requested = (await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}")).Single();
         var booked = await BookNewAppointmentAsync(_staff.Client, patient.Id, _staff.UserId, NextBookableStart(),
-            procedureId: procedure.Id, stageId: procedure.Stages[1].Id);
-        await (await PostProcedureStatusAsync(_staff.Client, procedure.Id, "Cancelled", BlockReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+            pathwayId: pathway.Id, stageId: pathway.Stages[1].Id);
+        await (await PostPathwayStatusAsync(_staff.Client, pathway.Id, "Cancelled", BlockReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await (await _admin.DeleteAsync(ProcedureUrl(procedure.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
-        await (await _staff.Client.GetAsync(ProcedureUrl(procedure.Id))).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        await (await _staff.Client.GetAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
         foreach (var id in new[] { requested.Id, booked.Id })
         {
             var detached = await GetAppointmentAsync(_staff.Client, id);
             detached.Should().BeEquivalentTo(new
             {
-                ProcedureId = (Guid?)null,
-                ProcedureTitle = (string?)null,
+                PathwayId = (Guid?)null,
+                PathwayTitle = (string?)null,
                 StageId = (Guid?)null,
                 PatientId = patient.Id,
             });
         }
 
         (await GetAppointmentAsync(_staff.Client, booked.Id)).Status.Should().Be("Booked");
-        (await SearchAppointmentsAsync(_staff.Client, $"procedureId={procedure.Id}")).Should().BeEmpty();
+        (await SearchAppointmentsAsync(_staff.Client, $"pathwayId={pathway.Id}")).Should().BeEmpty();
 
-        // Their history keeps the procedure: admins see it (as deleted), staff see nothing of a deleted procedure's.
+        // Their history keeps the pathway: admins see it (as deleted), staff see nothing of a deleted pathway's.
         var history = await RunInScopeAsync(services => services.GetRequiredService<MedAppDbContext>()
             .Set<AppointmentEvent>().AsNoTracking().Where(e => e.AppointmentId == booked.Id).ToListAsync());
-        history.Should().NotBeEmpty().And.AllSatisfy(e => e.ProcedureId.Should().Be(procedure.Id));
+        history.Should().NotBeEmpty().And.AllSatisfy(e => e.PathwayId.Should().Be(pathway.Id));
         var adminTimeline = await TimelineAsync(_admin, patient.Id);
         adminTimeline.Where(e => e.AppointmentId == booked.Id).Should().NotBeEmpty()
-            .And.AllSatisfy(e => e.Should().BeEquivalentTo(new { ProcedureId = (Guid?)procedure.Id, IsProcedureDeleted = true }));
-        (await TimelineAsync(_staff.Client, patient.Id)).Should().NotContain(e => e.ProcedureId == procedure.Id);
+            .And.AllSatisfy(e => e.Should().BeEquivalentTo(new { PathwayId = (Guid?)pathway.Id, IsPathwayDeleted = true }));
+        (await TimelineAsync(_staff.Client, patient.Id)).Should().NotContain(e => e.PathwayId == pathway.Id);
     }
 
     [Test]
@@ -110,7 +110,7 @@ public sealed class AppointmentDeletionTests : IntegrationTest
         (await GetAppointmentAsync(_admin, appointment.Id)).Should().BeEquivalentTo(new
         {
             StaffUserId = (Guid?)_staff.UserId,
-            StaffUsername = ProcedureMapper.DeletedUser,
+            StaffUsername = PathwayMapper.DeletedUser,
             Status = "Cancelled",
         });
     }

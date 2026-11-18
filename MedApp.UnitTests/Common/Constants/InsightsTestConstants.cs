@@ -1,11 +1,11 @@
-using MedApp.Application.Procedures.Common;
-using MedApp.Application.Procedures.Insights.Common;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Pathways.Insights.Common;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.UnitTests.Common.Constants;
 
 /// <summary>
-/// Data for the insights tests. "Now" is <see cref="ProceduresTestConstants.Now"/>: Monday 15 June 2026, 12:00 UTC
+/// Data for the insights tests. "Now" is <see cref="PathwaysTestConstants.Now"/>: Monday 15 June 2026, 12:00 UTC
 /// (13:00 BST), so this UK week began at Sunday 14 June 23:00 UTC.
 /// </summary>
 public static class InsightsTestConstants
@@ -21,32 +21,32 @@ public static class InsightsTestConstants
     public static readonly Guid OtherTemplateId = Guid.Parse("0000000e-0000-0000-0000-000000000002");
     public const string OtherTemplateName = "Other template";
 
-    /// <summary>The audit entries for changing a procedure's status, as ProcedureChange writes them (its status changes too).</summary>
-    public static IReadOnlyList<PatientProcedureAuditEntry> ChangeStatus(PatientProcedure procedure, PatientProcedureStatus to, DateTime atUtc)
+    /// <summary>The audit entries for changing a pathway's status, as PathwayChange writes them (its status changes too).</summary>
+    public static IReadOnlyList<PatientPathwayAuditEntry> ChangeStatus(PatientPathway pathway, PatientPathwayStatus to, DateTime atUtc)
     {
-        var change = new ProcedureChange(procedure, ProceduresTestConstants.Staff, atUtc);
-        change.ChangeStatus(to, to is PatientProcedureStatus.Blocked or PatientProcedureStatus.Cancelled ? ProceduresTestConstants.Reason : null);
+        var change = new PathwayChange(pathway, PathwaysTestConstants.Staff, atUtc);
+        change.ChangeStatus(to, to is PatientPathwayStatus.Blocked or PatientPathwayStatus.Cancelled ? PathwaysTestConstants.Reason : null);
         return change.AuditEntries;
     }
 
-    /// <summary>The audit entry for a procedure's creation.</summary>
-    public static PatientProcedureAuditEntry Created(PatientProcedure procedure, DateTime atUtc) =>
-        ProcedureAudit.Entry(procedure, ProceduresTestConstants.Staff, PatientProcedureAuditAction.Created, atUtc);
+    /// <summary>The audit entry for a pathway's creation.</summary>
+    public static PatientPathwayAuditEntry Created(PatientPathway pathway, DateTime atUtc) =>
+        PathwayAudit.Entry(pathway, PathwaysTestConstants.Staff, PatientPathwayAuditAction.Created, atUtc);
 
     /// <summary>The audit entry for finishing a stage at a moment (its own times aren't changed).</summary>
-    public static PatientProcedureAuditEntry Finished(PatientProcedure procedure, PatientProcedureStage stage, DateTime atUtc) =>
-        ProcedureAudit.Entry(procedure, ProceduresTestConstants.Staff, PatientProcedureAuditAction.StageFinished, atUtc, stage);
+    public static PatientPathwayAuditEntry Finished(PatientPathway pathway, PatientPathwayStage stage, DateTime atUtc) =>
+        PathwayAudit.Entry(pathway, PathwaysTestConstants.Staff, PatientPathwayAuditAction.StageFinished, atUtc, stage);
 
-    /// <summary>The audit entry for editing a procedure's details, as UpdatePatientProcedureHandler writes it.</summary>
-    public static PatientProcedureAuditEntry DetailsChanged(PatientProcedure procedure, DateTime atUtc, Dictionary<string, object> changes) =>
-        ProcedureAudit.Entry(procedure, ProceduresTestConstants.Staff, PatientProcedureAuditAction.DetailsUpdated, atUtc, details: new { changes });
+    /// <summary>The audit entry for editing a pathway's details, as UpdatePatientPathwayHandler writes it.</summary>
+    public static PatientPathwayAuditEntry DetailsChanged(PatientPathway pathway, DateTime atUtc, Dictionary<string, object> changes) =>
+        PathwayAudit.Entry(pathway, PathwaysTestConstants.Staff, PatientPathwayAuditAction.DetailsUpdated, atUtc, details: new { changes });
 
-    /// <summary>The audit entry for moving a procedure's due date (its own due date isn't changed).</summary>
-    public static PatientProcedureAuditEntry DueDateChanged(PatientProcedure procedure, DateOnly from, DateOnly to, DateTime atUtc) =>
-        DetailsChanged(procedure, atUtc, new Dictionary<string, object> { ["dueDate"] = new { from, to } });
+    /// <summary>The audit entry for moving a pathway's target date (its own target date isn't changed).</summary>
+    public static PatientPathwayAuditEntry DueDateChanged(PatientPathway pathway, DateOnly from, DateOnly to, DateTime atUtc) =>
+        DetailsChanged(pathway, atUtc, new Dictionary<string, object> { ["dueDate"] = new { from, to } });
 
     /// <summary>Sets a stage's times: started and (last) finished.</summary>
-    public static PatientProcedureStage Times(this PatientProcedureStage stage, DateTime startedUtc, DateTime finishedUtc)
+    public static PatientPathwayStage Times(this PatientPathwayStage stage, DateTime startedUtc, DateTime finishedUtc)
     {
         stage.StartedAtUtc = startedUtc;
         stage.IsCompleted = true;
@@ -55,7 +55,7 @@ public static class InsightsTestConstants
         return stage;
     }
 
-    public static StatusCount Count(PatientProcedureStatus status, int count, bool isPastDue = false) => new(status, isPastDue, count);
+    public static StatusCount Count(PatientPathwayStatus status, int count, bool isPastDue = false) => new(status, isPastDue, count);
 
     /// <summary>Totals with nothing in them, to set just the parts a test is about.</summary>
     public static InsightsData EmptyData() => new([], [], 0, 0, [], 0, [], [], [], []);

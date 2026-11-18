@@ -3,7 +3,7 @@ import {describeRule, type RuleDescription} from './ruleText';
 
 /**
  * A monitoring rule as a plain sentence, with the choices in bold: "Notify me when **Sam** finishes **Bloods** on a
- * **High or Urgent** priority procedure". The rules list and the editor's preview both use it.
+ * **High or Urgent** priority pathway". The rules list and the editor's preview both use it.
  */
 export function RuleSentence({rule}: {rule: RuleDescription}) {
   return (

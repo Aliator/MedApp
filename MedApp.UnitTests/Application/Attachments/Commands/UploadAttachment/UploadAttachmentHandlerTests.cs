@@ -6,12 +6,12 @@ using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Attachments.Commands.UploadAttachment;
 
@@ -23,12 +23,12 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
     private static UploadAttachmentCommand Upload(
         byte[] bytes,
         Guid? patientId = null,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         Guid? stageId = null,
         string fileName = FileName,
         long? contentLength = null,
         bool isAdmin = false) =>
-        new(patientId, procedureId, stageId, fileName, contentLength ?? bytes.Length, Stream(bytes), Staff, isAdmin);
+        new(patientId, pathwayId, stageId, fileName, contentLength ?? bytes.Length, Stream(bytes), Staff, isAdmin);
 
     [Test]
     public async Task Handle_PdfOnThePatient_StoresItRecordsItAndAuditsIt()
@@ -42,7 +42,7 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
         attachment.Should().BeEquivalentTo(new
         {
             PatientId = patient.Id,
-            ProcedureId = (Guid?)null,
+            PathwayId = (Guid?)null,
             StageId = (Guid?)null,
             FileName,
             ContentType = "application/pdf",
@@ -57,10 +57,10 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
         var stored = Store.Blobs[AttachmentStorageKeys.File(attachment.Id)];
         stored.Bytes.Should().Equal(Pdf);
         stored.ContentType.Should().Be("application/pdf");
-        SavedAudit.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.AttachmentAdded
-                                               && e.PatientProcedureId == PatientProcedureAuditEntry.NoProcedure
+        SavedAudit.Should().ContainSingle(e => e.Action == PatientPathwayAuditAction.AttachmentAdded
+                                               && e.PatientPathwayId == PatientPathwayAuditEntry.NoPathway
                                                && e.PatientId == patient.Id && e.AtUtc == Now);
-        Attachments.Verify(a => a.AddAsync(attachment, It.IsAny<PatientProcedureAuditEntry>(), cts.Token), Times.Once);
+        Attachments.Verify(a => a.AddAsync(attachment, It.IsAny<PatientPathwayAuditEntry>(), cts.Token), Times.Once);
 
         response.Id.Should().Be(attachment.Id);
         response.AttachedTo.Should().Be("Patient");
@@ -68,38 +68,38 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_FileOnTheProcedure_RecordsTheProcedure()
+    public async Task Handle_FileOnThePathway_RecordsThePathway()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.Completed));
+        var pathway = GivenPathway(CreatePathway(Status.Completed));
 
-        var response = await Handler.Handle(Upload(Text, procedureId: procedure.Id, fileName: "letter.txt"), CancellationToken.None);
+        var response = await Handler.Handle(Upload(Text, pathwayId: pathway.Id, fileName: "letter.txt"), CancellationToken.None);
 
-        Added.Single().ProcedureId.Should().Be(procedure.Id);
-        Added.Single().PatientId.Should().Be(procedure.PatientId);
+        Added.Single().PathwayId.Should().Be(pathway.Id);
+        Added.Single().PatientId.Should().Be(pathway.PatientId);
         Added.Single().ContentType.Should().Be("text/plain; charset=utf-8");
-        response.ProcedureTitle.Should().Be(ProcedureTitle);
-        SavedAudit.Single().PatientProcedureId.Should().Be(procedure.Id);
+        response.PathwayTitle.Should().Be(PathwayTitle);
+        SavedAudit.Single().PatientPathwayId.Should().Be(pathway.Id);
     }
 
     [Test]
     public async Task Handle_FileOnTheCurrentStage_RecordsTheStage()
     {
-        var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
-        var stage = GivenStage(procedure, 2);
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        var stage = GivenStage(pathway, 2);
 
         var response = await Handler.Handle(Upload(Pdf, stageId: stage.Id), CancellationToken.None);
 
         Added.Single().StageId.Should().Be(stage.Id);
-        Added.Single().ProcedureId.Should().Be(procedure.Id);
-        response.StageName.Should().Be(ProcedureStage);
+        Added.Single().PathwayId.Should().Be(pathway.Id);
+        response.StageName.Should().Be(PathwayStage);
         SavedAudit.Single().StageId.Should().Be(stage.Id);
     }
 
     [Test]
     public async Task Handle_FinishedStage_ThrowsConflictBeforeReadingTheFile()
     {
-        var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
-        var stage = GivenStage(procedure, 1);
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        var stage = GivenStage(pathway, 1);
         var body = new Mock<Stream>(MockBehavior.Strict);
 
         var act = () => Handler.Handle(new UploadAttachmentCommand(null, null, stage.Id, FileName, 10, body.Object, Staff, false), CancellationToken.None);
@@ -109,11 +109,11 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_CancelledProcedure_ThrowsConflict()
+    public async Task Handle_CancelledPathway_ThrowsConflict()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.Cancelled));
+        var pathway = GivenPathway(CreatePathway(Status.Cancelled));
 
-        var act = () => Handler.Handle(Upload(Pdf, procedureId: procedure.Id), CancellationToken.None);
+        var act = () => Handler.Handle(Upload(Pdf, pathwayId: pathway.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -127,11 +127,11 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_UnknownProcedure_ThrowsNotFound()
+    public async Task Handle_UnknownPathway_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(Upload(Pdf, procedureId: Guid.NewGuid()), CancellationToken.None);
+        var act = () => Handler.Handle(Upload(Pdf, pathwayId: Guid.NewGuid()), CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>().WithMessage("Procedure*");
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage("Pathway*");
     }
 
     [Test]
@@ -269,7 +269,7 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
             .Setup(t => t.CreateAsync(It.IsAny<Stream>(), It.IsAny<AttachmentFileType>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([1]);
         Attachments
-            .Setup(a => a.AddAsync(It.IsAny<Attachment>(), It.IsAny<PatientProcedureAuditEntry>(), It.IsAny<CancellationToken>()))
+            .Setup(a => a.AddAsync(It.IsAny<Attachment>(), It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Synthetic database failure."));
 
         var act = () => Handler.Handle(Upload(PngHeader, patientId: patient.Id, fileName: "photo.png"), CancellationToken.None);

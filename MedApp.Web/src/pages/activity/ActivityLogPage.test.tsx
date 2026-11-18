@@ -5,18 +5,18 @@ import {ActivityLogPage} from './ActivityLogPage';
 
 const SEARCH = '/api/activity/search';
 const patientId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
-const procedureId = '4f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5c';
+const pathwayId = '4f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5c';
 
 const entries = [
   {
     id: 'a1',
-    action: 'ProcedureViewed',
+    action: 'PathwayViewed',
     username: 'k.ashford',
     ipAddress: '192.0.2.10',
     atUtc: '2026-11-08T03:31:00Z',
     patientId,
     patientName: 'Oriel Penhallow',
-    procedureId,
+    pathwayId,
     details: '{}',
   },
   {
@@ -43,9 +43,9 @@ describe('ActivityLogPage', () => {
 
     const row = (await screen.findByText('k.ashford')).closest('tr')!;
     expect(within(row).getByText('192.0.2.10')).toBeInTheDocument();
-    expect(within(row).getByText('Procedure viewed')).toBeInTheDocument();
+    expect(within(row).getByText('Pathway viewed')).toBeInTheDocument();
     expect(within(row).getByRole('link', {name: 'Oriel Penhallow'})).toHaveAttribute('href', `/patients/${patientId}`);
-    expect(within(row).getByRole('link', {name: 'Procedure'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(within(row).getByRole('link', {name: 'Pathway'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
     const roles = screen.getByText('User → Admin, User').closest('tr')!;
     expect(within(roles).getByText('l.northcott')).toBeInTheDocument();
     expect(within(roles).getByText('Roles changed')).toBeInTheDocument();
@@ -117,14 +117,14 @@ describe('ActivityLogPage', () => {
 
   it('lists file activity, and filters to it from its Files favourite', async () => {
     const files = [
-      {id: 'f1', action: 'AttachmentDownloaded', username: 'k.ashford', atUtc: '2026-11-08T10:00:00Z', patientId, patientName: 'Oriel Penhallow', procedureId, details: '{}'},
+      {id: 'f1', action: 'AttachmentDownloaded', username: 'k.ashford', atUtc: '2026-11-08T10:00:00Z', patientId, patientName: 'Oriel Penhallow', pathwayId, details: '{}'},
       {id: 'f2', action: 'AttachmentsViewed', username: 'l.northcott', atUtc: '2026-11-08T09:00:00Z', patientId, patientName: 'Oriel Penhallow', details: '{}'},
     ];
     const {user, onSearchChange} = renderLog({}, pageOf(files, 2));
 
     const download = (await screen.findByText('File downloaded')).closest('tr')!;
-    expect(within(download).getByText('A file on a procedure or stage')).toBeInTheDocument();
-    expect(within(download).getByRole('link', {name: 'Procedure'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(within(download).getByText('A file on a pathway or stage')).toBeInTheDocument();
+    expect(within(download).getByRole('link', {name: 'Pathway'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
     const viewed = screen.getByText('Files viewed').closest('tr')!;
     expect(within(viewed).getByText("All the patient's files")).toBeInTheDocument();
 

@@ -6,7 +6,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Queries.GetAttachments;
 
@@ -35,8 +35,8 @@ public sealed class GetAttachmentsHandlerTests : AttachmentHandlerTestBase
     [Test]
     public async Task Handle_KnownStage_ListsIt()
     {
-        var procedure = CreateProcedure();
-        var stage = GivenStage(procedure, 1);
+        var pathway = CreatePathway();
+        var stage = GivenStage(pathway, 1);
         var query = new GetAttachmentsQuery(null, null, stage.Id, false, Staff.UserId, false);
         Attachments.Setup(a => a.ListAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(([], 0));
 
@@ -46,7 +46,7 @@ public sealed class GetAttachmentsHandlerTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_UnknownProcedure_ThrowsNotFound()
+    public async Task Handle_UnknownPathway_ThrowsNotFound()
     {
         var act = () => Handler.Handle(new GetAttachmentsQuery(null, Guid.NewGuid(), null, false, Staff.UserId, false), CancellationToken.None);
 

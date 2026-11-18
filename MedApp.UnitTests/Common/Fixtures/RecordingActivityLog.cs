@@ -18,7 +18,7 @@ public sealed class RecordingActivityLog : IActivityLog
     public List<ActivityEntry> Recorded { get; } = [];
 
     /// <summary>Calls to <see cref="RecordViewsAsync"/>.</summary>
-    public List<(ActivityAction Action, List<Guid> PatientIds, Guid? ProcedureId)> Views { get; } = [];
+    public List<(ActivityAction Action, List<Guid> PatientIds, Guid? PathwayId)> Views { get; } = [];
 
     /// <summary>The tokens every call was given.</summary>
     public List<CancellationToken> Tokens { get; } = [];
@@ -28,7 +28,7 @@ public sealed class RecordingActivityLog : IActivityLog
         Guid? patientId = null,
         object? details = null,
         string? targetUsername = null,
-        Guid? procedureId = null,
+        Guid? pathwayId = null,
         ActivityActor? actor = null)
     {
         var by = actor ?? Actor;
@@ -41,7 +41,7 @@ public sealed class RecordingActivityLog : IActivityLog
             Username = by.Username,
             IpAddress = by.IpAddress,
             PatientId = patientId,
-            ProcedureId = procedureId,
+            PathwayId = pathwayId,
             TargetUsername = targetUsername,
             Details = ActivityLog.SerializeDetails(details)
         };
@@ -54,9 +54,9 @@ public sealed class RecordingActivityLog : IActivityLog
         return Task.CompletedTask;
     }
 
-    public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? procedureId = null)
+    public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null)
     {
-        Views.Add((action, patientIds.ToList(), procedureId));
+        Views.Add((action, patientIds.ToList(), pathwayId));
         Tokens.Add(ct);
         return Task.CompletedTask;
     }

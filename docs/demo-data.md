@@ -100,32 +100,32 @@ Fourteen stage definitions in use, and a retired one ("Paper triage form (retire
 
 ## Where to see each feature
 
-### Home and My Tasks (as `admin`)
+### Home and My Worklist (as `admin`)
 
 - **Assigned work:** the lead leads about four in ten diabetes reviews.
 - **Notifications:** a dozen or so unread from the last few days: assignments by the service manager, bookings made by the coordinator, monitoring alerts, and meetings the service manager arranged, moved or cancelled.
 - **The side nav's pins:** two patients and one pathway record, from the lead's saved settings.
 
-### The procedures list
+### The pathways list
 
 - **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments" and "Blocked". `h.marsh` has "Skin lesions in progress" and "Urgent bleeding referrals"; `n.thornbury` has "My overdue".
 - **Overdue work** comes from the slow parts, not at random: the waits for the visiting consultants' clinics (urgent post-menopausal bleeding referrals, due in three weeks, and prostate assessments), and skin lesions waiting for histology and treatment.
-- **Every status shows:** Unassigned and Assigned (the newest), In progress, In review, Blocked, Completed, Cancelled and Archived.
+- **Every status shows:** Unassigned and Assigned (the newest), In progress, Awaiting review, On hold, Discharged, Cancelled and Archived.
 - **Rows per page** is 25 for `admin` and 50 for `n.thornbury`, from their settings.
 
 ### A pathway record's page
 
 Open the ones named in the summary's `tour`:
-- **`blocked`:** blocked with a reason when a stage was reached. **`blockedThenUnblocked`:** blocked, then carried on days later.
+- **`blocked`:** put on hold with a reason when a stage was reached. **`blockedThenUnblocked`:** put on hold, then carried on days later.
 - **`stageUnlockedAndCorrected`:** an admin unlocked a finished stage; it was corrected with a bold **Correction:** and finished again.
 - **`finishedWithoutItsVisit`:** the two admin bypasses: a Required "Blood and urine tests" stage finished without a visit, because the samples were taken elsewhere, with the reason in the audit.
 - **`cancelledWithItsBookingCancelled`:** cancelled after its visit was booked; the coordinator then cancelled the booking by hand ("Pathway cancelled; patient informed by phone").
 - **`reassigned`:** a skin lesion that changed hands part-way: one skin clinician assigned, the other taken off.
-- **`dueDateOrPriorityChanged`:** due dates moved once the visiting clinic's date was known, or a bleeding referral raised to Urgent at triage by the clinician who read it.
+- **`dueDateOrPriorityChanged`:** target dates moved once the visiting clinic's date was known, or a bleeding referral raised to Urgent at triage by the clinician who read it.
 - **`visitNeverBooked`:** a visit asked for weeks ago and still in Requires Appointment.
 - **`oldPathwayStillFinishing`:** the archived skin lesion pathway's last three, whose histology took months.
 - **`missedAndRebooked`:** a visit the patient didn't attend, then a new one.
-- **`inReview`:** every stage finished, waiting to be marked completed.
+- **`inReview`:** every stage finished, awaiting review: waiting to be marked discharged.
 
 **On any pathway record:**
 - **Stage notes** are specific to the referral and the stage, and agree from stage to stage: a skin lesion's notes name the same site throughout (the first visit describes the lesion, the biopsy says where it was taken from, the lab's note gives the histology in words, the team review gives the plan, the treatment note says what was done). Sometimes with a list or a bold point.
@@ -143,7 +143,7 @@ Open the ones named in the summary's `tour`:
 - **Children:** a few, on the inflammatory skin and biomechanics pathways only ("Children" saved search on the patients list). Most patients are older adults, as a centre like this sees: about half are 70 or over.
 - **Women only, or men only, where it matters:** the post-menopausal bleeding and prostate pathways take patients of 50 and over, with women's or men's first names.
 - **Registered, no pathways yet:** about 14 patients from the last four weeks.
-- **Deleted pathways:** two, on the patients in `tour.deletedProceduresOf`. Admins see them on the timeline, labelled deleted.
+- **Deleted pathways:** two, on the patients in `tour.deletedPathwaysOf`. Admins see them on the timeline, labelled deleted.
 
 ### Files
 
@@ -194,7 +194,7 @@ On about 40 records: referral letters on patients; histology reports, blood and 
   - when the new starter creates a pathway record
   - when `n.thornbury` finishes **Treatment** on a High or Urgent one, and when anyone finishes **Histology (lab)** on an Urgent one (rules that name a stage)
   - when `n.thornbury` or `t.hallworth` blocks one, and when anyone blocks a post-menopausal bleeding one
-  - when anyone changes a due date
+  - when anyone changes a target date
   - one switched off two weeks ago: unlocks by the service manager
 - **The service manager's own four rules:** urgent post-menopausal bleeding referrals, cancellations, completed biomechanics courses, and the lead being assigned.
 - **Monitoring notifications** in the last 30 days match those rules, as the app would have sent them.
@@ -260,4 +260,4 @@ Six imported records are due: five adults last seen 9 to 12 years ago, and one c
 
 ## What it can't show yet
 
-- **A "Waiting for histology" saved search:** the procedures list has no filter for the stage a record has reached, so the nearest are "Skin lesions in progress" and the lab's own stages on each record. The time spent at Histology (lab) shows in Insights.
+- **A "Waiting for histology" saved search:** the pathways list has no filter for the stage a record has reached, so the nearest are "Skin lesions in progress" and the lab's own stages on each record. The time spent at Histology (lab) shows in Insights.

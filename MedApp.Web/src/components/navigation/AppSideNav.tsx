@@ -22,7 +22,7 @@ import {
 } from 'react';
 import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
-import {procedureLabelsQuery} from '../../api/procedures';
+import {pathwayLabelsQuery} from '../../api/pathways';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -31,15 +31,15 @@ import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
 import {AppIcon} from '../shared/icons';
 import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
-import {procedureNavLabel} from './navLabels';
+import {pathwayNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
-  {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
-  {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
+  {label: 'Stage Library', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
+  {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates'},
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},
   {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
@@ -58,16 +58,16 @@ export function isCurrentSection(pathname: string, path: string): boolean {
 
 const ID = '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
 const PATIENT_PAGE = new RegExp(`^/patients/${ID}(?:/|$)`, 'i');
-const PROCEDURE_PAGE = new RegExp(`^/procedures/${ID}(?:/|$)`, 'i');
+const PATHWAY_PAGE = new RegExp(`^/pathways/${ID}(?:/|$)`, 'i');
 
-/** The patient whose pages (view, edit, procedures) are open, from the path; null elsewhere. */
+/** The patient whose pages (view, edit, pathways) are open, from the path; null elsewhere. */
 export function openPatientId(pathname: string): string | null {
   return PATIENT_PAGE.exec(pathname)?.[1] ?? null;
 }
 
-/** The procedure whose page is open, from the path; null elsewhere. */
-export function openProcedureId(pathname: string): string | null {
-  return PROCEDURE_PAGE.exec(pathname)?.[1] ?? null;
+/** The pathway whose page is open, from the path; null elsewhere. */
+export function openPathwayId(pathname: string): string | null {
+  return PATHWAY_PAGE.exec(pathname)?.[1] ?? null;
 }
 
 /**
@@ -426,14 +426,14 @@ interface PinnableItemProps {
 interface PinnableNavItemProps extends PinnableItemProps {
   kind: PinKind;
   label: string;
-  /** The full name, which its buttons' names use (the label may be short, as a procedure's is). */
+  /** The full name, which its buttons' names use (the label may be short, as a pathway's is). */
   fullName: string;
   href: string;
   /** It no longer exists (a 404), so it drops out of the pins. */
   isGone: boolean;
 }
 
-/** A pinned or open patient or procedure in the side nav, indented under its section, with a pin button. */
+/** A pinned or open patient or pathway in the side nav, indented under its section, with a pin button. */
 function PinnableNavItem({id, isOpen, isHalfOpen, pins, kind, label, fullName, href, isGone}: PinnableNavItemProps) {
   const isPinned = pins.isPinned(id);
   const {unpin} = pins;
@@ -489,17 +489,17 @@ function PatientNavItem(props: PinnableItemProps) {
   );
 }
 
-/** A procedure under Procedures: the patient's initials and the procedure's acronym ("FA TKR"), from the labels lookup. */
-function ProcedureNavItem(props: PinnableItemProps) {
-  const labels = useQuery(procedureLabelsQuery(props.ids));
+/** A pathway under Pathways: the patient's initials and the pathway's acronym ("FA TKR"), from the labels lookup. */
+function PathwayNavItem(props: PinnableItemProps) {
+  const labels = useQuery(pathwayLabelsQuery(props.ids));
   const label = labels.data?.find((l) => l.id === props.id);
   return (
     <PinnableNavItem
       {...props}
-      kind="procedures"
-      label={label ? procedureNavLabel(label.patientName ?? '', label.title ?? '') : 'Procedure'}
-      fullName={label ? `${label.title} for ${label.patientName}` : 'Procedure'}
-      href={`/procedures/${props.id}`}
+      kind="pathways"
+      label={label ? pathwayNavLabel(label.patientName ?? '', label.title ?? '') : 'Pathway'}
+      fullName={label ? `${label.title} for ${label.patientName}` : 'Pathway'}
+      href={`/pathways/${props.id}`}
       isGone={labels.isSuccess && !labels.isPlaceholderData && label === undefined}
     />
   );
@@ -521,7 +521,7 @@ interface PinnableSectionProps {
 }
 
 /**
- * A main section (Patients, Procedures) with its pinned items, then the open item if it isn't pinned, indented
+ * A main section (Patients, Pathways) with its pinned items, then the open item if it isn't pinned, indented
  * under it. While it has any, an arrow at the end of its row folds them away.
  */
 function PinnableSection({
@@ -586,7 +586,7 @@ function PinnableSection({
 
 /**
  * Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer.
- * Under Patients and under Procedures, as indented sub-items: the ones you've pinned (up to MAX_PINS of each,
+ * Under Patients and under Pathways, as indented sub-items: the ones you've pinned (up to MAX_PINS of each,
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
  * opens its page beside the current one.
  */
@@ -623,7 +623,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   };
 
   const patientPins = usePins('patients', user.username);
-  const procedurePins = usePins('procedures', user.username);
+  const pathwayPins = usePins('pathways', user.username);
 
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
@@ -637,19 +637,19 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const main: NavRailEntry[] = [
     {
       key: 'tasks',
-      label: 'My Tasks',
+      label: 'My Worklist',
       icon: AppIcon.Tasks,
       href: '/tasks',
       isSelected: isAt('/tasks'),
       isHalfView: isHalfAt('/tasks'),
       row: (
         <SideNavItem
-          label="My Tasks"
+          label="My Worklist"
           icon={AppIcon.Tasks}
           href="/tasks"
           isSelected={isAt('/tasks')}
           ref={halfViewRow(isHalfAt('/tasks'))}
-          actions={<RowMenu label="My Tasks" href="/tasks" />}
+          actions={<RowMenu label="My Worklist" href="/tasks" />}
         />
       ),
     },
@@ -675,23 +675,23 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
       ),
     },
     {
-      key: 'procedures',
-      label: 'Procedures',
-      icon: AppIcon.Procedures,
-      href: '/procedures',
-      isSelected: isAt('/procedures'),
-      isHalfView: isHalfAt('/procedures'),
+      key: 'pathways',
+      label: 'Pathways',
+      icon: AppIcon.Pathways,
+      href: '/pathways',
+      isSelected: isAt('/pathways'),
+      isHalfView: isHalfAt('/pathways'),
       row: (
         <PinnableSection
-          label="Procedures"
-          icon={AppIcon.Procedures}
-          href="/procedures"
-          openId={openProcedureId(pathname)}
-          isAtSection={isAt('/procedures')}
-          halfOpenId={halfPath ? openProcedureId(halfPath) : null}
-          isHalfAtSection={halfPath !== null && isCurrentSection(halfPath, '/procedures')}
-          pins={procedurePins}
-          Item={ProcedureNavItem}
+          label="Pathways"
+          icon={AppIcon.Pathways}
+          href="/pathways"
+          openId={openPathwayId(pathname)}
+          isAtSection={isAt('/pathways')}
+          halfOpenId={halfPath ? openPathwayId(halfPath) : null}
+          isHalfAtSection={halfPath !== null && isCurrentSection(halfPath, '/pathways')}
+          pins={pathwayPins}
+          Item={PathwayNavItem}
         />
       ),
     },

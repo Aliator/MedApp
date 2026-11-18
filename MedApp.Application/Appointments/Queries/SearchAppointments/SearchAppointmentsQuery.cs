@@ -14,7 +14,7 @@ public sealed record SearchAppointmentsQuery(
     string? Sort,
     bool Ascending,
     Guid? PatientId,
-    Guid? ProcedureId,
+    Guid? PathwayId,
     Guid? StageId,
     Guid? StaffUserId,
     IReadOnlyList<string>? Statuses,

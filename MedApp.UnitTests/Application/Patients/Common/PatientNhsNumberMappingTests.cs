@@ -1,6 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.NhsTestConstants;
 
@@ -37,21 +37,21 @@ public sealed class PatientNhsNumberMappingTests
         patient.NhsNumber = NhsNumber;
 
         PatientAnonymiser.Apply(
-            new PatientRecord { Patient = patient, Procedures = [], ProcedureHistory = [], Activity = [], Appointments = [], AppointmentHistory = [], Notifications = [], NoteVersions = [], NoteDeletionRequests = [], Attachments = [] },
+            new PatientRecord { Patient = patient, Pathways = [], PathwayHistory = [], Activity = [], Appointments = [], AppointmentHistory = [], Notifications = [], NoteVersions = [], NoteDeletionRequests = [], Attachments = [] },
             ActivityTestConstants.Now);
 
         patient.NhsNumber.Should().BeNull();
     }
 
     [Test]
-    public void ProcedureMapper_ToPatient_IsWhoTheBannerShows()
+    public void PathwayMapper_ToPatient_IsWhoTheBannerShows()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
         patient.NhsNumber = NhsNumber;
         patient.RestrictedAtUtc = ActivityTestConstants.Now;
         patient.AnonymisedAtUtc = ActivityTestConstants.Now;
 
-        var banner = ProcedureMapper.ToPatient(patient)!;
+        var banner = PathwayMapper.ToPatient(patient)!;
 
         banner.Should().BeEquivalentTo(new
         {
@@ -64,19 +64,19 @@ public sealed class PatientNhsNumberMappingTests
             IsDisputed = false,
             IsAnonymised = true
         });
-        ProcedureMapper.ToPatient(null).Should().BeNull();
+        PathwayMapper.ToPatient(null).Should().BeNull();
     }
 
     [Test]
-    public void ProcedureMapper_ToResponse_CarriesThePatient()
+    public void PathwayMapper_ToResponse_CarriesThePatient()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
         patient.NhsNumber = NhsNumber;
-        var procedure = ProceduresTestConstants.CreateProcedure(patient: patient);
+        var pathway = PathwaysTestConstants.CreatePathway(patient: patient);
 
-        var response = ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), ActivityTestConstants.Now);
+        var response = PathwayMapper.ToResponse(pathway, new Dictionary<Guid, string>(), ActivityTestConstants.Now);
 
         response.Patient!.NhsNumber.Should().Be(NhsNumber);
-        response.Patient.Id.Should().Be(procedure.Patient.Id);
+        response.Patient.Id.Should().Be(pathway.Patient.Id);
     }
 }

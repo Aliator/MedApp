@@ -8,7 +8,7 @@ import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {ApiError} from '../../api/errors';
 import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
-import {patientProcedureCountQuery} from '../../api/procedures';
+import {patientPathwayCountQuery} from '../../api/pathways';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
@@ -120,9 +120,9 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const lookUp = usePatientLookUp(form, setForm, 'edit');
   const changes = identityChanges(toInput(patient), form);
   const isBusy = update.isPending || remove.isPending;
-  // A patient with procedures can't be deleted (their history is kept), so the delete dialog checks first.
-  const procedureCount = useQuery({...patientProcedureCountQuery(id), enabled: dialog === 'delete'});
-  const hasProcedures = (procedureCount.data ?? 0) > 0;
+  // A patient with pathways can't be deleted (their history is kept), so the delete dialog checks first.
+  const pathwayCount = useQuery({...patientPathwayCountQuery(id), enabled: dialog === 'delete'});
+  const hasPathways = (pathwayCount.data ?? 0) > 0;
   const backToPatient = () => void navigate({to: '/patients/$id', params: {id}});
 
   const save = () =>
@@ -192,15 +192,15 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
             isOpen={dialog === 'delete'}
             title="Confirm Delete"
             message={
-              procedureCount.isPending
-                ? 'Checking for procedures...'
-                : hasProcedures
-                  ? `This patient has ${procedureCount.data} ${procedureCount.data === 1 ? 'procedure' : 'procedures'}, so they can't be deleted.`
+              pathwayCount.isPending
+                ? 'Checking for pathways...'
+                : hasPathways
+                  ? `This patient has ${pathwayCount.data} ${pathwayCount.data === 1 ? 'pathway' : 'pathways'}, so they can't be deleted.`
                   : 'This action cannot be undone.'
             }
             isDanger
             confirmText="Delete Patient"
-            confirmDisabled={procedureCount.isPending || hasProcedures}
+            confirmDisabled={pathwayCount.isPending || hasPathways}
             isProcessing={remove.isPending}
             onConfirm={deletePatient}
             onCancel={() => setDialog(null)}>

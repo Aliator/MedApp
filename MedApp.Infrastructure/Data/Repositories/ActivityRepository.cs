@@ -18,7 +18,7 @@ public sealed class ActivityRepository(MedAppDbContext context) : IActivityRepos
         Guid? userId,
         ActivityAction action,
         IReadOnlyCollection<Guid> patientIds,
-        Guid? procedureId,
+        Guid? pathwayId,
         DateTime sinceUtc,
         CancellationToken ct)
     {
@@ -27,7 +27,7 @@ public sealed class ActivityRepository(MedAppDbContext context) : IActivityRepos
             .AsNoTracking()
             .Where(e => e.UserId == userId
                         && e.Action == action
-                        && e.ProcedureId == procedureId
+                        && e.PathwayId == pathwayId
                         && e.AtUtc >= sinceUtc
                         && e.PatientId != null
                         && ids.Contains(e.PatientId.Value))

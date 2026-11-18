@@ -95,7 +95,7 @@ describe('CalendarGrid', () => {
     atMondayMorning();
     const appointment = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '10:00'}));
     const block = blockItem(testBlock(MONDAY, '12:00', '13:00', {note: 'Team lunch'}));
-    const short = appointmentItem(testAppointment({id: 'short', date: '2026-11-24', start: '10:00', end: '10:15', procedureTitle: null}));
+    const short = appointmentItem(testAppointment({id: 'short', date: '2026-11-24', start: '10:00', end: '10:15', pathwayTitle: null}));
     const {user, onItemOpen} = renderGrid({items: [block, appointment, short]});
 
     const card = await screen.findByRole('button', {name: 'Test Patient, Knee review: Assessment, 09:00 to 10:00, Booked'});
@@ -108,7 +108,7 @@ describe('CalendarGrid', () => {
     await user.keyboard('{Enter}');
     expect(onItemOpen).toHaveBeenCalledWith(block, expect.objectContaining({key: MONDAY}));
 
-    // A 15-minute appointment shows on one line; one that isn't for a procedure shows whose it is, and when.
+    // A 15-minute appointment shows on one line; one that isn't for a pathway shows whose it is, and when.
     const shortCard = screen.getByRole('button', {name: 'Test Patient, appointment, 10:00 to 10:15, Booked'}).closest('[data-kind]');
     expect(shortCard).toHaveTextContent('Test Patient, 10:00 to 10:15');
     expect(shortCard).not.toHaveTextContent('Appointment');

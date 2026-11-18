@@ -1,10 +1,10 @@
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Domain.Appointments;
 
 /// <summary>
-/// A patient seeing a member of staff, optionally for one of their procedures and one of its stages. It goes from
+/// A patient seeing a member of staff, optionally for one of their pathways and one of its stages. It goes from
 /// Requested (Requires appointment) to Booked (a member of staff and a time), then Attended or Did not attend, or Cancelled.
 /// Every change is recorded in its history (<see cref="AppointmentEvent"/>).
 /// </summary>
@@ -15,13 +15,13 @@ public sealed class Appointment
     public Guid PatientId { get; set; }
     public Patient Patient { get; set; } = null!;
 
-    /// <summary>The procedure it's for, if any. Set to none when the procedure is deleted (its history keeps it).</summary>
-    public Guid? ProcedureId { get; set; }
-    public PatientProcedure? Procedure { get; set; }
+    /// <summary>The pathway it's for, if any. Set to none when the pathway is deleted (its history keeps it).</summary>
+    public Guid? PathwayId { get; set; }
+    public PatientPathway? Pathway { get; set; }
 
-    /// <summary>The procedure stage it's for, if any: a stage with a visit (see <see cref="VisitRequirement"/>).</summary>
+    /// <summary>The pathway stage it's for, if any: a stage with a visit (see <see cref="VisitRequirement"/>).</summary>
     public Guid? StageId { get; set; }
-    public PatientProcedureStage? Stage { get; set; }
+    public PatientPathwayStage? Stage { get; set; }
 
     /// <summary>Who the patient sees; null while Requested. No foreign key to the users table.</summary>
     public Guid? StaffUserId { get; set; }
@@ -31,7 +31,7 @@ public sealed class Appointment
 
     public AppointmentStatus Status { get; set; }
 
-    /// <summary>Free text about the patient, treated like procedure notes.</summary>
+    /// <summary>Free text about the patient, treated like pathway notes.</summary>
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Why it was cancelled, once it is.</summary>

@@ -16,7 +16,7 @@ import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {Page} from '../../components/pages/Page';
-import {statusLabel} from '../../components/procedures/ProcedureCells';
+import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -34,13 +34,13 @@ const PRINT_CSS = '@media print { .astryx-side-nav, button { display: none !impo
 export const exportFileName = (data: PatientExport) =>
   `patient-${data.patient?.id ?? 'record'}-${(data.exportedAtUtc ?? '').slice(0, 10) || 'export'}.json`;
 
-type ExportedNote = NonNullable<NonNullable<PatientExport['procedures']>[number]['notes']>[number];
+type ExportedNote = NonNullable<NonNullable<PatientExport['pathways']>[number]['notes']>[number];
 type ExportedDeletionRequest = NonNullable<PatientExport['noteDeletionRequests']>[number];
 
 /** Said beside a note deleted as written on the wrong patient: its text is most likely someone else's. */
 export const ANOTHER_PATIENTS_DETAILS = "Another patient's details: check before release";
 
-/** A deleted note's line: "Deleted by admin, 17 Nov 2026, 10:32. Reason: Wrong patient: belongs to the other procedure." */
+/** A deleted note's line: "Deleted by admin, 17 Nov 2026, 10:32. Reason: Wrong patient: belongs to the other pathway." */
 export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason' | 'deletionDetail'>): string {
   const reason = describeNoteDeletionReason(note.deletionReason, note.deletionDetail);
   return `Deleted by ${note.deletedBy ?? 'an admin'}, ${formatDateTime(note.deletedAtUtc ?? '')}.${reason ? ` Reason: ${reason}` : ''}`;
@@ -189,7 +189,7 @@ const nothing = (text: string) => (
 );
 
 /**
- * A subject access export (admin): everything MedApp holds about a patient (their details, procedures with stages,
+ * A subject access export (admin): everything MedApp holds about a patient (their details, pathways with stages,
  * notes and assignments, their appointments, the files attached to them (their details, deleted ones too, but never
  * their contents), the history of changes to them, who has accessed the record, and notifications about them),
  * readable on screen, printable, and downloadable as JSON. The page shows every field the JSON holds, so what's checked
@@ -265,17 +265,17 @@ type ExportedFile = NonNullable<PatientExport['attachments']>[number];
 const SCAN_STATES: Record<string, string> = {NotScanned: 'not scanned', Clean: 'clean', Infected: 'malware found'};
 
 /** What an exported file was attached to, in words: "Attached to the patient", "Attached to Consent, in Knee review". */
-function attachedToText(file: ExportedFile, procedureTitles: Map<string | undefined, string>): string {
-  if (file.attachedTo === 'Patient' || !file.procedureId) return 'Attached to the patient.';
-  const title = procedureTitles.get(file.procedureId) || 'a procedure';
+function attachedToText(file: ExportedFile, pathwayTitles: Map<string | undefined, string>): string {
+  if (file.attachedTo === 'Patient' || !file.pathwayId) return 'Attached to the patient.';
+  const title = pathwayTitles.get(file.pathwayId) || 'a pathway';
   return file.attachedTo === 'Stage' ? `Attached to ${file.stageName ?? 'a stage'}, in ${title}.` : `Attached to ${title}.`;
 }
 
 function ExportContent({data}: {data: PatientExport}) {
   const patient = data.patient;
-  const procedures = data.procedures ?? [];
-  const history = data.procedureHistory ?? [];
-  // Every version of every note, those of deleted procedures too.
+  const pathways = data.pathways ?? [];
+  const history = data.pathwayHistory ?? [];
+  // Every version of every note, those of deleted pathways too.
   const noteHistory = data.noteHistory ?? [];
   // Staff's requests to delete notes, with their reasons and outcomes.
   const deletionRequests = data.noteDeletionRequests ?? [];
@@ -284,10 +284,10 @@ function ExportContent({data}: {data: PatientExport}) {
   const access = data.accessLog ?? [];
   const notifications = data.notifications ?? [];
   const files = data.attachments ?? [];
-  // What an appointment is for: its procedure's title (from the export's procedures) and its stage.
-  const procedureTitles = new Map(procedures.map((procedure) => [procedure.id, procedure.title ?? '']));
+  // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
+  const pathwayTitles = new Map(pathways.map((pathway) => [pathway.id, pathway.title ?? '']));
   const appointmentFor = (a: ExportedAppointment) =>
-    a.procedureId ? [procedureTitles.get(a.procedureId) || 'A deleted procedure', a.stageName].filter(Boolean).join(': ') : 'Not for a procedure';
+    a.pathwayId ? [pathwayTitles.get(a.pathwayId) || 'A deleted pathway', a.stageName].filter(Boolean).join(': ') : 'Not for a pathway';
   // Which appointment a notification is about, by its status and time.
   const appointmentsById = new Map(appointments.map((a) => [a.id, a]));
   const aboutAppointment = (appointmentId: string) => {
@@ -321,25 +321,25 @@ function ExportContent({data}: {data: PatientExport}) {
         </MetadataList>
       </ExportSection>
 
-      <ExportSection title={`Procedures (${procedures.length})`}>
-        {procedures.length === 0
-          ? nothing('No procedures.')
+      <ExportSection title={`Pathways (${pathways.length})`}>
+        {pathways.length === 0
+          ? nothing('No pathways.')
           : (
             <VStack gap={6} hAlign="stretch">
-              {procedures.map((procedure) => (
-                <VStack key={procedure.id} gap={3} hAlign="stretch">
-                  <Heading level={3}>{procedure.title}</Heading>
+              {pathways.map((pathway) => (
+                <VStack key={pathway.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{pathway.title}</Heading>
                   <MetadataList columns={2} label={{position: 'top'}}>
-                    <MetadataListItem label="Template">{procedure.templateName || '—'}</MetadataListItem>
-                    <MetadataListItem label="Status">{statusLabel(procedure.status ?? '')}</MetadataListItem>
-                    <MetadataListItem label="Priority">{procedure.priority}</MetadataListItem>
-                    <MetadataListItem label="Due">{procedure.dueDate ? formatDate(procedure.dueDate) : '—'}</MetadataListItem>
-                    <MetadataListItem label="Created">{when(procedure.createdAt)}</MetadataListItem>
-                    <MetadataListItem label="Last Changed">{when(procedure.lastUpdated)}</MetadataListItem>
-                    <MetadataListItem label="Assigned To">{(procedure.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
+                    <MetadataListItem label="Template">{pathway.templateName || '—'}</MetadataListItem>
+                    <MetadataListItem label="Status">{statusLabel(pathway.status ?? '')}</MetadataListItem>
+                    <MetadataListItem label="Priority">{pathway.priority}</MetadataListItem>
+                    <MetadataListItem label="Due">{pathway.dueDate ? formatDate(pathway.dueDate) : '—'}</MetadataListItem>
+                    <MetadataListItem label="Created">{when(pathway.createdAt)}</MetadataListItem>
+                    <MetadataListItem label="Last Changed">{when(pathway.lastUpdated)}</MetadataListItem>
+                    <MetadataListItem label="Assigned To">{(pathway.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
                   </MetadataList>
-                  {(procedure.notes ?? []).length > 0 && <Heading level={4}>{`Notes (${(procedure.notes ?? []).length})`}</Heading>}
-                  {(procedure.notes ?? []).map((note) => (
+                  {(pathway.notes ?? []).length > 0 && <Heading level={4}>{`Notes (${(pathway.notes ?? []).length})`}</Heading>}
+                  {(pathway.notes ?? []).map((note) => (
                     <VStack key={note.id} gap={1} hAlign="stretch">
                       <HStack gap={2} vAlign="center" wrap="wrap">
                         <Text type="supporting" color="secondary">
@@ -349,13 +349,13 @@ function ExportContent({data}: {data: PatientExport}) {
                         {/* For whoever checks the export before release: the third-party and serious harm tests. */}
                         {note.isAboutAnotherPatient && <Token label={ANOTHER_PATIENTS_DETAILS} size="sm" color="red" />}
                       </HStack>
-                      {/* Hidden from the procedure page, but kept: when, by whom and why. */}
+                      {/* Hidden from the pathway page, but kept: when, by whom and why. */}
                       {note.deletedAtUtc && <Text type="supporting" color="secondary">{deletedNoteText(note)}</Text>}
                       <RichText>{note.text ?? ''}</RichText>
                     </VStack>
                   ))}
                   <List hasDividers edge="bleed">
-                    {(procedure.stages ?? []).map((stage) => (
+                    {(pathway.stages ?? []).map((stage) => (
                       <ListItem
                         key={stage.order}
                         align="first-line"
@@ -389,7 +389,7 @@ function ExportContent({data}: {data: PatientExport}) {
       <ExportSection title={`Files (${files.length})`}>
         <VStack gap={4} hAlign="stretch">
           <Text type="body" color="secondary">
-            The details of every file attached to the patient, their procedures and stages, including deleted ones. The files
+            The details of every file attached to the patient, their pathways and stages, including deleted ones. The files
             themselves aren't included in this export.
           </Text>
           {files.length === 0
@@ -411,7 +411,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     description={
                       <VStack gap={1}>
                         <Text type="supporting" color="secondary">
-                          {`${file.typeName} (${file.contentType}), ${formatFileSize(file.sizeBytes ?? 0)}. ${attachedToText(file, procedureTitles)}`}
+                          {`${file.typeName} (${file.contentType}), ${formatFileSize(file.sizeBytes ?? 0)}. ${attachedToText(file, pathwayTitles)}`}
                         </Text>
                         <Text type="supporting" color="secondary">
                           {`Added ${when(file.uploadedAtUtc)} by ${file.uploadedBy}${file.deletedAtUtc ? `; deleted ${when(file.deletedAtUtc)} by ${file.deletedBy}` : ''}`}
@@ -428,7 +428,7 @@ function ExportContent({data}: {data: PatientExport}) {
         </VStack>
       </ExportSection>
 
-      <ExportSection title={`Procedure History (${history.length})`}>
+      <ExportSection title={`Pathway History (${history.length})`}>
         {history.length === 0
           ? nothing('No changes recorded.')
           : (
@@ -440,7 +440,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   label={<Text type="body">{`${when(entry.atUtc)}: ${auditActionLabel(entry.action)} by ${entry.username}`}</Text>}
                   description={
                     <Text type="supporting" color="secondary">
-                      {[entry.procedureTitle, entry.stageName, describeAuditDetails(entry)].filter(Boolean).join(' · ')}
+                      {[entry.pathwayTitle, entry.stageName, describeAuditDetails(entry)].filter(Boolean).join(' · ')}
                     </Text>
                   }
                 />
@@ -466,7 +466,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   description={
                     <VStack gap={1} hAlign="stretch">
                       <Text type="supporting" color="secondary">
-                        {procedureTitles.get(version.procedureId) || 'A deleted procedure'}
+                        {pathwayTitles.get(version.pathwayId) || 'A deleted pathway'}
                       </Text>
                       <RichText>{version.text ?? ''}</RichText>
                     </VStack>
@@ -490,7 +490,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   description={
                     <VStack gap={1} hAlign="stretch">
                       <Text type="supporting" color="secondary">
-                        {procedureTitles.get(request.procedureId) || 'A deleted procedure'}
+                        {pathwayTitles.get(request.pathwayId) || 'A deleted pathway'}
                       </Text>
                       <Text type="body">{`Reason: ${describeNoteDeletionReason(request.reason, request.detail)}`}</Text>
                       <Text type="body">{deletionRequestOutcome(request)}</Text>
@@ -548,7 +548,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   description={
                     <Text type="supporting" color="secondary">
                       {[
-                        entry.procedureTitle || 'Not for a procedure',
+                        entry.pathwayTitle || 'Not for a pathway',
                         entry.stageName,
                         appointmentSlot(entry.startUtc, entry.endUtc, entry.staffUsername),
                         describeAppointmentChange(entry),

@@ -2,7 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Identity;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AppointmentsTestConstants;
@@ -45,32 +45,32 @@ public sealed class AppointmentMapperTests
     }
 
     [Test]
-    public void ToResponse_NotForAProcedure_HasNoProcedureOrStage()
+    public void ToResponse_NotForAPathway_HasNoPathwayOrStage()
     {
         var response = AppointmentMapper.ToResponse(CreateAppointment(), Known, Now);
 
-        response.ProcedureId.Should().BeNull();
-        response.ProcedureTitle.Should().BeNull();
-        response.ProcedureDueDate.Should().BeNull();
+        response.PathwayId.Should().BeNull();
+        response.PathwayTitle.Should().BeNull();
+        response.PathwayDueDate.Should().BeNull();
         response.StageId.Should().BeNull();
         response.StageName.Should().BeNull();
         response.VisitRequirement.Should().BeNull();
     }
 
     [Test]
-    public void ToResponse_ForAProcedureStage_GivesItsTitleDueDateStageAndRequirement()
+    public void ToResponse_ForAPathwayStage_GivesItsTitleDueDateStageAndRequirement()
     {
         var appointment = CreateAppointment();
-        var procedure = LinkToProcedure(appointment, requirement: VisitRequirement.Suggested);
+        var pathway = LinkToPathway(appointment, requirement: VisitRequirement.Suggested);
         // Due at the end of 22 June UK time (BST), stored as 22:59:59 UTC.
-        procedure.DueDateUtc = new DateTime(2026, 6, 22, 22, 59, 59, DateTimeKind.Utc);
+        pathway.DueDateUtc = new DateTime(2026, 6, 22, 22, 59, 59, DateTimeKind.Utc);
 
         var response = AppointmentMapper.ToResponse(appointment, Known, Now);
 
-        response.ProcedureId.Should().Be(procedure.Id);
-        response.ProcedureTitle.Should().Be(ProcedureTitle);
-        response.ProcedureDueDate.Should().Be(new DateOnly(2026, 6, 22));
-        response.StageId.Should().Be(procedure.StageAt(1).Id);
+        response.PathwayId.Should().Be(pathway.Id);
+        response.PathwayTitle.Should().Be(PathwayTitle);
+        response.PathwayDueDate.Should().Be(new DateOnly(2026, 6, 22));
+        response.StageId.Should().Be(pathway.StageAt(1).Id);
         response.StageName.Should().Be(StageName);
         response.VisitRequirement.Should().Be("Suggested");
     }

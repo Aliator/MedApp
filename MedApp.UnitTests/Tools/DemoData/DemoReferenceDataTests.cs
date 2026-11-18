@@ -2,7 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Attachments.Common;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Terminology;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 
@@ -15,42 +15,42 @@ public sealed class DemoReferenceDataTests
     [Test]
     public void Definitions_SnomedCodes_AreValidConceptIdsWithTerms_AndSomeAreLeftBlank()
     {
-        var coded = DemoPathways.Definitions.Where(d => d.SnomedCode is not null).ToList();
+        var coded = DemoPathwayKinds.Definitions.Where(d => d.SnomedCode is not null).ToList();
 
         coded.Should().OnlyContain(d => SnomedCt.IsConceptId(d.SnomedCode) && !string.IsNullOrWhiteSpace(d.SnomedTerm));
-        DemoPathways.Definitions.Should().Contain(d => d.SnomedCode == null && !d.IsArchived);
+        DemoPathwayKinds.Definitions.Should().Contain(d => d.SnomedCode == null && !d.IsArchived);
     }
 
     [Test]
-    public void Pathways_EveryStage_NamesADefinitionThatIsntArchived()
+    public void PathwayKinds_EveryStage_NamesADefinitionThatIsntArchived()
     {
-        var active = DemoPathways.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).ToHashSet();
+        var active = DemoPathwayKinds.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).ToHashSet();
 
-        DemoPathways.Pathways.SelectMany(p => p.Stages).Should().OnlyContain(s => active.Contains(s.Definition));
+        DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Should().OnlyContain(s => active.Contains(s.Definition));
     }
 
     [Test]
-    public void Pathways_StagesWithAVisitHaveAVisitLength_AndOnlyThose()
+    public void PathwayKinds_StagesWithAVisitHaveAVisitLength_AndOnlyThose()
     {
-        var visits = DemoPathways.Definitions.ToDictionary(d => d.Name, d => d.Visit);
+        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
 
-        foreach (var stage in DemoPathways.Pathways.SelectMany(p => p.Stages).Where(s => s.VisitMinutes > 0))
+        foreach (var stage in DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Where(s => s.VisitMinutes > 0))
             visits[stage.Definition].Should().NotBe(VisitRequirement.None, stage.Definition);
-        foreach (var stage in DemoPathways.Pathways.SelectMany(p => p.Stages)
+        foreach (var stage in DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages)
                      .Where(s => visits[s.Definition] == VisitRequirement.Required))
             stage.VisitMinutes.Should().BePositive($"{stage.Definition} needs a visit, so the seed books one");
     }
 
     /// <summary>Every definition is used by a pathway, but the retired one; and the archived pathway is the only archived one.</summary>
     [Test]
-    public void Pathways_UseEveryLiveDefinition_AndOneIsArchived()
+    public void PathwayKinds_UseEveryLiveDefinition_AndOneIsArchived()
     {
-        var used = DemoPathways.Pathways.SelectMany(p => p.Stages).Select(s => s.Definition).ToHashSet();
+        var used = DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Select(s => s.Definition).ToHashSet();
 
-        DemoPathways.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).Should().BeEquivalentTo(used);
-        DemoPathways.Definitions.Should().ContainSingle(d => d.IsArchived);
-        DemoPathways.Pathways.Should().ContainSingle(p => p.IsArchived).Which.Pathway.Should().Be(Pathway.SkinLesion2024);
-        DemoPathways.Pathways.Select(p => p.TemplateName).Should().OnlyHaveUniqueItems();
+        DemoPathwayKinds.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).Should().BeEquivalentTo(used);
+        DemoPathwayKinds.Definitions.Should().ContainSingle(d => d.IsArchived);
+        DemoPathwayKinds.PathwayKinds.Should().ContainSingle(p => p.IsArchived).Which.PathwayKind.Should().Be(PathwayKind.SkinLesion2024);
+        DemoPathwayKinds.PathwayKinds.Select(p => p.TemplateName).Should().OnlyHaveUniqueItems();
     }
 
     /// <summary>
@@ -60,13 +60,13 @@ public sealed class DemoReferenceDataTests
     [Test]
     public void Definitions_VisitRequirements_FitTheWork()
     {
-        var visits = DemoPathways.Definitions.ToDictionary(d => d.Name, d => d.Visit);
+        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
 
-        new[] { DemoPathways.FirstClinicVisit, DemoPathways.BiopsyOrSample, DemoPathways.Treatment, DemoPathways.BloodAndUrineTests, DemoPathways.ClinicReview, DemoPathways.BiomechanicsSession }
+        new[] { DemoPathwayKinds.FirstClinicVisit, DemoPathwayKinds.BiopsyOrSample, DemoPathwayKinds.Treatment, DemoPathwayKinds.BloodAndUrineTests, DemoPathwayKinds.ClinicReview, DemoPathwayKinds.BiomechanicsSession }
             .Should().OnlyContain(name => visits[name] == VisitRequirement.Required);
-        new[] { DemoPathways.FollowUp, DemoPathways.ResultsAndTeamReview, DemoPathways.MedicinesReview }
+        new[] { DemoPathwayKinds.FollowUp, DemoPathwayKinds.ResultsAndTeamReview, DemoPathwayKinds.MedicinesReview }
             .Should().OnlyContain(name => visits[name] == VisitRequirement.Suggested);
-        new[] { DemoPathways.ReferralReceived, DemoPathways.Triage, DemoPathways.Histology, DemoPathways.LabTests, DemoPathways.DischargeLetter }
+        new[] { DemoPathwayKinds.ReferralReceived, DemoPathwayKinds.Triage, DemoPathwayKinds.Histology, DemoPathwayKinds.LabTests, DemoPathwayKinds.DischargeLetter }
             .Should().OnlyContain(name => visits[name] == VisitRequirement.None);
     }
 
@@ -74,10 +74,10 @@ public sealed class DemoReferenceDataTests
     [Test]
     public void Sees_TheTwoSingleSexPathways_SeeOnlyOlderAdults()
     {
-        ProcedureKinds.Sees(Pathway.PostMenopausalBleeding).Should().Be((true, 50));
-        ProcedureKinds.Sees(Pathway.Prostate).Should().Be((false, 50));
-        ProcedureKinds.Sees(Pathway.Diabetes).Should().Be(((bool?)null, 0));
-        Enum.GetValues<Pathway>().Where(ProcedureKinds.SeesChildren).Should().BeEquivalentTo([Pathway.InflammatorySkin, Pathway.Biomechanics]);
+        ProcedureKinds.Sees(PathwayKind.PostMenopausalBleeding).Should().Be((true, 50));
+        ProcedureKinds.Sees(PathwayKind.Prostate).Should().Be((false, 50));
+        ProcedureKinds.Sees(PathwayKind.Diabetes).Should().Be(((bool?)null, 0));
+        Enum.GetValues<PathwayKind>().Where(ProcedureKinds.SeesChildren).Should().BeEquivalentTo([PathwayKind.InflammatorySkin, PathwayKind.Biomechanics]);
     }
 
     [Test]
@@ -97,7 +97,7 @@ public sealed class DemoReferenceDataTests
         Sniff(SyntheticFiles.Pdf("Report", ["Line one", "Line (two)"]), "Report.pdf").Should().Be(AttachmentFileTypes.Pdf);
         Sniff(SyntheticFiles.FlowTracePng(12, random), "Flow test.png").Should().Be(AttachmentFileTypes.Png);
         Sniff(SyntheticFiles.DiagramPng("Home programme", ["Stretch", "Strength"]), "Home programme.png").Should().Be(AttachmentFileTypes.Png);
-        foreach (var site in DemoPathways.Pathways.SelectMany(p => ProcedureKinds.For(p.Pathway)).SelectMany(k => k.Sites).Distinct())
+        foreach (var site in DemoPathwayKinds.PathwayKinds.SelectMany(p => ProcedureKinds.For(p.PathwayKind)).SelectMany(k => k.Sites).Distinct())
             Sniff(SyntheticFiles.SiteMapPng(site), "Lesion site map.png").Should().Be(AttachmentFileTypes.Png, site);
         Sniff(SyntheticFiles.Text("Note", ["Called the patient."]), "Note.txt").ContentType.Should().StartWith("text/plain");
 

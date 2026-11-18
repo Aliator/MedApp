@@ -6,7 +6,7 @@ export interface DateOfBirthRangeInputProps {
   value: DateRange | null;
   onChange: (value: DateRange | null) => void;
   label?: string;
-  /** The latest date allowed; today by default (a date of birth). Null allows any date, e.g. for due dates. */
+  /** The latest date allowed; today by default (a date of birth). Null allows any date, e.g. for target dates. */
   max?: ISODateString | null;
 }
 

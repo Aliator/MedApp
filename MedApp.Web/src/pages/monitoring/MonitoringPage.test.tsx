@@ -33,15 +33,15 @@ const rules = [
     templateName: null,
     isEnabled: true,
   },
-  {id: 'r2', event: 'ProcedureCreated', subjectUserId: null, minimumPriority: null, templateId: KNEE, templateName: 'Knee review', isEnabled: false},
+  {id: 'r2', event: 'PathwayCreated', subjectUserId: null, minimumPriority: null, templateId: KNEE, templateName: 'Knee review', isEnabled: false},
 ];
 
 function renderPage(extra: Parameters<typeof mockApi>[0] = {}, list: unknown[] = rules) {
   const fetch = mockApi({
     [`GET ${RULES}`]: () => json(list),
     'GET /api/auth/users/search': () => json(pageOf(people)),
-    'GET /api/procedures/patient-procedure-stage/templates': () => json(templates),
-    'GET /api/procedures/patient-procedure-stage/definitions': () => json(definitions),
+    'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
+    'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
     ...extra,
   });
   return {fetch, ...renderWithApp(<MonitoringPage />, {user: adminUser})};
@@ -62,8 +62,8 @@ describe('MonitoringPage', () => {
     renderPage();
 
     const first = await rowOf('Bloods');
-    expect(first).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure');
-    expect(await rowOf('Knee review')).toHaveTextContent('Notify me when anyone creates a procedure from the Knee review template');
+    expect(first).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway');
+    expect(await rowOf('Knee review')).toHaveTextContent('Notify me when anyone creates a pathway from the Knee review template');
     expect(within(first).getByRole('switch')).toBeChecked();
     expect(within(await rowOf('Knee review')).getByRole('switch')).not.toBeChecked();
     expect(screen.getByText('2 rules, 1 on')).toBeInTheDocument();
@@ -74,13 +74,13 @@ describe('MonitoringPage', () => {
     const {user, fetch} = renderPage({[`POST ${RULES}`]: () => json({id: 'r9'}, 201)});
 
     await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
-    expect(preview()).toHaveTextContent('Notify me when anyone finishes a stage on a procedure');
+    expect(preview()).toHaveTextContent('Notify me when anyone finishes a stage on a pathway');
     await pick(user, /Staff member/, 'sam.staff');
     await pick(user, /Stage/, 'Bloods');
     await pick(user, /Priority/, 'High or higher');
     await pick(user, /Template/, 'Knee review');
     expect(preview()).toHaveTextContent(
-      'Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure from the Knee review template',
+      'Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway from the Knee review template',
     );
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Rule'}));
 
@@ -102,13 +102,13 @@ describe('MonitoringPage', () => {
     await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
     await pick(user, /Stage/, 'Scan (archived)');
     expect(preview()).toHaveTextContent('finishes Scan on');
-    await pick(user, /Does this/, 'Is assigned to a procedure');
+    await pick(user, /Does this/, 'Is assigned to a pathway');
     expect(within(openDialog()!).queryByRole('combobox', {name: /Stage/})).not.toBeInTheDocument();
-    expect(preview()).toHaveTextContent('Notify me when anyone is assigned to a procedure');
+    expect(preview()).toHaveTextContent('Notify me when anyone is assigned to a pathway');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Rule'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await sent(fetch, 'POST')).toMatchObject({event: 'ProcedureAssigned', stageDefinitionId: null});
+    expect(await sent(fetch, 'POST')).toMatchObject({event: 'PathwayAssigned', stageDefinitionId: null});
   });
 
   it('edits a rule, starting from what it says', async () => {
@@ -116,7 +116,7 @@ describe('MonitoringPage', () => {
     const {user, fetch} = renderPage({[`PUT ${RULES}/r1`]: () => json(rules[0])});
 
     await user.click(within(await rowOf('Bloods')).getByRole('button', {name: 'Edit rule'}));
-    expect(preview()).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure');
+    expect(preview()).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway');
     await pick(user, /Priority/, 'Any priority');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Save'}));
 
@@ -136,7 +136,7 @@ describe('MonitoringPage', () => {
     const gone = {id: 'r3', event: 'StageUnlocked', subjectUserId: 'gone-user', subjectUsername: null, stageDefinitionId: 'gone-stage', stageName: null, isEnabled: true};
     const {user} = renderPage({}, [gone]);
 
-    expect(await rowOf(/a deleted user/)).toHaveTextContent('Notify me when a deleted user unlocks a deleted stage on a procedure');
+    expect(await rowOf(/a deleted user/)).toHaveTextContent('Notify me when a deleted user unlocks a deleted stage on a pathway');
     await user.click(screen.getByRole('button', {name: 'Edit rule'}));
     expect(within(openDialog()!).getByRole('combobox', {name: /Staff member/})).toHaveTextContent('Deleted user');
     expect(within(openDialog()!).getByRole('combobox', {name: /Stage/})).toHaveTextContent('Deleted stage');
@@ -147,7 +147,7 @@ describe('MonitoringPage', () => {
     let finish: (response: Response) => void = () => {};
     const {user, fetch} = renderPage({[`PUT ${RULES}/r1/enabled`]: () => new Promise<Response>((resolve) => (finish = resolve))});
 
-    const toggle = within(await rowOf('Bloods')).getByRole('switch', {name: 'Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure'});
+    const toggle = within(await rowOf('Bloods')).getByRole('switch', {name: 'Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway'});
     await user.click(toggle);
 
     await waitFor(() => expect(toggle).toHaveAttribute('aria-disabled', 'true'));
@@ -199,7 +199,7 @@ describe('MonitoringPage', () => {
     const {user, fetch} = renderPage({[`DELETE ${RULES}/r2`]: () => new Response(null, {status: 204})});
 
     await user.click(within(await rowOf('Knee review')).getByRole('button', {name: 'Delete rule'}));
-    expect(openDialog()).toHaveTextContent('Notify me when anyone creates a procedure from the Knee review template');
+    expect(openDialog()).toHaveTextContent('Notify me when anyone creates a pathway from the Knee review template');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Rule'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -241,8 +241,8 @@ describe('MonitoringPage', () => {
     mockApi({
       [`GET ${RULES}`]: () => json(rules),
       'GET /api/auth/users/search': () => json(pageOf(people)),
-      'GET /api/procedures/patient-procedure-stage/templates': () => json(templates),
-      'GET /api/procedures/patient-procedure-stage/definitions': () => json(definitions),
+      'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
+      'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
     });
     renderWithApp(
       <HalfViewContext.Provider value={{isHalf: true}}>
@@ -254,7 +254,7 @@ describe('MonitoringPage', () => {
     const cards = await screen.findAllByRole('listitem');
     expect(cards).toHaveLength(2);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(cards[0]).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure');
+    expect(cards[0]).toHaveTextContent('Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway');
     expect(within(cards[0]).getByRole('switch')).toBeChecked();
     expect(within(cards[1]).getByRole('button', {name: 'Edit rule'})).toBeInTheDocument();
   });

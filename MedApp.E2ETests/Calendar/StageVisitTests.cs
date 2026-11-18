@@ -17,10 +17,10 @@ public sealed class StageVisitTests : E2ETest
     {
         var (template, stages) = await CreateTemplateAsync("Required", "None");
         var patient = await CreatePatientAsync();
-        var procedure = await CreateProcedureAsync(patient.Id, template.Id);
+        var pathway = await CreatePathwayAsync(patient.Id, template.Id);
 
         // Its first stage needs a visit, which the app has asked to be booked.
-        await OpenAsync($"/procedures/{procedure.Id}");
+        await OpenAsync($"/pathways/{pathway.Id}");
         var visit = Main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true });
         await Expect(visit).ToContainTextAsync("Visit required");
         await Expect(visit).ToContainTextAsync("Requires appointment");
@@ -38,12 +38,12 @@ public sealed class StageVisitTests : E2ETest
         await finish.ClickAsync();
         await Expect(confirm).ToBeHiddenAsync();
 
-        // The procedure moves on to the second stage; the first is finished, and its visit is off Requires Appointment.
+        // The pathway moves on to the second stage; the first is finished, and its visit is off Requires Appointment.
         await Expect(Main).ToContainTextAsync($"2. {stages[1].Name}");
         await Expect(Main).ToContainTextAsync("1 of 2");
         await Expect(Main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true })).ToHaveCountAsync(0);
 
-        var saved = await Api.FindProcedureAsync(procedure.Id);
+        var saved = await Api.FindPathwayAsync(pathway.Id);
         Assert.That(saved!.Stages[0].IsLocked, Is.True);
         var appointments = await Api.AppointmentsOfPatientAsync(patient.Id);
         Assert.That(appointments.Select(a => a.Status), Is.EqualTo(new[] { "Cancelled" }));

@@ -14,7 +14,7 @@ public static class DemoWipe
     public static readonly Guid MissingDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     /// <summary>
-    /// Deletes every patient, procedure (with its notes and their versions), appointment, meeting, calendar setup (but the seeded activity types), closed day, attached file's
+    /// Deletes every patient, pathway (with its notes and their versions), appointment, meeting, calendar setup (but the seeded activity types), closed day, attached file's
     /// record (not its bytes), audit and activity entry, session, notification, rule and choice, the admins' sign-in
     /// rules (back to the defaults: none), and every account but the kept ones (with their settings and sign-in
     /// challenges). Returns the usernames removed.
@@ -32,7 +32,7 @@ public static class DemoWipe
             await db.Database.CreateExecutionStrategy().ExecuteAsync(async cancellationToken =>
             {
                 await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-                // Children before parents: appointment → patient/procedure/stage, procedure → patient and stage/map →
+                // Children before parents: appointment → patient/pathway/stage, pathway → patient and stage/map →
                 // definition don't cascade; nor do calendar blocks and templates → activity type and day template.
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
@@ -52,19 +52,19 @@ public static class DemoWipe
                 // Attached files' records (no foreign keys) go with their patients. Their bytes stay in Azurite,
                 // unreferenced, so the pre-reset snapshot still finds them if it's restored.
                 await db.Attachments.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(cancellationToken);
-                // Note versions have no foreign keys; the notes themselves go with their procedures (cascade).
-                await db.PatientProcedureNoteVersions.ExecuteDeleteAsync(cancellationToken);
+                await db.PatientPathwayAuditEntries.ExecuteDeleteAsync(cancellationToken);
+                // Note versions have no foreign keys; the notes themselves go with their pathways (cascade).
+                await db.PatientPathwayNoteVersions.ExecuteDeleteAsync(cancellationToken);
                 // So do requests to delete notes.
-                await db.ProcedureNoteDeletionRequests.ExecuteDeleteAsync(cancellationToken);
+                await db.PathwayNoteDeletionRequests.ExecuteDeleteAsync(cancellationToken);
                 // The activity log is about the patients and accounts being wiped, so it goes with them.
                 await db.ActivityEntries.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureAssignments.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureStages.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedures.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureStageTemplateItems.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureStageTemplates.ExecuteDeleteAsync(cancellationToken);
-                await db.PatientProcedureStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
+                await db.PatientPathwayAssignments.ExecuteDeleteAsync(cancellationToken);
+                await db.PatientPathwayStages.ExecuteDeleteAsync(cancellationToken);
+                await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
+                await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
+                await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
+                await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);
                 await db.UserSessions.ExecuteDeleteAsync(cancellationToken);
                 // Rules, choices and notifications name the accounts, templates and stages being wiped.

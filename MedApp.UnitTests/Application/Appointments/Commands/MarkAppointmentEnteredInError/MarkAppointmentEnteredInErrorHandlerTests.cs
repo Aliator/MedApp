@@ -4,10 +4,10 @@ using MedApp.Application.Appointments.Commands.MarkAppointmentEnteredInError;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -23,40 +23,40 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
 
     private static readonly Guid AdminId = Guid.Parse("0000000b-0000-0000-0000-0000000000ad");
 
-    private Mock<IPatientProcedureRepository> _procedures = null!;
+    private Mock<IPatientPathwayRepository> _pathways = null!;
     private MarkAppointmentEnteredInErrorHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _procedures = new Mock<IPatientProcedureRepository>();
+        _pathways = new Mock<IPatientPathwayRepository>();
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         Identity.Setup(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
-        Fixture.Inject(_procedures.Object);
+        Fixture.Inject(_pathways.Object);
         _handler = Fixture.Create<MarkAppointmentEnteredInErrorHandler>();
     }
 
     /// <summary>A walk-in recorded by <see cref="Colleague"/> three days ago, Attended.</summary>
-    private Appointment GivenWalkIn(Guid? stageId = null, Guid? procedureId = null, int daysAgo = 3)
+    private Appointment GivenWalkIn(Guid? stageId = null, Guid? pathwayId = null, int daysAgo = 3)
     {
         var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-daysAgo), 10), stageId: stageId);
         appointment.IsRecordedAfterEvent = true;
         appointment.BookedByUserId = Colleague.UserId;
-        appointment.ProcedureId = procedureId;
+        appointment.PathwayId = pathwayId;
         return GivenAppointment(appointment);
     }
 
     private MarkAppointmentEnteredInErrorCommand Command(Appointment appointment, bool isAdmin = false) =>
         new(appointment.Id, $"  {Reason} ", Colleague, isAdmin);
 
-    private PatientProcedure GivenProcedure(VisitRequirement requirement = VisitRequirement.Required)
+    private PatientPathway GivenPathway(VisitRequirement requirement = VisitRequirement.Required)
     {
-        var procedure = ProceduresTestConstants.CreateProcedure(PatientProcedureStatus.Assigned, title: ProcedureTitle);
-        procedure.StageAt(1).VisitRequirement = requirement;
-        procedure.StageAt(1).Name = StageName;
-        _procedures.Setup(p => p.GetByIdAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure);
-        return procedure;
+        var pathway = PathwaysTestConstants.CreatePathway(PatientPathwayStatus.Assigned, title: PathwayTitle);
+        pathway.StageAt(1).VisitRequirement = requirement;
+        pathway.StageAt(1).Name = StageName;
+        _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
+        return pathway;
     }
 
     [Test]
@@ -163,9 +163,9 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_TheCurrentStagesVisit_AsksForItAgainInTheSameSave()
     {
-        var procedure = GivenProcedure();
-        var stage = procedure.StageAt(1);
-        var walkIn = GivenWalkIn(stage.Id, procedure.Id);
+        var pathway = GivenPathway();
+        var stage = pathway.StageAt(1);
+        var walkIn = GivenWalkIn(stage.Id, pathway.Id);
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == stage.Id), It.IsAny<CancellationToken>()))
             .ReturnsAsync([walkIn]);
 
@@ -176,8 +176,8 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         {
             Status = AppointmentStatus.Requested,
             StageId = (Guid?)stage.Id,
-            ProcedureId = (Guid?)procedure.Id,
-            PatientId = procedure.PatientId,
+            PathwayId = (Guid?)pathway.Id,
+            PatientId = pathway.PatientId,
             IsAutomatic = true,
         });
         SavedEvents.Select(e => e.Action).Should().Equal(AppointmentEventAction.EnteredInError, AppointmentEventAction.Requested);
@@ -190,8 +190,8 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_TheCurrentStagesVisitOnARestrictedRecord_AsksForNoVisitAgain()
     {
-        var procedure = GivenProcedure();
-        var walkIn = GivenWalkIn(procedure.StageAt(1).Id, procedure.Id);
+        var pathway = GivenPathway();
+        var walkIn = GivenWalkIn(pathway.StageAt(1).Id, pathway.Id);
         walkIn.Patient.RestrictedAtUtc = Now.AddDays(-1);
 
         var response = await _handler.Handle(Command(walkIn), CancellationToken.None);
@@ -206,11 +206,11 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_TheStagesVisitAskedForMeanwhile_IsAConflictToTryAgain()
     {
-        var procedure = GivenProcedure();
-        var walkIn = GivenWalkIn(procedure.StageAt(1).Id, procedure.Id);
+        var pathway = GivenPathway();
+        var walkIn = GivenWalkIn(pathway.StageAt(1).Id, pathway.Id);
         Repository
             .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new StageHasOpenAppointmentException(procedure.StageAt(1).Id));
+            .ThrowsAsync(new StageHasOpenAppointmentException(pathway.StageAt(1).Id));
 
         var act = () => _handler.Handle(Command(walkIn), CancellationToken.None);
 
@@ -221,13 +221,13 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_AFinishedRequiredStageLeftWithoutAVisit_TellsTheAssigneesAndAdminsButNotWhoWithdrewIt()
     {
-        var procedure = GivenProcedure();
-        var stage = procedure.StageAt(1);
+        var pathway = GivenPathway();
+        var stage = pathway.StageAt(1);
         stage.IsCompleted = true;
         stage.CompletedAtUtc = At(Today.AddDays(-2), 15);
-        procedure.Assignments.Clear();
-        procedure.Assignments.Add(new PatientProcedureAssignment { PatientProcedureId = procedure.Id, UserId = StaffUserId });
-        var walkIn = GivenWalkIn(stage.Id, procedure.Id);
+        pathway.Assignments.Clear();
+        pathway.Assignments.Add(new PatientPathwayAssignment { PatientPathwayId = pathway.Id, UserId = StaffUserId });
+        var walkIn = GivenWalkIn(stage.Id, pathway.Id);
         using var cts = new CancellationTokenSource();
 
         var response = await _handler.Handle(Command(walkIn), cts.Token);
@@ -235,14 +235,14 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         Added.Should().BeEmpty();
         response.VisitRequestedAgain.Should().BeFalse();
         response.StageMessage.Should().Contain("is finished, and now has no attended visit")
-            .And.Contain("an admin can unlock it").And.Contain("The procedure's assignees and the admins are told.");
+            .And.Contain("an admin can unlock it").And.Contain("The pathway's assignees and the admins are told.");
         Sent.Select(s => s.Notification.UserId).Should().Equal(StaffUserId, AdminId);
         Sent.Should().AllSatisfy(s =>
         {
             s.Notification.Kind.Should().Be(NotificationKind.StageVisitWithdrawn);
             s.Notification.Title.Should().Be("Stage visit withdrawn");
-            s.Notification.ProcedureId.Should().Be(procedure.Id);
-            s.Notification.Message.Should().Contain($"'{StageName}'").And.NotContain(ProcedureTitle).And.NotContain(Reason);
+            s.Notification.PathwayId.Should().Be(pathway.Id);
+            s.Notification.Message.Should().Contain($"'{StageName}'").And.NotContain(PathwayTitle).And.NotContain(Reason);
             s.Token.Should().Be(cts.Token);
         });
     }
@@ -250,10 +250,10 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_AFinishedStageWithAnotherAttendedVisit_TellsNobody()
     {
-        var procedure = GivenProcedure();
-        var stage = procedure.StageAt(1);
+        var pathway = GivenPathway();
+        var stage = pathway.StageAt(1);
         stage.IsCompleted = true;
-        var walkIn = GivenWalkIn(stage.Id, procedure.Id);
+        var walkIn = GivenWalkIn(stage.Id, pathway.Id);
         var other = CalendarTestConstants.CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-5), 10), stageId: stage.Id);
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([walkIn, other]);
@@ -268,8 +268,8 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     [Test]
     public async Task Handle_AStageWithoutAVisit_SaysNothing()
     {
-        var procedure = GivenProcedure(VisitRequirement.None);
-        var walkIn = GivenWalkIn(procedure.StageAt(1).Id, procedure.Id);
+        var pathway = GivenPathway(VisitRequirement.None);
+        var walkIn = GivenWalkIn(pathway.StageAt(1).Id, pathway.Id);
 
         var response = await _handler.Handle(Command(walkIn), CancellationToken.None);
 
@@ -278,7 +278,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     }
 
     [Test]
-    public async Task Handle_ADeletedProcedure_SaysNothing()
+    public async Task Handle_ADeletedPathway_SaysNothing()
     {
         var walkIn = GivenWalkIn(Guid.NewGuid(), Guid.NewGuid());
 

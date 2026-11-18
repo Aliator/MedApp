@@ -5,7 +5,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -29,7 +29,7 @@ public sealed class BookAppointmentHandler(
         var end = UkTime.Utc(request.EndUtc);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
-        var expected = ProcedureEnums.Parse<AppointmentStatus>(request.ExpectedStatus);
+        var expected = PathwayEnums.Parse<AppointmentStatus>(request.ExpectedStatus);
 
         // Loaded, checked and saved holding the new member of staff's calendar lock, so two bookings can't race for a
         // slot. Moving it off someone's calendar can't make a clash there. The lock is the member of staff's, not the

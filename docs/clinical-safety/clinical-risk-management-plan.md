@@ -18,7 +18,7 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 
 ### What it covers
 
-- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, procedures created from templates, stages worked in order and locked when finished, due dates and the overdue flag, assignments and task lists, notifications, files attached to patients, procedures and stages, the audit log, and the administration of users, stage definitions and templates; and staff calendars, appointments and stage visits (`docs/calendar-plan.md`), with the administration of activity types and calendar templates.
+- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, pathways created from templates, stages worked in order and locked when finished, target dates and the overdue flag, assignments and task lists, notifications, files attached to patients, pathways and stages, the audit log, and the administration of users, stage definitions and templates; and staff calendars, appointments and stage visits (`docs/calendar-plan.md`), with the administration of activity types and calendar templates.
 - **Its whole life:** design, development, testing, release, deployment support, live use, changes, and decommissioning.
 - **Every release** that a customer can use with real patients, and every change that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).
 - **What the manufacturer runs for customers,** once it hosts MedApp as a service (Azure, `deploy/azure`): availability, backups and restores, as far as they affect patient care.
@@ -26,7 +26,7 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 ### What it doesn't cover
 
 - **Each customer's deployment:** how a customer configures, trains for and uses MedApp is their own clinical risk management under DCB0160. The manufacturer supports it (`dcb0160-deploying-organisations.md`).
-- **The content of templates and stage instructions:** customers write them, and are responsible for their clinical accuracy, including which stages involve a visit. The hazards that the software adds to that content (for example, how changes reach procedures) are in scope.
+- **The content of templates and stage instructions:** customers write them, and are responsible for their clinical accuracy, including which stages involve a visit. The hazards that the software adds to that content (for example, how changes reach pathways) are in scope.
 - **Contacting patients about appointments:** MedApp doesn't contact patients; how a customer tells them about bookings, changes and cancellations is its own process, under DCB0160.
 - **Medical device regulation:** MedApp isn't a medical device as it stands (`intended-purpose-and-device-decision.md`). If that changes, ISO 14971 and UK MDR 2002 apply too, and this plan has to be revised.
 
@@ -46,7 +46,7 @@ MedApp has never been used with real patients, and has never been deployed outsi
 | MHRA, medical device stand-alone software including apps | The device qualification guidance (`intended-purpose-and-device-decision.md`) |
 | DTAC 2.0 | The Digital Technology Assessment Criteria, whose clinical safety section asks for this file |
 | `docs/architecture.md` | The architecture handbook: how MedApp works, its risks and the roadmap |
-| `docs/procedures-ui-plan.md` | The procedures concept and its decisions |
+| `docs/pathways-ui-plan.md` | The pathways concept and its decisions |
 
 ## 3. Roles and responsibilities
 
@@ -69,8 +69,8 @@ The process follows DCB0129 and the principles of ISO 14971: identify hazards, e
 ### 4.1 Identifying hazards
 
 Hazards are found by:
-- **Walking the workflows:** each workflow in `docs/architecture.md` section 6.3 (creating and working a procedure) and the screens in `docs/procedures-ui-plan.md` section 6, asking "what if" at each step: the wrong patient, the wrong stage, too late, twice, by two people, with the system down. This is a structured what-if technique (SWIFT).
-- **Reading the rules in the code:** `MedApp.Application/Procedures/Common` (`ProcedureWorkflow`, `ProcedureChange`, `DueDates`), `MedApp.Application/Calendar/Common` (`WorkingHours`, `UkTime`, `CalendarProjection`, `CalendarClashes`) and `MedApp.Application/Appointments/Common` (`AppointmentWorkflow`, `AppointmentChange`), the handlers and the screens that use them.
+- **Walking the workflows:** each workflow in `docs/architecture.md` section 6.3 (creating and working a pathway) and the screens in `docs/pathways-ui-plan.md` section 6, asking "what if" at each step: the wrong patient, the wrong stage, too late, twice, by two people, with the system down. This is a structured what-if technique (SWIFT).
+- **Reading the rules in the code:** `MedApp.Application/Pathways/Common` (`PathwayWorkflow`, `PathwayChange`, `DueDates`), `MedApp.Application/Calendar/Common` (`WorkingHours`, `UkTime`, `CalendarProjection`, `CalendarClashes`) and `MedApp.Application/Appointments/Common` (`AppointmentWorkflow`, `AppointmentChange`), the handlers and the screens that use them.
 - **The engineering reviews** in `docs/reviews/` and the risks in `docs/architecture.md` section 11, for failures with a clinical effect.
 - **People who use it:** a hazard workshop with the CSO and at least one clinician from a likely customer before first live use; then user feedback, support requests and incidents.
 - **Every change** that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).

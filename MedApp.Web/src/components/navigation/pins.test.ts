@@ -13,17 +13,17 @@ describe('usePins', () => {
     act(() => result.current.pin('p2'));
     expect(result.current.ids).toEqual(['p1', 'p2']);
     expect(result.current.isPinned('p1')).toBe(true);
-    expect(stored()).toEqual({patients: ['p1', 'p2'], procedures: []});
+    expect(stored()).toEqual({patients: ['p1', 'p2'], pathways: []});
 
     act(() => result.current.unpin('p1'));
     expect(result.current.ids).toEqual(['p2']);
-    expect(stored()).toEqual({patients: ['p2'], procedures: []});
+    expect(stored()).toEqual({patients: ['p2'], pathways: []});
   });
 
   it('reads the pins kept from an earlier visit', () => {
-    localStorage.setItem(PINS_KEY, JSON.stringify({procedures: ['x1', 'x2']}));
+    localStorage.setItem(PINS_KEY, JSON.stringify({pathways: ['x1', 'x2']}));
 
-    const {result} = renderHook(() => usePins('procedures', 'test-user'));
+    const {result} = renderHook(() => usePins('pathways', 'test-user'));
 
     expect(result.current.ids).toEqual(['x1', 'x2']);
   });
@@ -48,13 +48,13 @@ describe('usePins', () => {
   });
 
   it("keeps each kind's pins separate", () => {
-    localStorage.setItem(PINS_KEY, JSON.stringify({procedures: ['x1']}));
+    localStorage.setItem(PINS_KEY, JSON.stringify({pathways: ['x1']}));
 
     const {result} = renderHook(() => usePins('patients', 'test-user'));
     act(() => result.current.pin('p1'));
 
     expect(result.current.ids).toEqual(['p1']);
-    expect(stored()).toEqual({patients: ['p1'], procedures: ['x1']});
+    expect(stored()).toEqual({patients: ['p1'], pathways: ['x1']});
   });
 
   it('counts several changes in a row, each from the latest pins', () => {
@@ -71,13 +71,13 @@ describe('usePins', () => {
 
   it('carries over the pins this browser kept for the user before they moved to the account', async () => {
     localStorage.setItem(legacyPinsKey('patients', 'test-user'), JSON.stringify(['p9']));
-    localStorage.setItem(legacyPinsKey('procedures', 'test-user'), JSON.stringify(['x9']));
+    localStorage.setItem(legacyPinsKey('pathways', 'test-user'), JSON.stringify(['x9']));
     localStorage.setItem(legacyPinsKey('patients', 'someone-else'), JSON.stringify(['p8']));
 
     const {result} = renderHook(() => usePins('patients', 'test-user'));
 
     await waitFor(() => expect(result.current.ids).toEqual(['p9']));
-    expect(stored()).toEqual({patients: ['p9'], procedures: ['x9']});
+    expect(stored()).toEqual({patients: ['p9'], pathways: ['x9']});
   });
 
   it('carries nothing over once the account has pins, or when there were none', () => {
@@ -93,12 +93,12 @@ describe('usePins', () => {
 
   it('keeps the old keys it carries pins over from', () => {
     expect(legacyPinsKey('patients', 'test-user')).toBe('medapp.pinnedPatients.test-user');
-    expect(legacyPinsKey('procedures', 'test-user')).toBe('medapp.pinnedProcedures.test-user');
+    expect(legacyPinsKey('pathways', 'test-user')).toBe('medapp.pinnedProcedures.test-user');
   });
 
   it('ignores stored pins it cannot read', () => {
     localStorage.setItem(PINS_KEY, '{not json');
-    localStorage.setItem(legacyPinsKey('procedures', 'test-user'), '{not json');
+    localStorage.setItem(legacyPinsKey('pathways', 'test-user'), '{not json');
 
     const {result} = renderHook(() => usePins('patients', 'test-user'));
 
@@ -106,10 +106,10 @@ describe('usePins', () => {
   });
 
   it('ignores stored pins that are not a list, or not IDs, and repeats', () => {
-    localStorage.setItem(PINS_KEY, JSON.stringify({patients: {p1: true}, procedures: ['x1', '', 7, 'x1', 'x2']}));
+    localStorage.setItem(PINS_KEY, JSON.stringify({patients: {p1: true}, pathways: ['x1', '', 7, 'x1', 'x2']}));
 
     expect(renderHook(() => usePins('patients', 'test-user')).result.current.ids).toEqual([]);
-    expect(renderHook(() => usePins('procedures', 'test-user')).result.current.ids).toEqual(['x1', 'x2']);
+    expect(renderHook(() => usePins('pathways', 'test-user')).result.current.ids).toEqual(['x1', 'x2']);
   });
 
   it('shows pins made in another tab', () => {

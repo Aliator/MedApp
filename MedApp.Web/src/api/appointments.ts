@@ -1,10 +1,10 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
-import {procedureKeys} from './procedures';
+import {pathwayKeys} from './pathways';
 
 /**
- * Appointments: a patient seen by one member of staff, optionally for a procedure's stage. Requested ones ("Needs
+ * Appointments: a patient seen by one member of staff, optionally for a pathway's stage. Requested ones ("Needs
  * booking") have no time yet; Booked ones have a member of staff and a time; then Attended or Did not attend, or
  * Cancelled (docs/calendar-plan.md, decision 16). Any staff member can book, reschedule, cancel or record the outcome
  * of any appointment. One recorded after the event (a walk-in) can be withdrawn as Entered in error, by whoever
@@ -24,7 +24,7 @@ export const DEFAULT_APPOINTMENT_LENGTH = 30;
 
 /**
  * Every appointment query is keyed under ['appointments'], and every calendar under ['calendar'], so a change to any
- * appointment refreshes both (an appointment shows on a calendar), along with procedures (a stage's visit) and the
+ * appointment refreshes both (an appointment shows on a calendar), along with pathways (a stage's visit) and the
  * patient timelines (which list appointment changes).
  */
 export const appointmentKeys = {
@@ -42,8 +42,8 @@ export function appointmentQuery(id: string) {
 }
 
 /**
- * A page of appointments (`GET api/appointments/search`): by patient, procedure, stage, member of staff, statuses and
- * UK days; sorted by `start` (default; Requested ones last), `requested`, `dueDate` (the procedure's) or `patient`.
+ * A page of appointments (`GET api/appointments/search`): by patient, pathway, stage, member of staff, statuses and
+ * UK days; sorted by `start` (default; Requested ones last), `requested`, `dueDate` (the pathway's) or `patient`.
  */
 export function appointmentsQuery(search: AppointmentSearch) {
   return queryOptions({
@@ -52,11 +52,11 @@ export function appointmentsQuery(search: AppointmentSearch) {
   });
 }
 
-/** The most appointments the procedure and patient pages list (the API's largest page). */
+/** The most appointments the pathway and patient pages list (the API's largest page). */
 export const LISTED_APPOINTMENTS = 100;
 
-/** A procedure's appointments, every status, by start (Requested ones last): the procedure page's list and stage visits. */
-export const procedureAppointmentsQuery = (procedureId: string) => appointmentsQuery({ProcedureId: procedureId, PageSize: LISTED_APPOINTMENTS});
+/** A pathway's appointments, every status, by start (Requested ones last): the pathway page's list and stage visits. */
+export const pathwayAppointmentsQuery = (pathwayId: string) => appointmentsQuery({PathwayId: pathwayId, PageSize: LISTED_APPOINTMENTS});
 
 /** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
 export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
@@ -85,7 +85,7 @@ export function useRefreshAppointments() {
     await Promise.all([
       queryClient.invalidateQueries({queryKey: appointmentKeys.all}),
       queryClient.invalidateQueries({queryKey: ['calendar']}),
-      queryClient.invalidateQueries({queryKey: procedureKeys.all}),
+      queryClient.invalidateQueries({queryKey: pathwayKeys.all}),
       queryClient.invalidateQueries({queryKey: ['notifications']}),
     ]);
   };
@@ -137,7 +137,7 @@ export const canMarkEnteredInError = (appointment: Appointment, user: {username:
 
 /**
  * Everything that can be done to an existing appointment. Each returns the updated appointment, which replaces the
- * cached one; calendars, lists, procedures and timelines are refreshed.
+ * cached one; calendars, lists, pathways and timelines are refreshed.
  */
 export function useAppointmentActions() {
   const refresh = useRefreshAppointments();

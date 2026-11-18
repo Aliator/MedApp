@@ -24,7 +24,7 @@ import {
 import {ApiError} from './errors';
 
 const patientId = '00000035-0000-0000-0000-000000000001';
-const procedureId = '00000035-0000-0000-0000-000000000002';
+const pathwayId = '00000035-0000-0000-0000-000000000002';
 const stageId = '00000035-0000-0000-0000-000000000003';
 const attachmentId = '00000035-0000-0000-0000-000000000004';
 const MB = 1024 * 1024;
@@ -34,7 +34,7 @@ const file = (name: string, size = 10) => new File([new Uint8Array(size)], name,
 describe('attachment targets', () => {
   it('names what a target is, and keys it', () => {
     expect(attachedToOf({patientId})).toBe('Patient');
-    expect(attachedToOf({procedureId})).toBe('Procedure');
+    expect(attachedToOf({pathwayId})).toBe('Pathway');
     expect(attachedToOf({stageId})).toBe('Stage');
     expect(attachmentTargetKey({stageId})).toBe(`Stage:${stageId}`);
   });
@@ -48,7 +48,7 @@ describe('attachment targets', () => {
 describe('attachmentsQuery', () => {
   it.each([
     [{patientId}, `PatientId=${patientId}`],
-    [{procedureId}, `ProcedureId=${procedureId}`],
+    [{pathwayId}, `PathwayId=${pathwayId}`],
     [{stageId}, `StageId=${stageId}`],
   ])('fetches the files on %o', async (target, query) => {
     const fetch = mockApi({'GET /api/attachments': () => json({items: [], totalCount: 0, maxFileBytes: MB, allowedExtensions: ['.pdf']})});
@@ -140,7 +140,7 @@ describe('uploadAttachment', () => {
 
   it.each([
     [{patientId}, `patientId=${patientId}`],
-    [{procedureId}, `procedureId=${procedureId}`],
+    [{pathwayId}, `pathwayId=${pathwayId}`],
   ])('attaches to %o', async (target, query) => {
     const sent = stubXhr();
     const result = uploadAttachment({target, file: file('a.pdf')});
@@ -205,7 +205,7 @@ describe('useDeleteAttachment', () => {
     const fetch = mockApi({[`DELETE /api/attachments/${attachmentId}`]: () => new Response(null, {status: 204})});
     const queryClient = new QueryClient();
     queryClient.setQueryData(['attachments', {patientId}], {items: []});
-    queryClient.setQueryData(['procedures', 'timeline', patientId, 'overview'], {});
+    queryClient.setQueryData(['pathways', 'timeline', patientId, 'overview'], {});
     queryClient.setQueryData(['patients', patientId], {});
     const wrapper = ({children}: {children: ReactNode}) => <AppProviders queryClient={queryClient}>{children}</AppProviders>;
     const {result} = renderHook(() => useDeleteAttachment(), {wrapper});
@@ -214,7 +214,7 @@ describe('useDeleteAttachment', () => {
 
     expect(calls(fetch)).toEqual([`DELETE /api/attachments/${attachmentId}`]);
     await waitFor(() => expect(queryClient.getQueryState(['attachments', {patientId}])?.isInvalidated).toBe(true));
-    expect(queryClient.getQueryState(['procedures', 'timeline', patientId, 'overview'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['pathways', 'timeline', patientId, 'overview'])?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(['patients', patientId])?.isInvalidated).toBe(false);
   });
 });

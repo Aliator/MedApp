@@ -3,12 +3,12 @@
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
 /// kinds; the monitoring kinds (one of an admin's rules matched) are 10 to 17, one for each <c>MonitoringEvent</c>;
-/// 18 to 21 are about deleting a procedure's note; 22 is a stage's visit withdrawn.
+/// 18 to 21 are about deleting a pathway's note; 22 is a stage's visit withdrawn.
 /// </summary>
 public enum NotificationKind
 {
-    /// <summary>Someone assigned the user to a procedure.</summary>
-    ProcedureAssigned = 0,
+    /// <summary>Someone assigned the user to a pathway.</summary>
+    PathwayAssigned = 0,
 
     /// <summary>Someone booked an appointment with the user, or moved one to them.</summary>
     AppointmentBooked = 1,
@@ -42,28 +42,28 @@ public enum NotificationKind
     /// </summary>
     AppointmentRecorded = 9,
 
-    /// <summary>Monitoring: someone created a procedure.</summary>
-    MonitoredProcedureCreated = 10,
+    /// <summary>Monitoring: someone created a pathway.</summary>
+    MonitoredPathwayCreated = 10,
 
     /// <summary>Monitoring: someone finished a stage.</summary>
     MonitoredStageFinished = 11,
 
-    /// <summary>Monitoring: someone completed a procedure.</summary>
-    MonitoredProcedureCompleted = 12,
+    /// <summary>Monitoring: someone completed a pathway.</summary>
+    MonitoredPathwayCompleted = 12,
 
-    /// <summary>Monitoring: someone blocked a procedure.</summary>
-    MonitoredProcedureBlocked = 13,
+    /// <summary>Monitoring: someone blocked a pathway.</summary>
+    MonitoredPathwayBlocked = 13,
 
-    /// <summary>Monitoring: someone cancelled a procedure.</summary>
-    MonitoredProcedureCancelled = 14,
+    /// <summary>Monitoring: someone cancelled a pathway.</summary>
+    MonitoredPathwayCancelled = 14,
 
-    /// <summary>Monitoring: someone was assigned to a procedure.</summary>
-    MonitoredProcedureAssigned = 15,
+    /// <summary>Monitoring: someone was assigned to a pathway.</summary>
+    MonitoredPathwayAssigned = 15,
 
     /// <summary>Monitoring: an admin unlocked a stage.</summary>
     MonitoredStageUnlocked = 16,
 
-    /// <summary>Monitoring: someone changed a procedure's due date.</summary>
+    /// <summary>Monitoring: someone changed a pathway's target date.</summary>
     MonitoredDueDateChanged = 17,
 
     /// <summary>A member of staff asked for a note to be deleted (sent to every admin but them).</summary>
@@ -80,7 +80,7 @@ public enum NotificationKind
 
     /// <summary>
     /// Someone marked a walk-in entered in error that was the only attended visit of a finished stage that requires
-    /// one, so the stage is finished without its visit. Sent to the procedure's assignees and the admins, never to
+    /// one, so the stage is finished without its visit. Sent to the pathway's assignees and the admins, never to
     /// whoever withdrew it.
     /// </summary>
     StageVisitWithdrawn = 22

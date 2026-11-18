@@ -120,7 +120,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           actions={[
             {label: 'View patient', icon: AppIcon.View, href: `/patients/${p.id}`},
             {label: 'Edit patient', icon: AppIcon.Edit, href: `/patients/${p.id}/edit`},
-            {label: 'Procedures', icon: AppIcon.Procedures, href: `/patients/${p.id}/procedures`},
+            {label: 'Pathways', icon: AppIcon.Pathways, href: `/patients/${p.id}/pathways`},
           ]}
         />
       ),

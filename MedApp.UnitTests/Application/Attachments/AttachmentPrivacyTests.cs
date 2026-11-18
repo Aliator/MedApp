@@ -13,8 +13,8 @@ using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.AttachmentsTestConstants;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
-using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
+using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
 namespace MedApp.UnitTests.Application.Attachments;
 
@@ -43,8 +43,8 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     private void GivenThePatient(Patient patient) =>
         Patients.Setup(p => p.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(patient);
 
-    private static UploadAttachmentCommand Upload(Guid? patientId = null, Guid? procedureId = null, Guid? stageId = null, bool isAdmin = false) =>
-        new(patientId, procedureId, stageId, FileName, Pdf.Length, Stream(Pdf), isAdmin ? Admin : Staff, isAdmin);
+    private static UploadAttachmentCommand Upload(Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null, bool isAdmin = false) =>
+        new(patientId, pathwayId, stageId, FileName, Pdf.Length, Stream(Pdf), isAdmin ? Admin : Staff, isAdmin);
 
     [Test]
     public async Task Upload_RestrictedPatient_ThrowsTheGuardsConflictEvenForAnAdmin()
@@ -61,8 +61,8 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     [Test]
     public async Task Upload_RestrictedPatientsStage_ThrowsTheGuardsConflict()
     {
-        var procedure = CreateProcedure(Status.InProgress, patient: Restricted());
-        var stage = GivenStage(procedure, 1);
+        var pathway = CreatePathway(Status.InProgress, patient: Restricted());
+        var stage = GivenStage(pathway, 1);
 
         var act = () => Fixture.Create<UploadAttachmentHandler>().Handle(Upload(stageId: stage.Id), CancellationToken.None);
 
@@ -70,11 +70,11 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Upload_AnonymisedPatientsProcedure_ThrowsTheAnonymisedConflict()
+    public async Task Upload_AnonymisedPatientsPathway_ThrowsTheAnonymisedConflict()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.Completed, patient: Anonymised()));
+        var pathway = GivenPathway(CreatePathway(Status.Completed, patient: Anonymised()));
 
-        var act = () => Fixture.Create<UploadAttachmentHandler>().Handle(Upload(procedureId: procedure.Id), CancellationToken.None);
+        var act = () => Fixture.Create<UploadAttachmentHandler>().Handle(Upload(pathwayId: pathway.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.AnonymisedMessage);
     }
@@ -96,10 +96,10 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task Delete_RestrictedPatientsProcedureFile_ThrowsTheGuardsConflict()
+    public async Task Delete_RestrictedPatientsPathwayFile_ThrowsTheGuardsConflict()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.InProgress, patient: Restricted()));
-        var attachment = GivenAttachment(AttachmentOn(procedure));
+        var pathway = GivenPathway(CreatePathway(Status.InProgress, patient: Restricted()));
+        var attachment = GivenAttachment(AttachmentOn(pathway));
 
         var act = () => Fixture.Create<DeleteAttachmentHandler>().Handle(new DeleteAttachmentCommand(attachment.Id, Staff, IsAdmin: false), CancellationToken.None);
 
@@ -107,22 +107,22 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
     }
 
     [Test]
-    public async Task List_RecordsAViewOfThePatientsFiles_WithTheProcedure()
+    public async Task List_RecordsAViewOfThePatientsFiles_WithThePathway()
     {
-        var procedure = GivenProcedure(CreateProcedure());
-        var query = new GetAttachmentsQuery(null, procedure.Id, null, false, Staff.UserId, false);
+        var pathway = GivenPathway(CreatePathway());
+        var query = new GetAttachmentsQuery(null, pathway.Id, null, false, Staff.UserId, false);
         Attachments.Setup(a => a.ListAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(([], 0));
         using var cts = new CancellationTokenSource();
 
         await Fixture.Create<GetAttachmentsHandler>().Handle(query, cts.Token);
 
         Activity.Views.Should().ContainSingle().Which.Should().BeEquivalentTo(
-            (ActivityAction.AttachmentsViewed, new List<Guid> { procedure.PatientId }, (Guid?)procedure.Id));
+            (ActivityAction.AttachmentsViewed, new List<Guid> { pathway.PatientId }, (Guid?)pathway.Id));
         Activity.Tokens.Should().Contain(cts.Token);
     }
 
     [Test]
-    public async Task List_PatientsOwnFiles_RecordsAViewWithNoProcedure()
+    public async Task List_PatientsOwnFiles_RecordsAViewWithNoPathway()
     {
         var patient = GivenPatient();
         var query = new GetAttachmentsQuery(patient.Id, null, null, false, Staff.UserId, false);
@@ -130,20 +130,20 @@ public sealed class AttachmentPrivacyTests : AttachmentHandlerTestBase
 
         await Fixture.Create<GetAttachmentsHandler>().Handle(query, CancellationToken.None);
 
-        Activity.Views.Single().ProcedureId.Should().BeNull();
+        Activity.Views.Single().PathwayId.Should().BeNull();
     }
 
     [Test]
     public async Task Download_RecordsADownloadOfThePatientsData_AndIsAllowedWhileRestricted()
     {
-        var procedure = GivenProcedure(CreateProcedure(Status.InProgress, patient: Restricted()));
-        var attachment = GivenAttachment(AttachmentOn(procedure, stageOrder: 1));
+        var pathway = GivenPathway(CreatePathway(Status.InProgress, patient: Restricted()));
+        var attachment = GivenAttachment(AttachmentOn(pathway, stageOrder: 1));
         await Store.SaveAsync(AttachmentStorageKeys.File(attachment.Id), Stream(Pdf), "application/pdf", CancellationToken.None);
 
         await using var download = (await Fixture.Create<DownloadAttachmentHandler>()
             .Handle(new DownloadAttachmentCommand(attachment.Id, Staff), CancellationToken.None)).Content;
 
         Activity.Views.Should().ContainSingle().Which.Should().BeEquivalentTo(
-            (ActivityAction.AttachmentDownloaded, new List<Guid> { attachment.PatientId }, (Guid?)procedure.Id));
+            (ActivityAction.AttachmentDownloaded, new List<Guid> { attachment.PatientId }, (Guid?)pathway.Id));
     }
 }

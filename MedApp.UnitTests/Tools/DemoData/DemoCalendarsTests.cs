@@ -1,7 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.DevMcp.DemoData;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 
@@ -121,8 +121,8 @@ public sealed class DemoCalendarsTests
             Random = new Random(Seed),
             Calendars = DemoCalendars.Plan(staff, timeline, new Random(Seed)),
             Staff = staff,
-            Templates = new Dictionary<Pathway, PatientProcedureStageTemplate>(),
-            Definitions = new Dictionary<string, PatientProcedureStageDefinition>(),
+            Templates = new Dictionary<PathwayKind, PathwayTemplate>(),
+            Definitions = new Dictionary<string, PatientPathwayStageDefinition>(),
             Rules = [],
         };
         var patients = Enumerable.Range(0, 5).Select(i => new PatientSeed
@@ -137,7 +137,7 @@ public sealed class DemoCalendarsTests
         }).ToList();
         var (pharmacist, start, end) = world.Calendars.FreedSlot!.Value;
 
-        DemoProcedures.BookFreedSlot(world, patients);
+        DemoPathways.BookFreedSlot(world, patients);
 
         world.Appointments.Should().ContainSingle(a => a.StaffUserId == pharmacist && a.StartUtc == start && a.EndUtc == end);
         world.Allocator.IsFree(pharmacist, start, end).Should().BeFalse("a booked time is reserved, so no visit can be booked over it");

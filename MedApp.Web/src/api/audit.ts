@@ -1,14 +1,15 @@
 import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {formatShortDate} from '../utils/dates';
 import {formatFileSize} from '../utils/fileSize';
-import {NO_PROCEDURE} from './attachments';
+import {statusWords} from '../utils/statusWords';
+import {NO_PATHWAY} from './attachments';
 import {describeNoteDeletionReason} from './noteDeletion';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
 
-export type AuditSearch = NonNullable<paths['/api/procedures/audit/search']['get']['parameters']['query']>;
-export type AuditEntry = Schemas['PatientProcedureAuditEntryResponse'];
+export type AuditSearch = NonNullable<paths['/api/pathways/audit/search']['get']['parameters']['query']>;
+export type AuditEntry = Schemas['PatientPathwayAuditEntryResponse'];
 
 /** The audit actions, as the API names them (never renumbered, so the history stays readable). */
 export const AUDIT_ACTIONS = [
@@ -58,17 +59,17 @@ export const auditActionLabel = (action: string | null | undefined) =>
   ACTION_LABELS[action as AuditAction] ?? action ?? '';
 
 /**
- * One page of the procedure audit log (`GET api/procedures/audit/search`, admins only), newest first unless
- * `Ascending`. While the next page loads, the current one stays on screen. Keyed under ['procedures'], so any
- * change to a procedure refreshes it.
+ * One page of the pathway audit log (`GET api/pathways/audit/search`, admins only), newest first unless
+ * `Ascending`. While the next page loads, the current one stays on screen. Keyed under ['pathways'], so any
+ * change to a pathway refreshes it.
  */
 export function auditSearchQuery(search: AuditSearch) {
   const query = Object.fromEntries(
     Object.entries({PageSize: PAGE_SIZE, ...search}).filter(([, value]) => value !== undefined && value !== ''),
   ) as AuditSearch;
   return queryOptions({
-    queryKey: ['procedures', 'audit', query],
-    queryFn: () => unwrap(api.GET('/api/procedures/audit/search', {params: {query}})),
+    queryKey: ['pathways', 'audit', query],
+    queryFn: () => unwrap(api.GET('/api/pathways/audit/search', {params: {query}})),
     placeholderData: keepPreviousData,
   });
 }
@@ -76,8 +77,7 @@ export function auditSearchQuery(search: AuditSearch) {
 type Details = Record<string, unknown>;
 type FromTo = {from?: unknown; to?: unknown};
 
-const words = (value: unknown) =>
-  typeof value === 'string' ? value.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase() : String(value ?? '');
+const words = (value: unknown) => (typeof value === 'string' ? statusWords(value) : String(value ?? ''));
 const quoted = (value: unknown) => (typeof value === 'string' && value.trim() ? `"${value.trim()}"` : 'nothing');
 const date = (value: unknown) => (typeof value === 'string' && value ? formatShortDate(value) : 'none');
 
@@ -110,7 +110,7 @@ function parse(details: string | null | undefined): Details {
 }
 
 /**
- * What an audit entry's details say, in a line of words, e.g. "In progress → blocked: Awaiting results" or
+ * What an audit entry's details say, in a line of words, e.g. "In progress → on hold: Awaiting results" or
  * "From Diagnostic procedure, 7 stages, due 7 Nov 2026, high priority". Empty when there's nothing to add to the
  * action and stage.
  */
@@ -158,7 +158,7 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'NoteEdited':
       return typeof d.version === 'number' ? `Version ${d.version}` : '';
     // The version deleted and the admin's reason; still never the note's text.
-    // The reason is a choice (by name), with an optional detail: "Version 2: Wrong patient: belongs to the other procedure".
+    // The reason is a choice (by name), with an optional detail: "Version 2: Wrong patient: belongs to the other pathway".
     case 'NoteDeleted': {
       const version = typeof d.version === 'number' ? `Version ${d.version}` : '';
       const reason = describeNoteDeletionReason(
@@ -172,7 +172,7 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
   }
 }
 
-const ATTACHED_TO: Record<string, string> = {Patient: 'on the patient', Procedure: 'on the procedure', Stage: 'on the stage'};
+const ATTACHED_TO: Record<string, string> = {Patient: 'on the patient', Pathway: 'on the pathway', Stage: 'on the stage'};
 
 /** A file's entry: "scan.pdf (1.2 MB), on the patient". */
 function describeAttachment(d: Details): string {
@@ -182,5 +182,5 @@ function describeAttachment(d: Details): string {
   return `${name}${size}${where}`;
 }
 
-/** Whether an entry is about a patient's own file, which has no procedure (its ID is all zeros, its title empty). */
-export const isPatientFileEntry = (entry: Pick<AuditEntry, 'patientProcedureId'>) => entry.patientProcedureId === NO_PROCEDURE;
+/** Whether an entry is about a patient's own file, which has no pathway (its ID is all zeros, its title empty). */
+export const isPatientFileEntry = (entry: Pick<AuditEntry, 'patientPathwayId'>) => entry.patientPathwayId === NO_PATHWAY;

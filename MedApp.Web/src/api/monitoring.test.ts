@@ -4,12 +4,12 @@ describe('monitoring', () => {
   it('knows which events can name a stage', () => {
     expect(hasStage('StageFinished')).toBe(true);
     expect(hasStage('StageUnlocked')).toBe(true);
-    expect(hasStage('ProcedureCreated')).toBe(false);
+    expect(hasStage('PathwayCreated')).toBe(false);
     expect(hasStage(null)).toBe(false);
   });
 
   it('finds an event by its value', () => {
-    expect(monitoringEventOf('ProcedureAssigned')?.label).toBe('Is assigned to a procedure');
+    expect(monitoringEventOf('PathwayAssigned')?.label).toBe('Is assigned to a pathway');
     expect(monitoringEventOf('Nope')).toBeUndefined();
   });
 
@@ -20,7 +20,7 @@ describe('monitoring', () => {
     // What the API leaves out is "any", and on; an event it doesn't know falls back to the first.
     expect(inputOf({id: 'r2', event: 'Unknown'})).toEqual({
       subjectUserId: null,
-      event: 'ProcedureCreated',
+      event: 'PathwayCreated',
       minimumPriority: null,
       templateId: null,
       stageDefinitionId: null,

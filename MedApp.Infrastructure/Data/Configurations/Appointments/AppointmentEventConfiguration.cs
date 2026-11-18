@@ -12,8 +12,8 @@ public sealed class AppointmentEventConfiguration : IEntityTypeConfiguration<App
 
         builder.HasKey(x => x.Id);
 
-        // No foreign keys: the history outlives deleted appointments, procedures, stages and accounts.
-        builder.Property(x => x.ProcedureTitle)
+        // No foreign keys: the history outlives deleted appointments, pathways, stages and accounts.
+        builder.Property(x => x.PathwayTitle)
             .IsRequired()
             .HasMaxLength(200);
 

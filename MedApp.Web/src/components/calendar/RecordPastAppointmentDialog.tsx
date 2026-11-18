@@ -19,8 +19,8 @@ import {
 import {calendarDaysQuery, calendarKeys, staffQuery, type CalendarDay} from '../../api/calendar';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
-import {procedureQuery} from '../../api/procedures';
-import {procedureSearchQuery} from '../../api/search';
+import {pathwayQuery} from '../../api/pathways';
+import {pathwaySearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {addDays, addMinutes, formatCalendarDay, formatTimeRange, intervalOf, isWeekday, SLOT_MINUTES, ukToday} from '../../utils/calendarSlots';
@@ -41,10 +41,10 @@ export interface RecordPastAppointmentDialogProps {
   onSaved?: (appointment: Appointment) => void;
   /**
    * What's known already, and can't be changed (a stage's Record Past Visit): the patient, with who they are for their
-   * banner, a procedure and a stage. The rest is asked for.
+   * banner, a pathway and a stage. The rest is asked for.
    */
   patient?: AppointmentPatientDetails;
-  procedure?: {id: string; title: string};
+  pathway?: {id: string; title: string};
   stage?: {id: string; name: string};
   /**
    * The notes of the stage's visit waiting in Requires Appointment, when it has one (a stage's Record Past Visit): the
@@ -60,7 +60,7 @@ export interface RecordPastAppointmentDialogProps {
 /**
  * Recording an appointment that has already happened (docs/calendar-plan.md, decisions 74 and 76 to 78): a walk-in, or one
  * booked outside MedApp, recorded after the event with its outcome. Like booking (`BookAppointmentDialog`), whatever is
- * known is filled in: the patient (or a picker), what it was for (a stage up to the procedure's current one: a later one
+ * known is filled in: the patient (or a picker), what it was for (a stage up to the pathway's current one: a later one
  * hasn't been reached), with whom and how long; then the day (a weekday in the last 30, today included, closed days too,
  * labelled, as what happened, happened; never a weekend), the start (inside the working day, any time that had started by
  * now), the outcome (Attended or Did not attend: nothing chosen until someone chooses) and notes. It says it's recorded
@@ -73,7 +73,7 @@ export interface RecordPastAppointmentDialogProps {
  * Once the patient is known, their banner heads it (name, date of birth and NHS number), so staff can check who they're
  * recording (hazard H-34, and the walk-in hazard H-39: the wrong patient). A restricted or anonymised record can't be
  * changed, so it says why and offers no Record. The server has the final word: a 400 shows on the fields; a 409 (it
- * overlaps another appointment, the stage's visit is booked already, the visit was before the procedure was created, the
+ * overlaps another appointment, the stage's visit is booked already, the visit was before the pathway was created, the
  * stage hasn't been reached) keeps the dialog open with its message and refreshes the calendars and appointment lists.
  * For a stage whose visit is in Requires Appointment, the server records that visit rather than a new one, keeping its
  * notes (shown read-only, `waitingVisitNotes`) and adding the new ones after them.
@@ -92,9 +92,9 @@ export function RecordPastAppointmentDialog(props: RecordPastAppointmentDialogPr
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
-const FIELDS = ['patientId', 'procedureId', 'stageId', 'staffUserId', 'startUtc', 'endUtc', 'outcome', 'notes'];
+const FIELDS = ['patientId', 'pathwayId', 'stageId', 'staffUserId', 'startUtc', 'endUtc', 'outcome', 'notes'];
 
-const NO_PROCEDURE = 'none';
+const NO_PATHWAY = 'none';
 const NO_STAGE = 'none';
 const MINUTE = 60_000;
 /** The most an appointment's notes can hold (the API's limit): a waiting visit's own and the new ones together. */
@@ -142,7 +142,7 @@ function RecordPastForm({
   onClose,
   onSaved,
   patient,
-  procedure,
+  pathway,
   stage,
   waitingVisitNotes,
   staffUserId,
@@ -158,7 +158,7 @@ function RecordPastForm({
   const from = addDays(today, -PAST_APPOINTMENT_DAYS);
 
   const [pickedPatient, setPickedPatient] = useState<PatientItem | null>(null);
-  const [procedureId, setProcedureId] = useState(NO_PROCEDURE);
+  const [pathwayId, setPathwayId] = useState(NO_PATHWAY);
   const [stageId, setStageId] = useState(NO_STAGE);
   const [chosenStaff, setChosenStaff] = useState<string | undefined>(staffUserId);
   const [length, setLength] = useState<number>(DEFAULT_APPOINTMENT_LENGTH);
@@ -177,22 +177,22 @@ function RecordPastForm({
   const patientState = useAppointmentPatient(isOpen ? patientId : undefined, patient ?? pickedPatient?.auxiliaryData);
   const refusal = patientState.patient ? whyCantChange(patientState.patient) : null;
 
-  const isForFixed = procedure !== undefined;
-  const procedures = useQuery({
-    ...procedureSearchQuery({PatientId: patientId, PageSize: 100, Sort: 'dueDate', Ascending: true}),
+  const isForFixed = pathway !== undefined;
+  const pathways = useQuery({
+    ...pathwaySearchQuery({PatientId: patientId, PageSize: 100, Sort: 'dueDate', Ascending: true}),
     enabled: isOpen && !isForFixed && patientId !== undefined,
   });
-  const chosenProcedureId = procedure?.id ?? (procedureId === NO_PROCEDURE ? undefined : procedureId);
-  const procedureDetail = useQuery({
-    ...procedureQuery(chosenProcedureId ?? ''),
-    enabled: isOpen && stage === undefined && chosenProcedureId !== undefined,
+  const chosenPathwayId = pathway?.id ?? (pathwayId === NO_PATHWAY ? undefined : pathwayId);
+  const pathwayDetail = useQuery({
+    ...pathwayQuery(chosenPathwayId ?? ''),
+    enabled: isOpen && stage === undefined && chosenPathwayId !== undefined,
   });
   // The current stage and those before it: a later one hasn't been reached (the server refuses it). Every stage when
-  // none is current (a procedure that's finished).
-  const allStages = procedureDetail.data?.stages ?? [];
+  // none is current (a pathway that's finished).
+  const allStages = pathwayDetail.data?.stages ?? [];
   const current = allStages.findIndex((s) => s.isCurrent);
   const reachedStages = current < 0 ? allStages : allStages.slice(0, current + 1);
-  const chosenStageId = stage?.id ?? (chosenProcedureId && stageId !== NO_STAGE ? stageId : undefined);
+  const chosenStageId = stage?.id ?? (chosenPathwayId && stageId !== NO_STAGE ? stageId : undefined);
 
   // The person's last 30 days and today, without their appointments (so no patient is named or recorded as listed):
   // their working hours, and which were closed. Whether a time is taken is the server's to say (a 409).
@@ -232,7 +232,7 @@ function RecordPastForm({
     record.mutate(
       {
         patientId,
-        procedureId: chosenProcedureId ?? null,
+        pathwayId: chosenPathwayId ?? null,
         stageId: chosenStageId ?? null,
         staffUserId: staffId,
         startUtc: start,
@@ -256,7 +256,7 @@ function RecordPastForm({
 
   const choosePatient = (item: PatientItem | null) => {
     setPickedPatient(item);
-    setProcedureId(NO_PROCEDURE);
+    setPathwayId(NO_PATHWAY);
     setStageId(NO_STAGE);
   };
 
@@ -268,9 +268,9 @@ function RecordPastForm({
 
   const details = (
     <VStack gap={4} hAlign="stretch">
-      {procedure && (
+      {pathway && (
         <MetadataList label={{position: 'top'}}>
-          <MetadataListItem label="For">{stage ? `${procedure.title}: ${stage.name}` : procedure.title}</MetadataListItem>
+          <MetadataListItem label="For">{stage ? `${pathway.title}: ${stage.name}` : pathway.title}</MetadataListItem>
         </MetadataList>
       )}
       {patient === undefined && (
@@ -280,16 +280,16 @@ function RecordPastForm({
         <Selector
           label="For"
           isOptional
-          value={procedureId}
+          value={pathwayId}
           onChange={(id) => {
-            setProcedureId(id);
+            setPathwayId(id);
             setStageId(NO_STAGE);
           }}
-          isLoading={procedures.isLoading}
-          status={fieldStatus(problem.validation, 'procedureId')}
+          isLoading={pathways.isLoading}
+          status={fieldStatus(problem.validation, 'pathwayId')}
           options={[
-            {value: NO_PROCEDURE, label: 'Not for a procedure'},
-            ...(procedures.data?.items ?? []).map((p) => ({
+            {value: NO_PATHWAY, label: 'Not for a pathway'},
+            ...(pathways.data?.items ?? []).map((p) => ({
               value: p.id ?? '',
               label: p.title ?? '',
               description: `Due ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
@@ -297,13 +297,13 @@ function RecordPastForm({
           ]}
         />
       )}
-      {stage === undefined && chosenProcedureId !== undefined && (
+      {stage === undefined && chosenPathwayId !== undefined && (
         <Selector
           label="Stage"
           isOptional
           value={stageId}
           onChange={setStageId}
-          isLoading={procedureDetail.isLoading}
+          isLoading={pathwayDetail.isLoading}
           status={fieldStatus(problem.validation, 'stageId')}
           options={[
             {value: NO_STAGE, label: 'No particular stage'},
@@ -348,7 +348,7 @@ function RecordPastForm({
         description={
           existingNotes
             ? 'About the visit, added after its own notes. Staff see them on the appointment.'
-            : 'About the visit, as procedure notes are. Staff see them on the appointment.'
+            : 'About the visit, as pathway notes are. Staff see them on the appointment.'
         }
         value={notes}
         onChange={setNotes}

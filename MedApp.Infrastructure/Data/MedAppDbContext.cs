@@ -7,7 +7,7 @@ using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -26,16 +26,16 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreferences> NotificationPreferences => Set<NotificationPreferences>();
     public DbSet<MonitoringRule> MonitoringRules => Set<MonitoringRule>();
-    public DbSet<PatientProcedure> PatientProcedures => Set<PatientProcedure>();
-    public DbSet<PatientProcedureStage> PatientProcedureStages => Set<PatientProcedureStage>();
-    public DbSet<PatientProcedureAssignment> PatientProcedureAssignments => Set<PatientProcedureAssignment>();
-    public DbSet<PatientProcedureStageDefinition> PatientProcedureStageDefinitions => Set<PatientProcedureStageDefinition>();
-    public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
-    public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
-    public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
-    public DbSet<PatientProcedureNote> PatientProcedureNotes => Set<PatientProcedureNote>();
-    public DbSet<PatientProcedureNoteVersion> PatientProcedureNoteVersions => Set<PatientProcedureNoteVersion>();
-    public DbSet<ProcedureNoteDeletionRequest> ProcedureNoteDeletionRequests => Set<ProcedureNoteDeletionRequest>();
+    public DbSet<PatientPathway> PatientPathways => Set<PatientPathway>();
+    public DbSet<PatientPathwayStage> PatientPathwayStages => Set<PatientPathwayStage>();
+    public DbSet<PatientPathwayAssignment> PatientPathwayAssignments => Set<PatientPathwayAssignment>();
+    public DbSet<PatientPathwayStageDefinition> PatientPathwayStageDefinitions => Set<PatientPathwayStageDefinition>();
+    public DbSet<PathwayTemplate> PathwayTemplates => Set<PathwayTemplate>();
+    public DbSet<PathwayTemplateMap> PathwayTemplateItems => Set<PathwayTemplateMap>();
+    public DbSet<PatientPathwayAuditEntry> PatientPathwayAuditEntries => Set<PatientPathwayAuditEntry>();
+    public DbSet<PatientPathwayNote> PatientPathwayNotes => Set<PatientPathwayNote>();
+    public DbSet<PatientPathwayNoteVersion> PatientPathwayNoteVersions => Set<PatientPathwayNoteVersion>();
+    public DbSet<PathwayNoteDeletionRequest> PathwayNoteDeletionRequests => Set<PathwayNoteDeletionRequest>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

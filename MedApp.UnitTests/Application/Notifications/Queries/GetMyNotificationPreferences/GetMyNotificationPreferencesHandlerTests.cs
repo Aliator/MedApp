@@ -40,10 +40,10 @@ public sealed class GetMyNotificationPreferencesHandlerTests
     public async Task Handle_Chosen_ReturnsTheirChoice()
     {
         _repository.Setup(r => r.GetAsync(UserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NotificationPreferences { UserId = UserId, ProcedureAssigned = false });
+            .ReturnsAsync(new NotificationPreferences { UserId = UserId, PathwayAssigned = false });
 
         var response = await _handler.Handle(new GetMyNotificationPreferencesQuery(UserId), CancellationToken.None);
 
-        response.ProcedureAssigned.Should().BeFalse();
+        response.PathwayAssigned.Should().BeFalse();
     }
 }

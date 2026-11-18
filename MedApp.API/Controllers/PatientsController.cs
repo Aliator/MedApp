@@ -158,7 +158,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Everything held about a patient, for a subject access request: details, procedures with stages, notes and
+    /// Everything held about a patient, for a subject access request: details, pathways with stages, notes and
     /// assignments, the history of changes, the access log and notifications. Recorded in the activity log, and never
     /// cached.
     /// </summary>
@@ -174,7 +174,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Restricts the record (Article 18), so nothing about the patient or their procedures can be changed, or lifts
+    /// Restricts the record (Article 18), so nothing about the patient or their pathways can be changed, or lifts
     /// the restriction. Setting it needs a reason, shown on the patient's banner.
     /// </summary>
     [HttpPut("{id:guid}/restriction")]
@@ -184,7 +184,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SetRestriction(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason, request.ConfirmOpenProcedures), ct));
+        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason, request.ConfirmOpenPathways), ct));
 
     /// <summary>Marks the record as disputed by the patient (Article 16), with what they dispute, or clears it.</summary>
     [HttpPut("{id:guid}/dispute")]
@@ -198,7 +198,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Anonymises the record: identifying details and free text become placeholders, and the rest stays. Confirmed by
-    /// the patient's full name. Refused while a procedure is under way, an appointment is open (Requested or Booked), or
+    /// the patient's full name. Refused while a pathway is under way, an appointment is open (Requested or Booked), or
     /// the record is restricted (409).
     /// </summary>
     [HttpPost("{id:guid}/anonymise")]

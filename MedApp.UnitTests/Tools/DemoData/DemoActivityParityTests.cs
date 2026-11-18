@@ -126,6 +126,6 @@ public sealed class DemoActivityParityTests
         var listed = _activity.Views.Should().ContainSingle().Subject;
         listed.Action.Should().Be(ActivityAction.PatientListed, "the seed lists each patient a search found");
         listed.PatientIds.Should().Equal(found.Select(p => p.Id));
-        listed.ProcedureId.Should().BeNull();
+        listed.PathwayId.Should().BeNull();
     }
 }

@@ -14,7 +14,7 @@ The supplier's own privacy notice, for the personal data it controls ([ropa.md](
 
 > **How [Company name] uses personal information**
 >
-> **Who we are.** [Company name] ("we") makes MedApp, a system that clinics and hospitals use to coordinate patients' procedures. We are at [Address], company number [company number], and registered with the Information Commissioner's Office under [ICO registration number]. Our data protection officer is [DPO name], [DPO contact].
+> **Who we are.** [Company name] ("we") makes MedApp, a system that clinics and hospitals use to coordinate patients' pathways. We are at [Address], company number [company number], and registered with the Information Commissioner's Office under [ICO registration number]. Our data protection officer is [DPO name], [DPO contact].
 >
 > **If you're a patient, or work for one of our customers.** Your information in MedApp belongs to the clinic or hospital that uses it, and they are responsible for it. We process it only on their instructions, in the UK. Please contact them about it. If you contact us, we'll pass your message to them within 2 working days and tell you who they are.
 >

@@ -8,11 +8,11 @@ using MedApp.Application.Patients.Queries.ExportPatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Patients.Queries.ExportPatient;
 
@@ -52,7 +52,7 @@ public sealed class ExportPatientHandlerTests
     [Test]
     public async Task Handle_Patient_RecordsTheExport_AndIncludesItInTheAccessLog()
     {
-        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure());
+        var record = PrivacyTestConstants.CreateRecord(null, CreatePathway());
         _repository.Setup(r => r.GetAsync(record.Patient.Id, false, It.IsAny<CancellationToken>())).ReturnsAsync(record);
         using var cts = new CancellationTokenSource();
 
@@ -67,7 +67,7 @@ public sealed class ExportPatientHandlerTests
         export.ExportedBy.Should().Be(ActivityTestConstants.Username);
         export.ExportedAtUtc.Should().Be(ActivityTestConstants.Now);
         export.Patient.Id.Should().Be(record.Patient.Id);
-        export.Procedures.Should().ContainSingle();
+        export.Pathways.Should().ContainSingle();
         export.Notifications.Single().Username.Should().Be(Staff.Username);
         _activity.Tokens.Should().Equal(cts.Token);
         _repository.Verify(r => r.GetAsync(record.Patient.Id, false, cts.Token), Times.Once);
@@ -79,20 +79,20 @@ public sealed class ExportPatientHandlerTests
     public async Task Handle_EveryListInTheRecord_IsInTheExport()
     {
         // The handler copies the record to add the export's own access entry: no list may be lost in the copy.
-        var procedure = CreateProcedure();
-        var note = procedure.AddNote();
-        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var pathway = CreatePathway();
+        var note = pathway.AddNote();
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
         record = record with
         {
             NoteVersions =
             [
-                new PatientProcedureNoteVersion
+                new PatientPathwayNoteVersion
                 {
-                    Id = Guid.NewGuid(), NoteId = note.Id, Version = 1, PatientProcedureId = procedure.Id, PatientId = record.Patient.Id,
+                    Id = Guid.NewGuid(), NoteId = note.Id, Version = 1, PatientPathwayId = pathway.Id, PatientId = record.Patient.Id,
                     Text = NoteText, UserId = Staff.UserId, Username = Staff.Username, AtUtc = Now
                 }
             ],
-            NoteDeletionRequests = [procedure.RequestDeletion(note)],
+            NoteDeletionRequests = [pathway.RequestDeletion(note)],
             Attachments =
             [
                 new Attachment
@@ -111,6 +111,6 @@ public sealed class ExportPatientHandlerTests
         export.Attachments.Should().ContainSingle().Which.FileName.Should().Be("synthetic.pdf");
         export.Appointments.Should().HaveCount(record.Appointments.Count);
         export.AppointmentHistory.Should().HaveCount(record.AppointmentHistory.Count);
-        export.ProcedureHistory.Should().HaveCount(record.ProcedureHistory.Count);
+        export.PathwayHistory.Should().HaveCount(record.PathwayHistory.Count);
     }
 }

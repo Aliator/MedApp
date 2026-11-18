@@ -1,5 +1,5 @@
-using MedApp.Application.Procedures.Common;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Application.Pathways.Common;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -14,23 +14,23 @@ public sealed record RetentionDue(RetentionClass Class, DateOnly ConclusionOfTre
 
 /// <summary>
 /// The retention schedule's rules (<see cref="RetentionOptions"/>), worked out for one patient. The conclusion of
-/// treatment is the later of the last change to the patient's record and the last change to any of their procedures
+/// treatment is the later of the last change to the patient's record and the last change to any of their pathways
 /// (all closed by then), as a UK date.
 /// </summary>
 public static class RetentionSchedule
 {
     /// <summary>
-    /// Procedure audit actions that record a read, not a change to the record, so they don't move the conclusion of
+    /// Pathway audit actions that record a read, not a change to the record, so they don't move the conclusion of
     /// treatment: downloading a file. Add any other read the audit log records.
     /// </summary>
-    public static readonly IReadOnlySet<PatientProcedureAuditAction> ReadOnlyAuditActions =
-        new HashSet<PatientProcedureAuditAction> { PatientProcedureAuditAction.AttachmentDownloaded };
+    public static readonly IReadOnlySet<PatientPathwayAuditAction> ReadOnlyAuditActions =
+        new HashSet<PatientPathwayAuditAction> { PatientPathwayAuditAction.AttachmentDownloaded };
 
     /// <summary>When the patient's record is due for review.</summary>
     public static RetentionDue Due(RetentionCandidate patient, RetentionOptions options)
     {
-        // The latest of the record, its procedures, and their audit trail, which outlives a procedure deleted since.
-        var lastChange = new[] { patient.LastUpdatedUtc, patient.LastProcedureChangedUtc, patient.LastAuditUtc }
+        // The latest of the record, its pathways, and their audit trail, which outlives a pathway deleted since.
+        var lastChange = new[] { patient.LastUpdatedUtc, patient.LastPathwayChangedUtc, patient.LastAuditUtc }
             .OfType<DateTime>()
             .Max();
         return Due(patient.DateOfBirth, DueDates.ToUkDate(lastChange), options);

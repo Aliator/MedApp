@@ -12,6 +12,10 @@ namespace MedApp.IntegrationTests.Migrations;
 /// it, marked as edited at the last edit, with version 1; the old column
 /// stays as it was, for API copies from before; and down and up again work. The rows are synthetic, inserted with SQL
 /// at the migration before.
+/// <para>
+/// Everything is read with SQL, by the names the tables and columns had at this migration: procedures were renamed to
+/// pathways later (<c>RenamedProceduresToPathways</c>), so the model's tables don't exist yet at this step.
+/// </para>
 /// </summary>
 [TestFixture]
 public sealed class ProcedureNotesMigrationTests
@@ -88,7 +92,7 @@ public sealed class ProcedureNotesMigrationTests
         versions.Single(v => v.PatientProcedureId == noCreator).Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty });
 
         // The old column is kept as it was, for API copies from before the move during a rollout.
-        (await _context.PatientProcedures.AsNoTracking().Where(p => p.Id == withCreator).Select(p => p.LegacyNotes).SingleAsync())
+        (await _context.Database.SqlQuery<string>($"SELECT Notes AS Value FROM PatientProcedures WHERE Id = {withCreator}").SingleAsync())
             .Should().Be(moved.Text);
     }
 
@@ -127,22 +131,40 @@ public sealed class ProcedureNotesMigrationTests
         versions[noCreator].Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty });
     }
 
-    // Only the columns that exist at AddedProcedureNotes: later migrations add more to these tables, and reading whole
-    // entities would ask for them (AGENTS.md, Migrations).
+    // Only the columns that exist at AddedProcedureNotes, by the names they had then: later migrations add more to
+    // these tables and rename them, so the model's entities can't be read at this step (AGENTS.md, Migrations).
     private IQueryable<NoteAtMigration> NotesAtMigration() =>
-        _context.PatientProcedureNotes.AsNoTracking().Select(n => new NoteAtMigration(
-            n.Id, n.PatientProcedureId, n.AuthorUserId, n.Text, n.CreatedAtUtc, n.LastEditedAtUtc, n.Version, n.RowVersion));
+        _context.Database.SqlQuery<NoteAtMigration>(
+            $"SELECT Id, PatientProcedureId, AuthorUserId, Text, CreatedAtUtc, LastEditedAtUtc, Version, RowVersion FROM PatientProcedureNotes");
 
     private IQueryable<VersionAtMigration> VersionsAtMigration() =>
-        _context.PatientProcedureNoteVersions.AsNoTracking().Select(v => new VersionAtMigration(
-            v.Id, v.NoteId, v.Version, v.PatientProcedureId, v.PatientId, v.Text, v.UserId, v.Username, v.AtUtc));
+        _context.Database.SqlQuery<VersionAtMigration>(
+            $"SELECT Id, NoteId, Version, PatientProcedureId, PatientId, Text, UserId, Username, AtUtc FROM PatientProcedureNoteVersions");
 
-    private sealed record NoteAtMigration(
-        Guid Id, Guid PatientProcedureId, Guid? AuthorUserId, string Text, DateTime CreatedAtUtc, DateTime? LastEditedAtUtc, int Version,
-        byte[] RowVersion);
+    private sealed class NoteAtMigration
+    {
+        public Guid Id { get; set; }
+        public Guid PatientProcedureId { get; set; }
+        public Guid? AuthorUserId { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime? LastEditedAtUtc { get; set; }
+        public int Version { get; set; }
+        public byte[] RowVersion { get; set; } = [];
+    }
 
-    private sealed record VersionAtMigration(
-        Guid Id, Guid NoteId, int Version, Guid PatientProcedureId, Guid PatientId, string Text, Guid? UserId, string Username, DateTime AtUtc);
+    private sealed class VersionAtMigration
+    {
+        public Guid Id { get; set; }
+        public Guid NoteId { get; set; }
+        public int Version { get; set; }
+        public Guid PatientProcedureId { get; set; }
+        public Guid PatientId { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public Guid? UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public DateTime AtUtc { get; set; }
+    }
 
     [Test]
     public async Task Down_AfterUp_DropsTheNotesAndKeepsTheOldColumn_AndUpAgainWorks()
@@ -161,7 +183,7 @@ public sealed class ProcedureNotesMigrationTests
             .Should().Be("Synthetic notes.");
 
         await migrator.MigrateAsync(Migration);
-        (await _context.PatientProcedureNotes.CountAsync()).Should().Be(1);
+        (await _context.Database.SqlQuery<int>($"SELECT COUNT(*) AS Value FROM PatientProcedureNotes").SingleAsync()).Should().Be(1);
     }
 
     /// <summary>A procedure with these old notes; with a creator, its Created audit entry by them.</summary>

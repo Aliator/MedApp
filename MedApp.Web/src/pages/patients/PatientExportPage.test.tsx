@@ -14,7 +14,7 @@ import {
 } from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
-const procedureId = 'e184a7b8-2585-4437-bcd4-e1700be38212';
+const pathwayId = 'e184a7b8-2585-4437-bcd4-e1700be38212';
 const appointmentId = 'f184a7b8-2585-4437-bcd4-e1700be38213';
 const EXPORT = `/api/patients/${id}/export`;
 
@@ -38,9 +38,9 @@ const data: PatientExport = {
     retentionKeptUntil: '2027-11-16',
     retentionKeptReason: 'Synthetic legal hold',
   },
-  procedures: [
+  pathways: [
     {
-      id: procedureId,
+      id: pathwayId,
       title: 'Synthetic knee review',
       templateName: 'Knee review',
       status: 'Completed',
@@ -52,7 +52,7 @@ const data: PatientExport = {
         {
           id: 'note-1',
           author: 'k.ashford',
-          text: 'Synthetic procedure note',
+          text: 'Synthetic pathway note',
           createdAtUtc: '2026-09-01T10:00:00Z',
           lastEditedAtUtc: '2026-09-02T10:00:00Z',
           version: 2,
@@ -74,13 +74,13 @@ const data: PatientExport = {
     },
   ],
   noteHistory: [
-    {noteId: 'note-1', procedureId, version: 1, text: 'Synthetic first version', username: 'k.ashford', atUtc: '2026-09-01T10:00:00Z'},
-    {noteId: 'note-2', procedureId: 'deleted-procedure', version: 1, text: 'Synthetic deleted note', username: 'Unknown', atUtc: '2026-08-01T10:00:00Z'},
+    {noteId: 'note-1', pathwayId, version: 1, text: 'Synthetic first version', username: 'k.ashford', atUtc: '2026-09-01T10:00:00Z'},
+    {noteId: 'note-2', pathwayId: 'deleted-pathway', version: 1, text: 'Synthetic deleted note', username: 'Unknown', atUtc: '2026-08-01T10:00:00Z'},
   ],
-  procedureHistory: [
+  pathwayHistory: [
     {
-      procedureId,
-      procedureTitle: 'Synthetic knee review',
+      pathwayId,
+      pathwayTitle: 'Synthetic knee review',
       stageName: 'Consent',
       action: 'StageFinished',
       username: 'l.northcott',
@@ -91,7 +91,7 @@ const data: PatientExport = {
   appointments: [
     {
       id: appointmentId,
-      procedureId,
+      pathwayId,
       stageName: 'Scan',
       status: 'Cancelled',
       staffUsername: 'k.ashford',
@@ -114,8 +114,8 @@ const data: PatientExport = {
       action: 'Cancelled',
       username: 'k.ashford',
       appointmentId,
-      procedureId,
-      procedureTitle: 'Synthetic knee review',
+      pathwayId,
+      pathwayTitle: 'Synthetic knee review',
       stageName: 'Scan',
       staffUsername: 'k.ashford',
       startUtc: '2026-09-21T09:00:00Z',
@@ -128,14 +128,14 @@ const data: PatientExport = {
     {action: 'PatientRestricted', username: 'test-admin', atUtc: '2026-11-01T09:00:00Z', details: JSON.stringify({reason: 'Synthetic accuracy check'})},
   ],
   notifications: [
-    {kind: 'ProcedureAssigned', username: 'k.ashford', title: 'Synthetic knee review', message: 'test-admin assigned you to this procedure.', createdAtUtc: '2026-09-01T09:00:00Z'},
+    {kind: 'PathwayAssigned', username: 'k.ashford', title: 'Synthetic knee review', message: 'test-admin assigned you to this pathway.', createdAtUtc: '2026-09-01T09:00:00Z'},
     {
       kind: 'AppointmentCancelled',
       username: 'k.ashford',
       title: 'Appointment cancelled',
       message: 'l.northcott cancelled an appointment.',
       createdAtUtc: '2026-09-12T09:00:00Z',
-      procedureId,
+      pathwayId,
       appointmentId,
     },
   ],
@@ -161,17 +161,17 @@ describe('PatientExportPage', () => {
       ...data,
       attachments: [
         {...file, id: 'f1', attachedTo: 'Patient', fileName: 'synthetic-letter.pdf'},
-        {...file, id: 'f2', attachedTo: 'Stage', procedureId, stageName: 'Consent', fileName: 'synthetic-consent.pdf', scanStatus: 'Clean'},
+        {...file, id: 'f2', attachedTo: 'Stage', pathwayId, stageName: 'Consent', fileName: 'synthetic-consent.pdf', scanStatus: 'Clean'},
         {
           ...file,
           id: 'f3',
-          attachedTo: 'Procedure',
-          procedureId,
+          attachedTo: 'Pathway',
+          pathwayId,
           fileName: 'synthetic-old.pdf',
           deletedAtUtc: '2026-10-01T09:00:00Z',
           deletedBy: 'test-admin',
         },
-        {...file, id: 'f4', attachedTo: 'Stage', procedureId: 'gone', stageName: null, fileName: 'synthetic-orphan.pdf', scanStatus: 'Odd'},
+        {...file, id: 'f4', attachedTo: 'Stage', pathwayId: 'gone', stageName: null, fileName: 'synthetic-orphan.pdf', scanStatus: 'Odd'},
       ],
     });
 
@@ -180,7 +180,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to the patient.')).toBeInTheDocument();
     expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to Consent, in Synthetic knee review.')).toBeInTheDocument();
     expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to Synthetic knee review.')).toBeInTheDocument();
-    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to a stage, in a procedure.')).toBeInTheDocument();
+    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to a stage, in a pathway.')).toBeInTheDocument();
     expect(screen.getAllByText(/^Added .* by k\.ashford$/)).toHaveLength(3);
     expect(screen.getByText(/^Added .* by k\.ashford; deleted .* by test-admin$/)).toBeInTheDocument();
     expect(screen.getByText('Deleted')).toBeInTheDocument();
@@ -201,15 +201,15 @@ describe('PatientExportPage', () => {
     expect(screen.getAllByText(/Synthetic accuracy check$/)).toHaveLength(2);
     expect(screen.getByText(/Synthetic date of birth$/)).toBeInTheDocument();
     expect(screen.getByText(/Synthetic legal hold$/)).toBeInTheDocument();
-    // Procedures, with their stages and notes.
-    expect(screen.getByText('Procedures (1)')).toBeInTheDocument();
+    // Pathways, with their stages and notes.
+    expect(screen.getByText('Pathways (1)')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Synthetic knee review', level: 3})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Notes (1)', level: 4})).toBeInTheDocument();
-    expect(screen.getByText('Synthetic procedure note')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic pathway note')).toBeInTheDocument();
     expect(screen.getByText(/^Note by k\.ashford, .*, edited /)).toBeInTheDocument();
     expect(screen.getByText('Note History (2)')).toBeInTheDocument();
     expect(screen.getByText('Synthetic first version')).toBeInTheDocument();
-    expect(screen.getByText('A deleted procedure')).toBeInTheDocument();
+    expect(screen.getByText('A deleted pathway')).toBeInTheDocument();
     expect(screen.getByText(/: Note added by Unknown$/)).toBeInTheDocument();
     expect(screen.getByText('1. Consent')).toBeInTheDocument();
     expect(screen.getByText(/Started .* by k\.ashford, finished .* by l\.northcott/)).toBeInTheDocument();
@@ -221,7 +221,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Record exported by test-admin/)).toBeInTheDocument();
     expect(screen.getByText(/Record restricted by test-admin/)).toBeInTheDocument();
     expect(screen.getAllByText(/: to k\.ashford$/)).toHaveLength(2);
-    expect(screen.getByText('Synthetic knee review: test-admin assigned you to this procedure.')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic knee review: test-admin assigned you to this pathway.')).toBeInTheDocument();
     // The appointments, with everything the export holds about each, and the history of changes to them.
     expect(screen.getByText('Appointments (1)')).toBeInTheDocument();
     expect(screen.getByText('Cancelled: Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford')).toBeInTheDocument();
@@ -241,7 +241,7 @@ describe('PatientExportPage', () => {
   it('says when there is nothing in a part', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 
-    expect(await screen.findByText('No procedures.')).toBeInTheDocument();
+    expect(await screen.findByText('No pathways.')).toBeInTheDocument();
     expect(screen.getByText('No changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No access recorded.')).toBeInTheDocument();
     expect(screen.getByText('No notifications.')).toBeInTheDocument();
@@ -253,12 +253,12 @@ describe('PatientExportPage', () => {
   });
 
   it('marks a deleted note, saying when, by whom and why, and lists the requests to delete notes', async () => {
-    const procedure = data.procedures![0];
+    const pathway = data.pathways![0];
     renderExport({
       ...data,
-      procedures: [
+      pathways: [
         {
-          ...procedure,
+          ...pathway,
           notes: [
             {
               id: 'note-2',
@@ -270,7 +270,7 @@ describe('PatientExportPage', () => {
               deletedAtUtc: '2026-09-05T10:00:00Z',
               deletedBy: 'test-admin',
               deletionReason: 'WrongPatient',
-              deletionDetail: 'Synthetic: the other procedure.',
+              deletionDetail: 'Synthetic: the other pathway.',
               isAboutAnotherPatient: true,
             },
           ],
@@ -280,7 +280,7 @@ describe('PatientExportPage', () => {
         {
           id: 'request-1',
           noteId: 'note-2',
-          procedureId,
+          pathwayId,
           requestedBy: 's.nurse',
           requestedAtUtc: '2026-09-04T10:00:00Z',
           reason: 'Duplicate',
@@ -292,7 +292,7 @@ describe('PatientExportPage', () => {
         {
           id: 'request-2',
           noteId: 'note-3',
-          procedureId: 'a184a7b8-2585-4437-bcd4-e1700be38219',
+          pathwayId: 'a184a7b8-2585-4437-bcd4-e1700be38219',
           requestedBy: 'l.northcott',
           requestedAtUtc: '2026-09-06T10:00:00Z',
           reason: 'Other',
@@ -307,7 +307,7 @@ describe('PatientExportPage', () => {
     // The deleted note is kept in the export, marked, with its text.
     expect(await screen.findByText('Synthetic note an admin deleted')).toBeInTheDocument();
     expect(screen.getByText('Deleted')).toBeInTheDocument();
-    expect(screen.getByText(/^Deleted by test-admin, .*\. Reason: Wrong patient: Synthetic: the other procedure\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Deleted by test-admin, .*\. Reason: Wrong patient: Synthetic: the other pathway\.$/)).toBeInTheDocument();
     // Flagged for whoever checks the export before it's released: another patient's details.
     expect(screen.getByText(ANOTHER_PATIENTS_DETAILS)).toBeInTheDocument();
     // The requests, with their reasons and where each stands.
@@ -319,23 +319,23 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('Waiting for an admin to decide.')).toBeInTheDocument();
   });
 
-  it("says what an appointment was for when it's no longer held, or not for a procedure", async () => {
+  it("says what an appointment was for when it's no longer held, or not for a pathway", async () => {
     renderExport({
       ...data,
       appointments: [
-        {id: 'a1', procedureId: 'gone', stageName: null, status: 'Requested', isAutomatic: true, createdAtUtc: '2026-09-10T09:00:00Z', createdBy: ''},
-        {id: 'a2', procedureId: null, status: 'Attended', startUtc: '2026-09-21T09:00:00Z', endUtc: '2026-09-21T09:30:00Z', staffUsername: 'k.ashford',
+        {id: 'a1', pathwayId: 'gone', stageName: null, status: 'Requested', isAutomatic: true, createdAtUtc: '2026-09-10T09:00:00Z', createdBy: ''},
+        {id: 'a2', pathwayId: null, status: 'Attended', startUtc: '2026-09-21T09:00:00Z', endUtc: '2026-09-21T09:30:00Z', staffUsername: 'k.ashford',
           createdAtUtc: '2026-09-10T09:00:00Z', createdBy: 'k.ashford', bookedAtUtc: '2026-09-11T09:00:00Z', bookedBy: 'k.ashford',
           outcomeAtUtc: '2026-09-21T10:00:00Z', outcomeBy: 'k.ashford'},
       ],
-      appointmentHistory: [{atUtc: '2026-09-12T09:00:00Z', action: 'Booked', username: 'k.ashford', appointmentId: 'a2', procedureTitle: '', details: '{}'}],
+      appointmentHistory: [{atUtc: '2026-09-12T09:00:00Z', action: 'Booked', username: 'k.ashford', appointmentId: 'a2', pathwayTitle: '', details: '{}'}],
       notifications: [{kind: 'AppointmentBooked', username: 'k.ashford', title: 'Booked', message: 'Synthetic', createdAtUtc: '2026-09-12T09:00:00Z', appointmentId: 'deleted'}],
     });
 
     expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
-    expect(screen.getByText(/^A deleted procedure, requested .* automatically$/)).toBeInTheDocument();
-    expect(screen.getByText(/^Not for a procedure, requested .* by k\.ashford, booked .*, outcome recorded .* by k\.ashford$/)).toBeInTheDocument();
-    expect(screen.getByText('Not for a procedure')).toBeInTheDocument();
+    expect(screen.getByText(/^A deleted pathway, requested .* automatically$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Not for a pathway, requested .* by k\.ashford, booked .*, outcome recorded .* by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText('Not for a pathway')).toBeInTheDocument();
     expect(screen.getByText('About the appointment: no longer held')).toBeInTheDocument();
   });
 
@@ -343,18 +343,18 @@ describe('PatientExportPage', () => {
     renderExport({
       ...data,
       appointments: [
-        {id: 'a3', procedureId: null, status: 'EnteredInError', startUtc: '2026-11-12T10:00:00Z', endUtc: '2026-11-12T10:30:00Z', staffUsername: 'k.ashford',
+        {id: 'a3', pathwayId: null, status: 'EnteredInError', startUtc: '2026-11-12T10:00:00Z', endUtc: '2026-11-12T10:30:00Z', staffUsername: 'k.ashford',
           createdAtUtc: '2026-11-18T09:00:00Z', createdBy: 'j.smith', bookedAtUtc: '2026-11-18T09:00:00Z', bookedBy: 'j.smith',
           outcomeAtUtc: '2026-11-18T09:00:00Z', outcomeBy: 'j.smith', isRecordedAfterEvent: true, cancelReason: 'Synthetic: on the wrong patient'},
       ],
       appointmentHistory: [
-        {atUtc: '2026-11-18T09:00:00Z', action: 'RecordedAfterEvent', username: 'j.smith', appointmentId: 'a3', procedureTitle: '', details: '{"outcome":"Attended"}'},
-        {atUtc: '2026-11-19T09:00:00Z', action: 'EnteredInError', username: 'j.smith', appointmentId: 'a3', procedureTitle: '', details: '{"reason":"Synthetic: on the wrong patient"}'},
+        {atUtc: '2026-11-18T09:00:00Z', action: 'RecordedAfterEvent', username: 'j.smith', appointmentId: 'a3', pathwayTitle: '', details: '{"outcome":"Attended"}'},
+        {atUtc: '2026-11-19T09:00:00Z', action: 'EnteredInError', username: 'j.smith', appointmentId: 'a3', pathwayTitle: '', details: '{"reason":"Synthetic: on the wrong patient"}'},
       ],
     });
 
     expect(await screen.findByText(/^Entered in error: /)).toBeInTheDocument();
-    expect(screen.getByText(/^Not for a procedure, recorded after the event .* by j\.smith, outcome recorded .* by j\.smith$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Not for a pathway, recorded after the event .* by j\.smith, outcome recorded .* by j\.smith$/)).toBeInTheDocument();
     expect(screen.queryByText(/requested .* by j\.smith/)).not.toBeInTheDocument();
     expect(screen.getByText('Why entered in error: Synthetic: on the wrong patient')).toBeInTheDocument();
     expect(screen.getByText(/: Recorded after the event by j\.smith$/)).toBeInTheDocument();

@@ -204,12 +204,12 @@ public sealed class SessionCookieServiceTests
 public sealed class ClaimsPrincipalExtensionsTests
 {
     [Test]
-    public void GetUserIdAndToProcedureActor_SignedIn_ReadTheirClaims()
+    public void GetUserIdAndToPathwayActor_SignedIn_ReadTheirClaims()
     {
         var user = SignedIn("User");
 
         user.GetUserId().Should().Be(UserId);
-        user.ToProcedureActor().Should().Be(new MedApp.Application.Procedures.Common.ProcedureActor(UserId, Username));
+        user.ToPathwayActor().Should().Be(new MedApp.Application.Pathways.Common.PathwayActor(UserId, Username));
     }
 
     [Test]
@@ -228,11 +228,11 @@ public sealed class ClaimsPrincipalExtensionsTests
     }
 
     [Test]
-    public void ToProcedureActor_NoName_UsesAnEmptyName()
+    public void ToPathwayActor_NoName_UsesAnEmptyName()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, UserId.ToString())]));
 
-        user.ToProcedureActor().Username.Should().BeEmpty();
+        user.ToPathwayActor().Username.Should().BeEmpty();
     }
 
     [TestCase("User", false)]

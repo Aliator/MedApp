@@ -1,6 +1,6 @@
 using FluentAssertions;
 using MedApp.Application.Attachments.Queries.GetAttachments;
-using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
+using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
 namespace MedApp.UnitTests.Application.Attachments.Queries.GetAttachments;
 
@@ -14,10 +14,10 @@ public sealed class GetAttachmentsValidatorTests
     [TestCase(false, false, true, true)]
     [TestCase(false, false, false, false)]
     [TestCase(true, false, true, false)]
-    public void Validate_Targets_ExactlyOneIsValid(bool patient, bool procedure, bool stage, bool valid)
+    public void Validate_Targets_ExactlyOneIsValid(bool patient, bool pathway, bool stage, bool valid)
     {
         var result = _validator.Validate(new GetAttachmentsQuery(
-            patient ? Guid.NewGuid() : null, procedure ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null,
+            patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null,
             false, Staff.UserId, false));
 
         result.IsValid.Should().Be(valid);

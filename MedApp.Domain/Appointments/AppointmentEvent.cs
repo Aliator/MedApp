@@ -2,8 +2,8 @@ namespace MedApp.Domain.Appointments;
 
 /// <summary>
 /// One change to an appointment: who did what, and when, with the appointment as it was after it. Written in the
-/// same save as the change. Like the procedure audit log, it has no foreign keys, so it outlives the appointment,
-/// procedure and accounts it's about; what it shows is copied in.
+/// same save as the change. Like the pathway audit log, it has no foreign keys, so it outlives the appointment,
+/// pathway and accounts it's about; what it shows is copied in.
 /// </summary>
 public sealed class AppointmentEvent
 {
@@ -13,13 +13,13 @@ public sealed class AppointmentEvent
 
     public Guid PatientId { get; init; }
 
-    public Guid? ProcedureId { get; init; }
+    public Guid? PathwayId { get; init; }
 
     /// <summary>
-    /// The procedure's title at the time, or empty for an appointment not for a procedure. Anonymising the patient
+    /// The pathway's title at the time, or empty for an appointment not for a pathway. Anonymising the patient
     /// replaces it.
     /// </summary>
-    public string ProcedureTitle { get; set; } = string.Empty;
+    public string PathwayTitle { get; set; } = string.Empty;
 
     /// <summary>The stage's name at the time, if it was for a stage.</summary>
     public string? StageName { get; init; }

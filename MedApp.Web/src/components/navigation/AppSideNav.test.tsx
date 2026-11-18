@@ -2,7 +2,7 @@ import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
 import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
-import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
+import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
 
@@ -13,12 +13,12 @@ const askedIds = (request: Request) => new URL(request.url).searchParams.getAll(
 const patientLabels = (names: Record<string, string>) => (request: Request) =>
   json(askedIds(request).filter((id) => names[id]).map((id) => ({id, name: names[id]})));
 
-/** Answers the procedures' labels lookup from `labels` (by ID), leaving out IDs it doesn't have. */
-const procedureLabels = (labels: Record<string, {title: string; patientName: string}>) => (request: Request) =>
+/** Answers the pathways' labels lookup from `labels` (by ID), leaving out IDs it doesn't have. */
+const pathwayLabels = (labels: Record<string, {title: string; patientName: string}>) => (request: Request) =>
   json(askedIds(request).filter((id) => labels[id]).map((id) => ({id, ...labels[id]})));
 
 /** The pinned IDs of one kind, as the account's settings keep them. */
-const pinnedIds = (kind: 'patients' | 'procedures') =>
+const pinnedIds = (kind: 'patients' | 'pathways') =>
   ((JSON.parse(localStorage.getItem(PINS_KEY) ?? '{}') as Record<string, string[]>)[kind] ?? []);
 
 describe('isCurrentSection', () => {
@@ -39,8 +39,8 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
-    expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
-    expect(screen.getByRole('link', {name: 'Templates'})).toHaveAttribute('href', '/admin/templates');
+    expect(screen.getByRole('link', {name: 'Stage Library'})).toHaveAttribute('href', '/admin/stages');
+    expect(screen.getByRole('link', {name: 'Pathway Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
     // Calendar templates are each person's own, reached from the Calendar page.
     expect(screen.queryByRole('link', {name: 'Calendar Templates'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');
@@ -71,7 +71,7 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser, path: '/patients/add'});
 
     expect(await screen.findByRole('link', {name: /patients/i})).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', {name: 'My Tasks'})).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', {name: 'My Worklist'})).not.toHaveAttribute('aria-current');
     // Home is the MedApp heading's, not a nav item.
     expect(screen.getByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
   });
@@ -139,7 +139,7 @@ describe('AppSideNav', () => {
     expect(order).toEqual(['PUT /api/auth/me/settings', 'POST /api/auth/logout']);
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     const saved = JSON.parse(((await put.json()) as {settings: string}).settings) as Record<string, string>;
-    expect(JSON.parse(saved[PINS_KEY])).toEqual({patients: [patientId], procedures: []});
+    expect(JSON.parse(saved[PINS_KEY])).toEqual({patients: [patientId], pathways: []});
   });
 
   it("clears the user's storage at sign-out, keeping only how the app looks", async () => {
@@ -182,10 +182,10 @@ describe('openPatientId', () => {
   it.each([
     [`/patients/${patientId}`, patientId],
     [`/patients/${patientId}/edit`, patientId],
-    [`/patients/${patientId}/procedures`, patientId],
+    [`/patients/${patientId}/pathways`, patientId],
     ['/patients', null],
     ['/patients/add', null],
-    ['/procedures', null],
+    ['/pathways', null],
   ])('pathname %s has open patient %s', (pathname, expected) => {
     expect(openPatientId(pathname)).toBe(expected);
   });
@@ -244,7 +244,7 @@ describe('AppSideNav pinned patients', () => {
   });
 
   it("folds the patients under Patients away from its row's menu", async () => {
-    const {user} = renderAt('/procedures', [patientId]);
+    const {user} = renderAt('/pathways', [patientId]);
 
     await screen.findByRole('link', {name: 'Freya Ahmed'});
     await user.click(await rowMenuItem(user, 'Patients', 'Hide pinned and open patients'));
@@ -256,7 +256,7 @@ describe('AppSideNav pinned patients', () => {
   });
 
   it('keeps pinned patients under Patients on other pages', async () => {
-    renderAt('/procedures', [patientId, 'a0000000-0000-4000-8000-000000000002']);
+    renderAt('/pathways', [patientId, 'a0000000-0000-4000-8000-000000000002']);
 
     const freya = await screen.findByRole('link', {name: 'Freya Ahmed'});
     expect(freya).toHaveAttribute('href', `/patients/${patientId}`);
@@ -265,14 +265,14 @@ describe('AppSideNav pinned patients', () => {
   });
 
   it('marks a pinned patient as current while their pages are open', async () => {
-    renderAt(`/patients/${patientId}/procedures`, [patientId]);
+    renderAt(`/patients/${patientId}/pathways`, [patientId]);
 
     expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toHaveAttribute('aria-current', 'page');
     expect(screen.getAllByRole('link', {name: 'Freya Ahmed'})).toHaveLength(1);
   });
 
   it('unpins a patient, who then goes when their pages are not open', async () => {
-    const {user} = renderAt('/procedures', [patientId]);
+    const {user} = renderAt('/pathways', [patientId]);
 
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Unpin'));
 
@@ -298,14 +298,14 @@ describe('AppSideNav pinned patients', () => {
 
   it('drops a pinned patient who no longer exists', async () => {
     const gone = 'b0000000-0000-4000-8000-000000000009';
-    renderAt('/procedures', [patientId, gone]);
+    renderAt('/pathways', [patientId, gone]);
 
     await screen.findByRole('link', {name: 'Freya Ahmed'});
     await waitFor(() => expect(pinnedIds('patients')).toEqual([patientId]));
   });
 
   it('labels every pinned patient from one labels lookup, never opening their records (which would record a view)', async () => {
-    const {fetch} = renderAt('/procedures', [patientId, 'a0000000-0000-4000-8000-000000000002']);
+    const {fetch} = renderAt('/pathways', [patientId, 'a0000000-0000-4000-8000-000000000002']);
 
     await screen.findByRole('link', {name: 'Priya Ali'});
     const requests = calls(fetch);
@@ -316,35 +316,35 @@ describe('AppSideNav pinned patients', () => {
   });
 });
 
-describe('openProcedureId', () => {
+describe('openPathwayId', () => {
   it.each([
-    [`/procedures/${patientId}`, patientId],
-    ['/procedures', null],
-    [`/patients/${patientId}/procedures`, null],
-  ])('pathname %s has open procedure %s', (pathname, expected) => {
-    expect(openProcedureId(pathname)).toBe(expected);
+    [`/pathways/${patientId}`, patientId],
+    ['/pathways', null],
+    [`/patients/${patientId}/pathways`, null],
+  ])('pathname %s has open pathway %s', (pathname, expected) => {
+    expect(openPathwayId(pathname)).toBe(expected);
   });
 });
 
-describe('AppSideNav pinned procedures', () => {
+describe('AppSideNav pinned pathways', () => {
   const knee = 'c0000000-0000-4000-8000-000000000001';
   const scope = 'c0000000-0000-4000-8000-000000000002';
-  const procedures: Record<string, {title: string; patientName: string}> = {
+  const pathways: Record<string, {title: string; patientName: string}> = {
     [knee]: {title: 'Total knee replacement', patientName: 'Freya Ahmed'},
     [scope]: {title: 'Bronchoscopy', patientName: 'Priya Ali'},
   };
 
   function renderAt(path: string, pinned: string[] = []) {
-    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({procedures: pinned}));
-    const fetch = mockApi({'GET /api/procedures/patient-procedures/labels': procedureLabels(procedures)});
+    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({pathways: pinned}));
+    const fetch = mockApi({'GET /api/pathways/patient-pathways/labels': pathwayLabels(pathways)});
     return {fetch, ...renderWithApp(<AppSideNav />, {user: staffUser, path})};
   }
 
-  it("labels the open procedure with the patient's initials and the procedure's acronym, and pins it", async () => {
-    const {user} = renderAt(`/procedures/${knee}`);
+  it("labels the open pathway with the patient's initials and the pathway's acronym, and pins it", async () => {
+    const {user} = renderAt(`/pathways/${knee}`);
 
     const item = await screen.findByRole('link', {name: 'FA TKR'});
-    expect(item).toHaveAttribute('href', `/procedures/${knee}`);
+    expect(item).toHaveAttribute('href', `/pathways/${knee}`);
     expect(item).toHaveAttribute('aria-current', 'page');
 
     // No tooltip with the full name; the row's menu (its button shown on hover) has it in its name.
@@ -352,10 +352,10 @@ describe('AppSideNav pinned procedures', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     await user.click(await rowMenuItem(user, 'FA TKR', 'Pin', 'Total knee replacement for Freya Ahmed'));
 
-    expect(pinnedIds('procedures')).toEqual([knee]);
+    expect(pinnedIds('pathways')).toEqual([knee]);
   });
 
-  it('keeps pinned procedures under Procedures on other pages, apart from pinned patients', async () => {
+  it('keeps pinned pathways under Pathways on other pages, apart from pinned patients', async () => {
     renderAt('/patients', [knee, scope]);
 
     expect(await screen.findByRole('link', {name: 'FA TKR'})).not.toHaveAttribute('aria-current');
@@ -363,21 +363,21 @@ describe('AppSideNav pinned procedures', () => {
     expect(pinnedIds('patients')).toEqual([]);
   });
 
-  it('drops a pinned procedure that no longer exists', async () => {
+  it('drops a pinned pathway that no longer exists', async () => {
     const gone = 'c0000000-0000-4000-8000-000000000009';
     renderAt('/', [knee, gone]);
 
     await screen.findByRole('link', {name: 'FA TKR'});
-    await waitFor(() => expect(pinnedIds('procedures')).toEqual([knee]));
+    await waitFor(() => expect(pinnedIds('pathways')).toEqual([knee]));
   });
 
-  it('labels every pinned procedure from one labels lookup, never opening the procedures (which would record a view)', async () => {
+  it('labels every pinned pathway from one labels lookup, never opening the pathways (which would record a view)', async () => {
     const {fetch} = renderAt('/patients', [knee, scope]);
 
     await screen.findByRole('link', {name: 'PA B'});
     const requests = calls(fetch);
-    expect(requests.filter((r) => r.startsWith('GET /api/procedures/patient-procedures/labels'))).toHaveLength(1);
-    expect(requests.some((r) => /^GET \/api\/procedures\/patient-procedures\/[0-9a-f-]{36}/.test(r))).toBe(false);
+    expect(requests.filter((r) => r.startsWith('GET /api/pathways/patient-pathways/labels'))).toHaveLength(1);
+    expect(requests.some((r) => /^GET \/api\/pathways\/patient-pathways\/[0-9a-f-]{36}/.test(r))).toBe(false);
   });
 });
 
@@ -402,9 +402,9 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    const icon = await screen.findByRole('link', {name: 'My Tasks'});
+    const icon = await screen.findByRole('link', {name: 'My Worklist'});
     await user.hover(icon);
-    const button = await screen.findByRole('button', {name: 'My Tasks options', hidden: true});
+    const button = await screen.findByRole('button', {name: 'My Worklist options', hidden: true});
     await waitFor(() => expect(button).toBeVisible());
     fireEvent.pointerDown(button);
     fireEvent.click(button);
@@ -443,8 +443,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     // Pressed at once, before resting on it would open it.
     fireEvent.pointerDown(button);
     fireEvent.click(button);
@@ -478,8 +478,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     await user.hover(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
     // Open from resting on it: a press pins it rather than closing it.
@@ -509,8 +509,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     await user.hover(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
     const popover = document.getElementById(button.getAttribute('aria-controls')!)!.closest('[popover]')!;
@@ -532,8 +532,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     // A real press and release (the menu opens on the press), at once, before resting on it would open it.
     await user.click(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
@@ -558,8 +558,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     fireEvent.pointerDown(button, {button: 2, buttons: 2, pointerType: 'mouse'});
     fireEvent.pointerUp(button, {button: 2, pointerType: 'mouse'});
     expect(button).toHaveAttribute('aria-expanded', 'false');
@@ -580,8 +580,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     await user.click(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
     button.focus();
@@ -598,8 +598,8 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
-    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(await screen.findByRole('link', {name: 'My Worklist'}));
+    const button = await screen.findByRole('button', {name: 'My Worklist options'});
     button.focus();
     await user.keyboard('{Enter}');
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
@@ -625,7 +625,7 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    const item = await rowMenuItem(user, 'My Tasks', 'Open in half view');
+    const item = await rowMenuItem(user, 'My Worklist', 'Open in half view');
     const panel = item.closest<HTMLElement>('[popover]') ?? item.closest<HTMLElement>('[role="menu"]')!;
 
     // Out from the nav's edge by the row's inset (8), and level with the row.
@@ -653,8 +653,8 @@ describe('AppSideNav folded, and its menus', () => {
         </HalfViewsContext.Provider>,
         {user: staffUser},
       );
-      await rowMenuItem(user, 'My Tasks', 'Open in half view');
-      const button = screen.getByRole('button', {name: 'My Tasks options'});
+      await rowMenuItem(user, 'My Worklist', 'Open in half view');
+      const button = screen.getByRole('button', {name: 'My Worklist options'});
       await waitFor(() => expect(document.querySelector('[data-nav-bridge]')).not.toBeNull());
 
       // Closed before the menu settles: no strip, and none comes back when the animation ends.
@@ -676,7 +676,7 @@ describe('AppSideNav folded, and its menus', () => {
       </HalfViewsContext.Provider>,
       {user: staffUser},
     );
-    const tasks = (await screen.findAllByRole('link', {name: 'My Tasks'}))[0];
+    const tasks = (await screen.findAllByRole('link', {name: 'My Worklist'}))[0];
     // Only this link's check for `:focus-visible` throws, as it would in a browser without it.
     const matches = tasks.matches.bind(tasks);
     tasks.matches = (selector: string) => {
@@ -686,9 +686,9 @@ describe('AppSideNav folded, and its menus', () => {
 
     // Focus doesn't bring the buttons out (keyboard focus can't be told from a click's), but hovering does.
     act(() => tasks.focus());
-    expect(screen.queryByRole('button', {name: 'My Tasks options'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'My Worklist options'})).not.toBeInTheDocument();
     await user.hover(tasks);
-    expect(await screen.findByRole('button', {name: 'My Tasks options'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'My Worklist options'})).toBeInTheDocument();
   });
 
   it('measures the strip again once the menu has slid into place, ignoring an animation that never ends', async () => {
@@ -715,7 +715,7 @@ describe('AppSideNav folded, and its menus', () => {
         </HalfViewsContext.Provider>,
         {user: staffUser},
       );
-      await rowMenuItem(user, 'My Tasks', 'Open in half view');
+      await rowMenuItem(user, 'My Worklist', 'Open in half view');
       const strip = () => document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
       // First measured mid-animation: 228 to 324 (24px into the menu at 300).
       await waitFor(() => expect(strip()?.style.width).toBe('96px'));
@@ -745,8 +745,8 @@ describe('AppSideNav folded, and its menus', () => {
       </HalfViewsContext.Provider>,
       {user: staffUser},
     );
-    await rowMenuItem(user, 'My Tasks', 'Open in half view');
-    const button = screen.getByRole('button', {name: 'My Tasks options'});
+    await rowMenuItem(user, 'My Worklist', 'Open in half view');
+    const button = screen.getByRole('button', {name: 'My Worklist options'});
 
     const bridge = await waitFor(() => {
       const strip = document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
@@ -772,12 +772,12 @@ describe('AppSideNav folded, and its menus', () => {
 });
 
 describe('AppSideNav with a half view open', () => {
-  const procedureId = 'c0000000-0000-4000-8000-000000000001';
+  const pathwayId = 'c0000000-0000-4000-8000-000000000001';
 
   function renderWithHalf(path: string, openPath: string) {
     mockApi({
       'GET /api/patients/labels': patientLabels({[patientId]: 'Test Patient'}),
-      'GET /api/procedures/patient-procedures/labels': procedureLabels({[procedureId]: {title: 'Test procedure', patientName: 'Test Patient'}}),
+      'GET /api/pathways/patient-pathways/labels': pathwayLabels({[pathwayId]: {title: 'Test pathway', patientName: 'Test Patient'}}),
     });
     const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
     const result = renderWithApp(
@@ -792,12 +792,12 @@ describe('AppSideNav with a half view open', () => {
   const rowOf = (link: HTMLElement) => link.closest<HTMLElement>('.astryx-side-nav-item')!;
 
   it("marks the half view's page a shade darker than the current page", async () => {
-    renderWithHalf('/procedures', '/admin/audit');
+    renderWithHalf('/pathways', '/admin/audit');
 
     const audit = await screen.findByRole('link', {name: /audit log/i});
     expect(rowOf(audit).style.backgroundColor).toBe(HALF_VIEW_SHADE);
     expect(audit).not.toHaveAttribute('aria-current');
-    expect(rowOf(screen.getByRole('link', {name: /^procedures$/i})).style.backgroundColor).toBe('');
+    expect(rowOf(screen.getByRole('link', {name: /^pathways$/i})).style.backgroundColor).toBe('');
   });
 
   it("marks the calendar when Requires Appointment is in the half view", async () => {
@@ -809,22 +809,22 @@ describe('AppSideNav with a half view open', () => {
   });
 
   it("marks a patient whose page is in the half view under Patients, and a section whose list is", async () => {
-    const {unmount} = renderWithHalf(`/procedures/${procedureId}`, `/patients/${patientId}`);
+    const {unmount} = renderWithHalf(`/pathways/${pathwayId}`, `/patients/${patientId}`);
 
     const patient = await screen.findByRole('link', {name: 'Test Patient'});
     expect(rowOf(patient).style.backgroundColor).toBe(HALF_VIEW_SHADE);
     expect(rowOf(screen.getByRole('link', {name: /^patients$/i})).style.backgroundColor).toBe('');
-    // The procedure open in the main view is the current page, unshaded.
+    // The pathway open in the main view is the current page, unshaded.
     expect(await screen.findByRole('link', {name: 'TP TP'})).toHaveAttribute('aria-current', 'page');
     unmount();
 
-    renderWithHalf(`/procedures/${procedureId}`, '/procedures');
-    const procedures = await screen.findByRole('link', {name: /^procedures$/i});
-    expect(rowOf(procedures).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    renderWithHalf(`/pathways/${pathwayId}`, '/pathways');
+    const pathways = await screen.findByRole('link', {name: /^pathways$/i});
+    expect(rowOf(pathways).style.backgroundColor).toBe(HALF_VIEW_SHADE);
   });
 
   it('opens a clicked page on its own, but leaves a modified click to the browser', async () => {
-    const {user, halfViews} = renderWithHalf('/procedures', '/admin/audit');
+    const {user, halfViews} = renderWithHalf('/pathways', '/admin/audit');
     const users = await screen.findByRole('link', {name: /^users$/i});
 
     await user.keyboard('{Control>}');

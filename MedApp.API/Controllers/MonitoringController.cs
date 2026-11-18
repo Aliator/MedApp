@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// The signed-in admin's monitoring rules: what staff do to procedures that they want to be told about. Each admin
+/// The signed-in admin's monitoring rules: what staff do to pathways that they want to be told about. Each admin
 /// sees and changes only their own; another admin's rule is a 404.
 /// </summary>
 [ApiController]

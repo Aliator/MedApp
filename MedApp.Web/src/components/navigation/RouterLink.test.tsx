@@ -8,8 +8,8 @@ const links = (onClick?: () => void) => (
       Patients
     </RouterLink>
     <RouterLink href="https://example.org/help">Help</RouterLink>
-    <RouterLink href="/procedures" target="_blank">
-      Procedures in a new tab
+    <RouterLink href="/pathways" target="_blank">
+      Pathways in a new tab
     </RouterLink>
     <RouterLink>No address</RouterLink>
   </>
@@ -44,7 +44,7 @@ describe('RouterLink', () => {
     const {user, router} = renderWithApp(links());
     // jsdom doesn't follow links, so a link left to the browser goes nowhere here.
     await user.click(await screen.findByRole('link', {name: 'Help'}));
-    await user.click(screen.getByRole('link', {name: 'Procedures in a new tab'}));
+    await user.click(screen.getByRole('link', {name: 'Pathways in a new tab'}));
     await user.click(screen.getByText('No address'));
 
     expect(router.state.location.pathname).toBe('/');

@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /**
  * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
- * procedure's page (for the admin to decide), a procedure on its page, and anything else about a day on the calendar
+ * pathway's page (for the admin to decide), a pathway on its page, and anything else about a day on the calendar
  * (a meeting, a day closed with something of yours on it) opens that day there, with the meeting itself open when it
  * has one (an invitation, a move, a decline; not a cancellation), so an organiser told of a decline sees who, even if
  * they aren't going.
@@ -24,17 +24,17 @@ import {AppIcon} from '../shared/icons';
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
     ? `/calendar?appointment=${notification.appointmentId}`
-    : notification.noteDeletionRequestId && notification.procedureId
-      ? `/procedures/${notification.procedureId}?deletionRequest=${notification.noteDeletionRequestId}`
-      : notification.procedureId
-      ? `/procedures/${notification.procedureId}`
+    : notification.noteDeletionRequestId && notification.pathwayId
+      ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+      : notification.pathwayId
+      ? `/pathways/${notification.pathwayId}`
       : notification.calendarDate
         ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
         : undefined;
 
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
-  ProcedureAssigned: AppIcon.Assign,
+  PathwayAssigned: AppIcon.Assign,
   AppointmentBooked: AppIcon.AppointmentBooked,
   AppointmentRescheduled: AppIcon.Book,
   AppointmentCancelled: AppIcon.StatusCancelled,
@@ -75,7 +75,7 @@ const bellLabel = (unread: number) => (unread === 0 ? 'Notifications' : `Notific
 
 /**
  * The bell beside the MedApp heading: the signed-in user's notifications, with a count of the unread ones. It
- * opens a list of the newest (a procedure's opens it, an appointment's opens it on the calendar, a meeting's opens its
+ * opens a list of the newest (a pathway's opens it, an appointment's opens it on the calendar, a meeting's opens its
  * day on the calendar, and each marks it read), and Mark all read. New ones arrive live
  * (`LiveNotifications`), so the count and list change without a reload.
  */
@@ -109,7 +109,7 @@ export function NotificationBell() {
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
 
-  // Following a notification's link marks it read (and any others about the same procedure or appointment), and
+  // Following a notification's link marks it read (and any others about the same pathway or appointment), and
   // closes the list.
   // Caught on the way down, as a linked row takes no click handler of its own.
   const followLink = (event: MouseEvent) => {
@@ -138,7 +138,7 @@ export function NotificationBell() {
       {items.length === 0 ? (
         <VStack padding={3} paddingBlockStart={0}>
           <Text type="body" color="secondary">
-            Nothing yet. You’ll see it here when someone assigns you to a procedure, books, moves or cancels an appointment with you, or invites you to a meeting.
+            Nothing yet. You’ll see it here when someone assigns you to a pathway, books, moves or cancels an appointment with you, or invites you to a meeting.
           </Text>
         </VStack>
       ) : (

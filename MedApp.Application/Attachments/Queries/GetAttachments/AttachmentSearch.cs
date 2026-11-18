@@ -1,6 +1,6 @@
 using MedApp.Application.Attachments.Common;
 using MedApp.Domain.Attachments;
-using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Attachments.Queries.GetAttachments;
 
@@ -16,7 +16,7 @@ public static class AttachmentSearch
         var filtered = query switch
         {
             { PatientId: { } patientId } => attachments.Where(a => a.PatientId == patientId),
-            { ProcedureId: { } procedureId } => attachments.Where(a => a.ProcedureId == procedureId && a.StageId == null),
+            { PathwayId: { } pathwayId } => attachments.Where(a => a.PathwayId == pathwayId && a.StageId == null),
             { StageId: { } stageId } => attachments.Where(a => a.StageId == stageId),
             _ => attachments.Where(_ => false),
         };
@@ -28,18 +28,18 @@ public static class AttachmentSearch
 
     /// <summary>
     /// The newest <see cref="AttachmentLimits.MaxListed"/> of them (then by ID, so the order is unique), each with its
-    /// procedure's title and stage's name now.
+    /// pathway's title and stage's name now.
     /// </summary>
     public static IQueryable<AttachmentRow> Newest(
         IQueryable<Attachment> filtered,
-        IQueryable<PatientProcedure> procedures,
-        IQueryable<PatientProcedureStage> stages) =>
+        IQueryable<PatientPathway> pathways,
+        IQueryable<PatientPathwayStage> stages) =>
         filtered
             .OrderByDescending(a => a.UploadedAtUtc)
             .ThenByDescending(a => a.Id)
             .Take(AttachmentLimits.MaxListed)
             .Select(a => new AttachmentRow(
                 a,
-                procedures.Where(p => p.Id == a.ProcedureId).Select(p => p.Title).FirstOrDefault(),
+                pathways.Where(p => p.Id == a.PathwayId).Select(p => p.Title).FirstOrDefault(),
                 stages.Where(s => s.Id == a.StageId).Select(s => s.Name).FirstOrDefault()));
 }

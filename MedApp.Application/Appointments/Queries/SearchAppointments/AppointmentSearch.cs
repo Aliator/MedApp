@@ -1,4 +1,4 @@
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 
 namespace MedApp.Application.Appointments.Queries.SearchAppointments;
@@ -20,22 +20,22 @@ public static class AppointmentSearch
 
     public static bool IsSortColumn(string sort) => SortColumns.Contains(sort, StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsStatus(string? value) => ProcedureEnums.TryParse<AppointmentStatus>(value, out _);
+    public static bool IsStatus(string? value) => PathwayEnums.TryParse<AppointmentStatus>(value, out _);
 
     /// <summary>Appointments matching every filter given.</summary>
     public static IQueryable<Appointment> Filter(this IQueryable<Appointment> appointments, SearchAppointmentsQuery query)
     {
         if (query.PatientId is { } patientId)
             appointments = appointments.Where(a => a.PatientId == patientId);
-        if (query.ProcedureId is { } procedureId)
-            appointments = appointments.Where(a => a.ProcedureId == procedureId);
+        if (query.PathwayId is { } pathwayId)
+            appointments = appointments.Where(a => a.PathwayId == pathwayId);
         if (query.StageId is { } stageId)
             appointments = appointments.Where(a => a.StageId == stageId);
         if (query.StaffUserId is { } staffUserId)
             appointments = appointments.Where(a => a.StaffUserId == staffUserId);
 
         var statuses = (query.Statuses ?? [])
-            .Select(s => ProcedureEnums.TryParse<AppointmentStatus>(s, out var status) ? status : (AppointmentStatus?)null)
+            .Select(s => PathwayEnums.TryParse<AppointmentStatus>(s, out var status) ? status : (AppointmentStatus?)null)
             .OfType<AppointmentStatus>()
             .Distinct()
             .ToList();
@@ -66,7 +66,7 @@ public static class AppointmentSearch
 
     /// <summary>
     /// Sorts by start (the default; Requested ones, which have none, last, by when they were asked for), when they
-    /// were asked for, the procedure's due date (none last) or patient. Ties are broken by when they were asked for,
+    /// were asked for, the pathway's target date (none last) or patient. Ties are broken by when they were asked for,
     /// then ID, so paging never shows a row twice or skips one.
     /// </summary>
     public static IOrderedQueryable<Appointment> Sort(this IQueryable<Appointment> appointments, string? sort, bool ascending)
@@ -78,12 +78,12 @@ public static class AppointmentSearch
             (SortByRequested, true) => appointments.OrderBy(a => a.CreatedAtUtc),
             (SortByRequested, false) => appointments.OrderByDescending(a => a.CreatedAtUtc),
             (SortByDueDate, true) => appointments
-                .OrderBy(a => a.Procedure == null ? 1 : 0)
-                .ThenBy(a => a.Procedure == null ? DateTime.MaxValue : a.Procedure.DueDateUtc)
+                .OrderBy(a => a.Pathway == null ? 1 : 0)
+                .ThenBy(a => a.Pathway == null ? DateTime.MaxValue : a.Pathway.DueDateUtc)
                 .ThenBy(a => a.CreatedAtUtc),
             (SortByDueDate, false) => appointments
-                .OrderBy(a => a.Procedure == null ? 1 : 0)
-                .ThenByDescending(a => a.Procedure == null ? DateTime.MinValue : a.Procedure.DueDateUtc)
+                .OrderBy(a => a.Pathway == null ? 1 : 0)
+                .ThenByDescending(a => a.Pathway == null ? DateTime.MinValue : a.Pathway.DueDateUtc)
                 .ThenBy(a => a.CreatedAtUtc),
             (SortByPatient, true) => appointments
                 .OrderBy(a => a.Patient.LastName.ToLower())

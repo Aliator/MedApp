@@ -1,4 +1,4 @@
-using MedApp.Application.Procedures.Common;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MediatR;
 
@@ -15,5 +15,5 @@ public sealed record BookAppointmentCommand(
     DateTime StartUtc,
     DateTime EndUtc,
     string ExpectedStatus,
-    ProcedureActor Actor)
+    PathwayActor Actor)
     : IRequest<AppointmentResponse>;

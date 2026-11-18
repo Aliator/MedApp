@@ -18,9 +18,9 @@ export type FlyoutDelay = (typeof FLYOUT_DELAYS)[number]['value'];
 /** The pages sign-in can open on (Account Settings, Navigation): Home unless chosen otherwise. */
 export const START_PAGES = [
   {value: 'home', label: 'Home', path: '/'},
-  {value: 'tasks', label: 'My Tasks', path: '/tasks'},
+  {value: 'tasks', label: 'My Worklist', path: '/tasks'},
   {value: 'patients', label: 'Patients', path: '/patients'},
-  {value: 'procedures', label: 'Procedures', path: '/procedures'},
+  {value: 'procedures', label: 'Pathways', path: '/pathways'},
 ] as const;
 
 export type StartPage = (typeof START_PAGES)[number]['value'];

@@ -146,7 +146,7 @@ describe('problemCode', () => {
 describe('problemMessage', () => {
   it("gives the API's reason for a conflict or a missing record", () => {
     expect(problemMessage(new ApiError(409, undefined, 'Finish the Consent stage first.'), 'Failed.')).toBe('Finish the Consent stage first.');
-    expect(problemMessage(new ApiError(404, undefined, 'Procedure not found.'), 'Failed.')).toBe('Procedure not found.');
+    expect(problemMessage(new ApiError(404, undefined, 'Pathway not found.'), 'Failed.')).toBe('Pathway not found.');
   });
 
   it('gives the validation messages for a 400', () => {

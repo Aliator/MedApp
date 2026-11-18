@@ -26,7 +26,7 @@ describe('KeyboardShortcuts', () => {
     await user.keyboard('gp');
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
     await user.keyboard('gr');
-    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/pathways'));
   });
 
   it('leaves keys typed in a field alone', async () => {

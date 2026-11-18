@@ -344,28 +344,28 @@ public static class ProcedureKinds
         [], [], ["left ankle", "right ankle"]);
 
     /// <summary>The kinds of referral each pathway takes (some twice, as they're commoner).</summary>
-    public static IReadOnlyList<ProcedureKind> For(Pathway pathway) => pathway switch
+    public static IReadOnlyList<ProcedureKind> For(PathwayKind pathwayKind) => pathwayKind switch
     {
-        Pathway.SkinLesion or Pathway.SkinLesion2024 => [PigmentedLesion, PigmentedLesion, NonHealingLesion, NonHealingLesion, ScalyPatch],
-        Pathway.InflammatorySkin => [Eczema, Eczema, Psoriasis, Psoriasis, Acne],
-        Pathway.PostMenopausalBleeding => [PostMenopausalBleed, PostMenopausalBleed, PostMenopausalBleed, BleedingOnHrt],
-        Pathway.Prostate => [RaisedPsa, RaisedPsa, UrinarySymptoms],
-        Pathway.Diabetes => [Type2Diabetes, Type2Diabetes, Type2Diabetes, Type1Diabetes],
-        Pathway.Biomechanics => [HeelPain, FlatFeet, ForefootPain, AchillesPain],
+        PathwayKind.SkinLesion or PathwayKind.SkinLesion2024 => [PigmentedLesion, PigmentedLesion, NonHealingLesion, NonHealingLesion, ScalyPatch],
+        PathwayKind.InflammatorySkin => [Eczema, Eczema, Psoriasis, Psoriasis, Acne],
+        PathwayKind.PostMenopausalBleeding => [PostMenopausalBleed, PostMenopausalBleed, PostMenopausalBleed, BleedingOnHrt],
+        PathwayKind.Prostate => [RaisedPsa, RaisedPsa, UrinarySymptoms],
+        PathwayKind.Diabetes => [Type2Diabetes, Type2Diabetes, Type2Diabetes, Type1Diabetes],
+        PathwayKind.Biomechanics => [HeelPain, FlatFeet, ForefootPain, AchillesPain],
         _ => [],
     };
 
     /// <summary>Whether a pathway sees children (most of the centre's work is adults only).</summary>
-    public static bool SeesChildren(Pathway pathway) => pathway is Pathway.InflammatorySkin or Pathway.Biomechanics;
+    public static bool SeesChildren(PathwayKind pathwayKind) => pathwayKind is PathwayKind.InflammatorySkin or PathwayKind.Biomechanics;
 
     /// <summary>
     /// Whom a pathway sees: women only or men only (null for anyone), and from what age. The demo's patients have no
     /// recorded sex, only invented first names, so this keeps the names plausible for the two pathways where it shows.
     /// </summary>
-    public static (bool? Female, int MinimumAge) Sees(Pathway pathway) => pathway switch
+    public static (bool? Female, int MinimumAge) Sees(PathwayKind pathwayKind) => pathwayKind switch
     {
-        Pathway.PostMenopausalBleeding => (true, 50),
-        Pathway.Prostate => (false, 50),
+        PathwayKind.PostMenopausalBleeding => (true, 50),
+        PathwayKind.Prostate => (false, 50),
         _ => (null, 0),
     };
 }

@@ -43,7 +43,7 @@ export interface PageProps extends PageHeaderProps {
 export const PAGE_MAX_WIDTH = 1600;
 
 /**
- * Below this width, pages with two side-by-side columns (Home, a procedure) don't fit them, and show one at a
+ * Below this width, pages with two side-by-side columns (Home, a pathway) don't fit them, and show one at a
  * time or stack them instead.
  */
 export const NARROW_WINDOW_QUERY = '(max-width: 1399px)';

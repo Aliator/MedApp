@@ -12,7 +12,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         builder.HasKey(notification => notification.Id);
 
-        // No foreign keys (to users or procedures), as with the audit log: a notification outlives what it's about.
+        // No foreign keys (to users or pathways), as with the audit log: a notification outlives what it's about.
         builder.Property(notification => notification.Title)
             .IsRequired()
             .HasMaxLength(200);
