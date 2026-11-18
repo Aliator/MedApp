@@ -522,6 +522,72 @@ describe('AppSideNav folded, and its menus', () => {
     expect(button).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('lets a menu go once a second click closes it, so resting on the button then opens it only for a while', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    // A real press and release (the menu opens on the press), at once, before resting on it would open it.
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+
+    // Resting on it again opens it, unpinned: leaving closes it.
+    await user.unhover(button);
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it("doesn't pin a menu that a press didn't open (a right-click)", async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    fireEvent.pointerDown(button, {button: 2, buttons: 2, pointerType: 'mouse'});
+    fireEvent.pointerUp(button, {button: 2, pointerType: 'mouse'});
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    // Resting on it opens it after a moment, unpinned: leaving closes it.
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('closes a pinned menu with Enter on its button', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    button.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
   it('pins a menu opened from the keyboard', async () => {
     const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(

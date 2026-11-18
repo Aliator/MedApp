@@ -175,12 +175,6 @@ const BRIDGE_MARGIN_PX = 8;
 const BRIDGE_OVERLAP_PX = 24;
 
 /**
- * A row's menu, behind one button at its end: its half views, then anything of its own (a pin, or a section's
- * show and hide). It opens when the pointer rests on the button (or from the keyboard), and closes once the pointer
- * has left the button and the menu. Like the rest of a row's controls, the button shows while the row is hovered or
- * focused (and while its menu is open), and always in the folded nav's flyouts. No tooltip: its icon says what it is.
- */
-/**
  * A press that pins a menu the pointer resting opened doesn't go through the menu's own press handling (which would
  * close it). Without that, the browser's light dismiss of the menu (a `popover="auto"`) takes the release over the
  * button as a press outside and closes it. So, as the menu does for its own presses, the button is made the menu's
@@ -204,6 +198,14 @@ function holdInvokerThroughPress(control: HTMLElement) {
   }
 }
 
+/**
+ * A row's menu, behind one button at its end: its half views, then anything of its own (a pin, or a section's
+ * show and hide). It opens when the pointer rests on the button, and closes once the pointer has left the button and
+ * the menu. A click on the button (or the keyboard) pins it instead: it stays open, holding a folded nav's row out
+ * with it, until a second click, Escape, a click elsewhere or an item chosen closes it. Like the rest of a row's
+ * controls, the button shows while the row is hovered or focused (and while its menu is open), and always in the
+ * folded nav's flyouts. No tooltip: its icon says what it is.
+ */
 function RowMenu({
   label,
   href,
@@ -223,6 +225,14 @@ function RowMenu({
   // pointer does, until it's closed (a second click, Escape, a click elsewhere, or an item chosen), and it holds a
   // folded nav's row out with it.
   const [isPinned, setIsPinned] = useState(false);
+  // Whether the menu reported opening during a handler: only a press, click or key that really opened it pins it
+  // (the menu ignores some, such as a right-click, and spends the click after a press that closed it).
+  const didOpen = useRef(false);
+  const openPinned = (open: () => void) => {
+    didOpen.current = false;
+    open();
+    if (didOpen.current) setIsPinned(true);
+  };
   const holdFlyout = useContext(FlyoutHoldContext);
   const isHolding = isOpen && isPinned;
   useEffect(() => {
@@ -353,6 +363,7 @@ function RowMenu({
         // Opening isn't taken as pinning here, as the menu reports opening when the pointer resting opened it too.
         onOpenChange={(open) => {
           window.clearTimeout(timer.current);
+          didOpen.current = open;
           setIsOpen(open);
           if (!open) setIsPinned(false);
         }}
@@ -367,24 +378,20 @@ function RowMenu({
               // Closed, a press opens it pinned. Open from the pointer resting on it, a press pins it (rather than closing
               // it). Pinned, a press closes it, through the menu's own press handling (which spends the click after).
               onPointerDown={(event) => {
-                if (!isOpen) setIsPinned(true);
-                if (!isOpen || isPinned) trigger.onPointerDown(event);
+                if (!isOpen) openPinned(() => trigger.onPointerDown(event));
+                else if (isPinned) trigger.onPointerDown(event);
                 else holdInvokerThroughPress(event.currentTarget);
               }}
+              // A click that isn't a press's (Enter or Space on the button, or a screen reader's) does the same.
               onClick={(event) => {
-                if (!isOpen) {
-                  setIsPinned(true);
-                  trigger.onClick(event);
-                } else if (!isPinned) {
+                if (!isOpen) openPinned(() => trigger.onClick(event));
+                else if (!isPinned) {
                   window.clearTimeout(timer.current);
                   setIsPinned(true);
-                }
+                } else trigger.onClick(event);
               }}
               // Opened from the keyboard, it's pinned too.
-              onKeyDown={(event) => {
-                if (!isOpen && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) setIsPinned(true);
-                trigger.onKeyDown(event);
-              }}
+              onKeyDown={(event) => (isOpen ? trigger.onKeyDown(event) : openPinned(() => trigger.onKeyDown(event)))}
             />
           );
         }}

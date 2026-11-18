@@ -77,7 +77,9 @@ describe('NavRail', () => {
     const {user} = renderWithApp(<NavRail groups={[[{...entries[0], row: <Holder />}]]} />);
 
     await user.hover(await screen.findByRole('link', {name: 'Home'}));
-    await user.click(await screen.findByRole('button', {name: 'Hold and let go'}));
+    // No pointer movement: the pointer stays on the item. Then longer than the row's wait to close.
+    fireEvent.click(await screen.findByRole('button', {name: 'Hold and let go'}));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     expect(screen.getByRole('button', {name: 'Hold and let go'})).toBeVisible();
   });
 
