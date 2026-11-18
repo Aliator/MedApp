@@ -7,7 +7,8 @@ import {specialtyKeys} from './specialties';
  * Letter templates (docs/centre-phases-3-5-plan.md, decision 99): the letterhead, body and closing a letter starts
  * from, for one specialty or every specialty, each for a kind of letter. Their text may hold merge fields
  * (`{{patient.name}}`), which copy identity and administrative details only. Anyone can read them; holders of
- * ManageSetup keep them. They're archived, never deleted, as letters use them.
+ * ManageSetup keep them. One no letter has been written from can be deleted (`canBeDeleted`); the rest are archived,
+ * as letters keep their text.
  */
 export type LetterTemplate = Schemas['LetterTemplateResponse'];
 /** A merge field a template's text may hold, written `{{name}}`, with its label, where it comes from, and a made-up example. */
@@ -142,7 +143,10 @@ export interface LetterTemplateVersion {
   expectedVersion: number;
 }
 
-/** Archive and restore, each from the version shown, so a change made meanwhile is a 409. */
+/**
+ * Archive and restore, each from the version shown, so a change made meanwhile is a 409; and delete, for a template no
+ * letter has been written from (a 409 once one has).
+ */
 export function useLetterTemplateActions() {
   const refresh = useRefreshLetterTemplates();
   return {
@@ -154,6 +158,12 @@ export function useLetterTemplateActions() {
     restore: useMutation({
       mutationFn: ({id, expectedVersion}: LetterTemplateVersion) =>
         unwrap(api.POST('/api/letter-templates/{id}/restore', {params: {path: {id}}, body: {expectedVersion}})),
+      ...refresh,
+    }),
+    remove: useMutation({
+      mutationFn: async (id: string) => {
+        await unwrap(api.DELETE('/api/letter-templates/{id}', {params: {path: {id}}}));
+      },
       ...refresh,
     }),
   };

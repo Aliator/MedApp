@@ -8,7 +8,8 @@ import type {paths} from './schema';
 /**
  * Referrals: requests from a referrer (usually a GP practice) for the centre to see one patient in one specialty,
  * registered by staff from the letter (docs/centre-phase2-plan.md, decisions 8 to 17). A referral waits for triage
- * (Awaiting triage, the only open status); before then it can be edited, withdrawn or marked entered in error. Every
+ * (Awaiting triage, or Information requested while the triager waits for more from the referrer: the open statuses);
+ * before then it can be edited, withdrawn or marked entered in error. Every
  * change carries the version the page showed (`expectedVersion`), so a change made meanwhile is a 409. The letter is a
  * file attached to it (`attachmentsQuery({referralId})`).
  */
@@ -18,11 +19,25 @@ export type ReferralEvent = Schemas['ReferralEventResponse'];
 export type ReferralPage = Schemas['ReferralSummaryResponsePagedResponse'];
 export type ReferralSearch = NonNullable<paths['/api/referrals/search']['get']['parameters']['query']>;
 
-/** The statuses, by the names the API uses. Only Awaiting triage is open. */
-export const REFERRAL_STATUSES = ['AwaitingTriage', 'Accepted', 'Rejected', 'RedirectedElsewhere', 'Withdrawn', 'EnteredInError'] as const;
+/**
+ * The statuses, by the names the API uses. Awaiting triage and Information requested (more asked of the referrer,
+ * decision 106) are open: triage stays available in both.
+ */
+export const REFERRAL_STATUSES = [
+  'AwaitingTriage',
+  'InformationRequested',
+  'Accepted',
+  'Rejected',
+  'RedirectedElsewhere',
+  'Withdrawn',
+  'EnteredInError',
+] as const;
 export type ReferralStatus = (typeof REFERRAL_STATUSES)[number];
-export const OPEN_REFERRAL_STATUSES: ReferralStatus[] = ['AwaitingTriage'];
-export const CLOSED_REFERRAL_STATUSES: ReferralStatus[] = REFERRAL_STATUSES.filter((s) => s !== 'AwaitingTriage');
+export const OPEN_REFERRAL_STATUSES: ReferralStatus[] = ['AwaitingTriage', 'InformationRequested'];
+export const CLOSED_REFERRAL_STATUSES: ReferralStatus[] = REFERRAL_STATUSES.filter((s) => !OPEN_REFERRAL_STATUSES.includes(s));
+
+/** Whether a status is open (awaiting triage, or waiting for more information). */
+export const isOpenReferralStatus = (status: string | null | undefined) => (OPEN_REFERRAL_STATUSES as string[]).includes(status ?? '');
 
 /** The priorities a referrer can ask for, on the pathway scale. */
 export const REFERRAL_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
@@ -125,8 +140,8 @@ export const patientOpenReferralsQuery = (patientId: string) =>
  * recently registered first).
  */
 export function openFirst(referrals: readonly ReferralSummary[]): ReferralSummary[] {
-  const open = referrals.filter((r) => r.status === 'AwaitingTriage').sort((a, b) => (a.receivedOn ?? '').localeCompare(b.receivedOn ?? ''));
-  return [...open, ...referrals.filter((r) => r.status !== 'AwaitingTriage')];
+  const open = referrals.filter((r) => isOpenReferralStatus(r.status)).sort((a, b) => (a.receivedOn ?? '').localeCompare(b.receivedOn ?? ''));
+  return [...open, ...referrals.filter((r) => !isOpenReferralStatus(r.status))];
 }
 
 /** After any change to a referral: it (when given), every referral list and count, and the patients' timelines. */
@@ -332,6 +347,30 @@ export function useRedirectReferral(id: string) {
   });
 }
 
+/**
+ * Asking the referrer for more information (`POST api/referrals/{id}/ask-for-information`: an Awaiting triage referral
+ * becomes Information requested, still open), and recording that it came (`.../information-received`: back to Awaiting
+ * triage). Both need TriageReferrals and the referral's specialty, and carry the version the page showed.
+ */
+export function useReferralInformationActions(id: string) {
+  const queryClient = useQueryClient();
+  const onSuccess = (referral: Referral) => refreshReferrals(queryClient, referral);
+  const onError = useRereadOnConflict(id);
+  const path = {params: {path: {id}}};
+  return {
+    askForInformation: useMutation({
+      mutationFn: (body: {expectedVersion: number}) => unwrap(api.POST('/api/referrals/{id}/ask-for-information', {...path, body})),
+      onSuccess,
+      onError,
+    }),
+    informationReceived: useMutation({
+      mutationFn: (body: {expectedVersion: number}) => unwrap(api.POST('/api/referrals/{id}/information-received', {...path, body})),
+      onSuccess,
+      onError,
+    }),
+  };
+}
+
 /** The names of the fields a details edit changed, in words. */
 const FIELD_WORDS: Record<string, string> = {
   specialty: 'specialty',
@@ -351,7 +390,8 @@ export const referralFieldWords = (field: string) => FIELD_WORDS[field] ?? field
  * One entry of a referral's history, in words: "Registered by k.ashford", "Details edited by k.ashford: reason,
  * received date", "Withdrawn by k.ashford", "Marked entered in error by k.ashford"; triage's "Accepted by d.clinician"
  * (the template and the priority chosen), "Rejected by d.clinician" (the reason in words), "Redirected by d.clinician"
- * (to another specialty here) and "Redirected elsewhere by d.clinician". With its specialty where it names one
+ * (to another specialty here) and "Redirected elsewhere by d.clinician"; "More information asked for by d.clinician"
+ * and "Information received, recorded by k.ashford". With its specialty where it names one
  * (registered to it, or moved to it). Never free text: the history holds none.
  */
 export function referralEventWords(event: ReferralEvent): {title: string; detail: string} {
@@ -391,6 +431,10 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
       return {title: `Withdrawn by ${by}`, detail: ''};
     case 'EnteredInError':
       return {title: `Marked entered in error by ${by}`, detail: ''};
+    case 'InformationRequested':
+      return {title: `More information asked for by ${by}`, detail: 'Waiting for the referrer'};
+    case 'InformationReceived':
+      return {title: `Information received, recorded by ${by}`, detail: 'Back to awaiting triage'};
     default:
       return {
         title: `${statusLabel(event.action ?? 'Changed')} by ${by}`,

@@ -43,6 +43,25 @@ async function openFirstReferral(page: Page) {
 }
 
 /**
+ * Opens the first letter in the Letters list, trying its views in turn (To send, Sent, Awaiting my approval, My drafts),
+ * as the parity data names none. When no view has one, the screen is the list, saying so.
+ */
+async function openFirstLetter(page: Page) {
+  for (const view of ['To send', 'Sent', 'Awaiting my approval', 'My drafts']) {
+    await page.getByRole('tab', { name: view }).click();
+    await settle(page);
+    const first = page.getByRole('table').getByRole('link').first();
+    if (await first.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+      await first.click();
+      // The letter's page has the patient's banner.
+      await page.getByRole('region', { name: /^Patient:/ }).first().waitFor();
+      await settle(page);
+      return;
+    }
+  }
+}
+
+/**
  * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
  * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
  */
@@ -437,6 +456,13 @@ export const screens: Screen[] = [
         await settle(page);
       }
     },
+  },
+  { name: 'letters-list', title: 'Letters: the views of letters to write, approve and send, as tabs', path: '/letters' },
+  {
+    name: 'letter-view',
+    title: 'A letter: the banner, the letter, its details and its recipients (the first found in To send, Sent, Awaiting my approval or My drafts)',
+    path: '/letters',
+    prepare: async (page) => openFirstLetter(page),
   },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {

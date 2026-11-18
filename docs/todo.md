@@ -40,8 +40,14 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
     - **PDF/A:** letters are made in PDFsharp's PDF/A-1a mode and pass veraPDF 1.30 while every character is Windows-1252, but one with other characters (Ł, ł, ş, ğ, common in Polish and Turkish names) fails clause 6.3.5, as PDFsharp 6.2 writes no CIDSet for the extra font it then embeds. Before claiming PDF/A: add the CIDSet (a fix upstream, a post-processing step, or a font without the second encoding), and check again with veraPDF (`verapdf/cli`, `--flavour 1a`). GP systems accept plain PDF meanwhile (plan, decision 98).
     - **Tags are coarse:** each page's text is one paragraph element, so headings and lists aren't tagged as such (PDFsharp can't tag what MigraDoc lays out). A screen reader reads the text in order; finer tags need per-element rendering or another library.
     - **PDFsharp and MigraDoc stay on 6.2.x:** 6.5.0 and later are AGPL-3.0 (Dependabot ignores them). If 6.2 stops getting fixes, decide between buying empira's commercial licence, staying on 6.2 with the NuGet audit as the alarm, or another MIT library.
-    - **Deleting an unused template** comes with letters (PR 16), which know whether one was used; until then templates are only archived.
-    - **The letter font covers Latin scripts only:** PR 16 must refuse (with `FindUnsupportedCharacters`) a patient's name, address or body text it can't show, naming the characters, rather than print `?`.
+    - **The letter font covers Latin scripts only:** done for letters (PR 16 refuses a letter's text, a typed recipient, and at approval the filled letter, the patient's name included, naming the characters). A wider font (or a fallback) is still to choose if patients' names need other scripts.
+  - **Letters are built** (PR 16, `feature/letters`: `docs/agents/letters.md`). Left from it:
+    - **Secure email outside development:** `Letters:SecureEmail` is set by the AppHost (Mailpit) only. The Helm chart and Azure need its settings, the relay's password from the secret store, and the network policy's egress to the relay's port; tried on kind before it merges (`docs/agents/deploy.md`). Until then deployments record letters as posted or handed over.
+    - **A real relay:** the deploying organisation's NHSmail (or accredited) relay and its DCB1596 declaration (the plan's section 7).
+    - **Two returns overwrite:** a letter keeps only its latest return comment; an earlier one is gone once it's returned again (the audit records each return, without the words). Keep every comment if approvers ask for the history.
+    - **The demo data** (PR 17) seeds letter templates and letters.
+    - **Who is told of a failed secure email:** today only whoever sent it, at once. A letter left Failed shows in To send; a service alert for letters unsent after N days is Phase 4's.
+    - **GP Connect Send Document** (`LetterDispatchMethod.GpConnect = 5`) is Phase 5's adapter.
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).

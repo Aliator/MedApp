@@ -34,6 +34,9 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
     /// <summary>Every email the API sent, kept instead of sent (<see cref="FakeEmailSender"/>).</summary>
     public FakeEmailSender Emails { get; } = new();
 
+    /// <summary>Every letter the API sent by secure email, kept instead of sent (<see cref="FakeLetterTransport"/>).</summary>
+    public FakeLetterTransport Letters { get; } = new();
+
     /// <summary>The API's clock: the real time, until a test moves it (<see cref="TestClock"/>). <see cref="IntegrationTest"/> resets it before each test.</summary>
     public TestClock Clock { get; } = new();
 
@@ -64,11 +67,13 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         // No scheduled jobs on a timer: tests run them themselves (IScheduledJobRunner.RunNowAsync), at known times.
         builder.UseSetting("Jobs:Enabled", "false");
 
-        // Emails are kept, not sent, and the clock can be moved on.
+        // Emails and secure-email letters are kept, not sent, and the clock can be moved on.
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Emails);
+            services.RemoveAll<MedApp.Application.Letters.Common.ILetterTransport>();
+            services.AddSingleton<MedApp.Application.Letters.Common.ILetterTransport>(Letters);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });

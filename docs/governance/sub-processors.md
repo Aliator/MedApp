@@ -27,6 +27,8 @@ The organisations [Company name] uses to provide MedApp, and what each does with
 
 **Email** is sent through **Azure Communication Services Email**, part of the Microsoft Azure service above, under the same agreement (built on `feature/email-2fa`, not yet deployed). Its data location is set to the **UK** (`emailDataLocation` in `deploy/azure/main.bicep`). It receives a staff member's work email address and username, and the email: a password reset or email confirmation link, or a notice of a change to their own sign-in. It never receives patient data or clinical text (`EmailTemplates`). Delivery onward to the staff member's mailbox goes through the customer's own mail provider.
 
+**Letters by secure email** (PR 16) go through the **customer's own** secure email relay (NHSmail, or another accredited under DCB1596), configured and declared by the customer (`Letters:SecureEmail`). It's the customer's processor (or the customer itself), not the supplier's sub-processor, so it isn't in the table above; the supplier sends nothing to it unless the customer sets it up. In development it's Mailpit, on the developer's own machine.
+
 **Planned additions** (each needs the 30 days' notice above):
 - **A managed monitoring service** for out-of-hours alerts (roadmap step 5), if one is contracted. It would see alerts and logs. [Provider to choose.]
 

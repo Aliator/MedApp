@@ -101,6 +101,43 @@ describe('LetterTemplatesPage', () => {
     expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
   });
 
+  it('deletes one no letter has used, after asking, in place of archiving it', async () => {
+    withAnnouncements();
+    const unused = {...templates[1], canBeDeleted: true};
+    const unusedArchived = {...templates[3], canBeDeleted: true};
+    const {user, fetch} = renderPage(
+      {status: 'any'},
+      {
+        [`GET ${BASE}`]: () => json([templates[0], unused, templates[2], unusedArchived]),
+        [`DELETE ${BASE}/l2`]: () => new Response(null, {status: 204}),
+        [`DELETE ${BASE}/l4`]: () => json({title: 'A letter has been written from it since: archive it instead.'}, 409),
+      },
+    );
+
+    const row = within(await rowOf('Discharge'));
+    expect(row.queryByRole('button', {name: 'Archive letter template'})).not.toBeInTheDocument();
+    // An archived one no letter has used can be restored or deleted.
+    expect(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Restore letter template'})).toBeInTheDocument();
+
+    await user.click(row.getByRole('button', {name: 'Delete letter template'}));
+    let dialog = within(openDialog()!);
+    expect(dialog.getByText('Discharge summary · All specialties')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(row.getByRole('button', {name: 'Delete letter template'}));
+    dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('button', {name: 'Delete'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    await expectAnnounced('Discharge deleted');
+    expect(calls(fetch)).toContain(`DELETE ${BASE}/l2`);
+
+    await user.click(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Delete letter template'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete'}));
+    expect(await findAlert('A letter has been written from it since: archive it instead.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
   it('closes the archive dialog when cancelled', async () => {
     const {user, fetch} = renderPage();
 

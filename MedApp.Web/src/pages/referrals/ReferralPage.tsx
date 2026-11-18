@@ -34,7 +34,9 @@ import {CloseReferralDialog, type ReferralClosing} from '../../components/referr
 import {PatientReferrals} from '../../components/referrals/PatientReferrals';
 import {RedirectReferralDialog} from '../../components/referrals/RedirectReferralDialog';
 import {ReferralStatusToken} from '../../components/referrals/ReferralCells';
+import {ReferralInformationDialog, type ReferralInformationStep} from '../../components/referrals/ReferralInformationDialog';
 import {RejectReferralDialog} from '../../components/referrals/RejectReferralDialog';
+import {LettersAbout} from '../../components/letters/LettersAbout';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
@@ -55,14 +57,17 @@ export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canT
       ? `This referral has been triaged: ${status}. A referral isn't triaged again.`
       : `This referral is ${status}, so it isn't triaged.`;
   }
-  if (referral.canTriage) return 'Read the referral and its letter, then decide: accept it into a pathway, reject it, or redirect it.';
+  if (referral.canTriage)
+    return referral.status === 'InformationRequested'
+      ? 'More information has been asked of the referrer. Record it when it arrives; meanwhile you can still accept, reject or redirect it.'
+      : 'Read the referral and its letter, then decide: accept it into a pathway, reject it, or redirect it.';
   return referral.whyCantTriage?.trim() || 'Only a member of its specialty who can triage referrals can accept, reject or redirect it.';
 }
 
 const ANNOUNCED: Record<ReferralClosing, string> = {withdraw: 'Referral withdrawn', enteredInError: 'Referral marked entered in error'};
 
-/** A triage decision being made: which dialog is open. */
-type Triage = 'accept' | 'reject' | 'redirect';
+/** A triage decision being made: which dialog is open (asking for more information, or recording it came, included). */
+type Triage = 'accept' | 'reject' | 'redirect' | ReferralInformationStep;
 
 /**
  * One referral (`/referrals/$id`): the patient's banner, then its details as typed from the letter (the specialty, when
@@ -94,7 +99,7 @@ export function ReferralPage({id}: {id: string}) {
   const [dialogKey, setDialogKey] = useState(0);
   const [closeErrors, setCloseErrors] = useState<ValidationErrors | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [open, setOpen] = useState({details: true, letter: true, triage: true, others: true, history: true});
+  const [open, setOpen] = useState({details: true, letter: true, letters: true, triage: true, others: true, history: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const closeMutation = closing === 'enteredInError' ? actions.enteredInError : actions.withdraw;
@@ -205,6 +210,17 @@ export function ReferralPage({id}: {id: string}) {
                 }}
               />
             )}
+            {(triage === 'ask' || triage === 'received') && (
+              <ReferralInformationDialog
+                step={triage}
+                referral={referral}
+                onCancel={() => setTriage(null)}
+                onDone={() => {
+                  announce(triage === 'ask' ? 'More information asked for' : 'Information received');
+                  setTriage(null);
+                }}
+              />
+            )}
             {triage === 'redirect' && (
               <RedirectReferralDialog
                 isOpen
@@ -221,10 +237,12 @@ export function ReferralPage({id}: {id: string}) {
       }>
       {referral &&
         (isNarrow ? (
-          <FoldingCard sections={[details(referral), letter(referral), triageSection(referral), others(referral), history(referral)]} />
+          <FoldingCard
+            sections={[details(referral), letter(referral), letters(referral), triageSection(referral), others(referral), history(referral)]}
+          />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[details(referral), letter(referral)]} />}
+            start={<FoldingCard sections={[details(referral), letter(referral), letters(referral)]} />}
             end={<FoldingCard sections={[triageSection(referral), others(referral), history(referral)]} />}
           />
         ))}
@@ -266,7 +284,28 @@ export function ReferralPage({id}: {id: string}) {
     };
   }
 
-  /** What triage says, and for a triager (`canTriage`, and still open) Accept, Reject and Redirect. */
+  /**
+   * Letters written about the referral: replies and requests for more information (decision 106), each linking to its
+   * page, and Write Letter for holders of WriteLetters while the record can change.
+   */
+  function letters(referral: Referral): FoldingSection {
+    return {
+      key: 'letters',
+      title: 'Letters',
+      isOpen: open.letters,
+      onToggle: () => toggle('letters'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <LettersAbout about={{referralId: referral.id ?? id}} specialtyId={referral.specialtyId} patient={referral.patient} isLocked={isLocked} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
+   * What triage says, and for a triager (`canTriage`, and still open) Accept, Reject and Redirect, with Ask for More
+   * Information while it awaits triage, and Information Received once more has been asked for.
+   */
   function triageSection(referral: Referral): FoldingSection {
     const canTriage = (referral.canTriage ?? false) && (referral.isOpen ?? false);
     return {
@@ -285,6 +324,12 @@ export function ReferralPage({id}: {id: string}) {
                 <Button label="Accept" variant="primary" icon={<Icon icon={AppIcon.Success} />} onClick={() => startTriage('accept')} />
                 <Button label="Reject" variant="secondary" icon={<Icon icon={AppIcon.StatusCancelled} />} onClick={() => startTriage('reject')} />
                 <Button label="Redirect" variant="secondary" icon={<Icon icon={AppIcon.StatusChange} />} onClick={() => startTriage('redirect')} />
+                {referral.status === 'AwaitingTriage' && (
+                  <Button label="Ask for More Information" variant="secondary" icon={<Icon icon={AppIcon.Info} />} onClick={() => startTriage('ask')} />
+                )}
+                {referral.status === 'InformationRequested' && (
+                  <Button label="Information Received" variant="secondary" icon={<Icon icon={AppIcon.Success} />} onClick={() => startTriage('received')} />
+                )}
               </HStack>
             )}
           </VStack>

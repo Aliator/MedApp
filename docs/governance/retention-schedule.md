@@ -55,6 +55,7 @@ Everything about the patient, kept and destroyed together:
 - their appointment history (`AppointmentEvent`, matched by `PatientId`), which keeps copies of old notes and cancellation reasons and outlives the appointment
 - their **referrals** (`Referral`, by `PatientId`), with the reason, the referrer's details and the details given, and their history (`ReferralEvent`, matched by `PatientId`, structured values only), whatever their status: a referral that was rejected, withdrawn or entered in error is still part of the record
 - the versions of their pathways' notes (`PatientPathwayNoteVersion`, matched by `PatientId`), including those of pathways already deleted, and their pathways' notes themselves, **deleted notes included**: an admin's deletion only hides a note, which is kept, with who deleted it, when and why, as part of the record
+- their **letters** (`Letter`, by `PatientId`), with their text and recipients (`LetterRecipient`), and their approved PDFs among the attached files
 - staff's requests to delete their pathways' notes (`PathwayNoteDeletionRequest`, matched by `PatientId`), with their reasons and outcomes, including those about pathways already deleted
 - access audit entries, once step 7 adds them
 - notifications about their pathways and appointments (already gone under section 3, which is shorter)

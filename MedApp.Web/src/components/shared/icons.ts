@@ -120,6 +120,8 @@ import {
   RiUserUnfollowLine,
   RiGroupLine,
   RiLightbulbLine,
+  RiMailSendLine,
+  RiSendPlaneLine,
 } from '@remixicon/react';
 
 /**
@@ -298,4 +300,9 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Letters: written from templates, approved, then sent to each recipient
+  /** Letters about patients, and the side nav's Letters item. */
+  Letters: remix(RiMailSendLine),
+  /** Sending a letter to a recipient, or recording that it was sent. */
+  Send: remix(RiSendPlaneLine),
 } as const satisfies Record<string, IconType>;

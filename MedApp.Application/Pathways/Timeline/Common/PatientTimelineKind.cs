@@ -50,5 +50,8 @@ public enum PatientTimelineKind
     /// A referral was registered, edited, withdrawn or marked entered in error (from referrals' history, not the audit
     /// log, so no audit entry is of this kind).
     /// </summary>
-    Referrals
+    Referrals,
+
+    /// <summary>A letter was started, submitted, returned, approved, sent (or a secure email failed) or withdrawn.</summary>
+    Letters
 }

@@ -37,6 +37,8 @@ public static class DemoWipe
                 // Children before parents: referral → patient/specialty/pathway, appointment → patient/pathway/stage,
                 // pathway → patient and stage/map → definition don't cascade; nor do calendar blocks and templates →
                 // activity type and day template.
+                // Letters first: they name patients, pathways, referrals and templates (recipients go with them).
+                await db.Letters.ExecuteDeleteAsync(cancellationToken);
                 await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);

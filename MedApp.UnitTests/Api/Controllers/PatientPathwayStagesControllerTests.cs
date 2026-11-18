@@ -1,4 +1,4 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.CreatePatientPathwayStageDefinition;
@@ -63,7 +63,8 @@ public sealed class PatientPathwayStagesControllerTests
         var result = await Controller(mediator).CreatePatientPathwayStageDefinition(request, _cts.Token);
 
         mediator.Request.Should().Be(new CreatePatientPathwayStageDefinitionCommand(
-            request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm, request.VisitRequirement));
+            request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm, request.VisitRequirement,
+            request.NeedsLetterKind));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/pathways/patient-pathway-stage/definitions/{definition.Id}");
         created.Value.Should().Be(definition);
@@ -76,7 +77,7 @@ public sealed class PatientPathwayStagesControllerTests
         await ExpectOk(_fixture.Create<PatientPathwayStageDefinitionResponse>(),
             new UpdatePatientPathwayStageDefinitionCommand(
                 RecordId, request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm,
-                request.VisitRequirement),
+                request.VisitRequirement, request.NeedsLetterKind),
             c => c.UpdatePatientPathwayStageDefinition(RecordId, request, _cts.Token));
     }
 

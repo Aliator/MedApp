@@ -18,6 +18,7 @@ import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  isLetterEntry,
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
@@ -34,6 +35,7 @@ import {
   type TimelinePathway,
   type TimelineReferral,
 } from '../../api/timeline';
+import {letterKindWords} from '../../api/letters';
 import {formatDayHeading, formatShortDate, formatTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
 import {RichText} from '../shared/RichText';
@@ -45,6 +47,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Stages: AppIcon.Success,
   Appointments: AppIcon.AppointmentBooked,
   Referrals: AppIcon.Referrals,
+  Letters: AppIcon.Letters,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,
   Blocks: AppIcon.StatusBlocked,
@@ -89,6 +92,20 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.StatusChange;
     case 'ReferralEnteredInError':
       return AppIcon.EnteredInError;
+    case 'ReferralInformationRequested':
+      return AppIcon.Info;
+    case 'ReferralInformationReceived':
+      return AppIcon.Success;
+    case 'LetterSubmitted':
+      return AppIcon.Send;
+    case 'LetterReturned':
+      return AppIcon.Back;
+    case 'LetterApproved':
+      return AppIcon.Success;
+    case 'LetterSent':
+      return entry.dispatchStatus === 'Failed' ? AppIcon.Warning : AppIcon.Send;
+    case 'LetterWithdrawn':
+      return AppIcon.Withdraw;
     case 'StageUnlocked':
       return AppIcon.Unlock;
     case 'Unassigned':
@@ -102,6 +119,29 @@ function entryIcon(entry: TimelineEntry): IconType {
     default:
       return KIND_ICONS[entry.kind as TimelineKind] ?? AppIcon.Info;
   }
+}
+
+/** A letter's entry's links: the letter, then the pathway (unless deleted) or the referral it's about. */
+function LetterEntryLinks({entry}: {entry: TimelineEntry}) {
+  const hasPathway = Boolean(entry.pathwayId) && !isPatientEntry(entry) && !entry.isPathwayDeleted;
+  return (
+    <>
+      <Text type="supporting" maxLines={1}>
+        <Link href={`/letters/${entry.letterId}`}>{`The ${letterKindWords(entry.letterKind).toLowerCase()}`}</Link>
+      </Text>
+      {hasPathway ? (
+        <Text type="supporting" maxLines={1}>
+          <Link href={`/pathways/${entry.pathwayId}`}>{entry.pathwayTitle || 'Its pathway'}</Link>
+        </Text>
+      ) : (
+        entry.referralId && (
+          <Text type="supporting" maxLines={1}>
+            <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
+          </Text>
+        )
+      )}
+    </>
+  );
 }
 
 export interface PatientTimelineProps {
@@ -420,7 +460,10 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
           <HStack gap={2} vAlign="center" wrap="wrap">
             {/* A referral's entry, or its letter's, links to the referral. No pathway to link to: an appointment not for
                 one, or a patient's own file (its detail says "To the patient"). */}
-            {(isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (
+            {/* A letter's entry links to the letter, and to the pathway or referral it's about. */}
+            {isLetterEntry(entry) && entry.letterId ? (
+              <LetterEntryLinks entry={entry} />
+            ) : (isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (
               <>
                 <Text type="supporting" maxLines={1}>
                   <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>

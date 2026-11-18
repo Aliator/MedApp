@@ -25,6 +25,8 @@ describe('views', () => {
   it('start on the inbox, and ask for its statuses', () => {
     expect(referralViewOf({})).toBe('awaiting');
     expect(viewStatuses('awaiting')).toEqual(['AwaitingTriage']);
+    expect(viewStatuses('information')).toEqual(['InformationRequested']);
+    expect(parseReferralsSearch({view: 'Information'})).toEqual({view: 'information'});
     expect(viewStatuses('closed')).toEqual(['Accepted', 'Rejected', 'RedirectedElsewhere', 'Withdrawn', 'EnteredInError']);
     expect(viewStatuses('all')).toBeUndefined();
   });

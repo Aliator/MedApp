@@ -3,6 +3,7 @@ using FluentAssertions;
 using MedApp.API.Attachments;
 using MedApp.API.Controllers;
 using MedApp.Application.Letters.Commands.CreateLetterTemplate;
+using MedApp.Application.Letters.Commands.DeleteLetterTemplate;
 using MedApp.Application.Letters.Commands.SetLetterTemplateArchived;
 using MedApp.Application.Letters.Commands.UpdateLetterTemplate;
 using MedApp.Application.Letters.Queries.GetLetterMergeFields;
@@ -30,6 +31,7 @@ public sealed class LetterTemplatesControllerTests
         nameof(LetterTemplatesController.ArchiveLetterTemplate),
         nameof(LetterTemplatesController.RestoreLetterTemplate),
         nameof(LetterTemplatesController.PreviewLetterTemplate),
+        nameof(LetterTemplatesController.DeleteLetterTemplate),
     ];
 
     private static readonly string[] Reads =
@@ -181,5 +183,17 @@ public sealed class LetterTemplatesControllerTests
                 .Should().BeTrue(action);
             (await ControllerAuthorisation.MayCallAsync<LetterTemplatesController>(action, SignedIn())).Should().BeFalse(action);
         }
+    }
+
+    [Test]
+    public async Task DeleteLetterTemplate_SendsTheCommand_AndAnswersNoContent()
+    {
+        var mediator = new RecordingMediator(_ => MediatR.Unit.Value);
+
+        var result = await Controller(mediator).DeleteLetterTemplate(RecordId, _cts.Token);
+
+        mediator.Request.Should().Be(new DeleteLetterTemplateCommand(RecordId));
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<NoContentResult>();
     }
 }

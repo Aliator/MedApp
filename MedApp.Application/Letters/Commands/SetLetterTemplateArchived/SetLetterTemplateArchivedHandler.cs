@@ -26,6 +26,7 @@ public sealed class SetLetterTemplateArchivedHandler(
         }
 
         var specialty = template.SpecialtyId is { } id ? await specialties.GetAsync(id, cancellationToken) : null;
-        return LetterTemplateMapper.ToResponse(template, specialty?.Name);
+        return LetterTemplateMapper.ToResponse(
+            template, specialty?.Name, !await repository.IsInUseAsync(template.Id, cancellationToken));
     }
 }

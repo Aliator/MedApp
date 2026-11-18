@@ -6,6 +6,7 @@ using MedApp.Application.Referrals.Commands.MarkReferralEnteredInError;
 using MedApp.Application.Referrals.Commands.RedirectReferral;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
 using MedApp.Application.Referrals.Commands.RejectReferral;
+using MedApp.Application.Referrals.Commands.RequestReferralInformation;
 using MedApp.Application.Referrals.Commands.WithdrawReferral;
 using MedApp.Application.Referrals.Queries.CountReferralsAwaitingTriage;
 using MedApp.Application.Referrals.Queries.GetReferralById;
@@ -170,6 +171,33 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> RedirectReferral(Guid id, [FromBody] RedirectReferralRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new RedirectReferralCommand(
             id, request.SpecialtyId, request.Elsewhere, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Triage: asks the referrer for more information. The referral stays open, in the Information requested view, with
+    /// its clock still running; the letter asking is written from its page.
+    /// </summary>
+    [HttpPost("{id:guid}/ask-for-information")]
+    [RequirePermission(Permission.TriageReferrals)]
+    [ProducesResponseType(typeof(ReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AskForInformation(Guid id, [FromBody] ReferralVersionRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetReferralInformationRequestedCommand(
+            id, Asked: true, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>Triage: records that the information asked for came; the referral is back awaiting triage.</summary>
+    [HttpPost("{id:guid}/information-received")]
+    [RequirePermission(Permission.TriageReferrals)]
+    [ProducesResponseType(typeof(ReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> InformationReceived(Guid id, [FromBody] ReferralVersionRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetReferralInformationRequestedCommand(
+            id, Asked: false, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>Withdraws a referral awaiting triage (the referrer or the patient withdrew it), with a detail.</summary>
     [HttpPost("{id:guid}/withdraw")]

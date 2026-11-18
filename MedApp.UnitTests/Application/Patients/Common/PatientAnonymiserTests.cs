@@ -264,7 +264,8 @@ public sealed class PatientAnonymiserTests
         NoteDeletionRequests = [],
         Attachments = [],
         Referrals = [],
-        ReferralHistory = []
+        ReferralHistory = [],
+        Letters = []
     };
 
     private static PatientRecord WithActivity(PatientRecord record, ActivityEntry entry) => new PatientRecord
@@ -280,7 +281,8 @@ public sealed class PatientAnonymiserTests
         NoteDeletionRequests = [],
         Attachments = [],
         Referrals = [],
-        ReferralHistory = []
+        ReferralHistory = [],
+        Letters = []
     };
 
     private static PatientRecord WithNotifications(PatientRecord record, params Notification[] notifications) => new PatientRecord
@@ -296,7 +298,8 @@ public sealed class PatientAnonymiserTests
         NoteDeletionRequests = [],
         Attachments = [],
         Referrals = [],
-        ReferralHistory = []
+        ReferralHistory = [],
+        Letters = []
     };
 
     [Test]
@@ -390,7 +393,8 @@ public sealed class PatientAnonymiserTests
         NoteDeletionRequests = [],
         Attachments = [],
         Referrals = [],
-        ReferralHistory = []
+        ReferralHistory = [],
+        Letters = []
     };
 
     private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new PatientRecord
@@ -406,6 +410,7 @@ public sealed class PatientAnonymiserTests
         NoteDeletionRequests = [],
         Attachments = [],
         Referrals = [],
-        ReferralHistory = []
+        ReferralHistory = [],
+        Letters = []
     };
 }

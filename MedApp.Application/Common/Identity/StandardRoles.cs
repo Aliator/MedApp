@@ -44,7 +44,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            OverrideStages, BookAppointments, AttachFiles,
+            OverrideStages, BookAppointments, AttachFiles, WriteLetters, ApproveLetters, SendLetters,
         });
 
     public static readonly StandardRole Nurse = new(
@@ -54,7 +54,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments,
-            AttachFiles,
+            AttachFiles, WriteLetters, SendLetters,
         });
 
     public static readonly StandardRole Booking = new(
@@ -64,7 +64,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar,
-            ManageClinics, AttachFiles,
+            ManageClinics, AttachFiles, SendLetters,
         });
 
     public static readonly StandardRole Lab = new(

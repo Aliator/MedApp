@@ -23,6 +23,11 @@ export interface StageDefinitionInput {
   description: string;
   instructions: string;
   visitRequirement: VisitRequirement;
+  /**
+   * The kind of letter (`DischargeSummary`, ...) that must be approved and sent before the stage can be finished, or
+   * `None`. Always sent: `None` clears it on a save.
+   */
+  needsLetterKind: string;
   snomedCode: string;
   snomedTerm: string;
 }

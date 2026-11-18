@@ -49,6 +49,6 @@ public sealed class CreateLetterTemplateHandler(
         };
 
         await repository.AddAsync(template, cancellationToken);
-        return LetterTemplateMapper.ToResponse(template, specialtyName);
+        return LetterTemplateMapper.ToResponse(template, specialtyName, canBeDeleted: true);
     }
 }

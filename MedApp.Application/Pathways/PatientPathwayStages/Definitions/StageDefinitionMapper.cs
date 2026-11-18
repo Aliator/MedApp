@@ -17,6 +17,7 @@ public static class StageDefinitionMapper
         SnomedCode = definition.SnomedCode,
         SnomedTerm = definition.SnomedTerm,
         VisitRequirement = definition.VisitRequirement.ToString(),
+        NeedsLetterKind = definition.NeedsLetterKind?.ToString(),
         IsArchived = definition.IsArchived,
         TemplateCount = usage.TemplateCount,
         CanBeDeleted = !usage.InUse

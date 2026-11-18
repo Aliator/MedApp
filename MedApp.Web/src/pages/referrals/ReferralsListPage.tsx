@@ -3,7 +3,7 @@ import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
-import {referralSearchQuery, type ReferralSummary} from '../../api/referrals';
+import {isOpenReferralStatus, referralSearchQuery, type ReferralSummary} from '../../api/referrals';
 import {specialtiesQuery} from '../../api/specialties';
 import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
@@ -42,14 +42,16 @@ const FILTER_FIELDS: ListFilterField[] = [
     label: 'Showing',
     options: [
       {value: 'awaiting', label: 'Awaiting triage'},
+      {value: 'information', label: 'Information requested'},
       {value: 'closed', label: 'Closed'},
     ],
   },
 ];
 
-/** The views: the inbox, the closed ones, and all of them. */
+/** The views: the inbox, those waiting for more information, the closed ones, and all of them. */
 const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Awaiting triage', values: {view: 'awaiting'}},
+  {label: 'Information requested', values: {view: 'information'}},
   {label: 'Closed', values: {view: 'closed'}},
   {label: 'All', values: {}},
 ];
@@ -62,7 +64,8 @@ function barValues(search: ReferralsListSearch): ListFilterValues {
 
 /** The search from the bar's values: a removed view is `all`, and the inbox is left out of the URL. */
 function fromBar(values: ListFilterValues, search: ReferralsListSearch): ReferralsListSearch {
-  const view: ReferralView = values.view === undefined ? 'all' : values.view === 'closed' ? 'closed' : 'awaiting';
+  const view: ReferralView =
+    values.view === undefined ? 'all' : values.view === 'closed' ? 'closed' : values.view === 'information' ? 'information' : 'awaiting';
   return {
     sort: search.sort,
     asc: search.asc,
@@ -77,6 +80,7 @@ function countWords(view: ReferralView, total: number, isSearched: boolean): str
   const noun = total === 1 ? 'referral' : 'referrals';
   if (isSearched) return `${total} matching ${noun}`;
   if (view === 'awaiting') return `${total} ${noun} awaiting triage`;
+  if (view === 'information') return `${total} ${noun} waiting for more information`;
   return view === 'closed' ? `${total} closed ${noun}` : `${total} ${noun}`;
 }
 
@@ -138,7 +142,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       sortable: true,
       width: REFERRAL_COLUMN_WIDTH.received,
       renderCell: (r) => (
-        <ReceivedCell receivedOn={r.receivedOn ?? ''} daysSinceReceived={r.daysSinceReceived ?? 0} isOpen={r.status === 'AwaitingTriage'} />
+        <ReceivedCell receivedOn={r.receivedOn ?? ''} daysSinceReceived={r.daysSinceReceived ?? 0} isOpen={isOpenReferralStatus(r.status)} />
       ),
     },
     {
@@ -212,7 +216,15 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
             />
           ) : (
             <EmptyState
-              title={view === 'awaiting' ? 'No referrals are awaiting triage' : view === 'closed' ? 'No closed referrals' : 'No referrals yet'}
+              title={
+                view === 'awaiting'
+                  ? 'No referrals are awaiting triage'
+                  : view === 'information'
+                    ? 'No referrals are waiting for more information'
+                    : view === 'closed'
+                      ? 'No closed referrals'
+                      : 'No referrals yet'
+              }
               description={view === 'awaiting' ? 'Registered referrals wait here until they are triaged.' : undefined}
               icon={<Icon icon={AppIcon.Referrals} size="lg" />}
             />

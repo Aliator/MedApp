@@ -10,6 +10,10 @@ public static class LetterTemplateRules
     public const string ChangedMeanwhileMessage =
         "Someone changed this letter template while you had it open. Reload to see the change, then try again.";
 
+    /// <summary>A template some letter was written from: archived, never deleted.</summary>
+    public const string InUseMessage =
+        "Letters have been written from this template, so it can't be deleted. Archive it instead.";
+
     public static string NameTakenMessage(string name, string? specialtyName) =>
         specialtyName is null
             ? $"A letter template for every specialty is already called '{name}'."

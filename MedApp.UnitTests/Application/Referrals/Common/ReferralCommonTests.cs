@@ -99,11 +99,13 @@ public sealed class ReferralChangeTests
 public sealed class ReferralWorkflowTests
 {
     [Test]
-    public void OnlyAwaitingTriageIsOpen()
+    public void AwaitingTriageAndInformationRequested_AreOpen()
     {
-        ReferralWorkflow.OpenStatuses.Should().Equal(ReferralStatus.AwaitingTriage);
-        ReferralWorkflow.ClosedStatuses.Should().NotContain(ReferralStatus.AwaitingTriage)
-            .And.HaveCount(Enum.GetValues<ReferralStatus>().Length - 1);
+        ReferralWorkflow.OpenStatuses.Should().Equal(ReferralStatus.AwaitingTriage, ReferralStatus.InformationRequested);
+        ReferralWorkflow.ClosedStatuses.Should().NotContain(ReferralWorkflow.OpenStatuses)
+            .And.HaveCount(Enum.GetValues<ReferralStatus>().Length - 2);
+        ReferralWorkflow.IsOpen(ReferralStatus.InformationRequested).Should().BeTrue();
+        ReferralWorkflow.Describe(ReferralStatus.InformationRequested).Should().Be("waiting for more information");
     }
 
     [Test]

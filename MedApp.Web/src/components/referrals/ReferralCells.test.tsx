@@ -8,6 +8,7 @@ describe('ReferralCells', () => {
     renderWithApp(
       <>
         <ReferralStatusToken status="AwaitingTriage" />
+        <ReferralStatusToken status="InformationRequested" />
         <ReferralStatusToken status="RedirectedElsewhere" />
         <ReferralStatusToken status="EnteredInError" />
         <ReferralStatusToken status="SomethingNew" />
@@ -16,6 +17,7 @@ describe('ReferralCells', () => {
       {user: staffUser},
     );
     expect(await screen.findByText('Awaiting triage')).toBeInTheDocument();
+    expect(screen.getByText('Information requested')).toBeInTheDocument();
     expect(screen.getByText('Redirected elsewhere')).toBeInTheDocument();
     expect(screen.getByText('Entered in error')).toBeInTheDocument();
     expect(screen.getByText('Something new')).toBeInTheDocument();

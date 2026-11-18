@@ -1,6 +1,7 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Letters;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -65,4 +66,10 @@ public sealed record PatientRecord
 
     /// <summary>Every change to the patient's referrals, oldest first.</summary>
     public required IReadOnlyList<ReferralEvent> ReferralHistory { get; init; }
+
+    /// <summary>
+    /// The patient's letters, in any status, oldest first, with their recipients. Their history is in
+    /// <see cref="PathwayHistory"/>; their approved PDFs are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<Letter> Letters { get; init; }
 }

@@ -14,6 +14,9 @@ import {notificationsQuery, useMarkNotificationsRead, type AppNotification} from
 import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
+/** The notifications about a letter, which name it in `subjectId`. */
+const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'LetterReturned']);
+
 /**
  * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
  * pathway's page (for the admin to decide), a pathway on its page, and anything else about a day on the calendar
@@ -21,21 +24,24 @@ import {AppIcon} from '../shared/icons';
  * has one (an invitation, a move, a decline; not a cancellation), so an organiser told of a decline sees who, even if
  * they aren't going. An admin's "Scheduled job failing" (a job that failed three times in a row) opens Scheduled Jobs.
  * "Referral triaged" (one you registered was accepted, rejected or redirected by someone else) opens the referral.
+ * The letter kinds (a letter awaiting your approval, yours approved or returned) open the letter (`subjectId`).
  */
 const hrefOf = (notification: AppNotification) =>
   notification.kind === 'ScheduledJobFailing'
     ? '/admin/jobs'
-    : notification.referralId
-      ? `/referrals/${notification.referralId}`
-      : notification.appointmentId
-        ? `/calendar?appointment=${notification.appointmentId}`
-        : notification.noteDeletionRequestId && notification.pathwayId
-          ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
-          : notification.pathwayId
-            ? `/pathways/${notification.pathwayId}`
-            : notification.calendarDate
-              ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
-              : undefined;
+    : LETTER_KINDS.has(notification.kind ?? '') && notification.subjectId
+      ? `/letters/${notification.subjectId}`
+      : notification.referralId
+        ? `/referrals/${notification.referralId}`
+        : notification.appointmentId
+          ? `/calendar?appointment=${notification.appointmentId}`
+          : notification.noteDeletionRequestId && notification.pathwayId
+            ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+            : notification.pathwayId
+              ? `/pathways/${notification.pathwayId}`
+              : notification.calendarDate
+                ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
+                : undefined;
 
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
@@ -56,6 +62,9 @@ const KIND_ICONS: Record<string, IconType> = {
   AuthorsNoteDeleted: AppIcon.Delete,
   ScheduledJobFailing: AppIcon.ScheduledJobs,
   ReferralTriaged: AppIcon.Referrals,
+  LetterAwaitingApproval: AppIcon.Letters,
+  LetterApproved: AppIcon.Success,
+  LetterReturned: AppIcon.Back,
 };
 
 /** The bell, which the unread count is placed over. */

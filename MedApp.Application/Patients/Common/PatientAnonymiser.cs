@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
+using MedApp.Domain.Letters;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -30,6 +31,9 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Referrals' reasons, referring practices and clinicians, decision and redirect details and redirect destinations become
 /// <see cref="RemovedText"/>, and their ODS codes and links to the directory's practices are removed; their dates, statuses, priorities and specialties stay.
 /// Their history holds no free text, but its details are scrubbed as the others' are.</item>
+/// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
+/// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their
+/// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -152,6 +156,26 @@ public static class PatientAnonymiser
 
         foreach (var entry in record.ReferralHistory)
             entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
+
+        // Letters keep their kinds, statuses, dates, templates and who did what; their text goes, and so do the names
+        // and addresses of the patient, the referrer (a referring clinician is a third party) and anyone else typed. A
+        // practice from the directory is an organisation, and stays. Their PDFs are files, deleted with the rest.
+        foreach (var letter in record.Letters)
+        {
+            letter.Body = Removed(letter.Body);
+            letter.Closing = Removed(letter.Closing);
+            if (letter.ReturnComment is not null)
+                letter.ReturnComment = Removed(letter.ReturnComment);
+            if (letter.WithdrawnReason is not null)
+                letter.WithdrawnReason = Removed(letter.WithdrawnReason);
+            foreach (var recipient in letter.Recipients.Where(r => r.Kind != LetterRecipientKind.GpPractice))
+            {
+                recipient.Name = Removed(recipient.Name);
+                recipient.AddressLines = null;
+                recipient.Postcode = null;
+                recipient.Email = null;
+            }
+        }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;

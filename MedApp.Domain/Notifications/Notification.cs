@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Notifications;
+namespace MedApp.Domain.Notifications;
 
 /// <summary>
 /// Something that happened that a user should know about, e.g. being assigned to a pathway. Kept, so it's there
@@ -47,6 +47,14 @@ public sealed class Notification
     /// </summary>
     public Guid? ReferralId { get; init; }
 
+    /// <summary>
+    /// What it's about, when that isn't one of the columns above: its meaning comes from the kind (a letter for
+    /// <see cref="NotificationKind.LetterAwaitingApproval"/>, <see cref="NotificationKind.LetterApproved"/> and
+    /// <see cref="NotificationKind.LetterReturned"/>), and the web app links each kind to its page. No foreign key: the
+    /// notification outlives what it's about.
+    /// </summary>
+    public Guid? SubjectId { get; init; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     /// <summary>When the user marked it read; null while unread.</summary>
@@ -62,13 +70,16 @@ public sealed class Notification
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
     /// "Appointment booked", the meeting kinds' "Meeting invitation"; the monitoring kinds' "Stage finished"; the note
-    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; "Clinic session cancelled"; and "Scheduled job failing"), rather than the
+    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the letter kinds' "Letter to approve"; "Clinic session cancelled"; and "Scheduled job failing"), rather than the
     /// pathway's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
         kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.AppointmentRecorded
             or NotificationKind.StageVisitWithdrawn
             or NotificationKind.ReferralTriaged
+            or NotificationKind.LetterAwaitingApproval
+            or NotificationKind.LetterApproved
+            or NotificationKind.LetterReturned
             or NotificationKind.ClinicSessionCancelled
             or NotificationKind.ScheduledJobFailing
         || IsMonitoring(kind)

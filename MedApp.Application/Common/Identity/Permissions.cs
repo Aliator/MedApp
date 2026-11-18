@@ -33,6 +33,10 @@ public enum Permission
 
     AttachFiles,
 
+    WriteLetters,
+    ApproveLetters,
+    SendLetters,
+
     ViewInsights,
     ManageMonitoring,
 
@@ -57,6 +61,7 @@ public enum PermissionGroup
     Pathways,
     AppointmentsAndCalendars,
     Files,
+    Letters,
     Oversight,
     Setup,
 
@@ -119,6 +124,13 @@ public static class Permissions
         new(Permission.AttachFiles, PermissionGroup.Files,
             "Attach files, and delete your own."),
 
+        new(Permission.WriteLetters, PermissionGroup.Letters,
+            "Write letters about patients from templates, and submit them for approval."),
+        new(Permission.ApproveLetters, PermissionGroup.Letters,
+            "Approve or return letters submitted to you, and approve your own."),
+        new(Permission.SendLetters, PermissionGroup.Letters,
+            "Send approved letters by secure email, or record them as posted or handed over."),
+
         new(Permission.ViewInsights, PermissionGroup.Oversight,
             "See Insights."),
         new(Permission.ManageMonitoring, PermissionGroup.Oversight,
@@ -150,12 +162,23 @@ public static class Permissions
         Catalogue.ToDictionary(p => p.Name, p => p.Permission, StringComparer.Ordinal);
 
     /// <summary>
-    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but
-    /// <see cref="Permission.TriageReferrals"/>, the clinical decision (an admin who triages holds a role that grants
-    /// it too).
+    /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decision 74):
+    /// triage, and writing, approving and sending letters. An admin who does that work holds a role that grants it too.
+    /// </summary>
+    public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
+    {
+        Permission.TriageReferrals,
+        Permission.WriteLetters,
+        Permission.ApproveLetters,
+        Permission.SendLetters,
+    };
+
+    /// <summary>
+    /// The built-in Admin role's permissions, fixed in code: every one today's admins use, which is all of them but the
+    /// clinical ones (<see cref="NotForAdmin"/>: triage, and letters).
     /// </summary>
     public static readonly IReadOnlySet<Permission> Admin =
-        Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        Enum.GetValues<Permission>().Where(p => !NotForAdmin.Contains(p)).ToHashSet();
 
     /// <summary>A permission's group and description.</summary>
     public static PermissionDescription Describe(Permission permission) => ByPermission[permission];

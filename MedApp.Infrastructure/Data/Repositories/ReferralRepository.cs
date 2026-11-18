@@ -67,6 +67,7 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
             .Where(r => r.PatientId == patientId
                         && r.SpecialtyId == specialtyId
                         && (r.Status == ReferralStatus.AwaitingTriage
+                            || r.Status == ReferralStatus.InformationRequested
                             || (r.Status == ReferralStatus.Accepted
                                 && r.Pathway != null
                                 && !closed.Contains(r.Pathway.Status))))
@@ -120,7 +121,9 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
         await context.Referrals
             .AsNoTracking()
             .Include(r => r.Specialty)
-            .Where(r => r.PatientId == patientId && r.Status == ReferralStatus.AwaitingTriage)
+            // Open: awaiting triage, or waiting for more information.
+            .Where(r => r.PatientId == patientId
+                        && (r.Status == ReferralStatus.AwaitingTriage || r.Status == ReferralStatus.InformationRequested))
             .OrderBy(r => r.ReceivedOn).ThenBy(r => r.Id)
             .ToListAsync(ct);
 

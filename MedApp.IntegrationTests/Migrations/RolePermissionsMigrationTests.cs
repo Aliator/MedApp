@@ -21,6 +21,11 @@ public sealed class RolePermissionsMigrationTests
     private const string Migration = "20261118111735_AddedRolePermissions";
     private const string BeforeWorkingHours = "20261118131343_AddedReferrals";
     private const string WorkingHoursMigration = "20261118133740_AddedWorkingHours";
+    private const string BeforeLetters = "20261118154532_AddedLetterTemplates";
+    private const string LettersMigration = "20261118170355_AddedLetters";
+
+    /// <summary>The permissions later migrations than these add (AddedLetters: the letter permissions).</summary>
+    private static readonly Permission[] LetterPermissions = [Permission.WriteLetters, Permission.ApproveLetters, Permission.SendLetters];
 
     private static readonly Guid AdminRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
     private static readonly Guid UserRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000002");
@@ -83,9 +88,9 @@ public sealed class RolePermissionsMigrationTests
         foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
         {
             roles[role.Id].Should().Be((role.Name, role.Name.ToUpperInvariant(), false, false));
-            // ManageClinics came later, with AddedWorkingHours.
+            // ManageClinics came later, with AddedWorkingHours, and the letter permissions with AddedLetters.
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(
-                role.Permissions.Where(p => p != Permission.ManageClinics).Select(p => p.ToString()), role.Name);
+                role.Permissions.Where(p => p != Permission.ManageClinics && !LetterPermissions.Contains(p)).Select(p => p.ToString()), role.Name);
         }
     }
 
@@ -96,13 +101,31 @@ public sealed class RolePermissionsMigrationTests
         await _context.GetService<IMigrator>().MigrateAsync(WorkingHoursMigration);
 
         foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician))
-            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(
+                role.Permissions.Where(p => !LetterPermissions.Contains(p)).Select(p => p.ToString()), role.Name);
         (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty("a role an admin made with a starting role's name is left alone");
 
         await _context.GetService<IMigrator>().MigrateAsync(BeforeWorkingHours);
 
         (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().NotContain(nameof(Permission.ManageClinics));
         (await PermissionsOfAsync(StandardRoles.Manager.Id)).Should().NotContain(nameof(Permission.ManageClinics));
+    }
+
+    [Test]
+    public async Task Letters_UpGivesTheLetterPermissionsAsTheTableSays_AndDownTakesThemAway()
+    {
+        await _context.GetService<IMigrator>().MigrateAsync(LettersMigration);
+
+        foreach (var role in StandardRoles.Starting)
+            (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(role.Permissions.Select(p => p.ToString()), role.Name);
+        (await PermissionsOfAsync(StandardRoles.Clinician.Id)).Should().Contain(LetterPermissions.Select(p => p.ToString()));
+        (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().Contain(nameof(Permission.SendLetters))
+            .And.NotContain(nameof(Permission.WriteLetters));
+
+        await _context.GetService<IMigrator>().MigrateAsync(BeforeLetters);
+
+        foreach (var role in StandardRoles.Starting)
+            (await PermissionsOfAsync(role.Id)).Should().NotContain(LetterPermissions.Select(p => p.ToString()), role.Name);
     }
 
     [Test]

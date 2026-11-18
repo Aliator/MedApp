@@ -24,6 +24,9 @@ export const PERMISSIONS = [
   'ArrangeMeetings',
   'ManageClinics',
   'AttachFiles',
+  'WriteLetters',
+  'ApproveLetters',
+  'SendLetters',
   'ViewInsights',
   'ManageMonitoring',
   'ManageSetup',
@@ -46,6 +49,7 @@ export type PermissionGroup =
   | 'Pathways'
   | 'AppointmentsAndCalendars'
   | 'Files'
+  | 'Letters'
   | 'Oversight'
   | 'Setup'
   | 'AdministratorOnly';
@@ -88,6 +92,12 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   },
   ManageClinics: {group: 'AppointmentsAndCalendars', description: 'Set staff working hours.'},
   AttachFiles: {group: 'Files', description: 'Attach files, and delete your own.'},
+  WriteLetters: {group: 'Letters', description: 'Write letters about patients from templates, and submit them for approval.'},
+  ApproveLetters: {group: 'Letters', description: 'Approve or return letters submitted to you, and approve your own.'},
+  SendLetters: {
+    group: 'Letters',
+    description: 'Send approved letters by secure email, or record them as posted or handed over.',
+  },
   ViewInsights: {group: 'Oversight', description: 'See Insights.'},
   ManageMonitoring: {group: 'Oversight', description: 'Set up your own monitoring rules.'},
   ManageSetup: {

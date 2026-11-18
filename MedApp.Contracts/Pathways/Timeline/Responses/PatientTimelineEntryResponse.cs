@@ -129,4 +129,25 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>ReferralRedirectedElsewhere: where to. Admins only (it's free text).</summary>
     public string? RedirectedTo { get; set; }
+
+    /// <summary>A letter entry: the letter.</summary>
+    public Guid? LetterId { get; set; }
+
+    /// <summary>A letter entry: its kind, by name (ClinicLetter, DischargeSummary, ...).</summary>
+    public string? LetterKind { get; set; }
+
+    /// <summary>A letter entry: the template it was written from, an admin-written name.</summary>
+    public string? LetterTemplateName { get; set; }
+
+    /// <summary>LetterSubmitted: the approver it was submitted to (a username).</summary>
+    public string? ApproverUsername { get; set; }
+
+    /// <summary>LetterSent: which recipient, by kind (GpPractice, Patient, Referrer, Other).</summary>
+    public string? RecipientKind { get; set; }
+
+    /// <summary>LetterSent: how (Post, HandedToPatient, SecureEmail, EmailOutsideMedApp, Other).</summary>
+    public string? DispatchMethod { get; set; }
+
+    /// <summary>LetterSent: whether it reached them (Sent), or a secure email failed (Failed).</summary>
+    public string? DispatchStatus { get; set; }
 }

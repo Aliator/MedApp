@@ -59,4 +59,39 @@ public sealed class SmtpEmailTransportTests
         full.GetProperty("Text").GetString().Should().Contain("Choose a new password");
         full.GetProperty("HTML").GetString().Should().Contain("<a href=");
     }
+
+    [Test]
+    public async Task SecureLetterTransport_DeliversTheLetterWithItsPdf_AndNothingAboutThePatient()
+    {
+        var options = new MedApp.Application.Practices.Common.LettersOptions
+        {
+            SecureEmail = new MedApp.Application.Practices.Common.LetterSecureEmailOptions
+            {
+                Host = _mailpit.Hostname,
+                Port = _mailpit.GetMappedPublicPort(1025),
+                Security = "None",
+                FromAddress = "centre@example.nhs.net",
+                FromName = "Synthetic Specialist Centre",
+                RelayMeetsDcb1596 = true,
+            },
+        };
+        var pdf = "%PDF-1.7 synthetic letter"u8.ToArray();
+
+        var reference = await new MedApp.Infrastructure.Letters.SecureEmailLetterTransport(Options.Create(options)).SendAsync(
+            MedApp.Application.Letters.Common.SecureLetterEmails.For("practice@nhs.net", "Synthetic Specialist Centre", pdf),
+            CancellationToken.None);
+
+        reference.Should().NotBeNullOrEmpty();
+        using var http = new HttpClient { BaseAddress = new Uri($"http://{_mailpit.Hostname}:{_mailpit.GetMappedPublicPort(8025)}") };
+        var list = await http.GetFromJsonAsync<JsonElement>("/api/v1/messages");
+        var received = list.GetProperty("messages").EnumerateArray()
+            .Single(m => m.GetProperty("Subject").GetString() == "A letter from Synthetic Specialist Centre");
+        received.GetProperty("From").GetProperty("Address").GetString().Should().Be("centre@example.nhs.net");
+        received.GetProperty("To")[0].GetProperty("Address").GetString().Should().Be("practice@nhs.net");
+        received.GetProperty("Attachments").GetInt32().Should().Be(1);
+        reference.Should().Contain(received.GetProperty("MessageID").GetString());
+
+        // Leave Mailpit empty for the other test, which expects only its own message.
+        await http.DeleteAsync("/api/v1/messages");
+    }
 }

@@ -127,6 +127,7 @@ public static class PathwayMapper
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
+                    NeedsLetterKind = s.NeedsLetterKind?.ToString(),
                     Notes = s.Notes,
                     State = PathwayWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,

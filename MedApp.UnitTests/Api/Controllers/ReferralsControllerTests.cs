@@ -41,6 +41,8 @@ public sealed class ReferralsControllerTests
         nameof(ReferralsController.AcceptReferral),
         nameof(ReferralsController.RejectReferral),
         nameof(ReferralsController.RedirectReferral),
+        nameof(ReferralsController.AskForInformation),
+        nameof(ReferralsController.InformationReceived),
     ];
 
     private IFixture _fixture = null!;

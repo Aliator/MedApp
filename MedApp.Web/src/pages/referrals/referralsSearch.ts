@@ -1,17 +1,21 @@
-import {CLOSED_REFERRAL_STATUSES, OPEN_REFERRAL_STATUSES, type ReferralStatus} from '../../api/referrals';
+import {CLOSED_REFERRAL_STATUSES, type ReferralStatus} from '../../api/referrals';
 import {parseIdChoice} from '../listSearch';
 
 /**
  * The Referrals page's address: its view, page, sort, the patient's name searched for and the specialties. The view is Awaiting triage
- * (the inbox) unless the URL says `view=closed` or `view=all`, so the inbox's own link has no search at all.
+ * (the inbox) unless the URL says `view=information` (Information requested), `view=closed` or `view=all`, so the inbox's
+ * own link has no search at all.
  */
 
 /** URL sort names, and the API's names for them. Received, oldest first, by default: the longest wait at the top. */
 export const REFERRAL_SORTS = {Received: 'receivedOn', Patient: 'patient', Specialty: 'specialty', Priority: 'priority', Registered: 'registered'} as const;
 export type ReferralSortColumn = keyof typeof REFERRAL_SORTS;
 
-/** What the list shows: referrals awaiting triage (the inbox), the closed ones, or all of them. */
-export const REFERRAL_VIEWS = ['awaiting', 'closed', 'all'] as const;
+/**
+ * What the list shows: referrals awaiting triage (the inbox), those waiting for more information from the referrer,
+ * the closed ones, or all of them.
+ */
+export const REFERRAL_VIEWS = ['awaiting', 'information', 'closed', 'all'] as const;
 export type ReferralView = (typeof REFERRAL_VIEWS)[number];
 
 export interface ReferralsListSearch {
@@ -53,7 +57,8 @@ export const referralViewOf = (search: ReferralsListSearch): ReferralView => sea
 
 /** The statuses a view asks the API for: none for All. */
 export function viewStatuses(view: ReferralView): ReferralStatus[] | undefined {
-  if (view === 'awaiting') return OPEN_REFERRAL_STATUSES;
+  if (view === 'awaiting') return ['AwaitingTriage'];
+  if (view === 'information') return ['InformationRequested'];
   if (view === 'closed') return CLOSED_REFERRAL_STATUSES;
   return undefined;
 }
