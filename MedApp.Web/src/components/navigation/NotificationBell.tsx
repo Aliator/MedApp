@@ -1,3 +1,4 @@
+import {useAppShellMobile} from '@astryxdesign/core/AppShell';
 import {Badge} from '@astryxdesign/core/Badge';
 import {Button} from '@astryxdesign/core/Button';
 import {Heading} from '@astryxdesign/core/Heading';
@@ -8,11 +9,12 @@ import {Popover} from '@astryxdesign/core/Popover';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
-import {useLayoutEffect, useState, type MouseEvent} from 'react';
+import {useLayoutEffect, useRef, useState, type MouseEvent} from 'react';
 import {useColorMode} from '../../app/colorMode';
 import {notificationsQuery, useMarkNotificationsRead, type AppNotification} from '../../api/notifications';
 import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
+import {placeBesideNav} from './besideNav';
 
 /** The notifications about a letter, which name it in `subjectId`. */
 const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'LetterReturned']);
@@ -151,27 +153,37 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const {mode} = useColorMode();
 
-  // The list is in the app's own mode and on the cards' colour, not the side nav's (always dark), as the nav rows'
-  // menus are (`RowMenu`): Astryx hosts it inside the nav, outside any Theme put round it here, so its colours are
-  // switched where it is. Found once it's open (a few frames, while it's laid out).
+  const {isMobile} = useAppShellMobile();
+  const bell = useRef<HTMLButtonElement | null>(null);
+
+  // The list opens as a nav row's menu does (`placeBesideNav`): beside the nav, as far out from its edge as the rows are
+  // in from it, level with the bell's row (the heading; folded, the bell's own line under the logo), in the app's own
+  // mode and on the cards' colour, not the side nav's (always dark). On a phone the nav is a drawer over the page, so
+  // there it's left where Astryx puts it, beside the bell, only taking the app's colours. Found once it's open (a few
+  // frames, while it's laid out).
   useLayoutEffect(() => {
     if (!isOpen) return;
     let frame = 0;
     let tries = 0;
-    const style = () => {
+    const place = () => {
       const panel = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Notifications"]');
-      if (panel) {
+      const button = bell.current;
+      const heading = button?.closest<HTMLElement>('.astryx-side-nav-heading');
+      const row = heading ?? button?.closest<HTMLElement>('[data-nav-header]');
+      if (panel && button && row && !isMobile) {
+        if (placeBesideNav({panel, row, levelWith: heading ?? button, mode})) return;
+      } else if (panel) {
         (panel.closest<HTMLElement>('[data-astryx-layer-root]') ?? panel).style.colorScheme = mode;
         const surface =
           panel.closest<HTMLElement>('.astryx-popover') ?? panel.querySelector<HTMLElement>('.astryx-popover') ?? panel;
         surface.style.backgroundColor = 'var(--medapp-card-background)';
-      } else if (tries++ < 10) {
-        frame = requestAnimationFrame(style);
+        return;
       }
+      if (tries++ < 10) frame = requestAnimationFrame(place);
     };
-    style();
+    place();
     return () => cancelAnimationFrame(frame);
-  }, [isOpen, mode]);
+  }, [isOpen, mode, isMobile]);
   const {data} = useQuery(notificationsQuery);
   const markRead = useMarkNotificationsRead();
   const unread = data?.unreadCount ?? 0;
@@ -256,7 +268,7 @@ export function NotificationBell() {
           or without one, in the side nav and its folded icons alike. The bell's name already says how many are unread,
           so the count is hidden from screen readers, and a click on it reaches the bell. */}
       <HStack gap={0} vAlign="center" style={BELL}>
-        <IconButton label={bellLabel(unread)} icon={<Icon icon={AppIcon.Notifications} />} variant="ghost" size="sm" />
+        <IconButton ref={bell} label={bellLabel(unread)} icon={<Icon icon={AppIcon.Notifications} />} variant="ghost" size="sm" />
         {unread > 0 && <Badge label={unread > 99 ? '99+' : String(unread)} variant="error" aria-hidden style={COUNT} />}
       </HStack>
     </Popover>

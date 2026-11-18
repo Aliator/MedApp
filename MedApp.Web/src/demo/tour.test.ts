@@ -1,7 +1,9 @@
 import {QueryClient} from '@tanstack/react-query';
 import {createAppRouter} from '../router';
 import {ADMIN, DEMO_ACCOUNTS, STAFF} from './accounts';
-import {PATHWAYS, REFERRALS} from './ids';
+import {appSettings} from '../app/settingsStore';
+import {PINS_KEY} from '../components/navigation/pins';
+import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
 import {seed} from './seed';
 import {TOUR} from './tour';
 
@@ -26,7 +28,7 @@ const COLLECTIONS = {
 } as const;
 
 describe('the Read Me tour', () => {
-  const links = TOUR.flatMap((step) => [...(step.path ? [step.path] : []), ...(step.halfView ? [step.halfView] : [])]);
+  const links = TOUR.flatMap((step) => (step.path ? [step.path] : []));
 
   it('opens only pages in the route tree', () => {
     const patterns = routePatterns();
@@ -79,5 +81,19 @@ describe('the Read Me tour', () => {
     expect(STAFF.specialtyIds).toContain(referral.specialtyId);
     expect(ADMIN.permissions).toContain('ViewInsights');
     expect(STAFF.permissions).not.toContain('ViewInsights');
+  });
+
+  it('opens a patient to pin, and says when they are pinned already', () => {
+    const pin = TOUR.find((step) => step.key === 'pin-patient')!;
+    expect(pin.path).toBe(`/patients/${PATIENTS.samuelOkafor}`);
+    expect(TOUR.findIndex((step) => step.key === 'pin-patient')).toBe(TOUR.findIndex((step) => step.key === 'half-view') + 1);
+    try {
+      appSettings.set(PINS_KEY, null);
+      expect(pin.whyNot!(seed())).toBeNull();
+      appSettings.set(PINS_KEY, JSON.stringify({patients: [PATIENTS.samuelOkafor], pathways: []}));
+      expect(pin.whyNot!(seed())).toMatch(/already/);
+    } finally {
+      appSettings.set(PINS_KEY, null);
+    }
   });
 });
