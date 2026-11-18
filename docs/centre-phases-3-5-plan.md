@@ -493,7 +493,7 @@ Hazards **H-45 to H-64** and DPIA risks **29 to 40** are allocated above.
 Each is one implementation agent's work, with its migration (reviewed, `has-pending-model-changes` clean, tested up and down on LocalDB), its tests (handlers, validators, mappers, Vitest for pages, `ToQueryString` tests for new SQL), its privacy checklist (decision 76) and governance updates, and it keeps the seed running. **∥** marks PRs that can be built at the same time as the others in their group once what they depend on has merged.
 
 **Phase 3** (after Phase 2's PR 10):
-11. **Safety and governance first (docs only).** The device reassessment (section 2.6, step 4 of the flow chart), hazards H-45 to H-50, DPIA risks 29 to 31 as drafts, and the deploying organisation's new duties in `dcb0160-deploying-organisations.md` (a daily lab worklist and results check, a downtime process for letters).
+11. **Safety and governance first (docs only).** *Built together with PRs 18 and 29, as one docs-only PR (branch `feature/centre-safety-phases-3-5`), so every feature PR builds on them; their hazard and DPIA risk numbers were free, so nothing here was renumbered.* The device reassessment (section 2.6, step 4 of the flow chart), hazards H-45 to H-50, DPIA risks 29 to 31 as drafts, and the deploying organisation's new duties in `dcb0160-deploying-organisations.md` (a daily lab worklist and results check, a downtime process for letters).
 12. **∥ Contact details, practices and staff details.** Migration `AddedPatientContactDetails` (patient columns, `Practices`, `Referrals.PracticeId`, `FullName` and `JobTitle`). The patient form, the Practices page, the referral's practice picker, Account Settings. `StaffDetailsChanged`.
 13. **∥ Specimens.** Migration `AddedSpecimens` (types, labs, specimens, the sequence, `Notifications.SubjectId`, the `StageGates` home with the last-stage specimen gate). The permissions `RecordSpecimens` and `ProcessSpecimens`, the specimen card, label and request sheet, the Lab page, reporting with the file (PR 14 adds the result it creates), `SpecimenViewed`, the two notifications, timeline kind, export and anonymisation.
 14. **Results sign-off** (after 13). Migration `AddedResults` (`Results`, `WaitsForResults`). Results from reports and external files, the Results pages, sign-off, reassigning, entered in error, the gates, `SignOffResults`, notifications 26 to 28, `ResultViewed`.
@@ -502,7 +502,7 @@ Each is one implementation agent's work, with its migration (reviewed, `has-pend
 17. **Phase 3 demo data** (section 2.7).
 
 **Phase 4** (after PR 17):
-18. **Safety and governance first (docs only).** Hazards H-51 to H-57, DPIA risks 32 and 33, the device rows (section 3.8).
+18. **Safety and governance first (docs only).** *Done with PR 11.* Hazards H-51 to H-57, DPIA risks 32 and 33, the device rows (section 3.8).
 19. **∥ Scheduled jobs.** Migration `AddedScheduledJobs`. The runner, the lease, the Scheduled Jobs page, `/health`, `run-job`, `medapp-dev`'s `run_job`, `ScheduledJobFailing`, and the operational purge as its first job. An integration test that two runners run a job once.
 20. **∥ Branching pathways.** Migration `AddedStageBranches`. Optional stages, branch points, skipping, reinstating, the template editor's groups, Insights and the clock-stop rule for skipped stages, `PathwayCommandsMonitoringTests` for the new commands.
 21. **∥ Sites, rooms and closed days by site.** Migration `AddedSites` (Main site by `HasData`). The admin pages. Small.
@@ -515,7 +515,7 @@ Each is one implementation agent's work, with its migration (reviewed, `has-pend
 28. **Phase 4 demo data** (section 3.9). Numbered here after 27; built last in the phase.
 
 **Phase 5** (after Phase 4's demo data):
-29. **Safety and governance first (docs only).** Hazards H-58 to H-64, DPIA risks 34 to 40, the device rows (section 4.11).
+29. **Safety and governance first (docs only).** *Done with PR 11.* Hazards H-58 to H-64, DPIA risks 34 to 40, the device rows (section 4.11).
 30. **∥ MDT list.** Migration `AddedMdtItems` (and `Meeting.SpecialtyId`, `IsMdt`).
 31. **∥ Consent records.** Migration `AddedConsentRecords` (and `NeedsConsent`).
 32. **∥ Outcome questionnaires.** Migration `AddedQuestionnaires`.
