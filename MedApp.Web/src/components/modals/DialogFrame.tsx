@@ -1,6 +1,7 @@
 import {Dialog, DialogHeader} from '@astryxdesign/core/Dialog';
 import {Layout, LayoutContent, LayoutFooter} from '@astryxdesign/core/Layout';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
+import {OverWholeWindowContext} from '../pages/halfView';
 import type {ReactNode} from 'react';
 
 export interface DialogFrameProps {
@@ -44,32 +45,35 @@ export function DialogFrame({
 
   return (
     <Dialog isOpen={isOpen} onOpenChange={handleOpenChange} width={width} purpose={purpose}>
-      <Layout
-        height="fill"
-        padding={4}
-        defaultHasDividers
-        header={
-          <DialogHeader
-            title={title}
-            startContent={icon}
-            onOpenChange={purpose === 'required' ? undefined : handleOpenChange}
-          />
-        }
-        content={<LayoutContent>{children}</LayoutContent>}
-        footer={
-          footer ? (
-            <LayoutFooter>
-              <HStack gap={2} vAlign="center" hAlign="end" wrap={footerStart ? 'wrap' : 'nowrap'}>
-                {footerStart && <StackItem size="fill">{footerStart}</StackItem>}
-                {/* One group, so on a narrow window the buttons move under the summary together, not one at a time. */}
-                <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
-                  {footer}
+      {/* Over the whole window: what's in it lays out by the window, not by a half view it was opened from. */}
+      <OverWholeWindowContext.Provider value={true}>
+        <Layout
+          height="fill"
+          padding={4}
+          defaultHasDividers
+          header={
+            <DialogHeader
+              title={title}
+              startContent={icon}
+              onOpenChange={purpose === 'required' ? undefined : handleOpenChange}
+            />
+          }
+          content={<LayoutContent>{children}</LayoutContent>}
+          footer={
+            footer ? (
+              <LayoutFooter>
+                <HStack gap={2} vAlign="center" hAlign="end" wrap={footerStart ? 'wrap' : 'nowrap'}>
+                  {footerStart && <StackItem size="fill">{footerStart}</StackItem>}
+                  {/* One group, so on a narrow window the buttons move under the summary together, not one at a time. */}
+                  <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
+                    {footer}
+                  </HStack>
                 </HStack>
-              </HStack>
-            </LayoutFooter>
-          ) : undefined
-        }
-      />
+              </LayoutFooter>
+            ) : undefined
+          }
+        />
+      </OverWholeWindowContext.Provider>
     </Dialog>
   );
 }

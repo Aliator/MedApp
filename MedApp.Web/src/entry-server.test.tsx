@@ -225,6 +225,33 @@ describe('server rendering', () => {
     expect(html).toContain('New Recovery Codes');
   });
 
+  it("renders the notepad's address on its own as just a spinner, in the account's settings, without reading the notepad", async () => {
+    const requests = api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
+    });
+
+    const response = await page('/notepad', 'medapp_session=abc');
+    const html = await response.text();
+
+    // The browser then goes to the start page with the notepad docked (it can't be known here).
+    expect(response.status).toBe(200);
+    expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
+    expect(html).toContain('Opening the notepad...');
+    expect(html).not.toContain('aria-label="Notepad"');
+    expect(html).not.toContain('My Tasks');
+    expect(requests.map((r) => new URL(r.url).pathname)).not.toContain('/api/me/notepad');
+  });
+
+  it("sends someone who must change their password from the notepad's address to do that", async () => {
+    api({'/api/auth/whoami': {...signedIn, mustChangePassword: true}});
+
+    const response = await page('/notepad', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/change-password');
+  });
+
   it('renders Account Settings, Email Address with the address', async () => {
     api({
       '/api/auth/whoami': signedIn,
@@ -484,6 +511,19 @@ describe('server rendering', () => {
     expect(plain.headers.get('location')).toBe('/calendar/templates');
   });
 
+  it("sends Requires Appointment's old address on to its new one, keeping its search", async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+    });
+
+    const response = await page('/calendar/needs-booking?page=2&patient=Synthetic', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/calendar/requires-appointment?page=2&patient=Synthetic');
+  });
+
   it("renders the calendar's week with its appointments, and leaves the time now to the browser", async () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
     const requests = api({
@@ -499,7 +539,7 @@ describe('server rendering', () => {
 
     expect(html).toContain('My calendar · 23 to 29 November 2026');
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
-    expect(html).toContain('Needs Booking (2)');
+    expect(html).toContain('Requires Appointment (2)');
     // Apply Template, on a calendar they can change; its day templates are read only in the browser.
     expect(html).toMatch(/<button(?:(?!<\/button>).)*Apply Template/);
     expect(requests.some((r) => new URL(r.url).pathname.endsWith('/day-templates'))).toBe(false);

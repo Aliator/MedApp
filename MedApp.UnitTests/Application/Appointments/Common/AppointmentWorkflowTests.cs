@@ -144,10 +144,10 @@ public sealed class AppointmentWorkflowTests
     }
 
     [Test]
-    public void StageHasOpenVisit_Requested_PointsToNeedsBooking()
+    public void StageHasOpenVisit_Requested_PointsToRequiresAppointment()
     {
         AppointmentWorkflow.StageHasOpenVisit(CreateAppointment(AppointmentStatus.Requested), null)
-            .Should().Be("This stage already has a visit in Needs booking. Book that one instead.");
+            .Should().Be("This stage already has a visit in Requires Appointment. Book that one instead.");
     }
 
     [Test]

@@ -1,19 +1,13 @@
-import {createFileRoute} from '@tanstack/react-router';
-import {appointmentsQuery} from '../../../api/appointments';
-import {preload} from '../../../api/preload';
-import {listSettingsFor} from '../../../app/listSettings';
-import {parseNeedsBookingSearch} from '../../../pages/calendar/calendarSearch';
-import {NeedsBookingPage, needsBookingQuery} from '../../../pages/calendar/NeedsBookingPage';
+import {createFileRoute, redirect} from '@tanstack/react-router';
+import {parseRequiresAppointmentSearch, type RequiresAppointmentSearch} from '../../../pages/calendar/calendarSearch';
 
+/**
+ * The Requires Appointment page's old address (it was Needs booking). Old links (a bookmark, a half view kept in the
+ * tab) go to its new one, with the same page, sort and search.
+ */
 export const Route = createFileRoute('/_app/calendar/needs-booking')({
-  validateSearch: parseNeedsBookingSearch,
-  loaderDeps: ({search}) => search,
-  loader: ({context, deps}) => preload(context.queryClient, appointmentsQuery(needsBookingQuery(deps, listSettingsFor(context.queryClient).pageSize))),
-  component: NeedsBookingRoute,
+  validateSearch: (raw: Record<string, unknown>): RequiresAppointmentSearch => parseRequiresAppointmentSearch(raw),
+  beforeLoad: ({search}) => {
+    throw redirect({to: '/calendar/requires-appointment', search, replace: true});
+  },
 });
-
-function NeedsBookingRoute() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  return <NeedsBookingPage search={search} onSearchChange={(next) => void navigate({search: next})} />;
-}

@@ -21,17 +21,17 @@ import {ListFilterBar, type ListFilterField} from '../../components/tables/ListF
 import {TextCell} from '../../components/tables/TextCell';
 import {ukToday} from '../../utils/calendarSlots';
 import {formatShortDate, ukDay} from '../../utils/dates';
-import {NEEDS_BOOKING_SORTS, type NeedsBookingSearch, type NeedsBookingSortColumn} from './calendarSearch';
+import {REQUIRES_APPOINTMENT_SORTS, type RequiresAppointmentSearch, type RequiresAppointmentSortColumn} from './calendarSearch';
 
 type Row = Appointment & Record<string, unknown>;
 
 /** The API search behind the list: Requested appointments, soonest procedure due date first by default. */
-export function needsBookingQuery(search: NeedsBookingSearch, pageSize?: number): AppointmentSearch {
+export function requiresAppointmentQuery(search: RequiresAppointmentSearch, pageSize?: number): AppointmentSearch {
   return {
     Statuses: ['Requested'],
     Page: search.page ?? 1,
     PageSize: pageSize,
-    Sort: NEEDS_BOOKING_SORTS[search.sort ?? 'Due'],
+    Sort: REQUIRES_APPOINTMENT_SORTS[search.sort ?? 'Due'],
     Ascending: search.asc ?? true,
     Search: search.patient,
   };
@@ -39,20 +39,21 @@ export function needsBookingQuery(search: NeedsBookingSearch, pageSize?: number)
 
 const FILTER_FIELDS: ListFilterField[] = [{kind: 'text', key: 'patient', label: 'Patient'}];
 
-export interface NeedsBookingPageProps {
-  search: NeedsBookingSearch;
-  onSearchChange: (search: NeedsBookingSearch) => void;
+export interface RequiresAppointmentPageProps {
+  search: RequiresAppointmentSearch;
+  onSearchChange: (search: RequiresAppointmentSearch) => void;
 }
 
 /**
- * Needs booking (docs/calendar-plan.md, decision 29): the appointments asked for but not yet booked (Requested), as a
+ * Requires Appointment (docs/calendar-plan.md, decision 29): the appointments asked for but not yet booked (Requested), as a
  * list like the others, soonest procedure due date first, with overdue procedures flagged. Each row books its
  * appointment in `BookAppointmentDialog`, suggesting the procedure's assignee when it has exactly one; a row whose
- * patient's record is restricted or anonymised can't be booked, and says so.
+ * patient's record is restricted or anonymised can't be booked, and says so. It has no side nav item: it's reached from
+ * the Calendar page's "Requires Appointment (N)" link, and its Back button returns there.
  */
-export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps) {
+export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppointmentPageProps) {
   const {pageSize} = useListSettings();
-  const {data, isPending, isError} = useQuery(appointmentsQuery(needsBookingQuery(search, pageSize)));
+  const {data, isPending, isError} = useQuery(appointmentsQuery(requiresAppointmentQuery(search, pageSize)));
   const [booking, setBooking] = useState<Appointment | null>(null);
   // The procedure of the appointment being booked, for its assignee (fetched when the dialog opens).
   const procedure = useQuery({...procedureQuery(booking?.procedureId ?? ''), enabled: !!booking?.procedureId});
@@ -144,7 +145,7 @@ export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps
 
   return (
     <Page
-      title="Needs Booking"
+      title="Requires Appointment"
       subtitle={subtitle}
       fill
       backHref="/calendar"
@@ -169,14 +170,15 @@ export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps
             fields={FILTER_FIELDS}
             values={search}
             onChange={(values) => onSearchChange({...search, patient: values.patient as string | undefined, page: undefined})}
+            // The key saved searches are stored under, from when the list was called Needs Booking: renaming it would lose them.
             list="needs-booking"
-            label="Search appointments that need booking"
+            label="Search appointments to book"
             placeholder="Search by patient..."
             textKey="patient"
           />
         }
         sort={{column: search.sort ?? 'Due', ascending: search.asc ?? true}}
-        onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as NeedsBookingSortColumn, asc: sort.ascending})}
+        onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as RequiresAppointmentSortColumn, asc: sort.ascending})}
         pagination={{
           page: search.page ?? 1,
           pageSize,
@@ -191,7 +193,7 @@ export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps
               actions={<Button label="Clear Search" variant="secondary" onClick={() => onSearchChange({sort: search.sort, asc: search.asc})} />}
             />
           ) : (
-            <EmptyState title="Nothing needs booking" icon={<Icon icon={AppIcon.Success} size="lg" />} />
+            <EmptyState title="Nothing requires an appointment" icon={<Icon icon={AppIcon.Success} size="lg" />} />
           )
         }
       />
