@@ -9,6 +9,10 @@ namespace MedApp.Application.Pathways.Common;
 /// </summary>
 public static class PathwayDetails
 {
+    public const string TitleField = "title";
+    public const string DueDateField = "dueDate";
+    public const string PriorityField = "priority";
+
     /// <summary>
     /// Applies each value given (null leaves it as it is) that differs from the pathway's, and returns what changed,
     /// by field: <c>title</c>, <c>dueDate</c> and <c>priority</c>, each with <c>from</c> and <c>to</c>. Empty when nothing
@@ -25,19 +29,19 @@ public static class PathwayDetails
 
         if (title is { } newTitle && newTitle != pathway.Title)
         {
-            changes["title"] = new { from = pathway.Title, to = newTitle };
+            changes[TitleField] = new { from = pathway.Title, to = newTitle };
             pathway.Title = newTitle;
         }
 
         if (dueDate is { } newDueDate && newDueDate != DueDates.ToUkDate(pathway.DueDateUtc))
         {
-            changes["dueDate"] = new { from = DueDates.ToUkDate(pathway.DueDateUtc), to = newDueDate };
+            changes[DueDateField] = new { from = DueDates.ToUkDate(pathway.DueDateUtc), to = newDueDate };
             pathway.DueDateUtc = DueDates.EndOfDayUtc(newDueDate);
         }
 
         if (priority is { } newPriority && newPriority != pathway.Priority)
         {
-            changes["priority"] = new { from = pathway.Priority.ToString(), to = newPriority.ToString() };
+            changes[PriorityField] = new { from = pathway.Priority.ToString(), to = newPriority.ToString() };
             pathway.Priority = newPriority;
         }
 

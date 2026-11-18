@@ -1,6 +1,11 @@
 using AutoFixture;
 using FluentAssertions;
+using FluentValidation;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Pathways.Common;
+using MedApp.Application.Referrals.Common;
+using MedApp.Domain.Referrals;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -101,5 +106,69 @@ public sealed class UpdatePatientPathwayHandlerTests : PathwayHandlerTestBase
 
         Repository.Verify(r => r.GetForUpdateAsync(pathway.Id, cts.Token), Times.Once);
         VerifySavedOnce(cts.Token);
+    }
+
+    /// <summary>A pathway accepted from a referral received 10 days ago, High (28 days): its target date is the clock's.</summary>
+    private PatientPathway GivenAcceptedPathway()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.InProgress, priority: PatientPathwayPriority.High));
+        var referral = ReferralsTestConstants.CreateReferral(patient: pathway.Patient, status: ReferralStatus.Accepted);
+        referral.ReceivedOn = Today.AddDays(-10);
+        WaitingClock.Start(referral, 28);
+        referral.PathwayId = pathway.Id;
+        pathway.Referral = referral;
+        pathway.DueDateUtc = DueDates.EndOfDayUtc(referral.TargetOn);
+        return pathway;
+    }
+
+    [Test]
+    public async Task Handle_TargetDateWhileTheClockSetsIt_IsAValidationErrorAndSavesNothing()
+    {
+        var pathway = GivenAcceptedPathway();
+
+        var act = () => Handler.Handle(
+            new UpdatePatientPathwayCommand(pathway.Id, "Renamed", Today.AddDays(60), null, Staff), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single().ErrorMessage
+            .Should().Be(WaitingClock.TargetFromClockMessage);
+        pathway.Title.Should().Be(PathwayTitle);
+        VerifyNotSaved();
+    }
+
+    [Test]
+    public async Task Handle_TheSameTargetDateWhileTheClockSetsIt_IsAccepted()
+    {
+        var pathway = GivenAcceptedPathway();
+
+        await Handler.Handle(
+            new UpdatePatientPathwayCommand(pathway.Id, "Renamed", Today.AddDays(18), null, Staff), CancellationToken.None);
+
+        pathway.Title.Should().Be("Renamed");
+    }
+
+    [Test]
+    public async Task Handle_TargetDateOnceTheClockHasStopped_CanBeEditedByHand()
+    {
+        var pathway = GivenAcceptedPathway();
+        pathway.Referral!.StoppedOn = Today;
+
+        await Handler.Handle(new UpdatePatientPathwayCommand(pathway.Id, null, Today.AddDays(60), null, Staff), CancellationToken.None);
+
+        DueDates.ToUkDate(pathway.DueDateUtc).Should().Be(Today.AddDays(60));
+    }
+
+    [Test]
+    public async Task Handle_NewPriority_ReReadsTheClocksTargetAndMovesTheTargetDateWithIt()
+    {
+        var pathway = GivenAcceptedPathway();
+
+        await Handler.Handle(new UpdatePatientPathwayCommand(pathway.Id, null, null, "Urgent", Staff), CancellationToken.None);
+
+        pathway.Referral!.TargetDays.Should().Be(14);
+        DueDates.ToUkDate(pathway.DueDateUtc).Should().Be(Today.AddDays(4));
+        var change = SavedChanges.Single();
+        change.ReferralEvents.Single().Action.Should().Be(ReferralEventAction.TargetChanged);
+        change.AuditEntries.Should().HaveCount(2);
+        change.AuditEntries[1].Details.Should().Contain("\"source\":\"clock\"");
     }
 }

@@ -159,9 +159,12 @@ export function ReinstateStageDialog({stage, patient, isProcessing, onConfirm, o
   );
 }
 
-/** The stages choosing a branch skips: those of every other branch after the branch point, in order. */
+/**
+ * The stages choosing a branch skips: those of every other branch after the branch point still to do (as the server
+ * skips them), in order.
+ */
 export function stagesSkippedBy(stage: PathwayStage, branch: string): string[] {
-  return (stage.branches ?? []).filter((b) => b.name !== branch).flatMap((b) => b.stageNames ?? []);
+  return (stage.branches ?? []).filter((b) => b.name !== branch).flatMap((b) => b.stageNamesToDo ?? []);
 }
 
 export interface BranchChoiceProps {

@@ -42,7 +42,7 @@ import {
  * A stage in the template being edited, with its options (optional, branch point, branch). The key is the row's own,
  * as a definition may appear more than once.
  */
-interface StageRow extends StageOptionsInput {
+export interface StageRow extends StageOptionsInput {
   key: string;
   definitionId: string;
 }
@@ -72,6 +72,27 @@ export function specialtyChoices(active: readonly Specialty[], template: Pathway
     choices.unshift({value: current, label: `${template?.specialtyName ?? 'Unknown specialty'} (archived)`});
   }
   return choices;
+}
+
+/** The clock-stop choice when no stage stops the clock. */
+const NO_STOP = 'none';
+
+/** What the clock-stop choice says about itself. */
+export const CLOCK_STOP_DESCRIPTION = 'The waiting-time clock stops when this stage is finished.';
+
+/**
+ * The row whose stage stops the waiting-time clock, from a saved template: its `clockStopStageOrder` (1-based), or
+ * the stage marked `stopsClock`; none when it has neither.
+ */
+export function startingStopKey(template: PathwayTemplate | null, rows: readonly Pick<StageRow, 'key'>[]): string {
+  const order = template?.clockStopStageOrder ?? (template?.stages ?? []).find((s) => s.stopsClock)?.stageOrder ?? null;
+  return (order != null && rows[order - 1]?.key) || NO_STOP;
+}
+
+/** The 1-based position of the row that stops the clock, or null when none does (or it has been removed). */
+export function stopStageOrder(rows: readonly Pick<StageRow, 'key'>[], stopKey: string): number | null {
+  const index = rows.findIndex((r) => r.key === stopKey);
+  return index < 0 ? null : index + 1;
 }
 
 let rowCount = 0;
@@ -163,6 +184,9 @@ function TemplateEditor({
   const [specialtyId, setSpecialtyId] = useState(startingSpecialty);
   const [isSpecialtyMissing, setIsSpecialtyMissing] = useState(false);
   const [stages, setStages] = useState<StageRow[]>(() => templateRows(template));
+  // The stage that stops the clock, by its row's own key: it moves with the row, and goes with it when it's removed.
+  const [stopKey, setStopKey] = useState(() => startingStopKey(template, stages));
+  const stopOrder = stopStageOrder(stages, stopKey);
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
 
@@ -203,6 +227,7 @@ function TemplateEditor({
         id: template?.id,
         name: name.trim(),
         stageDefinitionIdsInOrder: stages.map((s) => s.definitionId),
+        clockStopStageOrder: stopOrder,
         // Only when a stage has an option: a template without any saves exactly as before.
         ...(stageOptions ? {stageOptions} : {}),
         // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
@@ -290,6 +315,7 @@ function TemplateEditor({
               }
               endContent={
                 <HStack gap={2} vAlign="center">
+                  {stage.key === stopKey && <Token size="sm" label="Stops the clock" color="blue" />}
                   <VisitRequirementToken requirement={definition?.visitRequirement} />
                   {definition?.isArchived && <Token size="sm" label="Archived" color="gray" />}
                   <IconButton
@@ -356,6 +382,19 @@ function TemplateEditor({
 
   const stagesTitle = `Stages (${stages.length})`;
 
+  const stageLabel = (stage: StageRow, i: number) => `${i + 1}. ${byId.get(stage.definitionId)?.name ?? 'Unknown stage'}`;
+  const clockStopField = (
+    <AnchoredSelector
+      label="Clock-stop stage"
+      description={CLOCK_STOP_DESCRIPTION}
+      options={[{value: NO_STOP, label: 'None'}, ...stages.map((stage, i) => ({value: stage.key, label: stageLabel(stage, i)}))]}
+      value={stopOrder === null ? NO_STOP : stopKey}
+      onChange={(value: string) => setStopKey(value)}
+      isDisabled={save.isPending || stages.length === 0}
+      status={fieldStatus(problem.validation, 'clockStopStageOrder')}
+    />
+  );
+
   return (
     <Page
       title={template ? 'Edit Pathway Template' : 'New Pathway Template'}
@@ -366,7 +405,7 @@ function TemplateEditor({
       message={
         problem.validation ? (
           // The name's errors show on it; the stages' (e.g. none chosen) show here.
-          <ValidationAlert errors={problem.validation} fields={['name', 'specialtyId']} />
+          <ValidationAlert errors={problem.validation} fields={['name', 'specialtyId', 'clockStopStageOrder']} />
         ) : (
           problem.message && <AlertMessage message={problem.message} />
         )
@@ -393,6 +432,9 @@ function TemplateEditor({
             <MetadataListItem label="Stages">
               {stages.length ? stages.map((s, i) => `${i + 1}. ${byId.get(s.definitionId)?.name}${optionWords(s)}`).join(', ') : 'None'}
             </MetadataListItem>
+            <MetadataListItem label="Clock stops">
+              {stopOrder === null ? 'At no stage' : `When ${stageLabel(stages[stopOrder - 1], stopOrder - 1)} is finished`}
+            </MetadataListItem>
           </MetadataList>
         </ConfirmDialog>
       }>
@@ -404,6 +446,7 @@ function TemplateEditor({
             </FormSection>
             <FormSection title={stagesTitle} useGrid={false}>
               {stageList}
+              {clockStopField}
             </FormSection>
             <FormSection title="Add Stages" useGrid={false}>
               {definitionList}
@@ -419,6 +462,7 @@ function TemplateEditor({
               </FormSection>
               <FormSection title={stagesTitle} useGrid={false}>
                 {stageList}
+                {clockStopField}
               </FormSection>
             </>,
           )}

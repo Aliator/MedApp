@@ -178,4 +178,45 @@ public sealed class SkipPathwayStageHandlerTests : PathwayHandlerTestBase
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
+
+    [Test]
+    public async Task Handle_RequiredVisitWithoutOverrideStages_ThrowsConflictWithoutSaving()
+    {
+        var pathway = GivenOptionalFirstStage();
+        pathway.StageAt(1).VisitRequirement = VisitRequirement.Required;
+
+        var act = () => Handler.Handle(
+            new SkipPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, "NotNeeded", SkipDetail, Staff), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*needs a visit*only someone who can finish a stage without its visit*");
+        VerifyNotSaved();
+    }
+
+    [TestCase(null)]
+    [TestCase("  ")]
+    public async Task Handle_RequiredVisitWithOverrideStagesButNoDetail_ThrowsValidation(string? detail)
+    {
+        var pathway = GivenOptionalFirstStage();
+        pathway.StageAt(1).VisitRequirement = VisitRequirement.Required;
+
+        var act = () => Handler.Handle(
+            new SkipPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, "NotNeeded", detail, Admin, CanOverrideStages: true), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "Detail" && e.ErrorMessage == SkipPathwayStageHandler.DetailRequiredMessage);
+        VerifyNotSaved();
+    }
+
+    [Test]
+    public async Task Handle_RequiredVisitWithOverrideStagesAndADetail_SkipsItAndRecordsTheRequirement()
+    {
+        var pathway = GivenOptionalFirstStage();
+        pathway.StageAt(1).VisitRequirement = VisitRequirement.Required;
+
+        await Handler.Handle(
+            new SkipPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, "NotNeeded", SkipDetail, Admin, CanOverrideStages: true), CancellationToken.None);
+
+        pathway.StageAt(1).IsSkipped.Should().BeTrue();
+        SavedAudit.Single(e => e.Action == PatientPathwayAuditAction.StageSkipped).Details.Should().Contain("\"visitRequirement\":\"Required\"");
+    }
 }

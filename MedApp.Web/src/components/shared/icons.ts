@@ -79,6 +79,7 @@ import {
   RiNotification3Line,
   RiPaintBrushLine,
   RiPaletteLine,
+  RiPauseCircleLine,
   RiPlayCircleLine,
   RiPlayLine,
   RiSkipForwardLine,
@@ -104,6 +105,8 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiStopCircleLine,
+  RiTimeLine,
   RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
@@ -303,4 +306,9 @@ export const AppIcon = {
   // Pathways that branch: skipping an optional stage, and a branch point (where the clinician chooses a branch)
   Skip: remix(RiSkipForwardLine),
   Branch: remix(RiGitBranchLine),
+  // The waiting-time clock of a referral: how long it has waited, pausing and resuming it, and when it stopped
+  Wait: remix(RiTimeLine),
+  PauseClock: remix(RiPauseCircleLine),
+  ResumeClock: remix(RiPlayCircleLine),
+  ClockStopped: remix(RiStopCircleLine),
 } as const satisfies Record<string, IconType>;

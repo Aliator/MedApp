@@ -11,6 +11,12 @@ public sealed class CreatePathwayTemplateRequest
     public IReadOnlyList<Guid> StageDefinitionIdsInOrder { get; set; } = Array.Empty<Guid>();
 
     /// <summary>
+    /// The position (from 1) of the stage whose finishing stops a referral's waiting-time clock, or null for none (the
+    /// clock then stops when the pathway is discharged or cancelled).
+    /// </summary>
+    public int? ClockStopStageOrder { get; set; }
+
+    /// <summary>
     /// Each stage's options (optional, branch point, branch name), one for each of <see cref="StageDefinitionIdsInOrder"/>
     /// in the same order; leave out for plain stages.
     /// </summary>

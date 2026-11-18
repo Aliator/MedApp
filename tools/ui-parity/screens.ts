@@ -43,6 +43,21 @@ async function openFirstReferral(page: Page) {
 }
 
 /**
+ * Opens the pathway of the first referral on the waiting list (accepted, its clock not yet stopped), through the
+ * referral's "Open its pathway" link, as the parity data names none: React only, and only when there is one (otherwise
+ * the screen is the list or the referral). Ends on the pathway's page, with its Referral and wait section.
+ */
+async function openFirstWaitingPathway(page: Page) {
+  await openFirstReferral(page);
+  const pathway = page.getByRole('link', { name: 'Open its pathway' });
+  if (await pathway.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+    await pathway.click();
+    await page.getByRole('heading', { name: 'Referral and wait' }).waitFor();
+    await settle(page);
+  }
+}
+
+/**
  * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
  * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
  */
@@ -398,6 +413,16 @@ export const screens: Screen[] = [
   },
   { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
+    name: 'referrals-waiting',
+    title: 'Referrals: the waiting list (accepted, the clock not stopped), longest wait first, with each wait and target date',
+    path: '/referrals?view=waiting',
+  },
+  {
+    name: 'referrals-paused',
+    title: 'Referrals: the paused clocks, by review date, past ones flagged Review overdue (hazard H-42)',
+    path: '/referrals?view=paused',
+  },
+  {
     name: 'referral-register',
     title: 'Register referral for a patient: the banner, their referrals awaiting triage, and the details from the letter',
     path: (d) => `/referrals/new?patientId=${d.patientId}`,
@@ -439,6 +464,28 @@ export const screens: Screen[] = [
     },
   },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
+  {
+    name: 'pathway-referral-wait',
+    title:
+      "A pathway from a referral: its Referral and wait section, with the clock (day N of the target, Breached, Paused), the pauses and Pause or Resume Clock (the waiting list's first)",
+    path: '/referrals?view=waiting',
+    prepare: async (page) => openFirstWaitingPathway(page),
+  },
+  {
+    name: 'pathway-pause-clock',
+    title:
+      "Pausing a referral's waiting-time clock from its pathway: the patient, why (a fixed choice), a detail and the review date (only opened, never confirmed)",
+    path: '/referrals?view=waiting',
+    prepare: async (page) => {
+      await openFirstWaitingPathway(page);
+      const pause = page.getByRole('button', { name: 'Pause Clock' });
+      if (await pause.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await pause.click();
+        await waitVisible(page, DIALOG);
+        await settle(page);
+      }
+    },
+  },
   {
     name: 'pathway-notes',
     title: "Pathway page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
@@ -545,6 +592,26 @@ export const screens: Screen[] = [
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Appointments' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'pathway-branches',
+    title: "Pathway page of a template that branches: its stages' Optional, Branch point and Branch tokens, and skipped ones struck through with the reason",
+    path: (d) => `/pathways/${d.branchingPathwayId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingPathwayId, 'No pathway from a template that branches (the demo data has them from PR 28).');
+      await page.getByRole('heading', { name: 'Stages' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'template-branches',
+    title: 'Template editor: Optional and Branch point on each stage, a Branch name after a branch point, branches indented',
+    path: (d) => `/admin/pathway-templates/${d.branchingTemplateId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.branchingTemplateId, 'No template that branches (the demo data has them from PR 28).');
+      await page.getByRole('list', { name: 'Stages in order' }).waitFor();
       await settle(page);
     },
   },
@@ -745,10 +812,10 @@ export const screens: Screen[] = [
   { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },
   {
     name: 'specialty-dialog',
-    title: 'Rename specialty dialog (not saved)',
+    title: 'Edit specialty dialog, with its waiting-time targets (not saved)',
     path: '/admin/specialties',
     prepare: async (page) => {
-      await rowAction(page, /rename specialty/i).click();
+      await rowAction(page, /edit specialty/i).click();
       await waitVisible(page, DIALOG);
     },
   },

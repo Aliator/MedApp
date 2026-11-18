@@ -32,8 +32,8 @@ const biopsy = stage({
   choosesBranch: true,
   needsBranchChoice: true,
   branches: [
-    {name: 'Benign', stageNames: ['Discharge letter']},
-    {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery']},
+    {name: 'Benign', stageNames: ['Discharge letter'], stageNamesToDo: ['Discharge letter']},
+    {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery'], stageNamesToDo: ['Treatment planning', 'Surgery']},
   ],
 });
 
@@ -128,6 +128,9 @@ describe('BranchChoice', () => {
 
   it("works out the other branches' stages", () => {
     expect(stagesSkippedBy(biopsy, 'Benign')).toEqual(['Treatment planning', 'Surgery']);
-    expect(stagesSkippedBy(stage({branches: [{name: 'Only', stageNames: []}]}), 'Only')).toEqual([]);
+    expect(stagesSkippedBy(stage({branches: [{name: 'Only', stageNames: [], stageNamesToDo: []}]}), 'Only')).toEqual([]);
+    // Only those still to do, as the server skips: a stage already finished or skipped stays as it is.
+    const partly = stage({branches: [{name: 'A', stageNames: ['One']}, {name: 'B', stageNames: ['Two', 'Three'], stageNamesToDo: ['Three']}]});
+    expect(stagesSkippedBy(partly, 'A')).toEqual(['Three']);
   });
 });

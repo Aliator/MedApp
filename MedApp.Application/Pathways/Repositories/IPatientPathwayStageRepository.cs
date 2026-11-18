@@ -52,12 +52,14 @@ public interface IPatientPathwayStagesRepository
     Task<IReadOnlyDictionary<Guid, int>> GetTemplatePathwayCountsAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
     /// <summary>
-    /// Saves a template's name and archived flag, and replaces its stage list when one is given, with each stage's
-    /// options (plain stages when <paramref name="stageOptions"/> is null).
+    /// Saves a template's name and archived flag, and replaces its stage list when one is given, with the stage at
+    /// <c>clockStopStageOrder</c> (if any) as its clock-stop stage, and each stage's options (plain stages when
+    /// <paramref name="stageOptions"/> is null).
     /// </summary>
     Task UpdatePathwayTemplateAsync(
         PathwayTemplate template,
         IReadOnlyList<Guid>? stageDefinitionIdsInOrder,
+        int? clockStopStageOrder,
         IReadOnlyList<PatientPathwayStages.Templates.TemplateStageOptions>? stageOptions,
         CancellationToken ct);
 

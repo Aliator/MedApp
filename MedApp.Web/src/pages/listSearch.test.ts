@@ -182,6 +182,12 @@ describe('parseTasksSearch', () => {
     expect(hasTaskFilters({stage: 'x'})).toBe(true);
   });
 
+  it('reads Breached only and the sort by days waited', () => {
+    expect(parseTasksSearch({breached: 'true', sort: 'wait'})).toEqual({breached: true, sort: 'Wait'});
+    expect(parseTasksSearch({breached: 'false'})).toEqual({});
+    expect(hasTaskFilters({breached: true})).toBe(true);
+  });
+
   it('reads specialties and the stage reached as IDs', () => {
     const id = '0000000D-0000-0000-0000-000000000001';
     expect(parseTasksSearch({specialty: id, stage: `${id},lab`})).toEqual({specialty: id.toLowerCase(), stage: id.toLowerCase()});
@@ -245,6 +251,12 @@ describe('parsePathwaysSearch', () => {
     expect(hasPathwayFilters({closed: true})).toBe(true);
     expect(hasPathwayFilters({specialty: 'x'})).toBe(true);
     expect(hasPathwayFilters({stage: 'x'})).toBe(true);
+  });
+
+  it('reads Breached only and the sort by days waited', () => {
+    expect(parsePathwaysSearch({breached: 'true', sort: 'Wait', asc: 'false'})).toEqual({breached: true, sort: 'Wait', asc: false});
+    expect(parsePathwaysSearch({breached: 'no'})).toEqual({});
+    expect(hasPathwayFilters({breached: true})).toBe(true);
   });
 
   it('reads specialties and the stage reached as IDs ("Waiting for histology")', () => {

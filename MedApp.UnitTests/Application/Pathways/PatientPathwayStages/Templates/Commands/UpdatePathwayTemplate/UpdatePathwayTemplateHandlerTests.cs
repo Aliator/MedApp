@@ -79,7 +79,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"A template called '{takenName}' already exists.");
         template.Name.Should().Be(TemplateName);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -96,7 +96,23 @@ public sealed class UpdatePathwayTemplateHandlerTests
 
         response.StageDefinitionIdsInOrder.Should().Equal(newStages);
         response.Stages.Select(s => s.IsArchived).Should().Equal(true, false, true);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, null, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_ClockStopStage_GoesWithTheStageList()
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        var pathway = CreateDefinition(PathwayStage);
+        var template = CreateTemplate(TemplateName, false, consultation);
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        GivenDefinitions(consultation, pathway);
+        IReadOnlyList<Guid> newStages = [consultation.Id, pathway.Id];
+
+        var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, newStages, 2), CancellationToken.None);
+
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, 2, null, It.IsAny<CancellationToken>()), Times.Once);
+        response.ClockStopStageOrder.Should().Be(2);
     }
 
     [Test]
@@ -111,7 +127,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, [pathway.Id, archived.Id]), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -128,7 +144,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         response.Name.Should().Be("Renamed");
         response.Stages.Should().ContainSingle(s => s.Name == ConsultationStage);
         response.PathwayCount.Should().Be(4);
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, null, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -144,7 +160,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         response.SpecialtyId.Should().Be(other.Id);
         response.SpecialtyName.Should().Be(OtherSpecialtyName);
         _repository.Verify(r => r.UpdatePathwayTemplateAsync(
-            It.Is<PathwayTemplate>(t => t.SpecialtyId == other.Id), null, null, It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PathwayTemplate>(t => t.SpecialtyId == other.Id), null, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -158,7 +174,7 @@ public sealed class UpdatePathwayTemplateHandlerTests
         var act = () => Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, archived.Id, null), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{OtherSpecialtyName}*");
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -196,10 +212,43 @@ public sealed class UpdatePathwayTemplateHandlerTests
         IReadOnlyList<TemplateStageOptions> options =
             [new(ChoosesBranch: true), new(Branch: "Benign"), new(IsOptional: true, Branch: " Treatment "), TemplateStageOptions.Plain];
 
-        var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, newStages, options), CancellationToken.None);
+        var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, null, null, newStages, StageOptions: options), CancellationToken.None);
 
         response.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
             (false, true, null), (false, false, "Benign"), (true, false, "Treatment"), (false, false, null));
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, options, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, newStages, null, options, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_SameStagesWithoutOptions_KeepsTheStoredOptions()
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        var pathway = CreateDefinition(PathwayStage);
+        var template = CreateTemplate(TemplateName, false, consultation, pathway, pathway, consultation);
+        var maps = template.Maps.OrderBy(m => m.StageOrder).ToList();
+        maps[0].ChoosesBranch = true;
+        maps[1].Branch = "Benign";
+        maps[2].Branch = "Treatment";
+        _repository.Setup(r => r.GetPathwayTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        GivenDefinitions(consultation, pathway);
+        IReadOnlyList<Guid> sameStages = [consultation.Id, pathway.Id, pathway.Id, consultation.Id];
+
+        var response = await Handler.Handle(new UpdatePathwayTemplateCommand(template.Id, "Renamed", null, sameStages), CancellationToken.None);
+
+        response.Stages.Select(s => (s.ChoosesBranch, s.Branch)).Should().Equal((true, null), (false, "Benign"), (false, "Treatment"), (false, null));
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, sameStages, null,
+            It.Is<IReadOnlyList<TemplateStageOptions>?>(o => o != null && o[0].ChoosesBranch && o[1].Branch == "Benign"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public void KeptOptions_ADifferentStageList_IsNone()
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        var template = CreateTemplate(TemplateName, false, consultation);
+        template.Maps[0].IsOptional = true;
+
+        UpdatePathwayTemplateHandler.KeptOptions(template, [consultation.Id, consultation.Id]).Should().BeNull();
+        UpdatePathwayTemplateHandler.KeptOptions(template, null).Should().BeNull();
+        UpdatePathwayTemplateHandler.KeptOptions(template, [consultation.Id])!.Single().IsOptional.Should().BeTrue();
     }
 }

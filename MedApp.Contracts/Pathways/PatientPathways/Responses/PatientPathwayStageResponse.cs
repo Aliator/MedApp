@@ -81,4 +81,7 @@ public sealed class PatientPathwayBranchResponse
 {
     public string Name { get; set; } = string.Empty;
     public List<string> StageNames { get; set; } = [];
+
+    /// <summary>Its stages still to do (neither finished nor skipped): what choosing another branch skips.</summary>
+    public List<string> StageNamesToDo { get; set; } = [];
 }

@@ -238,9 +238,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011
         ReferralsController.MarkEnteredInError 00011
+        ReferralsController.PauseClock 00011
         ReferralsController.RedirectReferral 00000
         ReferralsController.RegisterReferral 00011
         ReferralsController.RejectReferral 00000
+        ReferralsController.ResumeClock 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
         RolesController.ArchiveRole 00001

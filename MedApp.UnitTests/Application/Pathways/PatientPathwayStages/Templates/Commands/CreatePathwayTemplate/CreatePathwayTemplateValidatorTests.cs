@@ -17,6 +17,21 @@ public sealed class CreatePathwayTemplateValidatorTests
             .IsValid.Should().BeTrue();
     }
 
+    [TestCase(null, true)]
+    [TestCase(1, true)]
+    [TestCase(3, true)]
+    [TestCase(0, false)]
+    [TestCase(4, false)]
+    public void Validate_ClockStopStage_IsOneOfItsStages(int? order, bool valid)
+    {
+        var result = _validator.Validate(new CreatePathwayTemplateCommand(
+            TemplateName, SpecialtyId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId], order));
+
+        result.IsValid.Should().Be(valid);
+        if (!valid)
+            result.Errors.Single().ErrorMessage.Should().Be(CreatePathwayTemplateValidator.ClockStopStageMessage);
+    }
+
     [Test]
     public void Validate_NoStages_Fails()
     {
@@ -64,14 +79,14 @@ public sealed class CreatePathwayTemplateValidatorTests
     {
         _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
                 [ConsultationDefinitionId, PathwayDefinitionId, PathwayDefinitionId, ConsultationDefinitionId],
-                [new(ChoosesBranch: true), new(Branch: "Benign"), new(Branch: "Treatment"), TemplateStageOptions.Plain]))
+                StageOptions: [new(ChoosesBranch: true), new(Branch: "Benign"), new(Branch: "Treatment"), TemplateStageOptions.Plain]))
             .IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_OptionsForADifferentNumberOfStages_Fails()
     {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], StageOptions: [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
             .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
     }
 
@@ -79,7 +94,7 @@ public sealed class CreatePathwayTemplateValidatorTests
     public void Validate_BranchesBreakingTheRules_FailsWithTheRule()
     {
         _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
-                [ConsultationDefinitionId, PathwayDefinitionId], [TemplateStageOptions.Plain, new(IsOptional: true)]))
+                [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [TemplateStageOptions.Plain, new(IsOptional: true)]))
             .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.LastStageMessage);
     }
 }

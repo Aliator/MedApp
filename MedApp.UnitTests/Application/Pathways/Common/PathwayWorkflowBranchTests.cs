@@ -47,7 +47,7 @@ public sealed class PathwayWorkflowBranchTests
         pathway.Stages.Should().AllSatisfy(s =>
         {
             PathwayWorkflow.Branches(pathway, s).Should().BeEmpty();
-            PathwayWorkflow.CanSkipStage(pathway, s).Should().BeFalse();
+            PathwayWorkflow.CanSkipStage(pathway, s, canOverrideStages: true).Should().BeFalse();
             PathwayWorkflow.WhyBranchChoiceInvalid(pathway, s, null).Should().BeNull();
         });
     }
@@ -121,7 +121,7 @@ public sealed class PathwayWorkflowBranchTests
         Skip(pathway.StageAt(2), StageSkipReason.BranchNotChosen);
         Finish(pathway.StageAt(3));
 
-        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(4)).Should().BeNull();
+        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(4), false).Should().BeNull();
     }
 
     [Test]
@@ -132,8 +132,8 @@ public sealed class PathwayWorkflowBranchTests
         pathway.StageAt(2).IsOptional = true;
         Skip(pathway.StageAt(2));
 
-        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(1)).Should().Contain("is finished");
-        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(2)).Should().Contain("already been skipped");
+        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(1), false).Should().Contain("is finished");
+        PathwayWorkflow.WhySkipNotAllowed(pathway, pathway.StageAt(2), false).Should().Contain("already been skipped");
     }
 
     [TestCase(Status.InProgress, true)]
@@ -209,5 +209,30 @@ public sealed class PathwayWorkflowBranchTests
         pathway.Stages.OrderBy(s => s.StageOrder).Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
             (false, true, null), (false, false, BenignBranch), (true, false, TreatmentBranch), (false, false, null));
         pathway.Stages.Should().AllSatisfy(s => s.IsSkipped.Should().BeFalse());
+    }
+
+    [TestCase(VisitRequirement.Required, false, false)]
+    [TestCase(VisitRequirement.Required, true, true)]
+    [TestCase(VisitRequirement.Suggested, false, true)]
+    [TestCase(VisitRequirement.None, false, true)]
+    public void CanSkipStage_RequiredVisit_NeedsOverrideStages(VisitRequirement requirement, bool canOverrideStages, bool expected)
+    {
+        var pathway = CreatePathway(Status.InProgress);
+        pathway.StageAt(1).IsOptional = true;
+        pathway.StageAt(1).VisitRequirement = requirement;
+
+        PathwayWorkflow.CanSkipStage(pathway, pathway.StageAt(1), canOverrideStages).Should().Be(expected);
+    }
+
+    [Test]
+    public void FinishStage_BranchNotChosenWithARequiredVisit_IsStillSkipped()
+    {
+        // The clinician chose the other branch: the stage isn't needed, whatever its visit (decision 113).
+        var pathway = CreateBranchingPathway();
+        pathway.StageAt(2).VisitRequirement = VisitRequirement.Required;
+
+        new PathwayChange(pathway, Staff, Now).FinishStage(pathway.StageAt(1), branch: TreatmentBranch);
+
+        pathway.StageAt(2).IsSkipped.Should().BeTrue();
     }
 }

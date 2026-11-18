@@ -27,6 +27,12 @@ export interface ParityData {
   stageId?: string;
   /** The demo data's Dermatology specialty, or else the first, for the specialty filters (React only). */
   specialtyId?: string;
+  /**
+   * A template with a branch point, and a pathway made from it, for the branching screens (React only; the demo data
+   * has them from Phase 4's, PR 28: until then those screens skip).
+   */
+  branchingTemplateId?: string;
+  branchingPathwayId?: string;
 }
 
 const root = __dirname;

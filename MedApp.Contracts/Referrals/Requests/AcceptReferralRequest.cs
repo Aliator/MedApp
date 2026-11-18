@@ -2,7 +2,8 @@ namespace MedApp.Contracts.Referrals.Requests;
 
 /// <summary>
 /// A triager accepting a referral awaiting triage into a new pathway. Every choice is the clinician's: nothing is
-/// prefilled or suggested (hazard H-41).
+/// prefilled or suggested (hazard H-41). The pathway's target date comes from the referral's waiting-time clock, for
+/// the priority chosen.
 /// </summary>
 public sealed class AcceptReferralRequest
 {
@@ -11,9 +12,6 @@ public sealed class AcceptReferralRequest
 
     /// <summary>The pathway's priority, chosen by the triager: Low, Medium, High or Urgent.</summary>
     public string Priority { get; set; } = string.Empty;
-
-    /// <summary>The pathway's target date (a UK date, not in the past), until the waiting-time clock sets it.</summary>
-    public DateOnly DueDate { get; set; }
 
     /// <summary>The pathway's title; blank uses the template's name.</summary>
     public string? Title { get; set; }

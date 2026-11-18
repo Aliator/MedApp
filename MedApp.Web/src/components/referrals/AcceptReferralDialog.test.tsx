@@ -3,7 +3,7 @@ import type {PathwayTemplate} from '../../api/pathways';
 import {calls, isDisabled, json, mockApi, openDialog, renderWithApp, userWithRoles} from '../../test/render';
 import {setRichText} from '../../test/richText';
 import {DERMATOLOGY_ID, REFERRAL_ID, testReferral, UROLOGY_ID} from '../../test/referrals';
-import {AcceptReferralDialog, templatesFor} from './AcceptReferralDialog';
+import {AcceptReferralDialog, TARGET_FROM_CLOCK, templatesFor} from './AcceptReferralDialog';
 
 const ACCEPT = `POST /api/referrals/${REFERRAL_ID}/accept`;
 const stages = [{stageOrder: 1, name: 'Review'}];
@@ -45,11 +45,10 @@ async function choose(user: ReturnType<typeof render>['user'], field: RegExp, op
   await user.click(await screen.findByRole('option', {name: option}));
 }
 
-/** Fills in what accepting needs: a template, a priority and a target date. */
+/** Fills in what accepting needs: a template and a priority (the target date is the waiting-time clock's). */
 async function fillRequired(user: ReturnType<typeof render>['user']) {
   await choose(user, /Template/, 'Skin check');
   await choose(user, /Priority/, 'Medium');
-  await user.type(dialog().getByRole('combobox', {name: /Target Date/}), '01/12/2099');
 }
 
 describe('templatesFor', () => {
@@ -69,7 +68,9 @@ describe('AcceptReferralDialog', () => {
     expect(dialog().getByText('The referrer asked for: High')).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Priority/})).toHaveTextContent('Choose a priority');
     expect(dialog().getByRole('textbox', {name: 'Title'})).toHaveValue('');
-    expect(dialog().getByRole('combobox', {name: /Target Date/})).toHaveValue('');
+    // No target date to choose: the waiting-time clock sets it, for the priority chosen.
+    expect(dialog().queryByRole('combobox', {name: /Target Date/})).not.toBeInTheDocument();
+    expect(dialog().getByText(TARGET_FROM_CLOCK)).toBeInTheDocument();
     // Assigning needs AssignPathways, which a clinician doesn't have.
     expect(dialog().queryByRole('combobox', {name: /Assign to/})).not.toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Continue'}))).toBe(true);
@@ -92,7 +93,7 @@ describe('AcceptReferralDialog', () => {
     expect(dialog().getByText('Dermatology')).toBeInTheDocument();
     expect(dialog().getByText('Skin check')).toBeInTheDocument();
     expect(dialog().getByText('Medium')).toBeInTheDocument();
-    expect(dialog().getByText('1 December 2099')).toBeInTheDocument();
+    expect(dialog().getByText('From the waiting-time clock, for this priority')).toBeInTheDocument();
     expect(dialog().getByText("Skin check (the template's name)")).toBeInTheDocument();
     expect(dialog().getByText('None')).toBeInTheDocument();
 
@@ -107,7 +108,6 @@ describe('AcceptReferralDialog', () => {
     expect(await posted(fetch)).toEqual({
       templateId: 't-skin',
       priority: 'Medium',
-      dueDate: '2099-12-01',
       title: 'Skin check for the rash',
       assigneeUserId: null,
       notes: null,
@@ -137,7 +137,7 @@ describe('AcceptReferralDialog', () => {
 
   it('goes back to the form with a 400 on its fields', async () => {
     const {user} = render(clinician, {
-      [ACCEPT]: () => json({title: 'Validation failed', status: 400, errors: {DueDate: ['The target date is in the past.']}}, 400),
+      [ACCEPT]: () => json({title: 'Validation failed', status: 400, errors: {Priority: ['Choose a priority for the pathway.']}}, 400),
     });
 
     await screen.findByRole('heading', {name: 'Accept Referral'});
@@ -146,7 +146,7 @@ describe('AcceptReferralDialog', () => {
     await user.click(await screen.findByRole('button', {name: 'Accept Referral'}));
 
     expect(await screen.findByRole('heading', {name: 'Accept Referral'})).toBeInTheDocument();
-    expect((await dialog().findAllByText('The target date is in the past.')).length).toBeGreaterThan(0);
+    expect((await dialog().findAllByText('Choose a priority for the pathway.')).length).toBeGreaterThan(0);
   });
 
   it("shows a 409 in the API's words, staying on the check", async () => {

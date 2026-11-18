@@ -132,7 +132,12 @@ public static class PathwayMapper
                     ChoosesBranch = s.ChoosesBranch,
                     Branch = s.Branch,
                     Branches = PathwayWorkflow.Branches(pathway, s)
-                        .Select(b => new PatientPathwayBranchResponse { Name = b.Name, StageNames = b.Stages.Select(x => x.Name).ToList() })
+                        .Select(b => new PatientPathwayBranchResponse
+                        {
+                            Name = b.Name,
+                            StageNames = b.Stages.Select(x => x.Name).ToList(),
+                            StageNamesToDo = b.Stages.Where(PathwayWorkflow.IsToDo).Select(x => x.Name).ToList()
+                        })
                         .ToList(),
                     NeedsBranchChoice = s.ChoosesBranch && !s.IsCompleted && PathwayWorkflow.Branches(pathway, s).Count > 0,
                     Notes = s.Notes,
@@ -142,7 +147,8 @@ public static class PathwayMapper
                     CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
                     CanUnlock = Allows(viewerPermissions, Permission.OverrideStages)
                         && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
-                    CanSkip = canWork && canChange && PathwayWorkflow.CanSkipStage(pathway, s),
+                    CanSkip = canWork && canChange
+                        && PathwayWorkflow.CanSkipStage(pathway, s, Allows(viewerPermissions, Permission.OverrideStages)),
                     CanReinstate = Allows(viewerPermissions, Permission.OverrideStages)
                         && canChange && PathwayWorkflow.CanReinstateStage(pathway, s),
                     SkippedAtUtc = s.SkippedAtUtc,
@@ -226,7 +232,10 @@ public static class PathwayMapper
             .Select(a => Username(usernames, a.UserId))
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList(),
-        LastUpdated = pathway.LastUpdated
+        LastUpdated = pathway.LastUpdated,
+        Clock = pathway.Referral is { } referral
+            ? Referrals.Common.ReferralMapper.ToClock(referral, DueDates.ToUkDate(nowUtc))
+            : null
     };
 
     /// <summary>

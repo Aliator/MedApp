@@ -15,7 +15,7 @@ import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
-import {referralFieldWords, referralStatusLabel, rejectionReasonWords} from '../../api/referrals';
+import {pauseReasonWords, referralFieldWords, referralStatusLabel, rejectionReasonWords, stopReasonWords} from '../../api/referrals';
 import {describeSkipReason} from '../../api/stageSkips';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
@@ -195,28 +195,103 @@ const REFERRAL_ACTIONS: Record<string, string> = {
   DetailsEdited: 'Referral details edited',
   Withdrawn: 'Referral withdrawn',
   EnteredInError: 'Referral marked entered in error',
+  ClockPaused: 'Waiting-time clock paused',
+  ClockResumed: 'Waiting-time clock resumed',
+  ClockStopped: 'Waiting-time clock stopped',
+  TargetChanged: 'Waiting-time target changed',
 };
 
 /** A referral history action in words: "EnteredInError" → "Referral marked entered in error". */
 export const referralChangeLabel = (action: string | null | undefined) => REFERRAL_ACTIONS[action ?? ''] ?? `Referral: ${action ?? ''}`;
 
+const count = (value: unknown) => (typeof value === 'number' ? value : null);
+const days = (value: number) => `${value} ${value === 1 ? 'day' : 'days'}`;
+
 /**
  * What a referral history entry's details say, in words: the specialty and priority it was registered with, the
- * fields an edit changed (with the specialty it moved from), or the status it moved to. The details hold structured
- * values only: the reason and the details given are on the referral itself, above.
+ * fields an edit changed (with the specialty it moved from), the status it moved to, or what the waiting-time clock
+ * did (a pause's reason and review date, the days a pause lasted, why it stopped and how long it had waited, a target
+ * changed). The details hold structured values only: the reason and the details given are on the referral itself, above.
  */
 export function describeReferralChange(details: string | null | undefined): string {
   const d = parseDetails(details);
   const fields = Array.isArray(d.changedFields) ? d.changedFields.filter((f): f is string => typeof f === 'string') : [];
+  const fromDays = count(d.fromDays);
+  const toDays = count(d.toDays);
+  const pausedDays = count(d.pausedDays);
+  const daysWaited = count(d.daysWaited);
+  const targetDays = count(d.targetDays);
   return [
     text(d.specialtyName) ? `Specialty: ${text(d.specialtyName)}` : null,
     text(d.previousSpecialtyName) ? `was ${text(d.previousSpecialtyName)}` : null,
     text(d.requestedPriority) ? `Priority asked for: ${text(d.requestedPriority)}` : null,
     fields.length ? `Changed: ${fields.map(referralFieldWords).join(', ')}` : null,
     text(d.toStatus) ? `Now ${referralStatusLabel(text(d.toStatus)).toLowerCase()}` : null,
+    text(d.pauseReason) ? `Reason: ${pauseReasonWords(text(d.pauseReason))}` : null,
+    text(d.reviewOn) ? `review ${formatDate(text(d.reviewOn))}` : null,
+    pausedDays != null ? `paused ${days(pausedDays)}` : null,
+    d.automatic === true ? 'resumed automatically, as the clock stopped' : null,
+    text(d.stopReason) ? `Why: ${stopReasonWords(text(d.stopReason))}` : null,
+    daysWaited != null ? `waited ${days(daysWaited)}${targetDays != null ? ` of ${targetDays}` : ''}` : null,
+    d.breached === true ? 'breached' : null,
+    toDays != null ? `Target ${fromDays != null ? `${days(fromDays)} → ` : ''}${days(toDays)}` : null,
   ]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * A referral's waiting-time clock: its target, when the wait counted from, its target date, the days paused, and
+ * whether and why it stopped; then each pause, with its reason, detail, review date, and who paused and resumed it.
+ */
+function ReferralClock({referral}: {referral: ExportedReferral}) {
+  const pauses = referral.pauses ?? [];
+  return (
+    <VStack gap={3} hAlign="stretch">
+      <Heading level={4}>Waiting-time clock</Heading>
+      <MetadataList columns={2} label={{position: 'top'}}>
+        <MetadataListItem label="Target">{days(referral.targetDays ?? 0)}</MetadataListItem>
+        <MetadataListItem label="Wait Counted From">{referral.waitStartOn ? formatDate(referral.waitStartOn) : '—'}</MetadataListItem>
+        <MetadataListItem label="Target Date">{referral.targetOn ? formatDate(referral.targetOn) : '—'}</MetadataListItem>
+        <MetadataListItem label="Days Paused">{days(referral.pausedDays ?? 0)}</MetadataListItem>
+        <MetadataListItem label="Stopped">
+          {referral.stoppedOn ? `${formatDate(referral.stoppedOn)}: ${stopReasonWords(referral.stopReason) || 'no reason recorded'}` : 'Not stopped'}
+        </MetadataListItem>
+      </MetadataList>
+      {pauses.length === 0 ? (
+        <Text type="body" color="secondary">
+          Never paused.
+        </Text>
+      ) : (
+        <List hasDividers edge="bleed" aria-label={`Pauses of ${referralName(referral)}`}>
+          {pauses.map((pause, index) => (
+            <ListItem
+              key={`${pause.pausedOn}-${index}`}
+              align="first-line"
+              label={
+                <Text type="body" weight="semibold">
+                  {`Paused ${pause.pausedOn ? formatDate(pause.pausedOn) : ''} by ${pause.pausedBy}: ${pauseReasonWords(pause.reason)}`}
+                </Text>
+              }
+              description={
+                <VStack gap={1}>
+                  {pause.detail && <Text type="supporting">{pause.detail}</Text>}
+                  <Text type="supporting" color="secondary">
+                    {[
+                      pause.reviewOn ? `Review ${formatDate(pause.reviewOn)}` : null,
+                      pause.resumedOn ? `resumed ${formatDate(pause.resumedOn)}${pause.resumedBy ? ` by ${pause.resumedBy}` : ''}` : 'not resumed',
+                    ]
+                      .filter(Boolean)
+                      .join('; ')}
+                  </Text>
+                </VStack>
+              }
+            />
+          ))}
+        </List>
+      )}
+    </VStack>
+  );
 }
 
 /** One titled part of the export, as a card. */
@@ -489,6 +564,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     )}
                   </MetadataList>
                   <Text type="body">{`Reason for referral: ${referral.reason ?? ''}`}</Text>
+                  <ReferralClock referral={referral} />
                 </VStack>
               ))}
             </VStack>

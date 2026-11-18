@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
-import {PathwayTemplateEditorPage} from './PathwayTemplateEditorPage';
+import {PathwayTemplateEditorPage, startingStopKey, stopStageOrder} from './PathwayTemplateEditorPage';
 
 const BASE = '/api/pathways/patient-pathway-stage';
 
@@ -76,7 +76,7 @@ describe('PathwayTemplateEditorPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Create Template'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
-    expect(await sent(fetch, 'POST')!.json()).toEqual({name: 'Scan pathway', stageDefinitionIdsInOrder: ['d1', 'd1'], specialtyId: 'sp2'});
+    expect(await sent(fetch, 'POST')!.json()).toEqual({name: 'Scan pathway', stageDefinitionIdsInOrder: ['d1', 'd1'], specialtyId: 'sp2', clockStopStageOrder: null});
     await expectAnnounced('Template created');
   });
 
@@ -92,7 +92,7 @@ describe('PathwayTemplateEditorPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
     await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
-    expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1']});
+    expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], clockStopStageOrder: null});
   });
 
   it("shows the API's errors: the name's on its field, the stages' in the header", async () => {
@@ -157,7 +157,7 @@ describe('PathwayTemplateEditorPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
     await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
-    expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], specialtyId: 'sp2'});
+    expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], specialtyId: 'sp2', clockStopStageOrder: null});
   });
 
   it('says when the specialties could not be loaded', async () => {
@@ -242,6 +242,102 @@ describe('PathwayTemplateEditorPage', () => {
     expect(await findAlert('The template could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
+  describe('the clock-stop stage', () => {
+    const stopField = () => screen.getByRole('combobox', {name: /Clock-stop stage/});
+    async function chooseStop(user: ReturnType<typeof renderEditor>['user'], name: string) {
+      await user.click(stopField());
+      await user.click(screen.getByRole('option', {name}));
+    }
+    const stopsTheClock = () =>
+      within(screen.getByRole('list', {name: 'Stages in order'}))
+        .getAllByRole('listitem')
+        .filter((item) => within(item).queryByText('Stops the clock'))
+        .map((item) => within(item).getByText(/^\d+\. /).textContent);
+
+    it('starts from the template, marks that stage, and sends its position with the stages', async () => {
+      const {user, fetch} = renderEditor('t1', {
+        [`GET ${BASE}/templates/t1`]: () => json({...template, clockStopStageOrder: 3}),
+        [`PATCH ${BASE}/templates/t1`]: () => json(template),
+      });
+
+      await screen.findByRole('list', {name: 'Stages in order'});
+      expect(stopField()).toHaveTextContent('3. Consultation');
+      expect(stopField()).toHaveAccessibleDescription(/The waiting-time clock stops when this stage is finished\./);
+      expect(stopsTheClock()).toEqual(['3. Consultation']);
+
+      await user.click(screen.getByRole('button', {name: 'Save'}));
+      expect(within(openDialog()!).getByText('When 3. Consultation is finished')).toBeInTheDocument();
+      await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+      await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
+      expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], clockStopStageOrder: 3});
+    });
+
+    it('stays on the same stage when the stages are reordered', async () => {
+      const {user, fetch} = renderEditor('t1', {[`PATCH ${BASE}/templates/t1`]: () => json(template)});
+
+      await screen.findByRole('list', {name: 'Stages in order'});
+      await chooseStop(user, '1. Consultation');
+      expect(stopsTheClock()).toEqual(['1. Consultation']);
+
+      await user.click(screen.getByRole('button', {name: /Reorder.*1\. Consultation/}));
+      await user.keyboard('{ArrowDown}');
+      await waitFor(() => expect(stageNames()).toEqual(['1. Old triage', '2. Consultation', '3. Consultation']));
+      expect(stopsTheClock()).toEqual(['2. Consultation']);
+      expect(stopField()).toHaveTextContent('2. Consultation');
+
+      await user.click(screen.getByRole('button', {name: 'Save'}));
+      await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+      await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
+      expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d3', 'd1', 'd1'], clockStopStageOrder: 2});
+    });
+
+    it('goes when its stage is removed, and can be set back to none', async () => {
+      const {user} = renderEditor('t1');
+
+      await screen.findByRole('list', {name: 'Stages in order'});
+      await chooseStop(user, '2. Old triage');
+      expect(stopsTheClock()).toEqual(['2. Old triage']);
+      await user.click(screen.getByRole('button', {name: 'Remove Old triage (stage 2)'}));
+      expect(stopsTheClock()).toEqual([]);
+      expect(stopField()).toHaveTextContent('None');
+
+      await chooseStop(user, '2. Consultation');
+      expect(stopsTheClock()).toEqual(['2. Consultation']);
+      await chooseStop(user, 'None');
+      expect(stopsTheClock()).toEqual([]);
+
+      await user.click(screen.getByRole('button', {name: 'Save'}));
+      expect(within(openDialog()!).getByText('At no stage')).toBeInTheDocument();
+    });
+
+    it('is disabled until the template has stages', async () => {
+      renderEditor();
+
+      await screen.findByRole('list', {name: 'Stages to add'});
+      expect(stopField()).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('starts from the stage marked as stopping the clock, and from none for a new template', () => {
+      const rows = [
+        {key: 'a', definitionId: 'd1'},
+        {key: 'b', definitionId: 'd2'},
+      ];
+      expect(startingStopKey({...template, stages: [{stageOrder: 2, stopsClock: true}]}, rows)).toBe('b');
+      expect(startingStopKey({...template, clockStopStageOrder: 1}, rows)).toBe('a');
+      expect(startingStopKey({...template, clockStopStageOrder: 9}, rows)).toBe('none');
+      expect(startingStopKey(null, rows)).toBe('none');
+      expect(stopStageOrder(rows, 'b')).toBe(2);
+      expect(stopStageOrder(rows, 'gone')).toBeNull();
+    });
+  });
+
+  it('goes back to the list for an unknown template', async () => {
+    const {router} = renderEditor('t404', {[`GET ${BASE}/templates/t404`]: () => json({title: 'Not found'}, 404)});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
+  });
+
   describe('optional stages and branches', () => {
     const row = (n: number) => within(within(screen.getByRole('list', {name: 'Stages in order'})).getAllByRole('listitem')[n]);
 
@@ -291,6 +387,7 @@ describe('PathwayTemplateEditorPage', () => {
           {isOptional: false, choosesBranch: false, branch: null},
         ],
         specialtyId: 'sp2',
+        clockStopStageOrder: null,
       });
     });
 
@@ -327,7 +424,7 @@ describe('PathwayTemplateEditorPage', () => {
       await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
       await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
-      expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1']});
+      expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1'], clockStopStageOrder: null});
     });
 
     it('says a stage in a branch must come after a branch point', async () => {

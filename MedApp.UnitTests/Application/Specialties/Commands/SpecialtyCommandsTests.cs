@@ -95,6 +95,45 @@ public sealed class SpecialtyCommandsTests
     }
 
     [Test]
+    public async Task Create_WithoutTargets_TakesTheDefaults_OrThoseGiven()
+    {
+        var added = new List<Specialty>();
+        _repository
+            .Setup(r => r.AddAsync(It.IsAny<Specialty>(), It.IsAny<CancellationToken>()))
+            .Callback((Specialty s, CancellationToken _) => added.Add(s));
+        var handler = _fixture.Create<CreateSpecialtyHandler>();
+
+        var defaults = await handler.Handle(new CreateSpecialtyCommand(OtherSpecialtyName), _cts.Token);
+        var chosen = await handler.Handle(new CreateSpecialtyCommand("Synthetic biomechanics", 7, 21, 84, 180), _cts.Token);
+
+        defaults.Should().BeEquivalentTo(new { TargetDaysUrgent = 14, TargetDaysHigh = 28, TargetDaysMedium = 126, TargetDaysLow = 126 });
+        chosen.Should().BeEquivalentTo(new { TargetDaysUrgent = 7, TargetDaysHigh = 21, TargetDaysMedium = 84, TargetDaysLow = 180 });
+        added[1].TargetDaysLow.Should().Be(180);
+    }
+
+    [Test]
+    public async Task Update_TargetsOnly_SavesThemAndLeavesTheOthersAsTheyWere()
+    {
+        var response = await _fixture.Create<UpdateSpecialtyHandler>()
+            .Handle(new UpdateSpecialtyCommand(_specialty.Id, SpecialtyName, 3, TargetDaysUrgent: 10, TargetDaysLow: 200), _cts.Token);
+
+        _repository.Verify(r => r.UpdateAsync(
+            It.Is<Specialty>(s => s.TargetDaysUrgent == 10 && s.TargetDaysHigh == 28 && s.TargetDaysMedium == 126
+                                  && s.TargetDaysLow == 200 && s.Version == 4), 3, _cts.Token));
+        _repository.Verify(r => r.NameExistsAsync(It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+        response.TargetDaysUrgent.Should().Be(10);
+    }
+
+    [Test]
+    public async Task Update_SameTargets_SavesNothing()
+    {
+        await _fixture.Create<UpdateSpecialtyHandler>()
+            .Handle(new UpdateSpecialtyCommand(_specialty.Id, SpecialtyName, 3, 14, 28, 126, 126), _cts.Token);
+
+        _repository.Verify(r => r.UpdateAsync(It.IsAny<Specialty>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Update_SameName_SavesNothing()
     {
         var response = await _fixture.Create<UpdateSpecialtyHandler>()

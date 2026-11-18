@@ -124,6 +124,7 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.Name,
             request.SpecialtyId,
             request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder,
             ToOptions(request.StageOptions)), ct);
 
         return Created($"/api/pathways/patient-pathway-stage/templates/{template.Id}", template);
@@ -142,6 +143,7 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.Name,
             request.SpecialtyId,
             request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder,
             ToOptions(request.StageOptions)), ct));
 
     [HttpPost("templates/{id:guid}/archive")]

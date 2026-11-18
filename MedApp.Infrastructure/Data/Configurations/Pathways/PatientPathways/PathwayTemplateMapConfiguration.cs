@@ -25,6 +25,10 @@ public sealed class PathwayTemplateMapConfiguration : IEntityTypeConfiguration<P
         builder.Property(x => x.Branch)
             .HasMaxLength(PathwayBranchLimits.MaxBranchLength);
 
+        // At most one per template (the handlers check it).
+        builder.Property(x => x.StopsClock)
+            .HasDefaultValue(false);
+
         builder.HasOne(x => x.Template)
             .WithMany(x => x.Maps)
             .HasForeignKey(x => x.TemplateId)

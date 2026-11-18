@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
@@ -17,13 +19,19 @@ public sealed class SkipPathwayStageHandler(
     TimeProvider timeProvider)
     : IRequestHandler<SkipPathwayStageCommand, PatientPathwayResponse>
 {
+    public const string DetailRequiredMessage = "Say why: skipping a stage whose visit is required needs a detail.";
+
     public async Task<PatientPathwayResponse> Handle(SkipPathwayStageCommand request, CancellationToken cancellationToken)
     {
         var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
-        if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage) is { } reason)
+        if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage, request.CanOverrideStages) is { } reason)
             throw new ConflictException(reason);
+
+        // A Required visit skipped, like one finished without, says why.
+        if (PathwayWorkflow.SkipNeedsOverride(stage) && string.IsNullOrWhiteSpace(request.Detail))
+            throw new ValidationException([new ValidationFailure(nameof(request.Detail), DetailRequiredMessage)]);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);

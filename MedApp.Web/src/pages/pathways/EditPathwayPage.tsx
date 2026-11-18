@@ -31,7 +31,9 @@ const pageProps = {
 
 /**
  * Edit a pathway's details: title, target date and priority (not its stages, which come from its template, nor its
- * notes, which are added and edited one at a time on its page).
+ * notes, which are added and edited one at a time on its page). A pathway from a referral whose waiting-time clock
+ * is running or paused shows its target date read-only, "from the waiting-time clock", and doesn't send it: the clock
+ * sets it (decision 32). Once the clock has stopped, it's edited by hand again.
  * This part loads the pathway; an unknown one goes back to the list. The form mounts once it's here, so it
  * starts from the pathway's details.
  */
@@ -65,9 +67,11 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
   // Decision 18: saving changes to a pathway that isn't yours asks first. The save confirmation asks it.
   // Holders of AssignPathways aren't warned: handing out and looking after any pathway is their job.
   const isMine = can(user, 'AssignPathways') || (pathway.assignments?.some((a) => a.username === user.username) ?? false);
+  const clock = pathway.referral?.clock;
+  const isDueDateFromClock = Boolean(clock) && clock?.state !== 'Stopped';
 
   const save = () =>
-    update.mutate(form, {
+    update.mutate(isDueDateFromClock ? {title: form.title, priority: form.priority} : form, {
       onSuccess: () => {
         announce('Pathway saved');
         backToPathway();
@@ -123,7 +127,7 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
           isProcessing={update.isPending}
           onConfirm={save}
           onCancel={() => setIsConfirming(false)}>
-          <PathwaySummary title={form.title} dueDate={form.dueDate} priority={form.priority} />
+          <PathwaySummary title={form.title} dueDate={isDueDateFromClock ? undefined : form.dueDate} priority={form.priority} />
         </ConfirmDialog>
       }>
       <FormCard
@@ -134,7 +138,13 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
         onCancel={backToPathway}
         isProcessing={update.isPending}
         fill>
-        <PathwayDetailsFields value={form} onChange={setForm} errors={problem.validation} isDisabled={update.isPending} />
+        <PathwayDetailsFields
+          value={form}
+          onChange={setForm}
+          errors={problem.validation}
+          isDisabled={update.isPending}
+          isDueDateFromClock={isDueDateFromClock}
+        />
       </FormCard>
     </Page>
   );

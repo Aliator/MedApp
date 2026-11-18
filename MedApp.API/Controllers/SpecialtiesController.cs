@@ -44,7 +44,8 @@ public sealed class SpecialtiesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateSpecialty([FromBody] CreateSpecialtyRequest request, CancellationToken ct)
     {
-        var specialty = await mediator.Send(new CreateSpecialtyCommand(request.Name), ct);
+        var specialty = await mediator.Send(new CreateSpecialtyCommand(
+            request.Name, request.TargetDaysUrgent, request.TargetDaysHigh, request.TargetDaysMedium, request.TargetDaysLow), ct);
         return Created($"/api/specialties/{specialty.Id}", specialty);
     }
 
@@ -56,7 +57,9 @@ public sealed class SpecialtiesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateSpecialty(Guid id, [FromBody] UpdateSpecialtyRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateSpecialtyCommand(id, request.Name, request.ExpectedVersion), ct));
+        Ok(await mediator.Send(new UpdateSpecialtyCommand(
+            id, request.Name, request.ExpectedVersion,
+            request.TargetDaysUrgent, request.TargetDaysHigh, request.TargetDaysMedium, request.TargetDaysLow), ct));
 
     /// <summary>Archives a specialty: it can't be chosen for templates or given to staff; what has it keeps it.</summary>
     [HttpPost("{id:guid}/archive")]

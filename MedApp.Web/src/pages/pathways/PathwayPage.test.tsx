@@ -477,7 +477,31 @@ describe('PathwayPage: working on it', () => {
 
     await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
     expect(screen.queryByRole('link', {name: /^From a referral/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: 'Referral and wait'})).not.toBeInTheDocument();
   });
+
+  it.each([false, true])('shows the referral and its wait in a section of its own, which folds (narrow: %s)', async (isNarrow) => {
+    const referral = {
+      id: 'referral-1',
+      receivedOn: '2026-11-02',
+      specialtyName: 'Dermatology',
+      version: 3,
+      clock: {state: 'Running', targetDays: 28, daysWaited: 30, isBreached: true, targetOn: '2026-11-30', waitStartOn: '2026-11-02'},
+      pauses: [],
+      canPauseClock: true,
+      canResumeClock: false,
+    };
+    mockApi({[`GET ${PATH}`]: () => json(working({referral}))});
+    const {user} = renderWithApp(<PathwayView id={id} isNarrow={isNarrow} />, {user: staffUser});
+
+    const heading = await screen.findByRole('heading', {name: 'Referral and wait'});
+    expect(screen.getByText('Day 30 of 28')).toBeInTheDocument();
+    expect(screen.getByText('Breached')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Pause Clock'})).toBeInTheDocument();
+    await user.click(heading);
+    await waitFor(() => expect(screen.queryByText('Day 30 of 28')).not.toBeInTheDocument());
+  });
+
 
   it("makes no change when the not-assigned question is answered with Cancel", async () => {
     const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
@@ -1034,8 +1058,8 @@ describe('PathwayPage: skipping stages and branches', () => {
     choosesBranch: true,
     needsBranchChoice: true,
     branches: [
-      {name: 'Benign', stageNames: ['Discharge letter']},
-      {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery']},
+      {name: 'Benign', stageNames: ['Discharge letter'], stageNamesToDo: ['Discharge letter']},
+      {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery'], stageNamesToDo: ['Treatment planning', 'Surgery']},
     ],
   };
 

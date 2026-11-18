@@ -71,7 +71,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
     }
 
     [Test]
-    public async Task Template_WithOptions_KeepsThemAndAPlainEditClearsThem()
+    public async Task Template_WithOptions_KeepsThemWhenAnEditLeavesThemOutAndClearsThemWhenSentPlain()
     {
         var template = await CreateBranchingTemplateAsync();
 
@@ -79,8 +79,19 @@ public sealed class BranchingPathwayTests : IntegrationTest
         read.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
             (false, true, null), (false, false, "Benign"), (false, false, "Treatment"), (true, false, "Treatment"), (false, false, null));
 
+        // A page from before stage options sends the same stage list without them: they stay.
+        var kept = await (await _admin.PatchAsJsonAsync($"{TemplatesUrl}/{template.Id}",
+                new UpdatePathwayTemplateRequest { Name = UniqueName("Renamed"), StageDefinitionIdsInOrder = read.StageDefinitionIdsInOrder }))
+            .ReadAsAsync<PathwayTemplateResponse>();
+        kept.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
+            read.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)));
+
         var plain = await (await _admin.PatchAsJsonAsync($"{TemplatesUrl}/{template.Id}",
-                new UpdatePathwayTemplateRequest { StageDefinitionIdsInOrder = read.StageDefinitionIdsInOrder }))
+                new UpdatePathwayTemplateRequest
+                {
+                    StageDefinitionIdsInOrder = read.StageDefinitionIdsInOrder,
+                    StageOptions = [new(), new(), new(), new(), new()],
+                }))
             .ReadAsAsync<PathwayTemplateResponse>();
         plain.Stages.Should().AllSatisfy(s => (s.IsOptional, s.ChoosesBranch, s.Branch).Should().Be((false, false, (string?)null)));
     }

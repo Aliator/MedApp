@@ -107,7 +107,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request.PatientName,
             request.NobodyAssigned,
             request.SpecialtyIds,
-            request.StageDefinitionIds), ct));
+            request.StageDefinitionIds,
+            request.BreachedOnly), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
@@ -293,7 +294,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
 
     /// <summary>
     /// Skips an optional stage while it's current, with a reason (NotNeeded, PatientDeclined or Other, with a detail for
-    /// Other). The pathway moves on to its next stage.
+    /// Other). The pathway moves on to its next stage. One whose visit is Required needs OverrideStages and a detail (409, 400).
     /// </summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/skip")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
@@ -302,7 +303,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [RequirePermission(Permission.WorkPathways)]
     public async Task<IActionResult> SkipPathwayStage(Guid id, Guid stageId, [FromBody] SkipPathwayStageRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new SkipPathwayStageCommand(id, stageId, request.Reason, request.Detail, User.ToPathwayActor()), ct));
+        Ok(await mediator.Send(new SkipPathwayStageCommand(
+            id, stageId, request.Reason, request.Detail, User.ToPathwayActor(), User.HasPermission(Permission.OverrideStages)), ct));
 
     /// <summary>
     /// Reinstates a skipped stage, with a reason, so it runs again in its place (before the current stage, it becomes

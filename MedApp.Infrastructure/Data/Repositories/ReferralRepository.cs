@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Timeline.Common;
@@ -6,6 +7,7 @@ using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Queries.SearchReferrals;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Domain.Referrals;
+using MedApp.Infrastructure.Data.Configurations.Referrals;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -41,13 +43,30 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
         await context.StaffSpecialties.AnyAsync(m => m.UserId == userId && m.SpecialtyId == specialtyId, ct);
 
     public async Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct) =>
-        await context.Referrals
-            .AsNoTracking()
-            .Include(r => r.Specialty)
+        await WithDetails(context.Referrals.AsNoTracking())
             .FirstOrDefaultAsync(r => r.PathwayId == pathwayId, ct);
 
-    private Task SaveAsync(CancellationToken ct) =>
-        context.SaveChangesOrConflictAsync(ReferralWorkflow.ChangedMeanwhileMessage, ct);
+    private async Task SaveAsync(CancellationToken ct)
+    {
+        try
+        {
+            await context.SaveChangesOrConflictAsync(ReferralWorkflow.ChangedMeanwhileMessage, ct);
+        }
+        catch (DbUpdateException e) when (e.IsViolationOf(ReferralClockPauseConfiguration.OpenPerReferralIndex))
+        {
+            throw new ConflictException(WaitingClock.PausedMeanwhileMessage);
+        }
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetPauseDetailsAsync(
+        IReadOnlyCollection<Guid> pauseIds, CancellationToken ct)
+    {
+        var ids = pauseIds.ToList();
+        return await context.ReferralClockPauses
+            .AsNoTracking()
+            .Where(p => ids.Contains(p.Id) && p.Detail != null)
+            .ToDictionaryAsync(p => p.Id, p => p.Detail!, ct);
+    }
 
     public async Task<IReadOnlyList<ReferralEvent>> GetHistoryAsync(Guid referralId, CancellationToken ct) =>
         await context.ReferralEvents
@@ -75,13 +94,13 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     }
 
     public async Task<PagedResult<ReferralRow>> SearchAsync(
-        SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, CancellationToken ct)
+        SearchReferralsQuery query, IReadOnlyCollection<Guid>? specialtyIds, DateOnly today, CancellationToken ct)
     {
-        var filtered = context.Referrals.AsNoTracking().Filter(query, specialtyIds);
+        var filtered = context.Referrals.AsNoTracking().Filter(query, specialtyIds, today);
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
-            .Sort(query.Sort, query.Ascending)
+            .Sort(query.Sort, query.Ascending, today)
             .Skip(Paging.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .Select(r => new
@@ -132,5 +151,6 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     private static IQueryable<Referral> WithDetails(IQueryable<Referral> referrals) =>
         referrals
             .Include(r => r.Patient)
-            .Include(r => r.Specialty);
+            .Include(r => r.Specialty)
+            .Include(r => r.Pauses);
 }

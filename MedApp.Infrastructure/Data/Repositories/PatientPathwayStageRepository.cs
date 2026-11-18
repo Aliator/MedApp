@@ -128,6 +128,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
     public async Task UpdatePathwayTemplateAsync(
         PathwayTemplate template,
         IReadOnlyList<Guid>? stageDefinitionIdsInOrder,
+        int? clockStopStageOrder,
         IReadOnlyList<TemplateStageOptions>? stageOptions,
         CancellationToken ct)
     {
@@ -143,7 +144,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         {
             // Rows are keyed by position: reuse the positions that stay, add new ones, remove the rest.
             var byOrder = existing.Maps.ToDictionary(m => m.StageOrder);
-            var newMaps = PathwayTemplateMapper.ToMaps(existing.Id, stageDefinitionIdsInOrder, stageOptions);
+            var newMaps = PathwayTemplateMapper.ToMaps(existing.Id, stageDefinitionIdsInOrder, clockStopStageOrder, stageOptions);
             foreach (var newMap in newMaps)
             {
                 if (byOrder.TryGetValue(newMap.StageOrder, out var map))
@@ -152,6 +153,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
                     map.IsOptional = newMap.IsOptional;
                     map.ChoosesBranch = newMap.ChoosesBranch;
                     map.Branch = newMap.Branch;
+                    map.StopsClock = newMap.StopsClock;
                 }
                 else
                 {

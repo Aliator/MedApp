@@ -54,6 +54,7 @@ public static class PathwayCreation
                     IsOptional = map.IsOptional,
                     ChoosesBranch = map.ChoosesBranch,
                     Branch = map.Branch,
+                    StopsClock = map.StopsClock,
                     CreatedAt = nowUtc,
                     LastUpdated = nowUtc
                 })

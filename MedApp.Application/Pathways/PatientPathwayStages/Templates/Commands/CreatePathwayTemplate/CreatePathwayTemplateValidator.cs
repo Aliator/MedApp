@@ -40,5 +40,11 @@ public sealed class CreatePathwayTemplateValidator : AbstractValidator<CreatePat
                         if (options is not null && TemplateBranchRules.WhyInvalid(options) is { } problem)
                             context.AddFailure(problem);
                     }));
+        RuleFor(x => x.ClockStopStageOrder)
+            .Must((command, order) => order is null || (order >= 1 && order <= (command.StageDefinitionIdsInOrder?.Count ?? 0)))
+            .WithMessage(ClockStopStageMessage);
     }
+
+    /// <summary>The clock-stop stage must be one of the template's stages, by its position.</summary>
+    public const string ClockStopStageMessage = "The stage that stops the waiting-time clock must be one of the template's stages.";
 }

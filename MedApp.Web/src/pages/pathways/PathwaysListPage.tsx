@@ -23,6 +23,7 @@ import {
   statusLabel,
 } from '../../components/pathways/PathwayCells';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
+import {WaitCell} from '../../components/referrals/WaitingClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {TextCell} from '../../components/tables/TextCell';
@@ -58,6 +59,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'choice', key: 'priority', label: 'Priority', options: TASK_PRIORITIES.map((p) => ({value: p, label: p})), isMultiple: true},
   {kind: 'date', key: 'due', label: 'Target date', fromKey: 'dueFrom', toKey: 'dueTo'},
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
+  {kind: 'flag', key: 'breached', label: 'Breached', operator: 'only'},
   {kind: 'flag', key: 'mine', label: 'Assigned to me', operator: 'only'},
   {kind: 'flag', key: 'closed', label: 'Discharged, cancelled and archived', operator: 'included'},
 ];
@@ -89,6 +91,7 @@ function templateField(templates: readonly {id?: string; name?: string | null}[]
 const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Assigned to me', values: {mine: true}},
   {label: 'Overdue', values: {overdue: true}},
+  {label: 'Breached', values: {breached: true}},
   {label: 'Unassigned', values: {status: 'Unassigned'}},
   {label: 'On hold', values: {status: 'Blocked'}},
   {label: 'Awaiting review', values: {status: 'InReview'}},
@@ -110,6 +113,8 @@ export interface PathwaysListPageProps {
 /**
  * Pathways: every pathway, or one patient's, a page at a time from the API. Sortable, with a power search
  * across the top; the page, sort and filters live in the URL. Discharged, cancelled and archived ones are hidden unless asked for.
+ * The Wait column is the referral's waiting-time clock ("Day 84 of 126", Breached, Paused), sortable by days waited;
+ * a pathway created directly has none. Breached only is a filter, like Overdue only.
  */
 /**
  * The list's page of pathways, for its search and list settings, and the patient on a patient's pathways (the
@@ -133,6 +138,7 @@ export function pathwaysListQuery(
     Statuses: pathwayStatuses(search),
     Priorities: choiceValues(search.priority, TASK_PRIORITIES),
     OverdueOnly: search.overdue,
+    BreachedOnly: search.breached,
     AssignedToMe: mine || undefined,
     AssignedToUserId: search.assignee && search.assignee !== NOBODY ? search.assignee : undefined,
     NobodyAssigned: search.assignee === NOBODY || undefined,
@@ -210,6 +216,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
       width: PATHWAY_COLUMN_WIDTH.due,
       renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
     },
+    {key: 'Wait', header: 'Wait', sortable: true, width: PATHWAY_COLUMN_WIDTH.wait, renderCell: (p) => <WaitCell clock={p.clock} />},
     {key: 'Priority', header: 'Priority', sortable: true, width: PATHWAY_COLUMN_WIDTH.priority, renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />},
     {key: 'assigned', header: 'Assigned to', width: PATHWAY_COLUMN_WIDTH.assigned, renderCell: (p) => <AssigneesCell assignees={p.assignees ?? []} />},
     {

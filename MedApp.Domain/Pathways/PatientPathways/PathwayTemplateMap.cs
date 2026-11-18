@@ -28,4 +28,9 @@ public sealed class PathwayTemplateMap
     /// Only after a branch point. Copied onto each pathway's stage.
     /// </summary>
     public string? Branch { get; set; }
+    /// <summary>
+    /// Finishing this stage stops the waiting-time clock of a pathway accepted from a referral (at most one per
+    /// template, chosen by admins). Copied onto each new pathway's stage, so changing it affects only new pathways.
+    /// </summary>
+    public bool StopsClock { get; set; }
 }

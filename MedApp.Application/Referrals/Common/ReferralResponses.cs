@@ -11,16 +11,18 @@ public static class ReferralResponses
 {
     /// <summary>
     /// The referral (loaded with its patient and specialty), its history, how many letters it has, and whether the
-    /// viewer can triage it (asking their membership of its specialty only when it's open and they hold the permission).
+    /// viewer can triage it (asking their membership of its specialty only when it's open and they hold the permission),
+    /// with its clock as of today (UK).
     /// </summary>
     public static async Task<ReferralResponse> ForAsync(
-        Referral referral, IReferralRepository repository, PathwayActor viewer, CancellationToken ct)
+        Referral referral, IReferralRepository repository, PathwayActor viewer, TimeProvider timeProvider, CancellationToken ct)
     {
         var history = await repository.GetHistoryAsync(referral.Id, ct);
         var letters = await repository.CountLettersAsync(referral.Id, ct);
         var isMember = ReferralWorkflow.IsOpen(referral.Status)
                        && viewer.Has(Permission.TriageReferrals)
                        && await repository.IsSpecialtyMemberAsync(viewer.UserId, referral.SpecialtyId, ct);
-        return ReferralMapper.ToResponse(referral, history, letters, viewer, isMember);
+        var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
+        return ReferralMapper.ToResponse(referral, history, letters, viewer, isMember, today);
     }
 }

@@ -142,15 +142,22 @@ public static partial class PathwayWorkflow
     public static bool CanUnlockStage(PatientPathway pathway, PatientPathwayStage stage) =>
         stage.IsCompleted && stage.IsLocked && (IsOpen(pathway.Status) || pathway.Status == Completed);
 
-    /// <summary>Whether staff can skip a stage now (<see cref="WhySkipNotAllowed"/>).</summary>
-    public static bool CanSkipStage(PatientPathway pathway, PatientPathwayStage stage) =>
-        WhySkipNotAllowed(pathway, stage) is null;
+    /// <summary>Whether this person can skip a stage now (<see cref="WhySkipNotAllowed"/>).</summary>
+    public static bool CanSkipStage(PatientPathway pathway, PatientPathwayStage stage, bool canOverrideStages) =>
+        WhySkipNotAllowed(pathway, stage, canOverrideStages) is null;
+
+    /// <summary>
+    /// Skipping an optional stage whose visit is Required is finishing it without its visit by another name, so only
+    /// holders of OverrideStages may, as only they may finish one without it; and, as there, with a reason (the detail).
+    /// </summary>
+    public static bool SkipNeedsOverride(PatientPathwayStage stage) => stage.VisitRequirement == VisitRequirement.Required;
 
     /// <summary>
     /// Why a stage can't be skipped by hand now, or null if it can: it must be optional and the current stage of an
     /// open pathway (a later optional stage is skipped when it's reached, so the choice is made with what's known then).
+    /// One whose visit is Required needs <paramref name="canOverrideStages"/> (<see cref="SkipNeedsOverride"/>).
     /// </summary>
-    public static string? WhySkipNotAllowed(PatientPathway pathway, PatientPathwayStage stage)
+    public static string? WhySkipNotAllowed(PatientPathway pathway, PatientPathwayStage stage, bool canOverrideStages)
     {
         if (!stage.IsOptional)
             return $"The '{stage.Name}' stage isn't optional, so it can't be skipped.";
@@ -165,9 +172,12 @@ public static partial class PathwayWorkflow
             return $"The '{stage.Name}' stage is finished, so it can't be skipped.";
 
         var current = CurrentStage(pathway);
-        return current?.Id == stage.Id
-            ? null
-            : $"Only the current stage can be skipped: finish the '{current?.Name}' stage first.";
+        if (current?.Id != stage.Id)
+            return $"Only the current stage can be skipped: finish the '{current?.Name}' stage first.";
+
+        return SkipNeedsOverride(stage) && !canOverrideStages
+            ? $"The '{stage.Name}' stage needs a visit, so only someone who can finish a stage without its visit can skip it."
+            : null;
     }
 
     /// <summary>
