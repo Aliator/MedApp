@@ -255,3 +255,11 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **The aim:** run areas such as pathways, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
+
+## Working hours (centre plan PR 22)
+
+- **A `WorkingHours:Default` setting** for a deployment whose usual week isn't Monday to Friday, 08:00 to 18:00: the default is fixed in code today (`WorkingHours`).
+- **Week templates for Saturday and Sunday:** a weekend day someone works gets template blocks only through Apply Template.
+- **Flag what's outside someone's hours** after their hours change (as a block overlapping an appointment is flagged); today it shows, but unmarked.
+- **A site's closed day** still reports no bookings and tells nobody when it's added, though it now closes the calendars of staff working there.
+- **The staff picker on the templates page** is for admins only; holders of `ManageClinics` or `ManageAnyCalendar` who aren't admins open someone's hours by link (`/calendar/templates?tab=hours&staff=…`) until the web app knows permissions.
