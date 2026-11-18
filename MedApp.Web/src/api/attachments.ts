@@ -199,6 +199,15 @@ export interface UploadAttachmentOptions {
  * AbortError when cancelled. Browser only.
  */
 export function uploadAttachment({target, file, onProgress, signal}: UploadAttachmentOptions): Promise<Attachment> {
+  return sendFile<Attachment>({url: `/api/attachments?${new URLSearchParams(targetParams(target)).toString()}`, file, onProgress, signal});
+}
+
+/**
+ * Sends a file's bytes to an endpoint that takes one as an attached file does (`application/octet-stream`, its name
+ * in `X-File-Name`, URL-encoded): `uploadAttachment`, and a specimen's report. Resolves with the response's body;
+ * rejects as `uploadAttachment` does. Browser only.
+ */
+export function sendFile<T>({url, file, onProgress, signal}: {url: string; file: File; onProgress?: (fraction: number) => void; signal?: AbortSignal}): Promise<T> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(uploadCancelled());
@@ -211,7 +220,7 @@ export function uploadAttachment({target, file, onProgress, signal}: UploadAttac
       finish();
     };
 
-    xhr.open('POST', `/api/attachments?${new URLSearchParams(targetParams(target)).toString()}`);
+    xhr.open('POST', url);
     xhr.withCredentials = true;
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
@@ -223,7 +232,7 @@ export function uploadAttachment({target, file, onProgress, signal}: UploadAttac
         const body = parseJson(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) {
           onProgress?.(1);
-          resolve(body as Attachment);
+          resolve(body as T);
         } else {
           reject(new ApiError(xhr.status, undefined, uploadErrorMessage(xhr.status, body)));
         }

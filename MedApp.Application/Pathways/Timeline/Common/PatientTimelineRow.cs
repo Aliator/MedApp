@@ -1,4 +1,5 @@
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.Application.Pathways.Timeline.Common;
 
@@ -22,6 +23,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     /// withdrawal reason): the audit entry itself holds none.
     /// </summary>
     public Domain.Letters.Letter? Letter { get; init; }
+
+    /// <summary>
+    /// For a specimen entry (only for admins), the specimen as it is now, for its free text (the site, request notes and
+    /// the detail given when it closed): the audit entry itself holds none.
+    /// </summary>
+    public Specimen? Specimen { get; init; }
 
     /// <summary>About a file attached to the patient themselves, not to one of their pathways.</summary>
     public bool IsAboutPatient => Entry.PatientPathwayId == PatientPathwayAuditEntry.NoPathway;

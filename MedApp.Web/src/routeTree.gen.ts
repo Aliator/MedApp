@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
+import { Route as AppLabRouteImport } from './routes/_app/lab'
 import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
 import { Route as AppPracticesRouteImport } from './routes/_app/practices'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
@@ -39,6 +40,7 @@ import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/reten
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSitesRouteImport } from './routes/_app/admin/sites'
 import { Route as AppAdminSpecialtiesRouteImport } from './routes/_app/admin/specialties'
+import { Route as AppAdminSpecimenSetupRouteImport } from './routes/_app/admin/specimen-setup'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
@@ -72,6 +74,8 @@ import { Route as AppPatientsIdExportRouteImport } from './routes/_app/patients/
 import { Route as AppPatientsIdPathwaysRouteImport } from './routes/_app/patients/$id/pathways'
 import { Route as AppReferralsIdIndexRouteImport } from './routes/_app/referrals/$id/index'
 import { Route as AppReferralsIdEditRouteImport } from './routes/_app/referrals/$id/edit'
+import { Route as AppSpecimensIdIndexRouteImport } from './routes/_app/specimens/$id/index'
+import { Route as AppSpecimensIdPrintRouteImport } from './routes/_app/specimens/$id/print'
 import { Route as AppCalendarTemplatesDayIdRouteImport } from './routes/_app/calendar/templates/day/$id'
 import { Route as AppCalendarTemplatesDayNewRouteImport } from './routes/_app/calendar/templates/day/new'
 import { Route as AppCalendarTemplatesWeekIdRouteImport } from './routes/_app/calendar/templates/week/$id'
@@ -124,6 +128,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
   id: '/accessibility',
   path: '/accessibility',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLabRoute = AppLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
@@ -225,6 +234,11 @@ const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
 const AppAdminSpecialtiesRoute = AppAdminSpecialtiesRouteImport.update({
   id: '/admin/specialties',
   path: '/admin/specialties',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminSpecimenSetupRoute = AppAdminSpecimenSetupRouteImport.update({
+  id: '/admin/specimen-setup',
+  path: '/admin/specimen-setup',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
@@ -401,6 +415,16 @@ const AppReferralsIdEditRoute = AppReferralsIdEditRouteImport.update({
   path: '/referrals/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSpecimensIdIndexRoute = AppSpecimensIdIndexRouteImport.update({
+  id: '/specimens/$id/',
+  path: '/specimens/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSpecimensIdPrintRoute = AppSpecimensIdPrintRouteImport.update({
+  id: '/specimens/$id/print',
+  path: '/specimens/$id/print',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCalendarTemplatesDayIdRoute =
   AppCalendarTemplatesDayIdRouteImport.update({
     id: '/calendar/templates/day/$id',
@@ -436,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/lab': typeof AppLabRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
@@ -455,6 +480,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/sites': typeof AppAdminSitesRoute
   '/admin/specialties': typeof AppAdminSpecialtiesRoute
+  '/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -481,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
   '/referrals/$id/edit': typeof AppReferralsIdEditRoute
+  '/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/admin/letter-templates/': typeof AppAdminLetterTemplatesIndexRoute
   '/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/admin/roles/': typeof AppAdminRolesIndexRoute
@@ -489,6 +516,7 @@ export interface FileRoutesByFullPath {
   '/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
   '/referrals/$id/': typeof AppReferralsIdIndexRoute
+  '/specimens/$id/': typeof AppSpecimensIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -503,6 +531,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
+  '/lab': typeof AppLabRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
   '/tasks': typeof AppTasksRoute
@@ -523,6 +552,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/sites': typeof AppAdminSitesRoute
   '/admin/specialties': typeof AppAdminSpecialtiesRoute
+  '/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -549,6 +579,7 @@ export interface FileRoutesByTo {
   '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
   '/referrals/$id/edit': typeof AppReferralsIdEditRoute
+  '/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/admin/letter-templates': typeof AppAdminLetterTemplatesIndexRoute
   '/admin/pathway-templates': typeof AppAdminPathwayTemplatesIndexRoute
   '/admin/roles': typeof AppAdminRolesIndexRoute
@@ -557,6 +588,7 @@ export interface FileRoutesByTo {
   '/pathways/$id': typeof AppPathwaysIdIndexRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
   '/referrals/$id': typeof AppReferralsIdIndexRoute
+  '/specimens/$id': typeof AppSpecimensIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -573,6 +605,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
+  '/_app/lab': typeof AppLabRoute
   '/_app/no-permission': typeof AppNoPermissionRoute
   '/_app/practices': typeof AppPracticesRoute
   '/_app/tasks': typeof AppTasksRoute
@@ -593,6 +626,7 @@ export interface FileRoutesById {
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/sites': typeof AppAdminSitesRoute
   '/_app/admin/specialties': typeof AppAdminSpecialtiesRoute
+  '/_app/admin/specimen-setup': typeof AppAdminSpecimenSetupRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -619,6 +653,7 @@ export interface FileRoutesById {
   '/_app/patients/$id/export': typeof AppPatientsIdExportRoute
   '/_app/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
   '/_app/referrals/$id/edit': typeof AppReferralsIdEditRoute
+  '/_app/specimens/$id/print': typeof AppSpecimensIdPrintRoute
   '/_app/admin/letter-templates/': typeof AppAdminLetterTemplatesIndexRoute
   '/_app/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/_app/admin/roles/': typeof AppAdminRolesIndexRoute
@@ -627,6 +662,7 @@ export interface FileRoutesById {
   '/_app/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
   '/_app/referrals/$id/': typeof AppReferralsIdIndexRoute
+  '/_app/specimens/$id/': typeof AppSpecimensIdIndexRoute
   '/_app/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/_app/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/_app/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -644,6 +680,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/lab'
     | '/no-permission'
     | '/practices'
     | '/tasks'
@@ -663,6 +700,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/sites'
     | '/admin/specialties'
+    | '/admin/specimen-setup'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -689,6 +727,7 @@ export interface FileRouteTypes {
     | '/patients/$id/export'
     | '/patients/$id/pathways'
     | '/referrals/$id/edit'
+    | '/specimens/$id/print'
     | '/admin/letter-templates/'
     | '/admin/pathway-templates/'
     | '/admin/roles/'
@@ -697,6 +736,7 @@ export interface FileRouteTypes {
     | '/pathways/$id/'
     | '/patients/$id/'
     | '/referrals/$id/'
+    | '/specimens/$id/'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -711,6 +751,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
+    | '/lab'
     | '/no-permission'
     | '/practices'
     | '/tasks'
@@ -731,6 +772,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/sites'
     | '/admin/specialties'
+    | '/admin/specimen-setup'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -757,6 +799,7 @@ export interface FileRouteTypes {
     | '/patients/$id/export'
     | '/patients/$id/pathways'
     | '/referrals/$id/edit'
+    | '/specimens/$id/print'
     | '/admin/letter-templates'
     | '/admin/pathway-templates'
     | '/admin/roles'
@@ -765,6 +808,7 @@ export interface FileRouteTypes {
     | '/pathways/$id'
     | '/patients/$id'
     | '/referrals/$id'
+    | '/specimens/$id'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -780,6 +824,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
+    | '/_app/lab'
     | '/_app/no-permission'
     | '/_app/practices'
     | '/_app/tasks'
@@ -800,6 +845,7 @@ export interface FileRouteTypes {
     | '/_app/admin/settings'
     | '/_app/admin/sites'
     | '/_app/admin/specialties'
+    | '/_app/admin/specimen-setup'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
@@ -826,6 +872,7 @@ export interface FileRouteTypes {
     | '/_app/patients/$id/export'
     | '/_app/patients/$id/pathways'
     | '/_app/referrals/$id/edit'
+    | '/_app/specimens/$id/print'
     | '/_app/admin/letter-templates/'
     | '/_app/admin/pathway-templates/'
     | '/_app/admin/roles/'
@@ -834,6 +881,7 @@ export interface FileRouteTypes {
     | '/_app/pathways/$id/'
     | '/_app/patients/$id/'
     | '/_app/referrals/$id/'
+    | '/_app/specimens/$id/'
     | '/_app/calendar/templates/day/$id'
     | '/_app/calendar/templates/day/new'
     | '/_app/calendar/templates/week/$id'
@@ -921,6 +969,13 @@ declare module '@tanstack/react-router' {
       path: '/accessibility'
       fullPath: '/accessibility'
       preLoaderRoute: typeof AppAccessibilityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lab': {
+      id: '/_app/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof AppLabRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/no-permission': {
@@ -1061,6 +1116,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/specialties'
       fullPath: '/admin/specialties'
       preLoaderRoute: typeof AppAdminSpecialtiesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/specimen-setup': {
+      id: '/_app/admin/specimen-setup'
+      path: '/admin/specimen-setup'
+      fullPath: '/admin/specimen-setup'
+      preLoaderRoute: typeof AppAdminSpecimenSetupRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/stages': {
@@ -1294,6 +1356,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReferralsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/specimens/$id/': {
+      id: '/_app/specimens/$id/'
+      path: '/specimens/$id'
+      fullPath: '/specimens/$id/'
+      preLoaderRoute: typeof AppSpecimensIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/specimens/$id/print': {
+      id: '/_app/specimens/$id/print'
+      path: '/specimens/$id/print'
+      fullPath: '/specimens/$id/print'
+      preLoaderRoute: typeof AppSpecimensIdPrintRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/calendar/templates/day/$id': {
       id: '/_app/calendar/templates/day/$id'
       path: '/calendar/templates/day/$id'
@@ -1327,6 +1403,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
+  AppLabRoute: typeof AppLabRoute
   AppNoPermissionRoute: typeof AppNoPermissionRoute
   AppPracticesRoute: typeof AppPracticesRoute
   AppTasksRoute: typeof AppTasksRoute
@@ -1347,6 +1424,7 @@ interface AppRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSitesRoute: typeof AppAdminSitesRoute
   AppAdminSpecialtiesRoute: typeof AppAdminSpecialtiesRoute
+  AppAdminSpecimenSetupRoute: typeof AppAdminSpecimenSetupRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
@@ -1373,6 +1451,7 @@ interface AppRouteChildren {
   AppPatientsIdExportRoute: typeof AppPatientsIdExportRoute
   AppPatientsIdPathwaysRoute: typeof AppPatientsIdPathwaysRoute
   AppReferralsIdEditRoute: typeof AppReferralsIdEditRoute
+  AppSpecimensIdPrintRoute: typeof AppSpecimensIdPrintRoute
   AppAdminLetterTemplatesIndexRoute: typeof AppAdminLetterTemplatesIndexRoute
   AppAdminPathwayTemplatesIndexRoute: typeof AppAdminPathwayTemplatesIndexRoute
   AppAdminRolesIndexRoute: typeof AppAdminRolesIndexRoute
@@ -1381,6 +1460,7 @@ interface AppRouteChildren {
   AppPathwaysIdIndexRoute: typeof AppPathwaysIdIndexRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
   AppReferralsIdIndexRoute: typeof AppReferralsIdIndexRoute
+  AppSpecimensIdIndexRoute: typeof AppSpecimensIdIndexRoute
   AppCalendarTemplatesDayIdRoute: typeof AppCalendarTemplatesDayIdRoute
   AppCalendarTemplatesDayNewRoute: typeof AppCalendarTemplatesDayNewRoute
   AppCalendarTemplatesWeekIdRoute: typeof AppCalendarTemplatesWeekIdRoute
@@ -1389,6 +1469,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
+  AppLabRoute: AppLabRoute,
   AppNoPermissionRoute: AppNoPermissionRoute,
   AppPracticesRoute: AppPracticesRoute,
   AppTasksRoute: AppTasksRoute,
@@ -1409,6 +1490,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSitesRoute: AppAdminSitesRoute,
   AppAdminSpecialtiesRoute: AppAdminSpecialtiesRoute,
+  AppAdminSpecimenSetupRoute: AppAdminSpecimenSetupRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
@@ -1435,6 +1517,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPatientsIdExportRoute: AppPatientsIdExportRoute,
   AppPatientsIdPathwaysRoute: AppPatientsIdPathwaysRoute,
   AppReferralsIdEditRoute: AppReferralsIdEditRoute,
+  AppSpecimensIdPrintRoute: AppSpecimensIdPrintRoute,
   AppAdminLetterTemplatesIndexRoute: AppAdminLetterTemplatesIndexRoute,
   AppAdminPathwayTemplatesIndexRoute: AppAdminPathwayTemplatesIndexRoute,
   AppAdminRolesIndexRoute: AppAdminRolesIndexRoute,
@@ -1443,6 +1526,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPathwaysIdIndexRoute: AppPathwaysIdIndexRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
   AppReferralsIdIndexRoute: AppReferralsIdIndexRoute,
+  AppSpecimensIdIndexRoute: AppSpecimensIdIndexRoute,
   AppCalendarTemplatesDayIdRoute: AppCalendarTemplatesDayIdRoute,
   AppCalendarTemplatesDayNewRoute: AppCalendarTemplatesDayNewRoute,
   AppCalendarTemplatesWeekIdRoute: AppCalendarTemplatesWeekIdRoute,

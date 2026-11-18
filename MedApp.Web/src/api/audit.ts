@@ -33,6 +33,14 @@ export const AUDIT_ACTIONS = [
   'StageSkipped',
   'BranchChosen',
   'StageReinstated',
+  'SpecimenTaken',
+  'SpecimenSent',
+  'SpecimenReceived',
+  'SpecimenReported',
+  'SpecimenRejected',
+  'SpecimenLost',
+  'SpecimenEnteredInError',
+  'SpecimenDetailsEdited',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -56,6 +64,14 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   StageSkipped: 'Stage skipped',
   BranchChosen: 'Branch chosen',
   StageReinstated: 'Stage reinstated',
+  SpecimenTaken: 'Specimen taken',
+  SpecimenSent: 'Specimen sent',
+  SpecimenReceived: 'Specimen received',
+  SpecimenReported: 'Specimen reported',
+  SpecimenRejected: 'Specimen rejected',
+  SpecimenLost: 'Specimen lost',
+  SpecimenEnteredInError: 'Specimen entered in error',
+  SpecimenDetailsEdited: 'Specimen details edited',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -191,8 +207,26 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
       return [was, text(d.reason)].filter(Boolean).join(': ');
     }
     default:
-      return '';
+      return (entry.action ?? '').startsWith('Specimen') ? describeSpecimen(d) : '';
   }
+}
+
+/**
+ * A specimen's entry: its number, type and lab, the status it moved between, a rejection's reason (a fixed choice) and
+ * the fields an edit changed: "MA26-000123, Skin biopsy (punch), to Northgate pathology: Sent → received". The audit
+ * holds no free text about a specimen (its site, notes and details typed are on the specimen itself).
+ */
+function describeSpecimen(d: Details): string {
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+  const what = [text(d.number), text(d.specimenType), text(d.laboratory) ? `to ${text(d.laboratory)}` : null].filter(Boolean).join(', ');
+  const status = text(d.from) && text(d.to) ? `${words(d.from).replace(/^./, (c) => c.toUpperCase())} → ${words(d.to)}` : null;
+  const fields = Array.isArray(d.fields) ? d.fields.filter((f): f is string => typeof f === 'string') : [];
+  const rest = [
+    status,
+    text(d.rejectionReason) ? `Reason: ${words(d.rejectionReason)}` : null,
+    fields.length ? `Changed: ${fields.join(', ')}` : null,
+  ].filter(Boolean);
+  return [what, rest.join('; ')].filter(Boolean).join(': ');
 }
 
 const ATTACHED_TO: Record<string, string> = {Patient: 'on the patient', Pathway: 'on the pathway', Stage: 'on the stage'};

@@ -39,6 +39,9 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
 /// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their
 /// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
+/// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
+/// references are removed; their numbers, statuses, dates, types and labs stay. Their reports are files, deleted with
+/// the rest.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -204,6 +207,20 @@ public static class PatientAnonymiser
                 recipient.Postcode = null;
                 recipient.Email = null;
             }
+        }
+
+        // Specimens keep their numbers, statuses, dates, types and labs; their free text goes, and so do the lab's and
+        // courier's references, which the lab could match back to the patient.
+        foreach (var specimen in record.Specimens)
+        {
+            if (specimen.Site is not null)
+                specimen.Site = Removed(specimen.Site);
+            if (specimen.RequestNotes is not null)
+                specimen.RequestNotes = Removed(specimen.RequestNotes);
+            if (specimen.ClosedDetail is not null)
+                specimen.ClosedDetail = Removed(specimen.ClosedDetail);
+            specimen.LabReference = null;
+            specimen.CourierReference = null;
         }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))

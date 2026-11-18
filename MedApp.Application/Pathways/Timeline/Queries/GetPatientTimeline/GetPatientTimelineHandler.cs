@@ -7,6 +7,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Referrals.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Activity;
@@ -22,6 +23,7 @@ public sealed class GetPatientTimelineHandler(
     IAppointmentRepository appointmentRepository,
     IReferralRepository referralRepository,
     ILetterRepository letterRepository,
+    ISpecimenRepository specimenRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
 {
@@ -73,6 +75,7 @@ public sealed class GetPatientTimelineHandler(
         {
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
             page = await WithLettersAsync(page, cancellationToken);
+            page = await WithSpecimensAsync(page, cancellationToken);
         }
 
         return new PatientTimelinePageResponse
@@ -168,6 +171,30 @@ public sealed class GetPatientTimelineHandler(
                          && TimelineMapper.GuidIn(audit.Entry.Details, "letterId") is { } id
                          && letters.TryGetValue(id, out var letter) && letter.PatientId == audit.Entry.PatientId
                 ? e with { Audit = audit with { Letter = letter } }
+                : e)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The page with each specimen entry's specimen, for its free text (admins only): the audit holds none. Only
+    /// specimens of this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithSpecimensAsync(List<Entry> page, CancellationToken ct)
+    {
+        static Guid? SpecimenIdOf(PatientTimelineRow audit) =>
+            PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Specimens
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "specimenId")
+                : null;
+
+        var ids = page.Select(e => e.Audit is { } audit ? SpecimenIdOf(audit) : null).OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var specimens = (await specimenRepository.GetByIdsAsync(ids, ct)).ToDictionary(s => s.Id);
+        return page
+            .Select(e => e.Audit is { } audit && SpecimenIdOf(audit) is { } id
+                         && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Specimen = specimen } }
                 : e)
             .ToList();
     }

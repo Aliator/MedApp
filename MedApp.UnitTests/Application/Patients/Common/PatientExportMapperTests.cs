@@ -133,7 +133,8 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
-            Letters = []
+            Letters = [],
+            Specimens = []
         };
 
         var json = System.Text.Json.JsonSerializer.Serialize(
@@ -184,7 +185,8 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
-            Letters = []
+            Letters = [],
+            Specimens = []
         };
 
         var export = PatientExportMapper.ToResponse(withMonitoring, Usernames, Now, "exporter");
@@ -313,7 +315,8 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
-            Letters = []
+            Letters = [],
+            Specimens = []
         };
 
         var export = PatientExportMapper.ToResponse(withAppointment, Usernames, Now, "exporter");
@@ -381,7 +384,8 @@ public sealed class PatientExportMapperTests
             Attachments = [],
             Referrals = [],
             ReferralHistory = [],
-            Letters = []
+            Letters = [],
+            Specimens = []
         };
 
         var export = PatientExportMapper.ToResponse(withIds, Usernames, Now, "exporter");

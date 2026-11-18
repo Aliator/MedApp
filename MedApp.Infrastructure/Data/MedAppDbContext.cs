@@ -15,6 +15,7 @@ using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Specimens;
 using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data.Conversions;
@@ -53,6 +54,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<LetterRecipient> LetterRecipients => Set<LetterRecipient>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
     public DbSet<ReferralClockPause> ReferralClockPauses => Set<ReferralClockPause>();
+    public DbSet<Specimen> Specimens => Set<Specimen>();
+    public DbSet<SpecimenType> SpecimenTypes => Set<SpecimenType>();
+    public DbSet<Laboratory> Laboratories => Set<Laboratory>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();
@@ -108,6 +112,11 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MedAppDbContext).Assembly);
+
+        // Specimen numbers (SpecimenRepository.NextNumberAsync): one per specimen, never reused, safe across API copies.
+        modelBuilder.HasSequence<long>(Configurations.Specimens.SpecimenConfiguration.NumberSequence)
+            .StartsAt(1)
+            .IncrementsBy(1);
 
         InsightsDbFunctions.Register(modelBuilder);
     }

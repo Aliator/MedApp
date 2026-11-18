@@ -7,6 +7,7 @@ using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MediatR;
 
@@ -16,6 +17,7 @@ public sealed class FinishPathwayStageHandler(
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
     ILetterRepository letterRepository,
+    ISpecimenRepository specimenRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -33,6 +35,12 @@ public sealed class FinishPathwayStageHandler(
 
         if (PathwayWorkflow.WhyStageCantBeEdited(pathway, stage) is { } reason)
             throw new ConflictException(reason);
+
+        // The gates with no override (StageGates): the last stage waits for the pathway's open specimens.
+        if (StageGates.IsLastToFinish(pathway, stage)
+            && StageGates.WhyCantFinish(
+                pathway, stage, await specimenRepository.GetOpenForPathwayAsync(pathway.Id, cancellationToken)) is { } gate)
+            throw new ConflictException(gate);
 
         // A branch point finished for the first time needs one of its branches, chosen by the clinician (never assumed).
         if (PathwayWorkflow.WhyBranchChoiceInvalid(pathway, stage, request.Branch) is { } branchProblem)

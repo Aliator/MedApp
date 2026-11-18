@@ -1,11 +1,12 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
-import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
+import {formatAppointmentTime, formatDateTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
 import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
 import {dispatchMethodWords, letterKindWords, recipientKindWords} from './letters';
 import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
 import {skipReasonLabel} from './stageSkips';
+import {specimenStatusLabel} from './specimens';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -23,7 +24,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Specimens', 'Letters', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -32,6 +33,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Appointments: 'Appointments',
   Referrals: 'Referrals',
   WaitingTime: 'Waiting time',
+  Specimens: 'Specimens',
   Letters: 'Letters',
   Notes: 'Notes',
   Assignments: 'Assignments',
@@ -243,9 +245,70 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
     case 'AttachmentDeleted':
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
     default:
+      if (isSpecimenEntry(entry)) return describeSpecimenEntry(entry);
       if (isLetterEntry(entry)) return describeLetterEntry(entry);
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+  }
+}
+
+/** Whether an entry is about a specimen (its action is "Specimen" and what happened). */
+export const isSpecimenEntry = (entry: TimelineEntry) => entry.kind === 'Specimens' || (entry.action ?? '').startsWith('Specimen');
+
+const SPECIMEN_FIELDS: Record<string, string> = {
+  specimenType: 'type',
+  laboratory: 'lab',
+  takenAtUtc: 'time taken',
+  requestingUser: 'requesting clinician',
+  site: 'site',
+  requestNotes: 'notes for the lab',
+};
+
+/** A specimen's changed field in words, with its values where the API sends them (type, lab, time taken, requester). */
+function describeSpecimenChange(change: TimelineChange): string {
+  const field = change.field ?? '';
+  const name = SPECIMEN_FIELDS[field] ?? field;
+  if (!hasValues(change)) return `${capitalised(name)} changed`;
+  if (field === 'takenAtUtc') return `Time taken ${change.from ? formatDateTime(change.from) : 'none'} → ${change.to ? formatDateTime(change.to) : 'none'}`;
+  if (field === 'site' || field === 'requestNotes') return `${capitalised(name)}: ${change.to?.trim() || 'none'}`;
+  return `${capitalised(name)} ${change.from ?? 'none'} → ${change.to ?? 'none'}`;
+}
+
+/** A specimen status in words, lower case: "RejectedByLab" → "rejected by the lab". */
+const specimenWords = (status: string | null | undefined) => specimenStatusLabel(status).toLowerCase();
+
+/**
+ * A specimen entry in words: what happened to it, with its type and lab (admin-written names, which staff see). Staff
+ * get the structured values only; the site, the notes for the lab, a rejection's reason and detail, and what a loss or
+ * an entry in error said come only to admins. The number links to the specimen (`PatientTimeline`).
+ */
+function describeSpecimenEntry(entry: TimelineEntry): TimelineWording {
+  const type = entry.specimenTypeName?.trim() || 'Specimen';
+  const lab = entry.laboratoryName?.trim();
+  const was = entry.fromStatus ? `Was ${specimenWords(entry.fromStatus)}` : null;
+  const reason = entry.reason?.trim();
+  switch (entry.action) {
+    case 'SpecimenTaken':
+      return {
+        title: `${type} specimen taken`,
+        detail: sentences(lab ? `For ${lab}` : null, ...(entry.changes ?? []).filter(hasValues).map(describeSpecimenChange)),
+      };
+    case 'SpecimenSent':
+      return {title: `${type} specimen sent${lab ? ` to ${lab}` : ''}`, detail: ''};
+    case 'SpecimenReceived':
+      return {title: `${type} specimen received${lab ? ` by ${lab}` : ''}`, detail: ''};
+    case 'SpecimenReported':
+      return {title: `${type} specimen reported`, detail: lab ? `The report from ${lab} is attached` : 'The report is attached'};
+    case 'SpecimenRejected':
+      return {title: `${type} specimen rejected${lab ? ` by ${lab}` : ' by the lab'}`, detail: sentences(was, reason ? `Reason: ${reason}` : null)};
+    case 'SpecimenLost':
+      return {title: `${type} specimen marked lost`, detail: sentences(was, reason)};
+    case 'SpecimenEnteredInError':
+      return {title: `${type} specimen marked entered in error`, detail: sentences(was, reason)};
+    case 'SpecimenDetailsEdited':
+      return {title: `${type} specimen: details edited`, detail: (entry.changes ?? []).map(describeSpecimenChange).join('; ')};
+    default:
+      return {title: `${type} specimen changed`, detail: entry.toStatus ? `Now ${specimenWords(entry.toStatus)}` : ''};
   }
 }
 

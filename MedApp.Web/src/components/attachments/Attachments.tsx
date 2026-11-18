@@ -317,17 +317,21 @@ function AttachedTo({attachment}: {attachment: Attachment}) {
   );
 }
 
-interface AttachmentRowProps {
+export interface AttachmentRowProps {
   attachment: Attachment;
   /** A narrow window or half view: the buttons go under the details, leaving the name the row's width. */
   isNarrow: boolean;
   showsAttachedTo: boolean;
   canDelete: boolean;
-  onDelete: () => void;
+  /** Left out where nothing can be deleted (a specimen's report). */
+  onDelete?: () => void;
 }
 
-/** One file: its preview, name, details and scan state, with Download and Delete. */
-function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete}: AttachmentRowProps) {
+/**
+ * One file: its preview, name, details and scan state, with Download and Delete. Used inside a `List`; a specimen's page
+ * shows its report with it too.
+ */
+export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete}: AttachmentRowProps) {
   const name = attachment.fileName ?? '';
   const actions = (
     <HStack gap={1} vAlign="center">

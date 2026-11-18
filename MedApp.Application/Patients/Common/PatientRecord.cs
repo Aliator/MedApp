@@ -8,6 +8,7 @@ using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -76,4 +77,10 @@ public sealed record PatientRecord
     /// <see cref="PathwayHistory"/>; their approved PDFs are among <see cref="Attachments"/>.
     /// </summary>
     public required IReadOnlyList<Letter> Letters { get; init; }
+
+    /// <summary>
+    /// The patient's specimens, in any status, oldest taken first, with their types and labs. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<Specimen> Specimens { get; init; }
 }

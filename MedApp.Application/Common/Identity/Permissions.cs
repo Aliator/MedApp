@@ -34,6 +34,8 @@ public enum Permission
 
     AttachFiles,
 
+    RecordSpecimens,
+    ProcessSpecimens,
     WriteLetters,
     ApproveLetters,
     SendLetters,
@@ -62,6 +64,7 @@ public enum PermissionGroup
     Pathways,
     AppointmentsAndCalendars,
     Files,
+    Lab,
     Letters,
     Oversight,
     Setup,
@@ -127,6 +130,10 @@ public static class Permissions
         new(Permission.AttachFiles, PermissionGroup.Files,
             "Attach files, and delete your own."),
 
+        new(Permission.RecordSpecimens, PermissionGroup.Lab,
+            "Record specimens taken, sent and lost, and edit them before they're sent."),
+        new(Permission.ProcessSpecimens, PermissionGroup.Lab,
+            "Receive and reject specimens in the lab, mark them lost, and attach their reports."),
         new(Permission.WriteLetters, PermissionGroup.Letters,
             "Write letters about patients from templates, and submit them for approval."),
         new(Permission.ApproveLetters, PermissionGroup.Letters,
@@ -166,13 +173,16 @@ public static class Permissions
 
     /// <summary>
     /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
-    /// and 138): triage, finishing a stage without its visit, and writing, approving and sending letters. An admin who
-    /// does that work holds a role that grants it too. Admin keeps <see cref="Permission.UnlockStages"/>, a correction.
+    /// and 138): triage, finishing a stage without its visit, recording and processing specimens, and writing, approving
+    /// and sending letters. An admin who does that work holds a role that grants it too. Admin keeps
+    /// <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
     {
         Permission.TriageReferrals,
         Permission.FinishWithoutVisit,
+        Permission.RecordSpecimens,
+        Permission.ProcessSpecimens,
         Permission.WriteLetters,
         Permission.ApproveLetters,
         Permission.SendLetters,

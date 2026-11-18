@@ -127,8 +127,14 @@ import {
   RiUserUnfollowLine,
   RiGroupLine,
   RiLightbulbLine,
+  RiFlaskLine,
   RiMailSendLine,
+  RiMicroscopeLine,
+  RiPrinterLine,
+  RiQrScanLine,
   RiSendPlaneLine,
+  RiTestTubeLine,
+  RiTruckLine,
 } from '@remixicon/react';
 
 /**
@@ -324,4 +330,13 @@ export const AppIcon = {
   PatientMessage: remix(RiMessage2Line),
   /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */
   DnaFollowUp: remix(RiChatFollowUpLine),
+  // Specimens: taken at a stage, sent to the lab and back with its report
+  Specimens: remix(RiTestTubeLine),
+  /** The lab's worklist (the side nav's Lab), and the specimen types and labs (setup). */
+  Lab: remix(RiFlaskLine),
+  SpecimenSent: remix(RiTruckLine),
+  SpecimenReceived: remix(RiMicroscopeLine),
+  /** Finding a specimen by its number, typed or scanned from its label. */
+  Scan: remix(RiQrScanLine),
+  Print: remix(RiPrinterLine),
 } as const satisfies Record<string, IconType>;

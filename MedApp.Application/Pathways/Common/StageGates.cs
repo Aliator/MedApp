@@ -1,6 +1,8 @@
 using MedApp.Application.Letters.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.Application.Pathways.Common;
 
@@ -26,17 +28,48 @@ public static class StageLetterKinds
 /// <summary>
 /// What a stage needs before it can be finished, beyond the visit rule (<see cref="PathwayWorkflow.WhyStageNeedsVisit"/>,
 /// which has its override): the home of the stage gates (<c>docs/centre-phases-3-5-plan.md</c>, decision 73), called by
-/// every finish path that can meet one (<c>FinishPathwayStageHandler</c>). None of these has an override: each is met
-/// by the action it asks for.
+/// every finish path that can meet one (<c>FinishPathwayStageHandler</c>, and the specimen gate also medapp-dev's demo
+/// data). None of these has an override: each is met by the action it asks for, or by correcting the item.
 /// <list type="bullet">
 /// <item><b>A letter</b> (decision 105): a stage that needs a letter of a kind (<see cref="PatientPathwayStage.NeedsLetterKind"/>)
 /// can't be finished until a letter of that kind on the pathway is approved and sent to every recipient (a withdrawn
 /// one doesn't count).</item>
+/// <item><b>The last stage and open specimens</b> (decision 89): the stage whose finish leaves none unfinished can't be
+/// finished while any of the pathway's specimens is open (taken, sent or received), so a pathway can't be discharged
+/// with a report still to come.</item>
 /// </list>
-/// Specimens (PR 13) and results (PR 14) add their gates here.
+/// Results (PR 14) add their gates here.
 /// </summary>
 public static class StageGates
 {
+    /// <summary>
+    /// Why the stage can't be finished now, or null if these gates allow it. <paramref name="openSpecimens"/> are the
+    /// pathway's open specimens, with their types.
+    /// </summary>
+    public static string? WhyCantFinish(
+        PatientPathway pathway,
+        PatientPathwayStage stage,
+        IReadOnlyCollection<Specimen> openSpecimens)
+    {
+        if (!IsLastToFinish(pathway, stage))
+            return null;
+
+        var open = openSpecimens.Where(s => SpecimenWorkflow.IsOpen(s.Status)).ToList();
+        if (open.Count == 0)
+            return null;
+
+        var each = open
+            .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Number)
+            .Select(s => $"{s.Number} ({s.SpecimenType?.Name ?? "specimen"}, {SpecimenWorkflow.Describe(s.Status)})");
+        var count = open.Count == 1 ? "a specimen is" : $"{open.Count} specimens are";
+        return $"The pathway's last stage can't be finished while {count} still with the lab: {string.Join("; ", each)}. " +
+               "Record each one's report, or mark it rejected, lost or entered in error.";
+    }
+
+    /// <summary>Whether finishing this stage would leave none of the pathway's stages unfinished.</summary>
+    public static bool IsLastToFinish(PatientPathway pathway, PatientPathwayStage stage) =>
+        pathway.Stages.All(s => s.Id == stage.Id || s.IsCompleted);
+
     /// <summary>
     /// Why the stage can't be finished for want of its letter, or null if it needs none or has it.
     /// <paramref name="pathwayLetters"/> are the pathway's letters with their recipients.
