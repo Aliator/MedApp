@@ -55,10 +55,13 @@ public sealed class WorkingHoursTests
     [Test]
     public void WhyOutside_SummerUtcHoursThatAreOutsideUkHours_SaysSo()
     {
-        // 08:00Z is 09:00 BST, but 17:30Z is 18:30 BST.
+        // 08:00Z is 09:00 BST, but 22:30Z is 23:30 BST, past the bounds; and on the default day, 17:30Z is 18:30 BST.
         WorkingHours.WhyOutside(
                 new DateTime(2026, 6, 15, 8, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 6, 15, 17, 30, 0, DateTimeKind.Utc), ClosedDaySet.None)
+                new DateTime(2026, 6, 15, 22, 30, 0, DateTimeKind.Utc), ClosedDaySet.None)
+            .Should().Be(WorkingHours.OutsideBounds);
+        WorkingTimeSet.None.For(Guid.NewGuid(), SummerMonday, ClosedDaySet.None)
+            .WhyOutside(new DateTime(2026, 6, 15, 8, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 15, 17, 30, 0, DateTimeKind.Utc))
             .Should().Be(WorkingHours.OutsideWorkingDay);
     }
 
@@ -81,21 +84,24 @@ public sealed class WorkingHoursTests
     }
 
     [Test]
-    public void WhyOutside_Weekend_SaysWeekendsArentWorkingDays()
+    public void WhyOutside_Weekend_IsForThePersonsHoursToSay()
     {
-        WorkingHours.WhyOutside(At(NextSaturday, 10), At(NextSaturday, 11), ClosedDaySet.None).Should().Be(WorkingHours.Weekend);
+        // Someone may work Saturdays: whether this person does is their WorkingTime's to say.
+        WorkingHours.WhyOutside(At(NextSaturday, 10), At(NextSaturday, 11), ClosedDaySet.None).Should().BeNull();
     }
 
     [Test]
-    public void WhyOutside_StartsBefore0800_SaysItMustBeInTheWorkingDay()
+    public void WhyOutside_StartsBefore0600_SaysItMustBeInTheBounds()
     {
-        WorkingHours.WhyOutside(At(NextMonday, 7, 45), At(NextMonday, 8, 30), ClosedDaySet.None).Should().Be(WorkingHours.OutsideWorkingDay);
+        WorkingHours.WhyOutside(At(NextMonday, 5, 45), At(NextMonday, 8, 30), ClosedDaySet.None).Should().Be(WorkingHours.OutsideBounds);
+        WorkingHours.WhyOutside(At(NextMonday, 6), At(NextMonday, 8, 30), ClosedDaySet.None).Should().BeNull();
     }
 
     [Test]
-    public void WhyOutside_EndsAfter1800_SaysItMustBeInTheWorkingDay()
+    public void WhyOutside_EndsAfter2300_SaysItMustBeInTheBounds()
     {
-        WorkingHours.WhyOutside(At(NextMonday, 17, 30), At(NextMonday, 18, 15), ClosedDaySet.None).Should().Be(WorkingHours.OutsideWorkingDay);
+        WorkingHours.WhyOutside(At(NextMonday, 22, 30), At(NextMonday, 23, 15), ClosedDaySet.None).Should().Be(WorkingHours.OutsideBounds);
+        WorkingHours.WhyOutside(At(NextMonday, 22, 30), At(NextMonday, 23), ClosedDaySet.None).Should().BeNull();
     }
 
     [Test]
@@ -123,8 +129,11 @@ public sealed class WorkingHoursTests
     [TestCase(12, 0, 13, 0, null)]
     [TestCase(12, 0, 12, 0, WorkingHours.EndNotAfterStart)]
     [TestCase(13, 0, 12, 0, WorkingHours.EndNotAfterStart)]
-    [TestCase(7, 30, 9, 0, WorkingHours.OutsideWorkingDay)]
-    [TestCase(17, 0, 18, 30, WorkingHours.OutsideWorkingDay)]
+    [TestCase(7, 30, 9, 0, null)]
+    [TestCase(17, 0, 20, 0, null)]
+    [TestCase(6, 0, 23, 0, null)]
+    [TestCase(5, 30, 9, 0, WorkingHours.OutsideBounds)]
+    [TestCase(17, 0, 23, 30, WorkingHours.OutsideBounds)]
     [TestCase(12, 3, 13, 0, WorkingHours.NotOnBoundary)]
     [TestCase(12, 0, 12, 59, WorkingHours.NotOnBoundary)]
     public void WhyOutside_TemplateTimes_ChecksTheWorkingDayAndBoundaries(

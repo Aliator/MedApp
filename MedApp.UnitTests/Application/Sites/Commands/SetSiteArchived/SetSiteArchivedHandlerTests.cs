@@ -87,4 +87,18 @@ public sealed class SetSiteArchivedHandlerTests : SiteHandlerTestBase
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
+
+    [Test]
+    public async Task Handle_ArchiveASiteWhereStaffWork_ThrowsConflict()
+    {
+        var site = NewSite();
+        GivenSites(site, NewSite(OtherSiteId, OtherSiteName));
+        Hours.Staff.Add(MedApp.UnitTests.Common.Fixtures.InMemoryWorkingHours.StaffRow(
+            Guid.NewGuid(), DayOfWeek.Monday, new TimeOnly(9, 0), new TimeOnly(17, 0), SiteId));
+
+        var act = () => Handler.Handle(new SetSiteArchivedCommand(SiteId, true), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(SiteRules.HasStaffHours(site));
+        site.IsArchived.Should().BeFalse();
+    }
 }

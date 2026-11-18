@@ -67,7 +67,7 @@ public sealed class BookAppointmentValidatorTests
     [Test]
     public void Validate_AtTheWeekend_Fails()
     {
-        Errors(Valid() with { StartUtc = At(NextSaturday, 10), EndUtc = At(NextSaturday, 11) }).Should().Equal(WorkingHours.Weekend);
+        Errors(Valid() with { StartUtc = At(NextSaturday, 10), EndUtc = At(NextSaturday, 11) }).Should().Equal(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]

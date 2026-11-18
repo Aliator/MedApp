@@ -37,17 +37,19 @@ public sealed class GetTeamCalendarHandler(
         var usernames = await identityReadService.GetUsernamesByIdAsync(
             calendars.SelectMany(CalendarMapper.UserIds).Distinct(), cancellationToken);
         var byId = calendars.ToDictionary(c => c.StaffUserId);
+        // One grid for everyone, so the columns' rows line up: it fits everyone's hours and everything they have on.
+        var window = GridWindow.Of(calendars);
 
         return new TeamCalendarResponse
         {
             Date = request.Date,
             // The day itself, closed or not (the "Everyone free" column), whoever is shown, even nobody.
-            Day = CalendarMapper.ToResponse(CalendarProjection.Days(
-                CalendarData.Empty(Guid.Empty, request.Date, request.Date) with
-                {
-                    ClosedDays = new ClosedDaySet(await closedDays.GetAsync(request.Date, request.Date, cancellationToken))
-                },
-                today)[0]),
+            Day = CalendarMapper.ToResponse(CalendarProjection.TeamDay(
+                calendars,
+                request.Date,
+                today,
+                new ClosedDaySet(await closedDays.GetAsync(request.Date, request.Date, cancellationToken)),
+                window)),
             Members = staff
                 .Select(s =>
                 {
@@ -60,7 +62,8 @@ public sealed class GetTeamCalendarHandler(
                         today,
                         usernames,
                         now,
-                        request.Actor);
+                        request.Actor,
+                        window);
                 })
                 .ToList(),
             EveryoneFree = Availability.FreeTime(calendars, request.Date, request.Date, now)

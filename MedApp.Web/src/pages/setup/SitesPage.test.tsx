@@ -310,4 +310,79 @@ describe('site form and words', () => {
     expect(roomsWords({rooms: [OLD_ROOM]})).toBe('No rooms (1 archived)');
     expect(roomsWords({})).toBe('No rooms');
   });
+
+  describe('Opening hours', () => {
+    const HOURS = {siteId: 'northgate', hasOwnHours: false, since: null, days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, opens: '08:00:00', closes: '18:00:00'}))};
+
+    it("sets a site's evening and Saturday hours from the default", async () => {
+      withAnnouncements();
+      let saved: unknown;
+      const {user} = renderPage(
+        {},
+        {
+          'GET /api/sites/northgate/hours': () => json(HOURS),
+          'PUT /api/sites/northgate/hours': async (request) => {
+            saved = await request.json();
+            return json({...HOURS, hasOwnHours: true});
+          },
+        },
+      );
+
+      await user.click(within(await rowOf('Northgate outreach clinic')).getByRole('button', {name: 'Opening hours'}));
+      expect(dialog().getByRole('heading', {name: 'Opening Hours'})).toBeInTheDocument();
+      const useDefault = await dialog().findByRole('switch', {name: 'Use the default hours: Monday to Friday, 08:00 to 18:00'});
+      await waitFor(() => expect(useDefault).not.toBeDisabled());
+      expect(useDefault).toBeChecked();
+      await user.click(useDefault);
+      const tuesday = within(dialog().getByRole('group', {name: 'Tuesday'}));
+      await user.click(tuesday.getByRole('combobox', {name: 'Tuesday to'}));
+      await user.click(screen.getByRole('option', {name: '20:00'}));
+      await user.click(within(dialog().getByRole('group', {name: 'Saturday'})).getByRole('switch', {name: 'Open on Saturday'}));
+      await user.click(dialog().getByRole('button', {name: 'Save'}));
+
+      await expectAnnounced('Opening hours saved');
+      expect(saved).toEqual({
+        days: [
+          {dayOfWeek: 'Monday', opens: '08:00:00', closes: '18:00:00'},
+          {dayOfWeek: 'Tuesday', opens: '08:00:00', closes: '20:00:00'},
+          {dayOfWeek: 'Wednesday', opens: '08:00:00', closes: '18:00:00'},
+          {dayOfWeek: 'Thursday', opens: '08:00:00', closes: '18:00:00'},
+          {dayOfWeek: 'Friday', opens: '08:00:00', closes: '18:00:00'},
+          {dayOfWeek: 'Saturday', opens: '08:00:00', closes: '18:00:00'},
+        ],
+      });
+    });
+
+    it("shows the API's refusal (staff working there), and since when its own hours apply", async () => {
+      let saved: unknown;
+      const {user} = renderPage(
+        {},
+        {
+          'GET /api/sites/main/hours': () =>
+            json({siteId: 'main', hasOwnHours: true, since: '2026-11-02', days: [{dayOfWeek: 'Saturday', opens: '09:00:00', closes: '13:00:00'}]}),
+          'PUT /api/sites/main/hours': async (request) => {
+            saved = await request.json();
+            return json({title: 'test-user works at Main site on Saturdays outside those hours. Change their hours first.'}, 409);
+          },
+        },
+      );
+
+      await user.click(within(await rowOf('Main site')).getByRole('button', {name: 'Opening hours'}));
+      expect(await dialog().findByText('These hours since 2 November 2026.')).toBeInTheDocument();
+      await user.click(dialog().getByRole('switch', {name: 'Use the default hours: Monday to Friday, 08:00 to 18:00'}));
+      await user.click(dialog().getByRole('button', {name: 'Save'}));
+
+      expect(await dialog().findByText('test-user works at Main site on Saturdays outside those hours. Change their hours first.')).toBeInTheDocument();
+      expect(saved).toEqual({days: []});
+    });
+
+    it('says so when the hours could not be loaded, and offers none for an archived site', async () => {
+      const {user} = renderPage({status: 'any'}, {'GET /api/sites/main/hours': () => json({title: 'Down'}, 500)});
+
+      expect(within(await rowOf('Old annexe')).queryByRole('button', {name: 'Opening hours'})).not.toBeInTheDocument();
+      await user.click(within(await rowOf('Main site')).getByRole('button', {name: 'Opening hours'}));
+      expect(await dialog().findByText('The opening hours could not be loaded. Please try again.')).toBeInTheDocument();
+      expect(isDisabled(dialog().getByRole('button', {name: 'Save'}))).toBe(true);
+    });
+  });
 });

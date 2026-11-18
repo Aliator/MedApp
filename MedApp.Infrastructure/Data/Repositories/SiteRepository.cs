@@ -68,7 +68,13 @@ public sealed class SiteRepository(MedAppDbContext context) : ISiteRepository
             .Distinct()
             .ToListAsync(ct);
 
-        return withRooms.Concat(withClosedDays).ToHashSet();
+        var withStaffHours = await context.StaffHours
+            .Where(h => list.Contains(h.SiteId))
+            .Select(h => h.SiteId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return withRooms.Concat(withClosedDays).Concat(withStaffHours).ToHashSet();
     }
 
     // Nothing names a room yet: clinic sessions and appointments will (the centre plan's PR 23), and add their checks here.

@@ -43,14 +43,14 @@ public sealed class ApplyDayTemplateValidatorTests
     public void Validate_Saturday_Fails()
     {
         _validator.ValidateNow(Valid() with { Date = NextSaturday })
-            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.Weekend);
+            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]
     public void Validate_Sunday_Fails()
     {
         _validator.ValidateNow(Valid() with { Date = NextSunday })
-            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.Weekend);
+            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.NotWorking(DayOfWeek.Sunday));
     }
 
     [Test]

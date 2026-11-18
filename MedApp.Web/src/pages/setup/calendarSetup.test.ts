@@ -18,10 +18,12 @@ describe('calendar setup times', () => {
     expect(times).toHaveLength(41);
   });
 
-  it('moves a time, kept inside the working day', () => {
+  it('moves a time, kept inside the bounds of any working day', () => {
     expect(addMinutes('12:00', 60)).toBe('13:00');
-    expect(addMinutes('17:30', 60)).toBe('18:00');
-    expect(addMinutes('08:30', -60)).toBe('08:00');
+    expect(addMinutes('17:30', 60)).toBe('18:30');
+    expect(addMinutes('08:30', -60)).toBe('07:30');
+    expect(addMinutes('06:30', -60)).toBe('06:00');
+    expect(addMinutes('22:30', 60)).toBe('23:00');
   });
 
   it('labels a block and counts things', () => {
@@ -57,8 +59,9 @@ describe('weekSummary', () => {
 describe('blockProblem', () => {
   it('finds a block that ends before it starts, or is outside the working day', () => {
     expect(blockProblem(row('a', '12:00', '12:00'), [], names)).toEqual({field: 'endTime', message: 'Ends before it starts.'});
-    expect(blockProblem(row('a', '07:55', '09:00'), [], names)).toEqual({field: 'startTime', message: 'Starts before 08:00.'});
-    expect(blockProblem(row('a', '17:00', '18:05'), [], names)).toEqual({field: 'endTime', message: 'Ends after 18:00.'});
+    expect(blockProblem(row('a', '05:55', '09:00'), [], names)).toEqual({field: 'startTime', message: 'Starts before 06:00.'});
+    expect(blockProblem(row('a', '17:00', '23:05'), [], names)).toEqual({field: 'endTime', message: 'Ends after 23:00.'});
+    expect(blockProblem(row('a', '07:00', '19:30'), [], names)).toBeNull();
   });
 
   it('names the block one overlaps, and passes blocks that only touch', () => {

@@ -18,7 +18,7 @@ public sealed class RecordPastAppointmentValidatorTests
     private static readonly DateOnly ClosedTuesday = new(2026, 11, 10);
 
     private readonly RecordPastAppointmentValidator _validator =
-        new(new FixedTimeProvider(Now));
+        new(new FixedTimeProvider(Now), InMemoryClosedDays.WorkingDays());
 
     private static RecordPastAppointmentCommand Valid() =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), StaffUserId, At(LastThursday, 10), At(LastThursday, 10, 30),
@@ -107,7 +107,7 @@ public sealed class RecordPastAppointmentValidatorTests
     {
         var saturday = new DateOnly(2026, 11, 14);
 
-        Errors(Valid() with { StartUtc = At(saturday, 10), EndUtc = At(saturday, 10, 30) }).Should().Equal(WorkingHours.Weekend);
+        Errors(Valid() with { StartUtc = At(saturday, 10), EndUtc = At(saturday, 10, 30) }).Should().Equal(WorkingHours.NotWorking(DayOfWeek.Saturday));
     }
 
     [Test]

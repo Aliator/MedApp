@@ -50,6 +50,12 @@ export function weekStart(date: string): string {
 /** Whether a date is a weekday (Monday to Friday). */
 export const isWeekday = (date: string) => dayOfWeek(date) <= 5;
 
+/**
+ * Whether the person works on a calendar day, closed or not (`hasHours`: their own hours, or the default Monday to
+ * Friday). A day without the flag (from before working hours) counts if it's a weekday.
+ */
+export const worksThatDay = (day: {date?: string; hasHours?: boolean}) => day.hasHours ?? isWeekday(day.date ?? '');
+
 /** The next weekday after `date` (`step` 1), or before it (`step` -1). */
 export function nextWeekday(date: string, step: 1 | -1): string {
   let next = addDays(date, step);
