@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026 |
+| **Version** | 0.3 (draft), 18 November 2026: referrals, with the referrer as a new source (A3.10) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 6 months, when a customer or sub-processor is added or removed, and when the processing changes |
@@ -54,8 +54,9 @@ All customers receive the same service, so the categories are the same for each.
 | A3.7 | **Data subject requests and exit, on instruction** | Patients; staff users | All the customer's data | Export, correction, erasure, return and deletion at the end of the contract |
 | A3.8 | **Appointments** | Patients; staff users | The patient, optionally the pathway and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment |
 | A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's own day and week templates, their default week and one day's changes to it; meetings admins arrange (title, notes, time, organiser and attendees, and each attendee's reply: accepted or declined) and the notifications about them | Storage; display to every staff user; changes by the calendar's owner or an admin (meetings: admins only); admins' team view and suggested meeting times |
+| A3.10 | **Referrals** (`feature/referrals`) | Patients; **referrers** (the referring clinician and practice, a new source); staff users | The patient, the specialty asked for, the date received, the referring practice, clinician and ODS code, the priority asked for, the reason for referral (clinical free text), the status, who registered and closed it, and the detail given; the referral's history (structured values only); the letter, as an attached file. **The source is the referrer**, not the patient: staff type the details in from the letter, and nothing reaches MedApp from the referrer directly | Storage, retrieval, display, change while it awaits triage, closing (withdrawn, entered in error), on the customer's staff's actions; listed in an inbox for triage. Triage (accept, reject, redirect) and a waiting-time clock come later, each updating this entry |
 
-**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 25).
+**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, A3.10, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 25).
 
 **What the supplier does not do with customer data:** analytics, profiling, AI training, marketing, sale, research, or any purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md), section 1).
 
@@ -117,3 +118,4 @@ Rows marked with brackets are to be filled in when the supplier picks those prov
 | 16 November 2026 | 0.2: appointments (A3.8) and staff calendars (A3.9); appointment history in the audit trail (A3.2); appointment notifications (A3.4) | AI coding agent, for review |
 | 17 November 2026 | Meetings and personal calendar templates in A3.9 (review of #99) | AI coding agent, for review |
 | 17 November 2026 | Replies to meetings in A3.9 | AI coding agent, for review |
+| 18 November 2026 | 0.3: referrals (A3.10), with the referrer as a new source of data and a third party named in it | AI coding agent, for review |

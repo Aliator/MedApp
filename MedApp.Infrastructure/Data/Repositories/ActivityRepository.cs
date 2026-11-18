@@ -38,6 +38,21 @@ public sealed class ActivityRepository(MedAppDbContext context) : IActivityRepos
         return recent.ToHashSet();
     }
 
+    public Task<bool> HasRecentEntryAsync(
+        Guid? userId,
+        ActivityAction action,
+        Guid patientId,
+        string details,
+        DateTime sinceUtc,
+        CancellationToken ct) =>
+        context.ActivityEntries
+            .AsNoTracking()
+            .AnyAsync(e => e.UserId == userId
+                           && e.Action == action
+                           && e.PatientId == patientId
+                           && e.AtUtc >= sinceUtc
+                           && e.Details == details, ct);
+
     public async Task<PagedResult<ActivityEntry>> SearchAsync(SearchActivityQuery query, CancellationToken ct)
     {
         var filtered = context.ActivityEntries.AsNoTracking().Filter(query);

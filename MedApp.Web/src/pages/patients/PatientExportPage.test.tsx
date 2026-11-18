@@ -9,8 +9,11 @@ import {
   deletionRequestOutcome,
   describeAppointmentChange,
   describeExportedAppointment,
+  describeReferralChange,
   exportFileName,
   PatientExportPage,
+  referralChangeLabel,
+  referralName,
 } from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
@@ -249,7 +252,61 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No appointment changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No files.')).toBeInTheDocument();
     expect(screen.getByText('No requests to delete notes.')).toBeInTheDocument();
+    expect(screen.getByText('No referrals.')).toBeInTheDocument();
+    expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
+  });
+
+  it('lists every referral with what the referrer sent and what was decided, its history, and its letters', async () => {
+    const referralId = 'a184a7b8-2585-4437-bcd4-e1700be38214';
+    renderExport({
+      ...data,
+      referrals: [
+        {
+          id: referralId,
+          specialtyName: 'Dermatology',
+          receivedOn: '2026-11-02',
+          referrerPractice: 'Synthetic Street Surgery',
+          referrerClinician: 'Dr Test',
+          referrerOdsCode: 'A12345',
+          requestedPriority: 'High',
+          reason: 'A synthetic rash.',
+          status: 'Rejected',
+          registeredAtUtc: '2026-11-02T10:00:00Z',
+          registeredBy: 'k.ashford',
+          decidedAtUtc: '2026-11-04T09:00:00Z',
+          decidedBy: 'd.clinician',
+          rejectionReason: 'Duplicate',
+          decisionDetail: 'Already referred.',
+          redirectedTo: 'Another provider',
+          pathwayId,
+        },
+        {id: 'b', specialtyName: 'Urology', receivedOn: null, referrerPractice: '', requestedPriority: 'Low', reason: null, status: 'AwaitingTriage', registeredBy: 'k.ashford'},
+      ],
+      referralHistory: [
+        {atUtc: '2026-11-02T10:00:00Z', action: 'Registered', username: 'k.ashford', referralId, details: '{"specialtyName":"Dermatology","requestedPriority":"High"}'},
+        {atUtc: '2026-11-03T10:00:00Z', action: 'SpecialtyChanged', username: 'k.ashford', referralId: 'unknown', details: '{}'},
+      ],
+      attachments: [
+        {id: 'letter', attachedTo: 'Referral', referralId, fileName: 'letter.pdf', typeName: 'PDF', contentType: 'application/pdf', sizeBytes: 10, uploadedBy: 'k.ashford', uploadedAtUtc: '2026-11-02T11:00:00Z', scanStatus: 'NotScanned', sha256: 'x'},
+        {id: 'lost', attachedTo: 'Referral', referralId: 'unknown', fileName: 'other.pdf', typeName: 'PDF', contentType: 'application/pdf', sizeBytes: 10, uploadedBy: 'k.ashford', uploadedAtUtc: '2026-11-02T11:00:00Z', scanStatus: 'NotScanned', sha256: 'y'},
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {name: 'Referral to Dermatology'})).toBeInTheDocument();
+    expect(screen.getByText('Referrals (2)')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic Street Surgery')).toBeInTheDocument();
+    expect(screen.getByText('A12345')).toBeInTheDocument();
+    expect(screen.getByText('Reason for referral: A synthetic rash.')).toBeInTheDocument();
+    expect(screen.getByText('A duplicate')).toBeInTheDocument();
+    expect(screen.getByText('Already referred.')).toBeInTheDocument();
+    expect(screen.getByText('Another provider')).toBeInTheDocument();
+    expect(screen.getByText('Not yet')).toBeInTheDocument();
+    expect(screen.getByText(/Referral registered by k\.ashford/)).toBeInTheDocument();
+    expect(screen.getByText('The referral to Dermatology received 2 November 2026 · Specialty: Dermatology, Priority asked for: High')).toBeInTheDocument();
+    expect(screen.getByText(/Referral: SpecialtyChanged by k\.ashford/)).toBeInTheDocument();
+    expect(screen.getByText(/Attached to the referral to Dermatology received 2 November 2026\./)).toBeInTheDocument();
+    expect(screen.getByText(/Attached to a referral\./)).toBeInTheDocument();
   });
 
   it('marks a deleted note, saying when, by whom and why, and lists the requests to delete notes', async () => {
@@ -507,6 +564,16 @@ describe('appointment history in words', () => {
     };
     expect(appointmentHistoryWords(walkIn)).toMatch(/^requested .* automatically, recorded after the event .* by j\.smith$/);
     expect(appointmentHistoryWords({...walkIn, createdAtUtc: walkIn.bookedAtUtc})).toMatch(/^recorded after the event .* by j\.smith$/);
+  });
+
+  it('words referral history and names referrals', () => {
+    expect(referralChangeLabel('EnteredInError')).toBe('Referral marked entered in error');
+    expect(referralChangeLabel(null)).toBe('Referral: ');
+    expect(referralName({specialtyName: 'Urology', receivedOn: undefined})).toBe('the referral to Urology');
+    expect(describeReferralChange('{"changedFields":["reason","receivedOn",3],"specialtyName":"Urology","previousSpecialtyName":"Dermatology","toStatus":"Withdrawn"}')).toBe(
+      'Specialty: Urology, was Dermatology, Changed: reason, received date, Now withdrawn',
+    );
+    expect(describeReferralChange('not json')).toBe('');
   });
 
   it('describes an appointment by its status and time', () => {

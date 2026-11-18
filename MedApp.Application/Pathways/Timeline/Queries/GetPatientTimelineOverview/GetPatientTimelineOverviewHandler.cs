@@ -4,6 +4,7 @@ using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Pathways.Timeline.Common;
+using MedApp.Application.Referrals.Repositories;
 using MedApp.Contracts.Pathways.Timeline.Responses;
 using MedApp.Domain.Activity;
 using MediatR;
@@ -15,6 +16,7 @@ public sealed class GetPatientTimelineOverviewHandler(
     IPatientRepository patientRepository,
     IPatientPathwayRepository pathwayRepository,
     IPathwayAuditRepository auditRepository,
+    IReferralRepository referralRepository,
     IActivityLog activityLog,
     TimeProvider timeProvider)
     : IRequestHandler<GetPatientTimelineOverviewQuery, PatientTimelineOverviewResponse>
@@ -57,11 +59,15 @@ public sealed class GetPatientTimelineOverviewHandler(
                 .Select(TimelineMapper.ToDeletedPathwayResponse));
         }
 
+        // Referrals awaiting triage, beside the open pathways: what's coming, oldest first.
+        var awaiting = await referralRepository.GetAwaitingTriageForPatientAsync(request.PatientId, cancellationToken);
+
         return new PatientTimelineOverviewResponse
         {
             Upcoming = due.Take(UpcomingLimit).Select(p => TimelineMapper.ToUpcomingResponse(p, now)).ToList(),
             OpenCount = due.Count,
             Pathways = listed,
+            AwaitingReferrals = awaiting.Select(TimelineMapper.ToReferralResponse).ToList(),
         };
     }
 }

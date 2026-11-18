@@ -105,6 +105,29 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /requires appointment|needs booking/i})).not.toBeInTheDocument();
   });
 
+  it('has Referrals between My Worklist and Patients, with how many await triage, heard after its name', async () => {
+    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
+    renderWithApp(<AppSideNav />, {user: staffUser, path: '/referrals/new'});
+
+    const referrals = await screen.findByRole('link', {name: 'Referrals, 7 awaiting triage'});
+    expect(referrals).toHaveAttribute('href', '/referrals');
+    expect(referrals).toHaveAttribute('aria-current', 'page');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/referrals') + 1);
+  });
+
+  it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {
+    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourSpecialties: false})});
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Referrals'})).toBeInTheDocument();
+    unmount();
+
+    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
+    renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
+  });
+
   it('navigates on the client when a link is clicked', async () => {
     const {user, router} = renderWithApp(<AppSideNav />, {user: adminUser});
 

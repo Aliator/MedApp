@@ -19,6 +19,7 @@ public static class AttachmentMapper
             PathwayTitle = attachment.PathwayId is null ? null : row.PathwayTitle,
             StageId = attachment.StageId,
             StageName = attachment.StageId is null ? null : row.StageName,
+            ReferralId = attachment.ReferralId,
             FileName = attachment.FileName,
             ContentType = attachment.ContentType,
             TypeName = AttachmentFileTypes.FromContentType(attachment.ContentType)?.Name ?? attachment.ContentType,

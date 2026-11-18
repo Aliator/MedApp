@@ -36,6 +36,31 @@ function renderPage(patient: object = oriel, user = adminUser, extra: Record<str
   return {fetch, ...renderWithApp(<ViewPatientPage id={id} />, {user, path: `/patients/${id}`})};
 }
 
+describe('ViewPatientPage, referrals', () => {
+  it("lists the patient's referrals, open first, with Register Referral for them", async () => {
+    renderPage(oriel, staffUser, {
+      'GET /api/referrals/search': () =>
+        json(
+          pageOf([
+            {id: 'r-closed', specialtyName: 'Urology', status: 'Withdrawn', receivedOn: '2026-10-01', requestedPriority: 'Low', referrerPractice: 'Synthetic Surgery'},
+            {id: 'r-open', specialtyName: 'Dermatology', status: 'AwaitingTriage', receivedOn: '2026-11-02', daysSinceReceived: 4, requestedPriority: 'High'},
+          ]),
+        ),
+    });
+
+    const links = await screen.findAllByRole('link', {name: /^Referral to/});
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/referrals/r-open', '/referrals/r-closed']);
+    expect(screen.getByRole('link', {name: 'Register Referral'})).toHaveAttribute('href', `/referrals/new?patientId=${id}`);
+  });
+
+  it("offers no Register Referral while the record can't change", async () => {
+    renderPage({...oriel, isRestricted: true, restrictedAtUtc: '2026-11-16T09:00:00Z'}, staffUser, {'GET /api/referrals/search': () => json(pageOf([]))});
+
+    expect(await screen.findByText('No referrals yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Register Referral'})).not.toBeInTheDocument();
+  });
+});
+
 describe('ViewPatientPage, privacy', () => {
   it('shows staff no Privacy menu and no access report, and never asks for one', async () => {
     const {fetch} = renderPage(oriel, staffUser);

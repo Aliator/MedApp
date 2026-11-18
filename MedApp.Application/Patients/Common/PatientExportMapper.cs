@@ -213,6 +213,7 @@ public static class PatientExportMapper
                     StageName = a.StageId is { } stageId
                         ? record.Pathways.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
                         : null,
+                    ReferralId = a.ReferralId,
                     FileName = a.FileName,
                     ContentType = a.ContentType,
                     TypeName = AttachmentFileTypes.FromContentType(a.ContentType)?.Name ?? a.ContentType,
@@ -223,6 +224,40 @@ public static class PatientExportMapper
                     UploadedAtUtc = a.UploadedAtUtc,
                     DeletedAtUtc = a.DeletedAtUtc,
                     DeletedBy = a.DeletedByUsername
+                })
+                .ToList(),
+            // Everything the referrer sent and what was decided; staff by the usernames recorded at the time.
+            Referrals = record.Referrals
+                .Select(r => new ExportedReferralResponse
+                {
+                    Id = r.Id,
+                    SpecialtyName = r.Specialty?.Name ?? string.Empty,
+                    ReceivedOn = r.ReceivedOn,
+                    ReferrerPractice = r.ReferrerPractice,
+                    ReferrerClinician = r.ReferrerClinician,
+                    ReferrerOdsCode = r.ReferrerOdsCode,
+                    RequestedPriority = r.RequestedPriority.ToString(),
+                    Reason = r.Reason,
+                    Status = r.Status.ToString(),
+                    RegisteredAtUtc = r.RegisteredAtUtc,
+                    RegisteredBy = r.RegisteredByUsername,
+                    DecidedAtUtc = r.DecidedAtUtc,
+                    DecidedBy = r.DecidedByUsername,
+                    RejectionReason = r.RejectionReason?.ToString(),
+                    DecisionDetail = r.DecisionDetail,
+                    RedirectedTo = r.RedirectedTo,
+                    PathwayId = r.PathwayId
+                })
+                .ToList(),
+            ReferralHistory = record.ReferralHistory
+                .Select(e => new ExportedReferralHistoryEntryResponse
+                {
+                    AtUtc = e.AtUtc,
+                    Action = e.Action.ToString(),
+                    Username = e.Username,
+                    ReferralId = e.ReferralId,
+                    PathwayId = e.PathwayId,
+                    Details = WithoutStaffIds(e.Details)
                 })
                 .ToList()
         };

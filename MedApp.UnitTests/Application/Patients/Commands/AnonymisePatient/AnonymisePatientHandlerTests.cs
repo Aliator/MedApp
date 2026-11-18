@@ -132,7 +132,9 @@ public sealed class AnonymisePatientHandlerTests
             Notifications = record.Notifications,
             NoteVersions = [],
             NoteDeletionRequests = [],
-            Attachments = []
+            Attachments = [],
+            Referrals = [],
+            ReferralHistory = []
         });
 
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);

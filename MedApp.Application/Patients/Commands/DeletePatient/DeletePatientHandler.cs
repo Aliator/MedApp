@@ -34,6 +34,12 @@ public sealed class DeletePatientHandler(IPatientRepository repository, IActivit
             throw new ConflictException(
                 $"This patient has {appointmentCount} appointment{(appointmentCount == 1 ? "" : "s")}, so they can't be deleted.");
 
+        // So do referrals: what was asked for, by whom, and what was decided.
+        var referralCount = await repository.CountReferralsAsync(request.Id, cancellationToken);
+        if (referralCount > 0)
+            throw new ConflictException(
+                $"This patient has {referralCount} referral{(referralCount == 1 ? "" : "s")}, so they can't be deleted.");
+
         // Nor can one with files attached: they must be deleted first (which is audited).
         var fileCount = await attachments.CountForPatientAsync(request.Id, cancellationToken);
         if (fileCount > 0)

@@ -43,6 +43,7 @@ public sealed class GetPatientTimelineHandlerTests
             .ReturnsAsync(new Patient { Id = PatientId });
         fixture.Inject(_patients.Object);
         fixture.Inject(_audit.Object);
+        fixture.Inject(EmptyReferrals.Repository());
         fixture.Inject(_appointments.Object);
         _handler = fixture.Create<GetPatientTimelineHandler>();
     }

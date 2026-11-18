@@ -17,7 +17,7 @@ using Microsoft.Net.Http.Headers;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Files attached to patients, pathways and stages. Staff can list, upload and download them; staff delete their
+/// Files attached to patients, pathways, stages and referrals. Staff can list, upload and download them; staff delete their
 /// own, admins any. Files only ever leave through this API, as downloads (<see cref="AttachmentResponseHeaders"/>).
 /// </summary>
 [ApiController]
@@ -39,6 +39,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             request.PatientId,
             request.PathwayId,
             request.StageId,
+            request.ReferralId,
             request.IncludeDeleted,
             User.GetUserId(),
             CanCorrectRecords,
@@ -75,6 +76,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             target.PatientId,
             target.PathwayId,
             target.StageId,
+            target.ReferralId,
             AttachmentResponseHeaders.DecodeFileName(fileName),
             Request.ContentLength,
             Request.Body,

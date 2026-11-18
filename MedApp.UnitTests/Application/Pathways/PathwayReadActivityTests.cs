@@ -80,6 +80,7 @@ public sealed class PathwayReadActivityTests : PathwayHandlerTestBase
         Repository.Setup(r => r.GetByPatientAsync(TimelineConstants.PatientId, It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Fixture.Inject(patients.Object);
         Fixture.Inject(audit.Object);
+        Fixture.Inject(EmptyReferrals.Repository());
         return (patients, audit);
     }
 

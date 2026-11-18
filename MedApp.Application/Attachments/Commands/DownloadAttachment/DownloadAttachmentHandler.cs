@@ -32,7 +32,7 @@ public sealed class DownloadAttachmentHandler(
                       ?? throw new NotFoundException($"File '{request.Id}' has no contents in storage.");
         try
         {
-            var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, cancellationToken);
+            var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, attachments, cancellationToken);
             var audit = AttachmentAudit.Entry(
                 attachment,
                 target,

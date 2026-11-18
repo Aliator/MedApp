@@ -14,8 +14,11 @@ import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 /**
  * Add a patient (replaces Blazor's AddPatient): the form, a confirmation showing what will be added, then
  * back to the list. The API validates; its errors go on the fields and in a summary above the form.
+ *
+ * From Register Referral (`then="referral"`), for someone not in MedApp yet, it goes back there with the new patient
+ * chosen, and Back and Cancel go back there too.
  */
-export function AddPatientPage() {
+export function AddPatientPage({then}: {then?: 'referral'} = {}) {
   const navigate = useNavigate();
   const create = useCreatePatient();
   const announce = useAnnounce();
@@ -23,12 +26,15 @@ export function AddPatientPage() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const lookUp = usePatientLookUp(form, setForm, 'add');
+  const isForReferral = then === 'referral';
+  const back = () => void navigate(isForReferral ? {to: '/referrals/new'} : {to: '/patients'});
 
   const add = () => {
     create.mutate(form, {
-      onSuccess: () => {
+      onSuccess: (patient) => {
         announce('Patient added');
-        void navigate({to: '/patients'});
+        if (isForReferral) void navigate({to: '/referrals/new', search: {patientId: patient.id ?? undefined}});
+        else void navigate({to: '/patients'});
       },
       onError: (error) => {
         setProblem(saveProblem(error, 'add'));
@@ -40,8 +46,8 @@ export function AddPatientPage() {
   return (
     <Page
       title="Add New Patient"
-      backHref="/patients"
-      backLabel="Back to patients"
+      backHref={isForReferral ? '/referrals/new' : '/patients'}
+      backLabel={isForReferral ? 'Back to Register Referral' : 'Back to patients'}
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
@@ -73,7 +79,7 @@ export function AddPatientPage() {
           setProblem(NO_PROBLEM);
           setIsConfirming(true);
         }}
-        onCancel={() => void navigate({to: '/patients'})}
+        onCancel={back}
         isProcessing={create.isPending}>
         <PatientFormFields value={form} onChange={setForm} lookUp={lookUp} errors={problem.validation} isDisabled={create.isPending} />
       </FormCard>

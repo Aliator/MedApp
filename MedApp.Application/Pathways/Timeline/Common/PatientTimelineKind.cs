@@ -2,7 +2,7 @@ namespace MedApp.Application.Pathways.Timeline.Common;
 
 /// <summary>
 /// What a timeline entry is about, for filtering: a grouping of audit actions (see <see cref="PatientTimelineKinds"/>),
-/// or an appointment's history (<see cref="Appointments"/>). The API takes and returns them by name; they're never
+/// an appointment's history (<see cref="Appointments"/>) or a referral's (<see cref="Referrals"/>). The API takes and returns them by name; they're never
 /// stored.
 /// </summary>
 public enum PatientTimelineKind
@@ -43,6 +43,12 @@ public enum PatientTimelineKind
     /// </summary>
     Appointments,
 
-    /// <summary>A file was attached to the patient, a pathway or a stage, or deleted.</summary>
-    Files
+    /// <summary>A file was attached to the patient, a pathway, a stage or a referral, or deleted.</summary>
+    Files,
+
+    /// <summary>
+    /// A referral was registered, edited, withdrawn or marked entered in error (from referrals' history, not the audit
+    /// log, so no audit entry is of this kind).
+    /// </summary>
+    Referrals
 }

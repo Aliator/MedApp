@@ -34,7 +34,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).GetAttachments(request, cts.Token);
 
-        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, true, UserId, isAdmin, CanAttachFiles: true));
+        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, null, true, UserId, isAdmin, CanAttachFiles: true));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(list);
     }
@@ -49,7 +49,7 @@ public sealed class AttachmentsControllerTests
             .WithRequest(SignedInWith(Permission.UseApp, Permission.ViewPatients))
             .GetAttachments(request, CancellationToken.None);
 
-        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, false, UserId, false, CanAttachFiles: false));
+        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, null, false, UserId, false, CanAttachFiles: false));
     }
 
     [Test]
@@ -67,7 +67,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await controller.Upload(new AttachmentTargetRequest { StageId = RecordId }, "r%C3%A9sum%C3%A9.pdf", CancellationToken.None);
 
-        mediator.Request.Should().Be(new UploadAttachmentCommand(null, null, RecordId, "résumé.pdf", 3, body, Actor, false));
+        mediator.Request.Should().Be(new UploadAttachmentCommand(null, null, RecordId, null, "résumé.pdf", 3, body, Actor, false));
         var createdResult = result.Should().BeOfType<CreatedResult>().Subject;
         createdResult.Location.Should().Be($"/api/attachments/{OtherId}/content");
         createdResult.Value.Should().Be(created);

@@ -87,6 +87,16 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
             appointment.StageId = null;
         }
 
+        // A referral accepted into it stays, with its history, no longer pointing at it.
+        var referrals = await context.Referrals
+            .Where(r => r.PathwayId == pathway.Id)
+            .ToListAsync(ct);
+        foreach (var referral in referrals)
+        {
+            referral.Pathway = null;
+            referral.PathwayId = null;
+        }
+
         // Stages and assignments cascade; the audit entries have no foreign key, so they stay.
         context.PatientPathways.Remove(pathway);
         context.PatientPathwayAuditEntries.AddRange(audit);

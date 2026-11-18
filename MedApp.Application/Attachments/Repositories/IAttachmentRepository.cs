@@ -2,6 +2,7 @@ using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Queries.GetAttachments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 
 namespace MedApp.Application.Attachments.Repositories;
 
@@ -28,6 +29,9 @@ public interface IAttachmentRepository
 
     /// <summary>The newest attachments matching the query (see <c>AttachmentSearch</c>), and how many match in all.</summary>
     Task<(IReadOnlyList<AttachmentRow> Rows, int TotalCount)> ListAsync(GetAttachmentsQuery query, CancellationToken ct);
+
+    /// <summary>A referral with its patient, read-only, for a file attached to it; null if there's no such referral.</summary>
+    Task<Referral?> GetReferralAsync(Guid referralId, CancellationToken ct);
 
     /// <summary>The pathway a stage belongs to; null if there's no such stage.</summary>
     Task<Guid?> GetStagePathwayIdAsync(Guid stageId, CancellationToken ct);
