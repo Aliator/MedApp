@@ -393,6 +393,33 @@ describe('PatientTimeline', () => {
     await waitFor(() => expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'false'));
   });
 
+  it('keeps the entries shown while a new choice of filters loads, so the page neither jumps nor flickers', async () => {
+    let release: (response: Response) => void = () => {};
+    const slow = new Promise<Response>((resolve) => (release = resolve));
+    mockApi({
+      [`GET ${OVERVIEW}`]: () => json(overview),
+      [`GET ${TIMELINE}`]: (request) =>
+        new URL(request.url).searchParams.has('Kinds')
+          ? slow
+          : json({items: [entry({stageName: 'Consultation'})], nextCursor: null}),
+    });
+    const {user} = renderWithApp(<Harness />, {user: staffUser});
+    expect(await screen.findByText(/Consultation/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', {name: 'Notes'}));
+
+    // The last choice's entries stay, with a spinner after them, never in their place.
+    expect(await screen.findByText('Updating the timeline...')).toBeInTheDocument();
+    expect(screen.getByText(/Consultation/)).toBeInTheDocument();
+    expect(screen.queryByText('Loading the timeline...')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
+
+    release(json({items: [entry({kind: 'Notes', action: 'NoteAdded', stageName: 'Follow-up'})], nextCursor: null}));
+
+    await waitFor(() => expect(screen.queryByText(/Consultation/)).not.toBeInTheDocument());
+    expect(screen.queryByText('Updating the timeline...')).not.toBeInTheDocument();
+  });
+
   it('offers the Deleted filter to admins only, and pathway filters only when there is more than one', async () => {
     mockApi({
       [`GET ${OVERVIEW}`]: () => json({...overview, pathways: [overview.pathways![0]]}),
