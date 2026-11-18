@@ -49,4 +49,21 @@ describe('FoldingCard', () => {
     expect(screen.queryByText('Details body')).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Show details'})).toHaveAttribute('aria-expanded', 'false');
   });
+
+  it("keeps a section that can't fold open, with no chevron, and shows a summary in a bar", async () => {
+    const {user} = renderWithApp(
+      <FoldingCard
+        sections={[
+          {key: 'details', title: 'Details', isOpen: true, canFold: false, onToggle: () => {}, children: <p>Details body</p>},
+          {key: 'stages', title: 'Stages', isOpen: false, onToggle: () => {}, summary: <p>3 of 5</p>, children: <p>Stages body</p>},
+        ]}
+      />,
+    );
+
+    await user.click(await screen.findByRole('heading', {name: 'Details'}));
+    expect(screen.getByText('Details body')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /details/})).not.toBeInTheDocument();
+    expect(screen.getByText('3 of 5')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
+  });
 });

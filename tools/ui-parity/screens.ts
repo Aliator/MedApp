@@ -558,10 +558,9 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-notes',
-    title: "Pathway page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
+    title: "Pathway page with its Notes, on the right under Stages: Add Note, then the notes newest first, each with who and when",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Hide details' }).click();
       await page.getByRole('button', { name: 'Add Note' }).waitFor({ state: 'visible' });
       await settle(page);
     },
@@ -608,7 +607,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-narrow',
-    title: 'Pathway page on a narrow window: one card, Details and Current stage open, Stages folded',
+    title: 'Pathway page on a narrow window: one card, Details (never folded) and Current stage open, Stages folded into their progress bar',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
@@ -617,7 +616,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-narrow-stages',
-    title: 'Pathway page on a narrow window, Stages opened too: the three sections scroll together',
+    title: 'Pathway page on a narrow window, Stages opened from their progress bar: the sections scroll together',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
