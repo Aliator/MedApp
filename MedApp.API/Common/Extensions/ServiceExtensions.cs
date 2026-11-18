@@ -74,15 +74,22 @@ public static class ServiceExtensions
             .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
             .ValidateOnStart();
 
-        // Scheduled jobs run inside the API, on a timer (unless Jobs:Enabled is false), one copy at a time each; /health
-        // is Degraded while one is overdue.
-        services.AddHostedService<ScheduledJobHost>();
-        services.AddHealthChecks().AddCheck<ScheduledJobsHealthCheck>(ScheduledJobsHealthCheck.Name);
-
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
         services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);
         services.AddLoginThrottling();
 
+        return services;
+    }
+
+    /// <summary>
+    /// Scheduled jobs run inside the API, on a timer (unless <c>Jobs:Enabled</c> is false), one copy at a time each, and
+    /// <c>/health</c> is Degraded while one is overdue. Apart from <see cref="AddApi"/>, as it needs the Application and
+    /// Infrastructure layers (the runner, the jobs and their repository); <c>Program</c> adds it after them.
+    /// </summary>
+    public static IServiceCollection AddScheduledJobHost(this IServiceCollection services)
+    {
+        services.AddHostedService<ScheduledJobHost>();
+        services.AddHealthChecks().AddCheck<ScheduledJobsHealthCheck>(ScheduledJobsHealthCheck.Name);
         return services;
     }
 

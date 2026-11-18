@@ -11,6 +11,7 @@ builder.AddServiceDefaults();
 builder.Services.AddApi(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScheduledJobHost();
 
 var app = builder.Build();
 
