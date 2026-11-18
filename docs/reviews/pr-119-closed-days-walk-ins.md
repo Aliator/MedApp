@@ -168,7 +168,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
   - **A walk-in for a stage that's just becoming current:** `StageVisits.cs:27-31` sees no visit yet and requests one, beside the walk-in. A needless item appears in Requires Appointment.
 - **Evidence:** `WorkingDays.cs:16-23`; `CreateClosedDayHandler.cs:23-35`; `RecordPastAppointmentHandler.cs:64, 82-110`; `StageVisits.cs:27-31`.
 - **Fix:** accept and document them. For the second, re-check `GetOpenForStageAsync` inside the lock before inserting (narrows the window; doesn't close it, as the booking may take another person's lock). **Left to the PR** (see below).
-- **What happened to it:** fixed where it could be, the rest documented. Handlers check closed days again under the calendar lock (`CalendarClashes.Find`, `MeetingStaff.EnsureEveryoneFreeAsync`: a 409), so a day closed after the validator ran is caught; closing a day still takes no calendar lock, so a booking whose locked read came first can land. A walk-in re-checks the stage's open visit under its lock; a booking for the same stage under another person's lock can still slip past. A stage becoming current at that moment can still add a needless Requested visit. Decision 77 and H-39 name all three.
+- **What happened to it:** fixed where it could be, the rest documented. Handlers check closed days again under the calendar lock (`CalendarClashes.Find`, `MeetingStaff.EnsureEveryoneFreeAsync`: a 409), so a day closed after the validator ran is caught; closing a day still takes no calendar lock, so a booking whose locked read came first can land. A walk-in re-checks the stage's open visit under its lock; a booking for the same stage under another person's lock can still slip past. A stage becoming current at that moment can still add a needless Requested visit. Decision 76 and H-39 name all three.
 
 ### 8. Low: nothing makes the next calendar command use the closed-day rule
 
@@ -226,8 +226,8 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 
 ## Remaining risks
 
-- **During a deploy,** old API copies run against the migrated database for a few minutes. They don't know closed days (a booking through one isn't refused), and show action 7 and kind 9 by number.
-- **`Notification.HasFixedTitle` now covers 1 to 9,** including the unused 7 and 8. A future kind there with free text in its title would be skipped by anonymisation.
+- **During a deploy,** old API copies run against the migrated database for a few minutes. They don't know closed days (a booking through one isn't refused), and show history actions 7 and 8, status 5 and notification kinds 8, 9 and 22 by number; their `CanEditNotes` lets a withdrawn walk-in's notes be edited, and they answer `entered-in-error` with a 404. Nothing is lost.
+- **`Notification.HasFixedTitle` now covers 1 to 9 and 22,** including the unused 7. A future kind there with free text in its title would be skipped by anonymisation.
 - **One-off bank holiday changes,** and Scotland's and Northern Ireland's, are by hand.
 - **No admin report of walk-ins** (H-39's proposed control), and walk-ins aren't a monitoring event. Recording one's own wrong walk-in tells nobody.
 - **H-39's ratings are a draft** for the CSO, and findings 3 and 5 weaken its controls.
@@ -281,7 +281,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
   - Smaller: a walk-in may now be for an earlier, already finished stage. Withdrawing it then says the stage "was finished with this visit", even when it was finished on another visit or by the admin bypass.
 - **Evidence:** `StageVisits.cs:47-48`; `MarkAppointmentEnteredInErrorHandler.cs:47` (the only place the message goes); `AppointmentDialog.tsx:148` (local state); hazard log H-39's control ("or the person is told why not").
 - **Fix:** when the stage is finished, also tell the procedure's assignees and the admins with a fixed-title notification ("Stage visit withdrawn": who, which stage, never the patient), or flag the stage on the procedure page until it's unlocked and finished again; reword the message to "was finished" without "with this visit" unless no other Attended visit exists. Name the control in H-39.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`. When the withdrawn walk-in was the only attended visit of a finished stage that requires one (`StageVisits.AfterVisitWithdrawn`'s new `FinishedWithoutVisit`), the procedure's assignees and every admin, but not whoever withdrew it, get a new notification kind, `StageVisitWithdrawn = 22` (main uses up to 21), titled "Stage visit withdrawn", linked to the procedure (not the appointment, which is off the calendar), whose message is built only from the username, the visit's time, the stage's name and when it was finished (`AppointmentNotifications.AfterStageVisitWithdrawn`; admins from a new `IIdentityReadService.GetAdminIdsAsync`). It's in `HasFixedTitle`, not `IsMonitoring`, and has its own icon in the bell. The dialog's message now says the stage "is finished, and now has no attended visit" (or "still has an attended visit"), never "with this visit", so it's true for a walk-in on a stage finished earlier. A Suggested stage gets the message but no notification. H-39 names the control (detective; it doesn't mark the stage on the procedure page). Unit tests, and `PastAppointmentTests` checks it end to end (the assignee and the admin told, the withdrawer not, no patient, title or reason in it). The data inventory, DPIA, staff privacy notice and plan (decision 74) list it.
 
 #### C. Low: after 30 days nobody can withdraw a walk-in, and the message points to admins who can't either
 
@@ -292,7 +292,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
   - **Scenario:** a patient's subject access export, six weeks on, shows an "Attended" walk-in they never had. The admin can only flip it to "Did not attend" (also untrue) or add a note. `data-subject-rights.md:38` documents that fallback, but the API's own message promises more.
 - **Evidence:** `AppointmentWorkflow.cs:66-77`; `MarkAppointmentEnteredInErrorHandler.cs:27-31`.
 - **Fix:** let admins withdraw at any time (skip the window when `IsAdmin`), or count the 30 days from `BookedAtUtc` (when it was recorded); either way, make the message match what's possible.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`. The window applies only to whoever recorded it; admins may mark a walk-in entered in error at any time (`AppointmentWorkflow.WhyCantMarkEnteredInError(…, isAdmin)`). The recorder's 409 now says so: "…for up to 30 days after it; after that, only an admin can. Ask an admin to correct the record." The response has `canMarkEnteredInError` (an admin's) and a new `canRecorderMarkEnteredInError` (the recorder's), and the web app offers Entered in Error accordingly. The rights procedure no longer describes a fallback for older ones.
 
 #### D. Low: withdrawing a walk-in on a restricted record can add a new appointment to it
 
@@ -300,7 +300,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 - **What goes wrong:** marking entered in error is allowed while restricted, deliberately. But if the walk-in was the current stage's visit, `AskForTheStagesVisitAgainAsync` adds a new Requested appointment in the same save, with no restriction check. Everywhere else a restricted record "can't gain appointments" (`RecordPastAppointmentHandler.cs:43`), and procedure changes that would request a visit are refused.
 - **Evidence:** `MarkAppointmentEnteredInErrorHandler.cs:24, 39, 59-86`; the handler test for a restricted record has no stage (`Handle_ARestrictedRecord_IsAllowed_AnAnonymisedOneIsNot`).
 - **Fix:** in `AskForTheStagesVisitAgainAsync`, when `PatientRules` says the record can't change, return `(null, "No visit is asked for again while the record is restricted.")`; add a test with a stage.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`, as suggested: on a record that can't change, the withdrawal goes ahead and no Requested visit is added, with that message. `Handle_TheCurrentStagesVisitOnARestrictedRecord_AsksForNoVisitAgain` has a stage.
 
 #### E. Low: the re-requested visit can lose a race and come back as a 500
 
@@ -308,7 +308,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 - **What goes wrong:** the handler reads the stage's appointments, then inserts a Requested visit. If someone books or requests one for that stage in between, the open-visit unique index refuses the insert, and `AppointmentRepository.AddAsync` throws `StageHasOpenAppointmentException`. `CreateAppointmentHandler` catches that; this handler doesn't, and `ExceptionHandling` doesn't map it, so it's a 500 and the withdrawal isn't saved.
 - **Evidence:** `MarkAppointmentEnteredInErrorHandler.cs:39, 66`; `AppointmentRepository.cs:36-42`; `CreateAppointmentHandler.cs:69`.
 - **Fix:** catch it and throw `ConflictException(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage)`, so the user tries again.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`, as suggested (nothing is saved, so the user tries again and then sees the visit there is). `Handle_TheStagesVisitAskedForMeanwhile_IsAConflictToTryAgain`.
 
 #### F. Low: a same-day walk-in can't count for a procedure created after the visit
 
@@ -316,7 +316,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 - **What goes wrong:** the refusal compares exact times. A patient seen at 10:00, whose procedure is created at 10:40 once the clinician knows what's needed, can't have that visit recorded for its first stage. For a Required stage the only way on is the admin bypass, which records "finished without a visit": untrue, the problem finding 5 was about. The original review said a hard refusal would catch legitimate cases.
 - **Evidence:** `RecordPastAppointmentHandler.cs:76-77`; `AppointmentWorkflow.cs:135`.
 - **Fix:** compare UK dates (allow a visit on the day the procedure was created), or allow it with a warning in the dialog.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`. A walk-in is refused only before the UK day its procedure was created (`AppointmentWorkflow.IsBeforeProcedure`), and the message says "before the day the procedure was created". Tests: an earlier visit that day is recorded, one the day before isn't. Decision 74, H-39 and `AGENTS.md` say so.
 
 #### G. Low: "Day closed" tells people to move appointments that have already happened
 
@@ -324,7 +324,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 - **What goes wrong:** the counts include Attended and Did not attend appointments, and today can be closed. Closing today at 11:00 (snow) tells a clinician "You have 3 appointments then: move or cancel them, and tell any patients", when two were this morning and can't be moved. Their own lunch block counts too.
 - **Evidence:** `CalendarRepository.cs:79-81`; `ClosedDayBookings.cs:64`.
 - **Fix:** for the notification, count Booked appointments still to come (and say blocks and meetings separately), or word it as "You have … then. Move or cancel what's still to come, and tell any patients."
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`, by rewording, so the admin's view and the notification count the same things and both stay accurate: "You have 3 appointments and a block then. Move or cancel what's still to come, and tell any patients." Decision 75 and H-35 updated.
 
 #### H. Low: a few lines the fixes made stale
 
@@ -335,12 +335,13 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
   - This document's Remaining risks (line 229) names only action 7 and kind 9. Old copies during a deploy also meet status 5 (shown as "5", and their `CanEditNotes` lets its notes be edited) and kind 8.
   - Finding 7's note says decision 77 names the races; they're under decision 76.
 - **Fix:** update those lines, and run the new `Down` on LocalDB with an entered-in-error row.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed in `a9c3a7a`. Decision 78 says 7 is kept for meeting replies and 8 became `DayClosed`; decision 74's migration note describes the whole `Down`; this document's Remaining risks name status 5 and kinds 8 and 22; finding 7's note (and H-39) now say decision 76. The `Down` also deletes the new kind 22, which older code doesn't know. It was run up, down and up again on a throwaway LocalDB database (`MedApp_MigrationTest`, then dropped) with an entered-in-error walk-in, its history (actions 7 and 8), a Did not attend walk-in and notifications of kinds 0, 3, 8, 9 and 22: down, the walk-in became Cancelled keeping its reason, actions 7 became 3 and 4 by outcome and 8 became 5, kinds 8, 9 and 22 were deleted and 0 and 3 kept, and the table and column went. `has-pending-model-changes` reports none.
 
 ### Remaining risks after the fixes
 
 - **Rolling update:** for a few minutes old API copies show a withdrawn walk-in's status as "5", let its notes be edited, and answer `entered-in-error` with a 404. Nothing is lost.
 - **The fixes are unproven in CI** until `main` is merged (finding A).
+- **A finished stage left without its visit is only notified** (finding B): nothing marks it on the procedure page, so it relies on an assignee or admin reading the notification.
 
 ## Detail
 
