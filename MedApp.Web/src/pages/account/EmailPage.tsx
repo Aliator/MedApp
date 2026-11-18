@@ -7,11 +7,20 @@ import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
-import {featuresQuery, myEmailQuery, useChangeMyEmail, useRemoveMyEmail} from '../../api/account';
+import {
+  featuresQuery,
+  myEmailQuery,
+  twoFactorStatusQuery,
+  useChangeMyEmail,
+  useRemoveMyEmail,
+  useSendTwoFactorEmailCode,
+} from '../../api/account';
 import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
+import {EmailMeACode} from '../../components/account/EmailMeACode';
 import {FormCard} from '../../components/forms/FormCard';
+import {OneTimeCodeField} from '../../components/forms/OneTimeCodeField';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
@@ -25,7 +34,11 @@ export const EMAIL_UNAVAILABLE =
   "Email isn't available here: this server can't send email, so an address can't be added or confirmed.";
 
 /** The fields of the change form, whose 400 messages show on them. */
-const CHANGE_FIELDS = ['email', 'password'];
+const CHANGE_FIELDS = ['email', 'password', 'code'];
+
+/** Why changing the address asks for a code too, while it's where sign-in codes go. */
+export const CODE_FOR_CHANGE =
+  "You sign in with codes sent to this address, so confirm it's you with a code first: we'll email one to your current address, or use a recovery code.";
 
 /**
  * What Remove does, in words, for what the account has: removing clears both the address in use and one waiting for
@@ -46,23 +59,30 @@ function removeMessage(email: string | null, pendingEmail: string | null): strin
  * opened) and removing it. A confirmed address is where password reset links go, so both ask for the password: a
  * session someone else got hold of can't redirect them. A 400 shows on its field; a locked account (423), too many
  * changes (429) or an email that couldn't be sent (409) shows in the API's words. When the server can't send email,
- * it says so rather than offering a change it couldn't confirm; removing still works.
+ * it says so rather than offering a change it couldn't confirm; removing still works. While the account signs in with
+ * codes by email, the address is its second factor, so a change needs a code too: one emailed to the current address
+ * ("Email me a code", after the password) or a recovery code.
  */
 export function EmailPage() {
   const me = useCurrentUser();
   const {data, isPending, isError} = useQuery(myEmailQuery);
   const {data: features} = useQuery(featuresQuery);
+  const {data: twoFactor} = useQuery(twoFactorStatusQuery);
   const change = useChangeMyEmail();
+  const send = useSendTwoFactorEmailCode();
   const remove = useRemoveMyEmail();
   const announce = useAnnounce();
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [isRemoving, setIsRemoving] = useState(false);
   // The password the Remove dialog asks for, apart from the form's, so neither fills the other.
   const [removePassword, setRemovePassword] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
 
   const canSendEmail = features?.canSendEmail === true;
+  const usesEmailCodes = twoFactor?.enabled === true && twoFactor.method === 'Email';
+  const sendErrors = send.error instanceof ApiValidationError ? send.error.errors : null;
   const email = data?.email ?? null;
   const pendingEmail = data?.pendingEmail ?? null;
   const validation = change.error instanceof ApiValidationError ? change.error.errors : null;
@@ -75,11 +95,13 @@ export function EmailPage() {
     setNotice(null);
     remove.reset();
     change.mutate(
-      {email: newEmail.trim(), password},
+      {email: newEmail.trim(), password, ...(usesEmailCodes ? {code} : {})},
       {
         onSuccess: (saved) => {
           setNewEmail('');
           setPassword('');
+          setCode('');
+          send.reset();
           const message = `We've sent a link to ${saved.pendingEmail ?? newEmail.trim()}. Open it to confirm the address.`;
           setNotice(message);
           announce(message);
@@ -221,8 +243,21 @@ export function EmailPage() {
                 autoComplete="current-password"
                 description="We ask for this to check it's you, as password reset links will go to the new address."
                 isRequired
-                status={fieldStatus(validation, 'password')}
+                status={fieldStatus(validation, 'password') ?? fieldStatus(sendErrors, 'password')}
               />
+              {usesEmailCodes && (
+                <VStack gap={2} hAlign="stretch">
+                  <Text type="body">{CODE_FOR_CHANGE}</Text>
+                  <EmailMeACode send={send} password={password} />
+                  <OneTimeCodeField
+                    kind="either"
+                    label="Code from the email, or a recovery code"
+                    value={code}
+                    onChange={setCode}
+                    status={fieldStatus(validation, 'code')}
+                  />
+                </VStack>
+              )}
             </FormSection>
           </FormCard>
         ) : (

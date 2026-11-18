@@ -51,6 +51,9 @@ describe('RequiredTwoFactorSetupPage', () => {
 
     expect(await screen.findByText(EMAIL_CODES_NOT_ENOUGH)).toBeInTheDocument();
     expect(await screen.findByRole('img', {name: 'QR code for your authenticator app'})).toBeInTheDocument();
+    // Switching proves the current factor too: an emailed code, or a recovery code.
+    expect(await screen.findByLabelText(/code from the email, or a recovery code/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Email me a code'})).toBeInTheDocument();
   });
 
   it("doesn't mention codes by email to an admin without two-factor", async () => {

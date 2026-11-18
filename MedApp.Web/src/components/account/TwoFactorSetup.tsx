@@ -8,10 +8,16 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
-import {useBeginAuthenticatorSetup, useEnableTwoFactor, type AuthenticatorSetup} from '../../api/account';
+import {
+  useBeginAuthenticatorSetup,
+  useEnableTwoFactor,
+  useSendTwoFactorEmailCode,
+  type AuthenticatorSetup,
+} from '../../api/account';
 import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {OneTimeCodeField} from '../forms/OneTimeCodeField';
 import {AppIcon} from '../shared/icons';
+import {EmailMeACode} from './EmailMeACode';
 import {RecoveryCodes} from './RecoveryCodes';
 
 /** How big the QR code is drawn, in pixels: big enough for a phone's camera across a desk. */
@@ -69,10 +75,19 @@ export interface TwoFactorSetupProps {
   onCancel?: () => void;
   /** Two-factor has just turned on (the recovery codes are showing). */
   onEnabled?: () => void;
+  /**
+   * The account signs in with codes by email now, so switching to the app must also prove that factor: a code emailed
+   * to it ("Email me a code", after the password), or a recovery code.
+   */
+  switchingFromEmail?: boolean;
 }
 
 /** The fields turning it on asks for, whose 400 messages show on them. */
-const PASSWORD_AND_CODE = ['password', 'code'];
+const PASSWORD_AND_CODES = ['password', 'code', 'currentCode'];
+
+/** Why switching asks for a code from the email too. */
+export const PROVE_CURRENT =
+  "You sign in with codes by email now, so we also need a code we email you (or one of your recovery codes) to check it's you before the app replaces them.";
 
 /**
  * Setting up two-factor authentication with an authenticator app, from start to finish: it asks the API for a new key
@@ -83,11 +98,13 @@ const PASSWORD_AND_CODE = ['password', 'code'];
  * this set-up while codes by email are on, and two-factor stays on throughout) and by `/set-up-two-factor`, where an
  * admin is held until they've set it up. Put it in a card; it lays out its own steps.
  */
-export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled}: TwoFactorSetupProps) {
+export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled, switchingFromEmail = false}: TwoFactorSetupProps) {
   const begin = useBeginAuthenticatorSetup();
   const enable = useEnableTwoFactor();
+  const send = useSendTwoFactorEmailCode();
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [currentCode, setCurrentCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
   const [setup, setSetup] = useState<AuthenticatorSetup | null>(null);
 
@@ -105,11 +122,13 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   const turnOn = (event: FormEvent) => {
     event.preventDefault();
     enable.mutate(
-      {password, code},
+      {password, code, ...(switchingFromEmail ? {currentCode} : {})},
       {
         onSuccess: (recoveryCodes) => {
           setPassword('');
           setCode('');
+          setCurrentCode('');
+          send.reset();
           // The key is no longer needed: from here, only the codes show.
           setSetup(null);
           setCodes(recoveryCodes);
@@ -156,7 +175,8 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   }
 
   const validation = enable.error instanceof ApiValidationError ? enable.error.errors : null;
-  const other = otherMessages(validation, PASSWORD_AND_CODE);
+  const sendErrors = send.error instanceof ApiValidationError ? send.error.errors : null;
+  const other = otherMessages(validation, PASSWORD_AND_CODES);
   const enableProblem = enable.isError && !validation
     ? refusalMessage(enable.error, 'Two-factor authentication could not be turned on. Please try again.')
     : other.length > 0
@@ -187,8 +207,21 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           onChange={setPassword}
           autoComplete="current-password"
           isRequired
-          status={fieldStatus(validation, 'password')}
+          status={fieldStatus(validation, 'password') ?? fieldStatus(sendErrors, 'password')}
         />
+        {switchingFromEmail && (
+          <>
+            <Text type="body">{PROVE_CURRENT}</Text>
+            <EmailMeACode send={send} password={password} />
+            <OneTimeCodeField
+              kind="either"
+              label="Code from the email, or a recovery code"
+              value={currentCode}
+              onChange={setCurrentCode}
+              status={fieldStatus(validation, 'currentCode')}
+            />
+          </>
+        )}
         <OneTimeCodeField value={code} onChange={setCode} status={fieldStatus(validation, 'code')} />
         <HStack gap={2} hAlign="end">
           {onCancel && <Button label="Cancel" variant="secondary" isDisabled={enable.isPending} onClick={onCancel} />}

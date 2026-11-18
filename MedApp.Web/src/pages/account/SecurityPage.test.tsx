@@ -1,6 +1,8 @@
 import {act, screen, waitFor, within} from '@testing-library/react';
 import {twoFactorStatusQuery} from '../../api/account';
 import {adminUser, calls, expectAnnounced, findAlert, isDisabled, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
+import {PASSWORD_FIRST} from '../../components/account/EmailMeACode';
+import {PROVE_CURRENT} from '../../components/account/TwoFactorSetup';
 import {authenticatorSetup, emailCodeSent, recoveryCodes} from '../../test/twoFactor';
 import {EMAIL_NOT_ENOUGH, EMAIL_UNAVAILABLE, REQUIRED, SecurityPage} from './SecurityPage';
 
@@ -336,7 +338,7 @@ describe('SecurityPage, with codes by email', () => {
     await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
     expect(await dialog.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
-    expect(calls(fetch)).toContain(SEND_CODE);
+    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/email/code')).toEqual({password: 'Synthetic-Passw0rd'});
     await user.type(dialog.getByLabelText(/code from the email, or a recovery code/i), '654321');
     await user.click(dialog.getByRole('button', {name: 'Turn Off'}));
 
@@ -350,9 +352,45 @@ describe('SecurityPage, with codes by email', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
     const dialog = within(openDialog()!);
+    await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
 
     expect(await dialog.findByText(tooMany)).toBeInTheDocument();
+  });
+
+  it('asks for the password before emailing a code, and shows a wrong one on its field', async () => {
+    const {user, fetch} = renderPage(onWithEmail, {
+      [SEND_CODE]: () => json({title: 'One or more validation errors occurred.', status: 400, errors: {Password: ['That password is wrong.']}}, 400),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
+    const dialog = within(openDialog()!);
+    expect(isDisabled(dialog.getByRole('button', {name: 'Email me a code'}))).toBe(true);
+    expect(dialog.getByText(PASSWORD_FIRST)).toBeInTheDocument();
+    expect(calls(fetch)).not.toContain(SEND_CODE);
+
+    await user.type(dialog.getByLabelText(/your password/i), 'not-the-password');
+    expect(dialog.queryByText(PASSWORD_FIRST)).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+
+    expect(await dialog.findByText('That password is wrong.')).toBeInTheDocument();
+    expect(dialog.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('shows new recovery codes with advice for codes by email', async () => {
+    const {user} = renderPage(onWithEmail, {
+      [SEND_CODE]: () => json(emailCodeSent, 202),
+      [CODES]: () => json({recoveryCodes}),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'New Recovery Codes'}));
+    const dialog = within(openDialog()!);
+    await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.type(dialog.getByLabelText(/code from the email/i), '123456');
+    await user.click(dialog.getByRole('button', {name: 'Get New Codes'}));
+
+    expect(await dialog.findByText(/If you can't get MedApp's emails/)).toBeInTheDocument();
+    expect(dialog.queryByText(/If you lose your authenticator app/)).not.toBeInTheDocument();
   });
 
   it('gets new recovery codes with an emailed code, sending another on request', async () => {
@@ -375,6 +413,49 @@ describe('SecurityPage, with codes by email', () => {
 
     expect(await dialog.findByText(recoveryCodes[0])).toBeInTheDocument();
   });
+
+  it('switches to an authenticator app only with a code from the current method too', async () => {
+    const {user, fetch} = renderPage(onWithEmail, {
+      'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup),
+      [SEND_CODE]: () => json(emailCodeSent, 202),
+      'POST /api/auth/me/two-factor/enable': () => json({recoveryCodes}),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Switch to an Authenticator App'}));
+    expect(await screen.findByText(PROVE_CURRENT)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.type(await screen.findByLabelText(/code from the email, or a recovery code/i), '654321');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
+    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+
+    expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
+    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/email/code')).toEqual({password: 'Synthetic-Passw0rd'});
+    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/enable')).toEqual({
+      password: 'Synthetic-Passw0rd',
+      code: '123456',
+      currentCode: '654321',
+    });
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
+
+  it("shows a wrong current code on its field when switching", async () => {
+    const {user} = renderPage(onWithEmail, {
+      'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup),
+      'POST /api/auth/me/two-factor/enable': () =>
+        json({title: 'One or more validation errors occurred.', status: 400, errors: {CurrentCode: ["That code isn't right."]}}, 400),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Switch to an Authenticator App'}));
+    await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), 'ABCDE-23456');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
+    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+
+    expect(await screen.findByText("That code isn't right.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true');
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
 
   it('switches to an authenticator app, keeping codes by email until it is set up', async () => {
     const {user} = renderPage(onWithEmail, {'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup)});

@@ -19,7 +19,7 @@ const EXPIRED = 'This sign-in has run out. Enter your password again.';
 export const NO_MORE_CODES = 'No more codes can be sent for this sign-in. Use a recovery code, or go back and start again.';
 
 /** When the password was right but no code could be emailed. */
-export const CODE_NOT_SENT = "We couldn't email you a code. Use one of your recovery codes, or try again later.";
+export const CODE_NOT_SENT = "We couldn't email you a code just now. Use a recovery code, or try signing in again later.";
 
 export interface TwoFactorStepProps {
   /** The password step's 202: the challenge, and how the code comes. */

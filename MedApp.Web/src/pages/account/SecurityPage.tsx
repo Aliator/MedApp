@@ -20,8 +20,8 @@ import {
 import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
-import {EmailCodeNote} from '../../components/account/EmailCodeNote';
 import {EmailCodesSetup} from '../../components/account/EmailCodesSetup';
+import {EmailMeACode} from '../../components/account/EmailMeACode';
 import {RecoveryCodes} from '../../components/account/RecoveryCodes';
 import {TwoFactorSetup} from '../../components/account/TwoFactorSetup';
 import {OneTimeCodeField} from '../../components/forms/OneTimeCodeField';
@@ -44,9 +44,6 @@ export const EMAIL_UNAVAILABLE: Record<EmailCodesUnavailableReason, string> = {
   NoConfirmedAddress: 'Confirm an email address first (Account Settings, Email Address).',
   EmailUnavailable: "This server can't send email.",
 };
-
-/** When no more codes can be emailed for a change for now. */
-export const CHANGE_NO_MORE_CODES = 'No more codes can be sent for now. Try again in a few minutes, or use a recovery code.';
 
 /** How each method is named. */
 const METHOD_NAMES: Record<TwoFactorMethod, string> = {
@@ -71,45 +68,13 @@ type SetUp = 'Authenticator' | 'Email' | null;
 const PASSWORD_AND_CODE = ['password', 'code'];
 
 /**
- * "Email me a code", for a change confirmed with an emailed code (turning two-factor off, new recovery codes), then
- * where it went, with Resend. A refusal (409, 429) shows in the API's words.
- */
-function EmailMeACode() {
-  const send = useSendTwoFactorEmailCode();
-  const announce = useAnnounce();
-  const sendCode = (again: boolean) =>
-    send.mutate(undefined, {onSuccess: (sent) => again && announce(`A new code was emailed to ${sent.sentTo}.`)});
-
-  return (
-    <VStack gap={2} hAlign="stretch">
-      {send.isError && <AlertMessage message={refusalMessage(send.error, 'A code could not be sent. Please try again.')} />}
-      {send.data ? (
-        <EmailCodeNote
-          sent={send.data}
-          onResend={() => sendCode(true)}
-          isResending={send.isPending}
-          exhaustedMessage={CHANGE_NO_MORE_CODES}
-        />
-      ) : (
-        <Button
-          label="Email me a code"
-          variant="secondary"
-          icon={<Icon icon={AppIcon.Email} />}
-          isLoading={send.isPending}
-          onClick={() => sendCode(false)}
-        />
-      )}
-    </VStack>
-  );
-}
-
-/**
  * The signed-in user's sign-in security (Account Settings, Security): two-factor authentication on or off and how,
  * setting it up with an authenticator app (`TwoFactorSetup`) or with codes by email (`EmailCodesSetup`, only with a
  * confirmed address, the reason shown otherwise), switching from codes by email to an app, turning it off (with the
  * password and a code; not while the account must use it), and getting a new set of recovery codes (with the password
- * and a code), with how many are left. For codes by email, the dialogs offer "Email me a code". Each asks for the
- * password, so a session alone can't change them. A 400 shows on its field; a 409, a locked account (423) or too many
+ * and a code), with how many are left. For codes by email, the dialogs offer "Email me a code" (`EmailMeACode`), which
+ * waits for the password and sends it, as setting codes up does; switching to an app asks for an emailed code (or a
+ * recovery code) too. Each asks for the password, so a session alone can't change them. A 400 shows on its field; a 409, a locked account (423) or too many
  * codes (429) shows in the API's words.
  */
 export function SecurityPage() {
@@ -117,6 +82,8 @@ export function SecurityPage() {
   const {data: status, isPending, isError} = useQuery(twoFactorStatusQuery);
   const disable = useDisableTwoFactor();
   const regenerate = useRegenerateRecoveryCodes();
+  // One "Email me a code" for whichever dialog is open: a wrong password it sends shows on that dialog's field.
+  const send = useSendTwoFactorEmailCode();
   const announce = useAnnounce();
   const [settingUp, setSettingUp] = useState<SetUp>(null);
   const [choice, setChoice] = useState<'Authenticator' | 'Email'>('Authenticator');
@@ -132,6 +99,7 @@ export function SecurityPage() {
     setNewCodes(null);
     disable.reset();
     regenerate.reset();
+    send.reset();
     setNotice(null);
     setDialog(next);
   };
@@ -142,6 +110,7 @@ export function SecurityPage() {
     // The codes go from the page's state and the mutation's, so they don't stay in memory.
     setNewCodes(null);
     regenerate.reset();
+    send.reset();
   };
 
   const startSetUp = (method: 'Authenticator' | 'Email') => {
@@ -182,6 +151,7 @@ export function SecurityPage() {
   const canUseEmail = status?.canUseEmailCodes === true;
   const emailUnavailable = canUseEmail ? null : EMAIL_UNAVAILABLE[emailReason ?? 'NoConfirmedAddress'];
 
+  const sendErrors = send.error instanceof ApiValidationError ? send.error.errors : null;
   const passwordField = (errors: typeof disableErrors) => (
     <>
       <input type="text" name="username" autoComplete="username" value={me.username} readOnly hidden />
@@ -193,7 +163,7 @@ export function SecurityPage() {
         autoComplete="current-password"
         isRequired
         hasAutoFocus
-        status={fieldStatus(errors, 'password')}
+        status={fieldStatus(errors, 'password') ?? fieldStatus(sendErrors, 'password')}
       />
     </>
   );
@@ -238,7 +208,7 @@ export function SecurityPage() {
                   <AlertMessage message={disableProblem ?? disableOther.join(' ')} />
                 )}
                 {passwordField(disableErrors)}
-                {usesEmail && <EmailMeACode />}
+                {usesEmail && <EmailMeACode send={send} password={password} />}
                 <OneTimeCodeField
                   kind="either"
                   label={usesEmail ? 'Code from the email, or a recovery code' : undefined}
@@ -269,14 +239,19 @@ export function SecurityPage() {
             onConfirm={newCodes ? close : getNewCodes}
             onCancel={close}>
             {newCodes ? (
-              <RecoveryCodes codes={newCodes} username={me.username} announcement="New recovery codes made." />
+              <RecoveryCodes
+                codes={newCodes}
+                username={me.username}
+                method={usesEmail ? 'email' : 'authenticator'}
+                announcement="New recovery codes made."
+              />
             ) : (
               // Only while it's open, as Turn Off's, with the signed-in user's name for a password manager.
               dialog === 'codes' && (
                 <VStack gap={4} hAlign="stretch">
                   {(codesProblem || codesOther.length > 0) && <AlertMessage message={codesProblem ?? codesOther.join(' ')} />}
                   {passwordField(codesErrors)}
-                  {usesEmail && <EmailMeACode />}
+                  {usesEmail && <EmailMeACode send={send} password={password} />}
                   <OneTimeCodeField
                     kind={usesEmail ? 'email' : 'authenticator'}
                     value={code}
@@ -337,6 +312,7 @@ export function SecurityPage() {
               )}
               <TwoFactorSetup
                 username={me.username}
+                switchingFromEmail={usesEmail}
                 doneLabel="Done"
                 onDone={finishSetUp}
                 onCancel={finishSetUp}

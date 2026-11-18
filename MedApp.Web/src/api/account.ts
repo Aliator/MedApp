@@ -69,14 +69,16 @@ export const myEmailQuery = queryOptions({
 /**
  * Changes (or sets) the signed-in user's email address (`PUT api/auth/me/email`), given their password, so a session
  * someone else got hold of can't change where reset links go: the API emails a link to the new one, and the old one
- * stays in use until it's opened. The answer is the address as it now stands. A 400 may be on `email` or `password`;
- * a 423 (locked), a 429 (too many changes) or a 409 (the email couldn't be sent) explains itself in its title.
+ * stays in use until it's opened. The answer is the address as it now stands. While the account signs in with codes by
+ * email, it also needs `code` (one emailed by `useSendTwoFactorEmailCode`, or a recovery code), since the address is
+ * its second factor. A 400 may be on `email`, `password` or `code`; a 423 (locked), a 429 (too many changes) or a 409
+ * (the email couldn't be sent) explains itself in its title.
  */
 export function useChangeMyEmail() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({email, password}: {email: string; password: string}) =>
-      toMyEmail(await unwrap(api.PUT('/api/auth/me/email', {body: {email, password}}))),
+    mutationFn: async ({email, password, code}: {email: string; password: string; code?: string}) =>
+      toMyEmail(await unwrap(api.PUT('/api/auth/me/email', {body: {email, password, ...(code ? {code} : {})}}))),
     onSuccess: (email) => queryClient.setQueryData(myEmailQuery.queryKey, email),
   });
 }
@@ -171,11 +173,14 @@ export function useSendEmailCodesSetup() {
 
 /**
  * Emails the signed-in user a code for confirming a change (`POST api/auth/me/two-factor/email/code`), when they sign
- * in with codes by email: turning it off, or new recovery codes. A 409 when they don't; a 429 when it's too soon.
+ * in with codes by email: turning it off, new recovery codes, switching to an app or changing the address. The password
+ * comes first, as for setting codes up: a wrong one is a 400 on `password` (and counts towards the lockout, a 423). A
+ * 409 when they don't use codes by email or the code couldn't be sent; a 429 when it's too soon.
  */
 export function useSendTwoFactorEmailCode() {
   return useMutation({
-    mutationFn: async () => toEmailCodeSent(await unwrap(api.POST('/api/auth/me/two-factor/email/code'))),
+    mutationFn: async (password: string) =>
+      toEmailCodeSent(await unwrap(api.POST('/api/auth/me/two-factor/email/code', {body: {password}}))),
   });
 }
 
@@ -225,12 +230,18 @@ function useTwoFactorMutation<TInput, TResult>(mutationFn: (input: TInput) => Pr
 
 /**
  * Turns two-factor on with the password and a code from the app just set up (`POST api/auth/me/two-factor/enable`),
- * returning the recovery codes, once. A wrong password or code is a 400 on `password` or `code`; a 423 when the
- * account is locked. The account's other sessions end.
+ * returning the recovery codes, once. Switching from codes by email also needs `currentCode`: one emailed by
+ * `useSendTwoFactorEmailCode`, or a recovery code, so a session and the password alone can't replace the second factor.
+ * A wrong password or code is a 400 on `password`, `code` or `currentCode`; a 423 when the account is locked. The
+ * account's other sessions end.
  */
 export function useEnableTwoFactor() {
-  return useTwoFactorMutation(async ({password, code}: PasswordAndCode) =>
-    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/enable', {body: {password, code}}))),
+  return useTwoFactorMutation(async ({password, code, currentCode}: PasswordAndCode & {currentCode?: string}) =>
+    recoveryCodes(
+      await unwrap(
+        api.POST('/api/auth/me/two-factor/enable', {body: {password, code, ...(currentCode ? {currentCode} : {})}}),
+      ),
+    ),
   );
 }
 

@@ -312,6 +312,9 @@ describe('TwoFactorStep, with codes by email', () => {
     await user.click(screen.getByRole('button', {name: 'Sign in'}));
 
     expect(await findAlert(CODE_NOT_SENT)).toBeInTheDocument();
+    // Nothing was sent (no address, no mail server, or the hour's allowance used up): it never says one was.
+    expect(screen.queryByText(/We emailed a code/)).not.toBeInTheDocument();
+    expect(CODE_NOT_SENT).toContain('just now');
     expect(screen.getByLabelText(/recovery code/i)).toHaveAttribute('autocomplete', 'off');
     expect(screen.queryByRole('button', {name: /use a code/i})).not.toBeInTheDocument();
   });

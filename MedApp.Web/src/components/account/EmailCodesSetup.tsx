@@ -77,7 +77,7 @@ export function EmailCodesSetup({username, doneLabel, onDone, onCancel, onEnable
   if (codes) {
     return (
       <VStack gap={4} hAlign="stretch">
-        <RecoveryCodes codes={codes} username={username} announcement="Codes by email are on." />
+        <RecoveryCodes codes={codes} username={username} method="email" announcement="Codes by email are on." />
         <HStack gap={2} hAlign="end">
           <Button label={doneLabel} variant="primary" onClick={onDone} />
         </HStack>

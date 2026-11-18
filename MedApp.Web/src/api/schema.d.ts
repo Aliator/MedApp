@@ -619,7 +619,13 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SendEmailCodeRequest"];
+                    "text/json": components["schemas"]["SendEmailCodeRequest"];
+                    "application/*+json": components["schemas"]["SendEmailCodeRequest"];
+                };
+            };
             responses: {
                 /** @description Accepted */
                 202: {
@@ -632,8 +638,30 @@ export interface paths {
                         "text/json": components["schemas"]["EmailCodeSentResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Locked */
+                423: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -9066,6 +9094,7 @@ export interface components {
         ChangeEmailRequest: {
             email?: string | null;
             password?: string | null;
+            code?: string | null;
         };
         ChangePatientProcedureStatusRequest: {
             status?: string | null;
@@ -10121,6 +10150,9 @@ export interface components {
             updatedBy?: string | null;
             adminsWithoutTwoFactorUsernames?: string[] | null;
         };
+        SendEmailCodeRequest: {
+            password?: string | null;
+        };
         SessionResponse: {
             /** Format: date-time */
             expiresAtUtc?: string;
@@ -10200,6 +10232,7 @@ export interface components {
         TwoFactorCodeRequest: {
             password?: string | null;
             code?: string | null;
+            currentCode?: string | null;
         };
         TwoFactorStatusResponse: {
             enabled?: boolean;

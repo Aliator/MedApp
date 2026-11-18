@@ -2,8 +2,8 @@ import {screen, waitFor} from '@testing-library/react';
 import {StrictMode} from 'react';
 import {twoFactorStatusQuery} from '../../api/account';
 import {adminUser, calls, expectAnnounced, findAlert, json, mockApi, renderWithApp, withAnnouncements} from '../../test/render';
-import {authenticatorSetup, recoveryCodes} from '../../test/twoFactor';
-import {TwoFactorSetup} from './TwoFactorSetup';
+import {authenticatorSetup, emailCodeSent, recoveryCodes} from '../../test/twoFactor';
+import {PROVE_CURRENT, TwoFactorSetup} from './TwoFactorSetup';
 
 const AUTHENTICATOR = 'POST /api/auth/me/two-factor/authenticator';
 const ENABLE = 'POST /api/auth/me/two-factor/enable';
@@ -32,6 +32,54 @@ async function turnOn(user: User, code = '123456', password = 'Synthetic-Passw0r
   await user.type(screen.getByLabelText(/code from your authenticator app/i), code);
   await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
 }
+
+describe('TwoFactorSetup, switching from codes by email', () => {
+  const SEND_CODE = 'POST /api/auth/me/two-factor/email/code';
+
+  it('asks for a code from the current method as well, and sends it', async () => {
+    const {user, fetch} = renderSetup({[SEND_CODE]: () => json(emailCodeSent, 202)}, {switchingFromEmail: true});
+
+    expect(await screen.findByText(PROVE_CURRENT)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    expect(await screen.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), '654321');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
+    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+
+    expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
+    const enable = fetch.mock.calls.map(([r]) => r as Request).find((r) => new URL(r.url).pathname === '/api/auth/me/two-factor/enable')!;
+    expect(await enable.clone().json()).toEqual({password: 'Synthetic-Passw0rd', code: '123456', currentCode: '654321'});
+    // The new codes stand in for the app now.
+    expect(screen.getByText(/If you lose your authenticator app/)).toBeInTheDocument();
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
+
+  it('shows a wrong password from sending the code on the password field', async () => {
+    const {user} = renderSetup(
+      {[SEND_CODE]: () => json({title: 'One or more validation errors occurred.', status: 400, errors: {Password: ['That password is wrong.']}}, 400)},
+      {switchingFromEmail: true},
+    );
+
+    await user.type(await screen.findByLabelText(/your password/i), 'not-it');
+    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+
+    expect(await screen.findByText('That password is wrong.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
+
+  it("doesn't ask for a current code when setting up the app from nothing", async () => {
+    const {user, fetch} = renderSetup();
+
+    await turnOn(user);
+
+    expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
+    expect(screen.queryByText(PROVE_CURRENT)).not.toBeInTheDocument();
+    const enable = fetch.mock.calls.map(([r]) => r as Request).find((r) => new URL(r.url).pathname === '/api/auth/me/two-factor/enable')!;
+    expect(await enable.clone().json()).toEqual({password: 'Synthetic-Passw0rd', code: '123456'});
+  });
+});
 
 describe('TwoFactorSetup', () => {
   it('asks for one new key as it opens, and shows it as a QR code on white, whatever the theme', async () => {

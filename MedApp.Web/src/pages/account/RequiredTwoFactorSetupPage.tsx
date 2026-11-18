@@ -37,7 +37,13 @@ export function RequiredTwoFactorSetupPage() {
         password, you&apos;ll sign in with a code from an authenticator app on your phone. Set it up before you continue.
       </Text>
       {usesEmail && !isOn && <Banner status="warning" container="card" title={EMAIL_CODES_NOT_ENOUGH} />}
-      <TwoFactorSetup username={me.username} doneLabel="Continue" onDone={() => void enterApp()} onEnabled={() => setIsOn(true)} />
+      <TwoFactorSetup
+        username={me.username}
+        switchingFromEmail={usesEmail}
+        doneLabel="Continue"
+        onDone={() => void enterApp()}
+        onEnabled={() => setIsOn(true)}
+      />
       {!isOn && <Button label="Sign out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />}
     </StandalonePage>
   );
