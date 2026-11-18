@@ -20,6 +20,7 @@ import {useAttachmentsState} from '../../components/attachments/useAttachmentsSt
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {AppointmentList} from '../../components/pathways/AppointmentList';
 import {TwoColumns} from '../../components/pages/TwoColumns';
+import {LogDataRequestDialog} from '../../components/dataRequests/LogDataRequestDialog';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -329,7 +330,8 @@ function PatientDetails({patient}: {patient: Patient}) {
 
 /**
  * The privacy actions for the record (each for the permission it needs), behind one Privacy button: export everything held (a subject access
- * request), restrict or lift the restriction, mark or clear a dispute, and anonymise. Each asks to confirm first.
+ * request), log a data request (which opens its page), restrict or lift the restriction, mark or clear a dispute, and
+ * anonymise. Each asks to confirm first.
  */
 function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (problem: SaveProblem) => void}) {
   const id = patient.id ?? '';
@@ -342,6 +344,7 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
   // Why the flag change failed: shown in its dialog, which stays open with the reason as typed.
   const [flagProblem, setFlagProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [isAnonymising, setIsAnonymising] = useState(false);
+  const [isLoggingRequest, setIsLoggingRequest] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
 
   const open = (next: PatientFlagChange) => {
@@ -371,6 +374,17 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
     href: `/patients/${id}/export`,
   };
   const privacyItems: DropdownMenuItemData[] = [
+    {
+      id: 'data-request',
+      label: 'Log Data Request',
+      description: 'A request for a copy of the record',
+      icon: AppIcon.DataRequests,
+      onClick: () => {
+        onProblem(NO_PROBLEM);
+        setDialogKey((k) => k + 1);
+        setIsLoggingRequest(true);
+      },
+    },
     patient.isRestricted
       ? {id: 'restrict', label: 'Lift Restriction', icon: AppIcon.Lock, onClick: () => open({flag: 'restriction', set: false})}
       : {
@@ -419,6 +433,13 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
         isProcessing={setFlag.isPending}
         onConfirm={confirmFlag}
         onCancel={() => setChange(null)}
+      />
+      <LogDataRequestDialog
+        key={`data-request-${dialogKey}`}
+        isOpen={isLoggingRequest}
+        patientId={id}
+        patient={patient}
+        onClose={() => setIsLoggingRequest(false)}
       />
       <AnonymiseDialog
         key={`anonymise-${dialogKey}`}

@@ -1,4 +1,4 @@
-using AutoFixture;
+﻿using AutoFixture;
 using FluentAssertions;
 using FluentValidation;
 using MedApp.Application.Activity.Common;
@@ -62,6 +62,32 @@ public sealed class AnonymisePatientHandlerTests
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*already been anonymised*");
+    }
+
+    [Test]
+    public async Task Handle_AnOpenDataRequest_ThrowsConflict_AClosedOneIsAnonymisedWithTheRest()
+    {
+        var record = PrivacyTestConstants.CreateRecord();
+        var open = DataRequestTestConstants.Open(record.Patient);
+        Given(record with { DataRequests = [open] });
+
+        var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*1 open data request*");
+
+        open.Status = MedApp.Domain.DataRequests.DataRequestStatus.Refused;
+        open.RefusalReason = "Synthetic refusal.";
+        open.WithheldItems.Add(new MedApp.Domain.DataRequests.DataRequestWithheldItem
+        {
+            Id = Guid.NewGuid(), Kind = MedApp.Domain.DataRequests.DataRequestItemKind.Note, ItemId = Guid.NewGuid(),
+            Reason = DataRequestTestConstants.WithheldReason
+        });
+        await Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
+
+        open.RequesterName.Should().Be(PatientAnonymiser.RemovedText);
+        open.RequesterRelationship.Should().Be(PatientAnonymiser.RemovedText);
+        open.RefusalReason.Should().Be(PatientAnonymiser.RemovedText);
+        open.WithheldItems.Single().Reason.Should().Be(PatientAnonymiser.RemovedText);
+        open.ReceivedOn.Should().Be(DataRequestTestConstants.Today);
     }
 
     [Test]

@@ -95,6 +95,48 @@ public sealed class PatientExportResponse
     /// any withdrawal or correction. Their history is in <c>PathwayHistory</c>; their scans are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedConsentRecordResponse> ConsentRecords { get; set; } = [];
+
+    /// <summary>
+    /// The patient's data requests (subject access), oldest received first: who asked, the identity check, the due
+    /// date and any extension, the clinician review (what was withheld, and why) and how each ended.
+    /// </summary>
+    public List<ExportedDataRequestResponse> DataRequests { get; set; } = [];
+}
+
+/// <summary>A data request in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedDataRequestResponse
+{
+    public Guid Id { get; set; }
+    public DateOnly ReceivedOn { get; set; }
+    public bool RequestedByPatient { get; set; }
+    public string? RequesterName { get; set; }
+    public string? RequesterRelationship { get; set; }
+    public DateOnly? IdentityCheckedOn { get; set; }
+    public string? IdentityCheckedBy { get; set; }
+    public string? IdentityCheckMethod { get; set; }
+    public string? IdentityCheckDetail { get; set; }
+    public DateOnly DueOn { get; set; }
+    public int ExtensionMonths { get; set; }
+    public string? ExtensionReason { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? RefusalReason { get; set; }
+    public DateOnly? SentOn { get; set; }
+    public string? SendMethod { get; set; }
+    public DateTime? ClosedAtUtc { get; set; }
+    public string? ClosedBy { get; set; }
+    public DateTime? ReviewedAtUtc { get; set; }
+    public string? ReviewedBy { get; set; }
+    public List<ExportedWithheldItemResponse> Withheld { get; set; } = [];
+    public DateTime CreatedAtUtc { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
+/// <summary>An item a data request's review withheld, and why.</summary>
+public sealed class ExportedWithheldItemResponse
+{
+    public string Kind { get; set; } = string.Empty;
+    public Guid ItemId { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }
 
 /// <summary>A result in a patient's export: everything it holds, with staff by username only.</summary>
@@ -283,6 +325,7 @@ public sealed class ExportedSpecimenResponse
 /// <summary>A pathway put forward for an MDT, as the export gives it. Staff by username.</summary>
 public sealed class ExportedMdtItemResponse
 {
+    public Guid Id { get; set; }
     public Guid PathwayId { get; set; }
     public string PathwayTitle { get; set; } = string.Empty;
     public string Specialty { get; set; } = string.Empty;

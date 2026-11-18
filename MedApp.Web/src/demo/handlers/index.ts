@@ -1,5 +1,6 @@
 import {registerAccount} from './account';
 import {registerCalendar} from './calendar';
+import {registerDataRequests} from './dataRequests';
 import {registerPathways} from './pathways';
 import {registerPatients} from './patients';
 import {registerReferrals} from './referrals';
@@ -15,4 +16,5 @@ export function registerHandlers() {
   registerPathways();
   registerReferrals();
   registerCalendar();
+  registerDataRequests();
 }

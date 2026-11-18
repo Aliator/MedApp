@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Security.Claims;
 using FluentAssertions;
 using MedApp.API.Common.Extensions;
@@ -34,7 +34,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
     /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74), and so
     /// do seeing, signing off and reassigning results (SignOffResults), and recording, withdrawing and
-    /// scanning consent (RecordConsent).
+    /// scanning consent (RecordConsent), and a data request's clinician review (SignOffResults). Reading data requests
+    /// needs ViewPatients at the door and ManagePrivacy or SignOffResults in the handler.
     /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
@@ -161,6 +162,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ConsentController.RestoreConsentForm 00001
         ConsentController.UpdateConsentForm 00001
         ConsentController.WithdrawConsent 00000
+        DataRequestsController.CreateDataRequest 00001
+        DataRequestsController.DownloadDataRequestPack 00001
+        DataRequestsController.ExtendDataRequest 00001
+        DataRequestsController.GetDataRequest 00011
+        DataRequestsController.GetDataRequestReviewItems 00011
+        DataRequestsController.RecordDataRequestReview 00000
+        DataRequestsController.RecordDataRequestSent 00001
+        DataRequestsController.RecordIdentityCheck 00001
+        DataRequestsController.RefuseDataRequest 00001
+        DataRequestsController.SearchDataRequests 00011
+        DataRequestsController.WithdrawDataRequest 00001
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
