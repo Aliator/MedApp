@@ -1,3 +1,5 @@
+using MedApp.UnitTests.Common.Constants;
+using MedApp.Domain.Patients;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
@@ -155,5 +157,44 @@ public sealed class LetterQueriesTests : LetterHandlerTestBase
         LetterSearch.Apply(all, new SearchLettersQuery(1, 10, null, null, Pathway.Id, null, Author.UserId)).Should().HaveCount(8);
         LetterSearch.Apply(all, new SearchLettersQuery(1, 10, null, null, null, Guid.NewGuid(), Author.UserId)).Should().BeEmpty();
         LetterSearch.Apply(all, new SearchLettersQuery(1, 10, null, Guid.NewGuid(), null, null, Author.UserId)).Should().BeEmpty();
+    }
+
+    [Test]
+    public void LetterSearch_All_SearchesThePatientsName_AndSortsByAColumn()
+    {
+        var other = new Patient { Id = Guid.NewGuid(), FirstName = "Zed", LastName = "Abbott" };
+        var draft = OnPathway();
+        draft.LastUpdated = NowUtc.AddDays(-2);
+        var approved = OnPathway(LetterStatus.Approved, kind: LetterKind.DischargeSummary);
+        var othersLetter = CreateLetter(PathwaysTestConstants.CreatePathway(patient: other), Practice, LetterStatus.AwaitingApproval);
+        var withdrawn = OnPathway(LetterStatus.Withdrawn);
+        withdrawn.WithdrawnAtUtc = NowUtc;
+        var all = new[] { draft, approved, othersLetter, withdrawn }.AsQueryable();
+        var patients = new[] { Patient, other }.AsQueryable();
+
+        List<Letter> Run(string? search = null, string? sort = null, bool ascending = true, string? view = "All") =>
+            LetterSearch.Apply(all, new SearchLettersQuery(1, 10, view, null, null, null, Author.UserId, search, sort, ascending), patients).ToList();
+
+        Run().Should().HaveCount(4);
+        Run("zed ABB").Should().Equal(othersLetter);
+        Run($"{Patient.FirstName.ToUpperInvariant()}").Should().BeEquivalentTo(new[] { draft, approved, withdrawn });
+        // Without the patients, the name isn't searched or sorted by.
+        LetterSearch.Apply(all, new SearchLettersQuery(1, 10, "All", null, null, null, Author.UserId, "zed")).Should().HaveCount(4);
+
+        Run(sort: "patient").First().Should().Be(othersLetter);
+        Run(sort: "patient", ascending: false).Last().Should().Be(othersLetter);
+        Run(sort: "letter", ascending: false).First().Should().Be(approved);
+        Run(sort: "status").Should().Equal(draft, othersLetter, approved, withdrawn);
+        Run(sort: "latest", ascending: false).Should().Equal(withdrawn, approved, draft, othersLetter);
+        Run(sort: "author").Should().HaveCount(4);
+        Run(sort: "patient", view: "MyDrafts").Should().Equal(draft);
+    }
+
+    [Test]
+    public void SearchValidator_ASearchOver200Characters_IsRefused()
+    {
+        var validator = new SearchLettersValidator();
+        validator.Validate(new SearchLettersQuery(1, 10, "All", null, null, null, Author.UserId, new string('x', 201))).IsValid.Should().BeFalse();
+        validator.Validate(new SearchLettersQuery(1, 10, "All", null, null, null, Author.UserId, "Freya", "latest", false)).IsValid.Should().BeTrue();
     }
 }

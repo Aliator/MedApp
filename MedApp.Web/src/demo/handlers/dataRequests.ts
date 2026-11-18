@@ -121,7 +121,7 @@ export function registerDataRequests() {
       patient: (r) => patientSortName(r.patientId),
       received: (r) => r.receivedOn ?? '',
       due: dueOn,
-      status: (r) => ['Open', 'Sent', 'Refused', 'Withdrawn'].indexOf(r.status),
+      status: (r) => ['Open', 'Sent', 'Refused', 'Withdrawn'].indexOf(r.status ?? ''),
     });
     return paged((sorted ?? ordered).map(summary), query);
   });

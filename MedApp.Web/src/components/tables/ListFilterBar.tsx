@@ -284,15 +284,13 @@ export function ListFilterBar({
   const {tabs} = listTabs;
   const currentKey = keyOf(current);
   const selected = tabs.find((t) => keyOf(normalize(t.values)) === currentKey);
-  // The search shows when chosen, or when the list's search changes to one no tab shows (a link, or Back).
-  const [showsSearch, setShowsSearch] = useState(!selected);
+  // The search shows when chosen, or when the list's search changes to one no tab shows (a link, or Back): worked
+  // out as the search changes, while rendering, so the bar never shows a frame of the wrong row.
+  const [shown, setShown] = useState({key: currentKey, isSearch: !selected});
+  if (shown.key !== currentKey) setShown({key: currentKey, isSearch: shown.isSearch || !selected});
+  const showsSearch = shown.key === currentKey ? shown.isSearch : shown.isSearch || !selected;
+  const setShowsSearch = (isSearch: boolean) => setShown({key: currentKey, isSearch});
   const [isConfiguring, setIsConfiguring] = useState(false);
-  const shownKey = useRef(currentKey);
-  useEffect(() => {
-    if (shownKey.current === currentKey) return;
-    shownKey.current = currentKey;
-    if (!selected) setShowsSearch(true);
-  }, [currentKey, selected]);
   const apply = (saved: ListFilterValues) => onChange({...cleared(fields), ...saved});
   const bar = useRef<HTMLElement>(null);
   useNoAutofill(bar);

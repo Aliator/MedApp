@@ -1,3 +1,4 @@
+using MedApp.Domain.Patients;
 using FluentAssertions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Results.Queries.GetResult;
@@ -107,5 +108,66 @@ public sealed class ResultQueriesTests : ResultTestBase
     public void Validator_UnknownView_IsRefused()
     {
         new SearchResultsValidator().Validate(Query("Abnormal")).Errors.Should().ContainSingle(e => e.PropertyName == "View");
+    }
+
+    /// <summary>Three results awaiting sign-off, with their own patients, titles and pathways (one without).</summary>
+    private static List<Result> Named()
+    {
+        var ada = CreateResult(reportedAtUtc: Now.AddDays(-3));
+        ada.Patient = new Patient { Id = ada.PatientId, FirstName = "Ada", LastName = "Zephyr" };
+        ada.Title = "Bloods";
+        ada.Pathway!.Title = "Knee";
+        var bea = CreateResult(status: ResultStatus.Seen, reportedAtUtc: Now.AddDays(-1));
+        bea.Patient = new Patient { Id = bea.PatientId, FirstName = "Bea", LastName = "Young" };
+        bea.Title = "Culture";
+        bea.Pathway!.Title = "Ankle";
+        var cal = CreateResult(reportedAtUtc: Now.AddDays(-2));
+        cal.Patient = new Patient { Id = cal.PatientId, FirstName = "Cal", LastName = "Xu" };
+        cal.Title = "Anaemia screen";
+        cal.Pathway = null;
+        return [ada, bea, cal];
+    }
+
+    private static List<string> Patients(SearchResultsQuery query) =>
+        Named().AsQueryable().Filter(query, SignOffHolders).Sort(query.ParsedView, query.Sort, query.Ascending).Select(r => r.Patient.FirstName).ToList();
+
+    private static SearchResultsQuery Searched(string? search, string? sort = null, bool ascending = true) =>
+        new(1, 10, "Awaiting", null, null, null, Clinician.UserId, search, sort, ascending);
+
+    [TestCase("bea young", "Bea")]
+    [TestCase("XU", "Cal")]
+    public void Search_FindsThePatientsName_IgnoringCase(string search, string first)
+    {
+        Patients(Searched(search)).Should().Equal(first);
+    }
+
+    [Test]
+    public void Search_NeverLooksInTheTitle()
+    {
+        Patients(Searched("bloods")).Should().BeEmpty();
+    }
+
+    [TestCase("patient", true, "Cal", "Bea", "Ada")]
+    [TestCase("title", true, "Cal", "Ada", "Bea")]
+    [TestCase("pathway", true, "Cal", "Bea", "Ada")]
+    [TestCase("reported", false, "Bea", "Cal", "Ada")]
+    [TestCase("status", false, "Bea", "Ada", "Cal")]
+    [TestCase("content", true, "Ada", "Cal", "Bea")]
+    public void Sort_ByAColumnInEitherDirection_OrTheViewsOwnOrder(string sort, bool ascending, params string[] names)
+    {
+        var order = Patients(Searched(null, sort, ascending));
+
+        // Ada and Cal both await sign-off, so a status sort fixes only Bea (Seen) first.
+        if (sort == "status")
+            order.First().Should().Be(names[0]);
+        else
+            order.Should().Equal(names);
+    }
+
+    [Test]
+    public void Validator_ASearchOver200Characters_IsRefused()
+    {
+        new SearchResultsValidator().Validate(Searched(new string('x', 201))).IsValid.Should().BeFalse();
+        new SearchResultsValidator().Validate(Searched("Freya", "title")).IsValid.Should().BeTrue();
     }
 }

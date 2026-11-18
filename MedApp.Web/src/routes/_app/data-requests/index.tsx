@@ -5,9 +5,9 @@ import {requirePermissions} from '../../../auth/auth';
 import {DataRequestsPage} from '../../../pages/dataRequests/DataRequestsPage';
 import {DEFAULT_DATA_REQUEST_VIEW, dataRequestsListQuery, parseDataRequestsSearch} from '../../../pages/dataRequests/dataRequestsSearch';
 
-/** Patients' data requests, for holders of ManagePrivacy (who answer them) and SignOffResults (who review them). */
+/** Patients' data requests, for holders of ManagePrivacy (who log, review and answer them). */
 export const Route = createFileRoute('/_app/data-requests/')({
-  beforeLoad: requirePermissions('ViewPatients', ['ManagePrivacy', 'SignOffResults']),
+  beforeLoad: requirePermissions('ViewPatients', ['ManagePrivacy']),
   validateSearch: parseDataRequestsSearch,
   loaderDeps: ({search}) => search,
   loader: ({context, deps}) =>
