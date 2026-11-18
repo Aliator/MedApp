@@ -22,6 +22,9 @@ public sealed record PatientResponse(
     /// <summary>A UK mobile in international form (<c>+447…</c>), or null.</summary>
     public string? MobilePhone { get; init; }
 
+    /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail.</summary>
+    public string ReminderChannel { get; init; } = "None";
+
     /// <summary>The ID of the GP practice they're registered with, or null.</summary>
     public Guid? PracticeId { get; init; }
 

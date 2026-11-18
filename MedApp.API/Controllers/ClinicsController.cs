@@ -116,7 +116,7 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> CancelSession(Guid id, [FromBody] CancelClinicSessionRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(
-            new CancelClinicSessionCommand(id, request.Reason, request.ExpectedLastUpdated, User.ToCalendarActor()), ct);
+            new CancelClinicSessionCommand(id, request.Reason, request.ExpectedLastUpdated, User.ToCalendarActor(), request.TellPatients), ct);
 
         // It names patients: never kept by a browser or proxy.
         Response.Headers.CacheControl = "no-store";

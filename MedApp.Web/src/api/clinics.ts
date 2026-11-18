@@ -116,8 +116,14 @@ export function useSaveSession() {
 export function useCancelSession() {
   const onSuccess = useRefreshClinics();
   return useMutation({
-    mutationFn: ({id, reason, expectedLastUpdated}: {id: string; reason: string; expectedLastUpdated: string}) =>
-      unwrap(api.POST('/api/clinics/sessions/{id}/cancel', {params: {path: {id}}, body: {reason, expectedLastUpdated}})),
+    /** `tellPatients` (sent only when offered: patient messages are on) texts or emails each patient as they chose. */
+    mutationFn: ({id, reason, expectedLastUpdated, tellPatients}: {id: string; reason: string; expectedLastUpdated: string; tellPatients?: boolean}) =>
+      unwrap(
+        api.POST('/api/clinics/sessions/{id}/cancel', {
+          params: {path: {id}},
+          body: tellPatients === undefined ? {reason, expectedLastUpdated} : {reason, expectedLastUpdated, tellPatients},
+        }),
+      ),
     onSuccess,
   });
 }

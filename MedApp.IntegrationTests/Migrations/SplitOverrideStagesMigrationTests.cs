@@ -17,8 +17,8 @@ namespace MedApp.IntegrationTests.Migrations;
 [TestFixture]
 public sealed class SplitOverrideStagesMigrationTests
 {
-    private const string Before = "20261118164709_AddedStageBranches";
-    private const string Migration = "20261118171248_SplitOverrideStages";
+    private const string Before = "20261118171158_AddedPatientMessages";
+    private const string Migration = "20261118173821_SplitOverrideStages";
 
     /// <summary>A role an admin made, with OverrideStages ticked.</summary>
     private static readonly Guid LocumRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000101");

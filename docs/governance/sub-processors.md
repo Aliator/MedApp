@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.1 (draft), 16 November 2026; 0.2 (draft), 18 November 2026: texts and emails to patients through GOV.UK Notify (`docs/centre-phases-3-5-plan.md`, PR 26; branch `feature/patient-reminders`) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Published at** | [URL of the published list] |
 | **Next review** | Whenever a provider is added, removed or changes what it does; at least every 6 months |
@@ -26,6 +26,24 @@ The organisations [Company name] uses to provide MedApp, and what each does with
 | **Microsoft** ([Microsoft contracting entity, as named in the supplier's Azure agreement]) | **Microsoft Azure:** Azure Kubernetes Service (where MedApp runs), Azure SQL Database (where the data is stored, with its backups), Azure Blob Storage (where attached files are stored), Key Vault (secrets), Azure Container Registry (the application image, no personal data), and, once step 5 is done, Azure Monitor (Application Insights and Log Analytics) | Hosts and stores all customer data: patient records, attached files (scans, photos, results, letters), the audit trail, staff accounts, sessions, notifications, logs and backups. Microsoft doesn't access it except for service operations and support under its terms. | **UK South** (London), with geo-redundant backups in **UK West** (Cardiff) once step 5 is done. Attached files are zone-redundant within UK South | Microsoft's Products and Services Data Protection Addendum, incorporated in the Azure agreement [to confirm the current version]; ISO/IEC 27001, 27017, 27018 and other certifications [to confirm current list]; see [international-transfers.md](international-transfers.md) for access from outside the UK | [Date of first customer deployment] |
 
 **Email** is sent through **Azure Communication Services Email**, part of the Microsoft Azure service above, under the same agreement (built on `feature/email-2fa`, not yet deployed). Its data location is set to the **UK** (`emailDataLocation` in `deploy/azure/main.bicep`). It receives a staff member's work email address and username, and the email: a password reset or email confirmation link, or a notice of a change to their own sign-in. It never receives patient data or clinical text (`EmailTemplates`). Delivery onward to the staff member's mailbox goes through the customer's own mail provider.
+
+## Texts and emails to patients: GOV.UK Notify
+
+MedApp can text and email patients about their appointments (reminders, and messages when an appointment is moved, cancelled or missed), on the channels each patient chose ([dpia.md](dpia.md), risk 32). It does so only when the customer turns it on (`PatientMessages:Mode`):
+- **`Off`** (the default in `appsettings.json`): nothing is made or sent, and the pages offer nothing.
+- **`Offline`** (development, the kind cluster, CI and demonstrations): each message is emailed to a fixed `.invalid` address through the staff email settings (Mailpit, a local mail catcher, in development), never to the patient. Only synthetic data is used there.
+- **`Live`:** messages go to **GOV.UK Notify**, the government's text and email service, through its API. **Live is off by default and isn't configured anywhere in the repository or the Helm chart.** It needs the Notify service's API key, set only in the deployment's secret store, and two template IDs; the API won't start in Live without them.
+
+**Whose processor Notify is.** Notify is for public sector organisations [to confirm eligibility with GOV.UK Notify's documentation]. Each organisation signs up for **its own Notify service**, accepts Notify's terms itself, and owns the API key. So, for a customer that uses Notify:
+- **Notify is the customer's own processor,** contracted by the customer, **not a sub-processor of [Company name].** The supplier only holds the customer's API key in the customer's deployment and sends the customer's messages to it on the customer's instruction, as MedApp sends staff emails through a mail service.
+- **The customer's own DPIA, record of processing and patient privacy notice name Notify** as a recipient (the templates here say so), and the customer checks Notify's terms, data location and sub-processors itself.
+- **The supplier lists it here anyway,** so customers see the whole picture, and tells every customer before Live is offered.
+
+| Provider | What it would receive | Data location | Terms | Status |
+|---|---|---|---|---|
+| **GOV.UK Notify** ([Government Digital Service, to confirm with GOV.UK Notify's documentation]) | For each message: the patient's mobile number or email address, and the message as sent (the organisation's name, the appointment's date and time, and the site's name, address and phone; never the specialty, clinician, pathway, notes or NHS number), with MedApp's message ID as its reference. MedApp then asks Notify for each message's delivery status for 3 days. Nothing comes back from Notify but those statuses: there's no inbound webhook | [To confirm with GOV.UK Notify's documentation: where Notify stores and processes data, and which providers deliver texts and emails for it] | Notify's own terms of use and data processing terms, accepted by the customer [to confirm with GOV.UK Notify's documentation]; how long Notify keeps each message's content and recipient [to confirm with GOV.UK Notify's documentation, and set as short as the service allows] | **Built, not in use.** Live can't send anything until the customer has its own Notify service and this list and [international-transfers.md](international-transfers.md) are confirmed for it |
+
+**A provider the supplier contracts would be a sub-processor.** A private customer can't use Notify [to confirm], so it would need another text and email provider, added to MedApp as another sender. If the customer contracts that provider itself, it's the customer's processor, as above. **If the supplier contracts it** (one account for several customers, say), it's a sub-processor: it goes in the table above, with the 30 days' notice, a transfer assessment ([international-transfers.md](international-transfers.md)) and an update to the DPIA, before it sends anything.
 
 **Planned additions** (each needs the 30 days' notice above):
 - **A managed monitoring service** for out-of-hours alerts (roadmap step 5), if one is contracted. It would see alerts and logs. [Provider to choose.]
@@ -55,3 +73,4 @@ The supplier also uses providers for its own business (email, accounts, a helpde
 | 16 November 2026 | Azure Communication Services Email added, within Microsoft Azure (`feature/email-2fa`) |
 | 16 November 2026 | File attachments: Azure Blob Storage added to Microsoft's services (no new sub-processor); Defender for Storage's malware scanning planned; Azurite and SkiaSharp added to the open-source software |
 | 18 November 2026 | Letter templates: PDFsharp, MigraDoc, Markdig and the Atkinson Hyperlegible font added to the open-source software (letters' PDFs are made inside the API; nothing is sent anywhere) |
+| 18 November 2026 | Texts and emails to patients (PR 26, `feature/patient-reminders`): GOV.UK Notify listed, used only in the Live mode, which is off by default and configured nowhere in the repository or chart; recorded as the customer's own processor, contracted by the customer, not a sub-processor of the supplier; a provider the supplier contracted instead would be a sub-processor, with notice |

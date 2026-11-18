@@ -6,6 +6,8 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Application.PatientMessages.Common;
+using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Common;
@@ -23,7 +25,10 @@ namespace MedApp.Application.Patients.Common;
 /// details given when notes were deleted, or asked to be (the reasons themselves are a fixed choice, kept). A request still waiting is closed, by whoever
 /// anonymises: the record can't change any more.</item>
 /// <item>The pathway audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
-/// <item>Appointments' notes and cancellation reasons, and their history's pathway titles, notes and reasons, are replaced the same way.</item>
+/// <item>Appointments' notes, cancellation reasons and Did not attend follow-up details, and their history's pathway
+/// titles, notes, reasons and details, are replaced the same way.</item>
+/// <item>Texts and emails to the patient keep their kind, channel, dates and status, but their destination becomes
+/// <see cref="MessageDestination"/> and their text <see cref="RemovedText"/>; one still waiting is cancelled.</item>
 /// <item>Notifications about the pathways take the new titles, except those whose title is fixed (the appointment
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
@@ -47,6 +52,9 @@ public static class PatientAnonymiser
 
     /// <summary>The title of a pathway with no template name, or one that has been deleted.</summary>
     public const string PathwayTitle = "Anonymised pathway";
+
+    /// <summary>Takes the place of a text's or email's destination.</summary>
+    public const string MessageDestination = "[Removed]";
 
     /// <summary>An attached file's name, before its type's usual extension.</summary>
     public const string FileName = "Anonymised file";
@@ -128,6 +136,21 @@ public static class PatientAnonymiser
             appointment.Notes = Removed(appointment.Notes);
             if (appointment.CancelReason is not null)
                 appointment.CancelReason = Removed(appointment.CancelReason);
+            if (appointment.DnaFollowUpDetail is not null)
+                appointment.DnaFollowUpDetail = Removed(appointment.DnaFollowUpDetail);
+        }
+
+        foreach (var message in record.PatientMessages)
+        {
+            if (!string.IsNullOrEmpty(message.Destination))
+                message.Destination = MessageDestination;
+            message.Body = Removed(message.Body);
+            if (message.Status == PatientMessageStatus.Pending)
+            {
+                message.Status = PatientMessageStatus.Cancelled;
+                message.StatusReason = PatientMessageReasons.RecordClosed;
+                message.StatusAtUtc = nowUtc;
+            }
         }
 
         foreach (var entry in record.AppointmentHistory)

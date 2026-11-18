@@ -23,4 +23,7 @@ public sealed class CreatePatientRequest
 
     /// <summary>The GP practice they're registered with, from the directory (not archived). Left out, none.</summary>
     public Guid? PracticeId { get; set; }
+
+    /// <summary>How they want appointment messages: None, Text, Email or TextAndEmail. Left out, None.</summary>
+    public string? ReminderChannel { get; set; }
 }

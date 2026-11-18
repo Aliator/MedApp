@@ -8,10 +8,12 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.PatientMessages.Common;
 using MedApp.Contracts.Clinics.Responses;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Clinics;
+using MedApp.Domain.PatientMessages;
 using MediatR;
 
 namespace MedApp.Application.Clinics.Commands.CancelClinicSession;
@@ -32,6 +34,7 @@ public sealed class CancelClinicSessionHandler(
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     IActivityLog activityLog,
+    IPatientMessageOutbox patientMessages,
     TimeProvider timeProvider)
     : IRequestHandler<CancelClinicSessionCommand, CancelClinicSessionResponse>
 {
@@ -71,6 +74,11 @@ public sealed class CancelClinicSessionHandler(
                     change.Cancel(reason);
                     events.AddRange(change.Events);
                     cancelledNow.Add(appointment);
+
+                    // Telling each patient, saved with the cancellation (the job sends them).
+                    if (request.TellPatients)
+                        await patientMessages.StageAsync(
+                            appointment, PatientMessageKind.AppointmentCancelled, request.Actor.UserId, now, ct);
                 }
 
                 tracked.Status = ClinicSessionStatus.Cancelled;
