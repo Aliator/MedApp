@@ -11,14 +11,16 @@ public static class MeetingMapper
         meeting.Attendees.Select(a => a.StaffUserId).Prepend(meeting.OrganiserUserId).Distinct();
 
     /// <summary>
-    /// A meeting, with the usernames given (a deleted account's is null), its attendees by username. Admins can change
-    /// it (<paramref name="isAdmin"/>) unless it's on a day before <paramref name="today"/>.
+    /// A meeting as <paramref name="viewer"/> sees it, with the usernames given (a deleted account's is null), its
+    /// attendees by username with their replies. Admins can change it unless it's on a day before today; the viewer
+    /// can reply if they're going and it hasn't ended (<see cref="MeetingReplies.CanReply"/>), and sees their own
+    /// reply (<c>MyReply</c>).
     /// </summary>
     public static MeetingResponse ToResponse(
         Meeting meeting,
         IReadOnlyDictionary<Guid, string> usernames,
-        bool isAdmin,
-        DateOnly today)
+        CalendarActor viewer,
+        DateTime nowUtc)
     {
         var date = UkTime.DateOf(meeting.StartUtc);
         return new MeetingResponse
@@ -35,13 +37,17 @@ public static class MeetingMapper
                 .Select(a => new MeetingAttendeeResponse
                 {
                     UserId = a.StaffUserId,
-                    Username = usernames.GetValueOrDefault(a.StaffUserId)
+                    Username = usernames.GetValueOrDefault(a.StaffUserId),
+                    Reply = a.Reply.ToString(),
+                    RepliedAtUtc = a.RepliedAtUtc
                 })
                 .OrderBy(a => a.Username is null)
                 .ThenBy(a => a.Username, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.UserId)
                 .ToList(),
-            CanEdit = isAdmin && date >= today,
+            CanEdit = viewer.IsAdmin && date >= UkTime.DateOf(nowUtc),
+            MyReply = MeetingReplies.ReplyOf(meeting, viewer.UserId)?.ToString(),
+            CanReply = MeetingReplies.CanReply(meeting, viewer.UserId, nowUtc),
             CreatedAtUtc = meeting.CreatedAtUtc,
             LastUpdated = meeting.LastUpdated
         };

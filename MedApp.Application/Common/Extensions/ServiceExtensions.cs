@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentValidation;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Authentication.TwoFactor.Common;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
@@ -28,6 +29,9 @@ public static class ServiceExtensions
 
         // The clock, so handlers and validators that use "now" can be tested at a fixed time.
         services.TryAddSingleton(TimeProvider.System);
+
+        // The working day's rules with the closed days looked up, for the calendar's validators.
+        services.AddScoped<WorkingDays>();
 
         // Stores a notification and pushes it to its user (the host provides the INotificationPublisher).
         services.AddScoped<INotificationSender, NotificationSender>();

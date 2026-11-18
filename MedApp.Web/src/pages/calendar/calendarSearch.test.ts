@@ -20,6 +20,11 @@ describe('parseCalendarSearch', () => {
     expect(parseCalendarSearch({who: {}})).toEqual({});
   });
 
+  it('keeps a meeting to open, from a notification', () => {
+    expect(parseCalendarSearch({meeting: ID})).toEqual({meeting: ID});
+    expect(parseCalendarSearch({meeting: 'nothing'})).toEqual({});
+  });
+
   it('keeps the week view when named, as a narrow window would otherwise open on a day', () => {
     expect(parseCalendarSearch({view: 'Week'})).toEqual({view: 'week'});
   });

@@ -36,8 +36,11 @@ import {
   RiCornerDownRightLine,
   RiDownload2Line,
   RiFileCopyLine,
+  RiFileHistoryLine,
   RiDeleteBinLine,
+  RiDoorClosedLine,
   RiEqualizerLine,
+  RiEraserLine,
   RiErrorWarningLine,
   RiEyeLine,
   RiFileImageLine,
@@ -223,6 +226,10 @@ export const AppIcon = {
   ApplyTemplate: remix(RiPaintBrushLine),
   /** A meeting on a calendar (beside its colour, so it never relies on colour alone), and New Meeting. */
   Meeting: remix(RiGroupLine),
+  /** A meeting reply: accepted (Accept, and the token), declined (Decline, and the token), or not yet answered. */
+  MeetingAccepted: remix(RiCheckboxCircleLine),
+  MeetingDeclined: remix(RiCloseCircleLine),
+  MeetingNoReply: remix(RiQuestionLine),
   /** The Calendar page's View options, in a narrow card: whose calendar, the row length, the default week, templates. */
   ViewOptions: remix(RiEqualizerLine),
   /** The Calendar page's team view (admins): a column per member of staff. */
@@ -230,6 +237,12 @@ export const AppIcon = {
   /** Suggested meeting times. */
   Suggestion: remix(RiLightbulbLine),
   ActivityTypes: remix(RiPriceTag3Line),
+  /** Closed days (admin): bank holidays and other days the clinic is closed. */
+  ClosedDays: remix(RiDoorClosedLine),
+  /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
+  RecordPast: remix(RiFileHistoryLine),
+  /** An appointment recorded after the event, withdrawn as entered in error (it didn't happen, or is on the wrong patient). */
+  EnteredInError: remix(RiEraserLine),
   // Attached files: adding and downloading them, and each type's icon where there's no thumbnail
   Attachment: remix(RiAttachment2),
   Upload: remix(RiUpload2Line),

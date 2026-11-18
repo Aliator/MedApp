@@ -733,6 +733,24 @@ describe('ProcedurePage: visits and appointments', () => {
     expect(within(openDialog()!).getByText('Book Visit')).toBeInTheDocument();
   });
 
+  it('records a past visit from the stage, for this patient, procedure and stage, which it shows', async () => {
+    const {user} = renderVisit(visiting(), [{...requested, notes: 'Needs an interpreter.'}]);
+
+    const visit = within(await screen.findByRole('group', {name: 'Visit'}));
+    await user.click(visit.getByRole('button', {name: 'Record Past Visit'}));
+
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('heading', {name: 'Record Past Visit'})).toBeInTheDocument();
+    expect(dialog.getByText(/: Procedure$/)).toBeInTheDocument();
+    // The patient and what it's for are fixed, so there's no picker.
+    expect(dialog.queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
+    // The visit waiting in Requires Appointment is the one recorded, and its notes are kept: they're shown.
+    expect(dialog.getByText('Its notes, which are kept')).toBeInTheDocument();
+    expect(dialog.getByText('Needs an interpreter.')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
   it('lets an admin finish a required stage without a visit, giving a reason', async () => {
     withAnnouncements();
     const {user, fetch} = renderVisit(visiting(), [requested], adminUser, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});

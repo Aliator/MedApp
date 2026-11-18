@@ -10,4 +10,7 @@ public static class CalendarLimits
     public const int MaxNoteLength = 200;
 
     public const int MaxDayTemplateBlocks = 30;
+
+    /// <summary>A closed day's name ("Christmas Day").</summary>
+    public const int MaxClosedDayNameLength = 100;
 }

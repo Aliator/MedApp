@@ -136,7 +136,7 @@ public static class DemoActivity
         var first = UkTime.DateOf(timeline.ActivityFromUtc);
         for (var date = first; date <= timeline.Today; date = date.AddDays(1))
         {
-            if (!WorkingHours.IsWorkingDay(date))
+            if (!DemoClosedDays.IsWorkingDay(date))
                 continue;
             var isToday = date == timeline.Today;
 
@@ -229,7 +229,7 @@ public static class DemoActivity
         var timeline = world.Timeline;
         var now = timeline.NowUtc;
         var signedIn = new List<string>();
-        if (WorkingHours.IsWorkingDay(timeline.Today))
+        if (DemoClosedDays.IsWorkingDay(timeline.Today))
         {
             var touchesToday = world.Touches
                 .Where(t => t.AtUtc < now && UkTime.DateOf(t.AtUtc) == timeline.Today)

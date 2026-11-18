@@ -7,8 +7,9 @@ public sealed record CalendarClash(DateTime StartUtc, DateTime EndUtc, string Wh
 
 /// <summary>
 /// No overlaps: a new or moved appointment, block or meeting may not overlap any appointment (Booked, Attended or Did
-/// not attend), block (stored, or from a template) or meeting on that person's calendar. This finds what a time would
-/// overlap, and lists what a calendar is busy with (for <see cref="Availability"/>).
+/// not attend), block (stored, or from a template) or meeting on that person's calendar (except a meeting they
+/// declined, <see cref="MeetingReplies"/>). This finds what a time would overlap, and lists what a calendar is busy
+/// with (for <see cref="Availability"/>).
 /// </summary>
 public static class CalendarClashes
 {
@@ -17,6 +18,11 @@ public static class CalendarClashes
     /// overlaps, or null if nothing does. It never names a patient. The thing being moved is left out: a stored block
     /// (<paramref name="ignoreBlockId"/>), a template block on that date (<paramref name="ignoreTemplateBlockId"/>), an
     /// appointment (<paramref name="ignoreAppointmentId"/>) or a meeting (<paramref name="ignoreMeetingId"/>).
+    /// <para>
+    /// A closed day comes first: the validators refuse one (<see cref="WorkingDays"/>), but before the calendar lock, so
+    /// a day closed between the validator and the save is caught here, as the handlers call this holding the lock and
+    /// <see cref="CalendarData.ClosedDays"/> is read under it.
+    /// </para>
     /// </summary>
     public static string? Find(
         CalendarData data,
@@ -26,9 +32,17 @@ public static class CalendarClashes
         Guid? ignoreTemplateBlockId = null,
         Guid? ignoreAppointmentId = null,
         Guid? ignoreMeetingId = null) =>
-        FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId) is { } clash
+        WhyClosed(data, startUtc)
+        ?? (FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId) is { } clash
             ? $"That time overlaps {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}."
-            : null;
+            : null);
+
+    /// <summary>Why nothing new can go on the time's day because it's closed (as the data has it), or null.</summary>
+    public static string? WhyClosed(CalendarData data, DateTime startUtc)
+    {
+        var date = UkTime.DateOf(UkTime.Utc(startUtc));
+        return data.ClosedDays.NameOn(date) is { } name ? WorkingHours.ClosedDay(date, name) : null;
+    }
 
     /// <summary>The first thing, in time order, that a time overlaps on the calendar (see <see cref="Find"/>), or null.</summary>
     public static CalendarClash? FindFirst(
@@ -50,11 +64,37 @@ public static class CalendarClashes
 
     /// <summary>
     /// Everything that makes the person busy over the data's range, by start then end: appointments (Booked, Attended
-    /// and Did not attend), stored blocks, template blocks and meetings. A meeting being moved is left out
-    /// (<paramref name="ignoreMeetingId"/>).
+    /// and Did not attend), stored blocks, template blocks and meetings, but not a meeting the person declined. A
+    /// meeting being moved is left out (<paramref name="ignoreMeetingId"/>).
     /// </summary>
     public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
         BusyTimes(data, null, null, ignoreMeetingId, (null, default));
+
+    /// <summary>
+    /// For an appointment recorded after the event: a message naming the first of the person's appointments (Booked,
+    /// Attended or Did not attend) that the time overlaps, or null. Blocks and meetings don't count: what happened,
+    /// happened, and they show flagged as overlapping it.
+    /// </summary>
+    public static string? FindAppointment(CalendarData data, DateTime startUtc, DateTime endUtc, Guid? ignoreAppointmentId = null)
+    {
+        var start = UkTime.Utc(startUtc);
+        var end = UkTime.Utc(endUtc);
+        var clash = data.Appointments
+            .Where(a => a.Id != ignoreAppointmentId
+                        && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
+                        && a is { StartUtc: not null, EndUtc: not null }
+                        && Overlaps(start, end, a.StartUtc.Value, a.EndUtc.Value))
+            .OrderBy(a => a.StartUtc)
+            .ThenBy(a => a.EndUtc)
+            .FirstOrDefault();
+
+        return clash is null
+            ? null
+            : $"That time overlaps {AnotherAppointment}, {UkTime.DescribeTime(clash.StartUtc!.Value)} to {UkTime.DescribeTime(clash.EndUtc!.Value)}.";
+    }
+
+    /// <summary>What an appointment is called in a clash: never its patient.</summary>
+    public const string AnotherAppointment = "another appointment";
 
     /// <summary>What a meeting is called in a clash or a busy time: "the meeting 'MDT'".</summary>
     public static string Describe(Domain.Calendar.Meeting meeting) => $"the meeting '{meeting.Title}'";
@@ -74,7 +114,7 @@ public static class CalendarClashes
             .Where(a => a.Id != ignoreAppointmentId
                         && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
                         && a is { StartUtc: not null, EndUtc: not null })
-            .Select(a => new CalendarClash(a.StartUtc!.Value, a.EndUtc!.Value, "another appointment"));
+            .Select(a => new CalendarClash(a.StartUtc!.Value, a.EndUtc!.Value, AnotherAppointment));
 
         var blocks = data.Blocks
             .Where(b => b.Id != ignoreBlockId)
@@ -84,8 +124,9 @@ public static class CalendarClashes
             .Where(p => !(p.Source.Id == ignoreTemplateBlock.Id && p.Date == ignoreTemplateBlock.Date))
             .Select(p => new CalendarClash(p.StartUtc, p.EndUtc, p.Source.ActivityType?.Name ?? "a block"));
 
+        // A meeting the person declined isn't busy time for them, though it still is for everyone else going.
         var meetings = data.Meetings
-            .Where(m => m.Id != ignoreMeetingId)
+            .Where(m => m.Id != ignoreMeetingId && !MeetingReplies.HasDeclined(m, data.StaffUserId))
             .Select(m => new CalendarClash(m.StartUtc, m.EndUtc, Describe(m)));
 
         return appointments.Concat(blocks).Concat(templateBlocks).Concat(meetings)

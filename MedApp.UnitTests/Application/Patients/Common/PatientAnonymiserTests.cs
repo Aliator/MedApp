@@ -351,6 +351,7 @@ public sealed class PatientAnonymiserTests
     [TestCase(NotificationKind.AppointmentBooked, "Appointment booked", false)]
     [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved", true)]
     [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled", true)]
+    [TestCase(NotificationKind.StageVisitWithdrawn, "Stage visit withdrawn", true)]
     public void Apply_AppointmentNotification_KeepsItsFixedTitleAndMessage(NotificationKind kind, string title, bool forProcedure)
     {
         var procedure = CreateProcedure(Status.InProgress);

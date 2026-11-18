@@ -2,12 +2,13 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Appointments.Common;
 
 /// <summary>
 /// What to tell members of staff when someone else changes their appointments: booked with them (or moved to them),
-/// moved to another time, or cancelled (or moved to someone else). Nobody is told about their own change. A
+/// moved to another time, cancelled (or moved to someone else), or recorded after the event. Nobody is told about their own change. A
 /// notification's title is a fixed phrase for its kind (<see cref="TitleOf"/>), so no free text ever reaches it; its
 /// message says who and when, never the patient's name, the procedure's title or the notes.
 /// </summary>
@@ -19,8 +20,49 @@ public static class AppointmentNotifications
         NotificationKind.AppointmentBooked => "Appointment booked",
         NotificationKind.AppointmentRescheduled => "Appointment moved",
         NotificationKind.AppointmentCancelled => "Appointment cancelled",
+        NotificationKind.AppointmentRecorded => "Appointment recorded",
+        NotificationKind.StageVisitWithdrawn => "Stage visit withdrawn",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
+
+    /// <summary>
+    /// After a walk-in was marked entered in error that was the only attended visit of a finished stage that requires
+    /// one (<c>StageVisits.AfterVisitWithdrawn</c>): the procedure's assignees and every admin (<paramref name="adminIds"/>),
+    /// but not whoever withdrew it, are told, since only an admin can unlock the stage. A fixed title, and a message of
+    /// who, the stage's (admin-written) name and dates, never the patient, the procedure's title or a reason. Links to
+    /// the procedure, not the appointment, which is off the calendar.
+    /// </summary>
+    public static IReadOnlyList<Notification> AfterStageVisitWithdrawn(
+        Appointment withdrawn,
+        PatientProcedure procedure,
+        PatientProcedureStage stage,
+        IEnumerable<Guid> adminIds,
+        ProcedureActor actor,
+        DateTime nowUtc)
+    {
+        var visit = withdrawn.StartUtc is { } start ? $"the visit on {UkTime.Describe(start)}" : "a visit";
+        var finished = stage.CompletedAtUtc is { } completed ? $" on {UkTime.DescribeDate(UkTime.DateOf(completed))}" : "";
+        var message =
+            $"{actor.Username} marked {visit} for the '{stage.Name}' stage entered in error. " +
+            $"The stage was finished{finished} and now has no attended visit, though it requires one. " +
+            "If it still needs its visit, an admin can unlock it, and then book one.";
+
+        return procedure.Assignments.Select(a => a.UserId)
+            .Concat(adminIds)
+            .Where(userId => userId != actor.UserId)
+            .Distinct()
+            .Select(userId => new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Kind = NotificationKind.StageVisitWithdrawn,
+                Title = TitleOf(NotificationKind.StageVisitWithdrawn),
+                Message = message,
+                ProcedureId = procedure.Id,
+                CreatedAtUtc = nowUtc
+            })
+            .ToList();
+    }
 
     /// <summary>
     /// After booking or moving an appointment, given where it was before (its status, member of staff and start).
@@ -67,6 +109,22 @@ public static class AppointmentNotifications
                 notifications.Add(Create(kind, userId, appointment, message, nowUtc));
         }
     }
+
+    /// <summary>
+    /// After recording an appointment that already happened (a walk-in) with someone else: who recorded it, when it was
+    /// and its outcome, never the patient.
+    /// </summary>
+    public static IReadOnlyList<Notification> AfterRecording(Appointment appointment, ProcedureActor actor, DateTime nowUtc) =>
+        appointment is { StaffUserId: { } staffUserId, StartUtc: { } startUtc }
+        && staffUserId != actor.UserId
+        && AppointmentWorkflow.IsOutcome(appointment.Status)
+            ? [Create(
+                NotificationKind.AppointmentRecorded,
+                staffUserId,
+                appointment,
+                $"{actor.Username} recorded an appointment you had on {UkTime.Describe(startUtc)}, as {AppointmentWorkflow.Describe(appointment.Status)}.",
+                nowUtc)]
+            : [];
 
     /// <summary>After cancelling an appointment that was booked with someone else.</summary>
     public static IReadOnlyList<Notification> AfterCancelling(

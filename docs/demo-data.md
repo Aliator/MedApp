@@ -102,6 +102,7 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
   - `j.whitlock` finishes early on Fridays, and `admin` has a management afternoon on Wednesdays
 - **Day templates** have lunch and blocks for the role: clinic day, theatre day, endoscopy list, admin day, half day (morning), day off and office day. They leave the regular meeting times free.
 - **Activity types** the clinic added: ward round, teaching, supervision and off duty.
+- **Closed days** (Administration, Closed Days): England and Wales bank holidays for every year the story covers and the next, added by the lead. Nothing is booked, blocked or arranged on them, and they show greyed on the calendar ("Closed: Christmas Day"); a weekly meeting that would fall on one is skipped that week.
 - **Exceptions:**
   - **Leave and training days** have no day template (as "This day's template: none" saves), then one block for the day: the app refuses a whole-day block over a template's lunch
   - `k.ellison` has a week's annual leave next month, and next Tuesday uses her theatre day template (covering recovery)
@@ -123,6 +124,7 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
   - **Welcome and induction** for the new starter, and **theatre list planning** on the diary day
 - **Who goes:** only people free at the time, as the app requires. The part-time nurse misses afternoon meetings; someone on leave isn't invited; someone who booked leave after a meeting was arranged was taken off it first ("took you off" in their notifications); newcomers were added to meetings already arranged.
 - **Changes** (`tour.calendar.movedMeetings` and `tour.calendar.cancelledMeeting`): theatre list planning moved three days ago, with `h.marsh` added; the next governance meeting and a 1:1 moved when there was time to; away day planning was cancelled four days ago. Their notifications ("Meeting invitation", "Meeting moved", "Meeting cancelled") are in the bells of everyone told, never the admin who made the change.
+- **Replies:** open any meeting to see who accepted, who declined and who hasn't replied, with a summary. Past meetings were mostly accepted, with a few declines and some never answered; upcoming ones are a mix, so signing in as an attendee shows Accept and Decline. A meeting someone declined is faded on their calendar and says Declined (its time is free for them), and each decline told the organiser ("Meeting declined" in `admin`'s or `j.whitlock`'s bell, for the last 30 days). (Moving a meeting clears its replies; the moved meetings above were answered after their move.) The summary's `calendar` counts `meetingsAccepted` and `meetingsDeclined`.
 - **The team view** (Calendar, Team, admins only): open it on `tour.calendar.teamViewDay` to see everyone's day side by side, with the day's meetings (`tour.calendar.meetingsThatDay`) across several columns and the **Everyone free** column. Select free time there to arrange a **New meeting**; its suggested times come from the same calendars. `tour.calendar.upcomingMeetings` lists what's next.
 
 ### Notifications and monitoring (as `admin`)

@@ -7,7 +7,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 {
     public const string SameDay = "A changed template block must stay on its day.";
 
-    public ChangeTemplateBlockForDayValidator()
+    public ChangeTemplateBlockForDayValidator(WorkingDays workingDays)
     {
         RuleFor(x => x.StaffUserId).NotEmpty().WithMessage("Member of staff is required.");
 
@@ -15,9 +15,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 
         RuleFor(x => x.ActivityTypeId).NotEmpty().WithMessage("Activity type is required.");
 
-        RuleFor(x => x.StartUtc)
-            .Must((x, start) => WorkingHours.WhyOutside(start, x.EndUtc) is null)
-            .WithMessage(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc)!);
+        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
 
         RuleFor(x => x.Note)
             .MaximumLength(CalendarLimits.MaxNoteLength)
@@ -25,7 +23,7 @@ public sealed class ChangeTemplateBlockForDayValidator : AbstractValidator<Chang
 
         RuleFor(x => x.StartUtc)
             .Must((x, start) => UkTime.DateOf(start) == x.Date)
-            .When(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc) is null)
+            .When(x => WorkingHours.WhyOutside(x.StartUtc, x.EndUtc, ClosedDaySet.None) is null)
             .WithMessage(SameDay);
     }
 }

@@ -2,7 +2,10 @@ using MedApp.Domain.Calendar;
 
 namespace MedApp.Application.Calendar.Common;
 
-/// <summary>One date on a calendar: whether it's worked, and the day template in force.</summary>
+/// <summary>
+/// One date on a calendar: whether it's worked (not a weekend or a closed day, whose name it then carries), and the
+/// day template in force.
+/// </summary>
 public sealed record CalendarDay(
     DateOnly Date,
     bool IsWorkingDay,
@@ -12,7 +15,11 @@ public sealed record CalendarDay(
     DateTime WorkEndUtc,
     Guid? DayTemplateId,
     string? DayTemplateName,
-    bool IsDayTemplateOverridden);
+    bool IsDayTemplateOverridden)
+{
+    /// <summary>The closed day's name when the clinic is closed that day ("Christmas Day"); null otherwise.</summary>
+    public string? ClosedDayName { get; init; }
+}
 
 /// <summary>A day template block as it falls on one date of a calendar, in UTC.</summary>
 public sealed record ProjectedBlock(DayTemplateBlock Source, DateOnly Date, DateTime StartUtc, DateTime EndUtc);
@@ -24,7 +31,8 @@ public sealed record ProjectedBlock(DayTemplateBlock Source, DateOnly Date, Date
 /// On a weekday, a day override for the date wins (its day template, or none). Otherwise the person's default week
 /// template valid on the date gives the day template for that weekday, if its row for that weekday is valid on the
 /// date. That day template's blocks valid on the date are projected, except those with an exception for the date.
-/// Weekends have nothing. Because every row is dated, a past day projects exactly what applied then.
+/// Weekends and closed days have nothing (an override on a day that later closed is kept, but doesn't apply while it's
+/// closed). Because every row is dated, a past day projects exactly what applied then.
 /// </para>
 /// </summary>
 public static class CalendarProjection
@@ -38,14 +46,17 @@ public static class CalendarProjection
             var (dayTemplateId, overridden) = DayTemplateOn(data, date);
             days.Add(new CalendarDay(
                 date,
-                WorkingHours.IsWorkingDay(date),
+                WorkingHours.IsWorkingDay(date, data.ClosedDays),
                 date < today,
                 date == today,
                 WorkingHours.DayStartUtc(date),
                 WorkingHours.DayEndUtc(date),
                 dayTemplateId,
                 dayTemplateId is { } id ? data.DayTemplateNames.GetValueOrDefault(id) : null,
-                overridden));
+                overridden)
+            {
+                ClosedDayName = data.ClosedDays.NameOn(date)
+            });
         }
 
         return days;
@@ -73,10 +84,13 @@ public static class CalendarProjection
         return blocks;
     }
 
-    /// <summary>The day template in force on a date (null for none, and on weekends), and whether it's the day's own.</summary>
+    /// <summary>
+    /// The day template in force on a date (null for none, and on weekends and closed days), and whether it's the
+    /// day's own.
+    /// </summary>
     public static (Guid? DayTemplateId, bool IsOverridden) DayTemplateOn(CalendarData data, DateOnly date)
     {
-        if (!WorkingHours.IsWorkingDay(date))
+        if (!WorkingHours.IsWorkingDay(date, data.ClosedDays))
             return (null, false);
 
         var dayOverride = data.DayOverrides.FirstOrDefault(o => o.StaffUserId == data.StaffUserId && o.Date == date);

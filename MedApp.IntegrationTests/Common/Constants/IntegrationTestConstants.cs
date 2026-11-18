@@ -47,6 +47,9 @@ public static class IntegrationTestConstants
 
     public const string CancelReason = "Synthetic cancellation reason.";
 
+    /// <summary>A closed day's name: about the clinic, never a patient.</summary>
+    public const string ClosedDayName = "Synthetic staff training day";
+
     /// <summary>Why an admin finished a Required stage without its visit.</summary>
     public const string WithoutVisitReason = "Synthetic reason for finishing without a visit.";
 }

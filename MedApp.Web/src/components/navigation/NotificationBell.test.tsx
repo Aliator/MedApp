@@ -69,21 +69,87 @@ describe('NotificationBell', () => {
     const appointmentId = '0000000c-0000-0000-0000-000000000009';
     const booked = {...unread, id: '0000000c-0000-0000-0000-000000000004', kind: 'AppointmentBooked', title: 'Knee review', message: 'test.admin booked an appointment with you for Monday 23 November at 10:00.', appointmentId};
     const cancelled = {...read, id: '0000000c-0000-0000-0000-000000000005', kind: 'AppointmentCancelled', title: 'Appointment', procedureId: null, appointmentId};
+    const recordedId = '0000000c-0000-0000-0000-000000000010';
+    const recorded = {...read, id: '0000000c-0000-0000-0000-000000000006', kind: 'AppointmentRecorded', title: 'Appointment recorded', message: 'test.admin recorded an appointment with you on Monday 16 November at 10:00, after the event.', procedureId: null, appointmentId: recordedId};
     const fetch = mockApi({
-      'GET /api/notifications': () => json({items: [booked, cancelled], unreadCount: 1}),
+      'GET /api/notifications': () => json({items: [booked, cancelled, recorded], unreadCount: 1}),
       'POST /api/notifications/*': () => new Response(null, {status: 204}),
     });
     const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
 
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
-    expect(list.getByRole('link', {name: /^Appointment/})).toHaveAttribute('href', `/calendar?appointment=${appointmentId}`);
+    expect(list.getByRole('link', {name: /^Appointmenttest/})).toHaveAttribute('href', `/calendar?appointment=${appointmentId}`);
+    // One recorded after the event opens on the calendar too.
+    expect(list.getByRole('link', {name: /^Appointment recorded/})).toHaveAttribute('href', `/calendar?appointment=${recordedId}`);
     // Each kind has its icon.
     expect(list.getAllByRole('listitem').every((item) => item.querySelector('svg'))).toBe(true);
     await user.click(list.getByRole('link', {name: /Knee review/}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${booked.id}/read`));
     await waitFor(() => expect(router.state.location.href).toBe(`/calendar?appointment=${appointmentId}`));
+  });
+
+  it("opens a closed day's notification on that day of the calendar, with the closed day icon", async () => {
+    const closed = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000014',
+      kind: 'DayClosed',
+      title: 'Day closed',
+      message: "test.admin closed Friday 27 November (Staff training day). You have 2 appointments and a meeting then. Move or cancel what's still to come, and tell any patients.",
+      procedureId: null,
+      appointmentId: null,
+      calendarDate: '2026-11-27',
+    };
+    const meeting = {...closed, id: '0000000c-0000-0000-0000-000000000015', kind: 'MeetingInvited', title: 'Meeting invitation', isRead: true};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [closed, meeting], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Day closed/});
+    expect(link).toHaveAttribute('href', '/calendar?date=2026-11-27&view=day');
+    // Its own icon, not the meeting's.
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${closed.id}/read`));
+    await waitFor(() => expect(router.state.location.href).toBe('/calendar?date=2026-11-27&view=day'));
+  });
+
+  it("opens a withdrawn stage visit's notification on its procedure, with the entered in error icon", async () => {
+    const withdrawn = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000016',
+      kind: 'StageVisitWithdrawn',
+      title: 'Stage visit withdrawn',
+      message: "test.user marked the visit on Monday 16 November at 10:00 for the 'Bloods' stage entered in error.",
+      appointmentId: null,
+    };
+    const assigned = {...read, id: '0000000c-0000-0000-0000-000000000017', title: 'Another procedure'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [withdrawn, assigned], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Stage visit withdrawn/});
+    expect(link).toHaveAttribute('href', `/procedures/${procedureId}`);
+    // Its own icon, not the assignment's.
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${withdrawn.id}/read`));
+    await waitFor(() => expect(router.state.location.href).toBe(`/procedures/${procedureId}`));
   });
 
   it("opens a meeting's notification on its day of the calendar, marking it read, with the meeting icon", async () => {
@@ -108,6 +174,21 @@ describe('NotificationBell', () => {
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${invited.id}/read`));
     await waitFor(() => expect(router.state.location.href).toBe('/calendar?date=2026-11-24&view=day'));
+  });
+
+  it("opens a declined meeting itself, on its day, with an icon of its own", async () => {
+    const meetingBase = {...unread, procedureId: null, appointmentId: null, calendarDate: '2026-11-24'};
+    const invited = {...meetingBase, id: '0000000c-0000-0000-0000-000000000021', kind: 'MeetingInvited', title: 'Meeting invitation', isRead: true};
+    const declined = {...meetingBase, id: '0000000c-0000-0000-0000-000000000022', kind: 'MeetingDeclined', title: 'Meeting declined', meetingId: '0000000d-0000-0000-0000-000000000001', message: 'k.ashford declined Team huddle, Tuesday 24 November, 10:00 to 11:00.'};
+    mockApi({'GET /api/notifications': () => json({items: [invited, declined], unreadCount: 1})});
+    const {user} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.getByRole('link', {name: /^Meeting declined/})).toHaveAttribute('href', '/calendar?date=2026-11-24&view=day&meeting=0000000d-0000-0000-0000-000000000001');
+    const [inviteIcon, declineIcon] = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(declineIcon).toBeDefined();
+    expect(declineIcon).not.toBe(inviteIcon);
   });
 
   it('opens a procedure from its notification, marking it read', async () => {

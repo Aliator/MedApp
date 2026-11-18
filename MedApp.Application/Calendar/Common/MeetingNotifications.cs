@@ -5,16 +5,25 @@ namespace MedApp.Application.Calendar.Common;
 
 /// <summary>
 /// What to tell members of staff when an admin arranges, moves or cancels a meeting they're going to, or adds them to
-/// one or takes them off it. Nobody is told about their own change. Titles are fixed phrases for each kind
-/// (<see cref="TitleOf"/>); the message says what and when, and the notification links to the Calendar that day.
+/// one or takes them off it; and the organiser when someone declines. Nobody is told about their own change. Titles
+/// are fixed phrases for each kind (<see cref="TitleOf"/>); the message says who, what and when (usernames, the
+/// meeting's admin-written title and its UK time, never free text), and the notification links to the Calendar that
+/// day.
 /// </summary>
 public static class MeetingNotifications
 {
+    /// <summary>Added to "Meeting moved": a move clears the replies (<see cref="MeetingReplies.ResetAfterMove"/>).</summary>
+    public const string ReplyAgain = "Please reply again.";
+
+    /// <summary>Added to "Meeting moved" instead, for someone who declined it and is busy at the new time.</summary>
+    public const string DeclineStands = "You have something else on then, so your decline stands.";
+
     public static string TitleOf(NotificationKind kind) => kind switch
     {
         NotificationKind.MeetingInvited => "Meeting invitation",
         NotificationKind.MeetingChanged => "Meeting moved",
         NotificationKind.MeetingCancelled => "Meeting cancelled",
+        NotificationKind.MeetingDeclined => "Meeting declined",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
@@ -64,7 +73,11 @@ public static class MeetingNotifications
                     NotificationKind.MeetingInvited, attendee, meeting, $"{actor.Username} invited you to '{meeting.Title}', {when}.", nowUtc));
             else if (moved)
                 notifications.Add(Create(
-                    NotificationKind.MeetingChanged, attendee, meeting, $"{actor.Username} moved '{meeting.Title}' to {when}.", nowUtc));
+                    NotificationKind.MeetingChanged,
+                    attendee,
+                    meeting,
+                    $"{actor.Username} moved '{meeting.Title}' to {when}. {(MeetingReplies.HasDeclined(meeting, attendee) ? DeclineStands : ReplyAgain)}",
+                    nowUtc));
         }
 
         return notifications;
@@ -82,6 +95,20 @@ public static class MeetingNotifications
                 nowUtc))
             .ToList();
 
+    /// <summary>
+    /// After someone declines a meeting: its organiser is told ("k.ashford declined 'MDT', Tuesday 17 November, 09:00
+    /// to 10:00."), unless they declined it themselves. Accepting tells nobody.
+    /// </summary>
+    public static Notification? AfterDeclining(Meeting meeting, CalendarActor actor, DateTime nowUtc) =>
+        meeting.OrganiserUserId == actor.UserId
+            ? null
+            : Create(
+                NotificationKind.MeetingDeclined,
+                meeting.OrganiserUserId,
+                meeting,
+                $"{actor.Username} declined '{meeting.Title}', {UkTime.DescribeRange(meeting.StartUtc, meeting.EndUtc)}.",
+                nowUtc);
+
     private static Notification Create(
         NotificationKind kind,
         Guid userId,
@@ -96,6 +123,8 @@ public static class MeetingNotifications
         Title = TitleOf(kind),
         Message = message,
         CalendarDate = date ?? UkTime.DateOf(meeting.StartUtc),
+        // A cancellation has nothing to open: the meeting is deleted, or the person was taken off it.
+        MeetingId = kind == NotificationKind.MeetingCancelled ? null : meeting.Id,
         CreatedAtUtc = nowUtc
     };
 }

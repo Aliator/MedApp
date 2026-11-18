@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetTeamCalendar;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Domain.Activity;
@@ -17,13 +18,16 @@ namespace MedApp.UnitTests.Application.Calendar.StaffCalendars.Queries.GetTeamCa
 public sealed class GetTeamCalendarHandlerTests : MeetingHandlerTestBase
 {
     private RecordingActivityLog _activity = null!;
+    private InMemoryClosedDays _closedDays = null!;
     private GetTeamCalendarHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
         _activity = new RecordingActivityLog();
+        _closedDays = new InMemoryClosedDays();
         Fixture.Inject<IActivityLog>(_activity);
+        Fixture.Inject<IClosedDayRepository>(_closedDays);
         _handler = Fixture.Create<GetTeamCalendarHandler>();
     }
 
@@ -195,5 +199,16 @@ public sealed class GetTeamCalendarHandlerTests : MeetingHandlerTestBase
 
         response.Members.Single().Appointments.Should().BeEmpty();
         response.EveryoneFree.Select(f => (f.StartUtc, f.EndUtc)).Should().Equal((At(NextMonday, 8), At(NextMonday, 18)));
+    }
+
+    [Test]
+    public async Task Handle_AClosedDay_TheDayItselfSaysSo_ForTheEveryoneFreeColumn()
+    {
+        await _closedDays.AddAsync([CreateClosedDay()], CancellationToken.None);
+
+        var response = await _handler.Handle(new GetTeamCalendarQuery(ClosedWednesday, [], AdminActor), Token);
+
+        response.Day.IsWorkingDay.Should().BeFalse();
+        response.Day.ClosedDayName.Should().Be(ClosedDayName);
     }
 }

@@ -244,4 +244,40 @@ public sealed class CalendarProjectionTests
         CalendarProjection.DefaultWeekTemplateOn(data, Today.AddDays(-1)).Should().BeSameAs(old);
         CalendarProjection.DefaultWeekTemplateOn(data, Today).Should().BeSameAs(current);
     }
+
+    // Closed days
+
+    [Test]
+    public void Days_ClosedDay_IsNotAWorkingDay_AndCarriesItsName()
+    {
+        var data = CreateData(NextMonday, NextFriday) with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        var days = CalendarProjection.Days(data, Today);
+
+        days.Select(d => d.IsWorkingDay).Should().Equal(true, true, false, true, true);
+        days.Select(d => d.ClosedDayName).Should().Equal(null, null, ClosedDayName, null, null);
+        days.Single(d => d.Date == ClosedWednesday).DayTemplateId.Should().BeNull("templates don't apply on a closed day");
+    }
+
+    [Test]
+    public void TemplateBlocks_ClosedDay_HasNone()
+    {
+        var lunch = CreateTemplateBlock(12, 13);
+        var data = CreateData(NextMonday, NextFriday, [lunch]) with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        CalendarProjection.TemplateBlocks(data).Select(b => b.Date)
+            .Should().Equal(NextMonday, NextMonday.AddDays(1), NextMonday.AddDays(3), NextFriday);
+    }
+
+    [Test]
+    public void DayTemplateOn_ClosedDayWithAnOverride_KeepsTheOverrideButAppliesNothing()
+    {
+        // An override set before the day closed stays in the database, and applies again if the day reopens.
+        var data = CreateData(ClosedWednesday, overrides: [CreateOverride(ClosedWednesday, OtherDayTemplateId)])
+            with { ClosedDays = new ClosedDaySet([CreateClosedDay()]) };
+
+        CalendarProjection.DayTemplateOn(data, ClosedWednesday).Should().Be(((Guid?)null, false));
+        CalendarProjection.DayTemplateOn(data with { ClosedDays = ClosedDaySet.None }, ClosedWednesday)
+            .Should().Be(((Guid?)OtherDayTemplateId, true));
+    }
 }
