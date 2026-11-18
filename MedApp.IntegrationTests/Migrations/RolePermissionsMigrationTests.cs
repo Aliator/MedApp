@@ -27,7 +27,7 @@ public sealed class RolePermissionsMigrationTests
     /// <summary>The permissions later migrations than these add (AddedLetters: the letter permissions).</summary>
     private static readonly Permission[] LetterPermissions = [Permission.WriteLetters, Permission.ApproveLetters, Permission.SendLetters];
 
-    private const string SpecimensMigration = "20261118175100_AddedSpecimens";
+    private const string SpecimensMigration = "20261118175544_AddedSpecimens";
 
     /// <summary>The permissions later migrations add (AddedSpecimens), which the starting roles have now.</summary>
     private static readonly Permission[] SpecimenPermissions = [Permission.RecordSpecimens, Permission.ProcessSpecimens];

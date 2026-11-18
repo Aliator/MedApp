@@ -6,12 +6,13 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MedApp.Infrastructure.Migrations
 {
     /// <summary>
-    /// Specimen tracking (centre plan decisions 81 to 90): <c>SpecimenTypes</c> and <c>Laboratories</c> (setup lists),
-    /// <c>Specimens</c> with their numbers from the new sequence <c>SpecimenNumbers</c>, and <c>Notifications.SubjectId</c>
-    /// (decision 72). Nothing exists yet, so nothing changes on deploy. Also the new permissions: <c>RecordSpecimens</c>
-    /// for the starting Clinician, Senior clinician, Nurse and Lab roles, and <c>ProcessSpecimens</c> for Lab (decision 74's table), by
-    /// their fixed IDs, so a role an admin made with one of those names is left alone. Admin doesn't get them: they're
-    /// clinical. The values are written here, not read from <c>StandardRoles</c>, so the migration never changes.
+    /// Specimen tracking (centre plan decisions 81 to 90): <c>SpecimenTypes</c> and <c>Laboratories</c> (setup lists), and
+    /// <c>Specimens</c> with their numbers from the new sequence <c>SpecimenNumbers</c>. <c>Notifications.SubjectId</c>
+    /// (decision 72) came with <c>AddedLetters</c>. Nothing exists yet, so nothing changes on deploy. Also the new
+    /// permissions: <c>RecordSpecimens</c> for the starting Clinician, Senior clinician, Nurse and Lab roles, and
+    /// <c>ProcessSpecimens</c> for Lab (decision 74's table), by their fixed IDs, so a role an admin made with one of those
+    /// names is left alone. Admin doesn't get them: they're clinical. The values are written here, not read from
+    /// <c>StandardRoles</c>, so the migration never changes.
     /// </summary>
     public partial class AddedSpecimens : Migration
     {
@@ -25,18 +26,11 @@ namespace MedApp.Infrastructure.Migrations
             ("RecordSpecimens", [ClinicianId, SeniorClinicianId, NurseId, LabId]),
             ("ProcessSpecimens", [LabId]),
         ];
-
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateSequence(
                 name: "SpecimenNumbers");
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "SubjectId",
-                table: "Notifications",
-                type: "uniqueidentifier",
-                nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "Laboratories",
@@ -206,10 +200,6 @@ namespace MedApp.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "SpecimenTypes");
-
-            migrationBuilder.DropColumn(
-                name: "SubjectId",
-                table: "Notifications");
 
             migrationBuilder.DropSequence(
                 name: "SpecimenNumbers");
