@@ -373,7 +373,9 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       },
     });
 
-    expect(await screen.findByRole('link', {name: 'Clinics'})).toHaveAttribute('href', '/calendar/clinics');
+    // Clinics is deprecated: no button for it; the MDT list's is there instead.
+    expect(await screen.findByRole('link', {name: 'MDT'})).toHaveAttribute('href', '/mdt');
+    expect(screen.queryByRole('link', {name: 'Clinics'})).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', {name: /^Synthetic dermatology clinic session/}));
     expect(await screen.findByRole('heading', {name: 'Clinic Session'})).toBeInTheDocument();
     await user.click(await dialog().findByRole('button', {name: 'Book 09:20'}));
@@ -768,6 +770,17 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(screen.queryByRole('menuitem', {name: 'Book appointment'})).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', {name: 'Record past appointment'})).not.toBeInTheDocument();
     expect(screen.getByRole('radio', {name: 'Team'})).toBeInTheDocument();
+  });
+
+  it('has the MDT list beside Requires Appointment for those who can view patients, and no Clinics (deprecated)', async () => {
+    const staff = renderPage();
+    expect(await screen.findByRole('link', {name: 'MDT'})).toHaveAttribute('href', '/mdt');
+    expect(screen.queryByRole('link', {name: 'Clinics'})).not.toBeInTheDocument();
+    staff.unmount();
+
+    renderPage({user: userWithRoles('test-nobody')});
+    expect(await screen.findByRole('link', {name: /^Requires Appointment/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'MDT'})).not.toBeInTheDocument();
   });
 
   it("has no New at all for someone who can't book, on a calendar they can't change", async () => {

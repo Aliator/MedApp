@@ -20,11 +20,6 @@ export interface NavRailEntry {
   isPressed?: boolean;
   /** Its page is the one in the half view: marked a shade darker than the current page's. */
   isHalfView?: boolean;
-  /**
-   * For a group of pages rather than a page (an admin category): it holds the current page. It's filled as a current
-   * page is, and described as holding it, never announced as the current page itself.
-   */
-  holdsCurrent?: boolean;
   /** Where its icon goes; without one (Logout), the icon only shows its row. */
   href?: string;
   /** Its row, a SideNavItem (with its buttons, and any items under it). */
@@ -357,14 +352,13 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
               transition: 'none',
               backgroundColor: isOpen
                 ? undefined
-                : entry.isSelected || entry.isPressed || entry.holdsCurrent
+                : entry.isSelected || entry.isPressed
                   ? 'var(--color-neutral)'
                   : entry.isHalfView
                     ? 'color-mix(in srgb, var(--color-neutral) 65%, transparent)'
                     : undefined,
             }}
             aria-current={entry.isSelected ? 'page' : undefined}
-            aria-description={entry.holdsCurrent ? 'Has the current page' : entry.isHalfView && !entry.href ? 'Has the page in the half view' : undefined}
             aria-pressed={entry.isPressed}
             href={entry.href}
             onClick={entry.href ? undefined : onShow}
