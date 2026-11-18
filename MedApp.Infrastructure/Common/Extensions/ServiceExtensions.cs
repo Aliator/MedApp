@@ -280,6 +280,7 @@ public static class ServiceExtensions
         services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
+        services.AddScoped<IServiceAlertRepository, ServiceAlertRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();

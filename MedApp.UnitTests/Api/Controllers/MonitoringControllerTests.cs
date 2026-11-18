@@ -34,7 +34,7 @@ public sealed class MonitoringControllerTests
     };
 
     private static readonly MonitoringRuleResponse Rule = new(
-        RecordId, SubjectId, "test.staff", "StageFinished", "High", TemplateId, "Template", StageId, "Stage", false, DateTime.UnixEpoch, DateTime.UnixEpoch);
+        RecordId, SubjectId, "test.staff", "StageFinished", "High", TemplateId, "Template", StageId, "Stage", null, null, null, false, DateTime.UnixEpoch, DateTime.UnixEpoch);
 
     private static MonitoringController Controller(RecordingMediator mediator) =>
         new MonitoringController(mediator).WithRequest(SignedIn("Admin"));

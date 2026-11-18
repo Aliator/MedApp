@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using MedApp.Application.Jobs.Common;
+using MedApp.Application.Monitoring.ServiceAlerts;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Monitoring.Requests;
 using MedApp.Contracts.Monitoring.Responses;
@@ -12,6 +14,7 @@ using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.IntegrationTests.Common;
+using Microsoft.Extensions.DependencyInjection;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
 namespace MedApp.IntegrationTests.Monitoring;
@@ -331,6 +334,54 @@ public sealed class MonitoringTests : IntegrationTest
 
         (await NotificationsOfAsync(_staff.Client)).Items.Should().ContainSingle().Which.PathwayId.Should().Be(second.Id);
     }
+
+    [Test]
+    public async Task ServiceAlerts_EveryEventWithEveryConditionItTakes_RunsAsSql_AndAWaitingVisitIsReportedOnce()
+    {
+        foreach (var monitoringEvent in new[] { "ReferralNotTriaged", "ResultNotSignedOff", "VisitNotBooked", "SpecimenOverdue", "WaitBreached", "PauseReviewPassed" })
+        {
+            await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest
+            {
+                SubjectUserId = monitoringEvent == "ResultNotSignedOff" ? _staff.UserId : null,
+                Event = monitoringEvent,
+                MinimumPriority = "Medium",
+                TemplateId = monitoringEvent == "ReferralNotTriaged" ? null : _template.Id,
+                StageDefinitionId = monitoringEvent is "VisitNotBooked" or "SpecimenOverdue" ? _bloods.Id : null,
+                ThresholdDays = 0,
+                SpecialtyId = _template.SpecialtyId,
+            });
+        }
+
+        // A template condition for every alert but triage translates; nothing waits yet.
+        (await RunServiceAlertsAsync(DateTime.UtcNow)).Should().Be(0);
+
+        // A Requested visit with no conditions, waiting since before "now": reported once, with a count.
+        var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "High");
+        await ExecuteSqlAsync($"""
+            INSERT INTO [Appointments] ([Id], [PatientId], [PathwayId], [Status], [Notes], [IsAutomatic], [CreatedAtUtc], [CreatedByUserId], [IsRecordedAfterEvent], [LastUpdated])
+            VALUES ({Guid.NewGuid()}, {_patient.Id}, {pathway.Id}, 0, '', 0, {DateTime.UtcNow.AddDays(-3)}, {_staff.UserId}, 0, {DateTime.UtcNow})
+            """);
+        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "VisitNotBooked", ThresholdDays = 2 });
+
+        (await RunServiceAlertsAsync(DateTime.UtcNow)).Should().Be(1);
+        (await RunServiceAlertsAsync(DateTime.UtcNow)).Should().Be(0);
+        (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle(n => n.Kind == "MonitoredVisitNotBooked")
+            .Which.Message.Should().Be("1 visit has waited more than 2 days to be booked.");
+    }
+
+    [Test]
+    public async Task ServiceAlert_DaysOnAChange_OrNoneOnAnAlert_IsRefused()
+    {
+        (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "PathwayCreated", ThresholdDays = 2 }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { Event = "SpecimenOverdue" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private static Task<int> RunServiceAlertsAsync(DateTime nowUtc) =>
+        RunInScopeAsync(services => services.GetServices<IScheduledJob>()
+            .Single(job => job.Name == ServiceAlertsJob.JobName)
+            .RunAsync(nowUtc, CancellationToken.None));
 
     private static async Task<MonitoringRuleResponse> CreateRuleAsync(HttpClient admin, SaveMonitoringRuleRequest request) =>
         await (await admin.PostAsJsonAsync(RulesUrl, request)).ReadAsAsync<MonitoringRuleResponse>(HttpStatusCode.Created);
