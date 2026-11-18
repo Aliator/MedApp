@@ -1,5 +1,15 @@
-import {testAppointment, testBlock, testCalendar, testMeeting} from '../../test/calendar';
-import {appointmentItem, appointmentPurpose, attendingCount, blockItem, calendarItems, MEETING_COLOUR, meetingItem, meetingKey} from './calendarItems';
+import {hasDeclined} from '../../api/calendar';
+import {testAppointment, testBlock, testCalendar, testMeeting, STAFF_ME, STAFF_OTHER} from '../../test/calendar';
+import {
+  appointmentItem,
+  appointmentPurpose,
+  attendingCount,
+  blockItem,
+  calendarItems,
+  MEETING_COLOUR,
+  meetingItem,
+  meetingKey,
+} from './calendarItems';
 
 const MONDAY = '2026-11-23';
 
@@ -18,6 +28,7 @@ describe('calendarItems', () => {
       sublabel: '2 attending',
       description: 'MDT, meeting, 09:00 to 10:00, 2 attending',
       isMovable: true,
+      isFaded: false,
       isFlagged: false,
     });
     expect(MEETING_COLOUR).toBe('teal');
@@ -86,5 +97,47 @@ describe('calendarItems', () => {
     expect(appointmentPurpose({procedureTitle: 'Knee review', stageName: 'Assessment'})).toBe('Knee review: Assessment');
     expect(appointmentPurpose({procedureTitle: 'Knee review', stageName: null})).toBe('Knee review');
     expect(appointmentPurpose({procedureTitle: null, stageName: null})).toBe('Appointment');
+  });
+
+  it("fades a meeting on the calendar of someone who declined it, and says so, but not on anyone else's", () => {
+    const meeting = testMeeting({
+      id: 'm1',
+      date: MONDAY,
+      title: 'MDT',
+      attendees: [
+        {userId: STAFF_ME.userId, username: STAFF_ME.username, reply: 'Declined'},
+        {userId: STAFF_OTHER.userId, username: STAFF_OTHER.username, reply: 'Accepted'},
+      ],
+    });
+
+    expect(meetingItem(meeting, STAFF_ME.userId)).toMatchObject({
+      sublabel: 'Declined',
+      description: 'MDT, meeting, 09:00 to 10:00, Declined',
+      isFaded: true,
+    });
+    expect(meetingItem(meeting, STAFF_OTHER.userId)).toMatchObject({sublabel: '1 attending', isFaded: false});
+    expect(meetingItem(meeting)).toMatchObject({sublabel: '1 attending', isFaded: false});
+    expect(meetingItem(meeting, null).isFaded).toBe(false);
+
+    // A calendar's own owner decides.
+    const mine = testCalendar({from: MONDAY, today: MONDAY, meetings: [meeting]});
+    const theirs = testCalendar({from: MONDAY, today: MONDAY, staff: STAFF_OTHER, meetings: [meeting]});
+    expect(calendarItems(mine).find((i) => i.kind === 'meeting')?.isFaded).toBe(true);
+    expect(calendarItems(theirs).find((i) => i.kind === 'meeting')?.isFaded).toBe(false);
+  });
+
+  it('counts only those who have not declined as attending, and says who declined', () => {
+    const attendees = [
+      {userId: 'a', username: 'a', reply: 'Declined'},
+      {userId: 'b', username: 'b', reply: 'NoReply'},
+      {userId: 'c', username: 'c'},
+    ];
+
+    expect(attendingCount({attendees})).toBe('2 attending');
+    expect(hasDeclined({attendees}, 'a')).toBe(true);
+    expect(hasDeclined({attendees}, 'b')).toBe(false);
+    expect(hasDeclined({attendees}, 'z')).toBe(false);
+    expect(hasDeclined({}, 'a')).toBe(false);
+    expect(hasDeclined({attendees}, undefined)).toBe(false);
   });
 });

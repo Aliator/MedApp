@@ -19,6 +19,6 @@ public sealed class GetMeetingByIdHandler(
                       ?? throw new NotFoundException($"Meeting '{request.MeetingId}' was not found.");
 
         var usernames = await identityReadService.GetUsernamesByIdAsync(MeetingMapper.UserIds(meeting), cancellationToken);
-        return MeetingMapper.ToResponse(meeting, usernames, request.Actor.IsAdmin, UkTime.Today(timeProvider));
+        return MeetingMapper.ToResponse(meeting, usernames, request.Actor, timeProvider.GetUtcNow().UtcDateTime);
     }
 }

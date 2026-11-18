@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
@@ -212,6 +213,20 @@ public sealed class AvailabilityTests
             .Should().Equal(Range(NextMonday, 8, 0, 10, 0), Range(NextMonday, 11, 0, 14, 0), Range(NextMonday, 15, 0, 18, 0));
     }
 
+
+    [Test]
+    public void FreeTime_AMeetingSomeoneDeclined_IsFreeForThemButNotForTheOthersGoing()
+    {
+        var meeting = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        meeting.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+        var decliner = CalendarOf(StaffUserId, NextMonday, meetings: [meeting]);
+        var other = CalendarOf(OtherStaffUserId, NextMonday, meetings: [meeting]);
+
+        Availability.FreeTime([decliner], NextMonday, NextMonday, LongBefore).Single().Free
+            .Should().Equal(Range(NextMonday, 8, 0, 18, 0));
+        Availability.FreeTime([decliner, other], NextMonday, NextMonday, LongBefore).Single().Free
+            .Should().Equal(Range(NextMonday, 8, 0, 10, 0), Range(NextMonday, 11, 0, 18, 0));
+    }
     [Test]
     public void FreeTime_NobodyAsked_IsEveryWorkingDay()
     {

@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
+import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testMeeting, testRequested, ukTime} from '../../test/calendar';
 import {calls, openAlertDetails, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {BookAppointmentDialog, shownStarts, type BookAppointmentDialogProps} from './BookAppointmentDialog';
 
@@ -86,6 +86,23 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
       endUtc: '2026-11-23T09:30:00.000Z',
       notes: null,
     });
+  });
+
+  it('offers the time of a meeting the member of staff declined, but not of one they are going to', async () => {
+    atMondayMorning();
+    const meeting = (start: string, end: string, reply: string) =>
+      testMeeting({id: `m-${start}`, date: MONDAY, start, end, attendees: [{userId: STAFF_ME.userId, username: STAFF_ME.username, reply}]});
+    renderDialog({patient: TEST_PATIENT}, {
+      'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
+      'GET /api/calendar': (request) => calendarFor(request, {meetings: [meeting('09:00', '10:00', 'Declined'), meeting('11:00', '12:00', 'Accepted')]}),
+    });
+
+    await screen.findByRole('dialog');
+    const morning = await dialog().findByRole('group', {name: 'Morning times on Monday 23 November'});
+    expect(within(morning).getByRole('button', {name: '09:00'})).toBeInTheDocument();
+    expect(within(morning).getByRole('button', {name: '09:30'})).toBeInTheDocument();
+    expect(within(morning).queryByRole('button', {name: '11:00'})).not.toBeInTheDocument();
+    expect(within(morning).queryByRole('button', {name: '11:30'})).not.toBeInTheDocument();
   });
 
   it('starts from a time picked on the calendar, with its length and member of staff', async () => {

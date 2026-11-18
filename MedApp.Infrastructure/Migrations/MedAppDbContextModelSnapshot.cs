@@ -767,6 +767,12 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("StaffUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("RepliedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Reply")
+                        .HasColumnType("int");
+
                     b.HasKey("MeetingId", "StaffUserId");
 
                     b.HasIndex("StaffUserId");
@@ -947,6 +953,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<int>("Kind")
                         .HasColumnType("int");
+
+                    b.Property<Guid?>("MeetingId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Message")
                         .IsRequired()

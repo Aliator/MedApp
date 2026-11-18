@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.DevMcp.DemoData;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
 using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
@@ -33,7 +34,7 @@ public sealed class DemoMeetingsTests
             var date = UkTime.DateOf(meeting.StartUtc);
             WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc, DemoClosedDays.Set).Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)}");
             meeting.Attendees.Should().NotBeEmpty().And.OnlyHaveUniqueItems(a => a.StaffUserId);
-            foreach (var attendee in meeting.Attendees)
+            foreach (var attendee in meeting.Attendees.Where(a => a.Reply != MeetingReply.Declined))
                 CalendarClashes.Find(calendars.DataFor(attendee.StaffUserId, date, date), meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id)
                     .Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)} is clear on every attendee's calendar");
         }
@@ -80,7 +81,7 @@ public sealed class DemoMeetingsTests
         plan.Stories.Count(s => s.Changes > 0).Should().BeGreaterThan(5, "leave booked later took people off, and newcomers were added");
 
         recent.Select(n => n.Kind).Distinct().Should().BeEquivalentTo(
-            [NotificationKind.MeetingInvited, NotificationKind.MeetingChanged, NotificationKind.MeetingCancelled]);
+            [NotificationKind.MeetingInvited, NotificationKind.MeetingChanged, NotificationKind.MeetingCancelled, NotificationKind.MeetingDeclined]);
         recent.Should().OnlyContain(n => n.CreatedAtUtc >= timeline.NotificationsFromUtc && n.CreatedAtUtc <= timeline.NowUtc);
     }
 
@@ -139,5 +140,52 @@ public sealed class DemoMeetingsTests
             .Where(s => s.Meeting.Title == DemoMeetings.Huddle && s.Meeting.StartUtc > Now)
             .Should().OnlyContain(s => s.Meeting.Attendees.Any(a => a.StaffUserId == starter.Id))
             .And.Contain(s => s.Notifications.Any(n => n.UserId == starter.Id && n.Kind == NotificationKind.MeetingInvited));
+    }
+
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
+    public void Plan_Attendees_AcceptedDeclinedOrDidntAnswer_EachForThemselvesAtAPossibleMoment(DateTime nowUtc)
+    {
+        var (timeline, staff, calendars) = Plan(nowUtc);
+        var stories = calendars.MeetingPlan.Stories.Where(s => !s.IsCancelled).ToList();
+        var attendees = stories.SelectMany(s => s.Meeting.Attendees.Select(a => (s.Meeting, Attendee: a))).ToList();
+
+        // A mix, upcoming and past.
+        foreach (var upcoming in new[] { true, false })
+            attendees.Where(r => r.Meeting.StartUtc > timeline.NowUtc == upcoming).Select(r => r.Attendee.Reply).Distinct()
+                .Should().BeEquivalentTo([MeetingReply.NoReply, MeetingReply.Accepted, MeetingReply.Declined]);
+        stories.Sum(s => s.Replies).Should().Be(attendees.Count(r => r.Attendee.Reply != MeetingReply.NoReply));
+
+        foreach (var (meeting, attendee) in attendees)
+        {
+            if (attendee.Reply == MeetingReply.NoReply)
+            {
+                attendee.RepliedAtUtc.Should().BeNull();
+                continue;
+            }
+
+            // Never the organiser's (they arranged it); after the invitation or the last move, before it starts and now.
+            attendee.StaffUserId.Should().NotBe(meeting.OrganiserUserId);
+            attendee.RepliedAtUtc.Should().NotBeNull();
+            attendee.RepliedAtUtc!.Value.Should().BeOnOrAfter(meeting.LastUpdated).And.BeOnOrBefore(timeline.NowUtc).And.BeBefore(meeting.EndUtc);
+            staff.Single(s => s.Id == attendee.StaffUserId).WorksAt(attendee.RepliedAtUtc.Value).Should().BeTrue();
+        }
+    }
+
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
+    public void Plan_EachDecline_ToldTheOrganiser(DateTime nowUtc)
+    {
+        var (_, staff, calendars) = Plan(nowUtc);
+
+        foreach (var story in calendars.MeetingPlan.Stories.Where(s => !s.IsCancelled))
+        {
+            var meeting = story.Meeting;
+            var decliners = meeting.Attendees.Where(a => a.Reply == MeetingReply.Declined).Select(a => staff.Single(s => s.Id == a.StaffUserId)).ToList();
+            var told = story.Notifications.Where(n => n.Kind == NotificationKind.MeetingDeclined).ToList();
+
+            told.Should().HaveCount(decliners.Count).And.OnlyContain(n => n.UserId == meeting.OrganiserUserId);
+            foreach (var decliner in decliners)
+                told.Should().ContainSingle(n => n.Message.StartsWith($"{decliner.Username} declined '{meeting.Title}', ")
+                                                  && n.CreatedAtUtc == meeting.Attendees.Single(a => a.StaffUserId == decliner.Id).RepliedAtUtc);
+        }
     }
 }

@@ -12,10 +12,20 @@ import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {TextInput} from '@astryxdesign/core/TextInput';
-import {ToggleButton} from '@astryxdesign/core/ToggleButton';
+import {ToggleButton, ToggleButtonGroup} from '@astryxdesign/core/ToggleButton';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useRef, useState, type ReactNode, type RefObject} from 'react';
-import {availabilityQuery, calendarKeys, staffQuery, useMeetingActions, type Meeting} from '../../api/calendar';
+import {
+  availabilityQuery,
+  calendarKeys,
+  meetingQuery,
+  staffQuery,
+  useMeetingActions,
+  useMeetingReply,
+  type Meeting,
+  type MeetingAttendee,
+  type MeetingReply,
+} from '../../api/calendar';
 import {closedDaysQuery} from '../../api/closedDays';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
@@ -43,6 +53,7 @@ import {DialogFrame} from '../modals/DialogFrame';
 import {useIsNarrowWindow} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {MeetingReplyToken} from './CalendarTokens';
 
 export interface MeetingDialogProps {
   isOpen: boolean;
@@ -56,8 +67,9 @@ export interface MeetingDialogProps {
 }
 
 /**
- * A meeting (team calendar plan, sections 2 and 4): its details for everyone (title, when, organiser, attendees,
- * notes), and for admins, Change and Cancel Meeting; or, without a `meeting`, New Meeting (admins).
+ * A meeting (team calendar plan, sections 2 and 4): its details for everyone (title, when, organiser, attendees with
+ * their replies and a summary of them, notes); for an attendee, Accept and Decline (pressed as they last replied:
+ * decision 71); and for admins, Change and Cancel Meeting; or, without a `meeting`, New Meeting (admins).
  *
  * The form asks for a title, who (a multi-select of staff, with Everyone and Clear; the organiser goes too unless
  * they untick "I'm going too"), a length and notes (about staff, never patients). It suggests times in the next two
@@ -81,13 +93,46 @@ export function MeetingDialog(props: MeetingDialogProps) {
 
 type Mode = 'view' | 'change' | 'cancel';
 
-function MeetingDialogBody({isOpen, onClose, meeting, initial, onSaved}: MeetingDialogProps) {
+function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: MeetingDialogProps) {
   const announce = useAnnounce();
   const {cancel} = useMeetingActions();
+  const replyTo = useMeetingReply();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('view');
   const [problem, setProblem] = useState<string | null>(null);
+  // The meeting as the last reply returned it, until the dialog closes (the calendar behind refreshes too).
+  const [replied, setReplied] = useState<Meeting | null>(null);
+  const meeting = replied && replied.id === given?.id ? replied : given;
 
   if (!meeting) return <MeetingForm isOpen={isOpen} onClose={onClose} initial={initial} onSaved={onSaved} />;
+
+  const reply = (answer: ReplyAnswer) => {
+    setProblem(null);
+    // The reply is about the time shown here: if the meeting has moved since, the API refuses it (409).
+    replyTo.mutate(
+      {id: meeting.id ?? '', reply: answer, startUtc: meeting.startUtc ?? '', endUtc: meeting.endUtc ?? ''},
+      {
+        onSuccess: (saved) => {
+          setReplied(saved);
+          announce(answer === 'Accepted' ? 'Meeting accepted' : 'Meeting declined');
+        },
+        onError: (error) => {
+          setProblem(problemMessage(error, 'Your reply could not be saved. Please try again.'));
+          // Moved or changed since this was opened: show the meeting as it is now, to reply to that.
+          if (error instanceof ApiError && error.status === 409) void showLatest();
+        },
+      },
+    );
+  };
+
+  /** Reads the meeting again and shows it, as it is now; if it can't be read (cancelled), the problem shown stays. */
+  const showLatest = async () => {
+    try {
+      setReplied(await queryClient.fetchQuery({...meetingQuery(meeting.id ?? ''), staleTime: 0}));
+    } catch {
+      // The message already shown says what went wrong.
+    }
+  };
 
   const cancelMeeting = () => {
     setProblem(null);
@@ -135,10 +180,42 @@ function MeetingDialogBody({isOpen, onClose, meeting, initial, onSaved}: Meeting
               {when}
             </Text>
           </VStack>
+          {meeting.canReply && (
+            <VStack gap={2} hAlign="start">
+              <ToggleButtonGroup
+                type="single"
+                label="Your reply"
+                value={isAnswer(meeting.myReply) ? meeting.myReply : null}
+                onChange={(answer) => {
+                  if (isAnswer(answer)) reply(answer);
+                }}
+                isDisabled={replyTo.isPending}>
+                <ToggleButton value="Accepted" label="Accept" icon={<Icon icon={AppIcon.MeetingAccepted} />} />
+                <ToggleButton value="Declined" label="Decline" icon={<Icon icon={AppIcon.MeetingDeclined} />} />
+              </ToggleButtonGroup>
+              {meeting.myReply === 'Declined' && (
+                <Text type="supporting" color="secondary">
+                  You declined: this time is free on your calendar.
+                </Text>
+              )}
+            </VStack>
+          )}
           <MetadataList label={{position: 'start', width: 120}}>
             <MetadataListItem label="Organiser">{meeting.organiserUsername ?? DELETED_USER}</MetadataListItem>
             <MetadataListItem label={`Attendees (${meeting.attendees?.length ?? 0})`}>
-              {(meeting.attendees ?? []).map((a) => a.username ?? DELETED_USER).join(', ')}
+              <VStack gap={2} hAlign="stretch">
+                {(meeting.attendees?.length ?? 0) > 0 && (
+                  <Text type="body" color="secondary">
+                    {replySummary(meeting.attendees ?? [])}
+                  </Text>
+                )}
+                {(meeting.attendees ?? []).map((a) => (
+                  <HStack key={a.userId} gap={2} vAlign="center" wrap="wrap">
+                    <Text type="body">{a.username ?? DELETED_USER}</Text>
+                    <MeetingReplyToken reply={a.reply} />
+                  </HStack>
+                ))}
+              </VStack>
             </MetadataListItem>
             {meeting.notes && <MetadataListItem label="Notes">{meeting.notes}</MetadataListItem>}
           </MetadataList>
@@ -164,6 +241,26 @@ function MeetingDialogBody({isOpen, onClose, meeting, initial, onSaved}: Meeting
 }
 
 const DELETED_USER = 'Deleted user';
+
+/** What an attendee can answer: Accepted or Declined (never back to no reply). */
+type ReplyAnswer = Exclude<MeetingReply, 'NoReply'>;
+
+const isAnswer = (value: string | null | undefined): value is ReplyAnswer => value === 'Accepted' || value === 'Declined';
+
+/** How a meeting's attendees replied, in words: "3 accepted, 1 declined, 2 haven't replied" (leaving out the noughts). */
+function replySummary(attendees: MeetingAttendee[]): string {
+  const count = (reply: string) => attendees.filter((a) => (a.reply ?? 'NoReply') === reply).length;
+  const accepted = count('Accepted');
+  const declined = count('Declined');
+  const waiting = attendees.length - accepted - declined;
+  return [
+    accepted > 0 ? `${accepted} accepted` : null,
+    declined > 0 ? `${declined} declined` : null,
+    waiting > 0 ? `${waiting} ${waiting === 1 ? "hasn't" : "haven't"} replied` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
 
 /** When a meeting is, in words: "Tuesday 24 November, 10:00 to 11:00". */
 function meetingWhen(meeting: Meeting): string {
@@ -253,9 +350,13 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const isReady = isOpen && staff.data !== undefined && attendees.length > 0;
   const isEveryone = everyone.length > 0 && everyone.every((id) => others.includes(id));
 
-  // Suggested times: two weeks from `from`, for everyone going, the meeting being changed left out of their time.
+  // Suggested times: two weeks from `from`, for everyone going, the meeting being changed left out of their time. Those
+  // who declined it aren't going: what they have on never stops a change (the API skips them too), so they're left out,
+  // unless nobody else is.
+  const declined = new Set((meeting?.attendees ?? []).filter((a) => a.reply === 'Declined').map((a) => a.userId));
+  const going = attendees.filter((id) => !declined.has(id));
   const range = suggestionRange(from);
-  const forWhom = {staffUserIds: attendees, durationMinutes: length, exceptMeetingId: meeting?.id};
+  const forWhom = {staffUserIds: going.length > 0 ? going : attendees, durationMinutes: length, exceptMeetingId: meeting?.id};
   const suggestions = useQuery({...availabilityQuery({...forWhom, ...range}), enabled: isReady});
   const suggested = (suggestions.data?.suggestions ?? []).flatMap((s) => (s.startUtc && s.endUtc ? [{startUtc: s.startUtc, endUtc: s.endUtc}] : []));
 

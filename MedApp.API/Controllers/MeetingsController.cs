@@ -1,6 +1,7 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Calendar.Meetings.Commands.CancelMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.CreateMeeting;
+using MedApp.Application.Calendar.Meetings.Commands.ReplyToMeeting;
 using MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 using MedApp.Application.Calendar.Meetings.Queries.GetMeetingById;
 using MedApp.Contracts.Calendar.Requests;
@@ -67,6 +68,23 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
             request.AttendeeUserIds ?? [],
             request.ExpectedLastUpdated,
             User.ToCalendarActor()), ct));
+
+    /// <summary>
+    /// The signed-in member of staff accepts or declines a meeting they're going to (<c>reply</c>: "Accepted" or
+    /// "Declined"), before it ends; they can change their reply. Only for themselves: someone not going is a 403, and
+    /// a cancelled meeting a 404. It carries the start and end the person saw (<c>expectedStartUtc</c>,
+    /// <c>expectedEndUtc</c>): a 409 if the meeting has moved since. A decline frees the time on their calendar and
+    /// tells the organiser.
+    /// </summary>
+    [HttpPut("{id:guid}/reply")]
+    [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReplyToMeeting(Guid id, [FromBody] MeetingReplyRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(
+            new ReplyToMeetingCommand(id, request.Reply, request.ExpectedStartUtc, request.ExpectedEndUtc, User.ToCalendarActor()), ct));
 
     /// <summary>Cancels (deletes) a meeting; its attendees are told.</summary>
     [HttpDelete("{id:guid}")]

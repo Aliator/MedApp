@@ -17,6 +17,7 @@ import {appointmentQuery, appointmentsQuery, useAppointmentActions, type Appoint
 import {
   calendarQuery,
   dayTemplatesQuery,
+  meetingQuery,
   staffQuery,
   teamCalendarQuery,
   useCalendarActions,
@@ -272,6 +273,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     // Only when the linked appointment arrives: moving on from its day afterwards is up to the person.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedStart]);
+
+  // A meeting in the URL (from a notification): shown in its dialog, whether or not it's on the calendar shown (an
+  // organiser told of a decline may not be going). One that's gone (cancelled) says so instead.
+  const linkedMeeting = useQuery({...meetingQuery(search.meeting ?? ''), enabled: search.meeting !== undefined, retry: false});
+  const isLinkedMeetingGone = search.meeting !== undefined && linkedMeeting.isError;
 
   const go = (next: Partial<CalendarSearch>, options?: {replace?: boolean}) => {
     setHeld(null);
@@ -624,8 +630,13 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       subtitle={`${whose} · ${rangeLabel}`}
       fill
       message={
-        message || linked.isError ? (
-          <AlertMessage message={message ?? "That appointment couldn't be found. It may have been deleted."} />
+        message || linked.isError || isLinkedMeetingGone ? (
+          <AlertMessage
+            message={
+              message ??
+              (linked.isError ? "That appointment couldn't be found. It may have been deleted." : "That meeting couldn't be found. It may have been cancelled.")
+            }
+          />
         ) : undefined
       }
       // A fragment, not a group of its own, so the header can wrap the buttons among themselves on a phone.
@@ -710,6 +721,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             />
           )}
           <MeetingDialog isOpen={meeting !== null} meeting={meeting?.meeting} initial={meeting?.initial} onClose={() => setMeeting(null)} />
+          <MeetingDialog
+            isOpen={search.meeting !== undefined && linkedMeeting.data !== undefined}
+            meeting={search.meeting ? linkedMeeting.data : null}
+            onClose={() => go({meeting: undefined})}
+          />
           <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} stepMinutes={rowMinutes} onClose={() => go({appointment: undefined})} />
           <ConfirmDialog
             isOpen={move !== null}

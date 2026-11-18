@@ -19,6 +19,7 @@ public sealed class MeetingNotificationsTests
     [TestCase(NotificationKind.MeetingInvited, "Meeting invitation")]
     [TestCase(NotificationKind.MeetingChanged, "Meeting moved")]
     [TestCase(NotificationKind.MeetingCancelled, "Meeting cancelled")]
+    [TestCase(NotificationKind.MeetingDeclined, "Meeting declined")]
     public void TitleOf_EachMeetingKind_IsAFixedPhrase(NotificationKind kind, string title)
     {
         MeetingNotifications.TitleOf(kind).Should().Be(title);
@@ -90,7 +91,7 @@ public sealed class MeetingNotificationsTests
 
         notifications.Select(n => n.UserId).Should().Equal(StaffUserId, OtherStaffUserId);
         notifications.Should().OnlyContain(n => n.Kind == NotificationKind.MeetingChanged && n.Title == "Meeting moved");
-        notifications.Should().OnlyContain(n => n.Message == $"{AdminUsername} moved '{Title}' to Thursday 26 November, 09:00 to 10:00.");
+        notifications.Should().OnlyContain(n => n.Message == $"{AdminUsername} moved '{Title}' to Thursday 26 November, 09:00 to 10:00. Please reply again.");
         notifications.Should().OnlyContain(n => n.CalendarDate == Thursday);
     }
 
@@ -156,5 +157,60 @@ public sealed class MeetingNotificationsTests
         notifications.Should().OnlyContain(n => n.Kind == NotificationKind.MeetingCancelled && n.Title == "Meeting cancelled");
         notifications.Should().OnlyContain(n => n.Message == $"{AdminUsername} cancelled '{Title}', Monday 23 November, 10:00 to 11:00.");
         notifications.Should().OnlyContain(n => n.CalendarDate == NextMonday && n.CreatedAtUtc == Now);
+    }
+
+    // AfterDeclining
+
+    [Test]
+    public void AfterDeclining_TellsTheOrganiserWhoAndWhatAndWhenOnly()
+    {
+        var meeting = Mdt();
+
+        var notification = MeetingNotifications.AfterDeclining(meeting, StaffActor, Now);
+
+        notification.Should().NotBeNull();
+        notification!.UserId.Should().Be(AdminUserId);
+        notification.Kind.Should().Be(NotificationKind.MeetingDeclined);
+        notification.Title.Should().Be("Meeting declined");
+        notification.Message.Should().Be($"{StaffUsername} declined '{Title}', Monday 23 November, 10:00 to 11:00.");
+        notification.Message.Should().NotContain(Notes, "a meeting's notes are never in a notification");
+        notification.CalendarDate.Should().Be(NextMonday);
+        notification.ProcedureId.Should().BeNull();
+        notification.AppointmentId.Should().BeNull();
+        notification.MeetingId.Should().Be(MeetingId, "it opens the meeting, so the organiser sees who declined");
+        notification.CreatedAtUtc.Should().Be(Now);
+    }
+
+    [Test]
+    public void MeetingNotifications_LinkToTheMeeting_ExceptACancellation()
+    {
+        var mdt = Mdt([StaffUserId, OtherStaffUserId]);
+        var moved = NewMeeting(At(Thursday, 9), At(Thursday, 10), [StaffUserId]);
+
+        MeetingNotifications.AfterCreating(mdt, AdminActor, Now).Should().OnlyContain(n => n.MeetingId == MeetingId);
+        MeetingNotifications.AfterCancelling(mdt, AdminActor, Now).Should().OnlyContain(n => n.MeetingId == null);
+        var changed = MeetingNotifications.AfterChanging(moved, [StaffUserId, OtherStaffUserId], At(NextMonday, 10), At(NextMonday, 11), AdminActor, Now);
+        changed.Single(n => n.Kind == NotificationKind.MeetingChanged).MeetingId.Should().Be(MeetingId);
+        changed.Single(n => n.Kind == NotificationKind.MeetingCancelled).MeetingId.Should().BeNull("they were taken off it");
+    }
+
+    [Test]
+    public void AfterChanging_Moved_SomeoneWhoseDeclineStands_IsToldSo_NotAskedAgain()
+    {
+        var moved = NewMeeting(At(Thursday, 9), At(Thursday, 10));
+        moved.Attendees.Single(a => a.StaffUserId == StaffUserId).Reply = MeetingReply.Declined;
+
+        var notifications = MeetingNotifications.AfterChanging(
+            moved, [StaffUserId, OtherStaffUserId], At(NextMonday, 10), At(NextMonday, 11), AdminActor, Now);
+
+        notifications.Single(n => n.UserId == StaffUserId).Message.Should().Be(
+            $"{AdminUsername} moved '{Title}' to Thursday 26 November, 09:00 to 10:00. You have something else on then, so your decline stands.");
+        notifications.Single(n => n.UserId == OtherStaffUserId).Message.Should().EndWith("Please reply again.");
+    }
+
+    [Test]
+    public void AfterDeclining_TheOrganiserThemselves_TellsNobody()
+    {
+        MeetingNotifications.AfterDeclining(Mdt([AdminUserId, StaffUserId]), AdminActor, Now).Should().BeNull();
     }
 }

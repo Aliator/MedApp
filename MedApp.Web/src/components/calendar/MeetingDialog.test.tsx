@@ -117,8 +117,13 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     expect(dialog().getByText('Team huddle')).toBeInTheDocument();
     expect(dialog().getByText('Tuesday 24 November, 10:00 to 11:00')).toBeInTheDocument();
     expect(dialog().getByText('Attendees (2)')).toBeInTheDocument();
-    expect(dialog().getByText('k.ashford, Deleted user')).toBeInTheDocument();
-    expect(dialog().getByText('Deleted user')).toBeInTheDocument();
+    expect(dialog().getByText('k.ashford')).toBeInTheDocument();
+    // The organiser and an attendee have both gone.
+    expect(dialog().getAllByText('Deleted user')).toHaveLength(2);
+    // Nobody has replied (a reply missing from the response counts as none), and this viewer isn't going.
+    expect(dialog().getByText("2 haven't replied")).toBeInTheDocument();
+    expect(dialog().getAllByText('No reply')).toHaveLength(2);
+    expect(dialog().queryByRole('group', {name: 'Your reply'})).not.toBeInTheDocument();
     expect(dialog().getByText('Rota for December')).toBeInTheDocument();
     expect(dialog().queryByRole('button', {name: 'Change'})).not.toBeInTheDocument();
     expect(dialog().queryByRole('button', {name: 'Cancel Meeting'})).not.toBeInTheDocument();
@@ -323,6 +328,32 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
   });
 
+  it("leaves those who declined out of who must be free when changing a meeting, as the API does, but keeps them on it", async () => {
+    const meeting: Meeting = {
+      ...MEETING,
+      attendees: [
+        {...KAY, reply: 'Declined'},
+        {...BEN, reply: 'Accepted'},
+      ],
+    };
+    const {user, fetch} = renderDialog({meeting});
+
+    await user.click(await dialog().findByRole('button', {name: 'Change'}));
+
+    await waitFor(() => expect(availabilityAsked(fetch)[0]).toMatchObject({except: MEETING.id, people: [BEN.userId]}));
+    const who = dialog().getByRole('combobox', {name: /Who/});
+    expect(who).toHaveTextContent(/k.ashford/);
+    expect(who).toHaveTextContent(/b.staff/);
+  });
+
+  it('still asks about those who declined when nobody else is going', async () => {
+    const {user, fetch} = renderDialog({meeting: {...MEETING, attendees: [{...KAY, reply: 'Declined'}]}});
+
+    await user.click(await dialog().findByRole('button', {name: 'Change'}));
+
+    await waitFor(() => expect(availabilityAsked(fetch)[0]).toMatchObject({people: [KAY.userId]}));
+  });
+
   it('changes a meeting from its details, leaving it out of its people’s time, and goes back', async () => {
     withAnnouncements();
     const saved = {...MEETING, title: 'Team huddle (moved)'};
@@ -454,5 +485,151 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     await waitFor(() => expect(openDialog()).toBeNull());
     await user.click(screen.getByRole('button', {name: 'Open'}));
     expect(await dialog().findByRole('textbox', {name: /Title/})).toHaveValue('');
+  });
+
+  describe('replies', () => {
+    const REPLY_URL = `/api/calendar/meetings/${MEETING.id}/reply`;
+    /** The meeting as an attendee (k.ashford, signed in as staff) sees it: going, with no reply yet. */
+    const MINE: Meeting = {
+      ...MEETING,
+      canEdit: false,
+      attendees: [
+        {...KAY, reply: 'NoReply', repliedAtUtc: null},
+        {...BEN, reply: 'Accepted', repliedAtUtc: '2026-11-11T09:00:00Z'},
+        {...CAL, reply: 'Declined', repliedAtUtc: '2026-11-12T09:00:00Z'},
+      ],
+      myReply: 'NoReply',
+      canReply: true,
+    };
+    const answered = (reply: string): Meeting => ({
+      ...MINE,
+      myReply: reply,
+      attendees: MINE.attendees!.map((a) => (a.userId === KAY.userId ? {...a, reply, repliedAtUtc: '2026-11-16T09:00:00Z'} : a)),
+    });
+    const button = (name: string) => within(dialog().getByRole('group', {name: 'Your reply'})).getByRole('button', {name});
+
+    it("shows each attendee's reply and a summary of them", async () => {
+      localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+      renderDialog({meeting: {...MINE, canReply: false, myReply: null}}, {user: staffUser});
+
+      expect(await dialog().findByText("1 accepted, 1 declined, 1 hasn't replied")).toBeInTheDocument();
+      for (const [name, reply] of [['k.ashford', 'No reply'], ['b.staff', 'Accepted'], ['c.staff', 'Declined']]) {
+        const row = dialog().getByText(name).parentElement!;
+        expect(within(row).getByText(reply)).toBeInTheDocument();
+        expect(row.querySelector('.astryx-token svg')).not.toBeNull();
+      }
+      expect(dialog().queryByRole('group', {name: 'Your reply'})).not.toBeInTheDocument();
+    });
+
+    it('lets an attendee decline, then accept, each pressed once saved and announced', async () => {
+      withAnnouncements();
+      let answer = answered('Declined');
+      const {user, fetch, onSaved, onClose} = renderDialog(
+        {meeting: MINE},
+        {user: staffUser, handlers: {[`PUT ${REPLY_URL}`]: () => json(answer)}},
+      );
+
+      expect(await dialog().findByRole('group', {name: 'Your reply'})).toBeInTheDocument();
+      expect(button('Accept')).toHaveAttribute('aria-pressed', 'false');
+      expect(button('Decline')).toHaveAttribute('aria-pressed', 'false');
+
+      await user.click(button('Decline'));
+      await expectAnnounced('Meeting declined');
+      // About the time shown: the API refuses it if the meeting has moved since.
+      expect(await bodyOf(fetch, 'PUT', REPLY_URL)).toEqual({reply: 'Declined', expectedStartUtc: MEETING.startUtc, expectedEndUtc: MEETING.endUtc});
+      await waitFor(() => expect(button('Decline')).toHaveAttribute('aria-pressed', 'true'));
+      expect(dialog().getByText('You declined: this time is free on your calendar.')).toBeInTheDocument();
+      expect(dialog().getByText('1 accepted, 2 declined')).toBeInTheDocument();
+
+      answer = answered('Accepted');
+      await user.click(button('Accept'));
+      await expectAnnounced('Meeting accepted');
+      expect(await bodyOf(fetch, 'PUT', REPLY_URL)).toEqual({reply: 'Accepted', expectedStartUtc: MEETING.startUtc, expectedEndUtc: MEETING.endUtc});
+      await waitFor(() => expect(button('Accept')).toHaveAttribute('aria-pressed', 'true'));
+      expect(dialog().queryByText('You declined: this time is free on your calendar.')).not.toBeInTheDocument();
+      // Replying keeps the dialog open, and isn't a save of the meeting.
+      expect(onSaved).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing for the reply already given', async () => {
+      const {user, fetch} = renderDialog({meeting: answered('Accepted')}, {user: staffUser, handlers: {[`PUT ${REPLY_URL}`]: () => json(MINE)}});
+
+      expect(await dialog().findByRole('group', {name: 'Your reply'})).toBeInTheDocument();
+      expect(button('Accept')).toHaveAttribute('aria-pressed', 'true');
+      await user.click(button('Accept'));
+
+      expect(button('Accept')).toHaveAttribute('aria-pressed', 'true');
+      expect(requests(fetch, 'PUT', REPLY_URL)).toHaveLength(0);
+    });
+
+    it("shows the API's reason when a reply is refused, keeping the reply as it was", async () => {
+      const {user} = renderDialog(
+        {meeting: answered('Declined')},
+        {
+          user: staffUser,
+          handlers: {
+            [`PUT ${REPLY_URL}`]: () =>
+              json({title: "You can't accept it while something else is on your calendar at that time: That time overlaps another appointment, 10:30 to 11:00."}, 409),
+            [`GET /api/calendar/meetings/${MEETING.id}`]: () => json(answered('Declined')),
+          },
+        },
+      );
+
+      await user.click(await dialog().findByRole('button', {name: 'Accept'}));
+
+      expect(await dialog().findByText(/something else is on your calendar at that time/)).toBeInTheDocument();
+      expect(button('Decline')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('shows the meeting as it is now when it moved since the dialog opened, to reply to that', async () => {
+      const moved: Meeting = {...MINE, date: '2026-11-26', startUtc: '2026-11-26T14:00:00Z', endUtc: '2026-11-26T15:00:00Z'};
+      const {user, fetch} = renderDialog(
+        {meeting: MINE},
+        {
+          user: staffUser,
+          handlers: {
+            [`PUT ${REPLY_URL}`]: () =>
+              json({title: 'This meeting has moved to Thursday 26 November, 14:00 to 15:00: look at its new time, then reply.'}, 409),
+            [`GET /api/calendar/meetings/${MEETING.id}`]: () => json(moved),
+          },
+        },
+      );
+
+      await user.click(await dialog().findByRole('button', {name: 'Decline'}));
+
+      expect(await dialog().findByText(/This meeting has moved to Thursday 26 November/)).toBeInTheDocument();
+      expect(await dialog().findByText('Thursday 26 November, 14:00 to 15:00')).toBeInTheDocument();
+      expect(button('Decline')).toHaveAttribute('aria-pressed', 'false');
+      // Replying again is about the new time.
+      await user.click(button('Accept'));
+      await waitFor(() => expect(requests(fetch, 'PUT', REPLY_URL)).toHaveLength(2));
+      expect(await bodyOf(fetch, 'PUT', REPLY_URL)).toMatchObject({expectedStartUtc: moved.startUtc, expectedEndUtc: moved.endUtc});
+    });
+
+    it('keeps the message when the meeting has gone meanwhile', async () => {
+      const {user} = renderDialog(
+        {meeting: MINE},
+        {
+          user: staffUser,
+          handlers: {
+            [`PUT ${REPLY_URL}`]: () => json({title: 'This meeting has moved.'}, 409),
+            [`GET /api/calendar/meetings/${MEETING.id}`]: () => json({title: 'Not found'}, 404),
+          },
+        },
+      );
+
+      await user.click(await dialog().findByRole('button', {name: 'Accept'}));
+
+      expect(await dialog().findByText('This meeting has moved.')).toBeInTheDocument();
+      expect(dialog().getByText('Tuesday 24 November, 10:00 to 11:00')).toBeInTheDocument();
+    });
+
+    it('offers no reply once it can no longer be replied to, even to an attendee', async () => {
+      renderDialog({meeting: {...answered('Accepted'), canReply: false}}, {user: staffUser});
+
+      expect(await dialog().findByText('2 accepted, 1 declined')).toBeInTheDocument();
+      expect(dialog().queryByRole('group', {name: 'Your reply'})).not.toBeInTheDocument();
+    });
   });
 });

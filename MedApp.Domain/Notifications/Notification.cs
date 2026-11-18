@@ -35,6 +35,12 @@ public sealed class Notification
     /// <summary>The UK date on the calendar it's about, if any (a meeting's day), for a link to the Calendar that day.</summary>
     public DateOnly? CalendarDate { get; init; }
 
+    /// <summary>
+    /// The meeting it's about, if any, for a link that opens it on the Calendar that day; none for a cancellation (the
+    /// meeting is deleted, or the person is no longer on it). No foreign key: the notification outlives the meeting.
+    /// </summary>
+    public Guid? MeetingId { get; init; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     /// <summary>When the user marked it read; null while unread.</summary>

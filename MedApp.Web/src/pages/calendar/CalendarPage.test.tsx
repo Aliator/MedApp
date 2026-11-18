@@ -328,6 +328,24 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({appointment: id, date: '2026-12-02', staff: STAFF_OTHER.userId}));
   });
 
+  it('opens a linked meeting in its dialog, even one not on the calendar shown, and closes it from the URL', async () => {
+    const id = '00000000-0000-0000-0000-00000000e0de';
+    // An organiser told of a decline, who isn't going: the meeting isn't on their calendar.
+    const meeting = testMeeting({id, date: '2026-11-24', title: 'Synthetic governance', attendees: [{...STAFF_OTHER, reply: 'Declined'}]});
+    const {user, onSearchChange} = renderPage({search: {date: '2026-11-24', view: 'day', meeting: id}, handlers: {[`GET /api/calendar/meetings/${id}`]: () => json(meeting)}});
+
+    const shown = await screen.findByRole('region', {name: 'Meeting dialog'});
+    expect(shown).toHaveAttribute('data-meeting', id);
+    await user.click(within(shown).getByRole('button', {name: 'Close meeting'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({date: '2026-11-24', view: 'day', meeting: undefined});
+  });
+
+  it("says when a linked meeting can't be found, as when it was cancelled", async () => {
+    renderPage({search: {meeting: '00000000-0000-0000-0000-000000000404'}});
+
+    expect(await screen.findByText("That meeting couldn't be found. It may have been cancelled.")).toBeInTheDocument();
+  });
+
   it("says when a linked appointment can't be found", async () => {
     renderPage({search: {appointment: '00000000-0000-0000-0000-000000000404'}});
 
