@@ -19,15 +19,21 @@ public sealed class EmailQueue : IEmailSender
     private readonly EmailDeliveryOptions _options;
     private readonly ILogger<EmailQueue> _logger;
 
-    public EmailQueue(IOptions<EmailDeliveryOptions> options, ILogger<EmailQueue> logger)
+    public EmailQueue(IOptions<EmailDeliveryOptions> options, ILogger<EmailQueue> logger, TimeProvider? timeProvider = null)
     {
         _options = options.Value;
         _logger = logger;
         _notices = Create(_options.QueueCapacity);
         _links = Create(_options.QueueCapacity);
+        Budget = new EmailBudget(_options.MaxPerHour, timeProvider ?? TimeProvider.System);
     }
 
     public bool CanSend => _options.CanSend;
+
+    /// <summary>This copy's hourly allowance, which <see cref="EmailDispatcher"/> takes from as it sends.</summary>
+    public EmailBudget Budget { get; }
+
+    public bool HasRoomFor(EmailCategory category) => CanSend && Budget.HasRoom(category);
 
     /// <summary>Notices and two-factor codes waiting, sent before any link.</summary>
     public ChannelReader<EmailMessage> Notices => _notices.Reader;

@@ -43,13 +43,23 @@ public sealed class EmailCode
     }
 
     /// <summary>A new code's row, not yet holding a code: <see cref="Issue"/> sets it, once its hash is known.</summary>
-    public EmailCode(Guid userId, EmailCodePurpose purpose, Guid? challengeId, DateTime createdAtUtc)
+    /// <param name="notAfterUtc">
+    /// When what it's for ends, if sooner than <see cref="Lifetime"/> (a sign-in's challenge): the code ends then too.
+    /// </param>
+    public EmailCode(Guid userId, EmailCodePurpose purpose, Guid? challengeId, DateTime createdAtUtc, DateTime? notAfterUtc = null)
     {
         UserId = userId;
         Purpose = purpose;
         ChallengeId = challengeId;
         SentAtUtc = createdAtUtc;
-        ExpiresAtUtc = createdAtUtc.Add(Lifetime);
+        ExpiresAtUtc = ExpiryFor(createdAtUtc, notAfterUtc);
+    }
+
+    /// <summary>When a code sent at <paramref name="sentAtUtc"/> stops working: <see cref="Lifetime"/> on, or sooner.</summary>
+    public static DateTime ExpiryFor(DateTime sentAtUtc, DateTime? notAfterUtc)
+    {
+        var expires = sentAtUtc.Add(Lifetime);
+        return notAfterUtc is { } end && end < expires ? end : expires;
     }
 
     public Guid Id { get; private set; } = Guid.NewGuid();
@@ -76,8 +86,8 @@ public sealed class EmailCode
     /// <summary>Sets the code (as its hash) of a new row.</summary>
     public void Issue(string codeHash) => CodeHash = codeHash;
 
-    /// <summary>Whether it still works at <paramref name="utcNow"/>.</summary>
-    public bool IsLive(DateTime utcNow) => ExpiresAtUtc > utcNow;
+    /// <summary>Whether it still works at <paramref name="utcNow"/>: not expired, and with tries left.</summary>
+    public bool IsLive(DateTime utcNow) => ExpiresAtUtc > utcNow && FailedAttempts < MaxFailedAttempts;
 
     /// <summary>When it can next be sent again (by the server's clock).</summary>
     public DateTime ResendAvailableAtUtc => SentAtUtc.Add(ResendInterval);

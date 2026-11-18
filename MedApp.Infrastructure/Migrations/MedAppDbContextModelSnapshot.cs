@@ -335,7 +335,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("ExpiresAtUtc");
 
-                    b.HasIndex("UserId", "Purpose");
+                    b.HasIndex("UserId", "Purpose")
+                        .IsUnique()
+                        .HasFilter("[ChallengeId] IS NULL");
 
                     b.ToTable("EmailCodes", (string)null);
                 });

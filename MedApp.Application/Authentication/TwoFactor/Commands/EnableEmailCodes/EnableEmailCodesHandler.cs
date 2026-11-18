@@ -17,12 +17,15 @@ namespace MedApp.Application.Authentication.TwoFactor.Commands.EnableEmailCodes;
 /// Checks the emailed code (it counts against the account's limit on codes, and against the code's own attempts; the
 /// password was checked when it was sent), then turns two-factor on with codes by email, with new recovery codes, and
 /// ends the account's other sessions, together (one transaction). A wrong code is a validation error on <c>Code</c>; as
-/// with setting up the app, it doesn't count towards the lockout. Recorded as
+/// with setting up the app, it doesn't count towards the lockout. The address is checked again first (it may have been
+/// removed since the code was sent), and the code itself works only for the address it was sent to. Recorded as
 /// <see cref="SecurityEventKind.EmailCodesEnabled"/>, and the owner (and, for an admin, the other admins) told by email.
 /// </summary>
 public sealed class EnableEmailCodesHandler(
     ITwoFactorService twoFactor,
     IEmailCodeService emailCodes,
+    IAccountEmailService emails,
+    IEmailSender sender,
     ISessionService sessionService,
     IIdentityTransactions transactions,
     ISecurityNotices notices,
@@ -38,9 +41,15 @@ public sealed class EnableEmailCodesHandler(
         if (state.Enabled)
             throw new ConflictException("Two-factor authentication is already on.");
 
+        // The address may have gone since the code was sent (removed, or email switched off): check again.
+        if (await EmailCodesAvailability.WhyNotAsync(emails, sender, request.UserId, ct) is { } reason)
+            throw new ConflictException(EmailCodesAvailability.Explain(reason));
+
         attempts.Attempt(AccountAttempt.TwoFactorCode, request.UserId);
-        if (!await emailCodes.CheckAsync(request.UserId, EmailCodePurpose.TurnOn, null, request.Code, ct))
-            throw new ValidationException([new ValidationFailure(nameof(request.Code), TwoFactorCodes.WrongEmailCode)]);
+        var check = await emailCodes.CheckAsync(request.UserId, EmailCodePurpose.TurnOn, null, request.Code, ct);
+        if (check != EmailCodeCheck.Right)
+            throw new ValidationException([new ValidationFailure(
+                nameof(request.Code), check == EmailCodeCheck.NotLive ? TwoFactorCodes.EmailCodeNotLive : TwoFactorCodes.WrongEmailCode)]);
 
         RecoveryCodesResult? codes = null;
         var result = await transactions.RunAsync(async () =>

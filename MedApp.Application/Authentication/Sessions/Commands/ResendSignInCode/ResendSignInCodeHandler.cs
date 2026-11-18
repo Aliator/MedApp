@@ -22,6 +22,9 @@ public sealed class ResendSignInCodeHandler(
     TimeProvider timeProvider)
     : IRequestHandler<ResendSignInCodeCommand, EmailCodeSentResponse>
 {
+    public const string CouldNotSend =
+        "MedApp couldn't email you a code just now. Use a recovery code, or try signing in again later.";
+
     public async Task<EmailCodeSentResponse> Handle(ResendSignInCodeCommand request, CancellationToken ct)
     {
         var challenge = await challenges.FindByTokenHashAsync(SignInChallengeTokens.Hash(request.Challenge), ct);
@@ -32,9 +35,9 @@ public sealed class ResendSignInCodeHandler(
         if (await twoFactor.GetMethodAsync(challenge.UserId, ct) != TwoFactorMethod.Email)
             throw new ConflictException("This account doesn't use codes by email.");
 
-        var sent = await emailCodes.SendAsync(challenge.UserId, EmailCodePurpose.SignIn, challenge.Id, ct)
-                   ?? throw new ConflictException(
-                       "There's no confirmed email address to send a code to. Use a recovery code instead.");
+        // The code ends with the sign-in, and its email says so.
+        var sent = await emailCodes.SendAsync(challenge.UserId, EmailCodePurpose.SignIn, challenge.Id, ct, challenge.ExpiresAtUtc)
+                   ?? throw new ConflictException(CouldNotSend);
 
         return TwoFactorMapper.ToResponse(sent, now);
     }

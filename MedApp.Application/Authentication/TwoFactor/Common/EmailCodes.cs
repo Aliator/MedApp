@@ -19,8 +19,8 @@ public static class EmailCodes
     public static string Generate() =>
         RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
 
-    /// <summary>A code as typed, without spaces (people often group digits).</summary>
-    public static string Normalise(string? code) => (code ?? string.Empty).Replace(" ", string.Empty).Trim();
+    /// <summary>A code as typed, cleaned as every check cleans it (<see cref="TwoFactorCodes.Normalise"/>).</summary>
+    public static string Normalise(string? code) => TwoFactorCodes.Normalise(code);
 
     /// <summary>Whether <paramref name="code"/> (spaces ignored) has the shape of a code: exactly 6 ASCII digits.</summary>
     public static bool IsWellFormed(string? code)
@@ -29,14 +29,21 @@ public static class EmailCodes
         return digits.Length == Length && digits.All(char.IsAsciiDigit);
     }
 
-    /// <summary>The hash stored for <paramref name="code"/> on the row <paramref name="codeId"/>: SHA-256, lower-case hex.</summary>
-    public static string Hash(Guid codeId, string code) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{codeId:N}:{Normalise(code)}")));
+    /// <summary>
+    /// The hash stored for <paramref name="code"/> on the row <paramref name="codeId"/>: SHA-256, lower-case hex. With
+    /// <paramref name="boundTo"/> (the address a code for turning codes on was sent to), the code works only while that's
+    /// still the account's confirmed address.
+    /// </summary>
+    public static string Hash(Guid codeId, string code, string? boundTo = null) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            boundTo is null
+                ? $"{codeId:N}:{Normalise(code)}"
+                : $"{codeId:N}:{boundTo.Trim().ToLowerInvariant()}:{Normalise(code)}")));
 
     /// <summary>Whether <paramref name="code"/> is the one <paramref name="stored"/> holds, compared in constant time.</summary>
-    public static bool Matches(EmailCode stored, string code) =>
+    public static bool Matches(EmailCode stored, string code, string? boundTo = null) =>
         IsWellFormed(code)
         && CryptographicOperations.FixedTimeEquals(
-            Encoding.ASCII.GetBytes(Hash(stored.Id, code)),
+            Encoding.ASCII.GetBytes(Hash(stored.Id, code, boundTo)),
             Encoding.ASCII.GetBytes(stored.CodeHash));
 }

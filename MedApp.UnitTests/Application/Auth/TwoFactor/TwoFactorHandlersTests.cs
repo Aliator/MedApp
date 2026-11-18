@@ -147,7 +147,7 @@ public sealed class TwoFactorHandlersTests
     // EnableTwoFactor
 
     private EnableTwoFactorHandler EnableHandler() =>
-        new(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object);
+        new(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _emailCodes.Object, _attempts.Object);
 
     [Test]
     public async Task Enable_RightCode_TurnsItOnEndsOtherSessionsAndReturnsTheCodesOnce()

@@ -27,12 +27,23 @@ public static class TwoFactorCodes
     public static string WrongCodeFor(TwoFactorMethod method) =>
         method == TwoFactorMethod.Email ? WrongEmailCode : WrongCode;
 
-    /// <summary>A six-digit authenticator code (spaces ignored), rather than a recovery code.</summary>
-    public static bool IsAuthenticatorCode(string code)
+    /// <summary>
+    /// A code as typed or pasted, cleaned the one way every check uses: without any whitespace (spaces people group
+    /// digits with, and the line break a pasted code often brings).
+    /// </summary>
+    public static string Normalise(string? code) =>
+        string.Concat((code ?? string.Empty).Where(c => !char.IsWhiteSpace(c)));
+
+    /// <summary>A six-digit code (from the app or an email; whitespace ignored), rather than a recovery code.</summary>
+    public static bool IsAuthenticatorCode(string? code)
     {
-        var digits = code.Replace(" ", string.Empty);
+        var digits = Normalise(code);
         return digits.Length == 6 && digits.All(char.IsAsciiDigit);
     }
+
+    /// <summary>A code from an email that has run out, used up its tries, or was already used.</summary>
+    public const string EmailCodeNotLive =
+        "That code has run out or had too many tries. Ask for a new one, then enter the code in the newest email.";
 
     /// <summary>
     /// Checks a 6-digit code from the account's <paramref name="method"/> (the app's current code, or the code emailed to
@@ -57,11 +68,21 @@ public static class TwoFactorCodes
 
         attempts.Attempt(AccountAttempt.TwoFactorCode, userId);
 
-        var verified = IsAuthenticatorCode(code)
-            ? method == TwoFactorMethod.Email
-                ? await emailCodes.CheckAsync(userId, EmailCodePurpose.Confirm, null, code, ct)
-                : await twoFactor.VerifyAuthenticatorCodeAsync(userId, code, ct)
-            : allowRecoveryCode && (await twoFactor.RedeemRecoveryCodeAsync(userId, code, ct)).Succeeded;
+        bool verified;
+        if (IsAuthenticatorCode(code) && method == TwoFactorMethod.Email)
+        {
+            var check = await emailCodes.CheckAsync(userId, EmailCodePurpose.Confirm, null, code, ct);
+            // A code that can't work any more isn't a guess: say to ask for a new one, without counting it.
+            if (check == EmailCodeCheck.NotLive)
+                throw new ValidationException([new ValidationFailure(field, EmailCodeNotLive)]);
+            verified = check == EmailCodeCheck.Right;
+        }
+        else
+        {
+            verified = IsAuthenticatorCode(code)
+                ? await twoFactor.VerifyAuthenticatorCodeAsync(userId, Normalise(code), ct)
+                : allowRecoveryCode && (await twoFactor.RedeemRecoveryCodeAsync(userId, code, ct)).Succeeded;
+        }
 
         if (verified)
             return;

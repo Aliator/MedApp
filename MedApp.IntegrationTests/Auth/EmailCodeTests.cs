@@ -89,7 +89,8 @@ public sealed class EmailCodeTests : IntegrationTest
 
         challenge.Method.Should().Be("Email");
         challenge.EmailCode!.SentTo.Should().Be(EmailAddressMask.Mask(address));
-        challenge.ExpiresAtUtc.Should().Be(Api.Clock.GetUtcNow().UtcDateTime.Add(SignInChallenge.EmailLifetime));
+        // The test clock runs on real time, so the moment read here is a little after the request's.
+        challenge.ExpiresAtUtc.Should().BeCloseTo(Api.Clock.GetUtcNow().UtcDateTime.Add(SignInChallenge.EmailLifetime), TimeSpan.FromSeconds(5));
         var email = Api.Emails.To(address).Last(m => m.Subject == EmailTemplates.TwoFactorCodeSubject);
         email.TextBody.Should().NotContain(staff.Username).And.Contain("10 minutes");
         var code = FakeEmailSender.CodeIn(email);
@@ -254,7 +255,11 @@ public sealed class EmailCodeTests : IntegrationTest
         var address = NewAddress();
         await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
 
-        var sent = await (await staff.Client.PostAsync("/api/auth/me/two-factor/email/code", null)).ReadAsAsync<EmailCodeSentResponse>(HttpStatusCode.Accepted);
+        // The password first, as turning codes on asks.
+        (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email/code", new SendEmailCodeRequest("not-the-password")))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var sent = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email/code", new SendEmailCodeRequest(staff.Password)))
+            .ReadAsAsync<EmailCodeSentResponse>(HttpStatusCode.Accepted);
         sent.SentTo.Should().Be(EmailAddressMask.Mask(address));
         var code = EmailedCodeTo(address);
         Api.Emails.To(address).Last(m => m.Subject == EmailTemplates.TwoFactorCodeSubject).TextBody.Should().Contain("to confirm a change");
@@ -275,7 +280,8 @@ public sealed class EmailCodeTests : IntegrationTest
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
         await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
-        await (await staff.Client.PostAsync("/api/auth/me/two-factor/email/code", null)).ShouldHaveStatusAsync(HttpStatusCode.Accepted);
+        await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email/code", new SendEmailCodeRequest(staff.Password)))
+            .ShouldHaveStatusAsync(HttpStatusCode.Accepted);
 
         var codes = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/recovery-codes", new TwoFactorCodeRequest(staff.Password, EmailedCodeTo(address))))
             .ReadAsAsync<RecoveryCodesResponse>();
@@ -284,11 +290,56 @@ public sealed class EmailCodeTests : IntegrationTest
     }
 
     [Test]
+    public async Task TurningOff_AfterFiveWrongCodes_ANewCodeWorks()
+    {
+        // The review of #118, finding 4: the resend used to send a code that could never work.
+        var staff = await CreateStaffAsync(UserRole);
+        var address = NewAddress();
+        await TurnOnEmailCodesAsync(staff.Client, staff.Password, address);
+        var wrong = Wrong(await ConfirmCodeAsync(staff.Client, staff.Password, address));
+        for (var i = 0; i < 5; i++)
+            await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(staff.Password, wrong));
+
+        // The five wrong codes locked the account (as five wrong app codes would); once that's over, a new code works.
+        Api.Clock.Advance(TimeSpan.FromMinutes(6));
+        var fresh = await ConfirmCodeAsync(staff.Client, staff.Password, address);
+
+        await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(staff.Password, fresh)))
+            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+    }
+
+    [Test]
+    public async Task TurningOn_TwoFirstSendsAtOnce_OnlyOneCodeStands()
+    {
+        var staff = await CreateStaffAsync(UserRole);
+        var address = NewAddress();
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
+        var start = new TaskCompletionSource();
+
+        var sends = Enumerable.Range(0, 2).Select(async _ =>
+        {
+            await start.Task;
+            return await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email", new EmailCodesSetupRequest(staff.Password));
+        }).ToList();
+        start.SetResult();
+        var responses = await Task.WhenAll(sends);
+
+        // However they interleave, the code in the last email is the one that turns codes on.
+        responses.Should().Contain(r => r.StatusCode == HttpStatusCode.Accepted);
+        (await RunInScopeAsync(services => services.GetRequiredService<MedAppDbContext>().EmailCodes
+                .CountAsync(c => c.UserId == staff.UserId && c.Purpose == EmailCodePurpose.TurnOn)))
+            .Should().Be(1);
+        await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email/enable", new EmailCodeRequest(EmailedCodeTo(address))))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task SendingAConfirmCode_WithoutEmailCodes_IsRefused()
     {
         var staff = await CreateStaffAsync(UserRole);
 
-        (await staff.Client.PostAsync("/api/auth/me/two-factor/email/code", null)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/email/code", new SendEmailCodeRequest(staff.Password)))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Test]
@@ -303,10 +354,16 @@ public sealed class EmailCodeTests : IntegrationTest
             { Content = JsonContent.Create(new RemoveEmailRequest(staff.Password)) })).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await admin.DeleteAsync($"/api/auth/users/{staff.Username}/email")).StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        // A new address waiting to be confirmed gets no codes; the confirmed one still does.
+        // Moving the address needs the current factor too: the password alone isn't enough.
         var newAddress = NewAddress();
-        await (await staff.Client.PutAsJsonAsync("/api/auth/me/email", new ChangeEmailRequest(newAddress, staff.Password)))
+        (await staff.Client.PutAsJsonAsync("/api/auth/me/email", new ChangeEmailRequest(newAddress, staff.Password)))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        CodeEmailsTo(newAddress).Should().Be(0);
+        var confirm = await ConfirmCodeAsync(staff.Client, staff.Password, address);
+        await (await staff.Client.PutAsJsonAsync("/api/auth/me/email", new ChangeEmailRequest(newAddress, staff.Password, confirm)))
             .ShouldHaveStatusAsync(HttpStatusCode.Accepted);
+
+        // A new address waiting to be confirmed gets no codes; the confirmed one still does.
         await PasswordStepAsync(NewClient(), staff.Username, staff.Password);
         CodeEmailsTo(newAddress).Should().Be(0);
         EmailedCodeTo(address).Should().NotBeNullOrEmpty();
@@ -341,10 +398,25 @@ public sealed class EmailCodeTests : IntegrationTest
         var status = await StatusAsync(client);
         status.Method.Should().Be("Email");
         status.Required.Should().BeTrue();
-        (await client.PostAsync("/api/auth/me/two-factor/email/code", null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(otherAdmin.Password, "000000")))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-        // Setting up the app replaces the email codes (two-factor never goes off) and frees them.
-        var (key, _) = await TurnOnTwoFactorAsync(client, otherAdmin.Password);
+        // Switching needs the current factor, not only the password and the new app's code.
+        var setup = await (await client.PostAsync("/api/auth/me/two-factor/authenticator", null)).ReadAsAsync<AuthenticatorSetupResponse>();
+        var withoutCurrent = await client.PostAsJsonAsync("/api/auth/me/two-factor/enable",
+            new TwoFactorCodeRequest(otherAdmin.Password, NextCode(setup.SharedKey)));
+        await withoutCurrent.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+        (await withoutCurrent.Content.ReadAsStringAsync()).Should().Contain("CurrentCode");
+        (await StatusAsync(client)).Method.Should().Be("Email");
+
+        // Setting up the app replaces the email codes (two-factor never goes off) and frees them; the hold lets them ask
+        // for the emailed code that proves the current factor, and the other admins are told.
+        Api.Emails.Clear();
+        var adminAddress = NewAddress();
+        await ConfirmAddressAsync(admin, AdminPassword, adminAddress);
+        var (key, _) = await SwitchToAppAsync(client, otherAdmin.Password, address);
+        Api.Emails.To(adminAddress).Should().Contain(m => m.Subject == "An administrator moved their sign-in codes to an authenticator app");
+        Api.Emails.To(address).Should().Contain(m => m.Subject == "Your MedApp sign-in codes moved to an authenticator app");
         await (await client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);
         (await StatusAsync(client)).Method.Should().Be("Authenticator");
         await SignInWithTwoFactorAsync(otherAdmin.Username, otherAdmin.Password, key);
@@ -361,8 +433,7 @@ public sealed class EmailCodeTests : IntegrationTest
         var code = EmailedCodeTo(address);
         await SecondStepAsync(client, challenge.Challenge, Wrong(code));
         await (await SecondStepAsync(client, challenge.Challenge, code)).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await client.PostAsync("/api/auth/me/two-factor/email/code", null)).ShouldHaveStatusAsync(HttpStatusCode.Accepted);
-        var confirm = EmailedCodeTo(address);
+        var confirm = await ConfirmCodeAsync(client, staff.Password, address);
         await (await client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(staff.Password, confirm)))
             .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 

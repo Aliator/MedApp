@@ -40,4 +40,10 @@ public enum SecurityNotice
 
     /// <summary>Two-factor authentication was turned on with codes sent to this address.</summary>
     EmailCodesEnabled,
+
+    /// <summary>Their codes by email were replaced by an authenticator app.</summary>
+    TwoFactorSwitchedToApp,
+
+    /// <summary>Another admin's codes by email were replaced by an authenticator app (sent to every admin with a confirmed address).</summary>
+    AdminTwoFactorSwitchedToApp,
 }

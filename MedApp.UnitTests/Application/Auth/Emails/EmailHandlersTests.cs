@@ -47,7 +47,7 @@ public sealed class EmailHandlersTests
     }
 
     private ChangeMyEmailHandler ChangeHandler(bool canSend = true) =>
-        new(_emails.Object, _users.Object, _twoFactor.Object, Availability(canSend), _sender.Object, Links(), _notices.Object, _events.Object, _attempts.Object);
+        new(_emails.Object, _users.Object, _twoFactor.Object, Availability(canSend), _sender.Object, Links(), _notices.Object, _events.Object, _attempts.Object, new Mock<MedApp.Application.Authentication.TwoFactor.Common.IEmailCodeService>().Object);
 
     [Test]
     public async Task GetMyEmail_ReturnsTheAddresses()

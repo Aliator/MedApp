@@ -134,7 +134,7 @@ public sealed class EmailCodesHandlersTests
     public async Task Begin_RightPassword_EmailsACodeToTurnItOn()
     {
         GivenState(State(enabled: false));
-        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.TurnOn, null, It.IsAny<CancellationToken>())).ReturnsAsync(Sent);
+        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.TurnOn, null, It.IsAny<CancellationToken>(), It.IsAny<DateTime?>())).ReturnsAsync(Sent);
 
         var result = await BeginHandler().Handle(new BeginEmailCodesSetupCommand(UserId, CurrentPassword), CancellationToken.None);
 
@@ -218,10 +218,10 @@ public sealed class EmailCodesHandlersTests
     // EnableEmailCodes
 
     private EnableEmailCodesHandler EnableHandler() =>
-        new(_twoFactor.Object, _emailCodes.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _attempts.Object);
+        new(_twoFactor.Object, _emailCodes.Object, _emails.Object, _sender.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _attempts.Object);
 
     private void RightCode() =>
-        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
 
     [Test]
     public async Task Enable_RightCode_TurnsEmailCodesOnEndsOtherSessionsAndReturnsTheRecoveryCodes()
@@ -327,15 +327,15 @@ public sealed class EmailCodesHandlersTests
 
     // SendTwoFactorEmailCode
 
-    private SendTwoFactorEmailCodeHandler SendHandler() => new(_twoFactor.Object, _emailCodes.Object, _clock);
+    private SendTwoFactorEmailCodeHandler SendHandler() => new(_twoFactor.Object, _users.Object, _emailCodes.Object, _clock);
 
     [Test]
     public async Task Send_UsingEmailCodes_EmailsACodeToConfirmAChange()
     {
         GivenState(Email());
-        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.Confirm, null, It.IsAny<CancellationToken>())).ReturnsAsync(Sent);
+        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.Confirm, null, It.IsAny<CancellationToken>(), It.IsAny<DateTime?>())).ReturnsAsync(Sent);
 
-        var result = await SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId), CancellationToken.None);
+        var result = await SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword), CancellationToken.None);
 
         result.SentTo.Should().Be(MaskedAddress);
     }
@@ -346,7 +346,7 @@ public sealed class EmailCodesHandlersTests
     {
         GivenState(State(enabled: appOn));
 
-        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId), CancellationToken.None);
+        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
         _emailCodes.VerifyNoOtherCalls();
@@ -357,7 +357,7 @@ public sealed class EmailCodesHandlersTests
     {
         GivenState(Email());
 
-        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId), CancellationToken.None);
+        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ConflictException>()).Which.Message.Should().Contain("recovery code");
     }
@@ -365,7 +365,7 @@ public sealed class EmailCodesHandlersTests
     [Test]
     public async Task Send_NoAccount_IsNotFound()
     {
-        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId), CancellationToken.None);
+        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -379,7 +379,7 @@ public sealed class EmailCodesHandlersTests
     public async Task Disable_EmailCodes_ChecksTheEmailedCodeAndRecordsEmailCodesOff()
     {
         GivenState(Email());
-        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
         _twoFactor.Setup(t => t.DisableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
 
         await DisableHandler().Handle(new DisableTwoFactorCommand(UserId, CurrentPassword, EmailedCode, SessionId), CancellationToken.None);
@@ -430,7 +430,7 @@ public sealed class EmailCodesHandlersTests
     public async Task Regenerate_EmailCodes_ChecksTheEmailedCode()
     {
         GivenState(Email());
-        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
         _twoFactor.Setup(t => t.RegenerateRecoveryCodesAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 
@@ -462,23 +462,238 @@ public sealed class EmailCodesHandlersTests
         result.QrCodeSize.Should().Be(33);
     }
 
-    [Test]
-    public async Task EnableAuthenticator_WhileUsingEmailCodes_SwitchesWithoutTellingTheOtherAdmins()
+    private EnableTwoFactorHandler EnableAppHandler() =>
+        new(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _emailCodes.Object, _attempts.Object);
+
+    private void SwitchingAdmin()
     {
         GivenState(Email(isAdmin: true));
         _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
+    }
 
-        var result = await new EnableTwoFactorHandler(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object)
-            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
+    [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WithAnEmailedCode_SwitchesAndTellsEveryone()
+    {
+        SwitchingAdmin();
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
+
+        var result = await EnableAppHandler()
+            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, EmailedCode), CancellationToken.None);
 
         result.RecoveryCodes.Should().Equal(Codes);
         _events.Verify(e => e.RecordAsync(
             It.Is<SecurityEvent>(ev => ev.Kind == SecurityEventKind.TwoFactorEnabled && (string)ev.Details!["switchedFrom"]! == "email"),
             It.IsAny<CancellationToken>()), Times.Once);
+        _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.TwoFactorSwitchedToApp, It.IsAny<CancellationToken>(), null, null), Times.Once);
+        // The review of #118, finding 2: other admins hear of a switch, as they do when two-factor goes off.
+        _notices.Verify(n => n.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorSwitchedToApp, UserId, Username, It.IsAny<CancellationToken>()), Times.Once);
+        new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, EmailedCode).ToString().Should().NotContain(EmailedCode);
+    }
+
+    [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WithARecoveryCode_Switches()
+    {
+        SwitchingAdmin();
+        _twoFactor.Setup(t => t.RedeemRecoveryCodeAsync(UserId, RecoveryCode, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodeRedemption(true, 9));
+
+        await EnableAppHandler()
+            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, RecoveryCode), CancellationToken.None);
+
+        _twoFactor.Verify(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WithoutTheCurrentFactor_IsRefused()
+    {
+        // The review of #118, finding 2: a session and the password alone used to swap the second factor.
+        SwitchingAdmin();
+
+        var act = () => EnableAppHandler()
+            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should()
+            .ContainSingle(e => e.PropertyName == "CurrentCode" && e.ErrorMessage == EnableTwoFactorHandler.CurrentCodeNeeded);
+        _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<TwoFactorMethod>(), It.IsAny<CancellationToken>()), Times.Never);
+        // The new app's code isn't spent on a request that can't succeed.
+        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WrongCurrentCode_CountsTowardsTheLockout()
+    {
+        SwitchingAdmin();
+
+        var act = () => EnableAppHandler()
+            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, EmailedCode), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "CurrentCode");
+        _twoFactor.Verify(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
+        _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<TwoFactorMethod>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task EnableAuthenticator_NotUsingEmailCodes_NeedsNoCurrentCode()
+    {
+        GivenState(State(enabled: false));
+        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
+
+        await EnableAppHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
+
         _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.TwoFactorEnabled, It.IsAny<CancellationToken>(), null, null), Times.Once);
-        _notices.Verify(n => n.SendToOtherAdminsAsync(It.IsAny<SecurityNotice>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _emailCodes.VerifyNoOtherCalls();
+    }
+
+    // Codes that can't work, and code cleaning (the review of #118, findings 1 and 4)
+
+    [TestCase("654321\n")]
+    [TestCase("654321\r\n")]
+    [TestCase(" 654 321 ")]
+    [TestCase("\t654321")]
+    public async Task Disable_EmailedCodeWithALineBreak_IsAcceptedAsAtSignIn(string typed)
+    {
+        GivenState(Email());
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, typed, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
+        _twoFactor.Setup(t => t.DisableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
+
+        await DisableHandler().Handle(new DisableTwoFactorCommand(UserId, CurrentPassword, typed, SessionId), CancellationToken.None);
+
+        _twoFactor.Verify(t => t.DisableAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
+        _twoFactor.Verify(t => t.RedeemRecoveryCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Disable_EmailedCodeThatCantWorkAnyMore_SaysAskForANewOne_WithoutCountingIt()
+    {
+        GivenState(Email());
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.NotLive);
+
+        var act = () => DisableHandler().Handle(new DisableTwoFactorCommand(UserId, CurrentPassword, EmailedCode, SessionId), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should()
+            .ContainSingle(e => e.PropertyName == "Code" && e.ErrorMessage == TwoFactorCodes.EmailCodeNotLive);
+        _twoFactor.Verify(t => t.RecordFailedCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestCase("123456\n", true)]
+    [TestCase("123456\r\n", true)]
+    [TestCase("\t123 456 ", true)]
+    [TestCase("1234567", false)]
+    [TestCase(null, false)]
+    public void IsAuthenticatorCode_CleansAsEmailCodesDo(string? code, bool expected)
+    {
+        TwoFactorCodes.IsAuthenticatorCode(code).Should().Be(expected);
+        EmailCodes.IsWellFormed(code).Should().Be(expected);
+    }
+
+    [Test]
+    public async Task EnableEmail_CodeThatCantWorkAnyMore_SaysAskForANewOne()
+    {
+        GivenState(State(enabled: false));
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.NotLive);
+
+        var act = () => EnableHandler().Handle(new EnableEmailCodesCommand(UserId, EmailedCode, SessionId), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should()
+            .ContainSingle(e => e.ErrorMessage == TwoFactorCodes.EmailCodeNotLive);
+    }
+
+    [Test]
+    public async Task EnableEmail_AddressRemovedSinceTheCodeWasSent_IsAConflict()
+    {
+        // The review of #118, finding 6.
+        GivenState(State(enabled: false));
+        _emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(Account(null));
+
+        var act = () => EnableHandler().Handle(new EnableEmailCodesCommand(UserId, EmailedCode, SessionId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _emailCodes.VerifyNoOtherCalls();
+        _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<TwoFactorMethod>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // Moving the address while it's the second factor (the review of #118, finding 2)
+
+    private MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail.ChangeMyEmailHandler ChangeHandler() =>
+        new(_emails.Object, _users.Object, _twoFactor.Object, Availability(canSend: true), _sender.Object, Links(), _notices.Object, _events.Object,
+            _attempts.Object, _emailCodes.Object);
+
+    private void GivenAChange() =>
+        _emails.Setup(e => e.RequestChangeAsync(UserId, OtherAddress, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailChangeRequest(Username, OtherAddress, "token"));
+
+    [Test]
+    public async Task ChangeMyEmail_UsingEmailCodes_WithoutACode_IsRefused()
+    {
+        GivenState(Email());
+        GivenAChange();
+
+        var act = () => ChangeHandler().Handle(
+            new MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail.ChangeMyEmailCommand(UserId, OtherAddress, CurrentPassword),
+            CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Code");
+        _emails.Verify(e => e.RequestChangeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ChangeMyEmail_UsingEmailCodes_WithAnEmailedCode_AsksForTheNewAddress()
+    {
+        GivenState(Email());
+        GivenAChange();
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
+
+        await ChangeHandler().Handle(
+            new MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail.ChangeMyEmailCommand(UserId, OtherAddress, CurrentPassword, EmailedCode),
+            CancellationToken.None);
+
+        _emails.Verify(e => e.RequestChangeAsync(UserId, OtherAddress, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task ChangeMyEmail_UsingEmailCodes_WrongCode_CountsTowardsTheLockout()
+    {
+        GivenState(Email());
+        GivenAChange();
+
+        var act = () => ChangeHandler().Handle(
+            new MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail.ChangeMyEmailCommand(UserId, OtherAddress, CurrentPassword, EmailedCode),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+        _twoFactor.Verify(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
+        _emails.Verify(e => e.RequestChangeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ChangeMyEmail_WithTheApp_NeedsNoCode()
+    {
+        GivenState(State());
+        GivenAChange();
+
+        await ChangeHandler().Handle(
+            new MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail.ChangeMyEmailCommand(UserId, OtherAddress, CurrentPassword),
+            CancellationToken.None);
+
+        _emailCodes.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Send_WrongPassword_SendsNothing()
+    {
+        GivenState(Email());
+        _users.Setup(u => u.VerifyPasswordAsync(Username, CurrentPassword, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.PasswordIncorrect));
+
+        var act = () => SendHandler().Handle(new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Password");
+        _emailCodes.VerifyNoOtherCalls();
+        new SendTwoFactorEmailCodeValidator().Validate(new SendTwoFactorEmailCodeCommand(UserId, "")).IsValid.Should().BeFalse();
+        new SendTwoFactorEmailCodeCommand(UserId, CurrentPassword).ToString().Should().NotContain(CurrentPassword);
     }
 
     // The address while it's used for codes

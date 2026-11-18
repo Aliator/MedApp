@@ -92,7 +92,8 @@ public sealed class AccountSecurityControllerTests
         var sent = new EmailCodeSentResponse("s•••@example.test", ExpiresAtUtc, 60, 3);
         var mediator = new RecordingMediator(request => request switch
         {
-            EnableEmailCodesCommand => new RecoveryCodesResponse(["A"]),
+            EnableEmailCodesCommand or EnableTwoFactorCommand => new RecoveryCodesResponse(["A"]),
+            ChangeMyEmailCommand => new EmailResponse(Email, null),
             _ => sent,
         });
         var controller = Controller(mediator);
@@ -100,13 +101,20 @@ public sealed class AccountSecurityControllerTests
         (await controller.BeginEmailCodesSetup(new EmailCodesSetupRequest(Password), CancellationToken.None))
             .Should().BeOfType<AcceptedResult>().Which.Value.Should().Be(sent);
         (await controller.EnableEmailCodes(new EmailCodeRequest(AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await controller.SendTwoFactorEmailCode(CancellationToken.None)).Should().BeOfType<AcceptedResult>();
+        (await controller.SendTwoFactorEmailCode(new SendEmailCodeRequest(Password), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
+        (await controller.EnableTwoFactor(new TwoFactorCodeRequest(Password, AuthenticatorCode, "ABCDE-23456"), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.ChangeMyEmail(new ChangeEmailRequest(Email, Password, "654321"), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
 
         mediator.Sent.Should().Equal(
             new BeginEmailCodesSetupCommand(UserId, Password),
             new EnableEmailCodesCommand(UserId, AuthenticatorCode, SessionId),
-            new SendTwoFactorEmailCodeCommand(UserId));
+            new SendTwoFactorEmailCodeCommand(UserId, Password),
+            new EnableTwoFactorCommand(UserId, Password, AuthenticatorCode, SessionId, "ABCDE-23456"),
+            new ChangeMyEmailCommand(UserId, Email, Password, "654321"));
         new EmailCodesSetupRequest(Password).ToString().Should().NotContain(Password);
+        new SendEmailCodeRequest(Password).ToString().Should().NotContain(Password);
+        new TwoFactorCodeRequest(Password, AuthenticatorCode, "ABCDE-23456").ToString().Should().NotContain("ABCDE-23456");
+        new ChangeEmailRequest(Email, Password, "654321").ToString().Should().NotContain("654321");
         new EmailCodeRequest(AuthenticatorCode).ToString().Should().NotContain(AuthenticatorCode);
     }
 

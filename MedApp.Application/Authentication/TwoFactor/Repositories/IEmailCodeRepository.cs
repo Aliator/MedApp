@@ -10,22 +10,26 @@ public interface IEmailCodeRepository
 {
     /// <summary>
     /// The account's code for <paramref name="purpose"/> (for sign-in, the one for <paramref name="challengeId"/>), live
-    /// at <paramref name="utcNow"/>, or null.
+    /// at <paramref name="utcNow"/> (not expired, and with tries left), or null.
     /// </summary>
     Task<EmailCode?> FindLiveAsync(Guid userId, EmailCodePurpose purpose, Guid? challengeId, DateTime utcNow, CancellationToken ct);
 
     /// <summary>
-    /// Saves a new code. The account's earlier codes for the same purpose are deleted (a new code replaces the last), and
-    /// so is every code that expired before <paramref name="utcNow"/>, so the table stays small.
+    /// Saves a new code, when the account has no live one for the same purpose. Its codes for that purpose that can't
+    /// work any more (expired, or out of tries) are deleted first, and so is every code that expired before
+    /// <paramref name="utcNow"/>, so the table stays small. False, with nothing saved, if a live one is there (another
+    /// request made it at the same moment): a filtered unique index allows one code per account and purpose outside
+    /// sign-in, so two first sends at once can't both stand.
     /// </summary>
-    Task AddAsync(EmailCode code, DateTime utcNow, CancellationToken ct);
+    Task<bool> AddAsync(EmailCode code, DateTime utcNow, CancellationToken ct);
 
     /// <summary>
-    /// Replaces the code with a new one (<paramref name="codeHash"/>), sent at <paramref name="utcNow"/>, in one
-    /// statement: only if it's still live, has resends left, and was last sent at least <see cref="EmailCode.ResendInterval"/>
-    /// ago. False, with nothing changed, otherwise, so of two resends at once only one sends.
+    /// Replaces the code with a new one (<paramref name="codeHash"/>), sent at <paramref name="utcNow"/> and working until
+    /// <paramref name="expiresAtUtc"/>, in one statement: only if it's still live, has resends left, and was last sent at
+    /// least <see cref="EmailCode.ResendInterval"/> ago. False, with nothing changed, otherwise, so of two resends at once
+    /// only one sends.
     /// </summary>
-    Task<bool> TryResendAsync(Guid codeId, string codeHash, DateTime utcNow, CancellationToken ct);
+    Task<bool> TryResendAsync(Guid codeId, string codeHash, DateTime utcNow, DateTime expiresAtUtc, CancellationToken ct);
 
     /// <summary>
     /// Reserves one of the code's attempts before it's checked, in one statement: only if it's live and has attempts left

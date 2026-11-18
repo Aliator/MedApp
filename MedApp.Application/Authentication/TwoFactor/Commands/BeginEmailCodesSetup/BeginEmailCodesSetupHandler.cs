@@ -22,6 +22,8 @@ public sealed class BeginEmailCodesSetupHandler(
     TimeProvider timeProvider)
     : IRequestHandler<BeginEmailCodesSetupCommand, EmailCodeSentResponse>
 {
+    public const string CouldNotSend = "MedApp couldn't email you a code just now. Try again later.";
+
     public async Task<EmailCodeSentResponse> Handle(BeginEmailCodesSetupCommand request, CancellationToken ct)
     {
         var state = await twoFactor.GetStateAsync(request.UserId, ct)
@@ -38,7 +40,7 @@ public sealed class BeginEmailCodesSetupHandler(
         await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
 
         var sent = await emailCodes.SendAsync(request.UserId, EmailCodePurpose.TurnOn, null, ct)
-                   ?? throw new ConflictException(EmailCodesAvailability.Explain(EmailCodesAvailability.NoConfirmedAddress));
+                   ?? throw new ConflictException(CouldNotSend);
 
         return TwoFactorMapper.ToResponse(sent, timeProvider.GetUtcNow().UtcDateTime);
     }

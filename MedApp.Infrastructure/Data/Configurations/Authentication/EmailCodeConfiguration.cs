@@ -32,7 +32,11 @@ public sealed class EmailCodeConfiguration : IEntityTypeConfiguration<EmailCode>
             .HasForeignKey(code => code.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(code => new { code.UserId, code.Purpose });
+        // One code per account and purpose outside sign-in (whose codes are one per challenge), so two first sends at the
+        // same moment can't both stand: the second insert is refused (EmailCodeRepository.AddAsync).
+        builder.HasIndex(code => new { code.UserId, code.Purpose })
+            .IsUnique()
+            .HasFilter("[ChallengeId] IS NULL");
         builder.HasIndex(code => code.ExpiresAtUtc);
     }
 }

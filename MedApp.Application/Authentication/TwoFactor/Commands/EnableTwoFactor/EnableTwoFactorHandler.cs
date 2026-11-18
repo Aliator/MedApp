@@ -18,7 +18,8 @@ namespace MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 /// other sessions, together (one transaction). A wrong code is a validation error on <c>Code</c>; it doesn't count
 /// towards the lockout, since the person setting up holds the key anyway. The owner is told by email. On an account
 /// using codes by email, the app replaces them (two-factor stays on throughout), recorded as turned on with
-/// <c>switchedFrom: "email"</c>.
+/// <c>switchedFrom: "email"</c>; that switch needs the current factor too (<see cref="EnableTwoFactorCommand.CurrentCode"/>:
+/// an emailed code or a recovery code, counted as any code is), and the owner and other admins are told.
 /// </summary>
 public sealed class EnableTwoFactorHandler(
     ITwoFactorService twoFactor,
@@ -26,9 +27,14 @@ public sealed class EnableTwoFactorHandler(
     ISessionService sessionService,
     IIdentityTransactions transactions,
     ISecurityNotices notices,
-    ISecurityEventLog events)
+    ISecurityEventLog events,
+    IEmailCodeService emailCodes,
+    IAccountAttemptLimiter attempts)
     : IRequestHandler<EnableTwoFactorCommand, RecoveryCodesResponse>
 {
+    public const string CurrentCodeNeeded =
+        "Enter the code we emailed you, or one of your recovery codes, to confirm it's you before switching.";
+
     public async Task<RecoveryCodesResponse> Handle(EnableTwoFactorCommand request, CancellationToken ct)
     {
         var state = await twoFactor.GetStateAsync(request.UserId, ct)
@@ -41,8 +47,18 @@ public sealed class EnableTwoFactorHandler(
         // A session alone isn't enough to tie the account to someone's app: the password too.
         await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
 
-        if (!await twoFactor.VerifyAuthenticatorCodeAsync(request.UserId, request.Code, ct))
+        // Replacing codes by email needs them too (or a recovery code), as turning them off does: otherwise a session and
+        // the password could swap the owner's second factor for the taker's phone.
+        if (switchingFromEmail && string.IsNullOrWhiteSpace(request.CurrentCode))
+            throw new ValidationException([new ValidationFailure(nameof(request.CurrentCode), CurrentCodeNeeded)]);
+
+        if (!await twoFactor.VerifyAuthenticatorCodeAsync(request.UserId, TwoFactorCodes.Normalise(request.Code), ct))
             throw new ValidationException([new ValidationFailure(nameof(request.Code), TwoFactorCodes.WrongCode)]);
+
+        if (switchingFromEmail)
+            await twoFactor.VerifyOrThrowAsync(
+                emailCodes, attempts, notices, request.UserId, TwoFactorMethod.Email, request.CurrentCode!,
+                nameof(request.CurrentCode), allowRecoveryCode: true, ct);
 
         RecoveryCodesResult? codes = null;
         var result = await transactions.RunAsync(async () =>
@@ -63,10 +79,13 @@ public sealed class EnableTwoFactorHandler(
             new SecurityEvent(SecurityEventKind.TwoFactorEnabled, request.UserId, state.Username,
                 Details: switchingFromEmail ? new Dictionary<string, object?> { ["switchedFrom"] = "email" } : null),
             ct);
-        await notices.SendAsync(request.UserId, SecurityNotice.TwoFactorEnabled, ct);
-        // Other admins hear when an admin turns two-factor on, not when one moves to the stronger method.
-        if (state.IsAdmin && !switchingFromEmail)
-            await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorEnabled, request.UserId, state.Username, ct);
+        await notices.SendAsync(
+            request.UserId, switchingFromEmail ? SecurityNotice.TwoFactorSwitchedToApp : SecurityNotice.TwoFactorEnabled, ct);
+        // Other admins hear when an admin's second factor changes, a switch included, as they do when it goes off.
+        if (state.IsAdmin)
+            await notices.SendToOtherAdminsAsync(
+                switchingFromEmail ? SecurityNotice.AdminTwoFactorSwitchedToApp : SecurityNotice.AdminTwoFactorEnabled,
+                request.UserId, state.Username, ct);
 
         return TwoFactorMapper.ToResponse(codes!);
     }

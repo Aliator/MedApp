@@ -98,11 +98,19 @@ public sealed class LoginTwoFactorHandler(
         else if (await twoFactor.GetMethodAsync(userId, ct) == TwoFactorMethod.Email)
         {
             byEmail = true;
-            verified = await emailCodes.CheckAsync(userId, EmailCodePurpose.SignIn, challenge.Id, request.Code!, ct);
+            var check = await emailCodes.CheckAsync(userId, EmailCodePurpose.SignIn, challenge.Id, request.Code!, ct);
+            // No code that could work (none was sent, or another request used it first): not a guess, so not counted.
+            if (check == EmailCodeCheck.NotLive)
+            {
+                await RecordFailureAsync(actor, "CodeNotLive", ct);
+                throw new InvalidTwoFactorCodeException();
+            }
+
+            verified = check == EmailCodeCheck.Right;
         }
         else
         {
-            verified = await twoFactor.VerifyAuthenticatorCodeAsync(userId, request.Code!, ct);
+            verified = await twoFactor.VerifyAuthenticatorCodeAsync(userId, TwoFactorCodes.Normalise(request.Code), ct);
         }
 
         if (!verified)

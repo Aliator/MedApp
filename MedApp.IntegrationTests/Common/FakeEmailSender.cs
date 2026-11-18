@@ -47,9 +47,10 @@ public sealed partial class FakeEmailSender : IEmailSender
         if (message.Subject != EmailTemplates.TwoFactorCodeSubject)
             throw new InvalidOperationException($"\"{message.Subject}\" isn't a code email.");
 
-        return CodePattern().Match(message.TextBody).Value;
+        // Only the digits: the line break after them (a "\n" on Linux) isn't part of the code.
+        return CodePattern().Match(message.TextBody).Groups["code"].Value;
     }
 
-    [GeneratedRegex(@"(?m)^\d{6}\s*$")]
+    [GeneratedRegex(@"(?m)^(?<code>\d{6})\s*$")]
     private static partial Regex CodePattern();
 }

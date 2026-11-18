@@ -23,6 +23,13 @@ public sealed class TwoFactorCodeEmailTests
         email.HtmlBody.Should().Contain(EmailedCode).And.Contain("lang=\"en-GB\"").And.Contain("<title>");
     }
 
+    [TestCase(10.0, "for 10 minutes")]
+    [TestCase(3.5, "for 3 minutes")]
+    [TestCase(1.0, "for 1 minute.")]
+    [TestCase(0.4, "for 1 minute.")]
+    public void TwoFactorCode_SaysHowLongItWorks_NeverMore(double minutes, string says) =>
+        EmailTemplates.TwoFactorCode(Address, EmailedCode, forSignIn: true, TimeSpan.FromMinutes(minutes)).TextBody.Should().Contain(says);
+
     [Test]
     public void TwoFactorCode_HoldsNothingElse()
     {

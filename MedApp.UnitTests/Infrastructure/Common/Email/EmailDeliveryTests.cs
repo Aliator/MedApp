@@ -94,6 +94,35 @@ public sealed class EmailDeliveryTests
         queue.TryTakeNext()!.Subject.Should().Be("link");
     }
 
+    [TestCase(100, 60, 20)]
+    [TestCase(8, 6, 1)]
+    public void Budget_ResetLinksCantUseUpTheCodesShare(int maxPerHour, int links, int codesAfter)
+    {
+        // The review of #118, finding 3: anyone can ask for reset links, so they mustn't stop sign-in codes.
+        var clock = new Mock<TimeProvider>();
+        clock.Setup(c => c.GetUtcNow()).Returns(new DateTimeOffset(2026, 11, 16, 10, 0, 0, TimeSpan.Zero));
+        var budget = new EmailBudget(maxPerHour, clock.Object);
+
+        Enumerable.Range(0, links).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Link));
+        budget.TryTake(EmailCategory.Link).Should().BeFalse();
+
+        budget.HasRoom(EmailCategory.Code).Should().BeTrue();
+        Enumerable.Range(0, codesAfter).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Code));
+        budget.HasRoom(EmailCategory.Code).Should().BeFalse();
+        budget.HasRoom(EmailCategory.Notice).Should().BeTrue();
+    }
+
+    [Test]
+    public void Queue_HasRoomFor_LooksAtTheBudgetWithoutTakingAPlace()
+    {
+        var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);
+
+        queue.HasRoomFor(EmailCategory.Code).Should().BeTrue();
+        new EmailQueue(Options.Create(new EmailDeliveryOptions()), NullLogger<EmailQueue>.Instance)
+            .HasRoomFor(EmailCategory.Code).Should().BeFalse();
+        Enumerable.Range(0, 200).Should().OnlyContain(_ => queue.HasRoomFor(EmailCategory.Code));
+    }
+
     [Test]
     public void Budget_CodesShareTheLinksAllowance_SoNoticesKeepTheirs()
     {
@@ -129,10 +158,10 @@ public sealed class EmailDeliveryTests
         var budget = new EmailBudget(10, clock.Object);
 
         budget.NoticeReserve.Should().Be(2);
-        Enumerable.Range(0, 8).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Link));
+        budget.CodeReserve.Should().Be(2);
+        Enumerable.Range(0, 6).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Link));
         budget.TryTake(EmailCategory.Link).Should().BeFalse();
-        budget.TryTake(EmailCategory.Notice).Should().BeTrue();
-        budget.TryTake(EmailCategory.Notice).Should().BeTrue();
+        Enumerable.Range(0, 4).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Notice));
         budget.TryTake(EmailCategory.Notice).Should().BeFalse();
 
         now = now.AddMinutes(1);
@@ -163,7 +192,7 @@ public sealed class EmailDeliveryTests
             .Callback<EmailMessage, CancellationToken>((m, _) => sent.Add(m.Subject)).Returns(Task.CompletedTask);
         await queue.SendAsync(Message("notice") with { Category = EmailCategory.Notice }, CancellationToken.None);
         await queue.SendAsync(Message("link"), CancellationToken.None);
-        using var dispatcher = new EmailDispatcher(queue, transport.Object, Options.Create(options), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
+        using var dispatcher = new EmailDispatcher(queue, transport.Object, NullLogger<EmailDispatcher>.Instance);
 
         await dispatcher.StartAsync(CancellationToken.None);
         for (var i = 0; i < 250 && sent.Count == 0; i++)
@@ -191,7 +220,7 @@ public sealed class EmailDeliveryTests
                     allDone.SetResult();
                 return Task.CompletedTask;
             });
-        using var dispatcher = new EmailDispatcher(queue, transport.Object, Options.Create(Configured()), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
+        using var dispatcher = new EmailDispatcher(queue, transport.Object, NullLogger<EmailDispatcher>.Instance);
 
         await dispatcher.StartAsync(CancellationToken.None);
         await queue.SendAsync(Message("fails"), CancellationToken.None);
@@ -206,7 +235,7 @@ public sealed class EmailDeliveryTests
     public async Task Dispatcher_Stopping_EndsQuietly()
     {
         var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);
-        using var dispatcher = new EmailDispatcher(queue, Mock.Of<IEmailTransport>(), Options.Create(Configured()), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
+        using var dispatcher = new EmailDispatcher(queue, Mock.Of<IEmailTransport>(), NullLogger<EmailDispatcher>.Instance);
 
         await dispatcher.StartAsync(CancellationToken.None);
         var stop = () => dispatcher.StopAsync(CancellationToken.None);

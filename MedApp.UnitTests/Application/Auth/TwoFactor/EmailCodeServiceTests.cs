@@ -26,6 +26,7 @@ public sealed partial class EmailCodeServiceTests
     private List<EmailMessage> _sent = null!;
     private Mock<IAccountAttemptLimiter> _attempts = null!;
     private MutableClock _clock = null!;
+    private Mock<IEmailSender> _sender = null!;
     private EmailCodeService _service = null!;
 
     [SetUp]
@@ -36,7 +37,9 @@ public sealed partial class EmailCodeServiceTests
         _emails = new Mock<IAccountEmailService>();
         _emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(Account(Address, pending: OtherAddress));
         _sent = [];
-        var sender = new Mock<IEmailSender>();
+        _sender = new Mock<IEmailSender>();
+        _sender.Setup(s => s.HasRoomFor(EmailCategory.Code)).Returns(true);
+        var sender = _sender;
         sender.Setup(s => s.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
             .Callback<EmailMessage, CancellationToken>((message, _) => _sent.Add(message))
             .Returns(Task.CompletedTask);
@@ -159,8 +162,8 @@ public sealed partial class EmailCodeServiceTests
         _sent.Should().HaveCount(2);
         // The old code no longer works (unless the new one happens to be the same digits).
         if (LastCode() != first)
-            (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, first, CancellationToken.None)).Should().BeFalse();
-        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, LastCode(), CancellationToken.None)).Should().BeTrue();
+            (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, first, CancellationToken.None)).Should().Be(EmailCodeCheck.Wrong);
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, LastCode(), CancellationToken.None)).Should().Be(EmailCodeCheck.Right);
     }
 
     [Test]
@@ -225,8 +228,8 @@ public sealed partial class EmailCodeServiceTests
         await _service.SendAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, CancellationToken.None);
         var code = LastCode();
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().BeTrue();
-        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().BeFalse();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().Be(EmailCodeCheck.Right);
+        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
     }
 
     [Test]
@@ -235,9 +238,9 @@ public sealed partial class EmailCodeServiceTests
         await _service.SendAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, CancellationToken.None);
         var code = LastCode();
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.Confirm, null, code, CancellationToken.None)).Should().BeFalse();
-        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, Guid.NewGuid(), code, CancellationToken.None)).Should().BeFalse();
-        (await _service.CheckAsync(Guid.NewGuid(), EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().BeFalse();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.Confirm, null, code, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
+        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, Guid.NewGuid(), code, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
+        (await _service.CheckAsync(Guid.NewGuid(), EmailCodePurpose.SignIn, ChallengeId, code, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
     }
 
     [Test]
@@ -246,7 +249,7 @@ public sealed partial class EmailCodeServiceTests
         await _service.SendAsync(UserId, EmailCodePurpose.TurnOn, null, CancellationToken.None);
         _clock.Advance(EmailCode.Lifetime);
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, LastCode(), CancellationToken.None)).Should().BeFalse();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, LastCode(), CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
     }
 
     [Test]
@@ -254,7 +257,7 @@ public sealed partial class EmailCodeServiceTests
     {
         await _service.SendAsync(UserId, EmailCodePurpose.TurnOn, null, CancellationToken.None);
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, "ABCDE-23456", CancellationToken.None)).Should().BeFalse();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, "ABCDE-23456", CancellationToken.None)).Should().Be(EmailCodeCheck.Wrong);
 
         _codes.Rows.Single().FailedAttempts.Should().Be(0);
     }
@@ -267,9 +270,82 @@ public sealed partial class EmailCodeServiceTests
         var wrong = right == "000000" ? "111111" : "000000";
 
         for (var i = 0; i < EmailCode.MaxFailedAttempts; i++)
-            (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, wrong, CancellationToken.None)).Should().BeFalse();
+            (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, wrong, CancellationToken.None)).Should().Be(EmailCodeCheck.Wrong);
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, right, CancellationToken.None)).Should().BeFalse();
+        // Out of tries: the right code can't work any more, and that isn't a guess.
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, right, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
+    }
+
+    [TestCase(EmailCodePurpose.Confirm)]
+    [TestCase(EmailCodePurpose.TurnOn)]
+    public async Task Send_AfterFiveWrongTries_StartsAFreshCodeThatWorks(EmailCodePurpose purpose)
+    {
+        // The review of #118, finding 4: a resend after five wrong tries used to send a code that could never work.
+        await _service.SendAsync(UserId, purpose, null, CancellationToken.None);
+        var wrong = LastCode() == "000000" ? "111111" : "000000";
+        for (var i = 0; i < EmailCode.MaxFailedAttempts; i++)
+            await _service.CheckAsync(UserId, purpose, null, wrong, CancellationToken.None);
+
+        // No wait: the dead code isn't live, so asking again starts a new one, with fresh tries.
+        var sent = await _service.SendAsync(UserId, purpose, null, CancellationToken.None);
+
+        sent!.ResendsLeft.Should().Be(EmailCode.MaxResends);
+        _codes.Rows.Should().ContainSingle().Which.FailedAttempts.Should().Be(0);
+        (await _service.CheckAsync(UserId, purpose, null, LastCode(), CancellationToken.None)).Should().Be(EmailCodeCheck.Right);
+        _attempts.Verify(a => a.Attempt(AccountAttempt.EmailCode, UserId), Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task Check_TurningOn_TheCodeWorksOnlyForTheAddressItWentTo()
+    {
+        await _service.SendAsync(UserId, EmailCodePurpose.TurnOn, null, CancellationToken.None);
+        var code = LastCode();
+        _emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(Account(OtherAddress));
+
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, code, CancellationToken.None)).Should().Be(EmailCodeCheck.Wrong);
+
+        _emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(Account(null));
+        (await _service.CheckAsync(UserId, EmailCodePurpose.TurnOn, null, code, CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
+    }
+
+    [Test]
+    public async Task Send_TwoFirstSendsAtOnce_OnlyOneStands()
+    {
+        _codes.RefuseAdds = true;
+
+        var act = () => _service.SendAsync(UserId, EmailCodePurpose.TurnOn, null, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<TooManyAttemptsException>()).Which.RetryAfterSeconds.Should().Be(60);
+        _sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Send_EmailCantGoNow_SendsAndStoresNothing()
+    {
+        // The review of #118, findings 3 and 7: no mail server, or the hour's share for codes used up.
+        _sender.Setup(s => s.HasRoomFor(EmailCategory.Code)).Returns(false);
+
+        (await _service.SendAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, CancellationToken.None)).Should().BeNull();
+
+        _sent.Should().BeEmpty();
+        _codes.Rows.Should().BeEmpty();
+        _attempts.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Send_ForASignInEndingSoon_TheCodeAndItsEmailEndWithIt()
+    {
+        // The review of #118, finding 7: a code resent late in a sign-in said "10 minutes" when the sign-in ended sooner.
+        var signInEnds = NowUtc.AddMinutes(4);
+
+        var sent = await _service.SendAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, CancellationToken.None, signInEnds);
+
+        sent!.ExpiresAtUtc.Should().Be(signInEnds);
+        _sent[^1].TextBody.Should().Contain("for 4 minutes");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var again = await _service.SendAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, CancellationToken.None, signInEnds);
+        again!.ExpiresAtUtc.Should().Be(signInEnds);
+        _sent[^1].TextBody.Should().Contain("for 3 minutes");
     }
 
     [Test]
@@ -283,16 +359,16 @@ public sealed partial class EmailCodeServiceTests
             await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, wrong, CancellationToken.None);
 
         _codes.Rows.Single().FailedAttempts.Should().Be(0);
-        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, right, CancellationToken.None)).Should().BeTrue();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.SignIn, ChallengeId, right, CancellationToken.None)).Should().Be(EmailCodeCheck.Right);
     }
 
     [Test]
-    public async Task Check_RightCodeUsedByAnotherRequestFirst_IsWrong()
+    public async Task Check_RightCodeUsedByAnotherRequestFirst_IsNotLiveRatherThanWrong()
     {
         await _service.SendAsync(UserId, EmailCodePurpose.Confirm, null, CancellationToken.None);
         _codes.RefuseConsume = true;
 
-        (await _service.CheckAsync(UserId, EmailCodePurpose.Confirm, null, LastCode(), CancellationToken.None)).Should().BeFalse();
+        (await _service.CheckAsync(UserId, EmailCodePurpose.Confirm, null, LastCode(), CancellationToken.None)).Should().Be(EmailCodeCheck.NotLive);
     }
 
     // A test clock that can move on.
@@ -311,28 +387,34 @@ public sealed partial class EmailCodeServiceTests
         public List<EmailCode> Rows { get; } = [];
         public bool RefuseResends { get; set; }
         public bool RefuseConsume { get; set; }
+        public bool RefuseAdds { get; set; }
 
         public Task<EmailCode?> FindLiveAsync(Guid userId, EmailCodePurpose purpose, Guid? challengeId, DateTime utcNow, CancellationToken ct) =>
-            Task.FromResult(Rows.Where(r => r.UserId == userId && r.Purpose == purpose && r.ChallengeId == challengeId && r.ExpiresAtUtc > utcNow)
+            Task.FromResult(Rows.Where(r => r.UserId == userId && r.Purpose == purpose && r.ChallengeId == challengeId && r.IsLive(utcNow))
                 .OrderByDescending(r => r.SentAtUtc).FirstOrDefault());
 
-        public Task AddAsync(EmailCode code, DateTime utcNow, CancellationToken ct)
+        public Task<bool> AddAsync(EmailCode code, DateTime utcNow, CancellationToken ct)
         {
-            Rows.RemoveAll(r => r.UserId == code.UserId && r.Purpose == code.Purpose || r.ExpiresAtUtc <= utcNow);
+            Rows.RemoveAll(r => r.UserId == code.UserId && r.Purpose == code.Purpose && r.FailedAttempts >= EmailCode.MaxFailedAttempts
+                                || r.ExpiresAtUtc <= utcNow);
+            // The unique index: one row per account and purpose outside sign-in.
+            if (RefuseAdds || code.ChallengeId is null && Rows.Any(r => r.UserId == code.UserId && r.Purpose == code.Purpose && r.ChallengeId is null))
+                return Task.FromResult(false);
+
             Rows.Add(code);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
-        public Task<bool> TryResendAsync(Guid codeId, string codeHash, DateTime utcNow, CancellationToken ct)
+        public Task<bool> TryResendAsync(Guid codeId, string codeHash, DateTime utcNow, DateTime expiresAtUtc, CancellationToken ct)
         {
             var row = Rows.SingleOrDefault(r => r.Id == codeId);
-            if (RefuseResends || row is null || row.ExpiresAtUtc <= utcNow || row.Resends >= EmailCode.MaxResends
+            if (RefuseResends || row is null || !row.IsLive(utcNow) || row.Resends >= EmailCode.MaxResends
                 || row.SentAtUtc > utcNow - EmailCode.ResendInterval)
                 return Task.FromResult(false);
 
             Set(row, nameof(EmailCode.CodeHash), codeHash);
             Set(row, nameof(EmailCode.SentAtUtc), utcNow);
-            Set(row, nameof(EmailCode.ExpiresAtUtc), utcNow + EmailCode.Lifetime);
+            Set(row, nameof(EmailCode.ExpiresAtUtc), expiresAtUtc);
             Set(row, nameof(EmailCode.Resends), row.Resends + 1);
             return Task.FromResult(true);
         }

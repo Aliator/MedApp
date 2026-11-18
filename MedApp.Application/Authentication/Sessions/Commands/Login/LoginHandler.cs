@@ -75,8 +75,9 @@ public sealed class LoginHandler(
             if (!byEmail)
                 return LoginOutcome.TwoFactorRequired(token, challenge.ExpiresAtUtc);
 
-            // Null when the account has no confirmed address to send to (it can still sign in with a recovery code).
-            var sent = await emailCodes.SendAsync(userId, EmailCodePurpose.SignIn, challenge.Id, ct);
+            // Null when no code could be emailed (no confirmed address, or email unavailable just now): the page says so,
+            // and a recovery code still signs in. The code ends with the challenge.
+            var sent = await emailCodes.SendAsync(userId, EmailCodePurpose.SignIn, challenge.Id, ct, challenge.ExpiresAtUtc);
             return LoginOutcome.TwoFactorRequired(
                 token,
                 challenge.ExpiresAtUtc,

@@ -170,8 +170,10 @@ public sealed class AccountSecurityController(
     /// <summary>
     /// Asks to use a new email address, with the password (a wrong one is a 400 on <c>Password</c> and counts towards the
     /// lockout): it's sent a link to confirm it, the confirmed address (if any) is told, and until the link is opened the
-    /// old one stays in use (a 202, with the addresses as they now are). A 409 where email can't be sent; a 429 after
-    /// three requests in 15 minutes.
+    /// old one stays in use (a 202, with the addresses as they now are). While the account signs in with codes by email, a
+    /// code too (<c>Code</c>: one emailed by <c>POST api/auth/me/two-factor/email/code</c>, or a recovery code; a missing
+    /// or wrong one is a 400 on <c>Code</c>, and wrong ones count towards the lockout). A 409 where email can't be sent; a
+    /// 429 after three requests in 15 minutes.
     /// </summary>
     [HttpPut("me/email")]
     [Authorize(Policy = AuthPolicies.Staff)]
@@ -183,7 +185,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ChangeMyEmail(ChangeEmailRequest request, CancellationToken ct) =>
         Accepted(await mediator.Send(
-            new ChangeMyEmailCommand(User.GetUserId(), request.Email ?? string.Empty, request.Password ?? string.Empty), ct));
+            new ChangeMyEmailCommand(User.GetUserId(), request.Email ?? string.Empty, request.Password ?? string.Empty, request.Code), ct));
 
     /// <summary>
     /// Removes the signed-in account's email address, and any waiting to be confirmed, with the password. A 409 while the
@@ -245,7 +247,9 @@ public sealed class AccountSecurityController(
 
     /// <summary>
     /// Turns two-factor on, given the password and a code from the app just set up, and returns the recovery codes once.
-    /// The account's other sessions end. A wrong password or code is a 400 on its field.
+    /// The account's other sessions end. A wrong password or code is a 400 on its field. Switching from codes by email
+    /// also needs <c>CurrentCode</c> (an emailed code or a recovery code: a 400 on it when missing or wrong, counting
+    /// towards the lockout, a 423).
     /// </summary>
     [HttpPost("me/two-factor/enable")]
     [Authorize(Policy = AuthPolicies.Staff)]
@@ -254,9 +258,10 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     public async Task<IActionResult> EnableTwoFactor(TwoFactorCodeRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EnableTwoFactorCommand(
-            User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty, User.GetSessionId()), ct));
+            User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty, User.GetSessionId(), request.CurrentCode), ct));
 
     /// <summary>
     /// Starts turning on two-factor codes by email, given the password: a 6-digit code is emailed to the account's
@@ -294,18 +299,22 @@ public sealed class AccountSecurityController(
         Ok(await mediator.Send(new EnableEmailCodesCommand(User.GetUserId(), request.Code ?? string.Empty, User.GetSessionId()), ct));
 
     /// <summary>
-    /// Emails a code to confirm a change to two-factor (turning it off, new recovery codes) for an account using codes by
-    /// email (a 202, saying where, masked). A 409 for any other account; a 429 when sending again is too soon or too often.
+    /// Emails a code to confirm a change to how an account using codes by email signs in (turning two-factor off, new
+    /// recovery codes, switching to the app, a new address), given the password (a 202, saying where, masked). A wrong
+    /// password is a 400 on <c>Password</c> (counting towards the lockout, a 423); a 409 for any other account or when the
+    /// email can't go now; a 429 when sending again is too soon or too often. A held admin may call it, to switch to the app.
     /// </summary>
     [HttpPost("me/two-factor/email/code")]
     [Authorize(Policy = AuthPolicies.Staff)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(EmailCodeSentResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> SendTwoFactorEmailCode(CancellationToken ct) =>
-        Accepted(await mediator.Send(new SendTwoFactorEmailCodeCommand(User.GetUserId()), ct));
+    public async Task<IActionResult> SendTwoFactorEmailCode(SendEmailCodeRequest request, CancellationToken ct) =>
+        Accepted(await mediator.Send(new SendTwoFactorEmailCodeCommand(User.GetUserId(), request.Password ?? string.Empty), ct));
 
     /// <summary>
     /// Turns two-factor off, given the password and a current code (from the app or, for codes by email, the one emailed

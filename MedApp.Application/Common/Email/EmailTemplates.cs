@@ -60,10 +60,11 @@ public static class EmailTemplates
     /// </summary>
     /// <param name="code">The 6-digit code.</param>
     /// <param name="forSignIn">True for signing in; false for turning codes by email on or confirming a change.</param>
-    /// <param name="lifetime">How long it works (<c>EmailCode.Lifetime</c>).</param>
+    /// <param name="lifetime">How long it works: <c>EmailCode.Lifetime</c>, or less for a sign-in that ends sooner.</param>
     public static EmailMessage TwoFactorCode(string to, string code, bool forSignIn, TimeSpan lifetime)
     {
-        var minutes = (int)Math.Round(lifetime.TotalMinutes);
+        // Whole minutes, rounded down (never promising more than is left), and at least one.
+        var minutes = Math.Max(1, (int)Math.Floor(lifetime.TotalMinutes + 0.001));
         var purpose = forSignIn ? "to sign in to MedApp" : "to confirm a change to how you sign in to MedApp";
         var message = Build(
             to,
@@ -72,7 +73,7 @@ public static class EmailTemplates
             [
                 $"Your code {purpose} is:",
                 code,
-                $"It works once, for {minutes} minutes. Don't give it to anyone.",
+                $"It works once, for {minutes} {(minutes == 1 ? "minute" : "minutes")}. Don't give it to anyone.",
             ],
             link: null,
             [
@@ -103,6 +104,12 @@ public static class EmailTemplates
             SecurityNotice.TwoFactorDisabled => (
                 "Two-factor authentication is off for your MedApp account",
                 "Two-factor authentication was turned off for your MedApp account. Signing in now needs only your password."),
+            SecurityNotice.TwoFactorSwitchedToApp => (
+                "Your MedApp sign-in codes moved to an authenticator app",
+                "Your MedApp account now signs in with codes from an authenticator app instead of codes by email. MedApp won't email you sign-in codes any more, and your old recovery codes no longer work."),
+            SecurityNotice.AdminTwoFactorSwitchedToApp => (
+                "An administrator moved their sign-in codes to an authenticator app",
+                $"The MedApp administrator account {aboutUsername} now signs in with an authenticator app instead of codes by email. You're told because you're an administrator too."),
             SecurityNotice.EmailCodesEnabled => (
                 "Sign-in codes by email are on for your MedApp account",
                 "Two-factor authentication with codes by email was turned on for your MedApp account. From now on, signing in needs a code MedApp emails to this address as well as your password."),

@@ -89,7 +89,7 @@ public sealed class SignInWithEmailCodesTests
     [Test]
     public async Task Password_EmailCodesAccount_EmailsACodeForATenMinuteChallenge()
     {
-        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, It.IsAny<Guid?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Sent);
+        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, It.IsAny<Guid?>(), It.IsAny<CancellationToken>(), It.IsAny<DateTime?>())).ReturnsAsync(Sent);
 
         var outcome = await PasswordStep().Handle(new LoginCommand(Username, CurrentPassword, IpAddress, Browser), CancellationToken.None);
 
@@ -97,7 +97,8 @@ public sealed class SignInWithEmailCodesTests
         outcome.Method.Should().Be(TwoFactorMethod.Email);
         outcome.ChallengeExpiresAtUtc.Should().Be(NowUtc.Add(SignInChallenge.EmailLifetime));
         outcome.EmailCode.Should().Be(new EmailCodeSentResponse(MaskedAddress, Sent.ExpiresAtUtc, 60, 3));
-        _emailCodes.Verify(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, _saved!.Id, It.IsAny<CancellationToken>()), Times.Once);
+        // The code ends with the challenge.
+        _emailCodes.Verify(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, _saved!.Id, It.IsAny<CancellationToken>(), _saved.ExpiresAtUtc), Times.Once);
         var entry = _activity.Recorded.Should().ContainSingle().Subject;
         entry.Action.Should().Be(ActivityAction.TwoFactorChallenged);
         entry.Details.Should().Be("{\"method\":\"email\"}");
@@ -130,7 +131,7 @@ public sealed class SignInWithEmailCodesTests
     [Test]
     public async Task Password_TooManyCodesEmailed_IsRefused()
     {
-        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, It.IsAny<Guid?>(), It.IsAny<CancellationToken>(), It.IsAny<DateTime?>()))
             .ThrowsAsync(new TooManyAttemptsException("Too many codes emailed to this account.", 300));
 
         var act = () => PasswordStep().Handle(new LoginCommand(Username, CurrentPassword, IpAddress, Browser), CancellationToken.None);
@@ -145,7 +146,7 @@ public sealed class SignInWithEmailCodesTests
     public async Task Code_RightEmailedCode_SignsInWithTheEmailStepRecorded()
     {
         var challenge = GivenChallenge();
-        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, EmailedCode, It.IsAny<CancellationToken>())).ReturnsAsync(EmailCodeCheck.Right);
 
         var session = await CodeStep().Handle(new LoginTwoFactorCommand(ChallengeToken, EmailedCode, null, IpAddress, Browser), CancellationToken.None);
 
@@ -186,6 +187,33 @@ public sealed class SignInWithEmailCodesTests
     }
 
     [Test]
+    public async Task Code_NoCodeThatCouldWork_IsRefusedWithoutCountingIt()
+    {
+        // None was sent (email unavailable), or another request used it first: not a guess.
+        var challenge = GivenChallenge();
+        _emailCodes.Setup(c => c.CheckAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, EmailedCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(EmailCodeCheck.NotLive);
+
+        var act = () => CodeStep().Handle(new LoginTwoFactorCommand(ChallengeToken, EmailedCode, null, IpAddress, Browser), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidTwoFactorCodeException>();
+        _twoFactor.Verify(t => t.RecordFailedCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Recorded.Should().ContainSingle(e => e.Action == ActivityAction.SignInFailed && e.Details.Contains("CodeNotLive"));
+    }
+
+    [Test]
+    public async Task Code_AppCodeWithALineBreak_IsCleanedAsEmailedCodesAre()
+    {
+        GivenChallenge(SignInChallenge.Lifetime);
+        _twoFactor.Setup(t => t.GetMethodAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Authenticator);
+        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        await CodeStep().Handle(new LoginTwoFactorCommand(ChallengeToken, AuthenticatorCode + "\r\n", null, IpAddress, Browser), CancellationToken.None);
+
+        _sessions.Verify(s => s.CreateSessionAsync(UserId, IpAddress, Browser, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
     public async Task Code_NoAttemptsLeft_ChecksNoEmailedCode()
     {
         var challenge = GivenChallenge();
@@ -217,12 +245,14 @@ public sealed class SignInWithEmailCodesTests
     public async Task Resend_UsableChallenge_SendsANewCode()
     {
         var challenge = GivenChallenge();
-        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, It.IsAny<CancellationToken>()))
+        _emailCodes.Setup(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, It.IsAny<CancellationToken>(), It.IsAny<DateTime?>()))
             .ReturnsAsync(Sent with { ResendAvailableAtUtc = NowUtc.AddMinutes(1), ResendsLeft = 2 });
 
         var result = await Resend().Handle(new ResendSignInCodeCommand(ChallengeToken), CancellationToken.None);
 
         result.Should().Be(new EmailCodeSentResponse(MaskedAddress, Sent.ExpiresAtUtc, 60, 2));
+        // A resent code ends with the sign-in, not 10 minutes on.
+        _emailCodes.Verify(c => c.SendAsync(UserId, EmailCodePurpose.SignIn, challenge.Id, It.IsAny<CancellationToken>(), challenge.ExpiresAtUtc), Times.Once);
     }
 
     [Test]
