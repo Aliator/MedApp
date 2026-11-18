@@ -17,8 +17,12 @@ public sealed class InMemoryClosedDays(params ClosedDay[] days) : IClosedDayRepo
 
     public IReadOnlyList<ClosedDay> Days => _days;
 
-    /// <summary>The working day's rules with these closed days.</summary>
-    public static WorkingDays WorkingDays(params ClosedDay[] days) => new(new InMemoryClosedDays(days));
+    /// <summary>The working day's rules with these closed days, everyone on the default hours.</summary>
+    public static WorkingDays WorkingDays(params ClosedDay[] days) => new(new InMemoryClosedDays(days), new InMemoryWorkingHours());
+
+    /// <summary>The working day's rules with these hours and closed days.</summary>
+    public static WorkingDays WorkingDays(InMemoryWorkingHours hours, params ClosedDay[] days) =>
+        new(new InMemoryClosedDays(days), hours);
 
     /// <summary>A closed day on a date: everywhere, or at a site.</summary>
     public static ClosedDay On(DateOnly date, string name = "Christmas Day", Guid? siteId = null) =>

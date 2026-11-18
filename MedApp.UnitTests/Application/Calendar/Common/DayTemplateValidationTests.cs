@@ -90,8 +90,8 @@ public sealed class DayTemplateValidationTests
         Validate(BlockValue(12, 13, Guid.Empty)).Errors.Should().ContainSingle(e => e.ErrorMessage == "Activity type is required.");
     }
 
-    [TestCase(7, 0, 9, 0, WorkingHours.OutsideWorkingDay)]
-    [TestCase(17, 0, 18, 30, WorkingHours.OutsideWorkingDay)]
+    [TestCase(5, 0, 9, 0, WorkingHours.OutsideBounds)]
+    [TestCase(17, 0, 23, 30, WorkingHours.OutsideBounds)]
     [TestCase(13, 0, 12, 0, WorkingHours.EndNotAfterStart)]
     [TestCase(12, 0, 12, 0, WorkingHours.EndNotAfterStart)]
     [TestCase(12, 2, 13, 0, WorkingHours.NotOnBoundary)]

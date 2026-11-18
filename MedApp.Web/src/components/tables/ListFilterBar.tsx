@@ -35,6 +35,11 @@ export interface ChoiceFilterField {
   label: string;
   options: readonly {value: string; label: string}[];
   isMultiple?: boolean;
+  /**
+   * With `isMultiple`, whether "is not any of" is offered too (the default). False for a list whose API takes only the
+   * values wanted (IDs of specialties or stages: see `parseIdChoice`).
+   */
+  canExclude?: boolean;
 }
 
 /**
@@ -109,7 +114,8 @@ const IS = 'is';
 const ANY_OF = 'any_of';
 const NONE_OF = 'none_of';
 
-function configFor(fields: ListFilterField[], textKey?: string): PowerSearchConfig {
+/** The bar's PowerSearch fields and their operators, for the list's fields. */
+export function configFor(fields: ListFilterField[], textKey?: string): PowerSearchConfig {
   return {
     name: 'ListFilters',
     contentSearchFieldKey: textKey,
@@ -142,7 +148,9 @@ function configFor(fields: ListFilterField[], textKey?: string): PowerSearchConf
               ...(field.isMultiple
                 ? [
                     {key: ANY_OF, label: 'is any of', value: {type: 'enum_list', values: field.options}} as const,
-                    {key: NONE_OF, label: 'is not any of', value: {type: 'enum_list', values: field.options}} as const,
+                    ...(field.canExclude === false
+                      ? []
+                      : [{key: NONE_OF, label: 'is not any of', value: {type: 'enum_list', values: field.options}} as const]),
                   ]
                 : []),
             ],

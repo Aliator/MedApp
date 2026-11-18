@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261118134331_AddedReferralNotifications")]
+    [Migration("20261118141038_AddedReferralNotifications")]
     partial class AddedReferralNotifications
     {
         /// <inheritdoc />
@@ -791,6 +791,42 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("StaffUserId");
 
                     b.ToTable("MeetingAttendees", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Calendar.StaffHours", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("Ends")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly>("Starts")
+                        .HasColumnType("time");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SiteId");
+
+                    b.HasIndex("StaffUserId", "ValidFrom");
+
+                    b.ToTable("StaffHours", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
@@ -1875,6 +1911,37 @@ namespace MedApp.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Sites.SiteHours", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly>("Closes")
+                        .HasColumnType("time");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("Opens")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SiteId", "ValidFrom");
+
+                    b.ToTable("SiteHours", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Specialties.Specialty", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2308,6 +2375,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Meeting");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Calendar.StaffHours", b =>
+                {
+                    b.HasOne("MedApp.Domain.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
                 {
                     b.HasOne("MedApp.Domain.Calendar.WeekTemplate", "WeekTemplate")
@@ -2472,6 +2548,15 @@ namespace MedApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Sites.SiteHours", b =>
+                {
+                    b.HasOne("MedApp.Domain.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

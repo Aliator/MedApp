@@ -49,7 +49,8 @@ public static class MeetingStaff
     /// <summary>
     /// A 409 naming the first attendee, by username, who has something on at that time ("k.ashford has Lunch, 12:00 to
     /// 13:00."): an appointment, a block, or another meeting (<paramref name="ignoreMeetingId"/>: the one being moved).
-    /// Run it holding the attendees' calendar locks.
+    /// Before that, each attendee's working day: a 409 for a day closed (everywhere, or at their site), and a 400 naming
+    /// them for a day they don't work or a time outside their hours. Run it holding the attendees' calendar locks.
     /// </summary>
     public static async Task EnsureEveryoneFreeAsync(
         this ICalendarRepository repository,
@@ -65,9 +66,13 @@ public static class MeetingStaff
 
         foreach (var (userId, username) in attendees)
         {
-            // A day closed since the validator ran (it reads closed days before the locks).
-            if (CalendarClashes.WhyClosed(calendars[userId], startUtc) is { } closed)
+            // Their working day: the validator checks only what's everyone's (it can't know who's going), and reads
+            // closed days before the locks. A day closed since is a 409; a time outside their hours, a 400 naming them.
+            var working = calendars[userId].WorkingTimeOn(date);
+            if (working.ClosedDayName is not null && working.WhyNotWorking() is { } closed)
                 throw new ConflictException(closed);
+            if (working.WhyOutside(startUtc, endUtc, username) is { } outside)
+                throw new ValidationException([new ValidationFailure(nameof(IMeetingCommand.StartUtc), outside)]);
 
             if (CalendarClashes.FindFirst(calendars[userId], startUtc, endUtc, ignoreMeetingId: ignoreMeetingId) is { } clash)
                 throw new ConflictException(

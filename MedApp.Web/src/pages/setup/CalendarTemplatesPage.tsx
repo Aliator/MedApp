@@ -9,9 +9,11 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useState, type ReactNode} from 'react';
 import {useAnnounce} from '../../app/announcements';
+import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
 import {
   dayTemplatesQuery,
+  staffHoursQuery,
   staffWeekTemplateQuery,
   useCalendarActions,
   useCalendarSetupActions,
@@ -35,6 +37,8 @@ import {formatDate} from '../../utils/dates';
 import type {SetupListSearch} from '../listSearch';
 import {saveProblem, type SaveSubject} from '../saveProblem';
 import {blockLabel, count, weekSummary} from './calendarSetup';
+import {StaffHoursPanel, hoursDays} from './StaffHoursPanel';
+import {hoursSummary} from '../../utils/workingHours';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplateEditorHref, type CalendarTemplatesSearch, type CalendarTemplatesTab} from './calendarTemplatesSearch';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
@@ -50,6 +54,7 @@ const TABS: {value: CalendarTemplatesTab; label: string}[] = [
   {value: 'day', label: 'Day Templates'},
   {value: 'week', label: 'Week Templates'},
   {value: 'default', label: 'Default Week'},
+  {value: 'hours', label: 'Working Hours'},
 ];
 
 const panelId = (tab: CalendarTemplatesTab) => `calendar-templates-${tab}`;
@@ -58,14 +63,16 @@ const panelId = (tab: CalendarTemplatesTab) => `calendar-templates-${tab}`;
 export function calendarTemplatesPageQueries(tab: CalendarTemplatesTab, ownerId: string) {
   if (tab === 'week') return [weekTemplatesQuery(ownerId)];
   if (tab === 'default') return [staffWeekTemplateQuery(ownerId), weekTemplatesQuery(ownerId)];
+  if (tab === 'hours') return [staffHoursQuery(ownerId)];
   return [dayTemplatesQuery(ownerId)];
 }
 
 /**
  * A person's calendar templates (each person's own), yours unless the URL's `staff` says whose, in three tabs kept in
  * the URL: **Day templates** (named sets of blocks, such as a standard day with lunch), **Week templates** (one of
- * their day templates for each weekday) and their **Default week** (one of their week templates, which fills their
- * calendar). Templates are applied when a calendar is read, so a change shows from today on every day it applies to;
+ * their day templates for each weekday), their **Default week** (one of their week templates, which fills their
+ * calendar) and their **Working hours** (the days and times they work, and where: centre plan decision 119; changed
+ * only by holders of ManageClinics or ManageAnyCalendar, the API's `canEdit`). Templates are applied when a calendar is read, so a change shows from today on every day it applies to;
  * past days keep what they had. Templates in use are archived, not deleted.
  *
  * Their owner and admins change them; admins pick whose with the staff picker. Anyone else can open a link to
@@ -74,6 +81,8 @@ export function calendarTemplatesPageQueries(tab: CalendarTemplatesTab, ownerId:
 export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplatesPageProps) {
   const tab: CalendarTemplatesTab = search.tab ?? 'day';
   const owner = useTemplatesOwner(search.staff);
+  // Holders of ManageClinics set anyone's working hours, so on that tab they pick whose too.
+  const canManageClinics = useCan('ManageClinics');
   const [error, setError] = useState<string | null>(null);
   // Each tab keeps its own search; switching starts the other on its default, for the same person.
   const listSearch: SetupListSearch = {name: search.name, status: search.status, page: search.page};
@@ -97,7 +106,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
       actions={
         // The picker never shows an error, so it drops the line kept for one, and lines up with New Day Template.
         <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-          {owner.canManageAnyCalendar && (
+          {(owner.canManageAnyCalendar || (tab === 'hours' && canManageClinics)) && (
             <StaffPicker
               label="Whose calendar templates"
               staff={owner.staff.data}
@@ -112,7 +121,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
               width={200}
             />
           )}
-          {owner.canEdit && tab !== 'default' && (
+          {owner.canEdit && (tab === 'day' || tab === 'week') && (
             <Button
               label={tab === 'day' ? 'New Day Template' : 'New Week Template'}
               variant="primary"
@@ -137,7 +146,15 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
         </TabList>
         <StackItem size="fill">
           <VStack id={panelId(tab)} role="tabpanel" aria-label={TABS.find((t) => t.value === tab)?.label} height="100%">
-            {tab === 'day' ? <DayTemplatesList {...list} /> : tab === 'week' ? <WeekTemplatesList {...list} /> : <DefaultWeek owner={owner} onError={setError} />}
+            {tab === 'day' ? (
+              <DayTemplatesList {...list} />
+            ) : tab === 'week' ? (
+              <WeekTemplatesList {...list} />
+            ) : tab === 'hours' ? (
+              <StaffHoursPanel owner={owner} onError={setError} />
+            ) : (
+              <DefaultWeek owner={owner} onError={setError} />
+            )}
           </VStack>
         </StackItem>
       </VStack>
@@ -156,6 +173,9 @@ function useTabSubtitle(tab: CalendarTemplatesTab, search: SetupListSearch, owne
   const day = useQuery(ofOwner(dayTemplatesQuery, owner, tab === 'day'));
   const week = useQuery(ofOwner(weekTemplatesQuery, owner, tab === 'week'));
   const current = useQuery(ofOwner(staffWeekTemplateQuery, owner, tab === 'default'));
+  const hours = useQuery(ofOwner(staffHoursQuery, owner, tab === 'hours'));
+  if (tab === 'hours')
+    return hours.data ? `Working hours: ${hours.data.hasOwnHours ? hoursSummary(hoursDays(hours.data)) : 'the default'}` : 'Loading the working hours...';
   if (tab === 'day') return day.data ? setupSubtitle(setupPage(day.data, search).total, search, 'day template', 'day templates') : 'Loading day templates...';
   if (tab === 'week')
     return week.data ? setupSubtitle(setupPage(week.data, search).total, search, 'week template', 'week templates') : 'Loading week templates...';

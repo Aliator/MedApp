@@ -4,6 +4,12 @@ import type {TasksSearch} from '../listSearch';
 import {MyTasksPage, taskQuery} from './MyTasksPage';
 
 const SEARCH = 'GET /api/pathways/patient-pathways/search';
+const SPECIALTIES = 'GET /api/specialties';
+const DEFINITIONS = 'GET /api/pathways/patient-pathway-stage/definitions';
+const SPECIALTY_ID = '0000005a-0000-0000-0000-0000000000aa';
+const STAGE_ID = '0000000d-0000-0000-0000-000000000001';
+/** The list's own searches, leaving out what it asks for its filters' choices (specialties, stages). */
+const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 
 const summary = (overrides: Record<string, unknown>) => ({
   id: 'proc-1',
@@ -40,6 +46,8 @@ function mockTasks(status = 200) {
       const started = new URL(request.url).searchParams.get('Started');
       return json(started === 'false' ? notStartedPage : started === 'true' ? startedPage : pageOf([], 0), status);
     },
+    [SPECIALTIES]: () => json([{id: SPECIALTY_ID, name: 'Dermatology', isArchived: false}]),
+    [DEFINITIONS]: () => json([{id: STAGE_ID, name: 'Histology (lab)', isArchived: false}]),
   });
 }
 
@@ -61,9 +69,20 @@ describe('MyTasksPage', () => {
     expect(screen.getByRole('button', {name: 'Favourites (showing Not started)'})).toBeInTheDocument();
     expect(screen.queryAllByText('Not started').filter((el) => !searchBar().contains(el) && !el.closest('[role="menu"]'))).toEqual([]);
     expect(screen.getByRole('columnheader', {name: 'Template'})).toBeInTheDocument();
-    expect(calls(fetch)).toEqual([`${SEARCH}?PageSize=10&AssignedToMe=true&Started=false&Page=1&Sort=dueDate&Ascending=true`]);
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&AssignedToMe=true&Started=false&Page=1&Sort=dueDate&Ascending=true`]);
     // A normal list: no search button, and no switch between two lists.
     expect(screen.queryByRole('button', {name: 'Search'})).not.toBeInTheDocument();
+  });
+
+  it('filters by specialty and the stage reached, named in the search', async () => {
+    const {fetch} = renderTasks({specialty: SPECIALTY_ID, stage: STAGE_ID});
+
+    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Stage reached: is\s*Histology \(lab\)/));
+    expect(searchBar()).toHaveTextContent(/Specialty: is\s*Dermatology/);
+    expect(searchCalls(fetch)).toEqual([
+      `${SEARCH}?PageSize=10&AssignedToMe=true&Started=false&Page=1&Sort=dueDate&Ascending=true` +
+        `&SpecialtyIds=${SPECIALTY_ID}&StageDefinitionIds=${STAGE_ID}`,
+    ]);
   });
 
   it('shows the started tasks with the stage they are at, when the URL says so', async () => {

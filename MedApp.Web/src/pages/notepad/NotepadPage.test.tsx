@@ -215,7 +215,7 @@ describe('the /notepad route', {timeout: 20_000}, () => {
       const {pathname} = new URL(request.url);
       if (pathname === NOTEPAD) return json(notepad());
       if (pathname === '/api/auth/me/settings') return json({settings: null});
-      return json(/\/(templates|definitions|roles)$/.test(pathname) ? [] : pageOf([]));
+      return json(/\/(templates|definitions|roles|specialties)$/.test(pathname) ? [] : pageOf([]));
     });
     const {router} = renderApp({path: '/notepad', user: staffUser});
 

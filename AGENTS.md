@@ -21,7 +21,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Referrals, their history and letters | `referrals.md` | Change a referral only through `ReferralChange`, which saves its `ReferralEvent`s in the same save; the history holds no free text. Every read is logged (`ReferralViewed`, `PatientListed`). A restricted or anonymised record refuses changes, but withdrawing and entered in error stay allowed while restricted. Triage needs `TriageReferrals` and membership of the referral's specialty; never prefill or suggest an outcome, template or priority. |
 | Patient timeline | `timeline.md` | Staff never get free text from the audit log or appointment history (`TimelineMapper`'s `PublicValueFields`; `TimelineStaffCanaryTests`). |
 | Notifications | `notifications.md` | A title is a fixed phrase; a message holds only usernames, enums, admin-written names and dates, never free text or the patient. |
-| Calendar, appointments, meetings, visits, sites and rooms | `calendar.md` | Use `WorkingHours`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays`, so closed days count. |
+| Calendar, appointments, meetings, visits, sites and rooms, working hours | `calendar.md` | Use `WorkingHours`, `WorkingTime`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays` with the person, so their hours and closed days count; never assume 08:00 to 18:00 on weekdays. |
 | Notepad | `notepad.md` | Kept on the server only, never in browser storage. |
 | Monitoring | `monitoring.md` | Every pathway command calls `IPathwayMonitor.NotifyAsync(change)` after saving. Clinical follow-up never relies on it. |
 | Attachments | `attachments.md` | Types come from the contents (`FileTypeSniffer`), never the name; SVG and HTML are refused. Files leave only through the API, as downloads. |
@@ -106,7 +106,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -167,7 +167,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
-  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms)
+  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into a `PagedResponse`.

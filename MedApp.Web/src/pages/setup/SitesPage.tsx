@@ -24,6 +24,7 @@ import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {SiteHoursDialog} from './SiteHoursDialog';
 
 /** The page's query: every site and room, archived ones too (the list filters them). Its route's loader preloads the same. */
 export const sitesPageQuery = sitesQuery({includeArchived: true});
@@ -37,6 +38,7 @@ type DialogState =
   | {kind: 'rooms'; siteId: string}
   | {kind: 'room'; siteId: string; room: Room | null}
   | {kind: 'delete-room'; siteId: string; room: Room}
+  | {kind: 'hours'; site: Site}
   | null;
 
 interface SiteForm {
@@ -206,11 +208,23 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
       key: 'actions',
       header: 'Actions',
       align: 'end',
-      width: pixel(160),
+      width: pixel(196),
       renderCell: (s) => (
         <TableActions
           actions={[
             {label: 'Rooms', icon: AppIcon.Rooms, onClick: () => openRooms(s)},
+            ...(s.isArchived
+              ? []
+              : [
+                  {
+                    label: 'Opening hours',
+                    icon: AppIcon.Calendar,
+                    onClick: () => {
+                      setError(null);
+                      setDialog({kind: 'hours', site: s});
+                    },
+                  },
+                ]),
             {label: 'Edit site', icon: AppIcon.Edit, onClick: () => openSiteEditor(s)},
             s.isArchived
               ? {
@@ -271,6 +285,11 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
       actions={<Button label="Add Site" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openSiteEditor(null)} />}
       dialogs={
         <>
+          <SiteHoursDialog
+            key={dialog?.kind === 'hours' ? dialog.site.id : 'closed'}
+            site={dialog?.kind === 'hours' ? dialog.site : null}
+            onClose={close}
+          />
           <ConfirmDialog
             isOpen={dialog?.kind === 'site'}
             title={editingSite ? 'Edit Site' : 'Add Site'}

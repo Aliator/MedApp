@@ -20,13 +20,18 @@ public static class DemoClosedDays
             .Select(h => (h.Date, h.Name)));
 
     /// <summary>The working day's rules with the bank holidays, for the commands' validators the seed runs in memory.</summary>
-    public static WorkingDays WorkingDays { get; } = new(new InMemoryClosedDays());
+    public static WorkingDays WorkingDays { get; } = new(new InMemoryClosedDays(), new DefaultHoursOnly());
 
     /// <summary>Monday to Friday, and not a bank holiday.</summary>
     public static bool IsWorkingDay(DateOnly date) => WorkingHours.IsWorkingDay(date, Set);
 
-    /// <summary>Why something can't be at these times (a weekend, a bank holiday, outside 08:00 to 18:00), or null.</summary>
-    public static string? WhyOutside(DateTime startUtc, DateTime endUtc) => WorkingHours.WhyOutside(startUtc, endUtc, Set);
+    /// <summary>
+    /// Why something can't be at these times (a weekend, a bank holiday, outside 08:00 to 18:00: everyone in the demo
+    /// works the default day), or null.
+    /// </summary>
+    public static string? WhyOutside(DateTime startUtc, DateTime endUtc) =>
+        WorkingHours.WhyOutside(startUtc, endUtc, Set)
+        ?? WorkingTimeSet.None.For(Guid.Empty, UkTime.DateOf(startUtc), Set).WhyOutside(startUtc, endUtc);
 
     /// <summary>
     /// The closed days to save: every bank holiday from the year the centre started using MedApp to next year, added by
@@ -71,5 +76,36 @@ public static class DemoClosedDays
         public Task AddAsync(IReadOnlyCollection<ClosedDay> days, CancellationToken ct) => throw new NotSupportedException();
 
         public Task DeleteAsync(ClosedDay day, CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    /// <summary>Nobody in the demo has hours of their own yet: everyone works the default day.</summary>
+    private sealed class DefaultHoursOnly : IWorkingHoursRepository
+    {
+        public Task<WorkingTimeSet> GetAsync(IReadOnlyCollection<Guid> staffUserIds, DateOnly from, DateOnly to, CancellationToken ct) =>
+            Task.FromResult(WorkingTimeSet.None);
+
+        public Task<IReadOnlyList<StaffHours>> GetStaffHoursOnAsync(Guid staffUserId, DateOnly date, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<StaffHours>>([]);
+
+        public Task<IReadOnlyList<StaffHours>> GetStaffHoursForUpdateAsync(Guid staffUserId, DateOnly today, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task SaveStaffHoursAsync(TemplateHistoryChange<StaffHours> change, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<StaffHours>> GetStaffHoursAtSiteAsync(Guid siteId, DateOnly today, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<StaffHours>>([]);
+
+        public Task<IReadOnlyList<Domain.Sites.SiteHours>> GetSiteHoursOnAsync(Guid siteId, DateOnly date, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Domain.Sites.SiteHours>>([]);
+
+        public Task<IReadOnlyList<Domain.Sites.SiteHours>> GetSiteHoursOnAsync(
+            IReadOnlyCollection<Guid> siteIds, DateOnly date, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Domain.Sites.SiteHours>>([]);
+
+        public Task<IReadOnlyList<Domain.Sites.SiteHours>> GetSiteHoursForUpdateAsync(Guid siteId, DateOnly today, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task SaveSiteHoursAsync(TemplateHistoryChange<Domain.Sites.SiteHours> change, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 }

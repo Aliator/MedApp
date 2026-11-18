@@ -3277,6 +3277,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar/staff/{userId}/hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StaffHoursResponse"];
+                        "application/json": components["schemas"]["StaffHoursResponse"];
+                        "text/json": components["schemas"]["StaffHoursResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["StaffHoursRequest"];
+                    "text/json": components["schemas"]["StaffHoursRequest"];
+                    "application/*+json": components["schemas"]["StaffHoursRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StaffHoursResponse"];
+                        "application/json": components["schemas"]["StaffHoursResponse"];
+                        "text/json": components["schemas"]["StaffHoursResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calendar/activity-types": {
         parameters: {
             query?: never;
@@ -6681,6 +6804,7 @@ export interface paths {
                 query?: {
                     Weeks?: number;
                     TemplateId?: string;
+                    SpecialtyId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7723,6 +7847,8 @@ export interface paths {
                     PatientName?: string;
                     PatientId?: string;
                     TemplateId?: string;
+                    SpecialtyIds?: string[];
+                    StageDefinitionIds?: string[];
                     Statuses?: string[];
                     Priority?: string;
                     Priorities?: string[];
@@ -11078,6 +11204,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{id}/hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SiteHoursResponse"];
+                        "application/json": components["schemas"]["SiteHoursResponse"];
+                        "text/json": components["schemas"]["SiteHoursResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SiteHoursRequest"];
+                    "text/json": components["schemas"]["SiteHoursRequest"];
+                    "application/*+json": components["schemas"]["SiteHoursRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SiteHoursResponse"];
+                        "application/json": components["schemas"]["SiteHoursResponse"];
+                        "text/json": components["schemas"]["SiteHoursResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{id}/archive": {
         parameters: {
             query?: never;
@@ -11969,6 +12207,13 @@ export interface components {
             workStartUtc?: string;
             /** Format: date-time */
             workEndUtc?: string;
+            hasHours?: boolean;
+            /** Format: uuid */
+            siteId?: string | null;
+            /** Format: date-time */
+            gridStartUtc?: string;
+            /** Format: date-time */
+            gridEndUtc?: string;
             /** Format: uuid */
             dayTemplateId?: string | null;
             dayTemplateName?: string | null;
@@ -12805,6 +13050,8 @@ export interface components {
             weeks?: number;
             /** Format: uuid */
             templateId?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
             /** Format: date */
             from?: string;
             /** Format: date */
@@ -13509,6 +13756,31 @@ export interface components {
         SetUserRolesRequest: {
             roles?: string[] | null;
         };
+        SiteHoursDayRequest: {
+            dayOfWeek?: string | null;
+            /** Format: time */
+            opens?: string;
+            /** Format: time */
+            closes?: string;
+        };
+        SiteHoursDayResponse: {
+            dayOfWeek?: string | null;
+            /** Format: time */
+            opens?: string;
+            /** Format: time */
+            closes?: string;
+        };
+        SiteHoursRequest: {
+            days?: components["schemas"]["SiteHoursDayRequest"][] | null;
+        };
+        SiteHoursResponse: {
+            /** Format: uuid */
+            siteId?: string;
+            hasOwnHours?: boolean;
+            /** Format: date */
+            since?: string | null;
+            days?: components["schemas"]["SiteHoursDayResponse"][] | null;
+        };
         SiteRequest: {
             name?: string | null;
             addressLines?: string[] | null;
@@ -13565,6 +13837,37 @@ export interface components {
         SpecialtyVersionRequest: {
             /** Format: int32 */
             expectedVersion?: number;
+        };
+        StaffHoursDayRequest: {
+            dayOfWeek?: string | null;
+            /** Format: time */
+            starts?: string;
+            /** Format: time */
+            ends?: string;
+            /** Format: uuid */
+            siteId?: string;
+        };
+        StaffHoursDayResponse: {
+            dayOfWeek?: string | null;
+            /** Format: time */
+            starts?: string;
+            /** Format: time */
+            ends?: string;
+            /** Format: uuid */
+            siteId?: string | null;
+            siteName?: string | null;
+        };
+        StaffHoursRequest: {
+            days?: components["schemas"]["StaffHoursDayRequest"][] | null;
+        };
+        StaffHoursResponse: {
+            /** Format: uuid */
+            staffUserId?: string;
+            hasOwnHours?: boolean;
+            /** Format: date */
+            since?: string | null;
+            canEdit?: boolean;
+            days?: components["schemas"]["StaffHoursDayResponse"][] | null;
         };
         StaffMemberResponse: {
             /** Format: uuid */

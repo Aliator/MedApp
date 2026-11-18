@@ -1,6 +1,6 @@
 /**
  * Insights' numbers in words: durations, weeks, the charts' summaries, and the links from a count to the pathways
- * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status` and `template`).
+ * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status`, `templateId` and `specialty`).
  */
 
 import type {OverdueByAssignee, OverdueByPriority, PathwayInsights, TemplateStageTimes, WeeklyThroughput} from '../../api/insights';
@@ -44,19 +44,31 @@ export function assigneeNames(rows: readonly OverdueByAssignee[]): string[] {
 }
 
 
-/**
- * The pathways list, filtered to what a count counts: on the template (by its ID) when Insights is on one. Always
- * `mine=false`, so the list isn't narrowed to the admin's own pathways by where Account Settings has lists start.
- */
-export function pathwaysHref(filters: Record<string, string>, templateId?: string | null): string {
-  return `/pathways?${new URLSearchParams({...filters, mine: 'false', ...(templateId ? {templateId} : {})}).toString()}`;
+/** What Insights is on: a template and a specialty (their IDs), either or both, or neither for every pathway. */
+export interface InsightsScope {
+  templateId?: string | null;
+  specialtyId?: string | null;
 }
 
-export const assigneeHref = (row: OverdueByAssignee, templateId?: string | null) =>
-  pathwaysHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateId);
+/**
+ * The pathways list, filtered to what a count counts: on the template (by its ID) and the specialty when Insights is
+ * on them. Always `mine=false`, so the list isn't narrowed to the admin's own pathways by where Account Settings has
+ * lists start.
+ */
+export function pathwaysHref(filters: Record<string, string>, {templateId, specialtyId}: InsightsScope = {}): string {
+  return `/pathways?${new URLSearchParams({
+    ...filters,
+    mine: 'false',
+    ...(templateId ? {templateId} : {}),
+    ...(specialtyId ? {specialty: specialtyId} : {}),
+  }).toString()}`;
+}
 
-export const priorityHref = (row: OverdueByPriority, templateId?: string | null) =>
-  pathwaysHref({overdue: 'true', priority: row.priority ?? ''}, templateId);
+export const assigneeHref = (row: OverdueByAssignee, scope?: InsightsScope) =>
+  pathwaysHref({overdue: 'true', assignee: row.userId ?? NOBODY}, scope);
+
+export const priorityHref = (row: OverdueByPriority, scope?: InsightsScope) =>
+  pathwaysHref({overdue: 'true', priority: row.priority ?? ''}, scope);
 
 export function overdueByAssigneeSummary(insights: PathwayInsights): string {
   const overdue = insights.overdue?.current ?? 0;

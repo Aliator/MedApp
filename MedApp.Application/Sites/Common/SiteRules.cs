@@ -21,7 +21,13 @@ public static partial class SiteRules
         $"{site.Name} has rooms that aren't archived ({string.Join(", ", rooms.Select(r => r.Name))}). Archive them first.";
 
     public static string SiteInUse(Site site) =>
-        $"{site.Name} has rooms or closed days, so it can't be deleted. Archive it instead.";
+        $"{site.Name} has rooms, closed days or staff working hours, so it can't be deleted. Archive it instead.";
+
+    public static string HasStaffHours(Site site) =>
+        $"Staff work at {site.Name} (their working hours name it). Change their hours first.";
+
+    public static string StaffOutsideHours(Site site, string username, DayOfWeek day) =>
+        $"{username} works at {site.Name} on {day}s outside those hours. Change their hours first.";
 
     public static string RoomInUse(Room room) =>
         $"{room.Name} has been used, so it can't be deleted. Archive it instead.";

@@ -17,10 +17,10 @@ public sealed class CalendarResponse
 
     public DateOnly To { get; set; }
 
-    /// <summary>The working day's start, UK time: "08:00".</summary>
+    /// <summary>The grid's start on every day, UK time: "08:00" (each day's <c>gridStartUtc</c>).</summary>
     public string WorkingDayStart { get; set; } = string.Empty;
 
-    /// <summary>The working day's end, UK time: "18:00".</summary>
+    /// <summary>The grid's end on every day, UK time: "18:00".</summary>
     public string WorkingDayEnd { get; set; } = string.Empty;
 
     /// <summary>The grid's rows, in minutes.</summary>

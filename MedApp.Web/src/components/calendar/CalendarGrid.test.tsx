@@ -91,6 +91,32 @@ describe('CalendarGrid', () => {
     expect(dayColumns(days, [], {weekdaysOnly: true}).map((c) => c.date)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
   });
 
+  it("shows a Saturday they work at full width, and only their hours on a grid that fits the week's longest day", async () => {
+    atMondayMorning();
+    // Saturday mornings, 09:00 to 13:00; Tuesday until 20:00. Every day's grid runs 08:00 to 20:00, so rows line up.
+    const days = week().map((d) => {
+      const grid = {gridStartUtc: ukTime(d.date!, '08:00'), gridEndUtc: ukTime(d.date!, '20:00')};
+      if (d.date === '2026-11-28') return {...d, ...grid, isWorkingDay: true, hasHours: true, workStartUtc: ukTime(d.date, '09:00'), workEndUtc: ukTime(d.date, '13:00')};
+      if (d.date === '2026-11-24') return {...d, ...grid, workEndUtc: ukTime(d.date, '20:00')};
+      return {...d, ...grid};
+    });
+    renderGrid({days});
+
+    const saturday = await screen.findByRole('group', {name: 'Saturday 28 November'});
+    expect(saturday).not.toHaveAttribute('data-narrow');
+    expect(within(saturday).getAllByRole('button', {name: /, free$/})).toHaveLength(16);
+    expect(within(saturday).queryByRole('button', {name: 'Saturday 28 November, 08:45, free'})).not.toBeInTheDocument();
+    expect(within(saturday).getByRole('button', {name: 'Saturday 28 November, 09:00, free'})).toBeInTheDocument();
+    // 48 rows from 08:00 to 20:00; Saturday's 32 outside 09:00 to 13:00 are shaded as unavailable.
+    expect(saturday.querySelectorAll('[data-unavailable]')).toHaveLength(32);
+    expect(within(column('Tuesday 24 November')).getByRole('button', {name: 'Tuesday 24 November, 19:45, free'})).toBeInTheDocument();
+    expect(within(column('Monday 23 November, today')).queryByRole('button', {name: 'Monday 23 November, 18:00, free'})).not.toBeInTheDocument();
+    expect(screen.getByText('19:00')).toBeInTheDocument();
+    // Sunday, which they don't work, stays narrow; a compact week keeps the Saturday they work.
+    expect(column('Sunday 29 November, not a working day')).toBeInTheDocument();
+    expect(dayColumns(days, [], {weekdaysOnly: true}).map((c) => c.date)).toContain('2026-11-28');
+  });
+
   it('shows appointments and blocks, which open when clicked or pressed', async () => {
     atMondayMorning();
     const appointment = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '10:00'}));

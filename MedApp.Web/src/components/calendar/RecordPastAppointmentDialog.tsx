@@ -22,7 +22,7 @@ import {pathwayQuery} from '../../api/pathways';
 import {pathwaySearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
-import {addDays, addMinutes, formatCalendarDay, formatTimeRange, intervalOf, isWeekday, SLOT_MINUTES, ukToday} from '../../utils/calendarSlots';
+import {addDays, addMinutes, formatCalendarDay, formatTimeRange, intervalOf, SLOT_MINUTES, ukToday, worksThatDay} from '../../utils/calendarSlots';
 import {formatShortDate, formatTime} from '../../utils/dates';
 import {lengthLabel} from '../../utils/meetingTimes';
 import {useSaveShortcut} from '../forms/SaveShortcut';
@@ -116,12 +116,12 @@ interface Problem {
 const NO_PROBLEM: Problem = {validation: null, message: null};
 
 /**
- * The start times (UTC, ISO) on a past weekday for an appointment `lengthMinutes` long: every `stepMinutes` from the
- * start of the working day, ending by its end, that had started by `now`. A closed weekday counts (a visit that happened
- * on it can be recorded); a weekend never does. Whether a time overlaps another appointment is the server's to say.
+ * The start times (UTC, ISO) on a past day the person works for an appointment `lengthMinutes` long: every
+ * `stepMinutes` from the start of their working day, ending by its end, that had started by `now`. A closed day they
+ * work counts (a visit that happened on it can be recorded); a day they don't work never does. Whether a time overlaps another appointment is the server's to say.
  */
 export function pastStarts(day: CalendarDay, lengthMinutes: number, now: Date, stepMinutes: number = SLOT_MINUTES): string[] {
-  if (!day.date || !isWeekday(day.date) || !day.workStartUtc || !day.workEndUtc || lengthMinutes <= 0) return [];
+  if (!day.date || !worksThatDay(day) || !day.workStartUtc || !day.workEndUtc || lengthMinutes <= 0) return [];
   const {start: dayStart, end: dayEnd} = intervalOf(day.workStartUtc, day.workEndUtc);
   const starts: string[] = [];
   for (let start = dayStart; start + lengthMinutes * MINUTE <= dayEnd && start <= now.getTime(); start += stepMinutes * MINUTE) {

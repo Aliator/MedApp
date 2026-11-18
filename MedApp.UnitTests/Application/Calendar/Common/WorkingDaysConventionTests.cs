@@ -7,19 +7,15 @@ using MedApp.Application.Calendar.StaffCalendars.Commands.ApplyDayTemplate;
 namespace MedApp.UnitTests.Application.Calendar.Common;
 
 /// <summary>
-/// Every command that puts something on a calendar refuses a closed day from one place (decision 72): its validator
-/// takes <see cref="WorkingDays"/>, which looks the day's closed days up. A new command with a time and no such
-/// validator would let a closed day through, so this finds them by their shape.
+/// Every command that puts something on a calendar checks the person's working day from one place (decisions 72 and
+/// 120): its validator takes <see cref="WorkingDays"/>, which looks up the day's closed days and the person's hours. A
+/// new command with a time and no such validator would let a closed day, or a time outside someone's hours, through,
+/// so this finds them by their shape. A walk-in (<see cref="RecordPastAppointmentCommand"/>) takes it too, for the
+/// person's hours, and asks it to leave closed days out (decision 74).
 /// </summary>
 [TestFixture]
 public sealed class WorkingDaysConventionTests
 {
-    /// <summary>Commands with a time that may be on a closed day, and why.</summary>
-    private static readonly Dictionary<Type, string> Exempt = new()
-    {
-        [typeof(RecordPastAppointmentCommand)] = "a walk-in may be on a closed day: what happened, happened (decision 74)",
-    };
-
     private static readonly IReadOnlyList<Type> Commands = typeof(WorkingDays).Assembly.GetTypes()
         .Where(t => t is { IsClass: true, IsAbstract: false } && t.Namespace?.Contains(".Commands.") == true && t.Name.EndsWith("Command"))
         .ToList();
@@ -44,8 +40,8 @@ public sealed class WorkingDaysConventionTests
         var timed = Commands.Where(HasTimes).ToList();
         timed.Should().HaveCountGreaterThanOrEqualTo(8, "the scan must find the calendar commands");
 
-        foreach (var command in timed.Where(c => !Exempt.ContainsKey(c)))
-            ValidatorsOf(command).Any(TakesWorkingDays).Should().BeTrue($"{command.Name} puts something on a calendar, so a closed day must be refused");
+        foreach (var command in timed)
+            ValidatorsOf(command).Any(TakesWorkingDays).Should().BeTrue($"{command.Name} puts something on a calendar, so a closed day and the person's hours must be checked");
     }
 
     [Test]
@@ -56,12 +52,10 @@ public sealed class WorkingDaysConventionTests
     }
 
     [Test]
-    public void TheExemptions_AreStillCommandsWithATime_AndDontLookClosedDaysUp()
+    public void AWalkIn_IsValidatedWithTheHours_ButNotTheClosedDays()
     {
-        foreach (var command in Exempt.Keys)
-        {
-            HasTimes(command).Should().BeTrue(command.Name);
-            ValidatorsOf(command).Any(TakesWorkingDays).Should().BeFalse(Exempt[command]);
-        }
+        HasTimes(typeof(RecordPastAppointmentCommand)).Should().BeTrue();
+        ValidatorsOf(typeof(RecordPastAppointmentCommand)).Any(TakesWorkingDays).Should().BeTrue(
+            "a walk-in is inside the person's hours, though it may be on a closed day: what happened, happened (decision 74)");
     }
 }

@@ -368,7 +368,9 @@ public sealed class CalendarClashesTests
 
         CalendarClashes.Find(data, At(ClosedWednesday, 10), At(ClosedWednesday, 11))
             .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
-        CalendarClashes.WhyClosed(data, At(ClosedWednesday, 10)).Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
-        CalendarClashes.WhyClosed(data with { ClosedDays = ClosedDaySet.None }, At(ClosedWednesday, 10)).Should().BeNull();
+        CalendarClashes.WhyOutsideWorkingDay(data, At(ClosedWednesday, 10), At(ClosedWednesday, 11))
+            .Should().Be(WorkingHours.ClosedDay(ClosedWednesday, ClosedDayName));
+        CalendarClashes.WhyOutsideWorkingDay(data with { ClosedDays = ClosedDaySet.None }, At(ClosedWednesday, 10), At(ClosedWednesday, 11))
+            .Should().BeNull();
     }
 }
