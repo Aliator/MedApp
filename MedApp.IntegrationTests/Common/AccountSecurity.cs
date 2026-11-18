@@ -73,6 +73,38 @@ public static class AccountSecurity
         return (setup.SharedKey, codes.RecoveryCodes);
     }
 
+    /// <summary>The newest two-factor code emailed to <paramref name="address"/>.</summary>
+    public static string EmailedCodeTo(string address) =>
+        FakeEmailSender.CodeIn(Api.Emails.To(address).Last(m => m.Subject == EmailTemplates.TwoFactorCodeSubject));
+
+    /// <summary>How many two-factor code emails <paramref name="address"/> has had.</summary>
+    public static int CodeEmailsTo(string address) =>
+        Api.Emails.To(address).Count(m => m.Subject == EmailTemplates.TwoFactorCodeSubject);
+
+    /// <summary>
+    /// Gives the signed-in account (whose <paramref name="password"/> it needs) the confirmed <paramref name="address"/>,
+    /// then turns two-factor on with codes by email, with the code emailed to it: its recovery codes.
+    /// </summary>
+    public static async Task<IReadOnlyList<string>> TurnOnEmailCodesAsync(HttpClient client, string password, string address)
+    {
+        await ConfirmAddressAsync(client, password, address);
+        await (await client.PostAsJsonAsync("/api/auth/me/two-factor/email", new EmailCodesSetupRequest(password)))
+            .ShouldHaveStatusAsync(HttpStatusCode.Accepted);
+        var codes = await (await client.PostAsJsonAsync("/api/auth/me/two-factor/email/enable", new EmailCodeRequest(EmailedCodeTo(address))))
+            .ReadAsAsync<RecoveryCodesResponse>();
+        return codes.RecoveryCodes;
+    }
+
+    /// <summary>Signs in to an account using codes by email, both steps, with the code emailed to <paramref name="address"/>.</summary>
+    public static async Task<HttpClient> SignInWithEmailCodeAsync(string username, string password, string address)
+    {
+        var client = Api.CreateApiClient();
+        var challenge = await PasswordStepAsync(client, username, password);
+        await (await client.PostAsJsonAsync("/api/auth/login/two-factor", new LoginTwoFactorRequest(challenge.Challenge, EmailedCodeTo(address))))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+        return client;
+    }
+
     /// <summary>The password step for an account with two-factor: the challenge (a 202, no session).</summary>
     public static async Task<TwoFactorChallengeResponse> PasswordStepAsync(HttpClient client, string username, string password) =>
         await (await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(username, password)))

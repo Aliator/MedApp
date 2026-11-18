@@ -40,4 +40,16 @@ public sealed partial class FakeEmailSender : IEmailSender
 
     [GeneratedRegex(@"#user=(?<user>[0-9a-f-]{36})&token=(?<token>[^\s]+)")]
     private static partial Regex LinkPattern();
+
+    /// <summary>The 6-digit two-factor code in a code email, as its reader would copy it.</summary>
+    public static string CodeIn(EmailMessage message)
+    {
+        if (message.Subject != EmailTemplates.TwoFactorCodeSubject)
+            throw new InvalidOperationException($"\"{message.Subject}\" isn't a code email.");
+
+        return CodePattern().Match(message.TextBody).Value;
+    }
+
+    [GeneratedRegex(@"(?m)^\d{6}\s*$")]
+    private static partial Regex CodePattern();
 }
