@@ -63,6 +63,11 @@ jobs:
       - name: Test the tier chooser
         run: bash .github/scripts/ci-plan.test.sh
 
+      # AGENTS.md is loaded into every agent session, so its core stays small (AGENTS.md, Keeping this file small).
+      # Here, as this job runs on every pull request; the sparse checkout's cone mode includes the root's files.
+      - name: Check AGENTS.md is at most 40,000 characters
+        run: python3 -c "import sys; n = len(open('AGENTS.md', encoding='utf-8').read()); print(f'AGENTS.md has {n:,} characters (limit 40,000)'); sys.exit(n > 40000)"
+
       - name: Choose the tier and the jobs
         id: plan
         env:
@@ -205,7 +210,7 @@ jobs:
 
       # A known high or critical advisory in any installed package fails the pull request. Dev dependencies too: they
       # run here, in CI, and in the image's build stage. Moderate and low ones are left to Dependabot.
-      # An advisory with no fixed version yet can be accepted for a short, dated time (AGENTS.md, Supply chain rules),
+      # An advisory with no fixed version yet can be accepted for a short, dated time (docs/agents/ci.md, Supply chain rules),
       # by its GitHub advisory ID in ACCEPTED, with a docs/todo.md entry it expires with. Only those IDs are let through;
       # any other high or critical advisory still fails, and after ACCEPTED_UNTIL the audit counts them all again.
       #   GHSA-fc5q-39xc-vjpf (picomatch ReDoS, high; failing the audit from 17 November 2026): every picomatch up to

@@ -1,0 +1,13 @@
+# Insights
+
+Admins' Insights page and its SQL aggregation: read before changing it or the audit details it reads.
+
+Admins' overview (`/admin/insights`, `GET api/procedures/insights`): headline counts against the same point last week, overdue work by assignee and priority, procedures created and completed each week, and average time at each stage of each template.
+- **Aggregated in SQL:** the LINQ is in `ProcedureInsightsQueries` (`Application/Procedures/Insights/Common`), each query ending in a `GroupBy` or `Count`, run by `ProcedureInsightsRepository` and, in unit tests, in memory. `ProcedureInsightsSqlTests` checks each translates to SQL Server's SQL (`ToQueryString`, no database).
+- **SQL-only functions** go in `InsightsFunctions` (with a C# body for tests), mapped in `InsightsDbFunctions` (`SecondsBetween` is `DATEDIFF_BIG`, `JsonValue` is `JSON_VALUE`). They're not in the model snapshot, so need no migration.
+- **Last week's state is rebuilt backwards from now** from recent audit entries: status then is the `"from"` of the first `StatusChanged` entry after it (`{"from":"…","to":"…"}`, as `ProcedureAudit` writes it), due date then the `"from"` of the first `DetailsUpdated` with `changes.dueDate` after it; with none, the current value. So keep those details formats. Completions are `StatusChanged` entries to Completed (each one counts), creations `Created` entries.
+- **Keep SQL Server on the index:** a correlated `TOP(1)` over a procedure's entries seeks the `(PatientProcedureId, AtUtc)` index only while its `ORDER BY` is plain columns; sorting on the details text scans the table for every procedure. Time changes on a large synthetic database (the review of #66 has the numbers).
+- **Deleted procedures:** with every template, the audit log's counts include procedures deleted since; with one template they're matched to existing procedures, so deleted ones drop out (the templates' weeks needn't add up to the total). Last week's statuses count only existing procedures.
+- **Drill-down links** go to the procedures list with `mine=false` (so a start-on-mine setting can't narrow them) and `templateId`. "Completed this week" has no link: no list shows that.
+- **Weeks are UK weeks,** Monday to Sunday (`InsightsPeriod`); "last week" is the same point in it as now is in this one. SQL counts by hour and C# sums into weeks, since UK offset changes are on the hour.
+- **Stage times** run from reached (the previous stage first finished, or the procedure created) to started (waiting), then to first finish (working), from the audit log, as unlocking and finishing again moves `CompletedAtUtc`.
