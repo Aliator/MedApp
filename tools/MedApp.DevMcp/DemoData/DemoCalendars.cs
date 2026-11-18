@@ -104,9 +104,16 @@ public sealed class DemoCalendars
     }
 
     public static async Task<DemoCalendars> CreateAsync(
-        SeedServices services, IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random, CancellationToken ct)
+        SeedServices services, IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random, Guid mdtSpecialtyId, CancellationToken ct)
     {
         var calendars = Plan(staff, timeline, random);
+
+        // The skin cancer team meeting is the dermatology MDT once the MDT list went live: its patients are listed on it.
+        foreach (var meeting in calendars._meetings.Where(m => m.Title == DemoMeetings.SkinCancerTeam && m.StartUtc >= timeline.LabAndLettersFromUtc))
+        {
+            meeting.IsMdt = true;
+            meeting.SpecialtyId = mdtSpecialtyId;
+        }
 
         await services.Run(async sp =>
         {

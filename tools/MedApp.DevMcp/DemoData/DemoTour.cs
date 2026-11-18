@@ -2,7 +2,12 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Consent;
+using MedApp.Domain.Mdt;
+using MedApp.Domain.Results;
+using MedApp.Domain.Specimens;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
@@ -19,7 +24,8 @@ namespace MedApp.DevMcp.DemoData;
 /// </summary>
 public static class DemoTour
 {
-    public static object Build(DemoWorld world, IReadOnlyList<PathwayPlan> plans, IReadOnlyList<PatientSeed> patients, IReadOnlyList<ReferralStory> stories)
+    public static object Build(DemoWorld world, IReadOnlyList<PathwayPlan> plans, IReadOnlyList<PatientSeed> patients, IReadOnlyList<ReferralStory> stories,
+        IReadOnlyDictionary<string, Guid> letters, object clinics)
     {
         var names = patients.ToDictionary(p => p.Id, p => p.FullName);
         var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
@@ -57,6 +63,61 @@ public static class DemoTour
                 .OrderBy(a => a.StartUtc).Select(a => $"{UkTime.DescribeTime(a.StartUtc!.Value)} {names[a.PatientId]}"),
             calendar = Calendar(world),
             referrals = Referrals(world, plans, stories, names, byId),
+            centre = Centre(world, names, byId, letters, clinics),
+        };
+    }
+
+    /// <summary>
+    /// Where to see Phases 3 to 5 (the lab, results, consent, the MDT list, branches, letters, clinic sessions): each
+    /// special case the story made, by its pathway ("Title, for First Last"), or a specimen by its number.
+    /// </summary>
+    private static object Centre(DemoWorld world, IReadOnlyDictionary<Guid, string> names, IReadOnlyDictionary<Guid, PatientPathway> byId,
+        IReadOnlyDictionary<string, Guid> letters, object clinics)
+    {
+        var now = world.Timeline.NowUtc;
+        var types = world.SpecimenSetup.Types.ToDictionary(t => t.Id);
+        string? Of(Guid? pathwayId) => pathwayId is { } id && byId.TryGetValue(id, out var p) ? $"{p.Title}, for {names[p.PatientId]}" : null;
+        string Specimen(Specimen s) => $"{s.Number} ({types[s.SpecimenTypeId].Name}): {Of(s.PathwayId)}";
+        IEnumerable<string> Branch(string branch) => world.Audit
+            .Where(a => a.Action == AuditAction.BranchChosen && a.Details.Contains($"\"branch\":\"{branch}\""))
+            .OrderByDescending(a => a.AtUtc).Select(a => Of(a.PatientPathwayId)).OfType<string>().Take(2);
+        var nextMdt = world.MdtMeetings.FirstOrDefault(m => m.StartUtc > now);
+        var lastMdt = world.MdtMeetings.LastOrDefault(m => m.StartUtc <= now);
+        var referralLetter = letters.TryGetValue("informationRequestDraft", out var referralId)
+            ? world.Referrals.FirstOrDefault(r => r.Id == referralId) : null;
+
+        return new
+        {
+            labAndLettersFrom = UkTime.DateOf(world.Timeline.LabAndLettersFromUtc),
+            specimenRejectedAndTakenAgain = world.Specimens.Where(s => s.Status == SpecimenStatus.RejectedByLab).Select(Specimen),
+            specimenLostAndPathwayOnHold = world.Specimens.Where(s => s.Status == SpecimenStatus.Lost).Select(Specimen),
+            specimensOverdueAtLab = world.Specimens
+                .Where(s => SpecimenWorkflow.IsOpen(s.Status) && s.TakenAtUtc.AddDays(types[s.SpecimenTypeId].ExpectedTurnaroundDays) < now)
+                .OrderByDescending(s => s.TakenAtUtc).Take(3).Select(Specimen),
+            resultEnteredInErrorAndReportedAgain = world.Results.Where(r => r.Status == ResultStatus.EnteredInError).Select(r => Of(r.PathwayId)),
+            resultsAwaitingSignOff = world.Results.Count(r => r.IsAwaitingSignOff),
+            resultsAwaitingOverTwoWeeks = world.Results.Where(r => r.IsAwaitingSignOff && r.ReportedAtUtc < now.AddDays(-14))
+                .Select(r => Of(r.PathwayId) ?? $"{names[r.PatientId]} (on the patient's record)"),
+            resultNeedingAClinician = world.Results.Where(r => r.Source == ResultSource.ExternalReport).Select(r => names[r.PatientId]),
+            consentWithdrawnAndPathwayOnHold = world.ConsentRecords.Where(c => c.Status == ConsentStatus.Withdrawn).Select(c => Of(c.PathwayId)),
+            mdt = new
+            {
+                lastMeeting = lastMdt is null ? null : UkTime.Describe(lastMdt.StartUtc),
+                discussedThere = lastMdt is null ? 0 : world.MdtItems.Count(i => i.MeetingId == lastMdt.Id && i.Status == MdtItemStatus.Discussed),
+                nextMeeting = nextMdt is null ? null : UkTime.Describe(nextMdt.StartUtc),
+                listedForIt = nextMdt is null ? [] : world.MdtItems.Where(i => i.MeetingId == nextMdt.Id && i.Status == MdtItemStatus.Listed).Select(i => Of(i.PathwayId)),
+            },
+            benignBranchChosen = Branch(DemoPathwayKinds.BenignBranch),
+            treatmentBranchChosen = Branch(DemoPathwayKinds.TreatmentBranch),
+            stageSkippedPatientDeclined = world.Audit.Where(a => a.Action == AuditAction.StageSkipped).Select(a => Of(a.PatientPathwayId)).OfType<string>().Distinct().Take(3),
+            stageSkippedThenReinstated = world.Audit.Where(a => a.Action == AuditAction.StageReinstated).Select(a => Of(a.PatientPathwayId)),
+            didNotAttendAwaitingDecision = world.Appointments
+                .Where(a => a.Status == AppointmentStatus.DidNotAttend && a.DnaFollowUp is null && a.EndUtc >= world.Timeline.LabAndLettersFromUtc)
+                .Select(a => Of(a.PathwayId)).OfType<string>(),
+            letters = letters.Where(l => l.Key != "informationRequestDraft").ToDictionary(l => l.Key, l => Of(l.Value)),
+            informationRequestDraftedOn = referralLetter is null ? null
+                : $"{world.Specialties[referralLetter.SpecialtyId].Name} referral for {names[referralLetter.PatientId]}",
+            clinics,
         };
     }
 
