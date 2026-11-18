@@ -17,6 +17,7 @@ public static class SpecialtyMapper
         PathwayCount = usage.PathwayCount,
         MemberCount = usage.MemberCount,
         ReferralCount = usage.ReferralCount,
+        LetterTemplateCount = usage.LetterTemplateCount,
         TriagerCount = usage.TriagerCount,
         CanBeDeleted = !usage.IsInUse,
         TargetDaysUrgent = specialty.TargetDaysUrgent,

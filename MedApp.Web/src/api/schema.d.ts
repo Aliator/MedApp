@@ -6149,6 +6149,440 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/letter-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"][];
+                        "application/json": components["schemas"]["LetterTemplateResponse"][];
+                        "text/json": components["schemas"]["LetterTemplateResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateLetterTemplateRequest"];
+                    "text/json": components["schemas"]["CreateLetterTemplateRequest"];
+                    "application/*+json": components["schemas"]["CreateLetterTemplateRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"];
+                        "application/json": components["schemas"]["LetterTemplateResponse"];
+                        "text/json": components["schemas"]["LetterTemplateResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/letter-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"];
+                        "application/json": components["schemas"]["LetterTemplateResponse"];
+                        "text/json": components["schemas"]["LetterTemplateResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateLetterTemplateRequest"];
+                    "text/json": components["schemas"]["UpdateLetterTemplateRequest"];
+                    "application/*+json": components["schemas"]["UpdateLetterTemplateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"];
+                        "application/json": components["schemas"]["LetterTemplateResponse"];
+                        "text/json": components["schemas"]["LetterTemplateResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/letter-templates/merge-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterMergeFieldResponse"][];
+                        "application/json": components["schemas"]["LetterMergeFieldResponse"][];
+                        "text/json": components["schemas"]["LetterMergeFieldResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/letter-templates/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LetterTemplateVersionRequest"];
+                    "text/json": components["schemas"]["LetterTemplateVersionRequest"];
+                    "application/*+json": components["schemas"]["LetterTemplateVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"];
+                        "application/json": components["schemas"]["LetterTemplateResponse"];
+                        "text/json": components["schemas"]["LetterTemplateResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/letter-templates/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LetterTemplateVersionRequest"];
+                    "text/json": components["schemas"]["LetterTemplateVersionRequest"];
+                    "application/*+json": components["schemas"]["LetterTemplateVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterTemplateResponse"];
+                        "application/json": components["schemas"]["LetterTemplateResponse"];
+                        "text/json": components["schemas"]["LetterTemplateResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/letter-templates/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewLetterTemplateRequest"];
+                    "text/json": components["schemas"]["PreviewLetterTemplateRequest"];
+                    "application/*+json": components["schemas"]["PreviewLetterTemplateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/pdf": string;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login/two-factor": {
         parameters: {
             query?: never;
@@ -14015,6 +14449,15 @@ export interface components {
             /** Format: uuid */
             siteId?: string | null;
         };
+        CreateLetterTemplateRequest: {
+            name?: string | null;
+            kind?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
+            letterhead?: string | null;
+            bodySkeleton?: string | null;
+            closing?: string | null;
+        };
         CreatePathwayTemplateRequest: {
             name?: string | null;
             /** Format: uuid */
@@ -14649,6 +15092,36 @@ export interface components {
             /** Format: date */
             keepUntil?: string;
             reason?: string | null;
+        };
+        LetterMergeFieldResponse: {
+            name?: string | null;
+            label?: string | null;
+            description?: string | null;
+            example?: string | null;
+        };
+        LetterTemplateResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            kind?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
+            specialtyName?: string | null;
+            letterhead?: string | null;
+            bodySkeleton?: string | null;
+            closing?: string | null;
+            mergeFields?: string[] | null;
+            isArchived?: boolean;
+            /** Format: int32 */
+            version?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
+        LetterTemplateVersionRequest: {
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         LoginRequest: {
             username?: string | null;
@@ -15330,6 +15803,13 @@ export interface components {
             /** Format: int32 */
             expectedVersion?: number;
         };
+        PreviewLetterTemplateRequest: {
+            name?: string | null;
+            letterhead?: string | null;
+            bodySkeleton?: string | null;
+            closing?: string | null;
+            largePrint?: boolean;
+        };
         ProblemDetails: {
             type?: string | null;
             title?: string | null;
@@ -15751,6 +16231,8 @@ export interface components {
             /** Format: int32 */
             referralCount?: number;
             /** Format: int32 */
+            letterTemplateCount?: number;
+            /** Format: int32 */
             triagerCount?: number;
             canBeDeleted?: boolean;
             /** Format: int32 */
@@ -15912,6 +16394,17 @@ export interface components {
             slotMinutes?: number;
             /** Format: date-time */
             expectedLastUpdated?: string | null;
+        };
+        UpdateLetterTemplateRequest: {
+            name?: string | null;
+            kind?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
+            letterhead?: string | null;
+            bodySkeleton?: string | null;
+            closing?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         UpdateNotificationPreferencesRequest: {
             pathwayAssigned?: boolean;

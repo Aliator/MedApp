@@ -82,6 +82,8 @@ public static class DemoWipe
                 await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
+                // Letter templates point at specialties, so they go first.
+                await db.LetterTemplates.ExecuteDeleteAsync(cancellationToken);
                 // Every specialty but General (which the migrations seeded), back as it was; memberships go first.
                 await db.StaffSpecialties.ExecuteDeleteAsync(cancellationToken);
                 await db.Specialties.Where(s => s.Id != Specialty.GeneralId).ExecuteDeleteAsync(cancellationToken);

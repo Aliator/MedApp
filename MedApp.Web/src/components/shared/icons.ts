@@ -44,6 +44,7 @@ import {
   RiFileHistoryLine,
   RiDeleteBinLine,
   RiDoorClosedLine,
+  RiDraftLine,
   RiDoorOpenLine,
   RiEqualizerLine,
   RiEraserLine,
@@ -254,6 +255,8 @@ export const AppIcon = {
   ActivityTypes: remix(RiPriceTag3Line),
   /** Specialties (admin): what pathway templates belong to, and what staff work in (Dermatology, Urology, ...). */
   Specialties: remix(RiHospitalLine),
+  /** Letter templates (admin): the letterhead, body and closing letters start from. */
+  LetterTemplates: remix(RiDraftLine),
   /** Roles and Permissions (admin): what each role lets the people who hold it do. */
   Roles: remix(RiShieldUserLine),
   /** Closed days (admin): bank holidays and other days the clinic is closed. */

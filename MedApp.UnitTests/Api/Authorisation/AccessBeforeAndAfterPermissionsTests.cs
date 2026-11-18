@@ -148,6 +148,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.SearchPatients 00011
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LetterTemplatesController.ArchiveLetterTemplate 00001
+        LetterTemplatesController.CreateLetterTemplate 00001
+        LetterTemplatesController.GetLetterTemplate 00011
+        LetterTemplatesController.GetLetterTemplates 00011
+        LetterTemplatesController.GetMergeFields 00011
+        LetterTemplatesController.PreviewLetterTemplate 00001
+        LetterTemplatesController.RestoreLetterTemplate 00001
+        LetterTemplatesController.UpdateLetterTemplate 00001
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011

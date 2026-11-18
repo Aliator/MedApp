@@ -28,6 +28,11 @@ describe('setupPage', () => {
     expect(setupPage(partial, {}).rows).toEqual([{isArchived: false}, {}, {name: 'Stage B'}]);
     expect(setupPage(partial, {name: 'stage', status: 'any'}).rows.map((r) => r.name)).toEqual(['Stage A', 'Stage B']);
   });
+
+  it('sorts in an order of its own when given one', () => {
+    const descending = (a: {name: string}, b: {name: string}) => b.name.localeCompare(a.name);
+    expect(setupPage(items, {name: 'stage', status: 'any'}, 3, descending).rows.map((r) => r.name)).toEqual(['Stage L', 'Stage K', 'Stage J']);
+  });
 });
 
 describe('the setup lists search', () => {

@@ -24,6 +24,9 @@ public sealed class SpecialtyResponse
     /// <summary>How many referrals ask for it, in any status.</summary>
     public int ReferralCount { get; set; }
 
+    /// <summary>How many letter templates are for it.</summary>
+    public int LetterTemplateCount { get; set; }
+
     /// <summary>
     /// How many of its members can triage its referrals (they hold the TriageReferrals permission). With none, nobody
     /// can triage its referrals, and the Specialties page warns (hazard H-40).

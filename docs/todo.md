@@ -36,6 +36,12 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
+  - **Letter templates and the PDF engine are built** (PR 15, `feature/letter-templates`: `docs/agents/letters.md`). Left from it:
+    - **PDF/A:** letters are made in PDFsharp's PDF/A-1a mode and pass veraPDF 1.30 while every character is Windows-1252, but one with other characters (Ł, ł, ş, ğ, common in Polish and Turkish names) fails clause 6.3.5, as PDFsharp 6.2 writes no CIDSet for the extra font it then embeds. Before claiming PDF/A: add the CIDSet (a fix upstream, a post-processing step, or a font without the second encoding), and check again with veraPDF (`verapdf/cli`, `--flavour 1a`). GP systems accept plain PDF meanwhile (plan, decision 98).
+    - **Tags are coarse:** each page's text is one paragraph element, so headings and lists aren't tagged as such (PDFsharp can't tag what MigraDoc lays out). A screen reader reads the text in order; finer tags need per-element rendering or another library.
+    - **PDFsharp and MigraDoc stay on 6.2.x:** 6.5.0 and later are AGPL-3.0 (Dependabot ignores them). If 6.2 stops getting fixes, decide between buying empira's commercial licence, staying on 6.2 with the NuGet audit as the alarm, or another MIT library.
+    - **Deleting an unused template** comes with letters (PR 16), which know whether one was used; until then templates are only archived.
+    - **The letter font covers Latin scripts only:** PR 16 must refuse (with `FindUnsupportedCharacters`) a patient's name, address or body text it can't show, naming the characters, rather than print `?`.
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).

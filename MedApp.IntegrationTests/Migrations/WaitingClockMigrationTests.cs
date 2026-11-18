@@ -17,8 +17,8 @@ namespace MedApp.IntegrationTests.Migrations;
 [TestFixture]
 public sealed class WaitingClockMigrationTests
 {
-    private const string Before = "20261118151952_AddedClinicSessions";
-    private const string Migration = "20261118154709_AddedWaitingTimeClock";
+    private const string Before = "20261118154532_AddedLetterTemplates";
+    private const string Migration = "20261118161655_AddedWaitingTimeClock";
 
     private static readonly Guid Patient = Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c1");
     private static readonly Guid Pathway = Guid.Parse("cccccccc-0000-0000-0000-0000000000c1");
