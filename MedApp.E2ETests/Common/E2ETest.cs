@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
@@ -251,4 +252,23 @@ public abstract class E2ETest : PageTest
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")));
 
     protected ILocator Main => Page.GetByRole(AriaRole.Main);
+
+    /// <summary>
+    /// Shows a grid page's search bar (the one labelled <paramref name="searchLabel"/>, e.g. "Search patients") and
+    /// returns it. A grid page (<c>ListFilterBar</c>) opens on its tabs, with the search behind its menu: "List options
+    /// ...", then Search. Nothing to do when the bar is already showing.
+    /// </summary>
+    protected async Task<ILocator> OpenListSearchAsync(string searchLabel)
+    {
+        var search = Main.GetByRole(AriaRole.Combobox, new() { Name = searchLabel });
+        if (await search.IsVisibleAsync())
+            return search;
+
+        // Its name says which tab the list shows, if any: "List options (showing All)".
+        await Main.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^List options") }).ClickAsync();
+        // An item's name runs on into its description ("Search Search with filters").
+        await Page.GetByRole(AriaRole.Menuitem, new() { NameRegex = new Regex("^Search") }).ClickAsync();
+        await Expect(search).ToBeVisibleAsync();
+        return search;
+    }
 }

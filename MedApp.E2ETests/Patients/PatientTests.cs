@@ -99,7 +99,7 @@ public sealed class PatientTests : E2ETest
     /// <summary>Adds "Last name contains ..." to the list's filter bar.</summary>
     private async Task FilterByLastNameAsync(string lastName)
     {
-        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Search patients" }).ClickAsync();
+        await (await OpenListSearchAsync("Search patients")).ClickAsync();
         await Page.GetByRole(AriaRole.Option, new() { Name = "Last name", Exact = true }).ClickAsync();
         await Main.GetByRole(AriaRole.Textbox, new() { Name = "Value" }).FillAsync(lastName);
         await Main.GetByRole(AriaRole.Button, new() { Name = "Apply" }).ClickAsync();

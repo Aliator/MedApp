@@ -24,6 +24,8 @@ public sealed class TwoFactorCodeEmailTests
     }
 
     [TestCase(10.0, "for 10 minutes")]
+    [TestCase(9.95, "for 10 minutes")] // a sign-in's code, made a moment after its challenge
+    [TestCase(9.5, "for 9 minutes")]
     [TestCase(3.5, "for 3 minutes")]
     [TestCase(1.0, "for 1 minute.")]
     [TestCase(0.4, "for 1 minute.")]

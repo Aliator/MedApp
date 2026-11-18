@@ -54,6 +54,9 @@ public static class EmailTemplates
             ("Choose a new password", link),
             ["If you didn't ask for this, you can ignore this email: your password hasn't changed."]);
 
+    /// <summary>How much less than a whole minute still counts as it, in <see cref="TwoFactorCode"/>.</summary>
+    private static readonly TimeSpan LifetimeSlack = TimeSpan.FromSeconds(5);
+
     /// <summary>
     /// A two-factor code, sent to the account's confirmed address: the code, what it's for, how long it works, and what to
     /// do if you didn't ask for it. Nothing else: no username, no link, no clinical information.
@@ -63,8 +66,10 @@ public static class EmailTemplates
     /// <param name="lifetime">How long it works: <c>EmailCode.Lifetime</c>, or less for a sign-in that ends sooner.</param>
     public static EmailMessage TwoFactorCode(string to, string code, bool forSignIn, TimeSpan lifetime)
     {
-        // Whole minutes, rounded down (never promising more than is left), and at least one.
-        var minutes = Math.Max(1, (int)Math.Floor(lifetime.TotalMinutes + 0.001));
+        // Whole minutes, rounded down (never promising more than is left), and at least one. A few seconds' slack: a
+        // sign-in's code ends with its challenge, made a moment (a few database calls) before the code, so a full
+        // 10 minutes arrives as 9:59.9 and still says 10.
+        var minutes = Math.Max(1, (int)Math.Floor((lifetime + LifetimeSlack).TotalMinutes));
         var purpose = forSignIn ? "to sign in to MedApp" : "to confirm a change to how you sign in to MedApp";
         var message = Build(
             to,
