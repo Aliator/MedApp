@@ -26,7 +26,6 @@ import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
 import {letterCountQuery} from '../../api/letters';
-import {awaitingTriageCountQuery} from '../../api/referrals';
 import {resultCountQuery} from '../../api/results';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
@@ -42,6 +41,8 @@ import {pathwayNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
+import {readMeNavEntry} from '../../demo/readMeNav';
+import {READ_ME_PATH as READ_ME} from '../../demo/readMeSeen';
 
 /**
  * The Administration section's pages, each shown only to people whose roles grant its permission (the page's route
@@ -603,20 +604,6 @@ function PinnableSection({
 }
 
 /**
- * The Referrals item's count of referrals awaiting triage, as a badge (nothing when there are none). Seen as the
- * number; heard as "3 awaiting triage", after the item's name.
- */
-export function AwaitingTriageCount({count}: {count: number}) {
-  if (count <= 0) return null;
-  return (
-    <>
-      <Badge label={count > 99 ? '99+' : String(count)} variant="info" aria-hidden />
-      <VisuallyHidden>{`, ${count} awaiting triage`}</VisuallyHidden>
-    </>
-  );
-}
-
-/**
  * The Letters item's count: the signed-in person's letters to approve, and every approved letter still to send, as a
  * badge (nothing when there are none). Seen as the number; heard as "2 to approve, 3 to send", after the item's name.
  */
@@ -684,9 +671,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   };
 
   const patientPins = usePins('patients', user.username);
-  // How many referrals await triage in your specialties (everyone's, if you have none): a count, naming no patients.
-  const awaitingTriage =
-    useQuery({...awaitingTriageCountQuery, enabled: can(user, 'ViewPatients')}).data?.count ?? 0;
   const pathwayPins = usePins('pathways', user.username);
   // My letters to approve and every letter still to send: counts, naming no patients.
   const letterCount = useQuery({...letterCountQuery, enabled: can(user, 'ViewPatients')}).data;
@@ -704,6 +688,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   // Each item once: its row for the open nav, and its icon for the folded one (a half view), whose hover brings
   // the same row out over the page.
   const main: NavRailEntry[] = [
+    // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
+    ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />})] : []),
     {
       key: 'tasks',
       label: 'My Worklist',
@@ -736,7 +722,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           href="/referrals"
           isSelected={isAt('/referrals')}
           ref={halfViewRow(isHalfAt('/referrals'))}
-          endContent={<AwaitingTriageCount count={awaitingTriage} />}
           actions={<RowMenu label="Referrals" href="/referrals" />}
         />
       ),
@@ -900,25 +885,6 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
-    // The calendar, marked current on every page under it (Requires Appointment, reached from the Calendar page, too).
-    {
-      key: 'calendar',
-      label: 'Calendar',
-      icon: AppIcon.Calendar,
-      href: '/calendar',
-      isSelected: isAt('/calendar'),
-      isHalfView: isHalfAt('/calendar'),
-      row: (
-        <SideNavItem
-          label="Calendar"
-          icon={AppIcon.Calendar}
-          href="/calendar"
-          isSelected={isAt('/calendar')}
-          ref={halfViewRow(isHalfAt('/calendar'))}
-          actions={<RowMenu label="Calendar" href="/calendar" />}
-        />
-      ),
-    },
   ];
   const admin: NavRailEntry[] = ADMIN_PAGES.filter((page) => can(user, page.permission)).map((page) => ({
     key: page.href,
@@ -974,8 +940,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         },
       ]
     : [];
+  // The calendar, at the bottom under the notepad (the owner's choice), marked current on every page under it
+  // (Requires Appointment, reached from the Calendar page, too).
+  const calendarEntry: NavRailEntry = {
+    key: 'calendar',
+    label: 'Calendar',
+    icon: AppIcon.Calendar,
+    href: '/calendar',
+    isSelected: isAt('/calendar'),
+    isHalfView: isHalfAt('/calendar'),
+    row: (
+      <SideNavItem
+        label="Calendar"
+        icon={AppIcon.Calendar}
+        href="/calendar"
+        isSelected={isAt('/calendar')}
+        ref={halfViewRow(isHalfAt('/calendar'))}
+        actions={<RowMenu label="Calendar" href="/calendar" />}
+      />
+    ),
+  };
   const account: NavRailEntry[] = [
     ...notepadEntry,
+    calendarEntry,
     {
       key: 'account',
       label: user.username,

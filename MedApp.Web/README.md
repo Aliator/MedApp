@@ -25,6 +25,7 @@ How a page renders on the server: its route's `beforeLoad` and `loader` run, the
 | `npm run dev` | The page server with Vite: server-rendered pages and hot reload on :5173 (the AppHost runs this) |
 | `npm run dev:client` | Plain Vite, pages rendered in the browser only (no server rendering) |
 | `npm run build` | Type check, then the production build into `dist/`, and the page server into `dist/ssr/` (with the client manifest, as `client-manifest.json`) |
+| `npm run dev:demo` / `npm run build:demo` | The light demo for GitHub Pages: no server, the API answered in the browser with synthetic data, on :5174 / into `dist-demo/` (`docs/agents/light-demo.md`) |
 | `npm run start` | The built page server, on its own (production mode; set `MEDAPP_API_URL`, and `HEALTH_PORT` for a `GET /alive` listener) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -b` |

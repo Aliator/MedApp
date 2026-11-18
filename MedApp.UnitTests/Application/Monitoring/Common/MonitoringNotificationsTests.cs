@@ -63,7 +63,7 @@ public sealed class MonitoringNotificationsTests
     [Test]
     public void Create_EveryEvent_NeverCarriesThePathwaysTitleOrThePatient()
     {
-        foreach (var monitoringEvent in Enum.GetValues<MonitoringEvent>())
+        foreach (var monitoringEvent in Enum.GetValues<MonitoringEvent>().Where(e => !MonitoringEvents.IsServiceAlert(e)))
         {
             var notification = MonitoringNotifications.Create(OwnerId, ByStaff(monitoringEvent), _pathway, Now);
 

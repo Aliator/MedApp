@@ -33,7 +33,26 @@ public enum MonitoringEvent
     /// <summary>Someone changed a pathway's target date.</summary>
     DueDateChanged = 7,
 
-    // 8 to 13 are the service alerts' time-based events (docs/centre-phases-3-5-plan.md, section 5).
+    // 8 to 13 are the service alerts: time-based, found by the service-alerts job against a rule's ThresholdDays
+    // rather than fired by a change (docs/centre-phases-3-5-plan.md, decisions 134 and 135).
+
+    /// <summary>A referral has awaited triage longer than the rule's days (from the day it was received).</summary>
+    ReferralNotTriaged = 8,
+
+    /// <summary>A result has awaited sign-off longer than the rule's days (from when it was reported).</summary>
+    ResultNotSignedOff = 9,
+
+    /// <summary>A visit has been Requested (Requires appointment) longer than the rule's days.</summary>
+    VisitNotBooked = 10,
+
+    /// <summary>A specimen is still open more than the rule's days past its type's expected turnaround.</summary>
+    SpecimenOverdue = 11,
+
+    /// <summary>A referral's running waiting-time clock is within the rule's days of its target (0: past it).</summary>
+    WaitBreached = 12,
+
+    /// <summary>A paused waiting-time clock's review date passed more than the rule's days ago.</summary>
+    PauseReviewPassed = 13,
 
     /// <summary>
     /// Someone finished a stage whose visit is Required without an attended one (a holder of FinishWithoutVisit, with a

@@ -48,7 +48,7 @@ public sealed class CreateMonitoringRuleHandlerTests : MonitoringHandlerTestBase
         });
         saved.Id.Should().NotBeEmpty();
         response.Should().Be(new MonitoringRuleResponse(saved.Id, Staff.UserId, Staff.Username, "StageFinished", "High",
-            TemplateId, TemplateName, ConsultationDefinitionId, ConsultationStage, true, Now, Now));
+            TemplateId, TemplateName, ConsultationDefinitionId, ConsultationStage, null, null, null, true, Now, Now));
         Rules.Verify(r => r.AddAsync(saved, cts.Token), Times.Once);
     }
 
