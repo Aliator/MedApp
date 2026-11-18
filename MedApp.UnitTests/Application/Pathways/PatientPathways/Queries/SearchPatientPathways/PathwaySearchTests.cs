@@ -255,4 +255,47 @@ public sealed class PathwaySearchTests
         if (ascending) keys.Should().BeInAscendingOrder();
         else keys.Should().BeInDescendingOrder();
     }
+
+    /// <summary>A pathway accepted from a referral received <paramref name="receivedDaysAgo"/> days ago, with a 28-day target.</summary>
+    private static PatientPathway WithClock(PatientPathway pathway, int receivedDaysAgo, int? pausedDaysAgo = null)
+    {
+        var referral = ReferralsTestConstants.CreateReferral(patient: pathway.Patient, status: MedApp.Domain.Referrals.ReferralStatus.Accepted);
+        referral.ReceivedOn = Today.AddDays(-receivedDaysAgo);
+        MedApp.Application.Referrals.Common.WaitingClock.Start(referral, 28);
+        if (pausedDaysAgo is { } paused)
+        {
+            referral.PausedSinceOn = Today.AddDays(-paused);
+            referral.PauseReviewOn = Today.AddDays(10);
+        }
+        referral.PathwayId = pathway.Id;
+        pathway.Referral = referral;
+        return pathway;
+    }
+
+    [Test]
+    public void BreachedOnly_KeepsPathwaysWhoseClockIsPastItsTarget()
+    {
+        var breached = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 40);
+        var within = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 5);
+        var breachedThenPaused = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 60, pausedDaysAgo: 10);
+        var pausedWithin = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 60, pausedDaysAgo: 50);
+        var noClock = CreatePathway(Status.InProgress);
+
+        new[] { breached, within, breachedThenPaused, pausedWithin, noClock }.AsQueryable()
+            .Filter(CreateSearchQuery() with { BreachedOnly = true }, Now)
+            .Should().BeEquivalentTo([breached, breachedThenPaused]);
+    }
+
+    [Test]
+    public void Sort_DaysWaited_EitherWayWithPathwaysWithoutAClockLast()
+    {
+        var longest = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 40);
+        var shortest = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 5);
+        var paused = WithClock(CreatePathway(Status.InProgress), receivedDaysAgo: 30, pausedDaysAgo: 20);
+        var noClock = CreatePathway(Status.InProgress);
+        var pathways = new[] { noClock, shortest, longest, paused }.AsQueryable();
+
+        pathways.Sort(PathwaySearch.SortByDaysWaited, false, Today).Should().Equal(longest, paused, shortest, noClock);
+        pathways.Sort(PathwaySearch.SortByDaysWaited, true, Today).Should().Equal(shortest, paused, longest, noClock);
+    }
 }

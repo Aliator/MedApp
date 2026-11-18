@@ -33,6 +33,15 @@ public sealed class SpecialtyResponse
     /// <summary>Whether it can be deleted: only while no template, pathway or member of staff has it.</summary>
     public bool CanBeDeleted { get; set; }
 
+    /// <summary>The waiting-time targets, in days, by priority: the centre's own, copied by each new referral's clock.</summary>
+    public int TargetDaysUrgent { get; set; }
+
+    public int TargetDaysHigh { get; set; }
+
+    public int TargetDaysMedium { get; set; }
+
+    public int TargetDaysLow { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
 }

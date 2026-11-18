@@ -360,6 +360,29 @@ public sealed class ExportedReferralResponse
 
     /// <summary>The pathway it was accepted into, if any.</summary>
     public Guid? PathwayId { get; set; }
+
+    /// <summary>Its waiting-time clock: the target in days, the day the wait counts from, the target date, the days paused, and when and why it stopped.</summary>
+    public int TargetDays { get; set; }
+    public DateOnly WaitStartOn { get; set; }
+    public DateOnly TargetOn { get; set; }
+    public int PausedDays { get; set; }
+    public DateOnly? StoppedOn { get; set; }
+    public string? StopReason { get; set; }
+
+    /// <summary>The clock's pauses, with who started and ended each (by username only).</summary>
+    public List<ExportedClockPauseResponse> Pauses { get; set; } = [];
+}
+
+/// <summary>A pause of a referral's waiting-time clock, in the export.</summary>
+public sealed class ExportedClockPauseResponse
+{
+    public DateOnly PausedOn { get; set; }
+    public string PausedBy { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string? Detail { get; set; }
+    public DateOnly ReviewOn { get; set; }
+    public DateOnly? ResumedOn { get; set; }
+    public string? ResumedBy { get; set; }
 }
 
 /// <summary>One change to a referral in a patient's export, by the username recorded at the time.</summary>

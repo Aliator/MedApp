@@ -2,7 +2,7 @@ import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
-import {referralFieldWords, rejectionReasonWords} from './referrals';
+import {pauseReasonWords, referralFieldWords, rejectionReasonWords, stopReasonWords} from './referrals';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -20,7 +20,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -28,6 +28,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Stages: 'Stages',
   Appointments: 'Appointments',
   Referrals: 'Referrals',
+  WaitingTime: 'Waiting time',
   Notes: 'Notes',
   Assignments: 'Assignments',
   Blocks: 'On hold',
@@ -208,9 +209,10 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Unassigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'StatusChanged':
       return describeStatusChange(entry);
+    // A target date the waiting-time clock moved (a pause's review date, or back to the clock's target) says so.
     case 'DetailsUpdated':
       return {
-        title: entry.kind === 'DueDates' ? 'Target date changed' : 'Details edited',
+        title: entry.fromClock ? 'Target date set by the waiting-time clock' : entry.kind === 'DueDates' ? 'Target date changed' : 'Details edited',
         detail: changes.map(describeChange).join('; '),
       };
     case 'Deleted':
@@ -226,7 +228,8 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
 }
 
 /** Whether an entry is from a referral's history (its action is "Referral" and what happened). */
-export const isReferralEntry = (entry: TimelineEntry) => entry.kind === 'Referrals' || (entry.action ?? '').startsWith('Referral');
+export const isReferralEntry = (entry: TimelineEntry) =>
+  entry.kind === 'Referrals' || entry.kind === 'WaitingTime' || (entry.action ?? '').startsWith('Referral');
 
 /** A referral's changed field in words, with its values where the API sends them (dates, priorities, specialties). */
 function describeReferralChange(change: TimelineChange): string {
@@ -292,6 +295,39 @@ function describeReferralEntry(entry: TimelineEntry): TimelineWording {
       return {title: `${referral} withdrawn`, detail: reason ?? ''};
     case 'ReferralEnteredInError':
       return {title: `${referral} marked entered in error`, detail: reason ?? ''};
+    // The waiting-time clock: the pause reason is a fixed choice (everyone); its detail (`reason`) only to admins.
+    case 'ReferralClockPaused':
+      return {
+        title: 'Waiting-time clock paused',
+        detail: sentences(
+          [pauseReasonWords(entry.pauseReason) || null, entry.reviewOn ? `review ${date(entry.reviewOn)}` : null].filter(Boolean).join(', '),
+          reason,
+        ),
+      };
+    case 'ReferralClockResumed':
+      return {
+        title: 'Waiting-time clock resumed',
+        detail: entry.isAutomatic ? 'Resumed automatically, as the clock stopped' : '',
+      };
+    case 'ReferralClockStopped':
+      return {
+        title: 'Waiting-time clock stopped',
+        detail: [
+          stopReasonWords(entry.stopReason) || null,
+          entry.daysWaited != null ? `day ${entry.daysWaited}${entry.targetDays != null ? ` of ${entry.targetDays}` : ''}` : null,
+          entry.breached ? 'breached' : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      };
+    case 'ReferralTargetChanged':
+      return {
+        title: 'Waiting-time target changed',
+        detail:
+          entry.targetDays != null
+            ? `${entry.previousTargetDays != null ? `${entry.previousTargetDays} → ` : ''}${entry.targetDays} days${entry.priority ? ` (${words(entry.priority)} priority)` : ''}`
+            : '',
+      };
     default:
       return {
         title: `${referral} changed`,

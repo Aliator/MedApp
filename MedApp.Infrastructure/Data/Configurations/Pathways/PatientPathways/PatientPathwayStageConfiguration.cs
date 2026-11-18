@@ -60,6 +60,10 @@ public sealed class PatientPathwayStageConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.VisitRequirement)
             .HasDefaultValue(VisitRequirement.None);
 
+        // Copied from the template when the pathway is created.
+        builder.Property(x => x.StopsClock)
+            .HasDefaultValue(false);
+
         builder.HasOne(x => x.PatientPathway)
             .WithMany(x => x.Stages)
             .HasForeignKey(x => x.PatientPathwayId)

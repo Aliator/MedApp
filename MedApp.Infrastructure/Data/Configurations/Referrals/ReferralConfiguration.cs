@@ -65,8 +65,8 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
         // The pathway it was accepted into. Deleting that pathway clears this in the same save
         // (PatientPathwayRepository.DeleteAsync); the referral and its history stay.
         builder.HasOne(x => x.Pathway)
-            .WithMany()
-            .HasForeignKey(x => x.PathwayId)
+            .WithOne(x => x.Referral)
+            .HasForeignKey<Referral>(x => x.PathwayId)
             .OnDelete(DeleteBehavior.NoAction);
 
         // One referral per pathway.
@@ -74,8 +74,14 @@ public sealed class ReferralConfiguration : IEntityTypeConfiguration<Referral>
             .IsUnique()
             .HasFilter("[PathwayId] IS NOT NULL");
 
-        // The inbox: a status's referrals in a specialty, oldest first; and a patient's referrals.
-        builder.HasIndex(x => new { x.Status, x.SpecialtyId, x.ReceivedOn });
+        builder.Property(x => x.StopReason);
+
+        // The inbox: a status's referrals in a specialty, longest wait first; and a patient's referrals.
+        builder.HasIndex(x => new { x.Status, x.SpecialtyId, x.WaitStartOn });
         builder.HasIndex(x => x.PatientId);
+
+        // The Paused clocks view, by review date.
+        builder.HasIndex(x => x.PauseReviewOn)
+            .HasFilter("[PauseReviewOn] IS NOT NULL");
     }
 }

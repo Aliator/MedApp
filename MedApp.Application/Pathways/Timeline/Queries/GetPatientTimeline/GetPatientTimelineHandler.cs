@@ -7,7 +7,9 @@ using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Contracts.Pathways.Timeline.Responses;
+using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Referrals;
 using MediatR;
 
 namespace MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
@@ -32,9 +34,12 @@ public sealed class GetPatientTimelineHandler(
         // their own: ask each only when the kinds filter wants something from it.
         var kinds = PatientTimelineKinds.Parse(request.Kinds);
         var wantsAudit = kinds.Count == 0
-                         || kinds.Any(k => k is not PatientTimelineKind.Appointments and not PatientTimelineKind.Referrals);
+                         || kinds.Any(k => k is not PatientTimelineKind.Appointments
+                             and not PatientTimelineKind.Referrals and not PatientTimelineKind.WaitingTime);
         var wantsAppointments = kinds.Count == 0 || kinds.Contains(PatientTimelineKind.Appointments);
-        var wantsReferrals = kinds.Count == 0 || kinds.Contains(PatientTimelineKind.Referrals);
+        var wantsReferrals = kinds.Count == 0
+                             || kinds.Contains(PatientTimelineKind.Referrals)
+                             || kinds.Contains(PatientTimelineKind.WaitingTime);
 
         // Each side gives one more than a page, to tell whether there's another.
         IReadOnlyList<PatientTimelineRow> auditRows = wantsAudit
@@ -46,6 +51,8 @@ public sealed class GetPatientTimelineHandler(
         IReadOnlyList<ReferralTimelineRow> referralRows = wantsReferrals
             ? await referralRepository.GetPatientTimelineAsync(request, cancellationToken)
             : [];
+        if (request.FullView)
+            referralRows = await WithPauseDetailsAsync(referralRows, cancellationToken);
 
         // Merged newest first. The sort is stable, so entries that share a time keep the order their own search gave
         // them (by ID, as the database orders IDs, which the next page's cursor compares the same way); the sides never
@@ -82,6 +89,28 @@ public sealed class GetPatientTimelineHandler(
                 .ToList(),
             NextCursor = merged.Count > request.PageSize ? page[^1].Position.Encode() : null,
         };
+    }
+
+    /// <summary>The referral entries with each clock pause's detail (admins only), read from the pauses.</summary>
+    private async Task<IReadOnlyList<ReferralTimelineRow>> WithPauseDetailsAsync(
+        IReadOnlyList<ReferralTimelineRow> rows, CancellationToken ct)
+    {
+        var pauseIds = rows
+            .Where(r => r.Event.Action == ReferralEventAction.ClockPaused)
+            .Select(r => ReferralEventDetails.Parse(r.Event.Details).PauseId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        if (pauseIds.Count == 0)
+            return rows;
+
+        var details = await referralRepository.GetPauseDetailsAsync(pauseIds, ct);
+        return rows
+            .Select(r => r.Event.Action == ReferralEventAction.ClockPaused
+                         && ReferralEventDetails.Parse(r.Event.Details).PauseId is { } id
+                ? r with { PauseDetail = details.GetValueOrDefault(id) }
+                : r)
+            .ToList();
     }
 
     /// <summary>The page with each note entry's text, and for an edit the text before, from the note versions.</summary>

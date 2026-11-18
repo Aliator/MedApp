@@ -37,4 +37,7 @@ public sealed class ReferralSummaryResponse
     public DateTime RegisteredAtUtc { get; set; }
 
     public DateTime? DecidedAtUtc { get; set; }
+
+    /// <summary>Its waiting-time clock ("Day 84 of 126", Breached, Paused).</summary>
+    public WaitingClockResponse? Clock { get; set; }
 }

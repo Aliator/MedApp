@@ -188,11 +188,14 @@ export function useCreatePathway() {
   });
 }
 
-/** Saves a pathway's details, returning it updated; it replaces the cached one, and lists refresh. */
+/**
+ * Saves a pathway's details, returning it updated; it replaces the cached one, and lists refresh. Leave `dueDate` out
+ * while the waiting-time clock sets it (the API refuses a different one then).
+ */
 export function useUpdatePathway(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: PathwayDetailsInput) =>
+    mutationFn: (input: Omit<PathwayDetailsInput, 'dueDate'> & {dueDate?: string}) =>
       unwrap(api.PATCH(PATHWAY, {params: {path: {id}}, body: input})),
     onSuccess: async (pathway) => {
       cachePathway(queryClient, id, pathway);

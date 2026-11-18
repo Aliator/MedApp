@@ -2,6 +2,8 @@ using MedApp.API.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Referrals.Commands.AcceptReferral;
 using MedApp.Application.Referrals.Commands.EditReferral;
+using MedApp.Application.Referrals.Commands.PauseClock;
+using MedApp.Application.Referrals.Commands.ResumeClock;
 using MedApp.Application.Referrals.Commands.MarkReferralEnteredInError;
 using MedApp.Application.Referrals.Commands.RedirectReferral;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
@@ -75,7 +77,10 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.Mine,
             request.PatientId,
             request.Search,
-            User.GetUserId()), ct));
+            User.GetUserId(),
+            request.BreachedOnly,
+            request.Paused,
+            request.ClockStopped), ct));
 
     /// <summary>
     /// How many referrals await triage in the caller's specialties (every specialty's, if they belong to none), for the
@@ -117,7 +122,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Triage: accepts a referral awaiting triage into a new pathway, from a template of its specialty, with the
-    /// priority and target date the triager chose. Needs membership of its specialty too (403). 201, with the pathway.
+    /// priority the triager chose; its target date is the waiting-time clock's. Needs membership of its specialty too
+    /// (403). 201, with the pathway.
     /// </summary>
     [HttpPost("{id:guid}/accept")]
     [RequirePermission(Permission.TriageReferrals)]
@@ -132,7 +138,6 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             id,
             request.TemplateId,
             request.Priority,
-            request.DueDate,
             request.Title,
             request.AssigneeUserId,
             request.Notes,
@@ -188,4 +193,29 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] CloseReferralRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new MarkReferralEnteredInErrorCommand(id, request.Detail, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Pauses an accepted referral's waiting-time clock today, for a delay the patient chose or caused, until a review
+    /// date (tomorrow to 90 days ahead), which becomes the pathway's target date. Allowed while the record is restricted.
+    /// Returns the pathway's "Referral and wait" card.
+    /// </summary>
+    [HttpPost("{id:guid}/clock/pause")]
+    [RequirePermission(Permission.WorkPathways)]
+    [ProducesResponseType(typeof(PathwayReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PauseClock(Guid id, [FromBody] PauseClockRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new PauseClockCommand(
+            id, request.Reason, request.Detail, request.ReviewOn, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>Resumes a referral's paused waiting-time clock today; the pathway's target date goes back to the clock's.</summary>
+    [HttpPost("{id:guid}/clock/resume")]
+    [RequirePermission(Permission.WorkPathways)]
+    [ProducesResponseType(typeof(PathwayReferralResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ResumeClock(Guid id, [FromBody] ResumeClockRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new ResumeClockCommand(id, request.ExpectedVersion, User.ToPathwayActor()), ct));
 }

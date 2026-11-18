@@ -96,6 +96,18 @@ public sealed class ReferralResponse
     /// <summary>Why the caller can't triage it, when they can't.</summary>
     public string? WhyCantTriage { get; set; }
 
+    /// <summary>Its waiting-time clock.</summary>
+    public WaitingClockResponse? Clock { get; set; }
+
+    /// <summary>The clock's pauses, oldest first.</summary>
+    public List<ClockPauseResponse> Pauses { get; set; } = [];
+
+    /// <summary>The caller may pause the clock: it runs, the referral was accepted, and they can work on pathways.</summary>
+    public bool CanPauseClock { get; set; }
+
+    /// <summary>The caller may resume it: it's paused, the record can change, and they can work on pathways.</summary>
+    public bool CanResumeClock { get; set; }
+
     /// <summary>Everything that happened to it, oldest first.</summary>
     public List<ReferralEventResponse> History { get; set; } = [];
 }

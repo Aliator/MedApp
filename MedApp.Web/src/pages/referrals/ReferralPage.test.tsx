@@ -205,6 +205,9 @@ describe('ReferralPage', () => {
     expect(screen.getByText('A synthetic reason for referral.')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Details'}));
     await waitFor(() => expect(screen.queryByText('A synthetic reason for referral.')).not.toBeInTheDocument());
+    expect(screen.getByText('This referral has no waiting-time clock.')).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Waiting time'}));
+    await waitFor(() => expect(screen.queryByText('This referral has no waiting-time clock.')).not.toBeInTheDocument());
     expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Letter'}));
     await waitFor(() => expect(screen.queryByText('No letter attached yet.')).not.toBeInTheDocument());
@@ -271,14 +274,15 @@ describe('ReferralPage triage', () => {
     await user.click(await screen.findByRole('option', {name: 'Skin check'}));
     await user.click(dialog.getByRole('combobox', {name: /Priority/}));
     await user.click(await screen.findByRole('option', {name: 'Urgent'}));
-    await user.type(dialog.getByRole('combobox', {name: /Target Date/}), '01/12/2099');
     await user.click(dialog.getByRole('button', {name: 'Continue'}));
     await user.click(await dialog.findByRole('button', {name: 'Accept Referral'}));
 
     await expectAnnounced('Referral accepted: pathway created');
     await waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${pathwayId}`));
     const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
-    expect(await post.json()).toMatchObject({templateId: 't-derm', priority: 'Urgent', dueDate: '2099-12-01', expectedVersion: 2});
+    const body = await post.json();
+    expect(body).toMatchObject({templateId: 't-derm', priority: 'Urgent', expectedVersion: 2});
+    expect(body).not.toHaveProperty('dueDate');
   });
 
   it('rejects it with a reason, and shows the outcome', async () => {
@@ -402,5 +406,71 @@ describe('ReferralPage triage', () => {
     expect(history.getByText('Specialty Urology → Dermatology')).toBeInTheDocument();
     expect(history.getByText('Accepted by d.clinician')).toBeInTheDocument();
     expect(history.getByText('Skin check, High priority')).toBeInTheDocument();
+  });
+
+  it('shows its waiting-time clock, its pauses and the clock in its history, pointing to its pathway to resume it', async () => {
+    renderPage(
+      testReferral({
+        status: 'Accepted',
+        isOpen: false,
+        canEdit: false,
+        canClose: false,
+        pathwayId,
+        canResumeClock: true,
+        clock: {
+          state: 'Paused',
+          targetDays: 126,
+          waitStartOn: '2026-11-02',
+          targetOn: '2027-03-08',
+          daysWaited: 10,
+          pausedDays: 0,
+          isBreached: false,
+          pausedSinceOn: '2026-11-12',
+          pauseReviewOn: '2026-12-01',
+          isReviewOverdue: false,
+        },
+        pauses: [{id: 'p1', pausedOn: '2026-11-12', pausedByUsername: 'k.ashford', reason: 'PatientChoseToWait', detail: 'Synthetic: on holiday.', reviewOn: '2026-12-01'}],
+        history: [
+          {id: 'e1', action: 'TargetChanged', atUtc: '2026-11-04T09:00:00Z', username: 'd.clinician', previousTargetDays: 28, targetDays: 126, priority: 'Low'},
+          {id: 'e2', action: 'ClockPaused', atUtc: '2026-11-12T09:00:00Z', username: 'k.ashford', pauseReason: 'PatientChoseToWait', reviewOn: '2026-12-01'},
+        ],
+      }),
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Waiting time'})).toBeInTheDocument();
+    expect(screen.getByText('Day 10 of 126')).toBeInTheDocument();
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getByText('8 March 2027')).toBeInTheDocument();
+    const pauses = within(screen.getByRole('list', {name: 'Pauses'}));
+    expect(pauses.getByText('Patient chose to wait')).toBeInTheDocument();
+    expect(pauses.getByText('Synthetic: on holiday.')).toBeInTheDocument();
+    expect(pauses.getByText('Still paused')).toBeInTheDocument();
+    expect(screen.getByText(/Resume the clock from/)).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'its pathway'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
+    const history = within(screen.getByRole('list', {name: 'History'}));
+    expect(history.getByText('Target changed')).toBeInTheDocument();
+    expect(history.getByText('28 → 126 days (Low priority)')).toBeInTheDocument();
+    expect(history.getByText('Clock paused by k.ashford')).toBeInTheDocument();
+    expect(history.getByText('Patient chose to wait, review 1 Dec 2026')).toBeInTheDocument();
+  });
+
+  it('points to its pathway to pause a running clock, and says when a referral has no clock', async () => {
+    const {unmount} = renderPage(
+      testReferral({
+        status: 'Accepted',
+        isOpen: false,
+        pathwayId,
+        canPauseClock: true,
+        clock: {state: 'Running', targetDays: 28, daysWaited: 3, targetOn: '2026-11-30', waitStartOn: '2026-11-02'},
+        pauses: [],
+      }),
+    );
+    expect(await screen.findByText(/Pause the clock from/)).toBeInTheDocument();
+    expect(screen.getByText('No pauses.')).toBeInTheDocument();
+    unmount();
+
+    renderPage(testReferral({clock: undefined}));
+    expect(await screen.findByText('This referral has no waiting-time clock.')).toBeInTheDocument();
+    expect(screen.queryByText(/the clock from/)).not.toBeInTheDocument();
   });
 });

@@ -13,15 +13,17 @@ public static class ReferralMapper
 {
     /// <summary>
     /// A referral's page: the patient for the banner, its details, history and what <paramref name="viewer"/> may do.
-    /// The referral is loaded with its patient and specialty. <paramref name="viewerIsMember"/> says whether the viewer
-    /// belongs to its specialty (triage needs it, with the permission).
+    /// The referral is loaded with its patient, specialty and pauses. <paramref name="viewerIsMember"/> says whether the
+    /// viewer belongs to its specialty (triage needs it, with the permission). Its clock counts to
+    /// <paramref name="today"/> (UK) while it runs.
     /// </summary>
     public static ReferralResponse ToResponse(
         Referral referral,
         IReadOnlyList<ReferralEvent> history,
         int letterCount,
         PathwayActor viewer,
-        bool viewerIsMember = false)
+        bool viewerIsMember = false,
+        DateOnly today = default)
     {
         var canRegister = viewer.Has(Permission.RegisterReferrals);
         var whyCantTriage = ReferralWorkflow.WhyCantTriage(referral, viewer, viewerIsMember);
@@ -61,9 +63,68 @@ public static class ReferralMapper
             ReadOnlyReason = ReferralWorkflow.ReadOnlyReason(referral),
             CanTriage = ReferralWorkflow.IsOpen(referral.Status) && whyCantTriage is null,
             WhyCantTriage = whyCantTriage,
+            Clock = ToClock(referral, today),
+            Pauses = ToPauses(referral),
+            CanPauseClock = CanPauseClock(referral, viewer),
+            CanResumeClock = CanResumeClock(referral, viewer),
             History = history.OrderBy(e => e.AtUtc).ThenBy(e => e.Id).Select(ToResponse).ToList()
         };
     }
+
+    /// <summary>
+    /// A referral's waiting-time clock as of <paramref name="today"/> (UK): its state, days waited of its target, and
+    /// whether it's breached, paused (with the review date, flagged once past) or stopped (when and why).
+    /// </summary>
+    public static WaitingClockResponse ToClock(Referral referral, DateOnly today) => new()
+    {
+        State = WaitingClock.State(referral),
+        TargetDays = referral.TargetDays,
+        WaitStartOn = referral.WaitStartOn,
+        TargetOn = referral.TargetOn,
+        DaysWaited = WaitingClock.DaysWaited(referral, today),
+        PausedDays = referral.PausedDays,
+        IsBreached = WaitingClock.IsBreached(referral, today),
+        PausedSinceOn = WaitingClock.IsPaused(referral) ? referral.PausedSinceOn : null,
+        PauseReviewOn = WaitingClock.IsPaused(referral) ? referral.PauseReviewOn : null,
+        IsReviewOverdue = WaitingClock.IsReviewOverdue(referral, today),
+        StoppedOn = referral.StoppedOn,
+        StopReason = referral.StopReason?.ToString()
+    };
+
+    /// <summary>The clock's pauses, oldest first, with their details (shown on the referral's and pathway's pages only).</summary>
+    public static List<ClockPauseResponse> ToPauses(Referral referral) =>
+        referral.Pauses
+            .OrderBy(p => p.PausedAtUtc).ThenBy(p => p.Id)
+            .Select(p => new ClockPauseResponse
+            {
+                Id = p.Id,
+                PausedOn = p.PausedOn,
+                PausedAtUtc = p.PausedAtUtc,
+                PausedByUsername = p.PausedByUsername,
+                Reason = p.Reason.ToString(),
+                Detail = p.Detail,
+                ReviewOn = p.ReviewOn,
+                ResumedOn = p.ResumedOn,
+                ResumedByUsername = p.ResumedByUsername,
+                Days = p.Days
+            })
+            .ToList();
+
+    /// <summary>
+    /// Whether the viewer may pause the clock now: they can work on pathways, it may be paused
+    /// (<see cref="WaitingClock.WhyCantPause"/>), and the record isn't anonymised (pausing stays allowed while it's
+    /// restricted, so care can be paused safely).
+    /// </summary>
+    public static bool CanPauseClock(Referral referral, PathwayActor viewer) =>
+        viewer.Has(Permission.WorkPathways)
+        && WaitingClock.WhyCantPause(referral) is null
+        && !PatientRules.IsAnonymised(referral.Patient);
+
+    /// <summary>Whether the viewer may resume the clock now: they can work on pathways, it's paused, and the record can change.</summary>
+    public static bool CanResumeClock(Referral referral, PathwayActor viewer) =>
+        viewer.Has(Permission.WorkPathways)
+        && WaitingClock.WhyCantResume(referral) is null
+        && PatientRules.CanChange(referral.Patient);
 
     /// <summary>
     /// A row in a list, with its patient and specialty, and the whole days since it was received: up to
@@ -89,16 +150,26 @@ public static class ReferralMapper
             Status = referral.Status.ToString(),
             HasLetter = row.HasLetter,
             RegisteredAtUtc = referral.RegisteredAtUtc,
-            DecidedAtUtc = referral.DecidedAtUtc
+            DecidedAtUtc = referral.DecidedAtUtc,
+            Clock = ToClock(referral, today)
         };
     }
 
-    /// <summary>The referral a pathway was accepted from, for the pathway's page (loaded with its specialty).</summary>
-    public static PathwayReferralResponse ToPathwayReferral(Referral referral) => new()
+    /// <summary>
+    /// The referral a pathway was accepted from, for the pathway's page (loaded with its specialty and pauses, and its
+    /// patient for what <paramref name="viewer"/> may do to the clock): a link back, and its clock as of
+    /// <paramref name="today"/>.
+    /// </summary>
+    public static PathwayReferralResponse ToPathwayReferral(Referral referral, PathwayActor viewer, DateOnly today) => new()
     {
         Id = referral.Id,
         ReceivedOn = referral.ReceivedOn,
-        SpecialtyName = referral.Specialty?.Name ?? string.Empty
+        SpecialtyName = referral.Specialty?.Name ?? string.Empty,
+        Version = referral.Version,
+        Clock = ToClock(referral, today),
+        Pauses = ToPauses(referral),
+        CanPauseClock = CanPauseClock(referral, viewer),
+        CanResumeClock = CanResumeClock(referral, viewer)
     };
 
     /// <summary>One history entry, read from its structured details.</summary>
@@ -119,7 +190,14 @@ public static class ReferralMapper
             TemplateName = details.TemplateName,
             PathwayId = details.PathwayId,
             RejectionReason = details.RejectionReason,
-            ChangedFields = details.ChangedFields.ToList()
+            ChangedFields = details.ChangedFields.ToList(),
+            PauseReason = details.PauseReason,
+            ReviewOn = details.ReviewOn,
+            PreviousTargetDays = details.PreviousTargetDays,
+            TargetDays = details.TargetDays,
+            StopReason = details.StopReason,
+            DaysWaited = details.DaysWaited,
+            Breached = details.Breached
         };
     }
 }
@@ -149,6 +227,31 @@ public sealed record ReferralEventDetails(
 
     /// <summary>Rejected: why, by name.</summary>
     public string? RejectionReason { get; init; }
+
+    /// <summary>ClockPaused and ClockResumed: why it was paused, by name.</summary>
+    public string? PauseReason { get; init; }
+
+    /// <summary>ClockPaused and ClockResumed: the pause, whose detail only admins read.</summary>
+    public Guid? PauseId { get; init; }
+
+    /// <summary>ClockPaused: the review date.</summary>
+    public DateOnly? ReviewOn { get; init; }
+
+    /// <summary>TargetChanged: the target before, in days.</summary>
+    public int? PreviousTargetDays { get; init; }
+
+    /// <summary>Registered, TargetChanged and ClockStopped: the target, in days.</summary>
+    public int? TargetDays { get; init; }
+
+    /// <summary>ClockStopped: why, by name; the days waited; and whether it was past its target.</summary>
+    public string? StopReason { get; init; }
+
+    public int? DaysWaited { get; init; }
+
+    public bool? Breached { get; init; }
+
+    /// <summary>ClockResumed and ClockStopped: whether the clock stopping ended the pause, rather than someone resuming it.</summary>
+    public bool Automatic { get; init; }
 
     public static ReferralEventDetails Parse(string json)
     {
@@ -187,10 +290,26 @@ public sealed record ReferralEventDetails(
             Priority = Text(root, "priority"),
             TemplateName = Text(root, "templateName"),
             PathwayId = Guid.TryParse(Text(root, "pathwayId"), out var pathwayId) ? pathwayId : null,
-            RejectionReason = Text(root, "rejectionReason")
+            RejectionReason = Text(root, "rejectionReason"),
+            PauseReason = Text(root, "pauseReason"),
+            PauseId = Guid.TryParse(Text(root, "pauseId"), out var pauseId) ? pauseId : null,
+            ReviewOn = DateOnly.TryParse(Text(root, "reviewOn"), System.Globalization.CultureInfo.InvariantCulture, out var reviewOn) ? reviewOn : null,
+            PreviousTargetDays = Number(root, "fromDays"),
+            TargetDays = Number(root, "toDays") ?? Number(root, "targetDays"),
+            StopReason = Text(root, "stopReason"),
+            DaysWaited = Number(root, "daysWaited"),
+            Breached = root.TryGetProperty("breached", out var breached) && breached.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? breached.GetBoolean()
+                : null,
+            Automatic = root.TryGetProperty("automatic", out var automatic) && automatic.ValueKind == JsonValueKind.True
         };
     }
 
     private static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    private static int? Number(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)
+            ? number
+            : null;
 }

@@ -1,6 +1,8 @@
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using Action = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
 using static MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
@@ -15,6 +17,13 @@ namespace MedApp.Application.Pathways.Common;
 /// the appointments it adds and their history entries are saved with the change too
 /// (<c>IPatientPathwayRepository.SaveAsync(PathwayChange, ...)</c>), in one save.
 /// </para>
+/// <para>
+/// A pathway accepted from a referral has its waiting-time clock (<see cref="WaitingClock"/>): the referral is loaded
+/// with it (<see cref="PatientPathway.Referral"/>), and this stops the clock when the clock-stop stage is finished or
+/// the pathway is discharged or cancelled, re-reads its target when the priority changes, and moves the pathway's
+/// target date with it (<see cref="FollowClock"/>), writing the referral's history entries to save in the same save
+/// (<see cref="ReferralEvents"/>).
+/// </para>
 /// </summary>
 public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, DateTime nowUtc)
 {
@@ -27,6 +36,8 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     private readonly List<PatientPathwayNote> _newNotes = [];
     private readonly List<PatientPathwayNoteVersion> _noteVersions = [];
     private readonly List<PatientPathwayNote> _deletedNotes = [];
+    private readonly List<ReferralClockPause> _newPauses = [];
+    private ReferralChange? _clock;
 
     public PatientPathway Pathway => pathway;
 
@@ -52,8 +63,86 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     /// <summary>Notes the change deleted (soft: marked deleted, and kept).</summary>
     public IReadOnlyList<PatientPathwayNote> DeletedNotes => _deletedNotes;
 
-    /// <summary>Whether anything changed (every change is audited, or recorded in an appointment's history).</summary>
-    public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0;
+    /// <summary>History entries the change wrote for the referral the pathway was accepted from (its clock), to add with it.</summary>
+    public IReadOnlyList<ReferralEvent> ReferralEvents => _clock?.Events ?? [];
+
+    /// <summary>Clock pauses the change started, to add with it.</summary>
+    public IReadOnlyList<ReferralClockPause> NewPauses => _newPauses;
+
+    /// <summary>
+    /// Whether anything changed (every change is audited, or recorded in an appointment's or the referral's history).
+    /// </summary>
+    public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0 || ReferralEvents.Count > 0;
+
+    /// <summary>The referral's change, for its clock, if the pathway was accepted from one (loaded with it).</summary>
+    private ReferralChange? Clock =>
+        pathway.Referral is { } referral ? _clock ??= new ReferralChange(referral, actor, nowUtc) : null;
+
+    /// <summary>
+    /// Moves the pathway's target date to where its referral's clock says it should be (<see cref="WaitingClock.PathwayTargetOn"/>):
+    /// the clock's target while it runs, the pause's review date while it's paused. A DetailsUpdated entry records it as a
+    /// hand edit's is recorded (<c>changes.dueDate</c>, from and to), with <c>"source":"clock"</c>, so Insights and the
+    /// timeline read it alike. Nothing for a pathway without a referral, a stopped clock, or no change.
+    /// </summary>
+    public void FollowClock()
+    {
+        if (pathway.Referral is not { } referral || WaitingClock.PathwayTargetOn(referral) is not { } target)
+            return;
+
+        var current = DueDates.ToUkDate(pathway.DueDateUtc);
+        if (current == target)
+            return;
+
+        pathway.DueDateUtc = DueDates.EndOfDayUtc(target);
+        Audit(Action.DetailsUpdated, new
+        {
+            changes = new Dictionary<string, object> { ["dueDate"] = new { from = current, to = target } },
+            source = WaitingClock.AuditSource
+        });
+    }
+
+    /// <summary>
+    /// After the pathway's priority changed: its clock (running or paused) re-reads the target for the new priority
+    /// from the specialty's table, and the target date follows a running clock.
+    /// </summary>
+    public void PriorityChanged()
+    {
+        if (Clock is not { } clock || pathway.Referral?.Specialty is not { } specialty)
+            return;
+
+        if (clock.ReTarget(specialty, pathway.Priority))
+            FollowClock();
+    }
+
+    /// <summary>
+    /// Pauses the referral's clock today, for a delay the patient chose or caused, until <paramref name="reviewOn"/>; the
+    /// pathway's target date becomes the review date. The handler checks first that it may
+    /// (<see cref="WaitingClock.WhyCantPause"/>).
+    /// </summary>
+    public ReferralClockPause PauseClock(ClockPauseReason reason, string? detail, DateOnly reviewOn)
+    {
+        var clock = Clock ?? throw new InvalidOperationException("The pathway has no referral, so no waiting-time clock.");
+        var pause = clock.PauseClock(reason, detail, reviewOn);
+        _newPauses.Add(pause);
+        FollowClock();
+        return pause;
+    }
+
+    /// <summary>
+    /// Resumes the referral's paused clock today: the paused days move its target on, and the pathway's target date
+    /// follows it. The handler checks first that it may (<see cref="WaitingClock.WhyCantResume"/>).
+    /// </summary>
+    public void ResumeClock()
+    {
+        var clock = Clock ?? throw new InvalidOperationException("The pathway has no referral, so no waiting-time clock.");
+        var pause = WaitingClock.OpenPause(clock.Referral)
+                    ?? throw new InvalidOperationException("The waiting-time clock isn't paused.");
+        clock.ResumeClock(pause);
+        FollowClock();
+    }
+
+    /// <summary>Stops the referral's clock, if the pathway has one still running or paused.</summary>
+    private void StopClock(ClockStopReason reason) => Clock?.StopClock(reason);
 
     /// <summary>
     /// Records an audit entry. Entries one change writes (a stage started, its notes saved, the status that followed,
@@ -257,6 +346,10 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
                 : new { withoutVisit = true, visitRequirement = withoutVisit.Requirement.ToString(), reason = withoutVisit.Reason },
             stage);
 
+        // The template's clock-stop stage: the wait ends here (once: a stopped clock never restarts).
+        if (stage.StopsClock)
+            StopClock(ClockStopReason.StopStageFinished);
+
         if (PathwayWorkflow.AllStagesFinished(pathway))
             SetStatus(InReview, null, automatic: true);
     }
@@ -297,6 +390,12 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
         pathway.BlockedFromStatus = to == Blocked ? from : null;
         pathway.Status = to;
         Audit(Action.StatusChanged, new { from = from.ToString(), to = to.ToString(), reason, automatic });
+
+        // Discharged or cancelled before the clock-stop stage (or with none): the wait ends. On hold doesn't pause it.
+        if (to == Completed)
+            StopClock(ClockStopReason.PathwayDischarged);
+        else if (to == Cancelled)
+            StopClock(ClockStopReason.PathwayCancelled);
     }
 
     // Unassigned and Assigned only say whether someone is assigned. Once work starts, the status follows the stages.

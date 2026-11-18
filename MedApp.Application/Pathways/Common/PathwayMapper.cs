@@ -209,7 +209,10 @@ public static class PathwayMapper
             .Select(a => Username(usernames, a.UserId))
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList(),
-        LastUpdated = pathway.LastUpdated
+        LastUpdated = pathway.LastUpdated,
+        Clock = pathway.Referral is { } referral
+            ? Referrals.Common.ReferralMapper.ToClock(referral, DueDates.ToUkDate(nowUtc))
+            : null
     };
 
     /// <summary>
