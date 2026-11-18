@@ -40,7 +40,8 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.StageVisitWithdrawn
                             || k == NotificationKind.ReferralTriaged
                             || k == NotificationKind.ClinicSessionCancelled
-                            || k == NotificationKind.ScheduledJobFailing));
+                            || k == NotificationKind.ScheduledJobFailing
+                            || k == NotificationKind.MdtOutcomeRecorded));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }
 

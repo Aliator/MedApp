@@ -1,6 +1,8 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Mdt.Common;
+using MedApp.Application.Mdt.Repositories;
 using MedApp.Application.Notifications.Common;
 using MediatR;
 
@@ -9,6 +11,7 @@ namespace MedApp.Application.Calendar.Meetings.Commands.CancelMeeting;
 public sealed class CancelMeetingHandler(
     IMeetingRepository repository,
     INotificationSender notificationSender,
+    IMdtItemRepository mdtItems,
     TimeProvider timeProvider)
     : IRequestHandler<CancelMeetingCommand>
 {
@@ -19,6 +22,8 @@ public sealed class CancelMeetingHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         CalendarGuards.EnsureNotPast(UkTime.DateOf(meeting.StartUtc), UkTime.DateOf(now));
+        // An MDT with outcomes recorded stays; one without has its items' meeting cleared in the same save, keeping them listed.
+        await MdtMeetings.EnsureCanCancelAsync(meeting, mdtItems, cancellationToken);
 
         await repository.DeleteAsync(meeting, cancellationToken);
 

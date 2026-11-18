@@ -1,5 +1,5 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
-import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
+import {formatAppointmentTime, formatDateTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
 import {dnaFollowUpLabel} from './appointments';
 import {NO_PATHWAY} from './attachments';
@@ -22,7 +22,7 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'WaitingTime', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Mdt', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -38,6 +38,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   DueDates: 'Target dates',
   Details: 'Other edits',
   Files: 'Files',
+  Mdt: 'MDT',
   Deleted: 'Deleted',
 };
 
@@ -240,6 +241,24 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Attached ${entry.fileName?.trim() || 'a file'}`, detail: `To ${attachedToWords(entry)}`};
     case 'AttachmentDeleted':
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
+    // MDT items (decision 70): the specialty, the meetings' times and who was present; never the question or outcome.
+    case 'MdtListed':
+      return {title: `Listed for ${mdtName(entry)}`, detail: entry.meetingStartUtc ? `On ${formatDateTime(entry.meetingStartUtc)}` : ''};
+    case 'MdtDeferred':
+      return {
+        title: `Moved to a later ${entry.specialtyName ? `${entry.specialtyName} MDT` : 'MDT'}`,
+        detail: sentences(
+          entry.previousMeetingStartUtc ? `From ${formatDateTime(entry.previousMeetingStartUtc)}` : null,
+          entry.meetingStartUtc ? `To ${formatDateTime(entry.meetingStartUtc)}` : null,
+        ),
+      };
+    case 'MdtWithdrawn':
+      return {title: `Withdrawn from ${mdtName(entry)}`, detail: ''};
+    case 'MdtOutcomeRecorded':
+      return {
+        title: `${mdtName(entry, true)} outcome recorded`,
+        detail: (entry.presentUsernames ?? []).length ? `Present: ${(entry.presentUsernames ?? []).join(', ')}` : '',
+      };
     default:
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
@@ -462,4 +481,10 @@ function describeStatusChange(entry: TimelineEntry): TimelineWording {
     return {title: 'Taken off hold', detail: `Back to ${words(entry.toStatus)}`};
   const was = `Was ${words(entry.fromStatus)}${entry.isAutomatic ? ', changed automatically' : ''}`;
   return {title: `Status changed to ${words(entry.toStatus)}`, detail: [was, reason].filter(Boolean).join('. ')};
+}
+
+/** "the Dermatology MDT" (or "The Dermatology MDT" at the start of a sentence); "the MDT" without a specialty. */
+function mdtName(entry: TimelineEntry, isStart = false): string {
+  const the = isStart ? 'The' : 'the';
+  return entry.specialtyName ? `${the} ${entry.specialtyName} MDT` : `${the} MDT`;
 }

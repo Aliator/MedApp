@@ -159,6 +159,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LetterTemplatesController.PreviewLetterTemplate 00001
         LetterTemplatesController.RestoreLetterTemplate 00001
         LetterTemplatesController.UpdateLetterTemplate 00001
+        MdtController.Defer 00011
+        MdtController.GetAwaitingMeeting 00011
+        MdtController.GetMeetingList 00011
+        MdtController.GetMeetings 00011
+        MdtController.GetPathwayItems 00011
+        MdtController.ListForMdt 00011
+        MdtController.RecordOutcome 00000
+        MdtController.Withdraw 00011
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -412,7 +420,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
         // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
-        var adminBefore = Enum.GetValues<Permission>().Where(p => p != Permission.TriageReferrals).ToHashSet();
+        // RecordMdtOutcomes came later (PR 30), a clinical decision Admin never had.
+        var adminBefore = Enum.GetValues<Permission>()
+            .Where(p => p is not (Permission.TriageReferrals or Permission.RecordMdtOutcomes))
+            .ToHashSet();
         var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
 
         adminBefore.Except(adminNow).Should().Equal(Permission.FinishWithoutVisit);

@@ -108,6 +108,9 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
             referral.PathwayId = null;
         }
 
+        // Its MDT items go with it (their history stays in the audit log), with who was present (cascade).
+        context.MdtItems.RemoveRange(await context.MdtItems.Where(i => i.PathwayId == pathway.Id).ToListAsync(ct));
+
         // Stages and assignments cascade; the audit entries have no foreign key, so they stay.
         context.PatientPathways.Remove(pathway);
         context.PatientPathwayAuditEntries.AddRange(audit);

@@ -25,6 +25,7 @@ public enum Permission
     AssignPathways,
     UnlockStages,
     FinishWithoutVisit,
+    RecordMdtOutcomes,
     DeletePathways,
 
     BookAppointments,
@@ -107,6 +108,8 @@ public static class Permissions
             "Unlock a finished stage, and reinstate a skipped one."),
         new(Permission.FinishWithoutVisit, PermissionGroup.Pathways,
             "Finish, or skip, a stage that requires a visit without one, giving a reason."),
+        new(Permission.RecordMdtOutcomes, PermissionGroup.Pathways,
+            "Record a multidisciplinary team meeting's (MDT) outcome on a pathway listed for it."),
         new(Permission.DeletePathways, PermissionGroup.Pathways,
             "Delete a cancelled or archived pathway."),
 
@@ -154,13 +157,14 @@ public static class Permissions
 
     /// <summary>
     /// The built-in Admin role's permissions, fixed in code: all of them but the clinical decisions,
-    /// <see cref="Permission.TriageReferrals"/> and <see cref="Permission.FinishWithoutVisit"/> (an admin who triages,
+    /// <see cref="Permission.TriageReferrals"/>, <see cref="Permission.FinishWithoutVisit"/> and
+    /// <see cref="Permission.RecordMdtOutcomes"/> (decision 74; an admin who triages,
     /// or who is a senior clinician, holds a role that grants it too: decision 138 of
     /// <c>docs/centre-phases-3-5-plan.md</c>). Admin keeps <see cref="Permission.UnlockStages"/>, a correction.
     /// </summary>
     public static readonly IReadOnlySet<Permission> Admin =
         Enum.GetValues<Permission>()
-            .Where(p => p is not (Permission.TriageReferrals or Permission.FinishWithoutVisit))
+            .Where(p => p is not (Permission.TriageReferrals or Permission.FinishWithoutVisit or Permission.RecordMdtOutcomes))
             .ToHashSet();
 
     /// <summary>A permission's group and description.</summary>

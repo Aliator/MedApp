@@ -58,6 +58,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the pathway audit log
         ["api/referrals/{id:guid}"] = Records("ReferralViewed"), // the referral's ID in the details
         ["api/referrals/search"] = Records("PatientListed"),
+        ["api/mdt/meetings/{meetingId:guid}/items"] = Records("PatientListed"), // each patient on the MDT's list
+        ["api/mdt/awaiting-meeting"] = Records("PatientListed"), // each patient whose MDT was cancelled
+        ["api/mdt/pathways/{pathwayId:guid}/items"] = Records("PathwayViewed"),
         ["api/clinics/sessions/{id:guid}"] = Records("PatientListed"), // each patient booked into one of its slots
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
@@ -100,6 +103,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/calendar/staff/{userId:guid}/hours"] = Nothing("a member of staff's working hours: staff data, no patient"),
         ["api/calendar/availability"] = Nothing("staff's free and busy times; an appointment is only \"another appointment\", never a patient"),
         ["api/calendar/meetings/{id:guid}"] = Nothing("a staff meeting: staff, not patients"),
+        ["api/mdt/meetings"] = Nothing("MDTs and their counts: staff meetings, names no patients"),
         ["api/appointments/patient-messages/status"] = Nothing("whether patients are texted and emailed here: configuration"),
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 

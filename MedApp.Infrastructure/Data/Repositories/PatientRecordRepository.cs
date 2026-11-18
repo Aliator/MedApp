@@ -111,6 +111,17 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
+        // MDT items, with the question and outcome, who was present, and their specialty and meeting for the export.
+        var mdtItems = await Tracking(context.MdtItems, forUpdate)
+            .Include(i => i.Attendees)
+            .Include(i => i.Specialty)
+            .Include(i => i.Meeting)
+            .Include(i => i.Pathway)
+            .Where(i => i.PatientId == patientId)
+            .OrderBy(i => i.ListedAtUtc).ThenBy(i => i.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
         return new PatientRecord
         {
             Patient = patient,
@@ -129,7 +140,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Notifications = notifications,
             Attachments = attachments,
             Referrals = referrals,
-            ReferralHistory = referralHistory
+            ReferralHistory = referralHistory,
+            MdtItems = mdtItems
         };
     }
 

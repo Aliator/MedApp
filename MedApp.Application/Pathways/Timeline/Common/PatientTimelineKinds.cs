@@ -48,6 +48,7 @@ public static class PatientTimelineKinds
         Deleted => PatientTimelineKind.Deleted,
         // Downloads are files too, though the timeline never shows them (PatientTimelineSearch leaves them out).
         AttachmentAdded or AttachmentDeleted or AttachmentDownloaded => PatientTimelineKind.Files,
+        MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn => PatientTimelineKind.Mdt,
         _ => PatientTimelineKind.Details
     };
 
@@ -69,6 +70,7 @@ public static class PatientTimelineKinds
         var details = kinds.Contains(PatientTimelineKind.Details);
         var deleted = kinds.Contains(PatientTimelineKind.Deleted);
         var files = kinds.Contains(PatientTimelineKind.Files);
+        var mdt = kinds.Contains(PatientTimelineKind.Mdt);
 
         return entries.Where(e =>
             (created && e.Action == Created)
@@ -83,7 +85,8 @@ public static class PatientTimelineKinds
             || (dueDates && e.Action == DetailsUpdated && e.Details.Contains(DueDateChange))
             || (details && e.Action == DetailsUpdated && !e.Details.Contains(DueDateChange))
             || (deleted && e.Action == Deleted)
-            || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded)));
+            || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded))
+            || (mdt && (e.Action == MdtListed || e.Action == MdtOutcomeRecorded || e.Action == MdtDeferred || e.Action == MdtWithdrawn)));
     }
 
     /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>

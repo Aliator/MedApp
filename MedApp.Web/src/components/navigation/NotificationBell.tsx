@@ -56,6 +56,7 @@ const KIND_ICONS: Record<string, IconType> = {
   AuthorsNoteDeleted: AppIcon.Delete,
   ScheduledJobFailing: AppIcon.ScheduledJobs,
   ReferralTriaged: AppIcon.Referrals,
+  MdtOutcomeRecorded: AppIcon.Mdt,
 };
 
 /** The bell, which the unread count is placed over. */

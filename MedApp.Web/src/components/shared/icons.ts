@@ -5,6 +5,8 @@
 import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
+  RiDiscussLine,
+  RiPrinterLine,
   RiArrowGoBackLine,
   RiChatFollowUpLine,
   RiMessage2Line,
@@ -317,4 +319,8 @@ export const AppIcon = {
   PatientMessage: remix(RiMessage2Line),
   /** Recording what happens after a patient did not attend (rebook, clinician to review, no further appointment). */
   DnaFollowUp: remix(RiChatFollowUpLine),
+  /** The MDT list: pathways put forward for a specialty's multidisciplinary team meeting, and the team's outcomes. */
+  Mdt: remix(RiDiscussLine),
+  /** Printing a page (the MDT list). */
+  Print: remix(RiPrinterLine),
 } as const satisfies Record<string, IconType>;

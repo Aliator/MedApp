@@ -56,5 +56,8 @@ public enum PatientTimelineKind
     /// A referral's waiting-time clock was paused, resumed or stopped, or its target re-read (from referrals' history,
     /// so no audit entry is of this kind; the target date it moves is a DueDates entry).
     /// </summary>
-    WaitingTime
+    WaitingTime,
+
+    /// <summary>The pathway was listed for an MDT, deferred, withdrawn, or the team's outcome recorded (never its text).</summary>
+    Mdt
 }

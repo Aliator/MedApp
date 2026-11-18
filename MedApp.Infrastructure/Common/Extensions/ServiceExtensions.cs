@@ -265,6 +265,7 @@ public static class ServiceExtensions
         services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
+        services.AddScoped<MedApp.Application.Mdt.Repositories.IMdtItemRepository, MdtItemRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IPatientMessageRepository, PatientMessageRepository>();
         services.AddScoped<IClinicRepository, ClinicRepository>();

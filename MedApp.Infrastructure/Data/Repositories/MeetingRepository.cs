@@ -25,6 +25,7 @@ public sealed class MeetingRepository(MedAppDbContext context) : IMeetingReposit
 
     public async Task DeleteAsync(Meeting meeting, CancellationToken ct)
     {
+        await ClearMdtItemsAsync([meeting], ct);
         context.Meetings.Remove(meeting);
         await context.SaveChangesOrConflictAsync(MeetingLimits.ChangedMeanwhile, ct);
     }
@@ -40,11 +41,32 @@ public sealed class MeetingRepository(MedAppDbContext context) : IMeetingReposit
         {
             meeting.Attendees.RemoveAll(a => a.StaffUserId == staffUserId);
             meeting.LastUpdated = nowUtc;
-            if (meeting.Attendees.Count == 0)
-                context.Meetings.Remove(meeting);
         }
+
+        var emptied = meetings.Where(m => m.Attendees.Count == 0).ToList();
+        await ClearMdtItemsAsync(emptied, ct);
+        context.Meetings.RemoveRange(emptied);
 
         await context.SaveChangesOrConflictAsync(MeetingLimits.ChangedMeanwhile, ct);
         return meetings.Count;
+    }
+
+    /// <summary>
+    /// An MDT going: its items lose their meeting in the same save, keeping their status, and each remembers when it
+    /// would have been, so an open one shows "Meeting cancelled: list again" (decision 144).
+    /// </summary>
+    private async Task ClearMdtItemsAsync(IReadOnlyCollection<Meeting> meetings, CancellationToken ct)
+    {
+        var ids = meetings.Where(m => m.IsMdt).Select(m => m.Id).ToList();
+        if (ids.Count == 0)
+            return;
+
+        var starts = meetings.ToDictionary(m => m.Id, m => m.StartUtc);
+        var items = await context.MdtItems.Where(i => i.MeetingId != null && ids.Contains(i.MeetingId.Value)).ToListAsync(ct);
+        foreach (var item in items)
+        {
+            item.MeetingCancelledStartUtc = starts[item.MeetingId!.Value];
+            item.MeetingId = null;
+        }
     }
 }

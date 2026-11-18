@@ -91,7 +91,7 @@
 | [H-55](#h-55-a-missed-appointment-isnt-followed-up) | A missed appointment isn't followed up | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 26; built, to verify) | Open, draft for the CSO |
 | [H-56](#h-56-a-scheduled-job-stops-and-nobody-notices) | A scheduled job stops and nobody notices | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 19; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-57](#h-57-a-record-is-anonymised-too-early-because-its-retention-class-is-wrong) | A record is anonymised too early because its retention class is wrong | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 27; not built) | Open, draft for the CSO |
-| [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30, built: `feature/mdt-list`) | Open, draft for the CSO |
 | [H-59](#h-59-a-procedure-goes-ahead-without-valid-consent-recorded-or-a-withdrawal-is-missed) | A procedure goes ahead without valid consent recorded, or a withdrawal is missed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 31; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-60](#h-60-questionnaire-answers-are-read-as-an-assessment-or-recorded-on-the-wrong-patient) | Questionnaire answers are read as an assessment, or recorded on the wrong patient | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 32; not built) | Open, draft for the CSO |
 | [H-61](#h-61-a-video-link-reaches-the-wrong-patient) | A video link reaches the wrong patient | Draft: Significant, Low: **2** | Draft: Significant, Very low: **1** | Draft: Significant, Very low: **1** | Yes, with the feature (PR 34; not built) | Open, draft for the CSO |
@@ -2243,7 +2243,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A wrong, delayed or missed treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** built with PR 30 (`feature/mdt-list`), for the CSO to verify: the controls below, plus an outcome only once the meeting has started, from the version the recorder read (409 otherwise), with who was present chosen from the meeting's attendees; MedApp never suggests an outcome or changes the pathway because of one. No estimate changed.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 

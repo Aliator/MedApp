@@ -50,5 +50,17 @@ public enum PatientPathwayAuditAction
     BranchChosen = 36,
 
     /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
-    StageReinstated = 37
+    StageReinstated = 37,
+
+    /// <summary>A pathway was listed for an MDT (the item's ID, the specialty and the meeting; never the question).</summary>
+    MdtListed = 38,
+
+    /// <summary>An MDT's outcome was recorded (the item's ID, the meeting and who was present; never the outcome).</summary>
+    MdtOutcomeRecorded = 39,
+
+    /// <summary>An MDT item was moved to a later meeting, or listed again after its meeting was cancelled.</summary>
+    MdtDeferred = 40,
+
+    /// <summary>An MDT item was taken off the list without being discussed.</summary>
+    MdtWithdrawn = 41
 }

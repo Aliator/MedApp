@@ -1,3 +1,4 @@
+import {mdtStatusWords} from '../../api/mdt';
 import {Button} from '@astryxdesign/core/Button';
 import {Card} from '@astryxdesign/core/Card';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -445,6 +446,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const files = data.attachments ?? [];
   const referrals = data.referrals ?? [];
   const referralHistory = data.referralHistory ?? [];
+  // Pathways put forward for a multidisciplinary team meeting, with the question and the team's outcome as written.
+  const mdtItems = data.mdtItems ?? [];
   // Each referral by its specialty and when it was received, for its letters and its history.
   const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
@@ -825,6 +828,46 @@ function ExportContent({data}: {data: PatientExport}) {
                     <Text type="supporting" color="secondary">
                       {[capitalised(referralNames.get(entry.referralId) ?? 'a referral'), describeReferralChange(entry.details)].filter(Boolean).join(' · ')}
                     </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`MDT Discussions (${mdtItems.length})`}>
+        {mdtItems.length === 0
+          ? nothing('Never listed for an MDT.')
+          : (
+            <List hasDividers edge="bleed">
+              {mdtItems.map((item, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={<Text type="body">{`${when(item.listedAtUtc)}: listed for the ${item.specialty} MDT by ${item.listedBy}`}</Text>}
+                  description={
+                    <VStack gap={1}>
+                      <Text type="supporting" color="secondary">
+                        {[
+                          item.pathwayTitle,
+                          mdtStatusWords(item.status),
+                          item.meetingStartUtc
+                            ? `Meeting ${when(item.meetingStartUtc)}`
+                            : item.meetingCancelledStartUtc
+                              ? `Meeting of ${when(item.meetingCancelledStartUtc)} cancelled`
+                              : null,
+                          item.withdrawnAtUtc ? `Withdrawn ${when(item.withdrawnAtUtc)} by ${item.withdrawnBy}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                      <Text type="body">{`Question: ${item.question ?? ''}`}</Text>
+                      {item.outcomeAtUtc && (
+                        <Text type="body">
+                          {`Outcome (${when(item.outcomeAtUtc)}, by ${item.outcomeBy}; present: ${(item.present ?? []).join(', ')}): ${item.outcome ?? ''}`}
+                        </Text>
+                      )}
+                    </VStack>
                   }
                 />
               ))}

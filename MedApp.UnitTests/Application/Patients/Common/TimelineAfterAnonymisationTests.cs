@@ -101,7 +101,7 @@ public sealed class TimelineAfterAnonymisationTests
             NoteDeletionRequests = [],
             Attachments = [],
             Referrals = [],
-            ReferralHistory = []
+            ReferralHistory = [], MdtItems = []
         };
 
         PatientAnonymiser.Apply(record, Now);

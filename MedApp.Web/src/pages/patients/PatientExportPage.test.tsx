@@ -528,6 +528,35 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/^Failed: permanent-failure, sent .* · Asked for by k\.ashford$/)).toBeInTheDocument();
   });
 
+  it('lists every MDT discussion with its question, and the outcome as written with who was present', async () => {
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      mdtItems: [
+        {
+          pathwayId: 'proc-1',
+          pathwayTitle: 'Skin lesion',
+          specialty: 'Dermatology',
+          status: 'Discussed',
+          question: 'Synthetic question.',
+          meetingStartUtc: '2026-11-12T13:00:00Z',
+          listedBy: 'k.ashford',
+          listedAtUtc: '2026-11-10T09:00:00Z',
+          outcome: 'Synthetic outcome.',
+          outcomeBy: 's.brightwell',
+          outcomeAtUtc: '2026-11-12T13:20:00Z',
+          present: ['k.ashford', 's.brightwell'],
+        },
+      ],
+    });
+
+    expect(await screen.findByText('MDT Discussions (1)')).toBeInTheDocument();
+    expect(screen.getByText(/listed for the Dermatology MDT by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText('Question: Synthetic question.')).toBeInTheDocument();
+    expect(screen.getByText(/by s\.brightwell; present: k\.ashford, s\.brightwell\): Synthetic outcome\.$/)).toBeInTheDocument();
+  });
+
   it('says when no messages were sent', async () => {
     renderExport({exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient: {id, firstName: 'Oriel'}});
 

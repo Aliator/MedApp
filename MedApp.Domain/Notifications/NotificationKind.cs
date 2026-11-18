@@ -107,5 +107,11 @@ public enum NotificationKind
     /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 24 to 38 are
     /// taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
-    ScheduledJobFailing = 40
+    ScheduledJobFailing = 40,
+
+    /// <summary>
+    /// Someone recorded an MDT's outcome on a pathway you're assigned to (with its <see cref="Notification.PathwayId"/>).
+    /// A fixed title ("MDT outcome recorded"); never the outcome, the question or the patient.
+    /// </summary>
+    MdtOutcomeRecorded = 41
 }
