@@ -111,11 +111,13 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /requires appointment|needs booking/i})).not.toBeInTheDocument();
   });
 
-  it('has Referrals between My Worklist and Patients, with how many await triage, heard after its name', async () => {
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
+  it('has Referrals between My Worklist and Patients, with no count badge (the owner removed it)', async () => {
+    const fetch = mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
     renderWithApp(<AppSideNav />, {user: staffUser, path: '/referrals/new'});
 
-    const referrals = await screen.findByRole('link', {name: 'Referrals, 7 awaiting triage'});
+    const referrals = await screen.findByRole('link', {name: 'Referrals'});
+    expect(referrals).not.toHaveTextContent('7');
+    expect(calls(fetch)).not.toContain('GET /api/referrals/awaiting-triage/count');
     expect(referrals).toHaveAttribute('href', '/referrals');
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
@@ -151,17 +153,6 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: /Referrals/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
-  });
-
-  it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourSpecialties: false})});
-    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser});
-    expect(await screen.findByRole('link', {name: 'Referrals'})).toBeInTheDocument();
-    unmount();
-
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
-    renderWithApp(<AppSideNav />, {user: staffUser});
-    expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
   });
 
   it("has Results before Letters for someone who can view patients, current on a result's page, with a count only for those who sign off", async () => {
@@ -987,6 +978,22 @@ describe('AppSideNav notepad', () => {
     await user.click(pressed);
     expect(screen.getByText('notepad closed')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Notepad'})).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('puts the calendar at the bottom, under the notepad and above the account', async () => {
+    renderWithApp(
+      <NotepadProvider>
+        <AppSideNav />
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+
+    const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    const calendar = screen.getByRole('link', {name: 'Calendar'});
+    const account = screen.getByRole('link', {name: new RegExp(staffUser.username)});
+    const isBefore = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(isBefore(notepad, calendar)).toBe(true);
+    expect(isBefore(calendar, account)).toBe(true);
   });
 
   it('has no notepad outside the signed-in layout', async () => {
