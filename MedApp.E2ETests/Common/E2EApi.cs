@@ -2,6 +2,7 @@ using System.Text.Json;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Calendar.Responses;
+using MedApp.Contracts.Letters.Responses;
 using MedApp.Contracts.Notepads.Requests;
 using MedApp.Contracts.Notepads.Responses;
 using MedApp.Contracts.Notifications.Responses;
@@ -194,6 +195,49 @@ public sealed class E2EApi(IAPIRequestContext request)
         });
 
     public Task<ReferralResponse?> FindReferralAsync(Guid id) => FindAsync<ReferralResponse>($"/api/referrals/{id}");
+
+    /// <summary>
+    /// A letter template for every specialty: a clinic letter whose closing names the approver. Templates a letter was
+    /// written from can't be deleted, only archived (<see cref="ArchiveLetterTemplateAsync"/>). Needs an admin.
+    /// </summary>
+    public async Task<LetterTemplateResponse> CreateLetterTemplateAsync(string name) =>
+        await SendAsync<LetterTemplateResponse>("POST", "/api/letter-templates", new
+        {
+            name,
+            kind = "ClinicLetter",
+            letterhead = "Synthetic Specialist Centre (E2E)",
+            bodySkeleton = "Dear Doctor,\n\nRe: {{patient.name}}, born {{patient.dateOfBirth}}",
+            closing = "Yours sincerely,\n\n{{approver.name}}",
+        });
+
+    /// <summary>Archives a letter template (it can't be chosen again), or deletes it if no letter was written from it.</summary>
+    public async Task ArchiveOrDeleteLetterTemplateAsync(Guid id)
+    {
+        var template = await FindAsync<LetterTemplateResponse>($"/api/letter-templates/{id}");
+        if (template is null)
+            return;
+        if (template.CanBeDeleted)
+            await DeleteIfThereAsync($"/api/letter-templates/{id}");
+        else if (!template.IsArchived)
+            await SendAsync<LetterTemplateResponse>("POST", $"/api/letter-templates/{id}/archive", new { expectedVersion = template.Version });
+    }
+
+    /// <summary>A member of staff's full name and job title, as letters print them. Needs an admin.</summary>
+    public async Task SetStaffDetailsAsync(string username, string fullName, string jobTitle) =>
+        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/details", new { fullName, jobTitle });
+
+    public Task<LetterResponse?> FindLetterAsync(Guid id) => FindAsync<LetterResponse>($"/api/letters/{id}");
+
+    /// <summary>
+    /// Cancels a pathway if it's still open. A pathway with letters can't be deleted (they're clinical correspondence):
+    /// it stays, cancelled (README). Needs an admin.
+    /// </summary>
+    public async Task CancelPathwayAsync(Guid id)
+    {
+        var pathway = await FindPathwayAsync(id);
+        if (pathway is not null && pathway.AllowedStatusChanges.Contains("Cancelled"))
+            await SendAsync<PatientPathwayResponse>("POST", $"{Pathways}/{id}/status", new { status = "Cancelled", reason = "End-to-end test clean-up." });
+    }
 
     private async Task<T> SendAsync<T>(string method, string url, object? body = null)
     {

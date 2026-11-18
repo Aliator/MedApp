@@ -29,6 +29,8 @@ public sealed class LetterTemplateQueriesTests
     {
         _cts = new CancellationTokenSource();
         _repository = new Mock<ILetterTemplateRepository>();
+        _repository.Setup(r => r.GetInUseAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
         _urology = CreateSpecialty(OtherSpecialtyName);
         _dermatology = CreateSpecialty(SpecialtyName);
         _specialties = new Mock<ISpecialtyRepository>();

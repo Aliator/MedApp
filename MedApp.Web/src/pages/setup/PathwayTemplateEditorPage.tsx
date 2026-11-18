@@ -55,6 +55,17 @@ export const templateSpecialtiesQuery = specialtiesQuery(false);
 /** Shown on Specialty when a new template is created without one (the API says the same, as the last word). */
 export const SPECIALTY_REQUIRED = 'Choose the specialty this template belongs to.';
 
+/**
+ * The retention classes a template can have (decision 139): how long its patients' records are kept before they're
+ * reviewed. Standard keeps the adult or child period; the others are longer, from the Retention:Classes settings.
+ */
+export const RETENTION_CLASS_CHOICES = [
+  {value: 'Standard', label: 'Standard (adult or child period)'},
+  {value: 'Oncology', label: 'Oncology'},
+  {value: 'Maternity', label: 'Maternity'},
+  {value: 'MentalHealth', label: 'Mental health'},
+];
+
 /** No specialty: what the API sends for a template without one. */
 const NO_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -183,6 +194,8 @@ function TemplateEditor({
   const startingSpecialty = template?.specialtyId && template.specialtyId !== NO_ID ? template.specialtyId : '';
   const [specialtyId, setSpecialtyId] = useState(startingSpecialty);
   const [isSpecialtyMissing, setIsSpecialtyMissing] = useState(false);
+  const startingClass = template?.retentionClass ?? 'Standard';
+  const [retentionClass, setRetentionClass] = useState(startingClass);
   const [stages, setStages] = useState<StageRow[]>(() => templateRows(template));
   // The stage that stops the clock, by its row's own key: it moves with the row, and goes with it when it's removed.
   const [stopKey, setStopKey] = useState(() => startingStopKey(template, stages));
@@ -232,6 +245,8 @@ function TemplateEditor({
         ...(stageOptions ? {stageOptions} : {}),
         // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
         ...(specialtyId && specialtyId !== startingSpecialty ? {specialtyId} : {}),
+        // Only when it changed: a saved template's class also changes its existing pathways'.
+        ...(retentionClass !== startingClass ? {retentionClass} : {}),
       },
       {
         onSuccess: () => {
@@ -262,6 +277,22 @@ function TemplateEditor({
     />
   );
 
+  const retentionField = (
+    <AnchoredSelector
+      label="Retention class"
+      description={
+        usedBy > 0
+          ? "How long its patients' records are kept before review. A longer class applies to its existing pathways too; a shorter one doesn't shorten their records."
+          : "How long its patients' records are kept before review."
+      }
+      options={RETENTION_CLASS_CHOICES}
+      value={retentionClass}
+      onChange={setRetentionClass}
+      isDisabled={save.isPending}
+      status={fieldStatus(problem.validation, 'retentionClass')}
+    />
+  );
+
   const nameField = (
     <TextInput
       label="Name"
@@ -280,6 +311,7 @@ function TemplateEditor({
     <>
       {nameField}
       {specialtyField}
+      {retentionField}
     </>
   );
 

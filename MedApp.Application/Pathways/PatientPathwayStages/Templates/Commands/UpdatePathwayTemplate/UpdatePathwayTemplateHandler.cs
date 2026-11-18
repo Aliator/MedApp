@@ -1,16 +1,20 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Specialties.Common;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.UpdatePathwayTemplate;
 
 public sealed class UpdatePathwayTemplateHandler(
     IPatientPathwayStagesRepository repository,
-    ISpecialtyRepository specialties)
+    ISpecialtyRepository specialties,
+    IOptions<RetentionOptions> retention)
     : IRequestHandler<UpdatePathwayTemplateCommand, PathwayTemplateResponse>
 {
     public async Task<PathwayTemplateResponse> Handle(
@@ -37,6 +41,10 @@ public sealed class UpdatePathwayTemplateHandler(
             template.Specialty = specialty;
         }
 
+        var classBefore = template.RetentionClass;
+        if (request.RetentionClass is not null)
+            template.RetentionClass = PathwayEnums.Parse<RetentionClass>(request.RetentionClass);
+
         IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>? definitions = null;
         if (request.StageDefinitionIdsInOrder is { } ids)
         {
@@ -49,6 +57,16 @@ public sealed class UpdatePathwayTemplateHandler(
 
         await repository.UpdatePathwayTemplateAsync(
             template, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder, options, cancellationToken);
+
+        // The class is about the kind of care, so a longer one covers the pathways already made from the template too
+        // (a class set after go-live mustn't leave its old records on the shorter period). Never the other way: lowering
+        // a template's class, even by mistake, mustn't bring existing records into the review early (PR 27's review).
+        if (template.RetentionClass != classBefore)
+        {
+            var shorter = retention.Value.Classes.ShorterThan(template.RetentionClass);
+            if (shorter.Count > 0)
+                await repository.RaisePathwayRetentionClassesAsync(template.Id, template.RetentionClass, shorter, cancellationToken);
+        }
 
         if (request.StageDefinitionIdsInOrder is { } newIds)
             template.Maps = PathwayTemplateMapper.ToMaps(template.Id, newIds, request.ClockStopStageOrder, options);

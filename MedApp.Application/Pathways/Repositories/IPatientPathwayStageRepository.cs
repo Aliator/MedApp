@@ -63,5 +63,15 @@ public interface IPatientPathwayStagesRepository
         IReadOnlyList<PatientPathwayStages.Templates.TemplateStageOptions>? stageOptions,
         CancellationToken ct);
 
+    /// <summary>
+    /// Raises the retention class of the template's existing pathways to <paramref name="to"/>, only for those whose
+    /// class is one of <paramref name="from"/> (the classes with a shorter period): never lowers one. Returns how many.
+    /// </summary>
+    Task<int> RaisePathwayRetentionClassesAsync(
+        Guid templateId,
+        RetentionClass to,
+        IReadOnlyCollection<RetentionClass> from,
+        CancellationToken ct);
+
     Task DeletePathwayTemplateAsync(Guid id, CancellationToken ct);
 }

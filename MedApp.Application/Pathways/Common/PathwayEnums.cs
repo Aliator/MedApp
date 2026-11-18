@@ -13,6 +13,8 @@ public static class PathwayEnums
 
     public static string VisitRequirementNames => string.Join(", ", Enum.GetNames<VisitRequirement>());
 
+    public static string RetentionClassNames => string.Join(", ", Enum.GetNames<RetentionClass>());
+
     public static bool IsPriority(string? value) => TryParse<PatientPathwayPriority>(value, out _);
 
     public static bool IsStatus(string? value) => TryParse<PatientPathwayStatus>(value, out _);
@@ -20,6 +22,8 @@ public static class PathwayEnums
     public static bool IsAuditAction(string? value) => TryParse<PatientPathwayAuditAction>(value, out _);
 
     public static bool IsVisitRequirement(string? value) => TryParse<VisitRequirement>(value, out _);
+
+    public static bool IsRetentionClass(string? value) => TryParse<RetentionClass>(value, out _);
 
     /// <summary>Parses an enum by name only (not by number), ignoring case.</summary>
     public static bool TryParse<TEnum>(string? value, out TEnum result) where TEnum : struct, Enum

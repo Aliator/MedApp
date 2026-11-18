@@ -140,6 +140,9 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         existing.IsArchived = template.IsArchived;
         existing.SpecialtyId = template.SpecialtyId;
 
+        // Only the template's own: its existing pathways are raised, never lowered, by RaisePathwayRetentionClassesAsync.
+        existing.RetentionClass = template.RetentionClass;
+
         if (stageDefinitionIdsInOrder is not null)
         {
             // Rows are keyed by position: reuse the positions that stay, add new ones, remove the rest.
@@ -165,6 +168,21 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         }
 
         await context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> RaisePathwayRetentionClassesAsync(
+        Guid templateId,
+        RetentionClass to,
+        IReadOnlyCollection<RetentionClass> from,
+        CancellationToken ct)
+    {
+        if (from.Count == 0)
+            return 0;
+
+        var shorter = from.ToList();
+        return await context.PatientPathways
+            .Where(p => p.TemplateId == templateId && shorter.Contains(p.RetentionClass))
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.RetentionClass, to), ct);
     }
 
     public async Task DeletePathwayTemplateAsync(Guid id, CancellationToken ct)

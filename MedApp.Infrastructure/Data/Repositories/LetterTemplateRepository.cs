@@ -58,4 +58,32 @@ public sealed class LetterTemplateRepository(MedAppDbContext context) : ILetterT
             throw new ConflictException(LetterTemplateRules.NameTakenMessage(template.Name));
         }
     }
+
+    public async Task<IReadOnlySet<Guid>> GetInUseAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new HashSet<Guid>();
+        var used = await context.Letters
+            .Where(l => l.TemplateId != null && ids.Contains(l.TemplateId.Value))
+            .Select(l => l.TemplateId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        return used.ToHashSet();
+    }
+
+    public async Task<bool> IsInUseAsync(Guid id, CancellationToken ct) =>
+        await context.Letters.AnyAsync(l => l.TemplateId == id, ct);
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await context.LetterTemplates.Where(t => t.Id == id).ExecuteDeleteAsync(ct);
+        }
+        // A letter was started from it meanwhile: the foreign key refuses the delete (a bulk delete isn't wrapped).
+        catch (Microsoft.Data.SqlClient.SqlException e) when (e.Number == 547)
+        {
+            throw new ConflictException(LetterTemplateRules.InUseMessage);
+        }
+    }
 }

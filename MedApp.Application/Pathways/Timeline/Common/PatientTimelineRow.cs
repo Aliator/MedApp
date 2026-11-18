@@ -17,6 +17,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     /// <summary>For a note edited (only for admins), the note's text in the version before.</summary>
     public string? PreviousNoteText { get; init; }
 
+    /// <summary>
+    /// For a letter entry (only for admins), the letter as it is now, for its free text (the return comment and the
+    /// withdrawal reason): the audit entry itself holds none.
+    /// </summary>
+    public Domain.Letters.Letter? Letter { get; init; }
+
     /// <summary>About a file attached to the patient themselves, not to one of their pathways.</summary>
     public bool IsAboutPatient => Entry.PatientPathwayId == PatientPathwayAuditEntry.NoPathway;
 }

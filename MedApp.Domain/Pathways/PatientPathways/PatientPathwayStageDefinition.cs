@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Pathways.PatientPathways;
+namespace MedApp.Domain.Pathways.PatientPathways;
 
 /// <summary>A reusable stage, such as "Consultation", that templates list (possibly more than once).</summary>
 public sealed class PatientPathwayStageDefinition
@@ -21,6 +21,12 @@ public sealed class PatientPathwayStageDefinition
     public string? SnomedTerm { get; set; }
     /// <summary>Whether the stage involves a visit; copied onto each pathway's stage when it's created.</summary>
     public VisitRequirement VisitRequirement { get; set; }
+
+    /// <summary>
+    /// The kind of letter the stage needs before it can be finished (a "Discharge letter to GP" stage needs a discharge
+    /// summary), or null for none; copied onto each pathway's stage when it's created, like the visit rule.
+    /// </summary>
+    public Letters.LetterKind? NeedsLetterKind { get; set; }
 
     /// <summary>Archived definitions can't be added to templates. A definition in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }

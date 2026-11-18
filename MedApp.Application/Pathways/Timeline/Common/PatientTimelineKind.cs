@@ -56,5 +56,8 @@ public enum PatientTimelineKind
     /// A referral's waiting-time clock was paused, resumed or stopped, or its target re-read (from referrals' history,
     /// so no audit entry is of this kind; the target date it moves is a DueDates entry).
     /// </summary>
-    WaitingTime
+    WaitingTime,
+
+    /// <summary>A letter was started, submitted, returned, approved, sent (or a secure email failed) or withdrawn.</summary>
+    Letters
 }

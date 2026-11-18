@@ -5,7 +5,7 @@ import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
-import {referralSearchQuery, type ReferralSummary} from '../../api/referrals';
+import {isOpenReferralStatus, referralSearchQuery, type ReferralSummary} from '../../api/referrals';
 import {specialtiesQuery} from '../../api/specialties';
 import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
@@ -47,6 +47,7 @@ const FILTER_FIELDS: ListFilterField[] = [
     label: 'Showing',
     options: [
       {value: 'awaiting', label: 'Awaiting triage'},
+      {value: 'information', label: 'Information requested'},
       {value: 'waiting', label: 'Waiting list'},
       {value: 'paused', label: 'Paused clocks'},
       {value: 'closed', label: 'Closed'},
@@ -54,9 +55,10 @@ const FILTER_FIELDS: ListFilterField[] = [
   },
 ];
 
-/** The views: the inbox, the waiting list, the paused clocks, the closed ones, and all of them. */
+/** The views: the inbox, those waiting for more information, the waiting list, the paused clocks, the closed ones, and all of them. */
 const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Awaiting triage', values: {view: 'awaiting'}},
+  {label: 'Information requested', values: {view: 'information'}},
   {label: 'Waiting list', values: {view: 'waiting'}},
   {label: 'Paused clocks', values: {view: 'paused'}},
   {label: 'Closed', values: {view: 'closed'}},
@@ -64,7 +66,7 @@ const FAVOURITES: ListFilterFavourite[] = [
 ];
 
 /** A view's name in the bar's values ('all' when it was removed). */
-const VIEW_FROM_BAR: Record<string, ReferralView> = {awaiting: 'awaiting', waiting: 'waiting', paused: 'paused', closed: 'closed'};
+const VIEW_FROM_BAR: Record<string, ReferralView> = {awaiting: 'awaiting', information: 'information', waiting: 'waiting', paused: 'paused', closed: 'closed'};
 
 /** The bar's values from the URL: the view shows as Awaiting triage when the URL has none (the inbox). */
 function barValues(search: ReferralsListSearch): ListFilterValues {
@@ -92,6 +94,7 @@ function countWords(view: ReferralView, total: number, isSearched: boolean): str
   const noun = total === 1 ? 'referral' : 'referrals';
   if (isSearched) return `${total} matching ${noun}`;
   if (view === 'awaiting') return `${total} ${noun} awaiting triage`;
+  if (view === 'information') return `${total} ${noun} waiting for more information`;
   if (view === 'waiting') return `${total} ${noun} on the waiting list`;
   if (view === 'paused') return `${total} paused ${total === 1 ? 'clock' : 'clocks'}`;
   return view === 'closed' ? `${total} closed ${noun}` : `${total} ${noun}`;
@@ -99,6 +102,7 @@ function countWords(view: ReferralView, total: number, isSearched: boolean): str
 
 const EMPTY_TITLES: Record<ReferralView, string> = {
   awaiting: 'No referrals are awaiting triage',
+  information: 'No referrals are waiting for more information',
   waiting: 'Nobody is on the waiting list',
   paused: 'No clocks are paused',
   closed: 'No closed referrals',
@@ -174,7 +178,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
         <ReceivedCell
           receivedOn={r.receivedOn ?? ''}
           daysSinceReceived={r.daysSinceReceived ?? 0}
-          isOpen={r.status === 'AwaitingTriage'}
+          isOpen={isOpenReferralStatus(r.status)}
           hasClock={Boolean(r.clock)}
         />
       ),

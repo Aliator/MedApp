@@ -1,4 +1,4 @@
-﻿using MedApp.Contracts.Notifications.Responses;
+using MedApp.Contracts.Notifications.Responses;
 using MedApp.Domain.Notifications;
 
 namespace MedApp.Application.Notifications.Common;
@@ -21,7 +21,8 @@ public static class NotificationMapper
         notification.CalendarDate,
         notification.NoteDeletionRequestId,
         notification.MeetingId,
-        notification.ReferralId);
+        notification.ReferralId,
+        notification.SubjectId);
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>
     public static NotificationPreferencesResponse ToResponse(NotificationPreferences preferences) =>

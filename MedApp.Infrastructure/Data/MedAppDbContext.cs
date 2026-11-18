@@ -49,6 +49,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<LetterTemplate> LetterTemplates => Set<LetterTemplate>();
+    public DbSet<Letter> Letters => Set<Letter>();
+    public DbSet<LetterRecipient> LetterRecipients => Set<LetterRecipient>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
     public DbSet<ReferralClockPause> ReferralClockPauses => Set<ReferralClockPause>();
 

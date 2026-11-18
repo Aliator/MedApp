@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Specialties.Common;
 using MedApp.Application.Specialties.Repositories;
@@ -35,6 +36,9 @@ public sealed class CreatePathwayTemplateHandler(
             Name = name,
             SpecialtyId = specialty.Id,
             Specialty = specialty,
+            RetentionClass = request.RetentionClass is null
+                ? RetentionClass.Standard
+                : PathwayEnums.Parse<RetentionClass>(request.RetentionClass),
             Maps = PathwayTemplateMapper.ToMaps(templateId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder, request.StageOptions)
         };
 

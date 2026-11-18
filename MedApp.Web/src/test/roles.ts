@@ -3,28 +3,31 @@ import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /**
  * The permissions of the API's standard roles (`StandardRoles`): the built-in Admin's fixed set (every one but
- * TriageReferrals and FinishWithoutVisit), and "All staff (before roles)", the old User role, with what every member of staff could do
+ * TriageReferrals, FinishWithoutVisit and the letters permissions: the clinical ones), and "All staff (before roles)", the old User role, with what every member of staff could do
  * before roles. The starting roles follow decision 68 of `docs/centre-phase2-plan.md`, and Senior clinician decision 138
  * of `docs/centre-phases-3-5-plan.md`.
  */
 export const ROLE_PERMISSIONS = {
-  Admin: PERMISSIONS.filter((p) => p !== 'TriageReferrals' && p !== 'FinishWithoutVisit'),
+  Admin: PERMISSIONS.filter((p) => !(['TriageReferrals', 'FinishWithoutVisit', 'WriteLetters', 'ApproveLetters', 'SendLetters'] as Permission[]).includes(p)),
   'All staff (before roles)': [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways',
     'BookAppointments', 'AttachFiles',
   ],
   Clinician: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'WriteLetters', 'ApproveLetters', 'SendLetters',
   ],
   'Senior clinician': [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'WriteLetters', 'ApproveLetters', 'SendLetters',
   ],
-  Nurse: ['UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles'],
+  Nurse: [
+    'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles',
+    'WriteLetters', 'SendLetters',
+  ],
   Booking: [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar',
-    'ManageClinics', 'AttachFiles',
+    'ManageClinics', 'AttachFiles', 'SendLetters',
   ],
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles'],
   Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ManageClinics', 'ViewInsights', 'ManageMonitoring'],

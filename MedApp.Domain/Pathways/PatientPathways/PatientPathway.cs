@@ -43,6 +43,13 @@ public sealed class PatientPathway
     /// </summary>
     public Guid SpecialtyId { get; set; }
 
+    /// <summary>
+    /// Its template's retention class, copied when it's created, and raised (never lowered) when the template is given a
+    /// longer one, so a class set on a template after the fact covers the records it was already used for. A patient's record is kept for the
+    /// longest of the adult or child period and each of their pathways' classes.
+    /// </summary>
+    public RetentionClass RetentionClass { get; set; }
+
     public DateTime CreatedAt { get; init; }
     public DateTime LastUpdated { get; set; }
 
