@@ -45,7 +45,9 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.Notes,
-            User.ToPathwayActor()), ct);
+            User.ToPathwayActor(),
+            request.ClinicSessionId,
+            request.RoomId), ct);
 
         return Created($"/api/appointments/{appointment.Id}", appointment);
     }
@@ -103,7 +105,10 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.To,
             request.Search), ct));
 
-    /// <summary>Books a Requested appointment, or moves a Booked one to another time or member of staff.</summary>
+    /// <summary>
+    /// Books a Requested appointment, or moves a Booked one to another time or member of staff: optionally into a clinic
+    /// session's slot (<c>clinicSessionId</c>: its clinician, one of its slots exactly) or a room (<c>roomId</c>).
+    /// </summary>
     [HttpPost("{id:guid}/book")]
     [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -117,7 +122,9 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.ExpectedStatus,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(),
+            request.ClinicSessionId,
+            request.RoomId), ct));
 
     /// <summary>Records Attended or DidNotAttend, once the appointment has started (or corrects it).</summary>
     [HttpPost("{id:guid}/outcome")]

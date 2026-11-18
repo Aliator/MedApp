@@ -1,6 +1,8 @@
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Clinics.Common;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
@@ -41,12 +43,27 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
                 context.Entry(entry).State = EntityState.Detached;
             throw new StageHasOpenAppointmentException(stageId);
         }
+        catch (DbUpdateException e) when (e.IsViolationOf(AppointmentConfiguration.SessionSlotIndex))
+        {
+            // Another request booked the clinic session's slot first (the clinician's calendar lock makes this rare).
+            context.Entry(appointment).State = EntityState.Detached;
+            foreach (var entry in history)
+                context.Entry(entry).State = EntityState.Detached;
+            throw new ConflictException(ClinicRules.SlotTaken);
+        }
     }
 
     public async Task SaveAsync(IEnumerable<AppointmentEvent> events, CancellationToken ct)
     {
         context.AppointmentEvents.AddRange(events);
-        await SaveAsync(ct);
+        try
+        {
+            await SaveAsync(ct);
+        }
+        catch (DbUpdateException e) when (e.IsViolationOf(AppointmentConfiguration.SessionSlotIndex))
+        {
+            throw new ConflictException(ClinicRules.SlotTaken);
+        }
     }
 
     /// <summary>

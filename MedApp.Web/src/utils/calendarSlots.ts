@@ -101,17 +101,19 @@ const TAKES_TIME = new Set(['Booked', 'Attended', 'DidNotAttend']);
  * appointments, leaving out `ignoreAppointmentId` (the appointment being rescheduled, which may move into its own time).
  */
 export function busyTimes(
-  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'staffUserId'>,
+  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'staffUserId' | 'sessions'>,
   ignoreAppointmentId?: string,
 ): Interval[] {
   const blocks = (calendar.blocks ?? []).filter((b) => b.startUtc && b.endUtc).map((b) => intervalOf(b.startUtc!, b.endUtc!));
+  // A clinic session is busy time too: appointments go into its slots (the booking dialog's Clinic slots), not over it.
+  const sessions = (calendar.sessions ?? []).filter((c) => c.status !== 'Cancelled' && c.startUtc && c.endUtc).map((c) => intervalOf(c.startUtc!, c.endUtc!));
   const meetings = (calendar.meetings ?? [])
     .filter((m) => m.startUtc && m.endUtc && !hasDeclined(m, calendar.staffUserId))
     .map((m) => intervalOf(m.startUtc!, m.endUtc!));
   const appointments = (calendar.appointments ?? [])
     .filter((a) => a.id !== ignoreAppointmentId && TAKES_TIME.has(a.status ?? '') && a.startUtc && a.endUtc)
     .map((a) => intervalOf(a.startUtc!, a.endUtc!));
-  return [...blocks, ...meetings, ...appointments];
+  return [...blocks, ...sessions, ...meetings, ...appointments];
 }
 
 /**
@@ -132,7 +134,7 @@ export function freeStarts(day: CalendarDay, busy: Interval[], lengthMinutes: nu
 
 /** Each day's free start times (`freeStarts`) on a calendar, by date. */
 export function freeStartsByDay(
-  calendar: Pick<Calendar, 'days' | 'blocks' | 'appointments' | 'meetings' | 'staffUserId'>,
+  calendar: Pick<Calendar, 'days' | 'blocks' | 'appointments' | 'meetings' | 'staffUserId' | 'sessions'>,
   lengthMinutes: number,
   now: Date,
   ignoreAppointmentId?: string,

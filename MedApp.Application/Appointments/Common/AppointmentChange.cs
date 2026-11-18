@@ -37,30 +37,47 @@ public sealed class AppointmentChange(
         Record(AppointmentEventAction.Requested, automatic ? new { automatic = true } : null);
 
     /// <summary>
-    /// Books a Requested appointment, or moves a Booked one (recorded with its previous time and member of staff).
-    /// Nothing happens if a Booked one is "moved" to exactly where it is.
+    /// Books a Requested appointment, or moves a Booked one (recorded with its previous time, member of staff, and clinic
+    /// session and room if it had them), into a clinic session's slot or a room when <paramref name="place"/> says so
+    /// (none: neither, so a move out of a session leaves it). Nothing happens if a Booked one is "moved" to exactly where
+    /// it is. The history records the session's and room's IDs, never names.
     /// </summary>
-    public void Book(Guid staffUserId, string bookedStaffUsername, DateTime startUtc, DateTime endUtc)
+    public void Book(Guid staffUserId, string bookedStaffUsername, DateTime startUtc, DateTime endUtc, AppointmentPlace? place = null)
     {
+        place ??= AppointmentPlace.None;
         var wasBooked = appointment.Status == Booked;
         if (wasBooked
             && appointment.StaffUserId == staffUserId
             && appointment.StartUtc == startUtc
-            && appointment.EndUtc == endUtc)
+            && appointment.EndUtc == endUtc
+            && appointment.ClinicSessionId == place.ClinicSessionId
+            && appointment.RoomId == place.RoomId)
             return;
 
-        var previous = new
+        // As the other details, nulls are left out.
+        var previous = new Dictionary<string, object>();
+        void Add(string key, object? value)
         {
-            previousStartUtc = appointment.StartUtc,
-            previousEndUtc = appointment.EndUtc,
-            previousStaffUserId = appointment.StaffUserId,
-            previousStaffUsername = _staffUsername
-        };
+            if (value is not null)
+                previous[key] = value;
+        }
+
+        Add("previousStartUtc", appointment.StartUtc);
+        Add("previousEndUtc", appointment.EndUtc);
+        Add("previousStaffUserId", appointment.StaffUserId);
+        Add("previousStaffUsername", _staffUsername);
+        Add("previousClinicSessionId", appointment.ClinicSessionId);
+        Add("previousRoomId", appointment.RoomId);
 
         appointment.StaffUserId = staffUserId;
         appointment.StartUtc = startUtc;
         appointment.EndUtc = endUtc;
+        appointment.ClinicSessionId = place.ClinicSessionId;
+        appointment.RoomId = place.RoomId;
         _staffUsername = bookedStaffUsername;
+
+        Add("clinicSessionId", place.ClinicSessionId);
+        Add("roomId", place.RoomId);
 
         if (wasBooked)
         {
@@ -71,7 +88,11 @@ public sealed class AppointmentChange(
         appointment.Status = Booked;
         appointment.BookedAtUtc = nowUtc;
         appointment.BookedByUserId = actor.UserId;
-        Record(AppointmentEventAction.Booked);
+        Record(
+            AppointmentEventAction.Booked,
+            place.ClinicSessionId is null && place.RoomId is null
+                ? null
+                : new { clinicSessionId = place.ClinicSessionId, roomId = place.RoomId });
     }
 
     /// <summary>

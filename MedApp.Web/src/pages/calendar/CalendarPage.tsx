@@ -34,6 +34,10 @@ import {AppointmentDialog, appointmentWhen} from '../../components/calendar/Appo
 import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
 import {BlockDialog} from '../../components/calendar/BlockDialog';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
+import {ClinicSessionDialog} from '../../components/calendar/ClinicSessionDialog';
+import {slotOf, type ClinicSlotChoice} from '../../components/calendar/ClinicSlotPicker';
+import {SessionFormDialog} from '../../components/calendar/SessionFormDialog';
+import type {ClinicSession} from '../../api/clinics';
 import {
   CalendarGrid,
   dayColumns,
@@ -42,7 +46,7 @@ import {
   type CalendarRowMinutes,
   type CalendarSelection,
 } from '../../components/calendar/CalendarGrid';
-import {appointmentKey, blockKey, calendarItems, meetingKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
+import {appointmentKey, blockKey, calendarItems, meetingKey, sessionKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
 import {MeetingDialog, type MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {RecordPastAppointmentDialog} from '../../components/calendar/RecordPastAppointmentDialog';
 import {StaffPicker, staffPickerOptions} from '../../components/calendar/StaffPicker';
@@ -247,7 +251,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const [heldPlacement, setHeldPlacement] = useState<'end' | 'below'>('end');
   const heldAnchor = useRef<HTMLElement | null>(null);
   const selectionRef = useRef<HTMLElement>(null) as RefObject<HTMLElement>;
-  const [booking, setBooking] = useState<{selection?: CalendarSelection; staffUserId?: string} | null>(null);
+  const [booking, setBooking] = useState<{selection?: CalendarSelection; staffUserId?: string; clinicSlot?: ClinicSlotChoice} | null>(null);
+  // A clinic session opened from the calendar, and one being changed from its dialog.
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  const [editingSession, setEditingSession] = useState<ClinicSession | null>(null);
   const [blocking, setBlocking] = useState<{selection?: CalendarSelection; block?: CalendarBlock; calendar?: Calendar} | null>(null);
   const [move, setMove] = useState<PendingMove | null>(null);
   const [meeting, setMeeting] = useState<Pick<MeetingDialogProps, 'meeting' | 'initial'> | null>(null);
@@ -332,6 +339,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     const source = calendarOf(column.key)!;
     if (item.kind === 'appointment') go({appointment: appointmentOf(source, item).id});
     else if (item.kind === 'meeting') setMeeting({meeting: meetingOf(source, item)});
+    else if (item.kind === 'session') setOpenSessionId(source.sessions!.find((c) => sessionKey(c.id) === item.key)!.id ?? null);
     else setBlocking({block: blockOf(source, item), calendar: source});
   };
 
@@ -675,6 +683,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             href="/calendar/requires-appointment"
             icon={<Icon icon={AppIcon.RequiresAppointment} />}
           />
+          <Button label="Clinics" variant="secondary" href="/calendar/clinics" icon={<Icon icon={AppIcon.Clinics} />} />
           {/* One person's calendar they can change (never the team view): their day templates on days of this week. */}
           {canEdit && (
             <Button
@@ -699,9 +708,27 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             staffUserId={booking?.staffUserId ?? (isTeam ? undefined : staffUserId || undefined)}
             startUtc={booking?.selection?.startUtc}
             endUtc={booking?.selection?.endUtc}
+            clinicSlot={booking?.clinicSlot}
             stepMinutes={rowMinutes}
             onClose={() => setBooking(null)}
           />
+          <ClinicSessionDialog
+            sessionId={openSessionId}
+            onClose={() => setOpenSessionId(null)}
+            onEdit={(session) => {
+              setOpenSessionId(null);
+              setEditingSession(session);
+            }}
+            onBookSlot={
+              canBook
+                ? (session, start) => {
+                    setOpenSessionId(null);
+                    setBooking({clinicSlot: slotOf(session, start)});
+                  }
+                : undefined
+            }
+          />
+          <SessionFormDialog isOpen={editingSession !== null} session={editingSession ?? undefined} onClose={() => setEditingSession(null)} />
           <RecordPastAppointmentDialog
             isOpen={isRecordingPast}
             staffUserId={isTeam ? undefined : staffUserId || undefined}

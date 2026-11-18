@@ -3,6 +3,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -91,6 +92,16 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
             .AsSplitQuery()
             .ToListAsync(ct);
 
+        var sessions = await context.ClinicSessions
+            .AsNoTracking()
+            .Include(c => c.Room).ThenInclude(r => r.Site)
+            .Include(c => c.Specialty)
+            .Where(c => ids.Contains(c.StaffUserId)
+                        && c.Status == ClinicSessionStatus.Planned
+                        && c.StartUtc < beforeUtc
+                        && c.EndUtc > fromUtc)
+            .ToListAsync(ct);
+
         // The range's closed days are everyone's.
         var closedDays = new ClosedDaySet(await context.ClosedDays
             .AsNoTracking()
@@ -125,6 +136,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
                 dayTemplateNames.Where(n => theirDayTemplateIds.Contains(n.Key)).ToDictionary(n => n.Key, n => n.Value))
             {
                 Meetings = meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == staffUserId)).ToList(),
+                Sessions = sessions.Where(c => c.StaffUserId == staffUserId).ToList(),
                 ClosedDays = closedDays,
                 Hours = hours
             };

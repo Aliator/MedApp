@@ -24,7 +24,7 @@ public sealed class RoomConfiguration : IEntityTypeConfiguration<Room>
             .HasDefaultValue(false);
 
         // A site with rooms can't be deleted, only archived.
-        builder.HasOne<Site>()
+        builder.HasOne(x => x.Site)
             .WithMany()
             .HasForeignKey(x => x.SiteId)
             .OnDelete(DeleteBehavior.Restrict);

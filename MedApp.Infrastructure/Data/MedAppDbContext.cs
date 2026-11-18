@@ -3,6 +3,7 @@ using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
 using MedApp.Domain.Jobs;
 using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
@@ -57,6 +58,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<SiteHours> SiteHours => Set<SiteHours>();
+    public DbSet<ClinicSession> ClinicSessions => Set<ClinicSession>();
+    public DbSet<ClinicPattern> ClinicPatterns => Set<ClinicPattern>();
     public DbSet<StaffHours> StaffHours => Set<StaffHours>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();

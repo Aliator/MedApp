@@ -66,6 +66,8 @@ public static class AppointmentMapper
             StartUtc = appointment.StartUtc,
             EndUtc = appointment.EndUtc,
             DurationMinutes = appointment is { StartUtc: { } start, EndUtc: { } end } ? (int)(end - start).TotalMinutes : null,
+            ClinicSessionId = appointment.ClinicSessionId,
+            RoomId = appointment.RoomId,
             Notes = appointment.Notes,
             CancelReason = appointment.CancelReason,
             IsAutomatic = appointment.IsAutomatic,
