@@ -19,8 +19,8 @@ export interface PageHeaderProps {
   /** Buttons at the end of the header, e.g. Search and Add. */
   actions?: ReactNode;
   /**
-   * A message for the whole page, such as an error from saving or loading (an `AlertMessage`). It sits in the middle
-   * of the header, between the title and the actions, so it never pushes the content down.
+   * A message for the whole page, such as an error from saving or loading (an `AlertMessage`). It sits beside the
+   * title, starting right after it, with the actions at the end, so it never pushes the content down.
    */
   message?: ReactNode;
   /** 2 for a section's header within a page, such as each of Home's task lists. */
@@ -36,7 +36,7 @@ const MESSAGE_MIN_INLINE = '12rem';
 
 /**
  * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
- * any page message in the middle. Where they don't all fit on one line, the message and then the actions wrap under the
+ * any page message beside the title. Where they don't all fit on one line, the message and then the actions wrap under the
  * title. In a half view, it ends with the button that closes that half, which stays on the title's line, top right.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
@@ -79,10 +79,11 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
           </HStack>
         )}
       </VStack>
-      {/* Fills the line between the title and the actions, so the actions sit at the end. */}
+      {/* Fills the line between the title and the actions, so the actions sit at the end; the message starts at its
+          start, beside the title (the row's gap apart). */}
       <StackItem size="fill" style={message ? {flexBasis: 0, minInlineSize: MESSAGE_MIN_INLINE} : undefined}>
         {message && (
-          <HStack hAlign="center" vAlign="center">
+          <HStack hAlign="start" vAlign="center">
             {message}
           </HStack>
         )}
