@@ -2,7 +2,6 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Tab, TabList} from '@astryxdesign/core/TabList';
 import {pixel, proportional} from '@astryxdesign/core/Table';
@@ -40,6 +39,7 @@ import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplateEditorHref, type CalendarTemplatesSearch, type CalendarTemplatesTab} from './calendarTemplatesSearch';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
 import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 export interface CalendarTemplatesPageProps {
   search: CalendarTemplatesSearch;
@@ -550,7 +550,7 @@ function DefaultWeek({owner, onError}: {owner: TemplatesOwner; onError: (message
   return (
     <PanelCard title="Default Week">
       <VStack gap={2}>
-        <Selector
+        <AnchoredSelector
           label="Default week"
           description={`One of ${whose} week templates. It fills ${whose} calendar from today; past days keep what they had, and one day can use another day template on the Calendar.`}
           options={options}

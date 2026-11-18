@@ -5,7 +5,6 @@ import {Divider} from '@astryxdesign/core/Divider';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
@@ -40,6 +39,7 @@ import {
 } from './calendarSetup';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplatesHref} from './calendarTemplatesSearch';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
 let rowCount = 0;
 const newKey = () => `block-${++rowCount}`;
@@ -255,7 +255,7 @@ function DayTemplateEditor({
               {i > 0 && <Divider />}
               <HStack gap={2} vAlign="start" wrap="wrap">
                 <StackItem size="fill">
-                  <Selector
+                  <AnchoredSelector
                     label="Activity"
                     options={options}
                     value={row.activityTypeId}
@@ -264,7 +264,7 @@ function DayTemplateEditor({
                     containerStyle={{minWidth: 160}}
                   />
                 </StackItem>
-                <Selector
+                <AnchoredSelector
                   label="Start"
                   options={timeOptions(TIMES.slice(0, -1), row.startTime)}
                   value={row.startTime}
@@ -273,7 +273,7 @@ function DayTemplateEditor({
                   status={rowProblem?.field === 'startTime' ? {type: 'error', message: rowProblem.message} : undefined}
                   containerStyle={{width: 130}}
                 />
-                <Selector
+                <AnchoredSelector
                   label="End"
                   options={timeOptions(TIMES.slice(1), row.endTime)}
                   value={row.endTime}
