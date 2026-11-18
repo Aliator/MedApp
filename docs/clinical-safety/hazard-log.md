@@ -6,8 +6,8 @@
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
-| **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated |
+| **Date** | 18 November 2026 |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -78,6 +78,26 @@
 | [H-42](#h-42-a-paused-waiting-time-clock-is-forgotten) | A paused waiting-time clock is forgotten | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
 | [H-43](#h-43-a-breach-of-a-waiting-time-target-goes-unnoticed-or-the-target-is-wrong) | A breach of a waiting-time target goes unnoticed, or the target is wrong | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** (not built) | Open, draft for the CSO |
 | [H-44](#h-44-a-duplicate-referral-leads-to-two-pathways-for-one-need) | A duplicate referral leads to two pathways for one need | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, before first live use (not built) | Open, draft for the CSO |
+| [H-45](#h-45-a-specimen-is-lost-or-its-report-never-comes-back) | A specimen is lost, or its report never comes back | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 13; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-46](#h-46-a-result-is-never-seen-or-acted-on) | A result is never seen or acted on | Draft: Major, Medium: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-47](#h-47-a-report-is-attached-to-the-wrong-patient-or-specimen) | A report is attached to the wrong patient or specimen | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 13 and 14; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-51](#h-51-a-branch-is-chosen-or-a-stage-skipped-in-error) | A branch is chosen, or a stage skipped, in error | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 20; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-52](#h-52-a-patient-is-booked-when-nobody-or-no-room-is-available-or-a-cancelled-clinics-patients-arent-told) | A patient is booked when nobody, or no room, is available, or a cancelled clinic's patients aren't told | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 21 to 23 and 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-53](#h-53-a-reminder-reaches-the-wrong-person-or-says-too-much) | A reminder reaches the wrong person or says too much | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, with the feature (PR 26; not built) | Open, draft for the CSO |
+| [H-54](#h-54-a-patient-relies-on-a-reminder-that-isnt-sent) | A patient relies on a reminder that isn't sent | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Yes, with the feature (PRs 19 and 26; not built) | Open, draft for the CSO |
+| [H-55](#h-55-a-missed-appointment-isnt-followed-up) | A missed appointment isn't followed up | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-56](#h-56-a-scheduled-job-stops-and-nobody-notices) | A scheduled job stops and nobody notices | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 19; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-57](#h-57-a-record-is-anonymised-too-early-because-its-retention-class-is-wrong) | A record is anonymised too early because its retention class is wrong | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 27; not built) | Open, draft for the CSO |
+| [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-59](#h-59-a-procedure-goes-ahead-without-valid-consent-recorded-or-a-withdrawal-is-missed) | A procedure goes ahead without valid consent recorded, or a withdrawal is missed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 31; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-60](#h-60-questionnaire-answers-are-read-as-an-assessment-or-recorded-on-the-wrong-patient) | Questionnaire answers are read as an assessment, or recorded on the wrong patient | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 32; not built) | Open, draft for the CSO |
+| [H-61](#h-61-a-video-link-reaches-the-wrong-patient) | A video link reaches the wrong patient | Draft: Significant, Low: **2** | Draft: Significant, Very low: **1** | Draft: Significant, Very low: **1** | Yes, with the feature (PR 34; not built) | Open, draft for the CSO |
+| [H-62](#h-62-data-from-an-nhs-system-is-matched-to-the-wrong-patient) | Data from an NHS system is matched to the wrong patient | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 38a to 38c; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-63](#h-63-one-organisation-sees-anothers-patients) | One organisation sees another's patients | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PRs 40a to 40c; not built) | Open, draft for the CSO |
+| [H-64](#h-64-a-file-is-held-as-being-scanned-when-its-needed) | A file is held as "being scanned" when it's needed | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 37; not built) | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -97,6 +117,8 @@
 
 **Referrals, triage and the waiting-time clock (H-40 to H-44)** are drafts written from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), **before anything is built**, so the build includes their controls. None has an existing control; each lists the planned ones. Draft estimates: four start at 3 (H-40 to H-43) and all come down to 2 at first live use once their planned controls are built. H-01 gains registering a referral on the wrong patient as a cause.
 
+**The centre's Phases 3 to 5 (H-45 to H-64)** are drafts written from the design of Phases 3, 4 and 5 of the community specialist centre (`docs/centre-phases-3-5-plan.md`), **before anything is built**, so each feature's PR builds their controls with it: H-45 to H-50 for specimens, results and letters (Phase 3), H-51 to H-57 for branching pathways, hours and clinics, reminders, scheduled jobs and retention classes (Phase 4), and H-58 to H-64 for the MDT list, consent, questionnaires, video appointments, NHS adapters, several organisations and malware scanning (Phase 5). None has an existing control. Draft estimates: 13 start at 3 (H-45, H-46, H-47, H-48, H-49, H-50, H-51, H-52, H-55, H-56, H-58, H-59 and H-62), and all come down to 2 or below at the feature's first live use, once its planned controls are built; no feature may be used with patients before then. H-01 gains the specimen label as a cause and a control.
+
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
 ---
@@ -112,6 +134,7 @@
 - **The demographics lookup** fills a patient's name and date of birth from an NHS number, so a wrong number can fill in another person's details. Today it's off by default, and its only source is an offline stub of four synthetic people; the real PDS isn't connected. Since the review of #69: on Edit Patient it shows who it found beside the record's details and fills only on "Use These Details"; on Add Patient it fills at once; and on either, if the number is changed after a lookup while the filled details are unchanged, the save is refused until the new number is looked up or the details are changed by hand.
 - Task lists and pathway lists show the patient's name only (`MyTasksPage.tsx`, `PathwaysListPage.tsx`). Search matches on part of a name (`PathwaySearch.Filter`).
 - Two pages can be open side by side (half views), and pathways can be pinned in the side navigation.
+- **A specimen labelled for the wrong patient** (planned, `docs/centre-phases-3-5-plan.md`, PR 13): the label is printed from the specimen's page, and a label stuck on another patient's pot sends their report to this patient's record (H-47).
 - The same causes can put a file on the wrong patient: H-23.
 - **A referral registered on the wrong patient** (planned, `docs/centre-phase2-plan.md`): the referral's patient is chosen by name or NHS number when it's registered, or added from the demographics lookup. Its controls (the patient banner on the referral page and in every triage confirmation, entered in error with a reason) are under H-41.
 
@@ -133,6 +156,7 @@
 - **Show the date of birth** beside the patient's name in task lists and pathway lists, and put the patient's name in the pathway page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
 - **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design. **Built in part** on branch `feature/nhs-integrations`: the number is optional, checked with its check digit on the server and in the form, unique across the deployment (within an organisation once step 8 adds them), and searchable; an exact duplicate number is refused with a 409. **Still planned** (step 9): a duplicate check on name and date of birth, and merging; later.
 - **Trace NHS numbers with PDS,** so a number is confirmed to be the patient's, and have the lookup show who it found and ask staff to confirm before it fills the form. Protective. The confirmation is **built** on Edit Patient, with the hold on a changed number on both forms (above); Add Patient still fills at once. Tracing is **planned** (step 9, after NHS England's onboarding); before the real PDS is connected, Add Patient should confirm as Edit Patient does.
+- **The specimen label** carries the patient's name, date of birth and NHS number beside the specimen number (as text and as a QR code holding only the number), so the pot can be checked against the patient when it's taken and by the lab (`docs/centre-phases-3-5-plan.md`, decision 87). Protective; **planned** (PR 13); before specimens are first used. See H-47.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
 
 **At first live use:** Major, Very low: **2**. Unchanged by branch `feature/nhs-integrations`: this rating already assumed the banner, and it holds only once the CSO has verified it and the proposed controls above are built.
@@ -1731,6 +1755,671 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 ---
 
+## The centre's Phases 3 to 5: draft hazards for the CSO
+
+H-45 to H-64 come from the design of Phases 3, 4 and 5 of the community specialist centre (`docs/centre-phases-3-5-plan.md`), drafted **before any of the features is built**, so each feature's PR can build its controls with it. "Decision n" and "PR n" refer to sections 1 to 4 and section 6 of that plan. In short:
+- **Phase 3 (H-45 to H-50):** specimens tracked from the stage that took them to the lab and back; each lab report (or a report from elsewhere) becomes a **result** a named clinician signs off; **letters** written from templates, approved, rendered as PDFs and sent to the GP practice, the patient or others.
+- **Phase 4 (H-51 to H-57):** pathways with optional stages and branches; sites, rooms and working hours; clinic sessions; scheduled jobs; reminders to patients by text and email, and the follow-up of missed appointments; retention classes.
+- **Phase 5 (H-58 to H-64):** the MDT list and its outcomes; consent records; outcome questionnaires; video and phone appointments; adapters for NHS systems and a lab's system; several organisations in one deployment; a real malware scanner.
+
+Throughout, the plan keeps the device line (decision 69): MedApp records what clinicians decide, and reads, scores, flags or suggests nothing from clinical content (`intended-purpose-and-device-decision.md`, the reassessments for Phases 3 to 5).
+
+**Ratings:** left for the CSO to assign. Each entry gives a draft estimate as a starting point.
+- **Existing controls:** there are none yet, because nothing here is built. Today the centre does this work outside MedApp.
+- **Further controls:** the plan's controls are listed as **planned**, with the PR that builds them. They're built with their feature, so "at first live use" here means the feature's first live use: a feature mustn't be used with patients before its controls are built and verified.
+- **Check each control** against the code once it's built, and update the entry in the feature's PR.
+
+---
+
+## H-45: A specimen is lost, or its report never comes back
+
+**Description.** A specimen taken at a stage never reaches the lab, is lost or rejected there, or its report is never returned, and nobody notices that a result is missing.
+
+**Causes:**
+- **Lost in transit,** or never sent: the specimen is recorded as taken and left in the clinic.
+- **Rejected by the lab** (unlabelled, leaked, insufficient) and the clinic isn't told, so the patient isn't asked back.
+- **The report goes elsewhere,** or the lab never reports, and the specimen sits as Sent or Received.
+- **The pathway moves on** without the result, for example to discharge.
+
+**Effect.** A test the clinician meant to happen doesn't, and everyone assumes the result is normal or still coming.
+
+**Possible harm.** A delayed or missed diagnosis (for a skin biopsy, a missed cancer). One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
+
+**Further controls** (planned, PR 13 unless marked; before the feature's first live use unless marked):
+- **The lab worklist** (`/lab`): Expected (sent, not received), In the lab, **Overdue** (not reported by taken plus the specimen type's expected days), Rejected and lost, oldest first (decision 90). Detective.
+- **Turnaround shown** on each specimen, in days and hours from step to step (decision 88). Information.
+- **The last stage can't be finished while a specimen is open** (Taken, Sent or Received): a 409 listing them (decisions 73 and 89), so a pathway can't be discharged with a report still to come. Protective.
+- **Rejected and Lost are recorded, with a reason, and the requesting clinician is told** ("Specimen rejected", "Specimen lost"). A rejected or lost specimen is closed, and taking another is a new specimen linked from the old one (decision 83). Protective.
+- **Lab steps work in any pathway status,** so a report is never stuck behind a closed pathway (decision 85). Design.
+- **A service alert** for specimens N days past their expected turnaround. Protective; planned, Phase 4 (PR 25); later.
+- **Transferred** (`dcb0160-deploying-organisations.md`): a daily check of the lab worklist's Expected and Overdue views, and a local process for chasing the lab.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-46: A result is never seen or acted on
+
+**Description.** A report comes back and is filed, but no clinician reads it or acts on it.
+
+**Causes:**
+- **Nobody responsible:** the requesting clinician has left, lost the permission, or is away.
+- **A long list:** results awaiting sign-off build up and old ones are overlooked.
+- **The pathway moves on** before the result is read.
+- **Signed off without action:** the clinician signs it off but the action recorded isn't done.
+
+**Effect.** An abnormal result isn't acted on.
+
+**Possible harm.** A delayed or missed diagnosis or treatment. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
+
+**Further controls** (planned, PR 14 unless marked; before the feature's first live use unless marked):
+- **Every result has a named responsible clinician** (the specimen's requesting clinician, or the one named for an external report), who is told once ("Result ready") (decisions 91 and 92). Protective.
+- **The results list and its count:** Awaiting my sign-off (with the count in the side navigation), Awaiting sign-off (everyone), oldest report first with its age in days (decision 94). Detective.
+- **Needs a clinician:** a result whose responsible clinician no longer holds `SignOffResults`, or whose account has gone, is flagged on the list until someone takes it over (decision 92). Protective.
+- **Gates:** a stage flagged `WaitsForResults`, and always the pathway's last stage, can't be finished while any of its results awaits sign-off (decision 95). Protective.
+- **Sign-off records who and what:** the action the clinician took (none pre-selected) and its detail; a sign-off by someone other than the responsible clinician tells them (decision 93). Detective.
+- **A restricted record's results can still be seen and signed off** (decision 75), so a restriction never strands one. Design.
+- **A service alert** for results not signed off within N days. Protective; planned, Phase 4 (PR 25); later.
+- **Transferred:** a daily check of results awaiting sign-off and Needs a clinician, and cover for clinicians who are away.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-47: A report is attached to the wrong patient or specimen
+
+**Description.** A lab report, or a report from elsewhere recorded as a result, is filed against the wrong specimen or patient.
+
+**Causes:**
+- **The wrong specimen chosen** when reporting: similar numbers, two specimens from one patient, or a specimen found by name rather than number.
+- **A mislabelled specimen:** the label on the pot isn't the patient's (H-01).
+- **The wrong file uploaded** for the right specimen.
+- **An external report** marked as a result on the wrong patient's pathway (H-23).
+
+**Effect.** One patient's result is acted on for another, and the right patient's result looks missing.
+
+**Possible harm.** A wrong diagnosis or treatment for one patient, and a missed one for the other. Major in the worst credible case.
+
+**Existing controls:** none (not built). Today's attachment controls (H-23) apply to report files.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PRs 13 and 14; before the feature's first live use):
+- **Reporting from the specimen's own page,** found by its specimen number (typed or scanned, `POST api/specimens/find`), with the patient banner (decisions 86 and 90). Protective.
+- **The label's identifiers:** the specimen number as text and as a QR code holding only that number, with the patient's name, date of birth and NHS number (decision 87). Protective.
+- **Entered in error sends it back:** by `CorrectRecords` or the lab user who reported it within 24 hours, with a reason; the result closes, its file is soft-deleted, and the specimen returns to Received to be reported again (decision 96). Corrective.
+- **Transferred:** positive patient identification when labelling, and the lab's own checks of the label against the request.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-48: A letter goes to the wrong practice or person
+
+**Description.** A clinic letter or discharge summary is sent to the wrong GP practice, the wrong address, or someone who shouldn't have it.
+
+**Causes:**
+- **The wrong practice** recorded on the patient, or a practice typed rather than chosen.
+- **An old address:** the patient has moved.
+- **An "other" recipient** typed wrongly.
+- **The wrong secure email address.**
+
+**Effect.** The patient's GP doesn't receive the letter (so H-49 too), and someone else receives a patient's clinical details.
+
+**Possible harm.** Follow-up the letter asks of the GP doesn't happen; a breach of confidentiality. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, PRs 12 and 16; before the feature's first live use):
+- **Recipients shown with their addresses** before approval and again before sending (decisions 101 to 103). Protective.
+- **The practice from the directory,** not retyped (decision 79); a new letter starts with the patient's registered practice and the patient. Design.
+- **Addresses copied onto the letter at approval,** so what was sent is what's on record (decision 101). Detective.
+- **Secure email only to an address in an allowed domain** (`Letters:SecureEmailDomains`), and never to patients (decisions 103 and 107). Protective.
+- **Withdraw and correct:** the withdrawn letter's page lists who it was already sent to, says to tell them, and offers **Write a correction** (decision 104). Corrective.
+- **Transferred:** checking the patient's address and practice with them at each visit.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-49: A letter isn't sent, or goes late
+
+**Description.** A letter is written and approved but never sent, or sent late, so the GP or the patient doesn't learn what the clinic decided.
+
+**Causes:**
+- **Approved but left:** nobody works the To send list.
+- **A failed send** that nobody notices.
+- **Waiting for approval** with an approver who is away.
+- **A restricted record:** its letters can't be sent (decision 75).
+- **MedApp unavailable** when letters are due (H-10).
+
+**Effect.** The GP doesn't start or change treatment the letter asks for; the patient doesn't know the plan.
+
+**Possible harm.** A delayed treatment or follow-up. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, PR 16; before the feature's first live use):
+- **The To send view and its count,** in the Letters list and the side navigation (decisions 103 and 108). Detective.
+- **The `NeedsLetterKind` gate:** a stage flagged with a letter kind (a discharge summary) can't be finished until a letter of that kind is approved and sent to every recipient (decision 105). Protective.
+- **Secure email marked Sent only when the SMTP server accepts it,** sent synchronously, with a failure shown at once (decision 103). Protective.
+- **A restricted record's letters stop with a message** to ask an admin (decision 75). Information.
+- **Awaiting my approval and Returned to me** views, and the author told when it's approved or returned (decision 102). Detective.
+- **Transferred:** a daily check of letters to send and awaiting approval, and a downtime process for letters (`dcb0160-deploying-organisations.md`).
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-50: A letter shows another patient's details, or an unapproved version is sent
+
+**Description.** A letter carries another patient's name, date of birth or NHS number, or a draft that wasn't approved is sent.
+
+**Causes:**
+- **A merge field filled from another record.**
+- **A draft printed or downloaded** from the preview and sent as if final.
+- **A page of one patient's letter** mixed with another's when printed.
+- **An edit after approval.**
+
+**Effect.** The recipient acts on the wrong patient's information, or on wording no clinician approved.
+
+**Possible harm.** Treatment changed for the wrong patient, or on wrong advice; a breach of confidentiality. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PRs 15 and 16; before the feature's first live use):
+- **Merge fields from the letter's own patient only,** a fixed list of identity and administrative data; a field with no value stops approval, naming it (decision 99). Design.
+- **The patient's name, date of birth and NHS number and "Page n of m" on every page** of the PDF (decision 102). Protective.
+- **Previews marked "Draft, not approved" on every page** (the preview endpoint). Protective.
+- **Only approved PDFs can be sent,** and approval freezes the letter (decisions 102 and 103). Design.
+- **Transferred:** checking the identifiers on each page before posting or handing over.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-51: A branch is chosen, or a stage skipped, in error
+
+**Description.** At a branch point the clinician chooses the wrong branch, or an optional stage is skipped that the patient needed.
+
+**Causes:**
+- **A misclick** among the branches, or on Skip.
+- **The wrong patient's pathway** (H-01).
+- **The template's branches set up wrongly** (H-13).
+- **Skipping to clear a list** rather than because the stage isn't needed.
+
+**Effect.** The stages of the other branch are skipped in the same save, so the patient misses a treatment or follow-up, or gets one they didn't need.
+
+**Possible harm.** A missed or unnecessary treatment. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PR 20; before the feature's first live use):
+- **A confirmation listing what will be skipped,** with the patient banner (section 3.8). Branches are listed in the template's order with the stages each contains, **none pre-selected** (decision 114). Protective.
+- **A reason for every skip** (Not needed, Patient declined, Other with a detail) (decision 113). Protective.
+- **Reinstating:** a holder of `UnlockStages` reinstates a skipped stage with a reason; a branch is re-chosen by reinstating its stages (decision 115). Corrective.
+- **The audit:** `StageSkipped`, `BranchChosen` (the branch and the skipped stage IDs) and `StageReinstated`, on the timeline; skipped stages shown struck through with the reason. Detective.
+- **Template checks:** every branch point has at least two branches, and the last stage is never optional or in a branch (decision 117). Design.
+- **Transferred:** clinical sign-off of each template's branches and optional stages.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-52: A patient is booked when nobody, or no room, is available, or a cancelled clinic's patients aren't told
+
+**Description.** An appointment is booked outside the clinician's or site's hours, in a room already in use, or a clinic session is cancelled and its patients still come or aren't rebooked.
+
+**Causes:**
+- **Hours entered wrongly,** or not entered (a person on the default hours who doesn't work them).
+- **A room double-booked** by two sessions or an appointment outside a session.
+- **A site's closed day** missing.
+- **A cancelled session's patients not contacted,** or the call list not worked.
+
+**Effect.** The patient arrives and isn't seen, or isn't told their appointment was cancelled.
+
+**Possible harm.** A delayed assessment or treatment. One or several patients; Considerable in the worst credible case.
+
+**Existing controls:** none (not built). Today's fixed working day and clash checks (H-31, H-33) apply until it's replaced.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, PRs 21 to 23 and 26; before the feature's first live use):
+- **Hours and clash checks on the server:** each person's working time from their hours, the site's hours and closed days (`WorkingTime`), checked by every booking path; `WorkingDaysConventionTests` keeps every validator on it (decisions 119 to 121). Protective.
+- **A room holds one session at a time** (a room lock and a clash check), and a session over existing busy time is refused (decision 123). Protective.
+- **Cancelling a session** cancels its bookings in the same save and shows **the list of patients to tell,** with the option to text or email them; the clinician is told (decision 126). Protective.
+- **Moving a session with bookings is refused** (cancel and recreate) (decision 127). Design.
+- **Create sessions** lists what it made and what it skipped and why (decision 125). Information.
+- **Transferred:** keeping hours and closed days up to date, and working the call list when a clinic is cancelled.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-53: A reminder reaches the wrong person or says too much
+
+**Description.** A text or email reminder goes to someone other than the patient, or reveals more than when and where the appointment is.
+
+**Causes:**
+- **A wrong or old mobile number or email** on the record.
+- **A shared phone or inbox** (a family member reads it).
+- **A message that names the specialty,** clinician or condition.
+
+**Effect.** Someone learns that the patient is attending a clinic, and possibly why; the patient may not get the reminder.
+
+**Possible harm.** Distress and a breach of confidentiality; a missed appointment (H-54). One patient; Significant in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Significant, Medium: **2**.
+
+**Further controls** (planned, PR 26; before the feature's first live use):
+- **No clinical words:** templates in code, with fixed wording: the centre's or site's name, the date and time, the site's address and phone; never the specialty, clinician, pathway, stage or a note (decision 131). Design.
+- **Destinations from the record,** on the channels the patient chose, and only when they have one (decisions 130 and 133). Protective.
+- **The stored copy:** every message is kept as sent, with its destination and status, and shown on the appointment (decision 129). Detective.
+- **Transferred:** confirming the patient's mobile, email and reminder choice with them, and recording their opt-out.
+
+**At first live use:** Draft: Significant, Low: **2**.
+
+**Residual risk:** Draft: Significant, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-54: A patient relies on a reminder that isn't sent
+
+**Description.** A patient expects a reminder, doesn't get one, and misses the appointment.
+
+**Causes:**
+- **No consent or contact** recorded, so nothing is sent.
+- **The transport is off** or failing (Off, a provider outage), or the job has stopped (H-56).
+- **The appointment was booked inside the reminder window,** less than 2 hours ahead, or outside sending hours.
+- **Delivery failed** (a wrong number, a full inbox).
+
+**Effect.** A missed appointment.
+
+**Possible harm.** A delayed assessment or treatment. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built). Today MedApp sends patients nothing, and the organisation tells them by its own process (H-36).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls** (planned, PRs 19 and 26; before the feature's first live use):
+- **"No reminder" shown** on the appointment when the patient has no channel or contact ("No reminder: no consent or contact") (decision 133). Information.
+- **Delivery status** polled and shown with each message (decision 129). Detective.
+- **The job's watch:** a failing job tells `ManageSetup` holders and makes `/health` Degraded (decision 111). Detective.
+- **Reminders are a courtesy,** not the organisation's contact with the patient: the appointment letter or call stays the organisation's process, and `dcb0160-deploying-organisations.md` says so. Information; transferred.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-55: A missed appointment isn't followed up
+
+**Description.** A patient is marked Did not attend, and nobody decides what happens next.
+
+**Causes:**
+- **No owner** for the Did not attend list.
+- **An assumption that MedApp acts on it:** it doesn't, by design.
+- **A follow-up recorded but not done.**
+
+**Effect.** The pathway stalls with no appointment, and the patient drops out of care.
+
+**Possible harm.** A delayed diagnosis or treatment. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built). Today, Did not attend is a status staff record, and Requires Appointment lists visits still to book (H-30).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls** (planned, PR 26; before the feature's first live use):
+- **The Did not attend view** on Requires Appointment: appointments marked Did not attend with no later appointment for the same stage, oldest first, with the number missed on that pathway (decision 132). Detective.
+- **A recorded follow-up** (Rebook, Clinician to review, No further appointment, with a detail) in the appointment's history (decision 132). Protective.
+- **No automatic discharge:** MedApp never discharges, re-prioritises or changes a pathway because of a missed appointment; discharge is a clinician's action (decision 132). Design.
+- **Transferred:** a named owner for the Did not attend view, and the organisation's own policy for patients who don't attend.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-56: A scheduled job stops and nobody notices
+
+**Description.** A scheduled job (reminders, service alerts, the simulated lab, data request reminders, malware verdicts, the purge) fails or stops running, silently.
+
+**Causes:**
+- **A repeated failure** (a provider down, a bug).
+- **Turned off** by a setting and forgotten.
+- **A lease never released** by a copy of the API that died.
+- **Every copy of the API down** or restarting.
+
+**Effect.** Reminders, alerts and verdicts that staff rely on don't happen (H-29, H-54, H-64).
+
+**Possible harm.** Through the hazards it feeds: a missed appointment or a late follow-up. Several patients; Considerable in the worst credible case.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Controls** (built in PR 19, the job runner; today its only job is the operational purge, which feeds no clinical work):
+- **Each job's last start, finish, outcome and count, and consecutive failures,** on Administration, Scheduled Jobs, with Run now (decision 111; `/admin/jobs`). Detective. **In place.**
+- **After three failures in a row, the admins are told** once (`ScheduledJobFailing`) until it succeeds (decision 111; `ManageSetup` holders once permissions exist). Protective. **In place.**
+- **`/health` reports Degraded** when a job is switched on, not running and two intervals overdue, for the deployment's monitoring (decision 111; `ScheduledJobsHealthCheck`). Detective. **In place.**
+- **Leases expire** after 10 minutes unless renewed, so a dead copy can't hold a job (decision 110). Design. **In place;** an integration test runs two runners against one database.
+- **Alerts are a convenience, never the safety net:** the lists and their counts are (decision 137; extends H-29). Design.
+- **Transferred:** alerting on `/health`, and a weekly look at Scheduled Jobs.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-57: A record is anonymised too early because its retention class is wrong
+
+**Description.** A record that should be kept longer (oncology, maternity, mental health) shows as past its retention period and is anonymised.
+
+**Causes:**
+- **The wrong class on a template,** or none (Standard).
+- **Wrong years** in the settings, not checked against the Records Management Code of Practice.
+- **A record with pathways of several classes** read by the shortest.
+
+**Effect.** Clinical history needed for later care, or a claim, is lost.
+
+**Possible harm.** Later care given without the history (a recurrence treated without the earlier histology). One patient; Considerable in the worst credible case.
+
+**Existing controls:** the retention review lists records past their period and an admin decides; nothing is anonymised automatically (`RetentionSchedule`). Only the adult and children periods exist, and the review and the anonymise dialog warn of that.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls** (planned, PR 27; before the feature's first live use):
+- **The class shown on the review,** for each record (decision 139). Information.
+- **The longest period wins:** a record's minimum period is the longest of the Standard rule and each of its pathways' classes (decision 139). Design.
+- **DPO-checked defaults:** the years are settings, defaulting to 30, 25 and 20, for the DPO to check before use (decision 139). Information; transferred.
+- **Nothing deleted automatically,** as today (decision 140). Design.
+
+**At first live use:** Draft: Considerable, Very low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-58: An MDT outcome is recorded on the wrong patient, or not acted on
+
+**Description.** The team's decision at the MDT meeting is recorded against the wrong item, or recorded and then not acted on.
+
+**Causes:**
+- **Several patients discussed quickly,** with similar names (H-01).
+- **The outcome recorded later,** from memory or notes.
+- **Nobody owns the action** the outcome asks for.
+- **A cancelled meeting:** its items stay listed but undiscussed.
+
+**Effect.** One patient gets another's plan, or the plan isn't carried out.
+
+**Possible harm.** A wrong, delayed or missed treatment. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PR 30; before the feature's first live use):
+- **The patient banner on each item and in the outcome dialog** (decisions 142 and 143). Protective.
+- **The pathway's assignees are told** when an outcome is recorded (`MdtOutcomeRecorded`), and the pathway page's MDT card shows it (decision 142). Protective.
+- **A cancelled meeting's items stay Listed,** flagged "Meeting cancelled: list again" (decision 144). Detective.
+- **Who was present** recorded with the outcome (decision 142). Detective.
+- **Transferred:** the MDT's own process for confirming outcomes and owning actions.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-59: A procedure goes ahead without valid consent recorded, or a withdrawal is missed
+
+**Description.** A stage that needs consent is done without it, or the patient withdraws consent and the team carries on.
+
+**Causes:**
+- **No gate set** on a stage that needs consent.
+- **Consent recorded on the wrong stage or patient.**
+- **A withdrawal recorded after the stage finished,** and not noticed.
+
+**Effect.** A procedure without the patient's agreement.
+
+**Possible harm.** Harm from an unwanted procedure, and a breach of the patient's rights. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PR 31; before the feature's first live use):
+- **The `NeedsConsent` gate:** a flagged stage can't be finished without a Valid consent record for it; no override (decision 146). Protective.
+- **A withdrawal flagged on the pathway,** including after the stage finished (decision 147). Detective.
+- **No scan flagged** ("No scan") when the form isn't attached (decision 145). Information.
+- **MedApp doesn't assess consent:** it records the clinician's statement (decision 147). Design.
+- **Transferred:** the organisation's consent policy, including capacity, and clinical sign-off of which stages need consent.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-60: Questionnaire answers are read as an assessment, or recorded on the wrong patient
+
+**Description.** A total recorded from a paper form is taken as MedApp's assessment, or answers are entered on the wrong patient's record.
+
+**Causes:**
+- **A total misread** as calculated or checked by MedApp.
+- **A total written wrongly** on the form and entered as written.
+- **The wrong patient's pathway** (H-01).
+
+**Effect.** A clinical decision based on a wrong total, or another patient's answers.
+
+**Possible harm.** A treatment changed or stopped on wrong information. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls** (planned, PR 32; before the feature's first live use):
+- **No totals, bands, changes or charts by MedApp:** the total is labelled "as written on the form" (decision 154). Design.
+- **The patient banner** when recording (decision 76's checklist). Protective.
+- **Entered in error** for a wrong entry (decision 153). Corrective.
+- **Transferred:** the instrument's own scoring rules, and checking the total on the form.
+
+**At first live use:** Draft: Considerable, Very low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-61: A video link reaches the wrong patient
+
+**Description.** A video consultation's link is sent to, or used by, someone other than the patient.
+
+**Causes:**
+- **A staff member's default room link** reused for every patient, so a later patient joins an earlier one's call.
+- **The link sent to a wrong contact** (H-53).
+- **A link to an unexpected host.**
+
+**Effect.** Another patient, or someone else, sees or hears a consultation.
+
+**Possible harm.** A breach of confidentiality, and a consultation stopped. One patient; Significant in the worst credible case.
+
+**Existing controls:** none (not built).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Significant, Low: **2**.
+
+**Further controls** (planned, PR 34; before the feature's first live use):
+- **The link only in that patient's message,** and shown only to staff (decision 165). Design.
+- **Allowed hosts:** `https` only, with the host in `VideoConsultations:AllowedHosts` (decision 164). Protective.
+- **Transferred:** the video platform's waiting room and admitting each patient, chosen and configured by the organisation.
+
+**At first live use:** Draft: Significant, Very low: **1**.
+
+**Residual risk:** Draft: Significant, Very low: **1**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-62: Data from an NHS system is matched to the wrong patient
+
+**Description.** A referral from the e-Referral Service, a report from a lab's system, or demographics from PDS is filed against the wrong patient.
+
+**Causes:**
+- **Automatic matching** on name and date of birth.
+- **A wrong NHS number** on either side (H-01).
+- **A report filed by the lab's reference** rather than the specimen number.
+
+**Effect.** One patient's referral or result is worked on another's record.
+
+**Possible harm.** A wrong or missed diagnosis or treatment. One patient; Major in the worst credible case.
+
+**Existing controls:** none (not built). The demographics lookup today is an offline stub, and its confirmation on Edit Patient is under H-01.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls** (planned, PRs 38a to 38c; before each adapter's first live use):
+- **Incoming referrals matched by a person, never automatically:** they land in Incoming referrals, with the exact NHS number shown beside the name and date of birth, and are registered through the normal command (decision 169). Design.
+- **Lab reports filed by specimen number,** and kept as documents (decision 172). Protective.
+- **PDS fills details for staff to confirm** (decision 170). Protective.
+- **Each Live mode updates governance and safety documents first** (decision 173). Information.
+- **Transferred:** positive patient identification, and the NHS onboarding's own assurance.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-63: One organisation sees another's patients
+
+**Description.** With several organisations in one deployment, staff of one see, or work on, another organisation's patients.
+
+**Causes:**
+- **A query missing the organisation filter.**
+- **A job run** for the wrong organisation.
+- **A shared identifier** (an NHS number, a specimen number) matched across organisations.
+
+**Effect.** Staff act on a record that isn't their organisation's, and a breach of confidentiality.
+
+**Possible harm.** Care decisions on the wrong record (H-01), and a breach. Several patients; Considerable in the worst credible case.
+
+**Existing controls:** none needed today: each customer has its own deployment. Becomes a hazard with multi-tenancy.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls** (planned, PRs 40a to 40c; before a second organisation shares a deployment):
+- **Two layers of separation:** EF Core query filters on the organisation from the session, and SQL Server row-level security on `SESSION_CONTEXT`, so a query that misses the filter returns nothing (decision 176). Design.
+- **Unique numbers per organisation,** and jobs run once per organisation in its own scope (decisions 175 and 176). Design.
+- **Tests:** every endpoint returns 404 for another organisation's IDs; every entity has the filter; row-level security blocks an unfiltered query (decision 178). Protective.
+
+**At first live use:** Draft: Considerable, Very low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-64: A file is held as "being scanned" when it's needed
+
+**Description.** A file waits for its malware verdict and can't be downloaded when a clinician needs it.
+
+**Causes:**
+- **The verdict job stopped** (H-56).
+- **The scanner unavailable** (Defender for Storage, a ClamAV container).
+- **A file wrongly marked infected** and removed.
+
+**Effect.** A report or letter can't be opened during a clinic.
+
+**Possible harm.** A delayed decision. One patient; Considerable in the worst credible case.
+
+**Existing controls:** none (not built). Today no file is scanned, so none is held (H-25).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls** (planned, PR 37; before the feature's first live use):
+- **A minute's scan:** the `malware-verdicts` job runs every minute; the file shows "Being scanned" and a download says to try again in a minute (decision 167). Information.
+- **The job's watch** (decision 111; H-56). Detective.
+- **Infected files are soft-deleted, not destroyed,** and the uploader and `ManageSetup` holders are told (decision 167). Corrective.
+- **Transferred:** master copies of documents in the organisation's own systems (H-24, H-28).
+
+**At first live use:** Draft: Considerable, Very low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`PathwayWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -1743,6 +2432,8 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 - **The FHIR API sending wrong data** (branch `feature/nhs-integrations`). It's read-only, and returns the patient's details as stored, with no clinical content and no logic, to staff who could see the same on the patient's page; nothing in MedApp changes because of it. Its one clinical risk, another system matching the wrong person by a wrong NHS number, is under H-01. Each receiving system assesses its own use under DCB0129 and DCB0160.
 - **The NHS number check refusing a valid number.** Staff can't save it, so the record goes without it until it's fixed: no worse than before the number existed. The check is unit tested with valid and invalid numbers.
 - **An uploaded file running script in MedApp.** Designed out: files are never shown inline on MedApp's site, only downloaded, with a sandboxing Content Security Policy, and SVG and HTML are refused (`AttachmentResponseHeaders`, `FileTypeSniffer`). A security risk rather than a clinical one; malware opened on the desktop is H-25.
+- **A lab value or a questionnaire score misread by MedApp** (planned features, `docs/centre-phases-3-5-plan.md`). Designed out: reports stay documents, shown as the lab sent them, and MedApp reads, compares or flags no value; a questionnaire's total is only the one written on the form, and MedApp calculates none (decisions 69, 97 and 154). Doing either would be a device question first (`intended-purpose-and-device-decision.md`).
+- **A branch chosen by MedApp.** Designed out: the clinician chooses, with none pre-selected (decision 114).
 - **Thumbnails misread as the image.** A thumbnail is at most 320 pixels, too small to read clinically, and the full file is a download away. Not logged; the CSO may decide otherwise.
 
 ## Change log
@@ -1766,3 +2457,4 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 | 0.15 | 18 November 2026 | Two-factor codes by email (branch `feature/email-2fa-codes`, after its review): an emailed code that doesn't arrive added to H-10's causes for the CSO, with its controls (codes' own share of the email allowance, no promise of a code that can't be sent, resending, recovery codes and the app) | AI coding agent, for review |
 | 0.16 | 18 November 2026 | Closed days and appointments recorded after the event (branch `feature/closed-days-walk-ins`): new draft hazard H-39 (a visit recorded after the event that didn't happen, or on the wrong patient), with its built controls; closed days and walk-ins added to H-31 (a walk-in may overlap blocked time or a meeting, flagged; never another appointment), H-32 (an Attended walk-in counts as the visit), H-33 (a closed day that's wrong; the working day rule now includes closed days; bank holidays tested against gov.uk), H-34 (the walk-in dialog shows the patient) and H-35 (a day closed after appointments were booked on it: they stay, flagged; listing them when a day closes proposed). No draft estimate changed. Still a draft, not an issued version After the review of #119: H-39 gets entered in error as a corrective control (a wrong walk-in withdrawn with a reason, its stage's visit asked for again), walk-ins on a closed day allowed, the pathway and stage checks, the visit's notes kept, and the races named; H-35's control for a day closed with bookings made true (what's on it shown before closing, and those staff told). No draft estimate changed. After its follow-up review: H-39's entered in error by admins at any time, no visit asked for again on a restricted record, and a new detective control (a finished stage's only visit withdrawn is told to the pathway's assignees and the admins); a visit earlier on the day its pathway was created is allowed. No draft estimate changed | AI coding agent, for review |
 | 0.17 | 18 November 2026 | Referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), before they're built: new draft hazards H-40 (a referral lost or delayed before triage), H-41 (triaged into the wrong pathway, priority or patient), H-42 (a paused clock forgotten), H-43 (a breach unnoticed, or a wrong target) and H-44 (a duplicate referral), each with its planned controls and draft estimates; H-01 gains a referral registered on the wrong patient as a cause. No earlier draft estimate changed | AI coding agent, for review |
+| 0.18 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`; its safety PRs 11, 18 and 29 combined), before they're built: new draft hazards H-45 to H-50 (specimens, results and letters), H-51 to H-57 (branches and skipped stages, hours and clinics, reminders, missed appointments, scheduled jobs, retention classes) and H-58 to H-64 (MDT outcomes, consent, questionnaires, video links, NHS adapters, several organisations, files awaiting a scan), each with the plan's controls named by feature and PR, and draft estimates; H-01 gains the specimen label as a cause and a control; two more hazards considered and designed out (a lab value or score read by MedApp, a branch chosen by it). No earlier draft estimate changed | AI coding agent, for review |

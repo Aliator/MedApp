@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-04, intended purpose and qualification as a medical device |
-| **Version** | 0.9, draft |
+| **Version** | 0.10, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes on stage definitions and a demographics lookup), for admins' monitoring rules, and for staff calendars and appointments (`feature/staff-calendars`, designed in `docs/calendar-plan.md`); reassessed, from their design, for roles and permissions, specialties, referrals and triage, and the waiting-time clock (`docs/centre-phase2-plan.md`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes on stage definitions and a demographics lookup), for admins' monitoring rules, and for staff calendars and appointments (`feature/staff-calendars`, designed in `docs/calendar-plan.md`); reassessed, from their design, for roles and permissions, specialties, referrals and triage, and the waiting-time clock (`docs/centre-phase2-plan.md`); reassessed, from their design, for the centre's Phases 3 to 5 (`docs/centre-phases-3-5-plan.md`) |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code and `docs/architecture.md`. Not yet reviewed by a person. |
 | **Decision owner** | [Manufacturer's accountable owner] |
@@ -24,6 +24,7 @@ This document sets out what MedApp is for, and whether that makes it a medical d
 - **It can change.** The decision holds only while the product keeps to its intended purpose. The [conditions that would change it](#what-would-change-the-decision) are listed below, and any feature that meets one triggers a new assessment before it's merged.
 - **Reassessed for branch `feature/nhs-integrations`:** the NHS number and its check, the patient banner, the read-only FHIR API, SNOMED CT codes on stage definitions and the demographics (PDS) lookup add no calculation, decision support or clinical logic, so **the decision is unchanged** ([below](#reassessment-the-nhs-number-fhir-snomed-ct-and-pds)).
 - **Reassessed for referrals, triage, the waiting-time clock, specialties and roles** (version 0.9, from their design in `docs/centre-phase2-plan.md`, before they're built): a clinician makes every triage decision and MedApp records it; the clock is date arithmetic against the organisation's own targets; a breach is an administrative measure, shown and never sent. **The decision is unchanged**, on the conditions in [the reassessment](#reassessment-referrals-triage-waiting-times-specialties-and-roles).
+- **Reassessed for the centre's Phases 3 to 5** (version 0.10, from their design in `docs/centre-phases-3-5-plan.md`, before they're built): specimens, results sign-off and letters (Phase 3); branching pathways, sites, hours, clinic sessions, scheduled jobs, patient reminders, service alerts and retention classes (Phase 4); the MDT list, consent records, commissioner reports, outcome questionnaires, private patients, data requests, video and phone appointments, malware scanning, NHS adapters and several organisations (Phase 5). Lab reports bring in vitro diagnostic data into MedApp for the first time, **as documents only**. The clinician decides and MedApp records: **the decision is unchanged**, on the conditions in the three reassessments ([Phase 3](#reassessment-phase-3-specimens-results-and-letters), [Phase 4](#reassessment-phase-4-branches-hours-clinics-reminders-and-alerts), [Phase 5](#reassessment-phase-5-mdt-consent-questionnaires-reports-and-integrations)).
 - **Status:** provisional. The accountable owner signs it, and the Clinical Safety Officer (CSO) and, ideally, a regulatory adviser confirm it ([sign-off](#sign-off)).
 
 ## Intended purpose
@@ -73,9 +74,14 @@ The MHRA judges intended purpose from labelling, instructions for use and promot
 - decides which patients need a visit, how urgently, or when they should be seen;
 - checks or calculates anything clinical;
 - triages referrals, or tells staff which referrals are most urgent;
-- shows, through a breached waiting-time target, that a patient's condition is urgent or getting worse.
+- shows, through a breached waiting-time target, that a patient's condition is urgent or getting worse;
+- tells you which results are abnormal;
+- writes clinical letters;
+- scores questionnaires;
+- checks consent is valid;
+- decides the next step in a pathway.
 
-They can say that it records and coordinates pathway workflow, keeps an audit trail, shows staff their tasks and target dates, and books staff time for appointments, asking for one where the organisation's template says a stage involves a visit.
+They can say that it records and coordinates pathway workflow, keeps an audit trail, shows staff their tasks and target dates, and books staff time for appointments, asking for one where the organisation's template says a stage involves a visit. Once Phases 3 to 5 are built, they can also say that it tracks specimens and files lab reports for a named clinician to sign off, helps clinicians write, approve and send their own letters, records consent, MDT outcomes and questionnaire answers as staff enter them, and reminds patients when their appointments are.
 
 ## The assessment
 
@@ -95,9 +101,9 @@ They can say that it records and coordinates pathway workflow, keeps an audit tr
 | Step | Question | Answer for MedApp | Why |
 |---|---|---|---|
 | 1 | Is it a computer program or a functional document? | Yes | Stand-alone web software. |
-| 2 | Is it part of a system, or does it work with a medical device? | No | No device integration, and no imports from devices or laboratory systems (`docs/architecture.md`, section 3.3). Its only interfaces are a read-only FHIR API that returns patients' details as stored, and a demographics lookup with only an offline stub; neither involves a medical device. |
+| 2 | Is it part of a system, or does it work with a medical device? | No | No device integration, and no imports from devices or laboratory systems (`docs/architecture.md`, section 3.3). Its only interfaces are a read-only FHIR API that returns patients' details as stored, and a demographics lookup with only an offline stub; neither involves a medical device. **Planned (Phase 5):** a gateway to a lab's own system (`ILabGateway`) that sends orders and takes back statuses and reports **as documents**, storing no result values; it doesn't control or take data from a device. |
 | 3 | Does it have a medical purpose? | No | Every function is administrative or records data without change. See the table below. |
-| 4 | Does it work with data obtained in vitro? | No | No laboratory data. |
+| 4 | Does it work with data obtained in vitro? | No (today). **Planned (Phase 3): as documents only** | No laboratory data today. From Phase 3 (`docs/centre-phases-3-5-plan.md`), MedApp tracks specimens and files the lab's report, stored and shown exactly as the lab sent it: no value is read, parsed, compared or flagged, so MedApp does no analysis of in vitro data and isn't IVD software, like a laboratory information system's filing rather than its analysis ([Phase 3 reassessment](#reassessment-phase-3-specimens-results-and-letters)). Structured result values would change this answer. |
 | Result | | **Not a medical device** | |
 
 ### Function by function
@@ -132,6 +138,24 @@ They can say that it records and coordinates pathway workflow, keeps an audit tr
 | **Triage** (designed) | `AcceptReferral`, `RejectReferral`, `RedirectReferral` | No, with care | The clinician chooses the outcome, the template (from the specialty's, listed by name) and the priority (never prefilled); MedApp records who decided, when and why, and creates the pathway the clinician chose. It would become a device function if MedApp suggested an outcome, a template or a priority, or ordered the inbox by anything clinical. |
 | **The waiting-time clock and breaches** (designed) | `WaitingClock` | No, with care | Arithmetic on dates: days since the referral arrived, less pauses staff record for patient-initiated reasons, against the organisation's target for the specialty and the priority a clinician chose. A breach is that count passing the target, shown like Overdue and never sent. It would become a device question if a target or priority were set from clinical data. |
 | **Sorting by days waited, and the filter by stage reached** (designed) | `ReferralSearch`, `PathwaySearch` | No | Order and filters by dates staff entered and the stage staff reached, not clinical values. |
+| **Specimens and the lab worklist** (designed: `docs/centre-phases-3-5-plan.md`, Phase 3) | `Specimens/Common` (`SpecimenWorkflow`) | No | Logistics: statuses and times staff record. Turnaround and Overdue at lab are date arithmetic on those times and the organisation's expected days for the specimen type. |
+| **Lab reports** (designed, Phase 3) | `POST api/specimens/{id}/report`, attachments | No (not IVD software), with care | Stored and shown exactly as the lab sent them, as files; no value is read, parsed, compared or flagged. It would become a device question if MedApp stored structured values, or flagged or ordered anything by them. |
+| **Results sign-off and its list** (designed, Phase 3) | `Results/Common` (`ResultWorkflow`) | No, with care | Records who saw a report and what they did. Ordered by report date, with its age; no flag from the content. The actions are the clinician's record, in a fixed order with none pre-selected, not suggestions. |
+| **Letters, templates and merge fields** (designed, Phase 3) | `Letters/Common` (`LetterWorkflow`, `LetterMergeFields`), `ILetterRenderer` | No | Documents clinicians write and approve. Merge fields copy identity and administrative data only; nothing clinical is generated, summarised or suggested. |
+| **Stage gates** (results awaited, a letter sent, consent recorded, no open specimen) (designed, Phases 3 and 5) | `Pathways/Common/StageGates` | No | Enforce the organisation's own template settings, like the visit rule: they follow the path of a pathway. |
+| **Branching pathways and optional stages** (designed, Phase 4) | `PathwayWorkflow`, `PathwayChange` | No, with care | The template author defines the choices; the clinician chooses, with none pre-selected; MedApp records it. It would become a device question if MedApp chose or pre-selected a branch from recorded data. |
+| **Sites, rooms, working hours and clinic sessions** (designed, Phase 4) | `WorkingTime`, `ClinicSession` | No | Administrative scheduling. |
+| **Scheduled jobs** (designed, Phase 4) | `ScheduledJobRunner` | No | Run administrative tasks (purges, reminders, alerts) on a timetable. |
+| **Patient reminders, missed-appointment messages and the Did not attend view** (designed, Phase 4) | `IPatientMessageTransport`, the Requires Appointment page | No | Say when and where an appointment is, never why; acting on attendance stays a person's decision, and MedApp never discharges or re-prioritises a pathway because of it. |
+| **Service alerts** (designed, Phase 4) | `service-alerts` job, `MonitoringRuleMatcher` | No | Dates and statuses against thresholds an admin chose, never clinical values. |
+| **Retention classes** (designed, Phase 4) | `RetentionSchedule` | No | Records management. |
+| **MDT list and outcomes** (designed, Phase 5) | `MdtItem` | No | A list people choose, in the order they listed it, and a record of what the team decided. |
+| **Consent records** (designed, Phase 5) | `ConsentRecord` | No | Records the clinician's statement; assesses nothing (not capacity, validity or fit). |
+| **Commissioner reports** (designed, Phase 5) | `MonthlyReportQueries` | No | Counts and time spans of workflow. |
+| **Outcome questionnaires** (designed, Phase 5) | `QuestionnaireResponse` | No **as designed**, with care | Answers and the total as written on the form are stored and shown; MedApp calculates no total, band or change and draws no chart. Calculating, banding or flagging scores would make it a device question. |
+| **Private patients, data requests, several organisations, malware scanning** (designed, Phase 5) | `Invoice`, `DataRequest`, `Organisation`, `IMalwareScanner` | No | Not clinical functions. |
+| **NHS adapters** (e-Referral Service, PDS, GP Connect Send Document, a lab's system) (designed, Phase 5) | `IReferralSource`, `PdsFhirDemographicsService`, `ILetterTransport`, `ILabGateway` | No | Data moved without change; referrals matched to patients by a person; lab reports stay documents. |
+| **Video and phone appointments** (designed, Phase 5) | `AppointmentMode` | No | Administrative scheduling and a link to another tool. |
 
 ### Northern Ireland and the EU
 
@@ -145,6 +169,8 @@ In Northern Ireland, and in the EU, the EU Medical Device Regulation (2017/745) 
 - **Stage instructions** can contain clinical guidance, but it's the organisation's own text, shown unchanged. MedApp is the means of display, like a document management system. The organisation is responsible for the content (`dcb0160-deploying-organisations.md`).
 - **"Needs a visit before it can be finished"** is the organisation's own template setting, enforced like the order of stages, not a judgement MedApp makes about the patient.
 - **Did not attend** is a status staff record. MedApp doesn't act on it, beyond offering to book another appointment.
+- **"Overdue at lab" and a result's age in days** (planned, Phase 3) compare dates with the organisation's expected turnaround. They say a report is late or waiting, never that it's abnormal.
+- **"Needs a clinician"** (planned, Phase 3) means nobody who can sign off holds the result, not that the result is urgent.
 
 ### Scheduling and the visit rule
 
@@ -184,6 +210,41 @@ Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`, 18 Nov
 
 **None adds a calculation on clinical data, a score, decision support, prioritising by clinical content, an alert from clinical values, or a medical claim, so the decision is unchanged.** It holds only while these stay true: no suggested triage outcome, template or priority; no prefilled priority; targets and priority never set from clinical data; breaches never escalated by clinical values. A change to any of these needs a new assessment before it merges. Hazards H-40 to H-44 (`hazard-log.md`) cover what could go wrong.
 
+### Reassessment: Phase 3: specimens, results and letters
+
+Phase 3 of the community specialist centre (`docs/centre-phases-3-5-plan.md`, section 2) was assessed **from its design, before it's built** (safety PR 11). It's the first time MedApp handles in vitro diagnostic reports, which changes the flow chart's step 4: **it handles them as documents**. Each feature, checked against [the conditions below](#what-would-change-the-decision):
+- **Specimen tracking:** not a device. Logistics: statuses and times staff record. Turnaround and Overdue at lab are date arithmetic on those times and the organisation's expected days per specimen type.
+- **Lab reports:** not a device, and not IVD software. Stored and shown exactly as the lab sent them; no value is read, parsed, compared or flagged. Like a laboratory information system's filing, not its analysis.
+- **Results sign-off and its list:** not a device. It records who saw a report and what they did. The list is ordered by date, with no flag from the content. The actions (No further action, Patient informed, Appointment arranged, ...) are the clinician's record, in a fixed order, none pre-selected, and MedApp doesn't check that the action fits the result.
+- **Letters and templates:** not a device. Documents written by clinicians. Merge fields copy identity and administrative data (names, dates, addresses, the NHS number); nothing clinical is generated.
+- **Stage gates** (results awaited, a letter sent, no open specimen at the last stage): not a device. They enforce the organisation's own template settings, like the visit rule.
+
+**The decision is unchanged,** on these conditions: no result value is stored, read or flagged; no list is ordered or coloured by a report's content; no action is suggested or pre-selected; no merge field reads a clinical value, and no text is generated. A change to any of these needs a new assessment before it merges. Hazards H-45 to H-50 (`hazard-log.md`) cover what could go wrong.
+
+### Reassessment: Phase 4: branches, hours, clinics, reminders and alerts
+
+Phase 4 (`docs/centre-phases-3-5-plan.md`, section 3) was assessed from its design, before it's built (safety PR 18):
+- **Branches and optional stages:** not a device. The template author defines the choices; the clinician chooses (branches listed in the template's order, none pre-selected) and MedApp records it. It becomes a device question if MedApp chose or pre-selected a branch from recorded data.
+- **Hours, sites, rooms and clinic sessions:** not a device. Administrative scheduling: the working-day rule reads the organisation's hours instead of a fixed day.
+- **Reminders, missed-appointment messages and the Did not attend view:** not a device. Messages say when and where an appointment is, never why; acting on attendance stays a person's decision. MedApp never discharges, re-prioritises or changes a pathway because of a missed appointment.
+- **Service alerts:** not a device. Dates and statuses (a referral waiting, a result unsigned, a visit unbooked, a specimen overdue, a clock near its target) against thresholds an admin chose, never clinical values. They're a convenience; the lists are the safety net.
+- **Scheduled jobs, retention classes, and splitting the override permission:** not clinical functions (records management and access control).
+
+**The decision is unchanged,** on these conditions: no branch chosen, suggested or pre-selected by MedApp; no message with clinical content; no automatic action on attendance; no alert triggered by a clinical value. Hazards H-51 to H-57 cover what could go wrong.
+
+### Reassessment: Phase 5: MDT, consent, questionnaires, reports and integrations
+
+Phase 5 (`docs/centre-phases-3-5-plan.md`, section 4) was assessed from its design, before it's built (safety PR 29):
+- **MDT list and outcomes:** not a device. A list people choose, in the order they listed it, and a record of what the team decided. Any change to the pathway that follows is a person's action.
+- **Consent records and the consent gate:** not a device. MedApp records the clinician's statement and assesses nothing: not capacity, validity, or whether the form fits.
+- **Commissioner reports:** not a device. Counts and time spans of workflow, with small numbers suppressed for sharing.
+- **Outcome questionnaires:** not a device **as designed**. Answers, and the total as written on the form, are stored and shown; MedApp calculates no total, band or change, draws no chart and colours nothing. Calculating, banding or flagging scores would make it a device question, and the instruments' scoring rules are their licensors'.
+- **Private patients, data requests, several organisations, malware scanning:** not clinical functions.
+- **NHS adapters** (the e-Referral Service, PDS, GP Connect Send Document, a lab's system): not a device. Data is moved without change; incoming referrals are matched to patients by a person, never automatically; lab reports stay documents.
+- **Video and phone appointments:** not a device. Administrative scheduling and a link to another tool.
+
+**The decision is unchanged,** on these conditions: no score calculated or interpreted; no assessment of consent; no data transformed or interpreted clinically on its way in or out; no automatic matching of incoming data to patients. Hazards H-58 to H-64 cover what could go wrong. At go-live (the plan's decision 179), this document is brought up to date with everything actually built, for the CSO.
+
 It is a decision about this product and this intended purpose. A customer who uses MedApp outside its intended purpose takes on that use; the MHRA notes that using a product for a medical purpose doesn't by itself make it a device, but the hazard log assumes the intended use.
 
 ## What would change the decision
@@ -201,6 +262,10 @@ Any feature that does one of these needs a new assessment, and is likely to be a
 - **Patient-facing questionnaires that are scored or that trigger actions.**
 - **Scheduling from clinical data:** the software choosing an appointment's urgency, time, length or member of staff from clinical data; deciding from what's recorded about the patient whether a stage needs a visit; or ordering, flagging or escalating the Requires Appointment list or a calendar by clinical values (a "most urgent first" list worked out by the software). Ordering by dates and times staff set, and refusing clashes, stay administrative.
 - **Acting on attendance clinically:** for example, a missed appointment that changes the patient's clinical priority or pathway by itself. Recording "did not attend" and offering another booking is administrative.
+- **Reading lab reports:** storing, parsing, comparing or flagging result values, or ordering the results list by them. Filing the report as a document, and recording who signed it off, stays administrative.
+- **Scoring questionnaires, or assessing consent:** a calculated total, band or change; a check of capacity or validity.
+- **Choosing a pathway's branch,** or pre-selecting one, from what's recorded about the patient.
+- **Generating clinical text** in letters, or a merge field that copies a clinical value.
 - **Integration that controls or takes data from a medical device.**
 - **Claims:** any of the [claims the manufacturer must not make](#claims-the-manufacturer-must-not-make), in any material.
 
@@ -213,15 +278,20 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | **Structured stage fields** (checkboxes, choices, dates, numbers, signatures) | They only record what staff enter, and show it back unchanged. | A field is validated against a clinical range, a value is calculated or scored, a value changes what happens next, or a value is flagged as abnormal. |
 | **NHS number and PDS lookup** (the number and an offline lookup built on branch `feature/nhs-integrations`) | It identifies the patient. | Never, on its own. |
 | **SNOMED CT and OPCS-4 codes on templates** (SNOMED CT codes on stage definitions built on branch `feature/nhs-integrations`) | They label the pathway. | Codes are chosen by the software from clinical data. |
-| **Reporting and dashboards** | They count workflow (open work, time in stage, overdue work). | They predict or rank patients by clinical risk. |
+| **Reporting and dashboards** (commissioner reports designed for Phase 5) | They count workflow (open work, time in stage, overdue work, referrals, appointments, waits, lab turnaround). | They predict or rank patients by clinical risk. |
+| **Lab results** (specimens and sign-off designed for Phase 3; a lab gateway for Phase 5) | Reports are stored and shown as documents; the list is ordered by date; a clinician records what was done. | Result values are stored, parsed, compared, flagged, or used to order a list. |
+| **Letters** (designed for Phase 3) | Clinicians write them; merge fields copy identity and administrative data. | MedApp generates or summarises clinical content, or a merge field copies a clinical value. |
+| **Branching pathways** (designed for Phase 4) | The template author defines the branches and the clinician chooses. | MedApp chooses, suggests or pre-selects a branch from recorded data. |
+| **Service alerts** (designed for Phase 4) | They compare dates and statuses with thresholds an admin chose. | They're triggered by clinical values. |
+| **MDT list** (designed for Phase 5) | People list pathways and record the team's decision. | MedApp chooses who to list, or orders the list by clinical content. |
 | **Overdue, blocked and unlocked notifications, email and escalation** | They're about the workflow and dates staff set. | They're triggered by clinical values. |
 | **Monitoring rules** (built) | They match staff actions and labels staff chose (priority, template, stage). | A rule can match on a clinical value (a structured stage field, a result), or the software sets the priority it matches on. |
 | **Waiting-list tracking (RTT clocks, breaches)** (designed for Phase 2: `docs/centre-phase2-plan.md`) | Clocks count days from dates staff entered, against the organisation's own targets for a specialty and a clinician-chosen priority; breaches are shown, not sent. | The software sets or suggests clinical priority, chooses a target from clinical data, or orders a list by clinical values. |
 | **Referral triage** (designed for Phase 2) | A clinician chooses the outcome, template and priority, and MedApp records them. | The software suggests an outcome, a template or a priority, scores or reads the referral letter or reason, or ranks the inbox by clinical content. |
-| **Digital consent and documents** (a first version of attached files exists) | They store and display forms and files unchanged. | They assess capacity, risk or suitability, or analyse an image or a document's content. |
-| **Patient questionnaires and a portal** | Answers are stored and shown to staff. | Answers are scored, triaged or trigger clinical advice. |
-| **Calendar follow-ups: patient reminders, self-booking, overdue requested appointments** (`docs/todo.md`) | Reminders say when an appointment is; patients choose from free slots; requests waiting too long are flagged by how long they've waited. | Reminders give clinical advice; self-booking offers slots by clinical urgency; requests are flagged or ordered by clinical values. |
-| **FHIR API and EPR integration** (a read-only Patient API built on branch `feature/nhs-integrations`) | Data moves without change. | MedApp transforms or interprets the data clinically. |
+| **Digital consent and documents** (a first version of attached files exists; consent records designed for Phase 5) | They store and display forms and files unchanged, and record the clinician's statement of consent. | They assess capacity, risk or suitability, or analyse an image or a document's content. |
+| **Patient questionnaires and a portal** (staff-entered outcome questionnaires designed for Phase 5) | Answers, and the total as written on the form, are stored and shown to staff. | Answers are scored, banded, charted, triaged or trigger clinical advice. |
+| **Calendar follow-ups: patient reminders, self-booking, overdue requested appointments** (`docs/todo.md`; reminders designed for Phase 4) | Reminders say when an appointment is; patients choose from free slots; requests waiting too long are flagged by how long they've waited. | Reminders give clinical advice; self-booking offers slots by clinical urgency; requests are flagged or ordered by clinical values. |
+| **FHIR API and EPR integration** (a read-only Patient API built on branch `feature/nhs-integrations`; e-RS, PDS, GP Connect and lab adapters designed for Phase 5) | Data moves without change, and a person matches incoming data to patients. | MedApp transforms or interprets the data clinically, or matches it to patients by itself. |
 
 ### The change-control rule
 
@@ -251,3 +321,4 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | 0.7 | 16 November 2026 | Meetings, the team view, suggested meeting times and personal calendar templates (`docs/calendar-plan.md`, decisions 50 on): administrative scheduling of staff time; the function table and the scheduling section updated; no new hazard (why, in that section); the decision stands | AI coding agent, for review |
 | 0.8 | 18 November 2026 | Replies to meetings (`docs/calendar-plan.md`, decision 71): a declined meeting isn't busy time for the person who declined, so a booking may go into it; the scheduling section says why that hides no visit (they aren't going); no new hazard, and the decision stands (review of #117, finding 8) | AI coding agent, for review |
 | 0.9 | 18 November 2026 | Referrals and triage, the waiting-time clock and breaches, specialties, roles and permissions, assessed from their design (`docs/centre-phase2-plan.md`), before they're built: the statement, its users, what it's not for, the claims, the function table and the roadmap rows updated; the decision is unchanged, on the conditions in the new reassessment; hazards H-40 to H-44 drafted in `hazard-log.md` | AI coding agent, for review |
+| 0.10 | 18 November 2026 | The community specialist centre's Phases 3 to 5, assessed from their design (`docs/centre-phases-3-5-plan.md`; its safety PRs 11, 18 and 29 combined), before they're built: three new reassessments, one per phase, each feature not a device on the conditions stated; the flow chart's steps 2 and 4 (lab reports are in vitro diagnostic data, handled as documents only); five more claims not to make; the function table, the conditions that would change the decision and the roadmap rows updated; hazards H-45 to H-64 drafted in `hazard-log.md`. The decision is unchanged | AI coding agent, for review |
