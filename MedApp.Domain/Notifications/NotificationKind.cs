@@ -104,6 +104,18 @@ public enum NotificationKind
     SpecimenLost = 25,
 
     /// <summary>
+    /// A result the user is responsible for was reported (a specimen's report attached, or an external result recorded
+    /// by someone else). A fixed title ("Result ready"); its <see cref="Notification.SubjectId"/> is the result.
+    /// </summary>
+    ResultReady = 26,
+
+    /// <summary>Someone else made the user responsible for a result. A fixed title ("Result reassigned to you").</summary>
+    ResultReassigned = 27,
+
+    /// <summary>Someone else signed off a result the user is responsible for. A fixed title ("Result signed off").</summary>
+    ResultSignedOffByOther = 28,
+
+    /// <summary>
     /// A letter was submitted to the user to approve (decision 102). A fixed title ("Letter to approve"); the author's
     /// username and the letter's kind. Its <see cref="Notification.SubjectId"/> is the letter.
     /// </summary>
@@ -128,7 +140,7 @@ public enum NotificationKind
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 26 to 28 and 32 to 38
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 32 to 37
     /// are taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
     /// </summary>
     ScheduledJobFailing = 40,

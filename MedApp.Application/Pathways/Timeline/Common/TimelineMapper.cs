@@ -179,6 +179,10 @@ public static class TimelineMapper
                 Specimen(response, entry.Action, details, isAdmin ? row.Specimen : null);
                 break;
 
+            case >= ResultRecorded and <= ResultEnteredInError:
+                Result(response, entry.Action, details, isAdmin ? row.Result : null);
+                break;
+
             // MDT items: the specialty (an admin-written name), the meetings' times and who was present, for everyone.
             // The question and the outcome are never in the details, so neither is ever here (decision 70).
             case MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn:
@@ -292,6 +296,60 @@ public static class TimelineMapper
 
             case SpecimenLost or SpecimenEnteredInError when specimen is not null:
                 response.Reason = specimen.ClosedDetail;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A result entry: which result, where it came from (and its specimen's number and type), the status before and
+    /// after, the report's file, the action by name on sign-off, and on a reassignment the clinicians (usernames). Never
+    /// free text for staff: the title, the action's detail and the error detail are for admins only, read from the
+    /// result (<paramref name="result"/>, given only for admins), as the audit holds none.
+    /// </summary>
+    private static void Result(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Results.Result? result)
+    {
+        response.ResultId = Guid.TryParse(Text(details, "resultId"), out var resultId) ? resultId : null;
+        response.ResultSource = Text(details, "source");
+        response.SpecimenId = Guid.TryParse(Text(details, "specimenId"), out var specimenId) ? specimenId : null;
+        response.SpecimenNumber = Text(details, "number");
+        response.SpecimenTypeName = Text(details, "specimenType");
+        response.FromStatus = Text(details, "from");
+        response.ToStatus = Text(details, "to");
+        response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+
+        switch (action)
+        {
+            case ResultRecorded:
+                response.AssigneeUsername = Text(details, "responsible");
+                if (result is not null)
+                    response.Changes = [new PatientTimelineChangeResponse { Field = Results.Common.ResultChange.TitleField, To = result.Title }];
+                break;
+
+            case ResultSignedOff:
+                response.ResultAction = Text(details, "action");
+                if (result is not null)
+                    response.Reason = result.ActionDetail;
+                break;
+
+            case ResultReassigned:
+                var changes = details.TryGetValue("changes", out var c) ? ObjectOf(c) : new Dictionary<string, JsonElement>();
+                response.Changes =
+                [
+                    Change(
+                        Results.Common.ResultChange.ResponsibleField,
+                        changes.TryGetValue(Results.Common.ResultChange.ResponsibleField, out var values)
+                            ? ObjectOf(values)
+                            : new Dictionary<string, JsonElement>(),
+                        showValues: true)
+                ];
+                break;
+
+            case ResultEnteredInError when result is not null:
+                response.Reason = result.ErrorDetail;
                 break;
         }
     }

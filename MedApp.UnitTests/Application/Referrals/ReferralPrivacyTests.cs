@@ -134,7 +134,7 @@ public sealed class ReferralPrivacyTests
         var patients = new Mock<IPatientRepository>();
         patients.Setup(p => p.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(patient);
         patients.Setup(p => p.CountReferralsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
-        var handler = new DeletePatientHandler(patients.Object, new RecordingActivityLog(), new Mock<IAttachmentRepository>().Object);
+        var handler = new DeletePatientHandler(patients.Object, new RecordingActivityLog(), new Mock<IAttachmentRepository>().Object, new Mock<MedApp.Application.Results.Repositories.IResultRepository>().Object);
 
         var act = () => handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
 

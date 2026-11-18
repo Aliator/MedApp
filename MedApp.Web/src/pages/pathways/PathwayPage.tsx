@@ -50,6 +50,7 @@ import {StatusChangeDialog, statusAction} from '../../components/pathways/Status
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ReferralWaitCard} from '../../components/referrals/ReferralWaitCard';
 import {PathwaySpecimens} from '../../components/specimens/PathwaySpecimens';
+import {PathwayResults} from '../../components/results/PathwayResults';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
@@ -213,6 +214,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     currentStage: true,
     files: !isNarrow,
     specimens: !isNarrow,
+    results: !isNarrow,
     letters: !isNarrow,
     stages: false,
     patientInfo: true,
@@ -399,6 +401,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const filesFor = (stage: PathwayStage) => (
     <AttachmentsFold
       target={{stageId: stage.id ?? ''}}
+      patient={pathway?.patient}
       canChange={stage.canEdit ?? false}
       isLocked={Boolean(pathway?.readOnlyReason)}
       state={attachments}
@@ -972,6 +975,24 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
+   * The pathway's results awaiting sign-off and signed off (decisions 91 to 97), newest report first, each opening its
+   * own page, with its status and responsible clinician.
+   */
+  function resultsSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'results',
+      title: 'Results',
+      isOpen: open.results,
+      onToggle: () => toggle('results'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayResults pathwayId={pathway.id ?? ''} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
    * The pathway's own files (not its stages'). They can change unless it's cancelled or archived, as its details
    * can; admins can delete any.
    */
@@ -985,6 +1006,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         <Section variant="transparent" padding={6}>
           <Attachments
             target={{pathwayId: pathway.id ?? ''}}
+            patient={pathway.patient}
             canChange={pathway.canEditDetails ?? false}
             isLocked={Boolean(pathway.readOnlyReason)}
             state={attachments}
@@ -1018,8 +1040,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage, Specimens and
-   * Files, each folding and sharing the left card, and all the stages on the right.
+   * Two cards side by side: Details, Referral and wait (from a referral only), Notes, the Current stage, Specimens,
+   * Results and Files, each folding and sharing the left card, and all the stages on the right.
    */
   function wideLayout(pathway: Pathway) {
     return (
@@ -1033,6 +1055,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               mdtSection(pathway),
               currentStageSection(pathway),
               specimensSection(pathway),
+              resultsSection(pathway),
               filesSection(pathway),
               lettersSection(pathway),
             ]}
@@ -1050,7 +1073,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
 
   /**
    * One card of folding sections: Details, Referral and wait (from a referral only), Notes, Current stage, Specimens,
-   * Files and Stages, scrolling together; the page never does. View Patient stays in the footer.
+   * Results, Files and Stages, scrolling together; the page never does. View Patient stays in the footer.
    */
   function narrowLayout(pathway: Pathway) {
     return (
@@ -1063,6 +1086,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           mdtSection(pathway),
           currentStageSection(pathway),
           specimensSection(pathway),
+          resultsSection(pathway),
           filesSection(pathway),
           lettersSection(pathway),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(pathway)},

@@ -35,6 +35,8 @@ import {formatDateTime} from '../../utils/dates';
 import {formatFileSize} from '../../utils/fileSize';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useIsNarrow} from '../pages/Page';
+import type {BannerPatient} from '../patients/PatientBanner';
+import {RecordResultDialog} from '../results/RecordResultDialog';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {useAttachmentsState, type AttachmentsState, type AttachmentUpload} from './useAttachmentsState';
@@ -83,6 +85,8 @@ export interface AttachmentsProps {
   state?: AttachmentsState;
   /** What the list says while it has no files (a referral's says its letter isn't attached yet). */
   emptyText?: string;
+  /** The patient, for Record as Result's dialog to show as `PatientBanner` does (it covers the page's banner). */
+  patient?: BannerPatient;
 }
 
 /**
@@ -90,17 +94,19 @@ export interface AttachmentsProps {
  * several at once), each file's progress as it's sent, and the list, newest first. Each file shows a thumbnail
  * (pictures) or its type's icon, its name, type, size, who attached it and when, and whether it was scanned, with
  * Download and (where allowed) Delete. Holders of CorrectRecords can show deleted files too; the add area is only
- * for holders of AttachFiles.
+ * for holders of AttachFiles. Holders of WorkPathways can record a live file on the patient, a pathway or a stage as a
+ * result from elsewhere (Record as Result, `RecordResultDialog`), unless the record is locked.
  *
  * Files are never shown inline: Download always downloads, and only the server's small re-encoded thumbnails are
  * shown as images. Use it in a card's section, padded by its container (it lays out no padding of its own).
  */
-export function Attachments({target, canChange, isLocked = false, state, emptyText = 'No files attached yet.'}: AttachmentsProps) {
+export function Attachments({target, canChange, isLocked = false, state, emptyText = 'No files attached yet.', patient}: AttachmentsProps) {
   const ownState = useAttachmentsState();
   const {uploads, add, cancel, dismissFailed, isShowingDeleted, setShowingDeleted} = state ?? ownState;
   // Deleting anyone's file, wherever it is, and seeing deleted ones; and attaching files (and deleting your own).
   const canCorrectRecords = useCan('CorrectRecords');
   const canAttach = useCan('AttachFiles');
+  const canRecordResult = useCan('WorkPathways');
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
   const remove = useDeleteAttachment();
@@ -115,6 +121,11 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
   const failed = mine.filter((upload) => upload.state === 'failed');
   const [toDelete, setToDelete] = useState<Attachment | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [toRecord, setToRecord] = useState<Attachment | null>(null);
+
+  /** A live file on the patient, a pathway or a stage can be recorded as a result from elsewhere (not a referral's letter). */
+  const canRecordAsResult = (attachment: Attachment) =>
+    canRecordResult && !isLocked && !attachment.isDeleted && attachment.attachedTo !== 'Referral';
 
   /**
    * Holders of CorrectRecords may delete any file; staff their own (`canDelete`, which the API sets for holders of
@@ -212,6 +223,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
                 isNarrow={isNarrow}
                 showsAttachedTo={targetKind === 'Patient'}
                 canDelete={canDelete(attachment)}
+                onRecordResult={canRecordAsResult(attachment) ? () => setToRecord(attachment) : undefined}
                 onDelete={() => {
                   setDeleteError(null);
                   setToDelete(attachment);
@@ -236,6 +248,8 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
         onConfirm={() => toDelete && confirmDelete(toDelete)}
         onCancel={() => setToDelete(null)}
       />
+      {/* Mounted only while it's open, so it starts empty each time. */}
+      {toRecord && <RecordResultDialog attachment={toRecord} patient={patient} onClose={() => setToRecord(null)} />}
     </VStack>
   );
 }
@@ -325,13 +339,15 @@ export interface AttachmentRowProps {
   canDelete: boolean;
   /** Left out where nothing can be deleted (a specimen's report). */
   onDelete?: () => void;
+  /** Record as Result, where it's offered (holders of WorkPathways, a live file); left out elsewhere. */
+  onRecordResult?: () => void;
 }
 
 /**
  * One file: its preview, name, details and scan state, with Download and Delete. Used inside a `List`; a specimen's page
  * shows its report with it too.
  */
-export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete}: AttachmentRowProps) {
+export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete, onRecordResult}: AttachmentRowProps) {
   const name = attachment.fileName ?? '';
   const actions = (
     <HStack gap={1} vAlign="center">
@@ -343,6 +359,15 @@ export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete,
           variant="ghost"
           href={attachmentContentUrl(attachment.id ?? '')}
           as={DownloadLink}
+        />
+      )}
+      {onRecordResult && (
+        <IconButton
+          label={`Record ${name} as a result`}
+          tooltip="Record as Result"
+          icon={<Icon icon={AppIcon.Results} />}
+          variant="ghost"
+          onClick={onRecordResult}
         />
       )}
       {canDelete && (

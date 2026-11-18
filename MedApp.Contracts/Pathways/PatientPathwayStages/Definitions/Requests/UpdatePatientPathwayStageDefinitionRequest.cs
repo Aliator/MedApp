@@ -23,4 +23,7 @@ public sealed class UpdatePatientPathwayStageDefinitionRequest
     /// Pathways already created keep their stages' copy.
     /// </summary>
     public string? NeedsLetterKind { get; set; }
+
+    /// <summary>Whether the stage waits for results, or null to leave it as it is. Pathways already created keep their stages' copy.</summary>
+    public bool? WaitsForResults { get; set; }
 }

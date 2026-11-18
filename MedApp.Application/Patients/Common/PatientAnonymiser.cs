@@ -43,6 +43,8 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
 /// references are removed; their numbers, statuses, dates, types and labs stay. Their reports are files, deleted with
 /// the rest.</item>
+/// <item>Results' titles, action details and error details become <see cref="RemovedText"/>; their sources, statuses,
+/// actions, dates and who did what stay. Their reports are files, deleted with the rest.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -222,6 +224,16 @@ public static class PatientAnonymiser
                 specimen.ClosedDetail = Removed(specimen.ClosedDetail);
             specimen.LabReference = null;
             specimen.CourierReference = null;
+        }
+
+        // Results keep their sources, statuses, actions and dates; their free text goes.
+        foreach (var result in record.Results)
+        {
+            result.Title = Removed(result.Title);
+            if (result.ActionDetail is not null)
+                result.ActionDetail = Removed(result.ActionDetail);
+            if (result.ErrorDetail is not null)
+                result.ErrorDetail = Removed(result.ErrorDetail);
         }
 
         // MDT items: the question and the outcome are free text. Open ones are withdrawn, as the record can't change

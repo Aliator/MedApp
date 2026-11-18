@@ -65,7 +65,7 @@ public sealed class PatientPathwayStagesControllerTests
 
         mediator.Request.Should().Be(new CreatePatientPathwayStageDefinitionCommand(
             request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm, request.VisitRequirement,
-            request.NeedsLetterKind));
+            request.NeedsLetterKind, request.WaitsForResults));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/pathways/patient-pathway-stage/definitions/{definition.Id}");
         created.Value.Should().Be(definition);
@@ -78,7 +78,7 @@ public sealed class PatientPathwayStagesControllerTests
         await ExpectOk(_fixture.Create<PatientPathwayStageDefinitionResponse>(),
             new UpdatePatientPathwayStageDefinitionCommand(
                 RecordId, request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm,
-                request.VisitRequirement, request.NeedsLetterKind),
+                request.VisitRequirement, request.NeedsLetterKind, request.WaitsForResults),
             c => c.UpdatePatientPathwayStageDefinition(RecordId, request, _cts.Token));
     }
 
@@ -124,7 +124,8 @@ public sealed class PatientPathwayStagesControllerTests
         var result = await Controller(mediator).CreatePathwayTemplate(request, _cts.Token);
 
         mediator.Request.Should().Be(new CreatePathwayTemplateCommand(
-            request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder));
+            request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
+            RetentionClass: request.RetentionClass));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/pathways/patient-pathway-stage/templates/{template.Id}");
         created.Value.Should().Be(template);
@@ -136,7 +137,8 @@ public sealed class PatientPathwayStagesControllerTests
         var request = _fixture.Create<UpdatePathwayTemplateRequest>();
         request.StageOptions = null;
         await ExpectOk(_fixture.Create<PathwayTemplateResponse>(),
-            new UpdatePathwayTemplateCommand(RecordId, request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder),
+            new UpdatePathwayTemplateCommand(RecordId, request.Name, request.SpecialtyId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
+                RetentionClass: request.RetentionClass),
             c => c.UpdatePathwayTemplate(RecordId, request, _cts.Token));
     }
 

@@ -17,6 +17,9 @@ import {AppIcon} from '../shared/icons';
 /** The notifications about a letter, which name it in `subjectId`. */
 const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'LetterReturned']);
 
+/** The notifications about a result (one ready for you, reassigned to you, or signed off by someone else), which name it in `subjectId`. */
+const RESULT_KINDS = new Set(['ResultReady', 'ResultReassigned', 'ResultSignedOffByOther']);
+
 /**
  * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
  * pathway's page (for the admin to decide), a pathway on its page, and anything else about a day on the calendar
@@ -26,25 +29,29 @@ const LETTER_KINDS = new Set(['LetterAwaitingApproval', 'LetterApproved', 'Lette
  * "Referral triaged" (one you registered was accepted, rejected or redirected by someone else) opens the referral.
  * A specimen rejected by the lab or lost opens the specimen (its `subjectId`).
  * The letter kinds (a letter awaiting your approval, yours approved or returned) open the letter (`subjectId`).
+ * The result kinds (a result ready for your sign-off, reassigned to you, or signed off by someone else) open the result
+ * (`subjectId`).
  */
 const hrefOf = (notification: AppNotification) =>
   notification.kind === 'ScheduledJobFailing'
     ? '/admin/jobs'
     : LETTER_KINDS.has(notification.kind ?? '') && notification.subjectId
       ? `/letters/${notification.subjectId}`
-      : notification.referralId
-        ? `/referrals/${notification.referralId}`
-        : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
-          ? `/specimens/${notification.subjectId}`
-          : notification.appointmentId
-            ? `/calendar?appointment=${notification.appointmentId}`
-            : notification.noteDeletionRequestId && notification.pathwayId
-              ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
-              : notification.pathwayId
-                ? `/pathways/${notification.pathwayId}`
-                : notification.calendarDate
-                  ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
-                  : undefined;
+      : RESULT_KINDS.has(notification.kind ?? '') && notification.subjectId
+        ? `/results/${notification.subjectId}`
+        : notification.referralId
+          ? `/referrals/${notification.referralId}`
+          : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
+            ? `/specimens/${notification.subjectId}`
+            : notification.appointmentId
+              ? `/calendar?appointment=${notification.appointmentId}`
+              : notification.noteDeletionRequestId && notification.pathwayId
+                ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+                : notification.pathwayId
+                  ? `/pathways/${notification.pathwayId}`
+                  : notification.calendarDate
+                    ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
+                    : undefined;
 
 /** The kinds about a specimen, whose `subjectId` is the specimen. */
 const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost'];
@@ -73,6 +80,9 @@ const KIND_ICONS: Record<string, IconType> = {
   LetterAwaitingApproval: AppIcon.Letters,
   LetterApproved: AppIcon.Success,
   LetterReturned: AppIcon.Back,
+  ResultReady: AppIcon.Results,
+  ResultReassigned: AppIcon.Reassign,
+  ResultSignedOffByOther: AppIcon.SignOff,
   MdtOutcomeRecorded: AppIcon.Mdt,
 };
 

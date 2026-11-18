@@ -376,6 +376,37 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/specimens/${specimenId}`));
   });
 
+  it("opens a result's notifications on the result, even with a pathway, each with its own icon", async () => {
+    const resultId = '00000061-0000-0000-0000-000000000001';
+    const ready = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000061',
+      kind: 'ResultReady',
+      title: 'Result ready',
+      message: 'A result is ready for your sign-off.',
+      pathwayId,
+      subjectId: resultId,
+    };
+    const reassigned = {...ready, id: '0000000c-0000-0000-0000-000000000062', kind: 'ResultReassigned', title: 'Result reassigned to you', isRead: true};
+    const signedOff = {...ready, id: '0000000c-0000-0000-0000-000000000063', kind: 'ResultSignedOffByOther', title: 'Result signed off', isRead: true};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [ready, reassigned, signedOff], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.getByRole('link', {name: /^Result reassigned to you/})).toHaveAttribute('href', `/results/${resultId}`);
+    expect(list.getByRole('link', {name: /^Result signed off/})).toHaveAttribute('href', `/results/${resultId}`);
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(new Set(icons).size).toBe(3);
+    await user.click(list.getByRole('link', {name: /^Result ready/}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${ready.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/results/${resultId}`));
+  });
+
   it("opens a letter's notification on the letter it names", async () => {
     const letterId = '0000000c-0000-0000-0000-000000000051';
     const notification = {
