@@ -100,7 +100,10 @@ public static class DemoClinics
         Guid? cancelledId = null;
         if (sessions.Where(s => booked.GetValueOrDefault(s.Id) >= 2 && s.StartUtc > now.AddDays(3)).OrderBy(s => s.StartUtc).FirstOrDefault() is { } toCancel)
         {
-            var at = now.AddHours(-2) > timeline.NowUtc.Date.AddHours(8) ? now.AddHours(-2) : DemoTimeline.InWorkingHours(now.AddDays(-1), random);
+            // Yesterday in working hours (never after now: at a weekend or just after midnight, that's later than now).
+            var at = DemoTimeline.InWorkingHours(now.AddDays(-1), random);
+            if (at >= now)
+                at = now.AddHours(-2);
             var lastUpdated = await services.Run(sp => sp.GetRequiredService<MedAppDbContext>().ClinicSessions
                 .Where(s => s.Id == toCancel.Id).Select(s => s.LastUpdated).SingleAsync(ct));
             var result = await Send(at, coordinator, new CancelClinicSessionCommand(toCancel.Id,
