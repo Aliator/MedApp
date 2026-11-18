@@ -10,6 +10,7 @@ using MedApp.API.ServerRendering;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Jobs.Common;
 using MedApp.Application.Notepads.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using Microsoft.AspNetCore.Authentication;
@@ -72,12 +73,21 @@ public static class ServiceExtensions
         services.AddScoped<HttpActivityContext>();
         services.AddScoped(ActivityContextFor);
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
-        services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
+        // A class's years under 1 would list its records for review straight away: stop at startup instead.
+        services.AddOptions<RetentionOptions>()
+            .BindConfiguration(RetentionOptions.Section)
+            .Validate(options => options.IsValid, RetentionOptions.InvalidPeriods)
+            .ValidateOnStart();
         services.AddOptions<LettersOptions>().BindConfiguration(LettersOptions.Section);
         // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
         services.AddOptions<NotepadOptions>()
             .BindConfiguration(NotepadOptions.Section)
             .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
+            .ValidateOnStart();
+        // A specimen number's prefix must fit its column and read as letters: stop at startup otherwise.
+        services.AddOptions<SpecimenOptions>()
+            .BindConfiguration(SpecimenOptions.Section)
+            .Validate(options => options.IsValid, SpecimenOptions.InvalidPrefix)
             .ValidateOnStart();
 
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.

@@ -17,6 +17,12 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Copied from the stage definition: None, Suggested or Required (a visit before it can be finished).</summary>
     public string VisitRequirement { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Copied from the stage definition: the kind of letter (by name) that must be approved and sent to everyone before
+    /// the stage can be finished, or null for none.
+    /// </summary>
+    public string? NeedsLetterKind { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Copied from the template: whether it can be skipped, with a reason, while it's current.</summary>
@@ -66,6 +72,12 @@ public sealed class PatientPathwayStageResponse
 
     /// <summary>The detail given with the skip reason (free text, shown on the pathway page as notes are).</summary>
     public string? SkipDetail { get; set; }
+
+    /// <summary>
+    /// Whether the viewer can record a specimen taken at it now: they hold RecordSpecimens, the stage can be edited, the
+    /// pathway is open (not on hold or closed) and the record can change.
+    /// </summary>
+    public bool CanRecordSpecimen { get; set; }
 
     public DateTime? StartedAtUtc { get; set; }
     public Guid? StartedByUserId { get; set; }

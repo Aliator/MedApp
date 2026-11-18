@@ -45,7 +45,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles,
+            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
         });
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
-            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles,
+            UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles, RecordSpecimens, WriteLetters, ApproveLetters, SendLetters,
         });
 
     public static readonly StandardRole Nurse = new(
@@ -71,7 +71,7 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments,
-            AttachFiles,
+            AttachFiles, RecordSpecimens, WriteLetters, SendLetters,
         });
 
     public static readonly StandardRole Booking = new(
@@ -81,14 +81,14 @@ public static class StandardRoles
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, BookAppointments, ManageAnyCalendar,
-            ManageClinics, AttachFiles,
+            ManageClinics, AttachFiles, SendLetters,
         });
 
     public static readonly StandardRole Lab = new(
         Guid.Parse("7a3b0000-0000-4000-8000-000000000006"),
         "Lab",
         "Laboratory staff who work on their pathway stages.",
-        new HashSet<Permission> { UseApp, ViewPatients, WorkPathways, AttachFiles });
+        new HashSet<Permission> { UseApp, ViewPatients, WorkPathways, AttachFiles, RecordSpecimens, ProcessSpecimens });
 
     public static readonly StandardRole Manager = new(
         Guid.Parse("7a3b0000-0000-4000-8000-000000000007"),

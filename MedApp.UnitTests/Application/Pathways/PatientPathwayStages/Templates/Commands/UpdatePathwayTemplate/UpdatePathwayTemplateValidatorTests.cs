@@ -95,4 +95,15 @@ public sealed class UpdatePathwayTemplateValidatorTests
         _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, [ConsultationDefinitionId]))
             .IsValid.Should().BeTrue();
     }
+
+    [TestCase(null, true)]
+    [TestCase("Standard", true)]
+    [TestCase("oncology", true)]
+    [TestCase("MentalHealth", true)]
+    [TestCase("1", false)]
+    [TestCase("Dental", false)]
+    public void Validate_RetentionClass_IsOneByName(string? value, bool valid)
+    {
+        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, null, RetentionClass: value)).IsValid.Should().Be(valid);
+    }
 }

@@ -17,4 +17,10 @@ public sealed class UpdatePatientPathwayStageDefinitionRequest
     public string? SnomedTerm { get; set; }
     /// <summary>None, Suggested or Required. Pathways already created keep their stages' copy.</summary>
     public string? VisitRequirement { get; set; }
+
+    /// <summary>
+    /// The kind of letter the stage needs before it can be finished, <c>None</c> for none, or null to leave it as it is.
+    /// Pathways already created keep their stages' copy.
+    /// </summary>
+    public string? NeedsLetterKind { get; set; }
 }

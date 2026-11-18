@@ -3,14 +3,21 @@ using MedApp.Domain.Pathways.PatientPathways;
 
 namespace MedApp.Application.Patients.Common;
 
-public enum RetentionClass
+/// <summary>
+/// What set a record's minimum period: the adult or child rule, or one of its pathways' specialty classes
+/// (<see cref="RetentionClass"/>) when that's longer. Not stored.
+/// </summary>
+public enum RetentionBasis
 {
     Adult,
-    Child
+    Child,
+    Oncology,
+    Maternity,
+    MentalHealth
 }
 
-/// <summary>When a record's minimum retention period ends, and which class set it.</summary>
-public sealed record RetentionDue(RetentionClass Class, DateOnly ConclusionOfTreatment, DateOnly DueOn);
+/// <summary>When a record's minimum retention period ends, and what set it.</summary>
+public sealed record RetentionDue(RetentionBasis Class, DateOnly ConclusionOfTreatment, DateOnly DueOn);
 
 /// <summary>
 /// The retention schedule's rules (<see cref="RetentionOptions"/>), worked out for one patient. The conclusion of
@@ -37,19 +44,50 @@ public static class RetentionSchedule
             }
             .OfType<DateTime>()
             .Max();
-        return Due(patient.DateOfBirth, DueDates.ToUkDate(lastChange), options);
+        return Due(patient.DateOfBirth, DueDates.ToUkDate(lastChange), options, patient.RetentionClasses ?? []);
     }
 
-    /// <summary>When the record of a patient born on <paramref name="dateOfBirth"/>, treated until <paramref name="conclusion"/>, is due for review.</summary>
-    public static RetentionDue Due(DateOnly dateOfBirth, DateOnly conclusion, RetentionOptions options)
+    /// <summary>
+    /// When the record of a patient born on <paramref name="dateOfBirth"/>, treated until <paramref name="conclusion"/>,
+    /// is due for review: the latest of the adult or child rule and each of <paramref name="classes"/> (their
+    /// pathways' classes), counted from the conclusion of treatment. On a tie the adult or child rule names it.
+    /// </summary>
+    public static RetentionDue Due(
+        DateOnly dateOfBirth,
+        DateOnly conclusion,
+        RetentionOptions options,
+        IEnumerable<RetentionClass>? classes = null)
+    {
+        var due = StandardDue(dateOfBirth, conclusion, options);
+        foreach (var retentionClass in (classes ?? []).Distinct().Order())
+        {
+            if (options.Classes.For(retentionClass) is not { } years)
+                continue;
+
+            var dueOn = AddYears(conclusion, years);
+            if (dueOn > due.DueOn)
+                due = new RetentionDue(BasisOf(retentionClass), conclusion, dueOn);
+        }
+
+        return due;
+    }
+
+    private static RetentionDue StandardDue(DateOnly dateOfBirth, DateOnly conclusion, RetentionOptions options)
     {
         var age = AgeOn(dateOfBirth, conclusion);
         if (age >= options.AdultAge)
-            return new RetentionDue(RetentionClass.Adult, conclusion, AddYears(conclusion, options.AdultYears));
+            return new RetentionDue(RetentionBasis.Adult, conclusion, AddYears(conclusion, options.AdultYears));
 
         var until = age == options.AdultAge - 1 ? options.ChildAgedSeventeenUntilAge : options.ChildUntilAge;
-        return new RetentionDue(RetentionClass.Child, conclusion, AddYears(dateOfBirth, until));
+        return new RetentionDue(RetentionBasis.Child, conclusion, AddYears(dateOfBirth, until));
     }
+
+    private static RetentionBasis BasisOf(RetentionClass retentionClass) => retentionClass switch
+    {
+        RetentionClass.Oncology => RetentionBasis.Oncology,
+        RetentionClass.Maternity => RetentionBasis.Maternity,
+        _ => RetentionBasis.MentalHealth
+    };
 
     /// <summary>Whole years of age on a date (a 29 February birthday falls on 1 March in other years).</summary>
     public static int AgeOn(DateOnly dateOfBirth, DateOnly on)
@@ -72,7 +110,8 @@ public static class RetentionSchedule
 
     /// <summary>
     /// The shortest any record is kept after the conclusion of treatment, in years, so only patients whose last change
-    /// is at least that old need checking. A child's period is shortest just before an age boundary.
+    /// is at least that old need checking. A child's period is shortest just before an age boundary. A specialty class
+    /// only ever lengthens a record's period, so it doesn't change this.
     /// </summary>
     public static int ShortestYears(RetentionOptions options) =>
         Math.Max(0, Math.Min(

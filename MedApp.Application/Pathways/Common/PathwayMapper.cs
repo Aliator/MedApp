@@ -128,6 +128,7 @@ public static class PathwayMapper
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
+                    NeedsLetterKind = s.NeedsLetterKind?.ToString(),
                     IsOptional = s.IsOptional,
                     ChoosesBranch = s.ChoosesBranch,
                     Branch = s.Branch,
@@ -156,6 +157,8 @@ public static class PathwayMapper
                     SkippedByUsername = Username(usernames, s.SkippedByUserId),
                     SkipReason = s.SkipReason?.ToString(),
                     SkipDetail = s.SkipDetail,
+                    CanRecordSpecimen = Allows(viewerPermissions, Permission.RecordSpecimens)
+                        && Specimens.Common.SpecimenWorkflow.WhyCantTake(pathway, s) is null,
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),

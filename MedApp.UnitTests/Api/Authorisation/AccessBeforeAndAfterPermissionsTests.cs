@@ -29,7 +29,11 @@ namespace MedApp.UnitTests.Api.Authorisation;
 [TestFixture]
 public sealed class AccessBeforeAndAfterPermissionsTests
 {
-    /// <summary>Who could call each endpoint before permissions (the Staff policy and Roles = "Admin").</summary>
+    /// <summary>
+    /// Who could call each endpoint before permissions (the Staff policy and Roles = "Admin"); for an endpoint added
+    /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
+    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74).
+    /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
         AccountSecurityController.BeginEmailCodesSetup 00011
@@ -151,7 +155,22 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.SearchPatients 00011
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LettersController.ApproveLetter 00000
+        LettersController.CountLetters 00011
+        LettersController.CreateLetter 00000
+        LettersController.DiscardLetter 00000
+        LettersController.GetLetter 00011
+        LettersController.PreviewLetter 00011
+        LettersController.RecordSent 00000
+        LettersController.ReturnLetter 00000
+        LettersController.SearchLetters 00011
+        LettersController.SendLetter 00000
+        LettersController.SubmitLetter 00000
+        LettersController.UpdateLetter 00000
+        LettersController.WithdrawLetter 00011
+        LettersController.WriteCorrection 00000
         LetterTemplatesController.ArchiveLetterTemplate 00001
+        LetterTemplatesController.DeleteLetterTemplate 00001
         LetterTemplatesController.CreateLetterTemplate 00001
         LetterTemplatesController.GetLetterTemplate 00011
         LetterTemplatesController.GetLetterTemplates 00011
@@ -245,9 +264,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PracticesController.RestorePractice 00011
         PracticesController.UpdatePractice 00011
         ReferralsController.AcceptReferral 00000
+        ReferralsController.AskForInformation 00000
         ReferralsController.CountAwaitingTriage 00011
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011
+        ReferralsController.InformationReceived 00000
         ReferralsController.MarkEnteredInError 00011
         ReferralsController.PauseClock 00011
         ReferralsController.RedirectReferral 00000
@@ -279,6 +300,29 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SitesController.SetSiteHours 00001
         SitesController.UpdateRoom 00001
         SitesController.UpdateSite 00001
+        SpecimenSetupController.ArchiveLaboratory 00001
+        SpecimenSetupController.ArchiveType 00001
+        SpecimenSetupController.CreateLaboratory 00001
+        SpecimenSetupController.CreateType 00001
+        SpecimenSetupController.DeleteLaboratory 00001
+        SpecimenSetupController.DeleteType 00001
+        SpecimenSetupController.GetLaboratories 00011
+        SpecimenSetupController.GetTypes 00011
+        SpecimenSetupController.RestoreLaboratory 00001
+        SpecimenSetupController.RestoreType 00001
+        SpecimenSetupController.UpdateLaboratory 00001
+        SpecimenSetupController.UpdateType 00001
+        SpecimensController.EditSpecimen 00000
+        SpecimensController.FindSpecimen 00011
+        SpecimensController.GetSpecimen 00011
+        SpecimensController.MarkEnteredInError 00011
+        SpecimensController.MarkLost 00011
+        SpecimensController.MarkReceived 00000
+        SpecimensController.MarkSent 00000
+        SpecimensController.RecordSpecimen 00000
+        SpecimensController.Reject 00000
+        SpecimensController.Report 00000
+        SpecimensController.SearchSpecimens 00011
         SpecialtiesController.ArchiveSpecialty 00001
         SpecialtiesController.CreateSpecialty 00001
         SpecialtiesController.DeleteSpecialty 00001
@@ -420,9 +464,10 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     public void SplitOverrideStages_AdminLosesOnlyFinishingWithoutAVisit_AndNobodyGainsEither()
     {
         // Admin had every permission but triage, OverrideStages among them (here, as its two halves).
-        // RecordMdtOutcomes came later (PR 30), a clinical decision Admin never had.
+        // The clinical permissions that came later (specimens, letters, MDT outcomes) were never Admin's.
+        var cameLater = Permissions.NotForAdmin.Except([Permission.TriageReferrals, Permission.FinishWithoutVisit]).ToHashSet();
         var adminBefore = Enum.GetValues<Permission>()
-            .Where(p => p is not (Permission.TriageReferrals or Permission.RecordMdtOutcomes))
+            .Where(p => p != Permission.TriageReferrals && !cameLater.Contains(p))
             .ToHashSet();
         var adminNow = TestPermissions.ForRoles(AppRoles.Admin);
 

@@ -16,9 +16,11 @@ public sealed class GetLetterTemplatesHandler(ILetterTemplateRepository reposito
         var templates = await repository.GetAllAsync(request.IncludeArchived, cancellationToken);
         var specialtyIds = templates.Where(t => t.SpecialtyId is not null).Select(t => t.SpecialtyId!.Value).Distinct();
         var names = (await specialties.GetByIdsAsync(specialtyIds, cancellationToken)).ToDictionary(s => s.Id, s => s.Name);
+        var inUse = await repository.GetInUseAsync(templates.Select(t => t.Id).ToList(), cancellationToken);
 
         return templates
-            .Select(t => LetterTemplateMapper.ToResponse(t, t.SpecialtyId is { } id ? names.GetValueOrDefault(id) : null))
+            .Select(t => LetterTemplateMapper.ToResponse(
+                t, t.SpecialtyId is { } id ? names.GetValueOrDefault(id) : null, !inUse.Contains(t.Id)))
             .OrderBy(t => t.SpecialtyId is null ? 0 : 1)
             .ThenBy(t => t.SpecialtyName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)

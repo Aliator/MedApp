@@ -35,6 +35,8 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
     /// <summary>Every email the API sent, kept instead of sent (<see cref="FakeEmailSender"/>).</summary>
     public FakeEmailSender Emails { get; } = new();
 
+    /// <summary>Every letter the API sent by secure email, kept instead of sent (<see cref="FakeLetterTransport"/>).</summary>
+    public FakeLetterTransport Letters { get; } = new();
     /// <summary>Every patient message the API handed over, kept instead of sent (<see cref="FakePatientMessageTransport"/>).</summary>
     public FakePatientMessageTransport PatientMessages { get; } = new();
 
@@ -71,11 +73,13 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         builder.UseSetting("PatientMessages:Mode", "Offline");
         builder.UseSetting("PatientMessages:SenderName", "MedApp Integration Tests");
 
-        // Emails are kept, not sent, and the clock can be moved on.
+        // Emails and secure-email letters are kept, not sent, and the clock can be moved on.
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Emails);
+            services.RemoveAll<MedApp.Application.Letters.Common.ILetterTransport>();
+            services.AddSingleton<MedApp.Application.Letters.Common.ILetterTransport>(Letters);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IPatientMessageTransport>();

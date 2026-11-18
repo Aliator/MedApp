@@ -43,6 +43,38 @@ async function openFirstReferral(page: Page) {
 }
 
 /**
+ * Opens the first specimen in one of the Lab page's views, as the parity data names none: only when there is one
+ * (otherwise the screen is the view, saying it's empty).
+ */
+async function openFirstSpecimen(page: Page) {
+  const first = page.getByRole('table').getByRole('link', { name: /^[A-Z]+\d{2}-\d+$/ }).first();
+  if (await first.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+    await first.click();
+    await page.getByRole('heading', { name: /^Specimen /, level: 1 }).waitFor();
+    await settle(page);
+  }
+}
+
+/**
+ * Opens the first letter in the Letters list, trying its views in turn (To send, Sent, Awaiting my approval, My drafts),
+ * as the parity data names none. When no view has one, the screen is the list, saying so.
+ */
+async function openFirstLetter(page: Page) {
+  for (const view of ['To send', 'Sent', 'Awaiting my approval', 'My drafts']) {
+    await page.getByRole('tab', { name: view }).click();
+    await settle(page);
+    const first = page.getByRole('table').getByRole('link').first();
+    if (await first.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+      await first.click();
+      // The letter's page has the patient's banner.
+      await page.getByRole('region', { name: /^Patient:/ }).first().waitFor();
+      await settle(page);
+      return;
+    }
+  }
+}
+
+/**
  * Opens the pathway of the first referral on the waiting list (accepted, its clock not yet stopped), through the
  * referral's "Open its pathway" link, as the parity data names none: React only, and only when there is one (otherwise
  * the screen is the list or the referral). Ends on the pathway's page, with its Referral and wait section.
@@ -468,7 +500,27 @@ export const screens: Screen[] = [
       }
     },
   },
+  { name: 'letters-list', title: 'Letters: the views of letters to write, approve and send, as tabs', path: '/letters' },
+  {
+    name: 'letter-view',
+    title: 'A letter: the banner, the letter, its details and its recipients (the first found in To send, Sent, Awaiting my approval or My drafts)',
+    path: '/letters',
+    prepare: async (page) => openFirstLetter(page),
+  },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
+  {
+    name: 'pathway-record-specimen',
+    title: "Record Specimen from a pathway's Specimens section: the patient, stage, type, lab, requester and when (only opened, never saved; needs RecordSpecimens and a stage that can take one)",
+    path: (d) => `/pathways/${d.pathwayId}`,
+    prepare: async (page) => {
+      const record = page.getByRole('button', { name: 'Record Specimen' }).first();
+      if (await record.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+        await record.click();
+        await waitVisible(page, DIALOG);
+      }
+      await settle(page);
+    },
+  },
   {
     name: 'pathway-referral-wait',
     title:
@@ -894,6 +946,38 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Add Closed Day' }).click();
       await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'specimen-setup', title: 'Specimen types and labs (setup): the types with their expected days, and the labs', path: '/admin/specimen-setup' },
+  {
+    name: 'specimen-type-dialog',
+    title: 'Add Specimen Type dialog: a name and the expected turnaround in days (not saved)',
+    path: '/admin/specimen-setup',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Specimen Type' }).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'lab', title: "Lab: find a specimen by its number, and the views of where specimens are (the account's default view)", path: '/lab' },
+  { name: 'lab-in-the-lab', title: 'Lab: the In the lab view, received and not yet reported, oldest first', path: '/lab?view=InLab' },
+  {
+    name: 'specimen-view',
+    title: "A specimen's page: the banner, its details, steps with turnaround, report and the others from its stage (the first reported in the last week)",
+    path: '/lab?view=Reported',
+    prepare: async (page) => openFirstSpecimen(page),
+  },
+  {
+    name: 'specimen-label',
+    title: "A specimen's label to print: its number as text and QR code, and the patient's identifiers (the first reported in the last week)",
+    path: '/lab?view=Reported',
+    prepare: async (page) => {
+      await openFirstSpecimen(page);
+      const label = page.getByRole('link', { name: 'Print Label' });
+      if (await label.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await label.click();
+        await page.getByRole('heading', { name: 'Specimen Label', level: 1 }).waitFor();
+        await settle(page);
+      }
     },
   },
   { name: 'sites', title: 'Sites and rooms (admin): the places the centre works from, each with its rooms', path: '/admin/sites' },

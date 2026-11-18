@@ -25,6 +25,11 @@ public sealed class PathwayTemplateConfiguration : IEntityTypeConfiguration<Path
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);
 
+        // Stored by number; Standard (the adult or child rule) for everything made before classes, and from an API copy
+        // that doesn't know them.
+        builder.Property(x => x.RetentionClass)
+            .HasDefaultValue(RetentionClass.Standard);
+
         builder.HasIndex(x => x.Name)
             .IsUnique();
 

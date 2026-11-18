@@ -35,7 +35,9 @@ public static class PatientExportMapper
         record.Pathways.SelectMany(PathwayMapper.UserIds)
             .Concat(record.Appointments.SelectMany(AppointmentUserIds))
             .Concat(ExportedNotifications(record).Select(n => n.UserId))
+            .Concat(record.Letters.SelectMany(Letters.Common.LetterMapper.PeopleIn))
             .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
+            .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
             .Distinct();
 
     private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
@@ -332,6 +334,76 @@ public static class PatientExportMapper
                     ReferralId = e.ReferralId,
                     PathwayId = e.PathwayId,
                     Details = WithoutStaffIds(e.Details)
+                })
+                .ToList(),
+            // Letters, with their text: the patient is entitled to it. Staff by username only.
+            Letters = record.Letters
+                .Select(l => new ExportedLetterResponse
+                {
+                    Id = l.Id,
+                    PathwayId = l.PathwayId,
+                    ReferralId = l.ReferralId,
+                    Kind = l.Kind.ToString(),
+                    TemplateName = l.TemplateName,
+                    Status = l.Status.ToString(),
+                    Letterhead = l.Letterhead,
+                    Body = l.Body,
+                    Closing = l.Closing,
+                    LargePrint = l.LargePrint,
+                    Author = Username(l.AuthorUserId),
+                    CreatedAt = l.CreatedAt,
+                    SubmittedAtUtc = l.SubmittedAtUtc,
+                    Approver = l.ApproverUserId is null ? null : Username(l.ApproverUserId),
+                    ApprovedAtUtc = l.ApprovedAtUtc,
+                    ReturnComment = l.ReturnComment,
+                    WithdrawnAtUtc = l.WithdrawnAtUtc,
+                    WithdrawnBy = l.WithdrawnByUserId is null ? null : Username(l.WithdrawnByUserId),
+                    WithdrawnReason = l.WithdrawnReason,
+                    PdfAttachmentId = l.PdfAttachmentId,
+                    ReplacesLetterId = l.ReplacesLetterId,
+                    Recipients = l.Recipients
+                        .OrderBy(r => r.Position)
+                        .Select(r => new ExportedLetterRecipientResponse
+                        {
+                            Kind = r.Kind.ToString(),
+                            Name = r.Name,
+                            AddressLines = r.AddressLines,
+                            Postcode = r.Postcode,
+                            Email = r.Email,
+                            DispatchStatus = r.DispatchStatus.ToString(),
+                            Method = r.Method?.ToString(),
+                            SentOn = r.SentOn,
+                            SentBy = r.SentByUserId is null ? null : Username(r.SentByUserId),
+                        })
+                        .ToList(),
+                })
+                .ToList(),
+            // Specimens, with their free text: the patient is entitled to it. Staff by username only.
+            Specimens = record.Specimens
+                .Select(s => new ExportedSpecimenResponse
+                {
+                    Id = s.Id,
+                    Number = s.Number,
+                    PathwayId = s.PathwayId,
+                    StageId = s.StageId,
+                    SpecimenTypeName = s.SpecimenType?.Name ?? string.Empty,
+                    LaboratoryName = s.Laboratory?.Name ?? string.Empty,
+                    Site = s.Site,
+                    RequestNotes = s.RequestNotes,
+                    RequestedBy = Username(s.RequestingUserId),
+                    Status = s.Status.ToString(),
+                    TakenAtUtc = s.TakenAtUtc,
+                    TakenBy = Username(s.TakenByUserId),
+                    SentAtUtc = s.SentAtUtc,
+                    CourierReference = s.CourierReference,
+                    ReceivedAtUtc = s.ReceivedAtUtc,
+                    LabReference = s.LabReference,
+                    ReportedAtUtc = s.ReportedAtUtc,
+                    ReportAttachmentId = s.ReportAttachmentId,
+                    RejectionReason = s.RejectionReason?.ToString(),
+                    ClosedDetail = s.ClosedDetail,
+                    ClosedAtUtc = s.ClosedAtUtc,
+                    ClosedBy = s.ClosedByUserId is null ? null : Username(s.ClosedByUserId),
                 })
                 .ToList()
         };

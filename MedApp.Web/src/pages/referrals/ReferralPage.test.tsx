@@ -242,6 +242,17 @@ describe('referral words', () => {
     expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true})).toMatch(/^Read the referral and its letter, then decide/);
     expect(triageWords({isOpen: false, status: 'Accepted'})).toBe("This referral has been triaged: accepted. A referral isn't triaged again.");
     expect(triageWords({isOpen: false, status: 'Withdrawn'})).toBe("This referral is withdrawn, so it isn't triaged.");
+    expect(triageWords({isOpen: true, status: 'InformationRequested', canTriage: true})).toMatch(/^More information has been asked of the referrer/);
+  });
+
+  it("lists the referral's letters, with Write Letter for a letter writer", async () => {
+    renderPage(testReferral(), {
+      'GET /api/letters/search': () =>
+        json({items: [{id: 'l1', kind: 'ReferralResponse', templateName: 'Referral reply', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
+    }, false, userWithRoles('d.clinician', 'Clinician'));
+
+    expect(await screen.findByRole('link', {name: 'Referral response: Referral reply'})).toHaveAttribute('href', '/letters/l1');
+    expect(screen.getByRole('button', {name: 'Write Letter'})).toBeInTheDocument();
   });
 });
 
@@ -412,6 +423,43 @@ describe('ReferralPage triage', () => {
     expect(history.getByText('Specialty Urology → Dermatology')).toBeInTheDocument();
     expect(history.getByText('Accepted by d.clinician')).toBeInTheDocument();
     expect(history.getByText('Skin check, High priority')).toBeInTheDocument();
+  });
+
+  it('asks the referrer for more information, then records that it came', async () => {
+    withAnnouncements();
+    const {user, fetch, unmount} = renderPage(
+      triager,
+      {[`POST /api/referrals/${REFERRAL_ID}/ask-for-information`]: () => json(testReferral({canTriage: true, status: 'InformationRequested'}))},
+      false,
+      clinician,
+    );
+
+    expect(await screen.findByText(/^Read the referral and its letter/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Information Received'})).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Ask for More Information'}));
+    const dialog = within(await waitFor(() => openDialog()!));
+    expect(dialog.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Ask for More Information'}));
+    await expectAnnounced('More information asked for');
+    expect(await (fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!).json()).toEqual({expectedVersion: 2});
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Information Received'})).toBeInTheDocument());
+    unmount();
+
+    const second = renderPage(
+      testReferral({canTriage: true, status: 'InformationRequested'}),
+      {[`POST /api/referrals/${REFERRAL_ID}/information-received`]: () => json(testReferral({canTriage: true}))},
+      false,
+      clinician,
+    );
+    expect(await screen.findByText(/^More information has been asked of the referrer/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Ask for More Information'})).not.toBeInTheDocument();
+    await second.user.click(screen.getByRole('button', {name: 'Information Received'}));
+    const received = within(await waitFor(() => openDialog()!));
+    await second.user.click(received.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    await second.user.click(screen.getByRole('button', {name: 'Information Received'}));
+    await second.user.click(within(await waitFor(() => openDialog()!)).getByRole('button', {name: 'Information Received'}));
+    await expectAnnounced('Information received');
   });
 
   it('shows its waiting-time clock, its pauses and the clock in its history, pointing to its pathway to resume it', async () => {

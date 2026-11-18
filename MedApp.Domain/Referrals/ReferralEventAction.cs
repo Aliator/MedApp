@@ -18,5 +18,11 @@ public enum ReferralEventAction
     ClockPaused = 8,
     ClockResumed = 9,
     ClockStopped = 10,
-    TargetChanged = 11
+    TargetChanged = 11,
+
+    /// <summary>A triager asked the referrer for more information: it waits in its own view, still open.</summary>
+    InformationRequested = 12,
+
+    /// <summary>The information asked for came: it's back awaiting triage.</summary>
+    InformationReceived = 13
 }

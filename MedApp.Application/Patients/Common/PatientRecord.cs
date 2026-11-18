@@ -1,6 +1,7 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Letters;
 using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
@@ -8,6 +9,7 @@ using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.PatientMessages;
 using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Specimens;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -70,6 +72,18 @@ public sealed record PatientRecord
 
     /// <summary>Every change to the patient's referrals, oldest first.</summary>
     public required IReadOnlyList<ReferralEvent> ReferralHistory { get; init; }
+
+    /// <summary>
+    /// The patient's letters, in any status, oldest first, with their recipients. Their history is in
+    /// <see cref="PathwayHistory"/>; their approved PDFs are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<Letter> Letters { get; init; }
+
+    /// <summary>
+    /// The patient's specimens, in any status, oldest taken first, with their types and labs. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<Specimen> Specimens { get; init; }
 
     /// <summary>
     /// The patient's MDT items, oldest listed first, with their specialty, meeting and who was present (items of a

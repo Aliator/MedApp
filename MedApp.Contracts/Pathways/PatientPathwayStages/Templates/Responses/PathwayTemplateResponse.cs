@@ -10,6 +10,9 @@ public sealed class PathwayTemplateResponse
     public Guid SpecialtyId { get; set; }
     public string SpecialtyName { get; set; } = string.Empty;
 
+    /// <summary>How long its patients' records are kept before review: Standard, Oncology, Maternity or MentalHealth.</summary>
+    public string RetentionClass { get; set; } = "Standard";
+
     /// <summary>How many pathways were created from it. A template that has been used can only be archived.</summary>
     public int PathwayCount { get; set; }
 

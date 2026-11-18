@@ -4,9 +4,11 @@ import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  isLetterEntry,
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
+  isSpecimenEntry,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
@@ -79,6 +81,8 @@ describe('timeline filters', () => {
       'Appointments',
       'Referrals',
       'Waiting time',
+      'Specimens',
+      'Letters',
       'Notes',
       'Assignments',
       'On hold',
@@ -503,5 +507,135 @@ describe('referral entries', () => {
     expect(
       describeTimelineEntry(entry({kind: 'Files', action: 'AttachmentAdded', attachedTo: 'Referral', referralId, pathwayId: NO_PATHWAY_ID, fileName: null})),
     ).toEqual({title: 'Attached a file', detail: 'To the referral'});
+  });
+});
+
+describe('specimen entries', () => {
+  const specimen = (fields: Partial<TimelineEntry>) =>
+    entry({kind: 'Specimens', specimenId: '00000051-0000-0000-0000-000000000001', specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', laboratoryName: 'Northgate pathology', ...fields});
+
+  it('says what happened to it, with its type and lab, which staff see', () => {
+    expect(isSpecimenEntry(specimen({action: 'SpecimenTaken'}))).toBe(true);
+    expect(isSpecimenEntry(entry({}))).toBe(false);
+    expect(describeTimelineEntry(specimen({action: 'SpecimenTaken', toStatus: 'Taken'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen taken',
+      detail: 'For Northgate pathology',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent'}))).toEqual({title: 'Skin biopsy (punch) specimen sent to Northgate pathology', detail: ''});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenReceived'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen received by Northgate pathology',
+      detail: '',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenReported'})).detail).toBe('The report from Northgate pathology is attached');
+    expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Received'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen rejected by Northgate pathology',
+      detail: 'Was received',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', fromStatus: 'Sent'}))).toEqual({title: 'Skin biopsy (punch) specimen marked lost', detail: 'Was sent'});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenEnteredInError', fromStatus: 'Taken'})).title).toBe(
+      'Skin biopsy (punch) specimen marked entered in error',
+    );
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSomethingNew', toStatus: 'RejectedByLab'}))).toEqual({
+      title: 'Skin biopsy (punch) specimen changed',
+      detail: 'Now rejected by the lab',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent', specimenTypeName: null, laboratoryName: null})).title).toBe('Specimen specimen sent');
+  });
+
+  it("gives admins what the API sends them: the site and notes, a rejection's reason, what a loss said", () => {
+    expect(
+      describeTimelineEntry(
+        specimen({action: 'SpecimenTaken', changes: [{field: 'site', to: 'Left forearm'}, {field: 'requestNotes', to: 'Urgent'}]}),
+      ).detail,
+    ).toBe('For Northgate pathology. Site: Left forearm. Notes for the lab: Urgent');
+    expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Sent', reason: 'Leaked: lid off', laboratoryName: null}))).toEqual({
+      title: 'Skin biopsy (punch) specimen rejected by the lab',
+      detail: 'Was sent. Reason: Leaked: lid off',
+    });
+    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', reason: 'Not in the batch'})).detail).toBe('Not in the batch');
+  });
+
+  it("says which details an edit changed, with values for the structured ones only", () => {
+    expect(
+      describeTimelineEntry(
+        specimen({
+          action: 'SpecimenDetailsEdited',
+          changes: [
+            {field: 'specimenType', from: 'Wound swab', to: 'Skin biopsy (punch)'},
+            {field: 'takenAtUtc', from: '2026-11-02T09:00:00Z', to: '2026-11-02T08:30:00Z'},
+            {field: 'requestingUser', from: null, to: 'dr.synthetic'},
+            {field: 'site'},
+            {field: 'requestNotes'},
+            {field: 'somethingNew'},
+          ],
+        }),
+      ),
+    ).toEqual({
+      title: 'Skin biopsy (punch) specimen: details edited',
+      detail:
+        'Type Wound swab → Skin biopsy (punch); Time taken 2 Nov 2026, 09:00 → 2 Nov 2026, 08:30; Requesting clinician none → dr.synthetic; Site changed; Notes for the lab changed; SomethingNew changed',
+    });
+  });
+});
+
+const letterEntry = (fields: Partial<TimelineEntry>) =>
+  entry({kind: 'Letters', letterId: 'l1', letterKind: 'DischargeSummary', letterTemplateName: 'Skin discharge', ...fields});
+
+describe('letter entries', () => {
+  it('knows a letter entry', () => {
+    expect(isLetterEntry(letterEntry({action: 'LetterDrafted'}))).toBe(true);
+    expect(isLetterEntry(entry({kind: 'Other', action: 'LetterSent'}))).toBe(true);
+    expect(isLetterEntry(entry({}))).toBe(false);
+  });
+
+  it('words each step, with the template, and the comment or reason only when the API sends them (admins)', () => {
+    expect(describeTimelineEntry(letterEntry({action: 'LetterDrafted'}))).toEqual({title: 'Discharge summary started', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', approverUsername: 'd.clinician'}))).toEqual({
+      title: 'Discharge summary submitted for approval',
+      detail: 'To d.clinician. From Skin discharge',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', letterTemplateName: null}))).toEqual({
+      title: 'Discharge summary submitted for approval',
+      detail: '',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned', reason: 'Add the plan'}))).toEqual({
+      title: 'Discharge summary returned to its author',
+      detail: 'From Skin discharge. Comment: Add the plan',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned'}))).toEqual({title: 'Discharge summary returned to its author', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterApproved', letterKind: 'Other'}))).toEqual({title: 'Letter approved', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'GpPractice', dispatchMethod: 'Post', dispatchStatus: 'Sent'}))).toEqual({
+      title: 'Discharge summary sent to the GP practice',
+      detail: 'Post. From Skin discharge',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Patient', dispatchMethod: 'HandedToPatient'}))).toEqual({
+      title: 'Discharge summary sent to the patient',
+      detail: 'Handed to the patient. From Skin discharge',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Other', dispatchMethod: 'SecureEmail', dispatchStatus: 'Failed'}))).toEqual({
+      title: "Discharge summary couldn't be sent to someone else",
+      detail: 'Secure email from MedApp failed. From Skin discharge',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: null, dispatchMethod: null, dispatchStatus: 'Failed'}))).toEqual({
+      title: "Discharge summary couldn't be sent to a recipient",
+      detail: 'Secure email from MedApp failed. From Skin discharge',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn', reason: 'Wrong plan'}))).toEqual({
+      title: 'Discharge summary withdrawn',
+      detail: 'From Skin discharge. Reason: Wrong plan',
+    });
+    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn'}))).toEqual({title: 'Discharge summary withdrawn', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterFiled'}))).toEqual({title: 'Discharge summary changed', detail: 'From Skin discharge'});
+  });
+
+  it('words asking a referrer for more information, and it arriving', () => {
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralInformationRequested'}))).toEqual({
+      title: 'Referral to Dermatology: more information asked for',
+      detail: 'Waiting for the referrer',
+    });
+    expect(describeTimelineEntry(referralEntry({action: 'ReferralInformationReceived'}))).toEqual({
+      title: 'Referral to Dermatology: information received',
+      detail: 'Back to awaiting triage',
+    });
   });
 });

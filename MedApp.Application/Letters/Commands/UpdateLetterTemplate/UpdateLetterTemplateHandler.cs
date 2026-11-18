@@ -41,7 +41,8 @@ public sealed class UpdateLetterTemplateHandler(
 
         if (template.Name == name && template.Kind == kind && template.SpecialtyId == request.SpecialtyId
             && template.Letterhead == letterhead && template.BodySkeleton == body && template.Closing == closing)
-            return LetterTemplateMapper.ToResponse(template, specialtyName);
+            return LetterTemplateMapper.ToResponse(
+                template, specialtyName, !await repository.IsInUseAsync(template.Id, cancellationToken));
 
         var nameOrSpecialtyChanged = !string.Equals(template.Name, name, StringComparison.OrdinalIgnoreCase)
                                      || template.SpecialtyId != request.SpecialtyId;
@@ -60,6 +61,7 @@ public sealed class UpdateLetterTemplateHandler(
         template.LastUpdated = timeProvider.GetUtcNow().UtcDateTime;
         await repository.UpdateAsync(template, originalVersion, cancellationToken);
 
-        return LetterTemplateMapper.ToResponse(template, specialtyName);
+        return LetterTemplateMapper.ToResponse(
+            template, specialtyName, !await repository.IsInUseAsync(template.Id, cancellationToken));
     }
 }

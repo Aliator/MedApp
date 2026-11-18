@@ -34,6 +34,15 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
     .WithEnvironment("Email__Smtp__Security", "None")
     .WithEnvironment("Email__FromAddress", "medapp@localhost")
     .WithEnvironment("Email__LinkBaseUrl", "http://localhost:5173")
+    // Letters sent by "secure email" go to Mailpit too, so the whole sending path can be tried locally. Mailpit isn't a
+    // secure relay: declaring it one (RelayMeetsDcb1596) is only ever right here, where nothing leaves the machine. A
+    // deployment sets its organisation's NHSmail or accredited relay, and declares it, itself.
+    .WithEnvironment("Letters__SecureEmail__Host", smtp.Property(EndpointProperty.Host))
+    .WithEnvironment("Letters__SecureEmail__Port", smtp.Property(EndpointProperty.Port))
+    .WithEnvironment("Letters__SecureEmail__Security", "None")
+    .WithEnvironment("Letters__SecureEmail__FromAddress", "letters@localhost.nhs.net")
+    .WithEnvironment("Letters__SecureEmail__FromName", "MedApp development centre")
+    .WithEnvironment("Letters__SecureEmail__RelayMeetsDcb1596", "true")
     .WaitFor(mailpit);
 
 // Attached files' bytes: Azure Blob Storage, emulated by Azurite in Docker, kept in a volume and running between

@@ -171,6 +171,14 @@ public static class TimelineMapper
                 response.FileName = isAdmin ? Text(details, "fileName") : null;
                 break;
 
+            case >= LetterDrafted and <= LetterWithdrawn:
+                Letter(response, entry.Action, details, isAdmin ? row.Letter : null);
+                break;
+
+            case >= SpecimenTaken and <= SpecimenDetailsEdited:
+                Specimen(response, entry.Action, details, isAdmin ? row.Specimen : null);
+                break;
+
             // MDT items: the specialty (an admin-written name), the meetings' times and who was present, for everyone.
             // The question and the outcome are never in the details, so neither is ever here (decision 70).
             case MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn:
@@ -186,6 +194,111 @@ public static class TimelineMapper
 
         return response;
     }
+
+    /// <summary>
+    /// A letter entry: which letter, its kind and template (an admin-written name), its referral, whom it was submitted
+    /// to, and for a sending the recipient's kind, the method and whether it reached them. Never free text for staff:
+    /// the return comment and the withdrawal reason are for admins only, read from the letter
+    /// (<paramref name="letter"/>, given only for admins), as the audit holds none; the letter's text is on its page.
+    /// </summary>
+    private static void Letter(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Letters.Letter? letter)
+    {
+        response.LetterId = Guid.TryParse(Text(details, "letterId"), out var letterId) ? letterId : null;
+        response.LetterKind = Text(details, "kind");
+        response.LetterTemplateName = Text(details, "templateName");
+        response.ReferralId = Guid.TryParse(Text(details, "referralId"), out var referralId) ? referralId : null;
+
+        switch (action)
+        {
+            case LetterSubmitted:
+                response.ApproverUsername = Text(details, "approver");
+                break;
+
+            case LetterApproved:
+                response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+                break;
+
+            case LetterSent:
+                response.RecipientKind = Text(details, "recipientKind");
+                response.DispatchMethod = Text(details, "method");
+                response.DispatchStatus = Text(details, "dispatchStatus");
+                break;
+
+            case LetterReturned when letter is not null:
+                response.Reason = letter.ReturnedAtUtc is not null ? letter.ReturnComment : null;
+                break;
+
+            case LetterWithdrawn when letter is not null:
+                response.Reason = letter.WithdrawnReason;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A specimen entry: which specimen (its number), its type and lab (admin-written names), the status before and
+    /// after, the report's file, and for an edit the fields changed, with values for the structured ones only. Never
+    /// free text for staff: the site, request notes, rejection reason and every detail typed are for admins only, read
+    /// from the specimen (<paramref name="specimen"/>, given only for admins), as the audit holds none.
+    /// </summary>
+    private static void Specimen(
+        PatientTimelineEntryResponse response,
+        PatientPathwayAuditAction action,
+        IReadOnlyDictionary<string, JsonElement> details,
+        Domain.Specimens.Specimen? specimen)
+    {
+        response.SpecimenId = Guid.TryParse(Text(details, "specimenId"), out var specimenId) ? specimenId : null;
+        response.SpecimenNumber = Text(details, "number");
+        response.SpecimenTypeName = Text(details, "specimenType");
+        response.LaboratoryName = Text(details, "laboratory");
+        response.FromStatus = Text(details, "from");
+        response.ToStatus = Text(details, "to");
+
+        switch (action)
+        {
+            case SpecimenReported:
+                response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+                break;
+
+            case SpecimenDetailsEdited:
+                var changes = details.TryGetValue("changes", out var c) ? ObjectOf(c) : new Dictionary<string, JsonElement>();
+                response.Changes = (details.TryGetValue("fields", out var fields) && fields.ValueKind == JsonValueKind.Array
+                        ? fields.EnumerateArray().Select(f => f.GetString()).OfType<string>()
+                        : [])
+                    .Select(field => Change(
+                        field,
+                        changes.TryGetValue(field, out var values) ? ObjectOf(values) : new Dictionary<string, JsonElement>(),
+                        Specimens.Common.SpecimenChange.StructuredFields.Contains(field)))
+                    .ToList();
+                break;
+
+            case SpecimenTaken when specimen is not null:
+                response.Changes =
+                [
+                    .. specimen.Site is { } site ? [new PatientTimelineChangeResponse { Field = Specimens.Common.SpecimenChange.SiteField, To = site }] : Array.Empty<PatientTimelineChangeResponse>(),
+                    .. specimen.RequestNotes is { } notes ? [new PatientTimelineChangeResponse { Field = Specimens.Common.SpecimenChange.RequestNotesField, To = notes }] : Array.Empty<PatientTimelineChangeResponse>(),
+                ];
+                break;
+
+            case SpecimenRejected when specimen is not null:
+                var reason = PathwayEnums.TryParse<Domain.Specimens.SpecimenRejectionReason>(Text(details, "rejectionReason"), out var r)
+                    ? Specimens.Common.SpecimenWorkflow.Describe(r)
+                    : null;
+                response.Reason = string.IsNullOrWhiteSpace(specimen.ClosedDetail) ? reason : $"{reason}: {specimen.ClosedDetail}";
+                break;
+
+            case SpecimenLost or SpecimenEnteredInError when specimen is not null:
+                response.Reason = specimen.ClosedDetail;
+                break;
+        }
+    }
+
+    /// <summary>A GUID a JSON object's property holds, or null (for details that aren't JSON, or lack it).</summary>
+    public static Guid? GuidIn(string details, string property) =>
+        Guid.TryParse(Text(ParseDetails(details), property), out var id) ? id : null;
 
     /// <summary>
     /// One appointment history entry: its action is "Appointment" and what happened (e.g. AppointmentBooked), with
@@ -299,6 +412,11 @@ public static class TimelineMapper
                         return new PatientTimelineChangeResponse { Field = field, From = values.From, To = values.To };
                     })
                     .ToList();
+                break;
+
+            // More information asked of the referrer, or come: the status, structured.
+            case Domain.Referrals.ReferralEventAction.InformationRequested or Domain.Referrals.ReferralEventAction.InformationReceived:
+                response.ToStatus = details.ToStatus;
                 break;
 
             case Domain.Referrals.ReferralEventAction.Withdrawn or Domain.Referrals.ReferralEventAction.EnteredInError:

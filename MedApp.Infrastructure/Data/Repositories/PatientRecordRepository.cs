@@ -111,6 +111,24 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
+        // Letters, with their recipients (their history is in the pathway audit; their PDFs among the files).
+        var letters = await Tracking(context.Letters, forUpdate)
+            .Include(l => l.Recipients)
+            .Where(l => l.PatientId == patientId)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        // Specimens, with their types and labs; their history is in the audit entries above.
+        var specimens = await Tracking(context.Specimens, forUpdate)
+            .Include(s => s.SpecimenType)
+            .Include(s => s.Laboratory)
+            .Where(s => s.PatientId == patientId)
+            .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
+            .ToListAsync(ct);
+        foreach (var specimen in specimens)
+            specimen.Patient = patient;
+
         // MDT items, with the question and outcome, who was present, and their specialty and meeting for the export.
         var mdtItems = await Tracking(context.MdtItems, forUpdate)
             .Include(i => i.Attendees)
@@ -141,6 +159,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Attachments = attachments,
             Referrals = referrals,
             ReferralHistory = referralHistory,
+            Letters = letters,
+            Specimens = specimens,
             MdtItems = mdtItems
         };
     }

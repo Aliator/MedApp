@@ -62,6 +62,10 @@ public abstract class AttachmentHandlerTestBase : PathwayHandlerTestBase
 
         Fixture.Inject(Patients.Object);
         Fixture.Inject<IFileStore>(Store);
+        // No file is a letter's PDF unless a test says so.
+        var letters = new Mock<MedApp.Application.Letters.Repositories.ILetterRepository>();
+        letters.Setup(l => l.IsPdfAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        Fixture.Inject(letters.Object);
         Fixture.Inject<IUploadStaging>(new MemoryUploadStaging());
         Fixture.Inject(Scanner.Object);
         Fixture.Inject(Thumbnails.Object);

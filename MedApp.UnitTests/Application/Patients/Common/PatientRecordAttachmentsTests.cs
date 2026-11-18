@@ -63,7 +63,10 @@ public sealed class PatientRecordAttachmentsTests
             NoteVersions = [],
             NoteDeletionRequests = [],
             Referrals = [],
-            ReferralHistory = [], MdtItems = []
+            ReferralHistory = [],
+            Letters = [],
+            Specimens = [],
+            MdtItems = []
         }, live, deleted, pathway);
     }
 
@@ -159,7 +162,10 @@ public sealed class PatientRecordAttachmentsTests
             NoteVersions = [],
             NoteDeletionRequests = [],
             Referrals = [],
-            ReferralHistory = [], MdtItems = []
+            ReferralHistory = [],
+            Letters = [],
+            Specimens = [],
+            MdtItems = []
         };
 
         PatientAnonymiser.Apply(withOdd, AnonymisedAt);

@@ -50,7 +50,10 @@ public static class PrivacyTestConstants
         Notifications = record.Notifications,
         Attachments = record.Attachments,
         Referrals = [],
-        ReferralHistory = [], MdtItems = []
+        ReferralHistory = [],
+        Letters = [],
+        Specimens = [],
+        MdtItems = []
     };
 
     /// <summary>The record with these requests to delete notes.</summary>
@@ -67,7 +70,10 @@ public static class PrivacyTestConstants
         Notifications = record.Notifications,
         Attachments = record.Attachments,
         Referrals = [],
-        ReferralHistory = [], MdtItems = []
+        ReferralHistory = [],
+        Letters = [],
+        Specimens = [],
+        MdtItems = []
     };
 
     public static PatientRecord CreateRecord(Patient? patient = null, params PatientPathway[] pathways)
@@ -130,7 +136,10 @@ public static class PrivacyTestConstants
             NoteDeletionRequests = [],
             Attachments = [],
             Referrals = [],
-            ReferralHistory = [], MdtItems = []
+            ReferralHistory = [],
+            Letters = [],
+            Specimens = [],
+            MdtItems = []
         };
     }
 

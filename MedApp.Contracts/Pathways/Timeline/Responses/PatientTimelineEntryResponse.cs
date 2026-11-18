@@ -167,6 +167,38 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>A target date change: made by the referral's waiting-time clock, not by hand.</summary>
     public bool FromClock { get; set; }
+    /// <summary>A letter entry: the letter.</summary>
+    public Guid? LetterId { get; set; }
+
+    /// <summary>A letter entry: its kind, by name (ClinicLetter, DischargeSummary, ...).</summary>
+    public string? LetterKind { get; set; }
+
+    /// <summary>A letter entry: the template it was written from, an admin-written name.</summary>
+    public string? LetterTemplateName { get; set; }
+
+    /// <summary>LetterSubmitted: the approver it was submitted to (a username).</summary>
+    public string? ApproverUsername { get; set; }
+
+    /// <summary>LetterSent: which recipient, by kind (GpPractice, Patient, Referrer, Other).</summary>
+    public string? RecipientKind { get; set; }
+
+    /// <summary>LetterSent: how (Post, HandedToPatient, SecureEmail, EmailOutsideMedApp, Other).</summary>
+    public string? DispatchMethod { get; set; }
+
+    /// <summary>LetterSent: whether it reached them (Sent), or a secure email failed (Failed).</summary>
+    public string? DispatchStatus { get; set; }
+
+    /// <summary>A specimen entry: the specimen.</summary>
+    public Guid? SpecimenId { get; set; }
+
+    /// <summary>A specimen entry: its number, e.g. MA26-000123.</summary>
+    public string? SpecimenNumber { get; set; }
+
+    /// <summary>A specimen entry: its type, an admin-written name.</summary>
+    public string? SpecimenTypeName { get; set; }
+
+    /// <summary>A specimen entry: its lab, an admin-written name.</summary>
+    public string? LaboratoryName { get; set; }
 
     /// <summary>An MDT entry's item.</summary>
     public Guid? MdtItemId { get; set; }

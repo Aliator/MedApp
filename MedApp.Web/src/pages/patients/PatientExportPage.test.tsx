@@ -296,7 +296,65 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No requests to delete notes.')).toBeInTheDocument();
     expect(screen.getByText('No referrals.')).toBeInTheDocument();
     expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
+    expect(screen.getByText('No specimens.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
+  });
+
+  it('lists every specimen: where it came from, where it went, and how it closed', async () => {
+    renderExport({
+      ...data,
+      specimens: [
+        {
+          id: 'b184a7b8-2585-4437-bcd4-e1700be38215',
+          number: 'MA26-000123',
+          pathwayId,
+          specimenTypeName: 'Skin biopsy (punch)',
+          laboratoryName: 'Northgate pathology',
+          site: 'Left forearm',
+          requestNotes: 'Synthetic notes for the lab.',
+          requestedBy: 'dr.synthetic',
+          status: 'Reported',
+          takenAtUtc: '2026-11-02T09:00:00Z',
+          takenBy: 'test-nurse',
+          sentAtUtc: '2026-11-02T15:00:00Z',
+          courierReference: 'CR-42',
+          receivedAtUtc: '2026-11-03T10:00:00Z',
+          labReference: 'NP-77',
+          reportedAtUtc: '2026-11-05T12:00:00Z',
+          reportAttachmentId: 'c184a7b8-2585-4437-bcd4-e1700be38216',
+        },
+        {
+          id: 'b184a7b8-2585-4437-bcd4-e1700be38217',
+          number: 'MA26-000100',
+          pathwayId: 'b184a7b8-2585-4437-bcd4-e1700be382ff',
+          specimenTypeName: 'Wound swab',
+          laboratoryName: 'Riverside lab',
+          requestedBy: 'dr.synthetic',
+          status: 'RejectedByLab',
+          takenAtUtc: '2026-10-30T09:00:00Z',
+          takenBy: 'test-nurse',
+          rejectionReason: 'InsufficientSample',
+          closedDetail: 'Too little.',
+          closedAtUtc: '2026-10-31T09:00:00Z',
+          closedBy: 'test-lab',
+        },
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {name: 'Specimens (2)'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Specimen MA26-000123: Skin biopsy (punch)'})).toBeInTheDocument();
+    expect(screen.getByText('2 Nov 2026, 09:00 by test-nurse')).toBeInTheDocument();
+    expect(screen.getByText('2 Nov 2026, 15:00, reference CR-42')).toBeInTheDocument();
+    expect(screen.getByText("3 Nov 2026, 10:00, lab's reference NP-77")).toBeInTheDocument();
+    expect(screen.getByText('5 Nov 2026, 12:00, its report is under Files')).toBeInTheDocument();
+    expect(screen.getByText('Notes for the lab: Synthetic notes for the lab.')).toBeInTheDocument();
+    expect(screen.getByText('Rejected by the lab')).toBeInTheDocument();
+    expect(screen.getByText('Insufficient sample')).toBeInTheDocument();
+    expect(screen.getByText('Too little.')).toBeInTheDocument();
+    expect(screen.getByText('31 Oct 2026, 09:00 by test-lab')).toBeInTheDocument();
+    expect(screen.getAllByText('A deleted pathway').length).toBeGreaterThan(0);
+    expect(screen.getByText('Not sent')).toBeInTheDocument();
+    expect(screen.getByText('Notes for the lab: none')).toBeInTheDocument();
   });
 
   it('lists every referral with what the referrer sent and what was decided, its history, and its letters', async () => {

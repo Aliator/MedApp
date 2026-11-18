@@ -137,3 +137,25 @@ describe('isPatientFileEntry', () => {
     expect(isPatientFileEntry({patientPathwayId: '00000034-0000-0000-0000-000000000001'})).toBe(false);
   });
 });
+
+describe('specimen entries', () => {
+  const details = {specimenId: 's1', number: 'MA26-000123', specimenType: 'Skin biopsy (punch)', laboratory: 'Northgate pathology'};
+
+  it('names each action', () => {
+    expect(auditActionLabel('SpecimenTaken')).toBe('Specimen taken');
+    expect(auditActionLabel('SpecimenEnteredInError')).toBe('Specimen entered in error');
+    expect(auditActionLabel('SpecimenDetailsEdited')).toBe('Specimen details edited');
+  });
+
+  it('says which specimen, its status change, a rejection reason and the fields an edit changed', () => {
+    const entry = (action: string, extra: object) => describeAuditDetails({action, details: JSON.stringify({...details, ...extra})});
+    expect(entry('SpecimenSent', {from: 'Taken', to: 'Sent'})).toBe('MA26-000123, Skin biopsy (punch), to Northgate pathology: Taken → sent');
+    expect(entry('SpecimenRejected', {from: 'Received', to: 'RejectedByLab', rejectionReason: 'InsufficientSample'})).toBe(
+      'MA26-000123, Skin biopsy (punch), to Northgate pathology: Received → rejected by lab; Reason: insufficient sample',
+    );
+    expect(entry('SpecimenDetailsEdited', {fields: ['site', 'specimenType', 3]})).toBe(
+      'MA26-000123, Skin biopsy (punch), to Northgate pathology: Changed: site, specimenType',
+    );
+    expect(describeAuditDetails({action: 'SpecimenLost', details: '{}'})).toBe('');
+  });
+});

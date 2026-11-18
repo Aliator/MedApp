@@ -128,6 +128,13 @@ describe('StageList', () => {
     expect(await screen.findByText('SNOMED CT: 80146002 | Appendectomy')).toBeVisible();
   });
 
+  it('says when a stage needs a letter before it can be finished, and nothing for one that needs none', async () => {
+    renderWithApp(<StageList stages={[stage({isCurrent: true, needsLetterKind: 'DischargeSummary'}), stage({id: 'x', stageOrder: 2, needsLetterKind: 'None'})]} />);
+
+    expect(await screen.findByText('Needs a discharge summary, approved and sent, before it can be finished.')).toBeVisible();
+    expect(screen.getAllByText(/^Needs a/)).toHaveLength(1);
+  });
+
   it('says when a stage has no notes', async () => {
     renderWithApp(<StageList stages={[stage({isCurrent: true})]} />);
 

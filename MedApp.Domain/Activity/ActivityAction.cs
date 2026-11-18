@@ -128,7 +128,14 @@ public enum ActivityAction
     /// </summary>
     RoleChanged = 44,
 
-    // 45 to 47 are kept for the Phase 3 views (specimens, results, letters: docs/centre-phases-3-5-plan.md, section 5).
+    /// <summary>
+    /// Someone opened a specimen's page or printed its label or request sheet, or found it by its number: the specimen's
+    /// ID in its details. (46 is kept for results: <c>docs/centre-phases-3-5-plan.md</c>, section 5.)
+    /// </summary>
+    SpecimenViewed = 45,
+
+    /// <summary>Someone opened a letter's page, or its draft's preview: the letter's ID in its details.</summary>
+    LetterViewed = 47,
 
     /// <summary>
     /// Someone's full name or job title was changed, by themselves or by an admin: the names of the fields changed, never

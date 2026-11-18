@@ -8,8 +8,10 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Letters;
 using MediatR;
 
 namespace MedApp.Application.Patients.Commands.AnonymisePatient;
@@ -58,6 +60,22 @@ public sealed partial class AnonymisePatientHandler(
             throw new ConflictException(
                 $"This patient has {awaitingTriage} referral{(awaitingTriage == 1 ? "" : "s")} awaiting triage, so their " +
                 $"record can't be anonymised until {(awaitingTriage == 1 ? "it's" : "they're")} triaged or withdrawn.");
+
+        // A letter still being written, awaiting approval or not yet sent to everyone is care still under way.
+        var openLetters = record.Letters.Count(l => l.Status is LetterStatus.Draft or LetterStatus.AwaitingApproval
+                                                    || (l.Status == LetterStatus.Approved && !l.IsSentToEveryone));
+        if (openLetters > 0)
+            throw new ConflictException(
+                $"This patient has {openLetters} letter{(openLetters == 1 ? "" : "s")} not yet sent to everyone (a draft, " +
+                "awaiting approval, or approved and still to send), so their record can't be anonymised until " +
+                $"{(openLetters == 1 ? "it's" : "they're")} sent, discarded or withdrawn.");
+
+        var openSpecimens = record.Specimens.Count(s => SpecimenWorkflow.IsOpen(s.Status));
+        if (openSpecimens > 0)
+            throw new ConflictException(
+                $"This patient has {openSpecimens} specimen{(openSpecimens == 1 ? "" : "s")} still with the lab (taken, sent or " +
+                $"received), so their record can't be anonymised until {(openSpecimens == 1 ? "it's" : "they're")} reported, " +
+                "rejected, lost or entered in error.");
 
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(

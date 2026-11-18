@@ -33,14 +33,24 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **Demo data** for practices, contact details and staff names comes with Phase 3's demo data (PR 17).
   - **Looking practices up in the national ODS service** stays for later (plan, section 8): the directory is typed.
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
+  - **Specimens are built** (PR 13, `feature/specimens`: `docs/agents/specimens.md`). **Results sign-off is next** (PR 14): make a result from each report, in the same save as the report (`SaveReportAsync`), and switch the requesting clinician check from `WorkPathways` to `SignOffResults` (`SpecimenChoices.RequestingClinicianPermission`). Until then a reported specimen tells nobody its report is back, so specimens' reports mustn't be relied on with patients (hazards H-45 and H-46).
+  - **No correction for a wrong report yet:** a reported specimen is closed, and its report can't be deleted on its own, so a report attached to the wrong specimen stays there until PR 14's "entered in error" sends the specimen back to Received (hazard H-47; the safety case lists it as a known defect).
+  - **Demo specimens** (PR 17): the demo data has the specimen types and labs only (`DemoSpecimens`); specimens with their reports, through the specimen rules, come with Phase 3's demo data.
+  - **A label printer format:** the label and request sheet are printable pages, laid out for A4, today (`/specimens/{id}/print`). Add a layout for a label printer (a small label of the number, its QR code and the patient's identifiers), so the label fits the pot.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
   - **Letter templates and the PDF engine are built** (PR 15, `feature/letter-templates`: `docs/agents/letters.md`). Left from it:
     - **PDF/A:** letters are made in PDFsharp's PDF/A-1a mode and pass veraPDF 1.30 while every character is Windows-1252, but one with other characters (Ł, ł, ş, ğ, common in Polish and Turkish names) fails clause 6.3.5, as PDFsharp 6.2 writes no CIDSet for the extra font it then embeds. Before claiming PDF/A: add the CIDSet (a fix upstream, a post-processing step, or a font without the second encoding), and check again with veraPDF (`verapdf/cli`, `--flavour 1a`). GP systems accept plain PDF meanwhile (plan, decision 98).
     - **Tags are coarse:** each page's text is one paragraph element, so headings and lists aren't tagged as such (PDFsharp can't tag what MigraDoc lays out). A screen reader reads the text in order; finer tags need per-element rendering or another library.
     - **PDFsharp and MigraDoc stay on 6.2.x:** 6.5.0 and later are AGPL-3.0 (Dependabot ignores them). If 6.2 stops getting fixes, decide between buying empira's commercial licence, staying on 6.2 with the NuGet audit as the alarm, or another MIT library.
-    - **Deleting an unused template** comes with letters (PR 16), which know whether one was used; until then templates are only archived.
-    - **The letter font covers Latin scripts only:** PR 16 must refuse (with `FindUnsupportedCharacters`) a patient's name, address or body text it can't show, naming the characters, rather than print `?`.
+    - **The letter font covers Latin scripts only:** done for letters (PR 16 refuses a letter's text, a typed recipient, and at approval the filled letter, the patient's name included, naming the characters). A wider font (or a fallback) is still to choose if patients' names need other scripts.
+  - **Letters are built** (PR 16, `feature/letters`: `docs/agents/letters.md`). Left from it:
+    - **Secure email outside development:** `Letters:SecureEmail` is set by the AppHost (Mailpit) only. The Helm chart and Azure need its settings, the relay's password from the secret store, and the network policy's egress to the relay's port; tried on kind before it merges (`docs/agents/deploy.md`). Until then deployments record letters as posted or handed over.
+    - **A real relay:** the deploying organisation's NHSmail (or accredited) relay and its DCB1596 declaration (the plan's section 7).
+    - **Two returns overwrite:** a letter keeps only its latest return comment; an earlier one is gone once it's returned again (the audit records each return, without the words). Keep every comment if approvers ask for the history.
+    - **The demo data** (PR 17) seeds letter templates and letters.
+    - **Who is told of a failed secure email:** today only whoever sent it, at once. A letter left Failed shows in To send; a service alert for letters unsent after N days is Phase 4's.
+    - **GP Connect Send Document** (`LetterDispatchMethod.GpConnect = 5`) is Phase 5's adapter.
 
 **Phase 4: day-to-day running for a real team.**
 - **Pathways that branch:** optional stages, or a choice of next stage, each with an audit entry, instead of stages strictly in order (a benign result means discharge, a malignant one treatment).
@@ -59,7 +69,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **A message's content kept for as long as the record:** messages are part of the patient record and kept with it; whether their text and destination should be purged sooner (a few months) is the DPO's decision (`docs/governance/retention-schedule.md`).
   - **Demo data:** offline messages for past appointments, some not sent and some failed, follow-ups recorded and three waiting (PR 28).
 - **Adjusted with them:**
-  - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked.
+  - **Monitoring rules for a service:** a referral not triaged in two days, a result not signed off, a visit waiting too long to be booked, a specimen days past its expected turnaround at the lab (hazard H-45's service alert, PR 25).
   - **Who may finish a stage without its visit:** a senior clinician, not whoever is an admin. **Built** (PR 24, `feature/stage-permissions`): `OverrideStages` split into `UnlockStages` and `FinishWithoutVisit`, the starting role Senior clinician, the built-in Admin role without `FinishWithoutVisit`, and the `StageFinishedWithoutVisit` monitoring event. Left for later:
     - **Demo data** moves the consultants and the GP with a special interest to Senior clinician, and takes both off Clinician (PR 28), as the release note asks admins to do where their senior clinicians alone should unlock stages and finish one without its visit. Until then Clinician keeps both, so nobody lost anything.
     - **Skipping a stage whose visit is Required** needs `FinishWithoutVisit` too, but isn't a monitoring event (decision 136 names finishing only): add `StageSkippedWithoutVisit`, or fire `StageFinishedWithoutVisit` for it, if admins ask.
@@ -72,7 +82,6 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Outcome questionnaires:** scores before and after treatment, recorded and shown, never scored into advice.
 - **Private patients:** fees, invoices and insurer details.
 - **The full data-request pack:** see Privacy, "A GDPR report for a patient's data request".
-- **Longer retention classes:** a centre doing cancer work needs more than the adult and child periods (Privacy, "Retention classes per template").
 - **Several sites or organisations in one deployment:** multi-tenancy (roadmap step 8), before a second centre shares the system.
 - **Links to NHS systems:** the e-Referral Service, the real demographics lookup (Patient identity, "The real PDS lookup"), letters sent to GP systems, and the lab's own system. Each needs NHS onboarding, which takes months.
 - **Video and phone consultations:** an appointment type and a link; the call happens in another tool.
@@ -184,7 +193,8 @@ The first part is built: the activity log and access report, the subject access 
   - **The request:** logging it (received, identity checked, target date), the one-month deadline with a reminder, and recording when and how the response was sent.
   - **Before it goes:** the clinician review step above, and other people's details removed (a note flagged `IsAboutAnotherPatient`, staff beyond their names).
 - **Count appointments in the retention review:** the conclusion of treatment should be the latest of the last closed pathway, the last appointment attended, not attended or cancelled, and the last change to the record, and wait while any appointment is Requested or Booked (`docs/governance/retention-schedule.md`, section 2). Today appointments don't move it.
-- **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
+- **Retention classes:** built per template (PR 27). Still to do: **the DPO confirms the class years** (`Retention:Classes`: oncology 30, maternity 25, mental health 20, counted from the conclusion of treatment; the Code counts maternity from the last birth and oncology from diagnosis) before a customer relies on them; a deleted pathway's class stops counting (record it in the audit, or on the patient); per-customer settings (step 8).
+- **Retention, still to do:** the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
 - **Saved searches that name a patient,** removed on anonymisation or destruction: their terms can be a name or an NHS number (the patient list's NHS number filter), kept in the account's settings and the browser. Anonymisation removes the number from the record but not from saved searches (DPIA risk 21).
 - **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
 - **Contact preferences** and a National Data Opt-out flag.
@@ -271,6 +281,14 @@ What the security baseline left, so the app would work exactly as before (`docs/
 - **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too; accepting a referral checks it on the referral loaded for update, like creating a pathway).
 - **Working hours, from the review of #156:** check attendees' hours only when a meeting moves or for newly added attendees (a title-only edit is refused after someone's hours shrink); remove a person's `StaffHours` when their account is deleted or loses its staff roles, so a site isn't kept "in use" by a leaver.
 - **Triage, from the review of #158:** keep each move's redirect detail with its own history entry, so admins don't see the latest reason against earlier moves; report a pathway-save conflict that isn't the referral's row version with its real cause rather than "changed meanwhile".
+- **Trimmed from Phase 5 (the owner, 18 November 2026), designed in `docs/centre-phases-3-5-plan.md` but not built:**
+  - **Commissioner reports** (plan PR 32): counts of activity, waits, missed appointments and turnaround by specialty and month for whoever pays for the service, with small numbers suppressed for sharing and a CSV download guarded against formula injection. Builds on Insights.
+  - **Outcome questionnaires** (plan PR 33): scores before and after treatment, recorded as written on the form and shown, never calculated or scored into advice.
+  - **Private patients and invoices** (plan PR 34): fees, invoices and insurers' details.
+  - **A real malware scanner** (plan PR 37): ClamAV in the chart (and Defender for Storage on Azure) behind `IMalwareScanner`, replacing `NoMalwareScanner`; a chart change, tried on kind.
+  - **NHS adapters with offline stand-ins** (plan PRs 38a to 38c): e-Referral Service referrals into a queue a person matches to a patient; GP Connect letters with a simulated lab; the PDS sandbox. Each needs NHS onboarding to go live.
+  - **Several organisations in one deployment** (plan PRs 40a to 40c, roadmap step 8, multi-tenancy).
+  - **Video and phone appointments** (plan PR 36): an appointment mode and a link, with no room; the link is patient data (export, anonymisation, never in staff notifications or logs) and hazard H-61 (a link reaching the wrong patient) applies.
 
 ## Long term
 

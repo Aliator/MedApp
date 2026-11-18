@@ -37,11 +37,17 @@ public static class DemoWipe
                 // Children before parents: referral → patient/specialty/pathway, appointment → patient/pathway/stage,
                 // pathway → patient and stage/map → definition don't cascade; nor do calendar blocks and templates →
                 // activity type and day template.
+                // Letters first: they name patients, pathways, referrals and templates (recipients go with them).
+                await db.Letters.ExecuteDeleteAsync(cancellationToken);
                 await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.ReferralClockPauses.ExecuteDeleteAsync(cancellationToken);
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 // Texts and emails to patients (no foreign keys) go with their appointments.
                 await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
+                // Specimens hold their pathways, types and labs (foreign keys), so they go first.
+                await db.Specimens.ExecuteDeleteAsync(cancellationToken);
+                await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
+                await db.Laboratories.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 // Clinic sessions (after the appointments booked into them), then the patterns that made them; both

@@ -58,11 +58,17 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the pathway audit log
         ["api/referrals/{id:guid}"] = Records("ReferralViewed"), // the referral's ID in the details
         ["api/referrals/search"] = Records("PatientListed"),
+        ["api/letters/{id:guid}"] = Records("LetterViewed"), // the letter's ID in the details
+        ["api/letters/{id:guid}/preview"] = Records("LetterViewed"), // with preview: true
+        ["api/letters/search"] = Records("PatientListed"),
         ["api/mdt/meetings/{meetingId:guid}/items"] = Records("PatientListed"), // each patient on the MDT's list
         ["api/mdt/awaiting-meeting"] = Records("PatientListed"), // each patient whose MDT was cancelled
         ["api/mdt/pathways/{pathwayId:guid}/items"] = Records("PathwayViewed"),
         ["api/clinics/sessions/{id:guid}"] = Records("PatientListed"), // each patient booked into one of its slots
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
+        ["api/letters/count"] = Nothing("counts for the side nav: names no patients"),
+        ["api/specimens/{id:guid}"] = Records("SpecimenViewed"), // its page, label and request sheet; the specimen's ID in the details
+        ["api/specimens/search"] = Records("PatientListed"),
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
@@ -128,6 +134,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/sites/{id:guid}"] = Nothing("a site and its rooms: configuration"),
         ["api/sites/{id:guid}/hours"] = Nothing("a site's opening hours: configuration"),
         ["api/rooms"] = Nothing("rooms: configuration"),
+        ["api/specimen-types"] = Nothing("specimen types: configuration"),
+        ["api/laboratories"] = Nothing("labs: configuration"),
         ["api/calendar/closed-days/bookings"] = Nothing("how many appointments, blocks and meetings each member of staff has on a day: counts, never patients"),
         ["api/calendar/staff/{userId:guid}/day-templates"] = Nothing("a member of staff's day templates: configuration"),
         ["api/calendar/day-templates/{id:guid}"] = Nothing("calendar day templates: configuration"),
@@ -189,6 +197,24 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ReferrerPractice = "Synthetic Lane Surgery", RequestedPriority = "Medium", Reason = "Synthetic reason."
         })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 
+        // A letter, for its page, its preview and the letters list.
+        var letterTemplate = await (await admin.PostAsJsonAsync("/api/letter-templates", new MedApp.Contracts.Letters.Requests.CreateLetterTemplateRequest
+        {
+            Name = UniqueName("Letter"), Kind = "ClinicLetter", Letterhead = "Synthetic Centre", BodySkeleton = "Dear Doctor,", Closing = "Yours,"
+        })).ReadAsAsync<MedApp.Contracts.Letters.Responses.LetterTemplateResponse>(HttpStatusCode.Created);
+        // A clinician writes it (letters are clinical: the Admin role can't); its preview is theirs, checked below.
+        var writer = await CreateStaffAsync("Clinician");
+        var letter = await (await writer.Client.PostAsJsonAsync("/api/letters", new MedApp.Contracts.Letters.Requests.CreateLetterRequest
+        {
+            TemplateId = letterTemplate.Id, PathwayId = pathway.Id
+        })).ReadAsAsync<MedApp.Contracts.Letters.Responses.LetterResponse>(HttpStatusCode.Created);
+
+        // A specimen, taken by a nurse (admins don't record specimens), for its page and the lab's worklist.
+        var nurse = await CreateStaffAsync("Nurse");
+        var (specimenType, laboratory) = await MedApp.IntegrationTests.Specimens.SpecimenApi.CreateSetupAsync(admin);
+        var specimen = await MedApp.IntegrationTests.Specimens.SpecimenApi.RecordAsync(
+            nurse.Client, pathway, specimenType.Id, laboratory.Id, nurse.UserId);
+
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
             ($"/api/patients/{patientId}", "PatientViewed", patientId),
@@ -212,6 +238,10 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
             ($"/api/referrals/{referral.Id}", "ReferralViewed", patientId),
             ("/api/referrals/search", "PatientListed", patientId),
+            ($"/api/letters/{letter.Id}", "LetterViewed", patientId),
+            ($"/api/letters/search?pathwayId={pathway.Id}", "PatientListed", patientId),
+            ($"/api/specimens/{specimen.Id}", "SpecimenViewed", patientId),
+            ("/api/specimens/search?view=ToSend", "PatientListed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");
@@ -226,6 +256,13 @@ public sealed class EndpointCoverageTests : IntegrationTest
                 .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;
             entries.Should().Contain(e => e.PatientId == expectedPatient, url);
         }
+
+        // A draft's preview is its author's (or an approver's): recorded as viewing the letter, by them.
+        await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
+        (await writer.Client.GetAsync($"/api/letters/{letter.Id}/preview")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var previews = (await (await admin.GetAsync($"/api/activity/search?PageSize=100&UserId={writer.UserId}&Actions=LetterViewed"))
+            .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;
+        previews.Should().Contain(e => e.PatientId == patientId);
     }
 
     [Test]

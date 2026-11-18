@@ -14,6 +14,8 @@ using MedApp.Domain.Appointments;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Referrals;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.Application.Specimens.Common;
+using MedApp.Domain.Specimens;
 using MedApp.Application.Mdt.Common;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Mdt;
@@ -59,13 +61,18 @@ public sealed class TimelineStaffCanaryTests
         // admin's reason), the details edited, each status change made with a reason (the automatic ones have none),
         // every entry about a file (its name), and a note deleted (the admin's reason).
         // And the notes added, edited and deleted, whose text comes from the note versions.
-        var withText = RowsHoldingTheCanary().Where(r => r.Entry.Details.Contains(Canary) || r.NoteText is not null).ToList();
+        // And a letter returned and withdrawn, whose comment and reason come from the letter.
+        var withText = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Details.Contains(Canary) || r.NoteText is not null
+                        || r.Entry.Action is Action.LetterReturned or Action.LetterWithdrawn)
+            .ToList();
 
         withText.Select(r => r.Entry.Action).Should().BeEquivalentTo(
             [
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
                 Action.AttachmentAdded, Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
+                Action.LetterReturned, Action.LetterWithdrawn,
                 Action.StageSkipped, Action.StageReinstated,
             ]);
         foreach (var row in withText)
@@ -138,6 +145,10 @@ public sealed class TimelineStaffCanaryTests
                 Action.NoteAdded => new PatientTimelineRow(e, CurrentTitle) { NoteText = Canary },
                 Action.NoteEdited => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
                 Action.NoteDeleted => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
+                // A letter's free text is on the letter, which the handler gives admins' rows.
+                >= Action.LetterDrafted and <= Action.LetterWithdrawn => new PatientTimelineRow(e, CurrentTitle) { Letter = CanaryLetter },
+                // As the handler gives admins a specimen entry's specimen, for its free text (the audit holds none).
+                >= Action.SpecimenTaken and <= Action.SpecimenDetailsEdited => new PatientTimelineRow(e, CurrentTitle) { Specimen = SpecimenHoldingTheCanary() },
                 _ => new PatientTimelineRow(e, CurrentTitle),
             })
             .ToList();
@@ -226,7 +237,148 @@ public sealed class TimelineStaffCanaryTests
             MdtAudit.OutcomeRecorded(item, "Dermatology", Staff, Now),
         };
 
-        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(mdt).ToList();
+        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
+            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt).ToList();
+    }
+
+    /// <summary>
+    /// A letter with the canary as all its free text: its body, closing, return comment, withdrawal reason and every
+    /// recipient's name and address (as the timeline's handler loads it for admins).
+    /// </summary>
+    private static readonly MedApp.Domain.Letters.Letter CanaryLetter = new()
+    {
+        Id = Guid.NewGuid(),
+        Body = Canary,
+        Closing = Canary,
+        ReturnComment = Canary,
+        ReturnedAtUtc = Now,
+        WithdrawnReason = Canary,
+        Recipients = [new MedApp.Domain.Letters.LetterRecipient { Name = Canary, AddressLines = Canary, Postcode = Canary }],
+    };
+
+    /// <summary>Every letter action, through <see cref="MedApp.Application.Letters.Common.LetterChange"/> as the handlers write them.</summary>
+    private static IEnumerable<PatientPathwayAuditEntry> LetterEntriesHoldingTheCanary(PatientPathway pathway)
+    {
+        var letter = new MedApp.Domain.Letters.Letter
+        {
+            Id = Guid.NewGuid(),
+            PatientId = pathway.PatientId,
+            PathwayId = pathway.Id,
+            TemplateName = TemplateName,
+            Kind = MedApp.Domain.Letters.LetterKind.DischargeSummary,
+            Body = Canary,
+            Closing = Canary,
+            Recipients =
+            [
+                new MedApp.Domain.Letters.LetterRecipient
+                {
+                    Id = Guid.NewGuid(), Kind = MedApp.Domain.Letters.LetterRecipientKind.Patient, Name = Canary, AddressLines = Canary,
+                },
+            ],
+        };
+        var change = new MedApp.Application.Letters.Common.LetterChange(letter, pathway, Staff, Now);
+        change.Draft();
+        change.Submit(OtherUserId, OtherUsername);
+        change.Return(Canary);
+        change.Submit(OtherUserId, OtherUsername);
+        change.Approve(Guid.NewGuid());
+        change.Send(letter.Recipients[0], MedApp.Domain.Letters.LetterDispatchMethod.Post,
+            MedApp.Domain.Letters.LetterDispatchStatus.Sent, Today);
+        change.Withdraw(Canary);
+        return change.AuditEntries;
+    }
+
+    /// <summary>A specimen whose free text (site, request notes, the detail it closed with) is all the canary.</summary>
+    private static Specimen SpecimenHoldingTheCanary()
+    {
+        var specimen = SpecimensTestConstants.CreateSpecimen();
+        specimen.Site = Canary;
+        specimen.RequestNotes = Canary;
+        specimen.ClosedDetail = Canary;
+        return specimen;
+    }
+
+    /// <summary>Every specimen action, through <see cref="SpecimenChange"/> as the handlers write them, with the canary as all the free text.</summary>
+    private static List<PatientPathwayAuditEntry> SpecimenEntriesHoldingTheCanary()
+    {
+        var reported = SpecimenHoldingTheCanary();
+        var change = new SpecimenChange(reported, reported.Pathway, Staff, Now);
+        change.Take();
+        change.EditDetails(
+            SpecimensTestConstants.Urine(), SpecimensTestConstants.PartnerLab(), reported.TakenAtUtc.AddHours(-1),
+            $"{Canary} (edited)", $"{Canary} (edited)", OtherUserId, Staff.Username, OtherUsername);
+        change.Send(Now, Canary.Length > 50 ? null : Canary);
+        change.Receive(Now, Canary);
+        change.Report(Guid.NewGuid());
+
+        var rejected = SpecimenHoldingTheCanary();
+        var reject = new SpecimenChange(rejected, rejected.Pathway, Staff, Now);
+        reject.Reject(SpecimenRejectionReason.Other, Canary);
+
+        var lost = SpecimenHoldingTheCanary();
+        var lose = new SpecimenChange(lost, lost.Pathway, Staff, Now);
+        lose.MarkLost(Canary);
+
+        var error = SpecimenHoldingTheCanary();
+        var wrong = new SpecimenChange(error, error.Pathway, Staff, Now);
+        wrong.MarkEnteredInError(Canary);
+
+        return [.. change.AuditEntries, .. reject.AuditEntries, .. lose.AuditEntries, .. wrong.AuditEntries];
+    }
+
+    [Test]
+    public void SpecimenEntries_NeverHoldFreeText()
+    {
+        // DPIA risk 29: the site, request notes, references and every detail typed live only on the specimen.
+        SpecimenEntriesHoldingTheCanary().Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_AdminSpecimenEntries_CarryTheSpecimensFreeText()
+    {
+        // Taken (its site and request notes), rejected, lost and entered in error (the detail they closed with).
+        var rows = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Action is Action.SpecimenTaken or Action.SpecimenRejected or Action.SpecimenLost or Action.SpecimenEnteredInError)
+            .ToList();
+
+        rows.Should().HaveCount(4);
+        foreach (var row in rows)
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_SpecimenEdit_GivesStructuredValuesAndOnlyTheNamesOfFreeTextFields()
+    {
+        var edited = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.SpecimenDetailsEdited);
+
+        var response = TimelineMapper.ToResponse(edited, isAdmin: false);
+
+        response.Kind.Should().Be(nameof(PatientTimelineKind.Specimens));
+        response.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
+        response.SpecimenTypeName.Should().Be(SpecimensTestConstants.UrineName);
+        response.LaboratoryName.Should().Be(SpecimensTestConstants.PartnerLabName);
+        response.Changes.Single(c => c.Field == SpecimenChange.SpecimenTypeField)
+            .Should().BeEquivalentTo(new { From = SpecimensTestConstants.BiopsyName, To = SpecimensTestConstants.UrineName });
+        response.Changes.Single(c => c.Field == SpecimenChange.RequestingUserField)
+            .Should().BeEquivalentTo(new { From = Staff.Username, To = OtherUsername });
+        response.Changes.Single(c => c.Field == SpecimenChange.SiteField)
+            .Should().BeEquivalentTo(new { From = (string?)null, To = (string?)null });
+        response.Changes.Single(c => c.Field == SpecimenChange.RequestNotesField)
+            .Should().BeEquivalentTo(new { From = (string?)null, To = (string?)null });
+    }
+
+    [Test]
+    public void ToResponse_SpecimenRejected_StaffSeeTheStatusButNotTheReason()
+    {
+        var rejected = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.SpecimenRejected);
+
+        var staff = TimelineMapper.ToResponse(rejected, isAdmin: false);
+        var admin = TimelineMapper.ToResponse(rejected, isAdmin: true);
+
+        staff.FromStatus.Should().Be(nameof(SpecimenStatus.Taken));
+        staff.ToStatus.Should().Be(nameof(SpecimenStatus.RejectedByLab));
+        staff.Reason.Should().BeNull();
+        admin.Reason.Should().Be($"Other: {Canary}");
     }
 
     [Test]
@@ -375,6 +527,14 @@ public sealed class TimelineStaffCanaryTests
         var rejected = new ReferralChange(rejectedReferral, ReferralsTestConstants.Triager, Now);
         rejected.Reject(ReferralRejectionReason.Other, Canary);
 
+        // Triage: more information asked for, then received.
+        var askedReferral = ReferralsTestConstants.CreateReferral();
+        askedReferral.Reason = Canary;
+        var asked = new ReferralChange(askedReferral, ReferralsTestConstants.Triager, Now);
+        asked.AskForInformation();
+        var received = new ReferralChange(askedReferral, ReferralsTestConstants.Triager, Now.AddMinutes(1));
+        received.InformationReceived();
+
         var sentReferral = ReferralsTestConstants.CreateReferral();
         var sent = new ReferralChange(sentReferral, ReferralsTestConstants.Triager, Now);
         sent.RedirectElsewhere(Canary, Canary);
@@ -389,7 +549,7 @@ public sealed class TimelineStaffCanaryTests
         clock.StopClock(ClockStopReason.PathwayDischarged);
 
         return change.Events.Concat(error.Events).Concat(accept.Events).Concat(accepted.Events)
-            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events)
+            .Concat(rejected.Events).Concat(sent.Events).Concat(clock.Events).Concat(asked.Events).Concat(received.Events)
             .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary, Canary, Canary) { PauseDetail = Canary })
             .ToList();
     }

@@ -7,6 +7,7 @@ using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +57,9 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
 
     public async Task<int> CountReferralsAwaitingTriageAsync(Guid patientId, CancellationToken cancellationToken) =>
         await context.Referrals.CountAsync(
-            r => r.PatientId == patientId && r.Status == ReferralStatus.AwaitingTriage, cancellationToken);
+            r => r.PatientId == patientId
+                 && (r.Status == ReferralStatus.AwaitingTriage || r.Status == ReferralStatus.InformationRequested),
+            cancellationToken);
 
     public async Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken)
     {
@@ -112,7 +115,9 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
             // The audit trail outlives a deleted pathway, so it counts towards the conclusion of treatment too.
             .Where(p => !changes.Any(a => a.PatientId == p.Id && a.AtUtc > changedBeforeUtc))
             // So does a referral's history; and a referral awaiting triage is care still to come.
-            .Where(p => !context.Referrals.Any(r => r.PatientId == p.Id && r.Status == ReferralStatus.AwaitingTriage))
+            .Where(p => !context.Referrals.Any(r => r.PatientId == p.Id
+                                                    && (r.Status == ReferralStatus.AwaitingTriage
+                                                        || r.Status == ReferralStatus.InformationRequested)))
             .Where(p => !context.ReferralEvents.Any(e => e.PatientId == p.Id && e.AtUtc > changedBeforeUtc))
             .Select(p => new RetentionCandidate(
                 p.Id,
@@ -124,7 +129,13 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 p.RetentionKeptUntil,
                 p.RetentionKeptReason,
                 changes.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc),
-                context.ReferralEvents.Where(e => e.PatientId == p.Id).Max(e => (DateTime?)e.AtUtc)))
+                context.ReferralEvents.Where(e => e.PatientId == p.Id).Max(e => (DateTime?)e.AtUtc),
+                // Their pathways' specialty classes, which may lengthen the period (most have none).
+                context.PatientPathways
+                    .Where(pp => pp.PatientId == p.Id && pp.RetentionClass != RetentionClass.Standard)
+                    .Select(pp => pp.RetentionClass)
+                    .Distinct()
+                    .ToList()))
             .ToListAsync(cancellationToken);
     }
 

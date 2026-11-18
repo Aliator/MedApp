@@ -37,14 +37,12 @@ describe('AnonymiseDialog', () => {
     expect(openDialog()).toBeNull();
   });
 
-  it('says the result is pseudonymised, and warns that specialty records are kept longer', async () => {
+  it('says the result is pseudonymised', async () => {
     renderDialog();
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/pseudonymised rather than anonymous/)).toHaveTextContent(/still personal data/);
-    expect(within(dialog).getByText(/Mental health, maternity and oncology records must be kept longer/)).toHaveTextContent(
-      /Retention:AdultYears/,
-    );
+    expect(within(dialog).queryByText(/Retention:AdultYears/)).toBeNull();
     expect(within(dialog).getByRole('textbox', {name: /note/i})).toHaveAccessibleDescription(/must hold no patient details/);
   });
 

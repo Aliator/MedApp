@@ -42,7 +42,7 @@ public static class LetterTemplateValidation
         validator.Text(renderer, closing, "Closing", LetterTemplate.MaxClosingLength);
     }
 
-    private static void Text<T>(
+    public static void Text<T>(
         this AbstractValidator<T> validator,
         ILetterRenderer renderer,
         Expression<Func<T, string>> text,

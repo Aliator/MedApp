@@ -82,7 +82,7 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             {
                 g.Key,
                 Count = g.Count(),
-                Awaiting = g.Count(r => r.Status == ReferralStatus.AwaitingTriage)
+                Awaiting = g.Count(r => r.Status == ReferralStatus.AwaitingTriage || r.Status == ReferralStatus.InformationRequested)
             })
             .ToDictionaryAsync(x => x.Key, ct);
 

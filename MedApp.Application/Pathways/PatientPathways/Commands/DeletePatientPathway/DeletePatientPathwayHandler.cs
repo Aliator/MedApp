@@ -1,8 +1,10 @@
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specimens.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MediatR;
 
@@ -12,6 +14,8 @@ public sealed class DeletePatientPathwayHandler(
     IPatientPathwayRepository repository,
     IAttachmentRepository attachments,
     INoteDeletionRequestRepository noteDeletionRequests,
+    ILetterRepository letters,
+    ISpecimenRepository specimens,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<DeletePatientPathwayCommand>
@@ -28,6 +32,18 @@ public sealed class DeletePatientPathwayHandler(
         if (fileCount > 0)
             throw new ConflictException(
                 $"This pathway has {fileCount} file{(fileCount == 1 ? "" : "s")} attached, so it can't be deleted. Delete the files first.");
+
+        // Letters are clinical correspondence about it (even a discarded draft is part of its history): kept, so it is.
+        var letterCount = await letters.CountForPathwayAsync(pathway.Id, cancellationToken);
+        if (letterCount > 0)
+            throw new ConflictException(
+                $"This pathway has {letterCount} letter{(letterCount == 1 ? "" : "s")}, so it can't be deleted. Archive it instead.");
+
+        // Its specimens are part of the patient's record (and the lab's history): they keep the pathway.
+        var specimenCount = await specimens.CountForPathwayAsync(pathway.Id, cancellationToken);
+        if (specimenCount > 0)
+            throw new ConflictException(
+                $"This pathway has {specimenCount} specimen{(specimenCount == 1 ? "" : "s")}, so it can't be deleted.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);

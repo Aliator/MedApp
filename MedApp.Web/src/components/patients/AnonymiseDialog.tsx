@@ -9,7 +9,6 @@ import {saveProblem, NO_PROBLEM, type SaveProblem} from '../../pages/saveProblem
 import {PatientSummary} from '../forms/PatientSummary';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AlertMessage} from '../shared/AlertMessage';
-import {SPECIALTY_RETENTION_WARNING} from './retentionWarning';
 
 export interface AnonymisePatient {
   id: string;
@@ -94,7 +93,6 @@ function AnonymiseForm({
       onCancel={onCancel}>
       <VStack gap={4} hAlign="stretch">
         {problem.message && <AlertMessage message={problem.message} />}
-        <AlertMessage status="warning" message={SPECIALTY_RETENTION_WARNING} />
         <PatientSummary firstName={patient.firstName} lastName={patient.lastName} dateOfBirth={patient.dateOfBirth} showEmail={false} />
         <RadioList
           label="Reason"

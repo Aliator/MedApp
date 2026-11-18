@@ -1,7 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser, userWithRoles} from '../../test/render';
+import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nurseUser, openDialog, renderWithApp, rowMenuItem, staffUser, userWithRoles} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
@@ -49,6 +49,9 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');
     expect(screen.getByRole('link', {name: 'Closed Days'})).toHaveAttribute('href', '/admin/closed-days');
     expect(screen.getByRole('link', {name: 'Sites and Rooms'})).toHaveAttribute('href', '/admin/sites');
+    expect(screen.getByRole('link', {name: 'Specimen Types and Labs'})).toHaveAttribute('href', '/admin/specimen-setup');
+    // The lab's worklist is for those who record or process specimens, which the Admin role alone doesn't grant.
+    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
@@ -117,8 +120,9 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then the GP practice directory, the MDT list, then Patients.
-    expect(names.indexOf('/practices')).toBe(names.indexOf('/referrals') + 1);
+    // Then Letters, the GP practice directory, the MDT list, then Patients.
+    expect(names.indexOf('/letters')).toBe(names.indexOf('/referrals') + 1);
+    expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
     expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
   });
@@ -133,6 +137,21 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: 'Practices'})).not.toBeInTheDocument();
   });
 
+  it("has Lab after Referrals for those who record or process specimens, current on a specimen's pages too", async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: nurseUser, path: '/specimens/00000051-0000-0000-0000-000000000001'});
+
+    const lab = await screen.findByRole('link', {name: 'Lab'});
+    expect(lab).toHaveAttribute('href', '/lab');
+    expect(lab).toHaveAttribute('aria-current', 'page');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/lab')).toBe(names.indexOf('/referrals') + 1);
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: /Referrals/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
+  });
+
   it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {
     mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourSpecialties: false})});
     const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser});
@@ -142,6 +161,30 @@ describe('AppSideNav', () => {
     mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
+  });
+
+  it('has Letters for someone who can view patients, with how many to approve and to send', async () => {
+    mockApi({'GET /api/letters/count': () => json({toApprove: 2, toSend: 3})});
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/letters'});
+    const letters = await screen.findByRole('link', {name: 'Letters, 2 to approve, 3 to send'});
+    expect(letters).toHaveAttribute('href', '/letters');
+    expect(letters).toHaveAttribute('aria-current', 'page');
+    expect(letters).toHaveTextContent('5');
+    unmount();
+
+    mockApi({'GET /api/letters/count': () => json({toApprove: 0, toSend: 0})});
+    const none = renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Letters'})).toBeInTheDocument();
+    none.unmount();
+
+    mockApi({'GET /api/letters/count': () => json({toApprove: 60, toSend: 60})});
+    const many = renderWithApp(<AppSideNav />, {user: staffUser});
+    expect(await screen.findByRole('link', {name: 'Letters, 60 to approve, 60 to send'})).toHaveTextContent('99+');
+    many.unmount();
+
+    renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Letters/})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {

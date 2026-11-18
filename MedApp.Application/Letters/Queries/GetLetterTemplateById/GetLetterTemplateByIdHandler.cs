@@ -13,6 +13,7 @@ public sealed class GetLetterTemplateByIdHandler(ILetterTemplateRepository repos
     {
         var template = await repository.GetOrThrowAsync(request.TemplateId, cancellationToken);
         var specialty = template.SpecialtyId is { } id ? await specialties.GetAsync(id, cancellationToken) : null;
-        return LetterTemplateMapper.ToResponse(template, specialty?.Name);
+        return LetterTemplateMapper.ToResponse(
+            template, specialty?.Name, !await repository.IsInUseAsync(template.Id, cancellationToken));
     }
 }
