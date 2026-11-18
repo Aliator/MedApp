@@ -4,14 +4,16 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Security;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Domain.Authentication;
 using MediatR;
 
 namespace MedApp.Application.Authentication.Security.Commands.SaveSecuritySettings;
 
 /// <summary>
-/// Saves the rules and records who changed them. Requiring two-factor for admins is refused (409) until the admin
-/// turning it on uses it themselves, so nobody switches it on and is then held out of the admin pages. Admins without
-/// it are held to set it up from their next request (<c>TwoFactorSetupRequired</c>).
+/// Saves the rules and records who changed them. Requiring two-factor for admins means requiring an authenticator app
+/// (codes by email are weaker: anyone who gets into the mailbox gets the code), and is refused (409) until the admin
+/// turning it on uses the app themselves, so nobody switches it on and is then held out of the admin pages. Admins
+/// without the app are held to set it up from their next request (<c>TwoFactorSetupRequired</c>).
 /// </summary>
 public sealed class SaveSecuritySettingsHandler(
     ISecuritySettingsRepository settings,
@@ -27,9 +29,9 @@ public sealed class SaveSecuritySettingsHandler(
 
         if (request.RequireTwoFactorForAdmins
             && !current.RequireTwoFactorForAdmins
-            && !await twoFactor.IsEnabledAsync(request.ActorUserId, ct))
+            && await twoFactor.GetMethodAsync(request.ActorUserId, ct) != TwoFactorMethod.Authenticator)
             throw new ConflictException(
-                "Set up two-factor authentication for your own account first (Account Settings, Security), then require it for admins.");
+                "Set up two-factor authentication with an authenticator app for your own account first (Account Settings, Security), then require it for admins.");
 
         var changed = current.RequireTwoFactorForAdmins != request.RequireTwoFactorForAdmins;
         current.RequireTwoFactorForAdmins = request.RequireTwoFactorForAdmins;

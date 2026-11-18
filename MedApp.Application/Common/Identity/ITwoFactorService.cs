@@ -1,23 +1,31 @@
 using System.Text;
+using MedApp.Domain.Authentication;
 using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Common.Identity;
 
 /// <summary>
-/// Two-factor authentication with an authenticator app (TOTP, RFC 6238), on ASP.NET Core Identity's authenticator
-/// support: Identity keeps each account's key and recovery codes and whether it's on. Codes are checked against the
-/// app's clock (<see cref="TimeProvider"/>), allowing one 30-second step either side, and each code is accepted once.
+/// Two-factor authentication, on ASP.NET Core Identity's authenticator support: Identity keeps each account's key and
+/// recovery codes and whether it's on, and MedApp which method it uses (<see cref="TwoFactorMethod"/>): an authenticator
+/// app (TOTP, RFC 6238: codes are checked against the app's clock, <see cref="TimeProvider"/>, allowing one 30-second step
+/// either side, and each is accepted once) or codes by email (<c>IEmailCodeService</c>).
 /// </summary>
 public interface ITwoFactorService
 {
     Task<bool> IsEnabledAsync(Guid userId, CancellationToken ct);
+
+    /// <summary>
+    /// How the account gives its second factor: <see cref="TwoFactorMethod.None"/> when two-factor is off (or there's no
+    /// such account). An account with it on and no method recorded uses the app.
+    /// </summary>
+    Task<TwoFactorMethod> GetMethodAsync(Guid userId, CancellationToken ct);
 
     /// <summary>The account's two-factor state, or null if there's no such account.</summary>
     Task<TwoFactorState?> GetStateAsync(Guid userId, CancellationToken ct);
 
     /// <summary>
     /// Gives the account a new authenticator key, for setting up an app: any earlier key stops working. Only while
-    /// two-factor is off. Null if there's no such account.
+    /// two-factor is off, or on with codes by email (switching to the app). Null if there's no such account.
     /// </summary>
     Task<AuthenticatorKey?> ResetAuthenticatorKeyAsync(Guid userId, CancellationToken ct);
 
@@ -27,16 +35,35 @@ public interface ITwoFactorService
     /// </summary>
     Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct);
 
+    /// <summary>
+    /// The time step of <paramref name="code"/> if it's the account's current authenticator code and hasn't been
+    /// accepted before, without recording it: for a check that must pass something else before the code counts as used
+    /// (<see cref="RecordAuthenticatorStepAsync"/>). Null otherwise.
+    /// </summary>
+    Task<long?> MatchAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct);
+
+    /// <summary>
+    /// Records <paramref name="step"/> (from <see cref="MatchAuthenticatorCodeAsync"/>) as used, so its code can't be
+    /// used again. False if a code of that step or later was accepted meanwhile, or another request saved first.
+    /// </summary>
+    Task<bool> RecordAuthenticatorStepAsync(Guid userId, long step, CancellationToken ct);
+
     /// <summary>Uses up one of the account's recovery codes, if <paramref name="code"/> is one (ignoring case and spaces).</summary>
     Task<RecoveryCodeRedemption> RedeemRecoveryCodeAsync(Guid userId, string code, CancellationToken ct);
 
-    /// <summary>Turns two-factor on, with a new set of recovery codes (returned once).</summary>
-    Task<RecoveryCodesResult> EnableAsync(Guid userId, CancellationToken ct);
+    /// <summary>
+    /// Turns two-factor on with <paramref name="method"/>, with a new set of recovery codes (returned once). On an account
+    /// already using codes by email, turning the app on replaces them.
+    /// </summary>
+    Task<RecoveryCodesResult> EnableAsync(Guid userId, TwoFactorMethod method, CancellationToken ct);
 
     /// <summary>Replaces the account's recovery codes with a new set (returned once).</summary>
     Task<RecoveryCodesResult> RegenerateRecoveryCodesAsync(Guid userId, CancellationToken ct);
 
-    /// <summary>Turns two-factor off, and forgets the account's key and recovery codes, so the old app and codes stop working.</summary>
+    /// <summary>
+    /// Turns two-factor off (its method too), and forgets the account's key and recovery codes, so the old app and codes
+    /// stop working.
+    /// </summary>
     Task<IdentityResult> DisableAsync(Guid userId, CancellationToken ct);
 
     /// <summary>Minutes left on the account's lockout (at least one), or null if it isn't locked.</summary>
@@ -52,7 +79,10 @@ public interface ITwoFactorService
     /// <summary>Clears the account's count of failures and of code lockouts, after a complete sign-in.</summary>
     Task RecordSignInAsync(Guid userId, CancellationToken ct);
 
-    /// <summary>The usernames of the accounts with the Admin role that don't have two-factor on.</summary>
+    /// <summary>
+    /// The usernames of the accounts with the Admin role that don't use an authenticator app: two-factor off, or on with
+    /// codes by email, which the admin requirement doesn't accept.
+    /// </summary>
     Task<IReadOnlyList<string>> GetAdminsWithoutTwoFactorAsync(CancellationToken ct);
 
     /// <summary>The accounts with the Admin role that have a confirmed email address, to tell about an admin's two-factor.</summary>
@@ -60,7 +90,20 @@ public interface ITwoFactorService
 }
 
 /// <param name="IsAdmin">Whether the account has the Admin role (which the admin requirement covers).</param>
-public sealed record TwoFactorState(string Username, bool Enabled, int RecoveryCodesLeft, bool IsAdmin);
+/// <param name="Method">How it gives its second factor (<see cref="TwoFactorMethod.None"/> when it's off).</param>
+public sealed record TwoFactorState(
+    string Username,
+    bool Enabled,
+    int RecoveryCodesLeft,
+    bool IsAdmin,
+    TwoFactorMethod Method = TwoFactorMethod.None)
+{
+    /// <summary>Two-factor is on with codes by email.</summary>
+    public bool UsesEmailCodes => Enabled && Method == TwoFactorMethod.Email;
+
+    /// <summary>Two-factor is on with an authenticator app (any method other than email counts as the app).</summary>
+    public bool UsesApp => Enabled && !UsesEmailCodes;
+}
 
 /// <param name="Key">The key, in Base32 as authenticator apps take it.</param>
 public sealed record AuthenticatorKey(string Username, string Key)

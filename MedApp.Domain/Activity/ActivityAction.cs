@@ -105,5 +105,11 @@ public enum ActivityAction
     EmailRemoved = 38,
 
     /// <summary>An admin changed whether admin accounts must use two-factor authentication.</summary>
-    TwoFactorRequirementChanged = 39
+    TwoFactorRequirementChanged = 39,
+
+    /// <summary>Someone turned two-factor authentication on with codes by email. Never the code or the address.</summary>
+    EmailCodesEnabled = 40,
+
+    /// <summary>Someone turned off two-factor authentication that used codes by email.</summary>
+    EmailCodesDisabled = 41
 }

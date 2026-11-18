@@ -56,7 +56,7 @@ public sealed class SecuritySettingsHandlersTests
     [Test]
     public async Task Save_TurningOnWithTwoFactor_SavesWhoAndWhenAndRecordsIt()
     {
-        _twoFactor.Setup(t => t.IsEnabledAsync(ActorId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.GetMethodAsync(ActorId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Authenticator);
 
         var result = await SaveHandler().Handle(new SaveSecuritySettingsCommand(true, ActorId, "an.admin"), CancellationToken.None);
 
@@ -73,6 +73,17 @@ public sealed class SecuritySettingsHandlersTests
         var act = () => SaveHandler().Handle(new SaveSecuritySettingsCommand(true, ActorId, "an.admin"), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
+        _settings.Verify(s => s.SaveAsync(It.IsAny<SecuritySettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Save_TurningOnWithOnlyEmailCodesYourself_IsAConflict()
+    {
+        _twoFactor.Setup(t => t.GetMethodAsync(ActorId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Email);
+
+        var act = () => SaveHandler().Handle(new SaveSecuritySettingsCommand(true, ActorId, "an.admin"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>()).Which.Message.Should().Contain("authenticator app");
         _settings.Verify(s => s.SaveAsync(It.IsAny<SecuritySettings>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

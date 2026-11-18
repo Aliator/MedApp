@@ -15,13 +15,16 @@ import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
 /**
- * Where a notification leads: an appointment opens on the calendar, a procedure on its page, and anything else about a
- * day on the calendar (a meeting, a day closed with something of yours on it) opens that day there.
+ * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
+ * procedure's page (for the admin to decide), a procedure on its page, and anything else about a day on the calendar
+ * (a meeting, a day closed with something of yours on it) opens that day there.
  */
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
     ? `/calendar?appointment=${notification.appointmentId}`
-    : notification.procedureId
+    : notification.noteDeletionRequestId && notification.procedureId
+      ? `/procedures/${notification.procedureId}?deletionRequest=${notification.noteDeletionRequestId}`
+      : notification.procedureId
       ? `/procedures/${notification.procedureId}`
       : notification.calendarDate
         ? `/calendar?date=${notification.calendarDate}&view=day`
@@ -39,6 +42,10 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingCancelled: AppIcon.Meeting,
   DayClosed: AppIcon.ClosedDays,
   StageVisitWithdrawn: AppIcon.EnteredInError,
+  NoteDeletionRequested: AppIcon.Delete,
+  NoteDeletionApproved: AppIcon.Delete,
+  NoteDeletionDeclined: AppIcon.Notes,
+  AuthorsNoteDeleted: AppIcon.Delete,
 };
 
 /** The bell, which the unread count is placed over. */
@@ -50,6 +57,14 @@ const COUNT = {
   insetInlineEnd: 0,
   translate: '45% -45%',
   pointerEvents: 'none',
+  // Thin: 16px tall rather than Astryx's 20, at least as wide as it's tall (a circle for one digit), with a little room
+  // either side of the number.
+  blockSize: 'var(--spacing-4)',
+  minInlineSize: 'var(--spacing-4)',
+  lineHeight: 'var(--spacing-4)',
+  paddingBlock: 0,
+  paddingInline: 'var(--spacing-1)',
+  justifyContent: 'center',
 } as const;
 
 /** The bell's label: what it is, and how many are unread. */

@@ -35,6 +35,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
     public DbSet<PatientProcedureNote> PatientProcedureNotes => Set<PatientProcedureNote>();
     public DbSet<PatientProcedureNoteVersion> PatientProcedureNoteVersions => Set<PatientProcedureNoteVersion>();
+    public DbSet<ProcedureNoteDeletionRequest> ProcedureNoteDeletionRequests => Set<ProcedureNoteDeletionRequest>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();
@@ -53,6 +54,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentEvent> AppointmentEvents => Set<AppointmentEvent>();
     public DbSet<SignInChallenge> SignInChallenges => Set<SignInChallenge>();
+    public DbSet<EmailCode> EmailCodes => Set<EmailCode>();
     public DbSet<SecuritySettings> SecuritySettings => Set<SecuritySettings>();
 
     /// <summary>

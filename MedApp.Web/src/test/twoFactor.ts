@@ -10,6 +10,17 @@ export const authenticatorSetup = {
   qrCodeSize: 29,
 };
 
+/**
+ * A code MedApp has just emailed, as the API describes it (`EmailCodeSentResponse`): the address masked, another
+ * allowed in a minute, three more allowed.
+ */
+export const emailCodeSent = {
+  sentTo: 'j•••@example.test',
+  expiresAtUtc: '2030-01-01T00:10:00Z',
+  resendInSeconds: 60,
+  resendsLeft: 3,
+};
+
 /** Ten synthetic recovery codes. */
 export const recoveryCodes = Array.from({length: 10}, (_, i) => `syn${i}-code${i}`);
 

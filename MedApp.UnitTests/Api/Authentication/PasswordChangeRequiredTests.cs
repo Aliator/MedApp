@@ -73,6 +73,7 @@ public sealed class PasswordChangeRequiredTests
     [TestCase("GET", "/API/Auth/WhoAmI")]
     [TestCase("POST", "/api/auth/login")]
     [TestCase("POST", "/api/auth/logout")]
+    [TestCase("POST", "/api/auth/login/two-factor/resend")]
     [TestCase("GET", "/api/auth/me/settings")]
     public async Task InvokeAsync_MustChangePassword_AllowsTheAllowlist(string method, string path)
     {

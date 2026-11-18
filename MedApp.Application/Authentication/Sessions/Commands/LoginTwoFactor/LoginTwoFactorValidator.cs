@@ -18,7 +18,7 @@ public sealed class LoginTwoFactorValidator : AbstractValidator<LoginTwoFactorCo
         RuleFor(x => x.Code)
             .NotEmpty()
             .When(x => string.IsNullOrWhiteSpace(x.RecoveryCode))
-            .WithMessage("Enter the code from your authenticator app.");
+            .WithMessage("Enter the code from your authenticator app or email.");
 
         RuleFor(x => x.Code)
             .MaximumLength(MaxLength)

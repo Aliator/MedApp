@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: what roadmap step 7 built (section 6); 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), the same day: meetings, the team view, suggested meeting times and personal calendar templates (`docs/calendar-plan.md`, decisions 50 on); 0.5 (draft), 17 November 2026: what happens to templates when their owner's account goes (review of #99) |
+| **Version** | 0.2 (draft), 16 November 2026: what roadmap step 7 built (section 6); 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), the same day: meetings, the team view, suggested meeting times and personal calendar templates (`docs/calendar-plan.md`, decisions 50 on); 0.5 (draft), 17 November 2026: what happens to templates when their owner's account goes (review of #99); 0.6 (draft), the same day: deleted procedure notes, and staff's requests to delete them (`feature/note-deletion`) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 12 months, and when the NHS Records Management Code of Practice changes |
@@ -52,7 +52,8 @@ Everything about the patient, kept and destroyed together:
 - the audit entries about them (`PatientProcedureAuditEntry`, matched by `PatientId`), including entries for procedures already deleted
 - their appointments (`Appointment`, by `PatientId`, including those detached from a deleted procedure), with their notes and cancellation reasons
 - their appointment history (`AppointmentEvent`, matched by `PatientId`), which keeps copies of old notes and cancellation reasons and outlives the appointment
-- the versions of their procedures' notes (`PatientProcedureNoteVersion`, matched by `PatientId`), including those of procedures already deleted, and their procedures' notes themselves
+- the versions of their procedures' notes (`PatientProcedureNoteVersion`, matched by `PatientId`), including those of procedures already deleted, and their procedures' notes themselves, **deleted notes included**: an admin's deletion only hides a note, which is kept, with who deleted it, when and why, as part of the record
+- staff's requests to delete their procedures' notes (`ProcedureNoteDeletionRequest`, matched by `PatientId`), with their reasons and outcomes, including those about procedures already deleted
 - access audit entries, once step 7 adds them
 - notifications about their procedures and appointments (already gone under section 3, which is shorter)
 

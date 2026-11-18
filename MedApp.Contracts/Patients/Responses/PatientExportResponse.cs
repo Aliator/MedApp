@@ -30,6 +30,12 @@ public sealed class PatientExportResponse
     /// </summary>
     public List<ExportedNoteVersionResponse> NoteHistory { get; set; } = [];
 
+    /// <summary>
+    /// Requests from staff to delete notes on the patient's procedures, oldest first, with their reasons and outcomes,
+    /// including those about procedures since deleted.
+    /// </summary>
+    public List<ExportedNoteDeletionRequestResponse> NoteDeletionRequests { get; set; } = [];
+
     /// <summary>The patient's appointments, in any status, oldest first.</summary>
     public List<ExportedAppointmentResponse> Appointments { get; set; } = [];
 
@@ -96,7 +102,7 @@ public sealed class ExportedProcedureResponse
     public List<ExportedStageResponse> Stages { get; set; } = [];
 }
 
-/// <summary>One note on a procedure as it is now, as the export gives it.</summary>
+/// <summary>One note on a procedure as it is now, as the export gives it: deleted notes too, saying when, by whom and why.</summary>
 public sealed class ExportedProcedureNoteResponse
 {
     public Guid Id { get; set; }
@@ -110,6 +116,51 @@ public sealed class ExportedProcedureNoteResponse
 
     /// <summary>Its latest version: 1 if it was never edited.</summary>
     public int Version { get; set; }
+
+    /// <summary>When an admin deleted it (it's hidden from the procedure page, but kept); null if it isn't deleted.</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>The admin who deleted it, by username ("Deleted user" once gone); null if it isn't deleted.</summary>
+    public string? DeletedBy { get; set; }
+
+    /// <summary>Why it was deleted (WrongPatient, WrittenInError, Duplicate or Other); null if it isn't deleted.</summary>
+    public string? DeletionReason { get; set; }
+
+    /// <summary>More about why it was deleted, if the admin gave any.</summary>
+    public string? DeletionDetail { get; set; }
+
+    /// <summary>
+    /// Deleted as written on the wrong patient: its text is most likely another person's data, so whoever checks the
+    /// export before it's released should consider holding it back (the third-party and serious harm tests).
+    /// </summary>
+    public bool IsAboutAnotherPatient { get; set; }
+}
+
+/// <summary>A member of staff's request to delete a note on one of the patient's procedures, as the export gives it.</summary>
+public sealed class ExportedNoteDeletionRequestResponse
+{
+    public Guid Id { get; set; }
+    public Guid NoteId { get; set; }
+    public Guid ProcedureId { get; set; }
+
+    /// <summary>Who asked, by the username recorded at the time.</summary>
+    public string RequestedBy { get; set; } = string.Empty;
+
+    public DateTime RequestedAtUtc { get; set; }
+
+    /// <summary>Why they asked: WrongPatient, WrittenInError, Duplicate or Other.</summary>
+    public string Reason { get; set; } = string.Empty;
+
+    /// <summary>More about why, if they gave any.</summary>
+    public string? Detail { get; set; }
+
+    /// <summary>Pending, Approved (the note was deleted), Declined (it was kept) or Closed (without a decision).</summary>
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>The admin who decided, by the username recorded at the time; null while it's pending.</summary>
+    public string? DecidedBy { get; set; }
+
+    public DateTime? DecidedAtUtc { get; set; }
 }
 
 /// <summary>One version of one note on a procedure, as the export gives it.</summary>

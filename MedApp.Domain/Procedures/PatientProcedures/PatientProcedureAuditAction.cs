@@ -27,5 +27,11 @@ public enum PatientProcedureAuditAction
     NoteAdded = 13,
 
     /// <summary>A note on the procedure was edited. The details hold its ID and new version, never its text.</summary>
-    NoteEdited = 14
+    NoteEdited = 14,
+
+    /// <summary>
+    /// An admin deleted a note on the procedure (soft: it's hidden, but kept). The details hold its ID and latest version,
+    /// the admin's reason, and the request it approved, if any; never its text.
+    /// </summary>
+    NoteDeleted = 15
 }

@@ -1,13 +1,16 @@
 using System.Globalization;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Identity;
+using MedApp.Domain.Authentication;
 using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Infrastructure.Common.Identity;
 
 /// <summary>
 /// Two-factor authentication on ASP.NET Core Identity's authenticator support: Identity keeps each account's key
-/// (<c>AuthenticatorKey</c>), recovery codes (<c>RecoveryCodes</c>) and whether it's on (<c>TwoFactorEnabled</c>).
+/// (<c>AuthenticatorKey</c>), recovery codes (<c>RecoveryCodes</c>) and whether it's on (<c>TwoFactorEnabled</c>), and
+/// MedApp's own column which method it uses (<see cref="ApplicationUser.TwoFactorMethod"/>; emailed codes themselves are
+/// <c>IEmailCodeService</c>'s).
 /// Codes are checked by <see cref="Totp"/> against <see cref="TimeProvider"/>, and the step of the last accepted code is
 /// kept as a token of the user's (<see cref="LastTimeStepToken"/>), so each code is accepted once: a code seen over a
 /// shoulder or replayed can't be used again. Saving that step is an update of the user, which Identity guards with its
@@ -39,6 +42,9 @@ public sealed class TwoFactorService(
     public async Task<bool> IsEnabledAsync(Guid userId, CancellationToken ct) =>
         await FindAsync(userId) is { TwoFactorEnabled: true };
 
+    public async Task<TwoFactorMethod> GetMethodAsync(Guid userId, CancellationToken ct) =>
+        (await FindAsync(userId))?.EffectiveTwoFactorMethod ?? TwoFactorMethod.None;
+
     public async Task<TwoFactorState?> GetStateAsync(Guid userId, CancellationToken ct)
     {
         var user = await FindAsync(userId);
@@ -51,13 +57,15 @@ public sealed class TwoFactorService(
             user.UserName ?? string.Empty,
             user.TwoFactorEnabled,
             codesLeft,
-            roles.Contains(FirstAdminSetup.AdminRole, StringComparer.OrdinalIgnoreCase));
+            roles.Contains(FirstAdminSetup.AdminRole, StringComparer.OrdinalIgnoreCase),
+            user.EffectiveTwoFactorMethod);
     }
 
     public async Task<AuthenticatorKey?> ResetAuthenticatorKeyAsync(Guid userId, CancellationToken ct)
     {
+        // Off, or on with codes by email (switching to the app): never replacing an app that works.
         var user = await FindAsync(userId);
-        if (user is null || user.TwoFactorEnabled)
+        if (user is null || user.EffectiveTwoFactorMethod == TwoFactorMethod.Authenticator)
             return null;
 
         var reset = await userManager.ResetAuthenticatorKeyAsync(user);
@@ -69,15 +77,19 @@ public sealed class TwoFactorService(
         return key is null ? null : new AuthenticatorKey(user.UserName ?? string.Empty, key);
     }
 
-    public async Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct)
+    public async Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct) =>
+        await MatchAuthenticatorCodeAsync(userId, code, ct) is { } step
+        && await RecordAuthenticatorStepAsync(userId, step, ct);
+
+    public async Task<long?> MatchAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct)
     {
         var user = await FindAsync(userId);
         if (user is null)
-            return false;
+            return null;
 
         var key = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(key))
-            return false;
+            return null;
 
         byte[] keyBytes;
         try
@@ -86,15 +98,20 @@ public sealed class TwoFactorService(
         }
         catch (FormatException)
         {
-            return false;
+            return null;
         }
 
         if (Totp.Match(keyBytes, code, timeProvider.GetUtcNow()) is not { } step)
-            return false;
+            return null;
 
-        // Each code once: a step at or before the last one accepted is a replay.
-        var last = await userManager.GetAuthenticationTokenAsync(user, TokenProvider, LastTimeStepToken);
-        if (long.TryParse(last, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastStep) && step <= lastStep)
+        return await IsReplayAsync(user, step) ? null : step;
+    }
+
+    public async Task<bool> RecordAuthenticatorStepAsync(Guid userId, long step, CancellationToken ct)
+    {
+        // Read again: a code of this step or later may have been accepted since it matched.
+        var user = await FindAsync(userId);
+        if (user is null || await IsReplayAsync(user, step))
             return false;
 
         var saved = await userManager.SetAuthenticationTokenAsync(
@@ -102,6 +119,13 @@ public sealed class TwoFactorService(
         if (!saved.Succeeded)
             lockouts.Forget(userId);
         return saved.Succeeded;
+    }
+
+    /// <summary>Each code once: a step at or before the last one accepted is a replay.</summary>
+    private async Task<bool> IsReplayAsync(ApplicationUser user, long step)
+    {
+        var last = await userManager.GetAuthenticationTokenAsync(user, TokenProvider, LastTimeStepToken);
+        return long.TryParse(last, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastStep) && step <= lastStep;
     }
 
     public async Task<RecoveryCodeRedemption> RedeemRecoveryCodeAsync(Guid userId, string code, CancellationToken ct)
@@ -126,8 +150,11 @@ public sealed class TwoFactorService(
         return new RecoveryCodeRedemption(redeemed, await userManager.CountRecoveryCodesAsync(user));
     }
 
-    public async Task<RecoveryCodesResult> EnableAsync(Guid userId, CancellationToken ct)
+    public async Task<RecoveryCodesResult> EnableAsync(Guid userId, TwoFactorMethod method, CancellationToken ct)
     {
+        if (method == TwoFactorMethod.None)
+            throw new ArgumentOutOfRangeException(nameof(method), method, "Two-factor needs a method to be turned on.");
+
         var user = await FindAsync(userId);
         if (user is null)
             return new RecoveryCodesResult(IdentityResult.Failed(IdentityErrors.UserNotFound), []);
@@ -136,6 +163,8 @@ public sealed class TwoFactorService(
         if (codes is null)
             return new RecoveryCodesResult(IdentityResult.Failed(new IdentityError { Description = "The recovery codes couldn't be saved." }), []);
 
+        // Saved with the flag, in the same update.
+        user.TwoFactorMethod = method;
         var enabled = await userManager.SetTwoFactorEnabledAsync(user, true);
         return new RecoveryCodesResult(enabled, enabled.Succeeded ? codes.ToList() : []);
     }
@@ -158,6 +187,7 @@ public sealed class TwoFactorService(
         if (user is null)
             return IdentityResult.Failed(IdentityErrors.UserNotFound);
 
+        user.TwoFactorMethod = TwoFactorMethod.None;
         var disabled = await userManager.SetTwoFactorEnabledAsync(user, false);
         if (!disabled.Succeeded)
             return disabled;
@@ -196,7 +226,7 @@ public sealed class TwoFactorService(
 
     public async Task<IReadOnlyList<string>> GetAdminsWithoutTwoFactorAsync(CancellationToken ct) =>
         (await userManager.GetUsersInRoleAsync(FirstAdminSetup.AdminRole))
-            .Where(user => !user.TwoFactorEnabled)
+            .Where(user => user.EffectiveTwoFactorMethod != TwoFactorMethod.Authenticator)
             .Select(user => user.UserName ?? string.Empty)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList();

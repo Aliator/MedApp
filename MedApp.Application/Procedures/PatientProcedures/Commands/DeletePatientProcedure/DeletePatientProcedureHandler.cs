@@ -11,6 +11,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatient
 public sealed class DeletePatientProcedureHandler(
     IPatientProcedureRepository repository,
     IAttachmentRepository attachments,
+    INoteDeletionRequestRepository noteDeletionRequests,
     IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<DeletePatientProcedureCommand>
@@ -28,8 +29,14 @@ public sealed class DeletePatientProcedureHandler(
             throw new ConflictException(
                 $"This procedure has {fileCount} file{(fileCount == 1 ? "" : "s")} attached, so it can't be deleted. Delete the files first.");
 
-        var change = new ProcedureChange(procedure, request.Actor, timeProvider.GetUtcNow().UtcDateTime);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var change = new ProcedureChange(procedure, request.Actor, now);
         change.Audit(PatientProcedureAuditAction.Deleted, new { status = procedure.Status.ToString() });
+
+        // Its notes go with it, so requests to delete them that are still waiting are closed, by the admin, undecided.
+        // They share the DbContext, so the deletion's save saves them. Their requesters aren't told.
+        foreach (var pending in await noteDeletionRequests.GetPendingForProcedureForUpdateAsync(procedure.Id, cancellationToken))
+            pending.Close(NoteDeletionRequestStatus.Closed, request.Actor.UserId, request.Actor.Username, now);
 
         await repository.DeleteAsync(procedure, change.AuditEntries, cancellationToken);
 

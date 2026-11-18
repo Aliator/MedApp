@@ -81,6 +81,9 @@ describe('AppLayout scrollbar room', {timeout: 15_000}, () => {
     expect(gutterOf(document.querySelector('[role="main"]'))).toBe('auto');
     for (const half of ['Left half', 'Right half']) {
       expect(gutterOf(document.querySelector(`[aria-label="${half}"]`))).toBe('stable both-edges');
+      // Equal halves: neither grows to its content's narrowest width.
+      expect(getComputedStyle(document.querySelector(`[aria-label="${half}"]`)!).minWidth).toBe('0px');
+      expect(getComputedStyle(document.querySelector(`[aria-label="${half}"]`)!).flexBasis).toMatch(/^0(px)?$/);
     }
   });
 });

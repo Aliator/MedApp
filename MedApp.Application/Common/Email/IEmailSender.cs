@@ -11,4 +11,11 @@ public interface IEmailSender
     bool CanSend { get; }
 
     Task SendAsync(EmailMessage message, CancellationToken ct);
+
+    /// <summary>
+    /// Whether an email of <paramref name="category"/> would go out now: a mail server is configured and the hour's
+    /// allowance has room for it. A look, not a promise (another request may take the last place), so a handler can say
+    /// "we couldn't email you" rather than promise an email that will be dropped.
+    /// </summary>
+    bool HasRoomFor(EmailCategory category) => CanSend;
 }

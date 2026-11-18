@@ -27,13 +27,15 @@ public sealed class NotificationPreferencesTests
     }
 
     [Test]
-    public void HasFixedTitle_TheAppointmentMeetingAndMonitoringKinds()
+    public void HasFixedTitle_TheAppointmentMeetingMonitoringAndNoteDeletionKinds()
     {
         Enum.GetValues<NotificationKind>().Where(Notification.HasFixedTitle)
             .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>()
                 .Where(k => k.ToString().StartsWith("Monitored")
                             || k.ToString().StartsWith("Appointment")
                             || k.ToString().StartsWith("Meeting")
+                            || k.ToString().StartsWith("NoteDeletion")
+                            || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
                             || k == NotificationKind.StageVisitWithdrawn));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
@@ -45,8 +47,21 @@ public sealed class NotificationPreferencesTests
         Notification.IsMonitoring(NotificationKind.MeetingInvited).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
         Notification.IsMonitoring(NotificationKind.MonitoredProcedureCreated).Should().BeTrue();
+        Notification.IsMonitoring(NotificationKind.NoteDeletionRequested).Should().BeFalse();
     }
 
+    [Test]
+    public void IsNoteDeletion_OnlyTheNoteDeletionKinds()
+    {
+        Enum.GetValues<NotificationKind>().Where(Notification.IsNoteDeletion).Should().Equal(
+            NotificationKind.NoteDeletionRequested, NotificationKind.NoteDeletionApproved, NotificationKind.NoteDeletionDeclined,
+            NotificationKind.AuthorsNoteDeleted);
+    }
+
+    [TestCase(NotificationKind.NoteDeletionRequested, 18)]
+    [TestCase(NotificationKind.NoteDeletionApproved, 19)]
+    [TestCase(NotificationKind.NoteDeletionDeclined, 20)]
+    [TestCase(NotificationKind.AuthorsNoteDeleted, 21)]
     [TestCase(NotificationKind.MeetingInvited, 4)]
     [TestCase(NotificationKind.MeetingChanged, 5)]
     [TestCase(NotificationKind.MeetingCancelled, 6)]

@@ -269,7 +269,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 - **Evidence:** `gh pr view 119`: `mergeable: CONFLICTING`; `gh run list --branch feature/closed-days-walk-ins`: runs only for `83b57f8`; `git merge-tree HEAD origin/main` lists the conflicts; `MedApp.Infrastructure/Migrations/20261118021255_…` against `origin/main`'s `20261118025735_AddedNoteDeletion.cs`.
 - **Stored numbers:** checked, and no clash. `main` has no `AppointmentStatus` 5, no `AppointmentEventAction` 7 or 8, and uses `NotificationKind` 18 to 21 (this branch 8 and 9); this branch adds no `ActivityAction`.
 - **Fix:** merge `main`; resolve the conflicts (keep both ranges in `HasFixedTitle`); re-create the migration on top (roll a local database back first, `migrations remove`, `migrations add AddedClosedDaysAndPastAppointments`, then put back the hand-written `Down`), and check `has-pending-model-changes`; make this branch DPIA 0.12 and hazard log 0.15; push, and let CI run.
-- **What happened to it:** Not yet.
+- **What happened to it:** fixed by merging `main` at `f40deb9` (after #115, #120 and #118). `HasFixedTitle` keeps both ranges and `StageVisitWithdrawn`, with `IsNoteDeletion` from `main`. No stored number clashes: this branch's `NotificationKind` 8, 9 and 22, `AppointmentStatus` 5 and `AppointmentEventAction` 7 and 8 are unused on `main`, which adds `NotificationKind` 18 to 21, `PatientProcedureAuditAction` 15 and `ActivityAction` 40 and 41. The migration was made again on top of main's three, as `20261118063757_AddedClosedDaysAndPastAppointments`: the scaffolded `Up` is the same as before, the hand-written `Down` was put back, `has-pending-model-changes` reports none, and `MigrationTests` (every migration down and up) passes. The DPIA entry is now version 0.13 and the hazard log's 0.16, after main's. One test changed with the merge: `main`'s `ProcedureActor` now carries `IsAdmin` from the session, so `AppointmentsControllerTests` expects it on the entered in error command's actor.
 
 #### B. Medium: withdrawing a visit a Required stage was finished on is told only to the person withdrawing it
 
@@ -340,7 +340,7 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 ### Remaining risks after the fixes
 
 - **Rolling update:** for a few minutes old API copies show a withdrawn walk-in's status as "5", let its notes be edited, and answer `entered-in-error` with a 404. Nothing is lost.
-- **The fixes are unproven in CI** until `main` is merged (finding A).
+- **The fixes are unproven in CI** until the run on the merge of `main` passes (finding A).
 - **A finished stage left without its visit is only notified** (finding B): nothing marks it on the procedure page, so it relies on an assignee or admin reading the notification.
 
 ## Detail

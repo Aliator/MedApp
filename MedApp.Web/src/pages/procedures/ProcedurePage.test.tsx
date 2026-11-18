@@ -49,6 +49,47 @@ describe('ProcedurePage', () => {
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
   });
 
+  it('opens a request to delete a note from the address for an admin, and closes it', async () => {
+    const requestId = '0000000d-0000-0000-0000-000000000001';
+    const fetch = mockApi({
+      [`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure),
+      [`GET /api/procedures/note-deletion-requests/${requestId}`]: () =>
+        json({id: requestId, status: 'Declined', reason: 'Synthetic reason.', requestedByUsername: 's.nurse', requestedAtUtc: '2026-11-17T10:00:00Z', procedureId: id, procedureTitle: 'Colonoscopy', decidedByUsername: 'other.admin', decidedAtUtc: '2026-11-17T11:00:00Z', note: null, canDecide: false}),
+    });
+    const onClose = vi.fn();
+    const {user} = renderWithApp(<ProcedurePage id={id} deletionRequest={requestId} onCloseDeletionRequest={onClose} />, {user: adminUser});
+
+    expect(await screen.findByText(/^other\.admin kept this note/)).toBeInTheDocument();
+    // The footer's Close (the header has its own).
+    await user.click(within(openDialog()!).getAllByRole('button', {name: 'Close'}).at(-1)!);
+    expect(onClose).toHaveBeenCalled();
+    expect(calls(fetch)).toContain(`GET /api/procedures/note-deletion-requests/${requestId}`);
+  });
+
+  it("goes to the request's own procedure when the address names another procedure's request", async () => {
+    const requestId = '0000000d-0000-0000-0000-000000000001';
+    const otherProcedure = '0000000d-0000-0000-0000-0000000000aa';
+    mockApi({
+      [`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure),
+      [`GET /api/procedures/note-deletion-requests/${requestId}`]: () =>
+        json({id: requestId, status: 'Pending', reason: 'Duplicate', requestedByUsername: 's.nurse', requestedAtUtc: '2026-11-17T10:00:00Z', procedureId: otherProcedure, canDecide: true}),
+    });
+    const elsewhere = vi.fn();
+    renderWithApp(<ProcedurePage id={id} deletionRequest={requestId} onDeletionRequestElsewhere={elsewhere} />, {user: adminUser});
+
+    await waitFor(() => expect(elsewhere).toHaveBeenCalledWith(otherProcedure, requestId));
+    expect(openDialog()).toBeNull();
+  });
+
+  it("never opens a request to delete a note for staff, who can't read it", async () => {
+    const fetch = mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    renderWithApp(<ProcedurePage id={id} deletionRequest="0000000d-0000-0000-0000-000000000001" />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch).some((call) => call.includes('note-deletion-requests'))).toBe(false);
+  });
+
   it('has no banner when the procedure comes without its patient', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
@@ -134,6 +175,18 @@ describe('ProcedurePage', () => {
     await user.click(screen.getByRole('button', {name: 'Patient info'}));
 
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('folds the notes away and opens them again', async () => {
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Hide notes'}));
+
+    const show = await screen.findByRole('button', {name: /notes/i, expanded: false});
+    expect(screen.queryByRole('button', {name: 'Add Note'})).not.toBeInTheDocument();
+    await user.click(show);
+    expect(await screen.findByRole('button', {name: 'Add Note'})).toBeInTheDocument();
   });
 
   it('says when every stage is finished', async () => {

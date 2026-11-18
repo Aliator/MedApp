@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
+using MedApp.Domain.Authentication;
 using Microsoft.Extensions.Options;
 using Moq;
 
@@ -16,6 +17,12 @@ public static class EmailTestConstants
     public const string NewPassword = "Synthetic-New-Passw0rd";
     public const string CurrentPassword = "Synthetic-Current-Passw0rd";
     public const string AuthenticatorCode = "123456";
+
+    /// <summary>A code as MedApp emails them (6 digits).</summary>
+    public const string EmailedCode = "654321";
+
+    /// <summary>A confirmed address as the API shows it, masked.</summary>
+    public const string MaskedAddress = "s•••@example.test";
     public const string RecoveryCode = "ABCDE-23456";
     public const string ChallengeToken = "synthetic-challenge-token";
 
@@ -42,6 +49,7 @@ public static class EmailTestConstants
     public static AccountEmail Account(string? email = Address, string? pending = null) =>
         new(UserId, Username, email, pending);
 
-    public static TwoFactorState State(bool enabled = true, bool isAdmin = false, int codesLeft = 10) =>
-        new(Username, enabled, codesLeft, isAdmin);
+    /// <param name="method">How it's on: the app unless given (none while it's off).</param>
+    public static TwoFactorState State(bool enabled = true, bool isAdmin = false, int codesLeft = 10, TwoFactorMethod? method = null) =>
+        new(Username, enabled, codesLeft, isAdmin, method ?? (enabled ? TwoFactorMethod.Authenticator : TwoFactorMethod.None));
 }

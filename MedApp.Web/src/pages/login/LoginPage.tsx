@@ -8,7 +8,7 @@ import {useState, type FormEvent} from 'react';
 import {featuresQuery} from '../../api/account';
 import {ApiError, ApiValidationError, fieldStatus} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {useLogin} from '../../auth/auth';
+import {useLogin, type TwoFactorChallenge} from '../../auth/auth';
 import {safeRedirectPath} from '../../auth/redirect';
 import {StandalonePage} from '../../components/pages/StandalonePage';
 import {TwoFactorStep} from './TwoFactorStep';
@@ -35,6 +35,9 @@ export function parseLoginSearch(search: Record<string, unknown>): LoginSearch {
 /** Said to screen readers as the code step replaces the password, which they wouldn't otherwise hear about. */
 export const CODE_STEP_ANNOUNCEMENT = 'Password accepted. Enter the code from your authenticator app.';
 
+/** The same, for an account using codes by email. */
+export const EMAIL_CODE_STEP_ANNOUNCEMENT = 'Password accepted. We emailed you a code: enter it to sign in.';
+
 /**
  * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
  * many wrong passwords (a 423) says so, and for how long, in the API's words. So do too many attempts in a short time
@@ -43,14 +46,15 @@ export const CODE_STEP_ANNOUNCEMENT = 'Password accepted. Enter the code from yo
  * it says so until a sign-in is tried.
  *
  * An account with two-factor authentication answers the password with a challenge (a 202): the password form gives
- * way to `TwoFactorStep`, for a code from the authenticator app or a recovery code. If that sign-in runs out, it comes
- * back here, saying why. "Forgot your password?" shows only when the server can send email. Signed in, it goes to the
- * start page, or to `redirectTo` (already checked by `parseLoginSearch`).
+ * way to `TwoFactorStep`, for a code from the authenticator app (or the one emailed, for an account using codes by
+ * email) or a recovery code. If that sign-in runs out, it comes back here, saying why. "Forgot your password?" shows
+ * only when the server can send email. Signed in, it goes to the start page, or to `redirectTo` (already checked by
+ * `parseLoginSearch`).
  */
 export function LoginPage({isExpired = false, redirectTo}: {isExpired?: boolean; redirectTo?: string}) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [challenge, setChallenge] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
   // Why the code step sent them back here (it ran out, or had too many wrong codes), in the API's words.
   const [restartReason, setRestartReason] = useState<string | null>(null);
   const login = useLogin(redirectTo);
@@ -76,8 +80,8 @@ export function LoginPage({isExpired = false, redirectTo}: {isExpired?: boolean;
       {
         onSuccess: (result) => {
           if (result.kind !== 'twoFactor') return;
-          setChallenge(result.challenge);
-          announce(CODE_STEP_ANNOUNCEMENT);
+          setChallenge(result);
+          announce(result.method === 'Email' ? EMAIL_CODE_STEP_ANNOUNCEMENT : CODE_STEP_ANNOUNCEMENT);
         },
       },
     );

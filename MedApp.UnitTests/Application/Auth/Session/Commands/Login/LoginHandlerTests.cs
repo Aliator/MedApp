@@ -178,7 +178,7 @@ public sealed class LoginHandlerTests
         _authService
             .Setup(s => s.ValidateCredentialsAsync(AuthTestConstants.Usernames[0], AuthTestConstants.Passwords[0]))
             .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
-        _twoFactor.Setup(t => t.IsEnabledAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.GetMethodAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Authenticator);
         _challenges
             .Setup(c => c.AddAsync(It.IsAny<SignInChallenge>(), EmailTestConstants.NowUtc, It.IsAny<CancellationToken>()))
             .Callback<SignInChallenge, DateTime, CancellationToken>((challenge, _, _) => saved = challenge)
@@ -212,7 +212,7 @@ public sealed class LoginHandlerTests
         _authService
             .Setup(s => s.ValidateCredentialsAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
-        _twoFactor.Setup(t => t.IsEnabledAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.GetMethodAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Authenticator);
         var command = new LoginCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Passwords[0], null, null);
 
         var first = await _handler.Handle(command, CancellationToken.None);

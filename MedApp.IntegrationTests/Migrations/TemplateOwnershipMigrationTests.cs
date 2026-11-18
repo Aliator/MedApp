@@ -94,9 +94,19 @@ public sealed class TemplateOwnershipMigrationTests
 
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
-        var weeks = await _context.WeekTemplates.AsNoTracking().Include(t => t.Days).ToListAsync();
-        var days = await _context.DayTemplates.AsNoTracking().Include(t => t.Blocks).ToListAsync();
-        var staffWeeks = await _context.StaffWeekTemplates.AsNoTracking().ToListAsync();
+        // Only the columns that exist at this migration: later ones may add more to these tables (AGENTS.md, Migrations).
+        var weeks = await _context.WeekTemplates.AsNoTracking()
+            .Select(t => new { t.Id, t.Name, t.OwnerUserId, Days = t.Days.Select(d => new { d.DayTemplateId }).ToList() })
+            .ToListAsync();
+        var days = await _context.DayTemplates.AsNoTracking()
+            .Select(t => new
+            {
+                t.Id, t.Name, t.OwnerUserId, Blocks = t.Blocks.Select(b => new { b.StartTime, b.ValidFrom, b.ValidTo }).ToList()
+            })
+            .ToListAsync();
+        var staffWeeks = await _context.StaffWeekTemplates.AsNoTracking()
+            .Select(s => new { s.StaffUserId, s.WeekTemplateId })
+            .ToListAsync();
 
         // The standard week: one each for A and B (the first by ID keeps the original), every dated row copied. The
         // leaver used it too, but gets no copy.
@@ -131,14 +141,17 @@ public sealed class TemplateOwnershipMigrationTests
         // The leaver's rows still point at what they used: the originals, whoever owns them now.
         staffWeeks.Where(s => s.StaffUserId == Leaver).Select(s => s.WeekTemplateId)
             .Should().BeEquivalentTo([_seed.StandardWeekId, _seed.LeaverWeekId]);
-        (await _context.CalendarDayOverrides.AsNoTracking().SingleAsync(o => o.StaffUserId == Leaver)).DayTemplateId.Should().Be(_seed.LeaverDayId);
+        (await _context.CalendarDayOverrides.AsNoTracking().Where(o => o.StaffUserId == Leaver).Select(o => o.DayTemplateId).SingleAsync())
+            .Should().Be(_seed.LeaverDayId);
 
         // Each member of staff's exception points at a block of their own clinic day; the leaver's at the original's.
-        var exceptions = await _context.CalendarBlockExceptions.AsNoTracking().Include(e => e.DayTemplateBlock).ToListAsync();
+        var exceptions = await _context.CalendarBlockExceptions.AsNoTracking()
+            .Select(e => new { e.StaffUserId, e.DayTemplateBlock.DayTemplateId })
+            .ToListAsync();
         exceptions.Should().HaveCount(3);
         exceptions.Where(e => e.StaffUserId != Leaver).Should().AllSatisfy(e =>
-            days.Single(t => t.Id == e.DayTemplateBlock.DayTemplateId).OwnerUserId.Should().Be(e.StaffUserId));
-        exceptions.Single(e => e.StaffUserId == Leaver).DayTemplateBlock.DayTemplateId.Should().Be(_seed.LeaverDayId);
+            days.Single(t => t.Id == e.DayTemplateId).OwnerUserId.Should().Be(e.StaffUserId));
+        exceptions.Single(e => e.StaffUserId == Leaver).DayTemplateId.Should().Be(_seed.LeaverDayId);
     }
 
     [Test]

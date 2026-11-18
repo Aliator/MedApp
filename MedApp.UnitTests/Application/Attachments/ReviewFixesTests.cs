@@ -214,6 +214,8 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             Patient = record.Patient, Procedures = record.Procedures, ProcedureHistory = record.ProcedureHistory,
             Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
+            NoteVersions = [],
+            NoteDeletionRequests = []
         };
 
         var entries = PatientAnonymiser.Apply(withFiles, Now, ActivityTestConstants.Actor);

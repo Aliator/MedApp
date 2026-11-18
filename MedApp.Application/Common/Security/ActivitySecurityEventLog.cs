@@ -68,6 +68,8 @@ public sealed class ActivitySecurityEventLog(
         SecurityEventKind.RecoveryCodesRegenerated => ActivityAction.RecoveryCodesRegenerated,
         SecurityEventKind.RecoveryCodeUsed => ActivityAction.RecoveryCodeUsed,
         SecurityEventKind.TwoFactorRequirementChanged => ActivityAction.TwoFactorRequirementChanged,
+        SecurityEventKind.EmailCodesEnabled => ActivityAction.EmailCodesEnabled,
+        SecurityEventKind.EmailCodesDisabled => ActivityAction.EmailCodesDisabled,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No activity log action for this kind of security event."),
     };
 }

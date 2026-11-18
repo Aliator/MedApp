@@ -6,9 +6,10 @@ using Microsoft.Extensions.Options;
 namespace MedApp.API.Common.RateLimiting;
 
 /// <summary>
-/// Counts each account's two-factor codes and email changes in fixed windows, from any address
+/// Counts each account's two-factor codes, email changes and emailed codes in fixed windows, from any address
 /// (<see cref="LoginThrottlingOptions.TwoFactorCodesPerAccountPermitLimit"/>,
-/// <see cref="LoginThrottlingOptions.EmailChangesPerAccountPermitLimit"/>), in this copy of the API's memory, as sign-in's
+/// <see cref="LoginThrottlingOptions.EmailChangesPerAccountPermitLimit"/>,
+/// <see cref="LoginThrottlingOptions.EmailCodesPerAccountPermitLimit"/>), in this copy of the API's memory, as sign-in's
 /// per-username limit is. A code is counted before it's checked, right or wrong, so however the guesses are spread over
 /// sign-ins, challenges and signed-in checks, an account gets at most this many in a window.
 /// </summary>
@@ -16,6 +17,7 @@ public sealed class AccountAttemptLimiter : IAccountAttemptLimiter, IDisposable
 {
     private readonly PartitionedRateLimiter<string> _codes;
     private readonly PartitionedRateLimiter<string> _emailChanges;
+    private readonly PartitionedRateLimiter<string> _emailCodes;
     private readonly LoginThrottlingOptions _settings;
 
     public AccountAttemptLimiter(IOptions<LoginThrottlingOptions> options)
@@ -23,6 +25,7 @@ public sealed class AccountAttemptLimiter : IAccountAttemptLimiter, IDisposable
         _settings = options.Value;
         _codes = Create(_settings.TwoFactorCodesPerAccountPermitLimit, _settings.TwoFactorCodeWindow);
         _emailChanges = Create(_settings.EmailChangesPerAccountPermitLimit, _settings.EmailChangeWindow);
+        _emailCodes = Create(_settings.EmailCodesPerAccountPermitLimit, _settings.EmailCodeWindow);
     }
 
     public void Attempt(AccountAttempt kind, Guid userId)
@@ -31,6 +34,7 @@ public sealed class AccountAttemptLimiter : IAccountAttemptLimiter, IDisposable
         {
             AccountAttempt.TwoFactorCode => (_codes, _settings.TwoFactorCodeWindow, "Too many codes tried for this account."),
             AccountAttempt.EmailChange => (_emailChanges, _settings.EmailChangeWindow, "Too many email address changes for this account."),
+            AccountAttempt.EmailCode => (_emailCodes, _settings.EmailCodeWindow, "Too many codes emailed to this account."),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No limit for this kind of attempt."),
         };
 
@@ -52,6 +56,7 @@ public sealed class AccountAttemptLimiter : IAccountAttemptLimiter, IDisposable
     {
         _codes.Dispose();
         _emailChanges.Dispose();
+        _emailCodes.Dispose();
     }
 
     private static PartitionedRateLimiter<string> Create(int permitLimit, TimeSpan window) =>

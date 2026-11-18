@@ -3,11 +3,17 @@ namespace MedApp.Application.Common.Security;
 /// <summary>What an account is limited in doing, however many sign-ins or challenges it's spread across.</summary>
 public enum AccountAttempt
 {
-    /// <summary>A two-factor code checked: at sign-in, or to turn two-factor off or replace the recovery codes.</summary>
+    /// <summary>
+    /// A two-factor code checked (from the app or an email): at sign-in, to turn codes by email on, or to turn two-factor
+    /// off or replace the recovery codes.
+    /// </summary>
     TwoFactorCode,
 
     /// <summary>A request to use a new email address, each of which sends an email.</summary>
     EmailChange,
+
+    /// <summary>A two-factor code emailed (sent or sent again), for signing in or confirming a change.</summary>
+    EmailCode,
 }
 
 /// <summary>

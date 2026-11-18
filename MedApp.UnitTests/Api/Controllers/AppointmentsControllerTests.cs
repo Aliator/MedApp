@@ -102,7 +102,7 @@ public sealed class AppointmentsControllerTests
         var result = await new AppointmentsController(mediator).WithRequest(SignedIn(role))
             .MarkEnteredInError(RecordId, new MarkEnteredInErrorRequest { Reason = "Wrong patient." }, _cts.Token);
 
-        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor, isAdmin));
+        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor with { IsAdmin = isAdmin }, isAdmin));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }

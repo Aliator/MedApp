@@ -2,8 +2,11 @@ import {screen, waitFor} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {
+  ANOTHER_PATIENTS_DETAILS,
   appointmentChangeLabel,
   appointmentHistoryWords,
+  deletedNoteText,
+  deletionRequestOutcome,
   describeAppointmentChange,
   describeExportedAppointment,
   exportFileName,
@@ -245,7 +248,75 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No appointments.')).toBeInTheDocument();
     expect(screen.getByText('No appointment changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No files.')).toBeInTheDocument();
+    expect(screen.getByText('No requests to delete notes.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
+  });
+
+  it('marks a deleted note, saying when, by whom and why, and lists the requests to delete notes', async () => {
+    const procedure = data.procedures![0];
+    renderExport({
+      ...data,
+      procedures: [
+        {
+          ...procedure,
+          notes: [
+            {
+              id: 'note-2',
+              author: 'k.ashford',
+              text: 'Synthetic note an admin deleted',
+              createdAtUtc: '2026-09-01T10:00:00Z',
+              lastEditedAtUtc: null,
+              version: 1,
+              deletedAtUtc: '2026-09-05T10:00:00Z',
+              deletedBy: 'test-admin',
+              deletionReason: 'WrongPatient',
+              deletionDetail: 'Synthetic: the other procedure.',
+              isAboutAnotherPatient: true,
+            },
+          ],
+        },
+      ],
+      noteDeletionRequests: [
+        {
+          id: 'request-1',
+          noteId: 'note-2',
+          procedureId,
+          requestedBy: 's.nurse',
+          requestedAtUtc: '2026-09-04T10:00:00Z',
+          reason: 'Duplicate',
+          detail: 'Synthetic request detail',
+          status: 'Approved',
+          decidedBy: 'test-admin',
+          decidedAtUtc: '2026-09-05T10:00:00Z',
+        },
+        {
+          id: 'request-2',
+          noteId: 'note-3',
+          procedureId: 'a184a7b8-2585-4437-bcd4-e1700be38219',
+          requestedBy: 'l.northcott',
+          requestedAtUtc: '2026-09-06T10:00:00Z',
+          reason: 'Other',
+          detail: 'Synthetic second detail',
+          status: 'Pending',
+          decidedBy: null,
+          decidedAtUtc: null,
+        },
+      ],
+    });
+
+    // The deleted note is kept in the export, marked, with its text.
+    expect(await screen.findByText('Synthetic note an admin deleted')).toBeInTheDocument();
+    expect(screen.getByText('Deleted')).toBeInTheDocument();
+    expect(screen.getByText(/^Deleted by test-admin, .*\. Reason: Wrong patient: Synthetic: the other procedure\.$/)).toBeInTheDocument();
+    // Flagged for whoever checks the export before it's released: another patient's details.
+    expect(screen.getByText(ANOTHER_PATIENTS_DETAILS)).toBeInTheDocument();
+    // The requests, with their reasons and where each stands.
+    expect(screen.getByText('Note Deletion Requests (2)')).toBeInTheDocument();
+    expect(screen.getByText(/: s\.nurse asked for a note to be deleted$/)).toBeInTheDocument();
+    expect(screen.getByText('Reason: Duplicate: Synthetic request detail')).toBeInTheDocument();
+    expect(screen.getByText('Reason: Other: Synthetic second detail')).toBeInTheDocument();
+    expect(screen.getByText(/^Note deleted by test-admin, /)).toBeInTheDocument();
+    expect(screen.getByText('Waiting for an admin to decide.')).toBeInTheDocument();
   });
 
   it("says what an appointment was for when it's no longer held, or not for a procedure", async () => {
@@ -359,6 +430,26 @@ describe('PatientExportPage', () => {
   it('says when the export could not be made', async () => {
     renderExport({title: 'Server error'}, 500);
     expect(await findAlert('The export could not be made. Please try again.')).toBeInTheDocument();
+  });
+});
+
+describe('note deletion in words', () => {
+  it("gives a deleted note's line, with or without a reason", () => {
+    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: 'test-admin', deletionReason: 'WrittenInError', deletionDetail: ' Synthetic. '})).toMatch(
+      /^Deleted by test-admin, .+\. Reason: Written in error: Synthetic\.$/,
+    );
+    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: null, deletionReason: null, deletionDetail: null})).toMatch(
+      /^Deleted by an admin, .+\.$/,
+    );
+  });
+
+  it("says where each request stands", () => {
+    const at = {decidedBy: 'test-admin', decidedAtUtc: '2026-09-05T10:00:00Z'};
+    expect(deletionRequestOutcome({status: 'Approved', ...at})).toMatch(/^Note deleted by test-admin, .+\.$/);
+    expect(deletionRequestOutcome({status: 'Declined', ...at})).toMatch(/^Note kept by test-admin, .+\.$/);
+    expect(deletionRequestOutcome({status: 'Closed', ...at})).toMatch(/^Closed without a decision, .+\.$/);
+    expect(deletionRequestOutcome({status: 'Declined', decidedBy: null, decidedAtUtc: null})).toBe('Note kept by an admin.');
+    expect(deletionRequestOutcome({status: 'Pending', decidedBy: null, decidedAtUtc: null})).toBe('Waiting for an admin to decide.');
   });
 });
 

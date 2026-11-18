@@ -3,6 +3,9 @@ using FluentAssertions;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
+using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
+using MedApp.Contracts.Procedures.PatientProcedures.Requests;
+using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -41,6 +44,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/patients/{id:guid}/timeline/overview"] = Records("PatientViewed"),
         ["api/procedures/patient-procedures/{id:guid}"] = Records("ProcedureViewed"),
         ["api/procedures/patient-procedures/search"] = Records("PatientListed"),
+        ["api/procedures/note-deletion-requests/{id:guid}"] = Records("ProcedureViewed"), // PatientViewed once the procedure is deleted
         ["api/fhir/Patient/{id}"] = Records("PatientViewed"),
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
@@ -139,6 +143,11 @@ public sealed class EndpointCoverageTests : IntegrationTest
         var day = NextWorkingDay();
         var appointment = await BookNewAppointmentAsync(admin, patientId, adminId, UkAt(day, 9));
         var file = await UploadAttachmentOkAsync(admin, $"procedureId={procedure.Id}", SyntheticPdf, "synthetic.pdf");
+        // A request to delete a note, whose dialog shows the note and the patient.
+        var note = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes",
+            new AddProcedureNoteRequest { Text = "Synthetic note." })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+        var requested = await (await admin.PostAsJsonAsync($"/api/procedures/patient-procedures/{procedure.Id}/notes/{note.Id}/deletion-requests",
+            new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -151,6 +160,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/patients/{patientId}/timeline/overview", "PatientViewed", patientId),
             ($"/api/procedures/patient-procedures/{procedure.Id}", "ProcedureViewed", patientId),
             ("/api/procedures/patient-procedures/search", "PatientListed", patientId),
+            ($"/api/procedures/note-deletion-requests/{requested.DeletionRequestId}", "ProcedureViewed", patientId),
             ($"/api/fhir/Patient/{patientId}", "PatientViewed", patientId),
             ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),

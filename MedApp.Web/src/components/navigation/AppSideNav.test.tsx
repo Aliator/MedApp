@@ -392,6 +392,36 @@ describe('AppSideNav folded, and its menus', () => {
     expect(screen.queryByRole('link', {name: 'Users'})).not.toBeInTheDocument();
   });
 
+  it("holds a folded nav's row out while its menu is pinned, and lets it go when the menu closes", async () => {
+    localStorage.setItem('medapp.navFlyoutDelay', 'none');
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav collapsible={{isCollapsed: true}} />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    const icon = await screen.findByRole('link', {name: 'My Tasks'});
+    await user.hover(icon);
+    const button = await screen.findByRole('button', {name: 'My Tasks options', hidden: true});
+    await waitFor(() => expect(button).toBeVisible());
+    fireEvent.pointerDown(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+
+    // Off the nav altogether, well past the row's own wait: the row and its menu stay.
+    await user.unhover(icon);
+    await user.hover(document.body);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(button).toBeVisible();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    // Closing the menu lets the row go, as the pointer is no longer on it.
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(button).not.toBeVisible());
+  });
+
   it('stays signed in when logging out is cancelled', async () => {
     const fetch = mockFetch(() => new Response(null, {status: 204}));
     const {user, router} = renderWithApp(<AppSideNav />, {user: staffUser});
@@ -404,7 +434,7 @@ describe('AppSideNav folded, and its menus', () => {
     expect(fetch.mock.calls.some(([request]) => new URL((request as Request).url).pathname === '/api/auth/logout')).toBe(false);
   });
 
-  it("opens a row's menu with a press of its button, and a second press leaves it open", async () => {
+  it("pins a row's menu open with a press of its button, so the pointer leaving doesn't close it; a second press closes it", async () => {
     const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
@@ -419,12 +449,164 @@ describe('AppSideNav folded, and its menus', () => {
     fireEvent.pointerDown(button);
     fireEvent.click(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
-    await user.click(button);
+
+    // The pointer leaving, for longer than an unpinned menu waits: still open.
+    await user.unhover(button);
+    await user.hover(document.body);
+    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(button).toHaveAttribute('aria-expanded', 'true');
 
+    // A second press closes it.
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+
+    // Pressed again, it opens, and its items work.
+    fireEvent.pointerDown(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
     const menu = document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(button.id)}"]`)!;
     await user.click(within(menu).getByRole('menuitem', {name: /^Open in half view/, hidden: true}));
     expect(halfViews.open).toHaveBeenCalledWith('/tasks');
+  });
+
+  it('pins a menu that the pointer resting opened, when its button is pressed', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    // Open from resting on it: a press pins it rather than closing it.
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    await user.unhover(button);
+    await user.hover(document.body);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    // Escape closes it, and it's let go: resting on the button opens it again, and leaving closes it.
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('keeps the button the menu\'s invoker through a press that pins it, so the browser\'s light dismiss leaves it open', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    const popover = document.getElementById(button.getAttribute('aria-controls')!)!.closest('[popover]')!;
+
+    fireEvent.pointerDown(button);
+    expect(button).toHaveAttribute('popovertarget', popover.id);
+    fireEvent.pointerUp(button);
+    await waitFor(() => expect(button).not.toHaveAttribute('popovertarget'));
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('lets a menu go once a second click closes it, so resting on the button then opens it only for a while', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    // A real press and release (the menu opens on the press), at once, before resting on it would open it.
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+
+    // Resting on it again opens it, unpinned: leaving closes it.
+    await user.unhover(button);
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it("doesn't pin a menu that a press didn't open (a right-click)", async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    fireEvent.pointerDown(button, {button: 2, buttons: 2, pointerType: 'mouse'});
+    fireEvent.pointerUp(button, {button: 2, pointerType: 'mouse'});
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    // Resting on it opens it after a moment, unpinned: leaving closes it.
+    await user.hover(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('closes a pinned menu with Enter on its button', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    button.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('pins a menu opened from the keyboard', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    button.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.unhover(button);
+    await user.hover(document.body);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(button).toHaveAttribute('aria-expanded', 'true');
   });
 
   it("places a row's menu beside the nav, level with the row's highlight", async () => {
@@ -449,6 +631,102 @@ describe('AppSideNav folded, and its menus', () => {
     // Out from the nav's edge by the row's inset (8), and level with the row.
     await waitFor(() => expect(panel.style.translate).toBe(`${240 + 8 - 300}px ${100 - 90}px`));
     expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
+  });
+
+  it('measures nothing more once the menu has closed, though its animation finishes after', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
+      return new DOMRect();
+    });
+    let settle = () => {};
+    const sliding = {finished: new Promise<void>((resolve) => (settle = resolve)), effect: {getComputedTiming: () => ({endTime: 200})}};
+    const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
+    prototype.getAnimations = () => [sliding];
+    try {
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const {user} = renderWithApp(
+        <HalfViewsContext.Provider value={halfViews}>
+          <AppSideNav />
+        </HalfViewsContext.Provider>,
+        {user: staffUser},
+      );
+      await rowMenuItem(user, 'My Tasks', 'Open in half view');
+      const button = screen.getByRole('button', {name: 'My Tasks options'});
+      await waitFor(() => expect(document.querySelector('[data-nav-bridge]')).not.toBeNull());
+
+      // Closed before the menu settles: no strip, and none comes back when the animation ends.
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+      await act(async () => settle());
+      expect(document.querySelector('[data-nav-bridge]')).toBeNull();
+    } finally {
+      delete prototype.getAnimations;
+    }
+  });
+
+  it("shows a row's buttons on hover alone in a browser without :focus-visible", async () => {
+    // A half view to open is what gives a row its menu button.
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    const tasks = (await screen.findAllByRole('link', {name: 'My Tasks'}))[0];
+    // Only this link's check for `:focus-visible` throws, as it would in a browser without it.
+    const matches = tasks.matches.bind(tasks);
+    tasks.matches = (selector: string) => {
+      if (selector === ':focus-visible') throw new SyntaxError('unsupported');
+      return matches(selector);
+    };
+
+    // Focus doesn't bring the buttons out (keyboard focus can't be told from a click's), but hovering does.
+    act(() => tasks.focus());
+    expect(screen.queryByRole('button', {name: 'My Tasks options'})).not.toBeInTheDocument();
+    await user.hover(tasks);
+    expect(await screen.findByRole('button', {name: 'My Tasks options'})).toBeInTheDocument();
+  });
+
+  it('measures the strip again once the menu has slid into place, ignoring an animation that never ends', async () => {
+    // The menu starts at 300 while it animates, and settles at 310.
+    let menuLeft = 300;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(menuLeft, 100, 200, 120);
+      return new DOMRect();
+    });
+    let settle = () => {};
+    const sliding = {finished: new Promise<void>((resolve) => (settle = resolve)), effect: {getComputedTiming: () => ({endTime: 200})}};
+    const endless = {finished: new Promise<void>(() => {}), effect: {getComputedTiming: () => ({endTime: Infinity})}};
+    // jsdom has no Web Animations: the menu's surface reports one that ends and one that never does.
+    const prototype = HTMLElement.prototype as unknown as {getAnimations?: () => unknown[]};
+    prototype.getAnimations = () => [sliding, endless];
+    try {
+      const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
+      const {user} = renderWithApp(
+        <HalfViewsContext.Provider value={halfViews}>
+          <AppSideNav />
+        </HalfViewsContext.Provider>,
+        {user: staffUser},
+      );
+      await rowMenuItem(user, 'My Tasks', 'Open in half view');
+      const strip = () => document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
+      // First measured mid-animation: 228 to 324 (24px into the menu at 300).
+      await waitFor(() => expect(strip()?.style.width).toBe('96px'));
+
+      // Settled 10px further on: measured again, though the endless animation never finishes.
+      menuLeft = 310;
+      await act(async () => settle());
+      await waitFor(() => expect(strip()?.style.width).toBe('106px'));
+    } finally {
+      delete prototype.getAnimations;
+    }
   });
 
   it('covers the gap between the menu button and its open menu, so the pointer crossing it keeps the menu open', async () => {
@@ -476,12 +754,13 @@ describe('AppSideNav folded, and its menus', () => {
       return strip!;
     });
     expect(bridge).toHaveAttribute('aria-hidden', 'true');
-    // From the button's end to the menu's start, as tall as both.
-    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '100px', width: '72px', height: '120px'});
+    // From the button's end 24px into the menu (whatever's under the menu never takes the pointer), and 8px above and
+    // below both: 228 to 324 across, 92 to 228 down.
+    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '92px', width: '96px', height: '136px'});
 
     // On the strip, past the time a menu waits before closing once the pointer has left it: still open.
     await user.hover(bridge);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(button).toHaveAttribute('aria-expanded', 'true');
 
     // Off it, onto the page: it closes, and the strip goes with it.

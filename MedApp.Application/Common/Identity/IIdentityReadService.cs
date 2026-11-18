@@ -26,7 +26,7 @@ public interface IIdentityReadService
     /// </summary>
     Task<IReadOnlyList<(Guid UserId, string Username)>> GetStaffAsync(CancellationToken ct);
 
-    /// <summary>The IDs of every user with the Admin role, to tell them something only an admin can put right.</summary>
+    /// <summary>The IDs of every user with the Admin role, to tell them something only an admin can put right (a stage's visit withdrawn, a request to delete a note).</summary>
     Task<IReadOnlyList<Guid>> GetAdminIdsAsync(CancellationToken ct);
 
     /// <summary>One page of users matching the query's filters, sorted by username, and the total that match.</summary>

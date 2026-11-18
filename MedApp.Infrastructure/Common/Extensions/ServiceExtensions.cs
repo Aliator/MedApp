@@ -161,6 +161,7 @@ public static class ServiceExtensions
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IPatientProcedureRepository, PatientProcedureRepository>();
+        services.AddScoped<INoteDeletionRequestRepository, NoteDeletionRequestRepository>();
         services.AddScoped<IPatientProcedureStagesRepository, PatientProcedureStagesRepository>();
         services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
         services.AddScoped<INotepadRepository, NotepadRepository>();
@@ -174,6 +175,7 @@ public static class ServiceExtensions
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
+        services.AddScoped<IEmailCodeRepository, EmailCodeRepository>();
         services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
         services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
