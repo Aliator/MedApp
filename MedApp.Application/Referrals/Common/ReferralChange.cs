@@ -28,6 +28,9 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     public const string RequestedPriorityField = "requestedPriority";
     public const string ReasonField = "reason";
 
+    /// <summary>The practice chosen from the directory (by its ID; the typed practice is <see cref="ReferrerPracticeField"/>).</summary>
+    public const string DirectoryPracticeField = "directoryPractice";
+
     private readonly List<ReferralEvent> _events = [];
 
     public Referral Referral => referral;
@@ -114,6 +117,13 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         {
             fields.Add(ReferrerOdsCodeField);
             referral.ReferrerOdsCode = details.ReferrerOdsCode;
+        }
+
+        if (referral.PracticeId != details.PracticeId)
+        {
+            fields.Add(DirectoryPracticeField);
+            changes[DirectoryPracticeField] = new { fromId = referral.PracticeId, toId = details.PracticeId };
+            referral.PracticeId = details.PracticeId;
         }
 
         if (referral.Reason != details.Reason)

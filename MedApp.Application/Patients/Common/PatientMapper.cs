@@ -1,5 +1,8 @@
-﻿using MedApp.Contracts.Patients.Responses;
+using MedApp.Contracts.Patients.Responses;
+using MedApp.Application.Practices.Common;
+using MedApp.Domain.Contacts;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Practices;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -9,7 +12,14 @@ namespace MedApp.Application.Patients.Common;
 /// </summary>
 public static class PatientMapper
 {
-    public static PatientResponse ToResponse(Patient patient) => new(
+    /// <summary>A patient, as lists show them (their practice by its ID only).</summary>
+    public static PatientResponse ToResponse(Patient patient) => ToResponse(patient, null);
+
+    /// <summary>
+    /// A patient with the practice they're registered with (<paramref name="practice"/>), for a single patient's
+    /// response; it's left out unless it's the patient's.
+    /// </summary>
+    public static PatientResponse ToResponse(Patient patient, Practice? practice) => new(
         patient.Id,
         patient.FirstName,
         patient.LastName,
@@ -17,6 +27,11 @@ public static class PatientMapper
         patient.Email)
     {
         NhsNumber = patient.NhsNumber,
+        AddressLines = PostalAddress.Split(patient.AddressLines),
+        Postcode = patient.Postcode,
+        MobilePhone = patient.MobilePhone,
+        PracticeId = patient.PracticeId,
+        Practice = practice is not null && practice.Id == patient.PracticeId ? PracticeMapper.ToSummary(practice) : null,
         IsRestricted = patient.RestrictedAtUtc is not null,
         RestrictionReason = patient.RestrictionReason,
         RestrictedAtUtc = patient.RestrictedAtUtc,

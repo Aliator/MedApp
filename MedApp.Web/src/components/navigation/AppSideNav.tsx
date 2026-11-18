@@ -702,6 +702,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
+    // The GP practice directory, for anyone who can view patients (holders of EditPatients keep it).
+    ...(can(user, 'ViewPatients')
+      ? [
+          {
+            key: 'practices',
+            label: 'Practices',
+            icon: AppIcon.Practices,
+            href: '/practices',
+            isSelected: isAt('/practices'),
+            isHalfView: isHalfAt('/practices'),
+            row: (
+              <SideNavItem
+                label="Practices"
+                icon={AppIcon.Practices}
+                href="/practices"
+                isSelected={isAt('/practices')}
+                ref={halfViewRow(isHalfAt('/practices'))}
+                actions={<RowMenu label="Practices" href="/practices" />}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'patients',
       label: 'Patients',

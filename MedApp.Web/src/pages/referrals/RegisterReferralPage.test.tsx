@@ -64,6 +64,7 @@ describe('RegisterReferralPage', () => {
         confirmPossibleDuplicate: false,
         specialtyId: DERMATOLOGY_ID,
         receivedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        practiceId: null,
         referrerPractice: 'Synthetic Street Surgery',
         referrerClinician: null,
         referrerOdsCode: 'A12345',

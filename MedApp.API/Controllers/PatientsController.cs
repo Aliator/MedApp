@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MedApp.Application.Patients.Commands.AnonymisePatient;
 using MedApp.Application.Patients.Commands.CreatePatient;
@@ -37,7 +37,11 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.LastName,
             request.DateOfBirth,
             request.Email,
-            request.NhsNumber
+            request.NhsNumber,
+            request.AddressLines,
+            request.Postcode,
+            request.MobilePhone,
+            request.PracticeId
         );
 
         var patient = await mediator.Send(command);
@@ -130,7 +134,11 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.LastName,
             request.DateOfBirth,
             request.Email,
-            request.NhsNumber
+            request.NhsNumber,
+            request.AddressLines,
+            request.Postcode,
+            request.MobilePhone,
+            request.PracticeId
         );
 
         var patient = await mediator.Send(command);

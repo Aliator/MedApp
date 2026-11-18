@@ -54,6 +54,7 @@ export const ACTIVITY_ACTIONS = [
   'StaffSpecialtiesChanged',
   'ReferralViewed',
   'RoleChanged',
+  'StaffDetailsChanged',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -103,6 +104,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   StaffSpecialtiesChanged: 'Specialties changed',
   ReferralViewed: 'Referral viewed',
   RoleChanged: 'Role changed',
+  StaffDetailsChanged: 'Staff details changed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -143,6 +145,7 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'EmailCodesDisabled',
   'StaffSpecialtiesChanged',
   'RoleChanged',
+  'StaffDetailsChanged',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -185,6 +188,12 @@ const FIELD_NAMES: Record<string, string> = {
   dateOfBirthFrom: 'born from',
   dateOfBirthTo: 'born to',
   nhsNumber: 'NHS number',
+  addressLines: 'address',
+  postcode: 'postcode',
+  mobilePhone: 'mobile',
+  practice: 'GP practice',
+  fullName: 'full name',
+  jobTitle: 'job title',
 };
 
 /** Why a sign-in, or its second step, was refused. */
@@ -240,6 +249,11 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     case 'PatientUpdated': {
       const fields = fieldNames(d.fields);
       return fields ? `Changed ${fields}` : 'Nothing changed';
+    }
+    // The names of the fields changed, never their values.
+    case 'StaffDetailsChanged': {
+      const fields = fieldNames(d.fields);
+      return fields ? `Changed ${fields}` : '';
     }
     case 'PatientsSearched': {
       const count = typeof d.resultCount === 'number' ? `${d.resultCount} found` : '';

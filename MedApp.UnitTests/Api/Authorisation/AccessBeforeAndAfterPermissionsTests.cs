@@ -72,6 +72,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.ExtendSession 01111
         AuthController.GetAllRoles 00001
         AuthController.GetAllUsers 00001
+        AuthController.GetMyDetails 00011
         AuthController.GetMySettings 00011
         AuthController.GetMySpecialties 00011
         AuthController.GetSession 01111
@@ -83,6 +84,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.ResetUserPassword 00001
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
+        AuthController.SetMyDetails 00011
+        AuthController.SetUserDetails 00001
         AuthController.SetUserRoles 00001
         AuthController.SetUserSpecialties 00001
         AuthController.SignOutEverywhere 00001
@@ -204,7 +207,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+<<<<<<< HEAD
+        PracticesController.ArchivePractice 00011
+        PracticesController.CreatePractice 00011
+        PracticesController.DeletePractice 00011
+        PracticesController.GetPractice 00011
+        PracticesController.GetPractices 00011
+        PracticesController.RestorePractice 00011
+        PracticesController.UpdatePractice 00011
+=======
         ReferralsController.AcceptReferral 00000
+>>>>>>> origin/main
         ReferralsController.CountAwaitingTriage 00011
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011

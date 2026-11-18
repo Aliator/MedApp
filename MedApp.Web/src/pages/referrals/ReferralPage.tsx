@@ -373,7 +373,10 @@ function ReferralDetails({referral}: {referral: Referral}) {
         </MetadataListItem>
         <MetadataListItem label="Specialty">{shown(referral.specialtyName)}</MetadataListItem>
         <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
-        <MetadataListItem label="Practice">{shown(referral.referrerPractice)}</MetadataListItem>
+        {/* "(from the directory)" when staff chose it from the GP practice directory, not only typed it. */}
+        <MetadataListItem label="Practice">
+          {referral.practiceId ? `${shown(referral.referrerPractice)} (from the directory)` : shown(referral.referrerPractice)}
+        </MetadataListItem>
         <MetadataListItem label="Clinician">{shown(referral.referrerClinician)}</MetadataListItem>
         <MetadataListItem label="ODS code">{shown(referral.referrerOdsCode)}</MetadataListItem>
         <MetadataListItem label="Registered">

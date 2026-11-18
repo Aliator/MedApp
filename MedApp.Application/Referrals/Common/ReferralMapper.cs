@@ -37,6 +37,7 @@ public static class ReferralMapper
             ReferrerPractice = referral.ReferrerPractice,
             ReferrerClinician = referral.ReferrerClinician,
             ReferrerOdsCode = referral.ReferrerOdsCode,
+            PracticeId = referral.PracticeId,
             RequestedPriority = referral.RequestedPriority.ToString(),
             Reason = referral.Reason,
             Status = referral.Status.ToString(),

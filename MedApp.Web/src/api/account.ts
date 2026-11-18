@@ -315,3 +315,33 @@ export function useSaveSecuritySettings() {
     onSuccess: (settings) => queryClient.setQueryData(securitySettingsQuery.queryKey, settings),
   });
 }
+
+/** Someone's full name and job title, as they go on letters; null for one not given. */
+export type StaffDetails = Schemas['StaffDetailsResponse'];
+
+/** The details as sent: trimmed, and blank as none (the API removes it). Each is at most 100 characters (the API's 400). */
+export const toStaffDetailsRequest = (details: {fullName: string; jobTitle: string}) => ({
+  fullName: details.fullName.trim() || null,
+  jobTitle: details.jobTitle.trim() || null,
+});
+
+/** The signed-in user's own full name and job title, as they go on letters (`GET api/auth/me/details`). */
+export const myDetailsQuery = queryOptions({
+  queryKey: ['account', 'details'],
+  queryFn: () => unwrap(api.GET('/api/auth/me/details')),
+});
+
+/**
+ * Replaces the signed-in user's full name and job title (`PUT api/auth/me/details`): blank removes one. A 400 names
+ * `fullName` or `jobTitle` (each at most 100 characters). The Users list shows them, so it's refreshed too.
+ */
+export function useSaveMyDetails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (details: {fullName: string; jobTitle: string}) => unwrap(api.PUT('/api/auth/me/details', {body: toStaffDetailsRequest(details)})),
+    onSuccess: async (details) => {
+      queryClient.setQueryData(myDetailsQuery.queryKey, details);
+      await queryClient.invalidateQueries({queryKey: ['users']});
+    },
+  });
+}

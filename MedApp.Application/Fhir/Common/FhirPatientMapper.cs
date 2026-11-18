@@ -1,12 +1,14 @@
 using System.Globalization;
 using MedApp.Contracts.Fhir;
+using MedApp.Domain.Contacts;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Practices;
 
 namespace MedApp.Application.Fhir.Common;
 
 /// <summary>
 /// Patients as FHIR R4 resources in the UK Core Patient profile's shape: the NHS number as an identifier with its
-/// verification status, the name, the email and the date of birth. Only what MedApp holds, and an anonymised record's
+/// verification status, the name, the mobile and email, the date of birth, the address and the registered GP practice. Only what MedApp holds, and an anonymised record's
 /// placeholders are never passed off as a patient's details.
 /// </summary>
 public static class FhirPatientMapper
@@ -42,6 +44,9 @@ public static class FhirPatientMapper
     public const string DisputedCode = "disputed";
     public const string DisputedDisplay = "Accuracy disputed by the patient (UK GDPR Article 16)";
 
+    /// <summary>The identifier system for organisations' ODS codes, as UK Core refers to a GP practice.</summary>
+    public const string OdsOrganisationCodeSystem = "https://fhir.nhs.uk/Id/ods-organization-code";
+
     /// <summary>What an anonymised record's name says, as FHIR's "anonymous" name.</summary>
     public const string AnonymisedName = "Anonymised";
 
@@ -50,7 +55,12 @@ public static class FhirPatientMapper
     /// as details: <c>active</c> false, an "anonymous" name, the year of birth alone (the day and month the anonymiser
     /// set aren't real), and no email. A restricted or disputed record carries a <c>meta.tag</c> saying so.
     /// </summary>
-    public static FhirPatient ToResource(Patient patient) =>
+    /// <para>
+    /// The postal address, a mobile and the registered GP practice (<paramref name="practice"/>, the directory's entry
+    /// for the patient's <c>PracticeId</c>) are given in UK Core's shape when known: <c>address</c> (home), a
+    /// <c>telecom</c> phone with <c>use</c> mobile, and <c>generalPractitioner</c> as an Organization by its ODS code.
+    /// </para>
+    public static FhirPatient ToResource(Patient patient, Practice? practice = null) =>
         patient.AnonymisedAtUtc is not null ? ToAnonymisedResource(patient) : new()
         {
             Id = patient.Id.ToString(),
@@ -66,11 +76,48 @@ public static class FhirPatientMapper
                     Given = string.IsNullOrWhiteSpace(patient.FirstName) ? null : [patient.FirstName]
                 }
             ],
-            Telecom = string.IsNullOrWhiteSpace(patient.Email)
-                ? null
-                : [new FhirContactPoint { System = "email", Value = patient.Email }],
-            BirthDate = patient.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            Telecom = Telecom(patient),
+            BirthDate = patient.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Address = Address(patient),
+            GeneralPractitioner = practice is not null && practice.Id == patient.PracticeId
+                ? [GeneralPractitioner(practice)]
+                : null
         };
+
+    private static List<FhirContactPoint>? Telecom(Patient patient)
+    {
+        var telecom = new List<FhirContactPoint>();
+        if (!string.IsNullOrWhiteSpace(patient.MobilePhone))
+            telecom.Add(new FhirContactPoint { System = "phone", Value = patient.MobilePhone, Use = "mobile" });
+        if (!string.IsNullOrWhiteSpace(patient.Email))
+            telecom.Add(new FhirContactPoint { System = "email", Value = patient.Email });
+        return telecom.Count > 0 ? telecom : null;
+    }
+
+    private static List<FhirAddress>? Address(Patient patient)
+    {
+        var lines = PostalAddress.Split(patient.AddressLines);
+        if (lines.Count == 0 && patient.Postcode is null)
+            return null;
+        return
+        [
+            new FhirAddress
+            {
+                Use = "home",
+                Line = lines.Count > 0 ? lines.ToList() : null,
+                PostalCode = patient.Postcode
+            }
+        ];
+    }
+
+    private static FhirReference GeneralPractitioner(Practice practice) => new()
+    {
+        Type = "Organization",
+        Identifier = practice.OdsCode is { } odsCode
+            ? new FhirIdentifier { System = OdsOrganisationCodeSystem, Value = odsCode }
+            : null,
+        Display = practice.Name
+    };
 
     private static FhirPatient ToAnonymisedResource(Patient patient) => new()
     {
@@ -123,7 +170,12 @@ public static class FhirPatientMapper
     };
 
     /// <summary>A searchset Bundle of the patients found, each with its absolute address under <paramref name="baseUrl"/>.</summary>
-    public static FhirBundle ToSearchSet(IReadOnlyList<Patient> patients, string baseUrl, string selfUrl, DateTime nowUtc) => new()
+    public static FhirBundle ToSearchSet(
+        IReadOnlyList<Patient> patients,
+        string baseUrl,
+        string selfUrl,
+        DateTime nowUtc,
+        IReadOnlyDictionary<Guid, Practice>? practices = null) => new()
     {
         Id = Guid.NewGuid().ToString(),
         Meta = new FhirMeta { LastUpdated = Instant(nowUtc) },
@@ -137,7 +189,8 @@ public static class FhirPatientMapper
                 .Select(p => new FhirBundleEntry
                 {
                     FullUrl = $"{baseUrl.TrimEnd('/')}/Patient/{p.Id}",
-                    Resource = ToResource(p),
+                    Resource = ToResource(
+                        p, p.PracticeId is { } practiceId ? practices?.GetValueOrDefault(practiceId) : null),
                     Search = new FhirBundleEntrySearch { Mode = "match" }
                 })
                 .ToList()
