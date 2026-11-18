@@ -70,6 +70,8 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 
 **Roles:** everyone has the starting role for their job, never "All staff (before roles)": the consultants, the GPs with a special interest, the podiatrist and the pharmacist **Clinician**; the nurse specialists, the healthcare assistant and the new starter **Nurse**; the booking coordinator **Booking**; the biomedical scientist **Lab**; the service manager **Manager** (and Admin, later). Each run puts the standard roles' permissions back as they start.
 
+**Roles shaped to the centre** (Roles and Permissions, `/admin/roles`, made through the role commands, so each step is in the activity log as `RoleCreated` and `RoleChanged`): eight weeks ago the lead made **Locum cover** (patients, pathways, appointments and files) and four weeks ago archived it, so it shows Restore. The same afternoon the lead made **Visiting consultant** (Clinician without overriding stages) and gave it to the visiting consultants, `f.linton` and `o.penhale`, in place of Clinician (two `RolesChanged` entries). Each run deletes the two from the last run first; a kept account holding one stops the reset, saying so.
+
 **Signing in as someone:** use the password from the summary. For `j.whitlock`, type the summary's `authenticatorKey` into an authenticator app, or use one of the `recoveryCodes`. The passwords are new each run, so they're not written here.
 
 ### Specialties
@@ -116,7 +118,8 @@ Fourteen stage definitions in use, and a retired one ("Paper triage form (retire
 
 ### The pathways list
 
-- **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments" and "Blocked". `h.marsh` has "Skin lesions in progress" and "Urgent bleeding referrals"; `n.thornbury` has "My overdue".
+- **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments", "Blocked" and "Waiting for histology". `h.marsh` has "Skin lesions in progress" and "Urgent bleeding referrals"; `n.thornbury` has "My overdue".
+- **Waiting for histology** is the **Stage reached** filter on Histology (lab): every open record whose current stage is the lab's, on both skin lesion pathways and the post-menopausal bleeding pathway alike, on hold ones included. Add **Specialty** to narrow it to Dermatology.
 - **Overdue work** comes from the slow parts, not at random: the waits for the visiting consultants' clinics (urgent post-menopausal bleeding referrals, due in three weeks, and prostate assessments), and skin lesions waiting for histology and treatment.
 - **Every status shows:** Unassigned and Assigned (the newest), In progress, Awaiting review, On hold, Discharged, Cancelled and Archived.
 - **Rows per page** is 25 for `admin` and 50 for `n.thornbury`, from their settings.
@@ -210,7 +213,7 @@ On about 40 records: referral letters on patients; histology reports, blood and 
 
 ### Insights (`/admin/insights`)
 
-Each combination of period and template looks different. Roughly, for a run in November 2026:
+Each combination of period and template looks different. The **Specialty** choice narrows everything to one specialty's pathways (and the Template choice to its templates): Dermatology is the two skin lesion pathways and inflammatory skin, Gynaecology the bleeding pathway, Urology prostate assessment, Diabetes and Biomechanics one each; General is empty. Roughly, for a run in November 2026:
 
 | Template | Last 4 weeks | Last 12 weeks | Last 26 weeks |
 |---|---|---|---|
@@ -265,7 +268,3 @@ Six imported records are due: five adults last seen 9 to 12 years ago, and one c
 - **Meetings** are arranged one at a time, as the app has no repeating meetings: the regular ones in batches of eight weeks, four weeks ahead; governance three weeks ahead; training four; 1:1s two. Everyone invited is free then, so a meeting never overlaps anything on an attendee's calendar, and visits are booked round them. Their notifications, like the rest, are made for the last 30 days only.
 - **Patients' names** are unique, so the summary can name a record by name alone. Real centres have namesakes; a demo can't afford to open the wrong one.
 - **History respects when each patient existed:** nobody views, lists, books or changes a patient before they were registered, and nobody sees the anonymised record afterwards.
-
-## What it can't show yet
-
-- **A "Waiting for histology" saved search:** the pathways list has no filter for the stage a record has reached, so the nearest are "Skin lesions in progress" and the lab's own stages on each record. The time spent at Histology (lab) shows in Insights.

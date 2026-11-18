@@ -18,6 +18,7 @@ describe('parseCalendarTemplatesSearch', () => {
     });
     expect(parseCalendarTemplatesSearch({tab: 'day'})).toEqual({});
     expect(parseCalendarTemplatesSearch({tab: 'default'})).toEqual({tab: 'default'});
+    expect(parseCalendarTemplatesSearch({tab: 'Hours'})).toEqual({tab: 'hours'});
   });
 
   it("reads the old admin page's Staff defaults tab as the Default week", () => {

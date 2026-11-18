@@ -91,6 +91,9 @@ public sealed class ActivitySecurityEventLogTests
     [TestCase(SecurityEventKind.EmailCodesEnabled, ActivityAction.EmailCodesEnabled)]
     [TestCase(SecurityEventKind.EmailCodesDisabled, ActivityAction.EmailCodesDisabled)]
     [TestCase(SecurityEventKind.TwoFactorRequirementChanged, ActivityAction.TwoFactorRequirementChanged)]
+    [TestCase(SecurityEventKind.RoleCreated, ActivityAction.RoleCreated)]
+    [TestCase(SecurityEventKind.RoleChanged, ActivityAction.RoleChanged)]
+    [TestCase(SecurityEventKind.RoleDeleted, ActivityAction.RoleDeleted)]
     public void ActionFor_EveryKind(SecurityEventKind kind, ActivityAction action) =>
         ActivitySecurityEventLog.ActionFor(kind).Should().Be(action);
 

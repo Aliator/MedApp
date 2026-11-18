@@ -21,7 +21,7 @@ public sealed class CreateDayTemplateValidatorTests
     [Test]
     public void Validate_BlankNameAndBadBlock_FailsForBoth()
     {
-        var result = _validator.Validate(new CreateDayTemplateCommand(StaffUserId, " ", [BlockValue(19, 20)], StaffActor));
+        var result = _validator.Validate(new CreateDayTemplateCommand(StaffUserId, " ", [BlockValue(13, 12)], StaffActor));
 
         result.Errors.Should().HaveCount(2);
     }

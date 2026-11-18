@@ -9,12 +9,11 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {pixel} from '@astryxdesign/core/Table';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {featuresQuery} from '../../api/account';
 import {ApiValidationError, allMessages, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {userSearchQuery, type UserPage} from '../../api/search';
 import {
-  rolesQuery,
   useCreateUser,
   useDeleteUser,
   useRemoveUserEmail,
@@ -24,6 +23,7 @@ import {
   useSignOutEverywhere,
   type CreatedUser,
 } from '../../api/users';
+import {roleChoices, roleNames, rolesQuery} from '../../api/roles';
 import {ADMIN_ROLE, sortRoles} from '../../auth/roles';
 import {useCan, useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -117,7 +117,7 @@ export interface UsersPageProps {
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
  * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
- * asked for only when the server can send email), edit their roles (every role listed, theirs ticked), reset passwords,
+ * asked for only when the server can send email), edit their roles (every role that isn't archived, with its description, theirs ticked), reset passwords,
  * set the specialties each works in (`UserSpecialtiesDialog`) and the full name and job title that go on their letters
  * (`StaffDetailsDialog`; shown under each username), reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
  * have ends), remove a user's email address (so reset links can't go to an address that isn't theirs any more) and
@@ -145,7 +145,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const ascending = search.asc ?? true;
   const isFiltered = hasUserFilters(search);
   const {pageSize} = useListSettings();
-  const {data: allRoles = []} = useQuery(rolesQuery);
+  const {data: roles} = useQuery(rolesQuery);
+  const allRoles = useMemo(() => roleNames(roles ?? []), [roles]);
   // Without a way to send email, an address couldn't be confirmed, so none is asked for.
   const canSendEmail = useQuery(featuresQuery).data?.canSendEmail === true;
 
@@ -377,7 +378,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             message={`Tick the roles ${target?.username} should have.`}
             icon={AppIcon.Assign}
             listLabel="Roles"
-            items={allRoles.map((r) => ({value: r, label: r}))}
+            // Roles that aren't archived, with what each is for; one archived that they hold stays, to keep or take away.
+            items={roleChoices(roles ?? [], target?.roles ?? [])}
             selected={selectedRoles}
             onSelectedChange={setSelectedRoles}
             emptyTitle="There are no roles."

@@ -43,7 +43,7 @@ public sealed class DeleteSiteHandlerTests : SiteHandlerTestBase
         var act = () => Handler.Handle(new DeleteSiteCommand(SiteId), Token);
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage($"{SiteName} has rooms or closed days, so it can't be deleted. Archive it instead.");
+            .WithMessage($"{SiteName} has rooms, closed days or staff working hours, so it can't be deleted. Archive it instead.");
         Repository.Verify(r => r.DeleteSiteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

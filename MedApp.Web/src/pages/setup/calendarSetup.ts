@@ -2,12 +2,17 @@ import type {DayTemplateBlock, WeekTemplate} from '../../api/calendar';
 
 /**
  * Helpers for the calendar setup pages (day and week templates): template times are UK clock times, which the API
- * sends as `HH:mm:ss` and the editors offer in 15-minute steps of the working day (08:00 to 18:00, decision 1).
+ * sends as `HH:mm:ss` and the editors offer in 15-minute steps of any working day (06:00 to 23:00, centre plan
+ * decision 119: someone's hours can run early or into the evening), previewed against the default day (08:00 to 18:00).
  */
 
-/** The working day, as clock times. */
+/** The default working day, as clock times. */
 export const WORK_START = '08:00';
 export const WORK_END = '18:00';
+
+/** The earliest and latest any working day can run (the API's bounds). */
+export const EARLIEST = '06:00';
+export const LATEST = '23:00';
 
 /** `12:00:00` (the API's form) → `12:00`. */
 export const clockTime = (time: string | null | undefined) => (time ?? '').slice(0, 5);
@@ -25,9 +30,9 @@ export function quarterHours(from = WORK_START, to = WORK_END): string[] {
   return times;
 }
 
-/** A time moved by some minutes, kept inside the working day. */
+/** A time moved by some minutes, kept inside the bounds of any working day. */
 export function addMinutes(time: string, by: number): string {
-  return fromMinutes(Math.min(Math.max(minutes(time) + by, minutes(WORK_START)), minutes(WORK_END)));
+  return fromMinutes(Math.min(Math.max(minutes(time) + by, minutes(EARLIEST)), minutes(LATEST)));
 }
 
 /** "Lunch, 12:00–13:00", for a block's token. */
@@ -79,13 +84,13 @@ export interface BlockProblem {
 
 /**
  * What's wrong with a block in the editor before it's saved, if anything: it ends before it starts, it's outside the
- * working day, or it overlaps another block (named by its activity). The server checks again; this only says so
+ * bounds of any working day (06:00 to 23:00), or it overlaps another block (named by its activity). The server checks again; this only says so
  * sooner, beside the block.
  */
 export function blockProblem(row: BlockRow, rows: readonly BlockRow[], activityName: (id: string) => string): BlockProblem | null {
   if (minutes(row.endTime) <= minutes(row.startTime)) return {field: 'endTime', message: 'Ends before it starts.'};
-  if (minutes(row.startTime) < minutes(WORK_START)) return {field: 'startTime', message: `Starts before ${WORK_START}.`};
-  if (minutes(row.endTime) > minutes(WORK_END)) return {field: 'endTime', message: `Ends after ${WORK_END}.`};
+  if (minutes(row.startTime) < minutes(EARLIEST)) return {field: 'startTime', message: `Starts before ${EARLIEST}.`};
+  if (minutes(row.endTime) > minutes(LATEST)) return {field: 'endTime', message: `Ends after ${LATEST}.`};
   const other = rows.find(
     (r) => r.key !== row.key && minutes(r.startTime) < minutes(row.endTime) && minutes(row.startTime) < minutes(r.endTime),
   );
@@ -99,7 +104,10 @@ export const byStart = <T extends Pick<BlockRow, 'startTime' | 'endTime'>>(rows:
 /** A stretch of the day for its preview: a block, or free time between blocks. */
 export type DayPart = {kind: 'block'; row: BlockRow} | {kind: 'free'; startTime: string; endTime: string};
 
-/** The working day as its blocks and the free time around them, in order (overlapping blocks are listed as they are). */
+/**
+ * The default working day as its blocks and the free time around them, in order (overlapping blocks are listed as they
+ * are); a block before or after it is listed as it is, with no free time out there.
+ */
 export function dayParts(rows: readonly BlockRow[]): DayPart[] {
   const parts: DayPart[] = [];
   let at = WORK_START;

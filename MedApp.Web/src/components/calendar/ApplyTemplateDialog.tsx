@@ -7,7 +7,7 @@ import {useState} from 'react';
 import {calendarDaysQuery, dayTemplatesQuery, useCalendarActions, type CalendarDay} from '../../api/calendar';
 import {ApiError, problemMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {addDays, formatShortDay, isWeekday, weekStart} from '../../utils/calendarSlots';
+import {addDays, formatShortDay, weekStart, worksThatDay} from '../../utils/calendarSlots';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
@@ -86,7 +86,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
   const templates = useQuery({...dayTemplatesQuery(staffUserId), enabled: isOpen && staffUserId !== ''});
 
   // The weekdays: a closed one (a bank holiday) shows, but can't change, as a past one can't.
-  const days = (week.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && isWeekday(d.date ?? '')));
+  const days = (week.data?.days ?? []).filter((d) => d.isWorkingDay || (d.closedDayName && worksThatDay(d)));
   const canChange = (d: CalendarDay) => !d.isPast && !d.closedDayName;
 
   const [choice, setChoice] = useState<string | undefined>(undefined);

@@ -67,10 +67,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AttachmentsController.GetAttachments 00011
         AttachmentsController.Thumbnail 00011
         AttachmentsController.Upload 00011
-        AuthController.AssignRole 00001
-        AuthController.CreateRole 00001
         AuthController.CreateUser 00001
-        AuthController.DeleteRole 00001
         AuthController.DeleteUser 00001
         AuthController.ExtendSession 01111
         AuthController.GetAllRoles 00001
@@ -85,7 +82,6 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.Login 11111
         AuthController.Logout 11111
         AuthController.ResetUserPassword 00001
-        AuthController.RevokeRole 00001
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
         AuthController.SetMyDetails 00011
@@ -103,9 +99,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarController.GetAvailability 00001
         CalendarController.GetCalendar 00011
         CalendarController.GetStaff 00011
+        CalendarController.GetStaffHours 00011
         CalendarController.GetTeamCalendar 00001
         CalendarController.GetWeekTemplate 00011
         CalendarController.RemoveTemplateBlockForDay 00011
+        CalendarController.SetStaffHours 00011
         CalendarController.SetWeekTemplate 00011
         CalendarController.UpdateBlock 00011
         CalendarSetupController.AddBankHolidays 00001
@@ -223,6 +221,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.RegisterReferral 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        RolesController.ArchiveRole 00001
+        RolesController.CreateRole 00001
+        RolesController.DeleteRole 00001
+        RolesController.GetPermissions 00001
+        RolesController.GetRole 00001
+        RolesController.GetRoles 00001
+        RolesController.RestoreRole 00001
+        RolesController.UpdateRole 00001
         SitesController.ArchiveRoom 00001
         SitesController.ArchiveSite 00001
         SitesController.CreateRoom 00001
@@ -231,9 +237,11 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SitesController.DeleteSite 00001
         SitesController.GetRooms 00011
         SitesController.GetSite 00011
+        SitesController.GetSiteHours 00011
         SitesController.GetSites 00011
         SitesController.RestoreRoom 00001
         SitesController.RestoreSite 00001
+        SitesController.SetSiteHours 00001
         SitesController.UpdateRoom 00001
         SitesController.UpdateSite 00001
         SpecialtiesController.ArchiveSpecialty 00001

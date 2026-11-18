@@ -23,6 +23,10 @@ export interface ParityData {
    */
   meetingId?: string;
   meetingDate?: string;
+  /** The demo data's Histology (lab) stage definition, or else the first, for the stage reached filter (React only). */
+  stageId?: string;
+  /** The demo data's Dermatology specialty, or else the first, for the specialty filters (React only). */
+  specialtyId?: string;
 }
 
 const root = __dirname;

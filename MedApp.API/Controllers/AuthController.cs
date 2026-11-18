@@ -1,10 +1,6 @@
 using System.Security.Claims;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.CreateRole;
-using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
-using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
@@ -300,6 +296,10 @@ public sealed class AuthController(
         return BadRequest(result.Errors);
     }
 
+    /// <summary>
+    /// Every role's name, archived ones too. Deprecated: the Users page reads <c>GET api/roles</c> (with descriptions,
+    /// and whether each is archived). Kept for one release, so a page loaded before it during a rollout still works.
+    /// </summary>
     [HttpGet("roles")]
     [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
@@ -320,34 +320,6 @@ public sealed class AuthController(
             new GetUserRolesQuery(username));
 
         return Ok(roles);
-    }
-    
-    [HttpPost("roles")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageRoles)]
-    public async Task<IActionResult> CreateRole(CreateRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new CreateRoleCommand(request.Name));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
-
-    [HttpPost("roles/assign")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageUsers)]
-    public async Task<IActionResult> AssignRole(AssignRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new AssignRoleCommand(request.Username, request.Role));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
     }
     
     /// <summary>
@@ -402,38 +374,6 @@ public sealed class AuthController(
     public async Task<IActionResult> SetUserSpecialties(string username, SetUserSpecialtiesRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SetUserSpecialtiesCommand(username, request.SpecialtyIds ?? []), ct));
 
-    [HttpPost("roles/revoke")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageUsers)]
-    public async Task<IActionResult> RevokeRole(RevokeRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new RevokeRoleCommand(request.Username, request.Role, User.Identity?.Name ?? string.Empty));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
-
-    
-    [HttpDelete("roles/{roleName}")]
-    [Tags("Roles")]
-    [RequirePermission(Permission.ManageRoles)]
-    public async Task<IActionResult> DeleteRole(string roleName)
-    {
-        var result = await mediator.Send(new DeleteRoleCommand(roleName));
-
-        // The built-in Admin role can't be deleted.
-        if (result.Errors.Any(e => e.Code == IdentityErrors.BuiltInRoleCode))
-            return Conflict(result.Errors);
-
-        if (!result.Succeeded)
-            return NotFound();
-
-        return NoContent();
-    }
-    
     /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
     [HttpGet("me/settings")]
     [Tags("Settings")]

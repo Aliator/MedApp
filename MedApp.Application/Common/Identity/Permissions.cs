@@ -29,6 +29,7 @@ public enum Permission
     BookAppointments,
     ManageAnyCalendar,
     ArrangeMeetings,
+    ManageClinics,
 
     AttachFiles,
 
@@ -112,6 +113,8 @@ public static class Permissions
             "Change other people's calendars: their blocks, day and week templates and default week."),
         new(Permission.ArrangeMeetings, PermissionGroup.AppointmentsAndCalendars,
             "Arrange, change and cancel meetings; see the team view and suggested times."),
+        new(Permission.ManageClinics, PermissionGroup.AppointmentsAndCalendars,
+            "Set staff working hours."),
 
         new(Permission.AttachFiles, PermissionGroup.Files,
             "Attach files, and delete your own."),

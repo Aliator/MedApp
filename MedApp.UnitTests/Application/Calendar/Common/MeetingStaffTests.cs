@@ -196,4 +196,22 @@ public sealed class MeetingStaffTests
         attendees.Select(a => a.StaffUserId).Should().Equal(OtherStaffUserId, StaffUserId);
         attendees.Should().OnlyContain(a => a.MeetingId == MeetingId);
     }
+
+    [Test]
+    public async Task EnsureEveryoneFreeAsync_SomeoneWhoDoesntWorkThatDay_Is400NamingThem()
+    {
+        var act = () => _calendars.Object.EnsureEveryoneFreeAsync(Attendees, At(NextSaturday, 10), At(NextSaturday, 11), null, _cts.Token);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday, StaffUsername));
+    }
+
+    [Test]
+    public async Task EnsureEveryoneFreeAsync_OutsideSomeonesHours_Is400NamingThemAndTheirHours()
+    {
+        var act = () => _calendars.Object.EnsureEveryoneFreeAsync(Attendees, At(NextMonday, 17, 30), At(NextMonday, 18, 30), null, _cts.Token);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().ErrorMessage.Should().Be(WorkingHours.Within(WorkingHours.Start, WorkingHours.End, StaffUsername));
+    }
 }

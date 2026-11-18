@@ -9,7 +9,7 @@ import {SideNavTheme} from './AppLayout';
 const emptyApi = () =>
   mockFetch((request) => {
     const {pathname} = new URL(request.url);
-    const isPlainList = /\/(templates|definitions|roles|staff)$/.test(pathname);
+    const isPlainList = /\/(templates|definitions|roles|staff|specialties|practices)$/.test(pathname);
     return json(isPlainList ? [] : pageOf([]));
   });
 
@@ -148,7 +148,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     mockFetch((request) => {
       const {pathname} = new URL(request.url);
       if (pathname === '/api/me/notepad') return json({text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30});
-      return json(/\/(templates|definitions|roles)$/.test(pathname) ? [] : pageOf([]));
+      return json(/\/(templates|definitions|roles|specialties|practices)$/.test(pathname) ? [] : pageOf([]));
     });
     sessionStorage.setItem('medapp.halfView', '/notepad');
     const {user, router} = renderApp({path: '/patients', user: adminUser});
@@ -170,7 +170,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     mockFetch((request) => {
       const {pathname} = new URL(request.url);
       if (pathname === '/api/me/notepad') return json({text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30});
-      return json(/\/(templates|definitions|roles)$/.test(pathname) ? [] : pageOf([]));
+      return json(/\/(templates|definitions|roles|specialties|practices)$/.test(pathname) ? [] : pageOf([]));
     });
     sessionStorage.setItem('medapp.halfView', '/notepad');
     const {user, router} = renderApp({path: '/patients', user: adminUser});

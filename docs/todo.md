@@ -22,7 +22,8 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 - **Specialties:** every pathway type, clinic and member of staff belongs to one, with filters, worklists and Insights by specialty.
 - **A waiting-time clock:** days since referral, the target date, and pauses with reasons; lists by longest wait, with breaches flagged. It replaces today's single target date.
 - **Roles and permissions, the rest** (the policy layer is built: `docs/agents/auth.md`):
-  - **The Roles and Permissions page** (Phase 2 PR 4): `api/permissions` and `api/roles` (and the Users page's role picker from it, listing roles that aren't archived, with their descriptions: until then it lists every role's name from `api/auth/roles`, archived ones too, and the API refuses an archived one with a 400), `RoleChanged = 44` logged with permission names only, other admins told, the old role endpoints (`api/auth/roles…`) removed; until then they still work, guarded (the built-in role can't be deleted, nobody revokes their own role, the last admin keeps Admin).
+  - **`GET api/auth/roles` (every role's name), kept one release** after the Roles and Permissions page so a page loaded before it still works during a rollout: remove it (and `GetAllRolesQuery`, `IIdentityReadService.GetRoleNamesAsync`) in the next release. The Users page reads `GET api/roles`.
+  - **The roles page, later:** step-up (the admin's password again) before a role change, as for other admin actions (ASVS 7.5.3); a preview of exactly whose access changes (today it says how many hold the role, though someone with another role granting the same permission isn't affected).
   - **After every account is on a starting role:** take the everyday clinical and booking permissions from Admin and archive "All staff (before roles)" (open question 10), as a small change of its own before a real team uses MedApp.
 
 **Phase 3: clinic to lab to result to letter.**
@@ -249,6 +250,7 @@ What the security baseline left, so the app would work exactly as before (`docs/
 - **Split `MedApp.Web/AGENTS.md` like the root one.** It's over 50,000 characters, loaded whenever an agent works in `MedApp.Web`. Keep its core rules there and move long component and page detail to `docs/agents/web-*.md`, with a Read before you change table, as the root `AGENTS.md` does.
 - **The seeding script's rough edges** (review of #142): snapshot before applying migrations, not after (`tools/seed-demo-data.sh`, `DemoDataReset`); validate `--save-snapshot`'s name before the wipe, or print the summary first; build the connection string with the password escaped.
 - **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too), and record `PatientsSearched` with the filter names (never the term) for referral search.
+- **Working hours, from the review of #156:** check attendees' hours only when a meeting moves or for newly added attendees (a title-only edit is refused after someone's hours shrink); remove a person's `StaffHours` when their account is deleted or loses its staff roles, so a site isn't kept "in use" by a leaver.
 
 ## Long term
 
@@ -265,3 +267,10 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **The aim:** run areas such as pathways, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
+
+## Working hours (centre plan PR 22)
+
+- **A `WorkingHours:Default` setting** for a deployment whose usual week isn't Monday to Friday, 08:00 to 18:00: the default is fixed in code today (`WorkingHours`).
+- **Week templates for Saturday and Sunday:** a weekend day someone works gets template blocks only through Apply Template.
+- **Flag what's outside someone's hours** after their hours change (as a block overlapping an appointment is flagged); today it shows, but unmarked.
+- **A site's closed day** still reports no bookings and tells nobody when it's added, though it now closes the calendars of staff working there.

@@ -1,107 +1,78 @@
-﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
-using MedApp.Application.Common.Identity;
-using MedApp.UnitTests.Common.Constants;
+using MedApp.Application.Authentication.Roles.Common;
+using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Security;
 using MedApp.UnitTests.Common.Fixtures;
-using Microsoft.AspNetCore.Identity;
-using Moq;
+using static MedApp.UnitTests.Common.Constants.RolesTestConstants;
 
 namespace MedApp.UnitTests.Application.Auth.Roles.Commands.DeleteRole;
 
 [TestFixture]
-public sealed class DeleteRoleHandlerTests
+public sealed class DeleteRoleHandlerTests : RoleHandlerTestBase
 {
-    private IFixture _fixture = null!;
-    private Mock<IIdentityRoleService> _service = null!;
-    private DeleteRoleHandler _handler = null!;
+    private DeleteRoleHandler Handler() => new(Roles, Transactions, Events, Notices.Object);
 
-    [SetUp]
-    public void SetUp()
+    private static DeleteRoleCommand Command(Guid? roleId = null) => new(roleId ?? RoleId, ActorId, ActorUsername);
+
+    [Test]
+    public async Task Handle_NobodyHoldsIt_DeletesIt_RecordsItInsideTheTransaction_AndTellsTheOtherAdmins()
     {
-        _fixture = AutoFixtureFactory.Create();
+        Roles.Add(Role());
 
-        _service = new Mock<IIdentityRoleService>();
-        _fixture.Inject<IIdentityRoleService>(_service.Object);
+        await Handler().Handle(Command(), CancellationToken.None);
 
-        _handler = _fixture.Create<DeleteRoleHandler>();
+        Roles.Stored.Should().BeEmpty();
+        var (recorded, inTransaction) = Events.Recorded.Should().ContainSingle().Subject;
+        inTransaction.Should().BeTrue();
+        recorded.Kind.Should().Be(SecurityEventKind.RoleDeleted);
+        recorded.Details!["role"].Should().Be(RoleName);
+        recorded.Details["roleId"].Should().Be(RoleId);
+        recorded.Details["permissions"].Should().BeEquivalentTo(new[] { "ViewPatients", "WorkPathways" });
+        NoticeSent().Should().Be($"deleted the role {RoleName}, which nobody held.");
     }
 
     [Test]
-    public async Task Handle_RoleDeleted_ReturnsSuccess()
+    public async Task Handle_SomeoneHoldsIt_IsAConflictSayingToArchiveIt()
     {
-        var command = new DeleteRoleCommand(AuthTestConstants.Roles[0]);
+        Roles.Add(Role(), new RoleHolder(HolderId, HolderUsername));
 
-        var identityResult = IdentityResult.Success;
+        var act = () => Handler().Handle(Command(), CancellationToken.None);
 
-        _service
-            .Setup(s => s.DeleteRoleAsync(
-                command.RoleName,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(identityResult);
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        result.Should().BeSameAs(identityResult);
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(RoleRules.HeldMessage(RoleName, 1));
+        Roles.Stored.Should().ContainKey(RoleId);
+        Events.Recorded.Should().BeEmpty();
+        NoNoticeSent();
     }
 
     [Test]
-    public async Task Handle_RoleNotDeleted_ReturnsFailure()
+    public async Task Handle_TheBuiltInAdminRole_IsAConflict()
     {
-        var command = new DeleteRoleCommand(AuthTestConstants.Roles[0]);
+        Roles.Add(AdminRole());
 
-        var identityResult = IdentityResult.Failed();
+        var act = () => Handler().Handle(Command(AdminRoleId), CancellationToken.None);
 
-        _service
-            .Setup(s => s.DeleteRoleAsync(
-                command.RoleName,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(identityResult);
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        result.Succeeded.Should().BeFalse();
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(RoleRules.BuiltInMessage);
+        Roles.Stored.Should().ContainKey(AdminRoleId);
     }
 
     [Test]
-    public async Task Handle_CallsService_WithCorrectArguments()
+    public async Task Handle_UnknownRole_IsNotFound()
     {
-        var command = new DeleteRoleCommand(AuthTestConstants.Roles[0]);
+        var act = () => Handler().Handle(Command(), CancellationToken.None);
 
-        _service
-            .Setup(s => s.DeleteRoleAsync(
-                command.RoleName,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(IdentityResult.Success);
-
-        await _handler.Handle(command, CancellationToken.None);
-
-        _service.Verify(
-            s => s.DeleteRoleAsync(
-                command.RoleName,
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Test]
-    public async Task Handle_PassesCancellationToken()
+    public async Task Handle_PassesTheTokenOn()
     {
-        var command = new DeleteRoleCommand(AuthTestConstants.Roles[0]);
-
+        Roles.Add(Role());
         using var cts = new CancellationTokenSource();
 
-        _service
-            .Setup(s => s.DeleteRoleAsync(
-                command.RoleName,
-                cts.Token))
-            .ReturnsAsync(IdentityResult.Success);
+        await Handler().Handle(Command(), cts.Token);
 
-        await _handler.Handle(command, cts.Token);
-
-        _service.Verify(
-            s => s.DeleteRoleAsync(
-                command.RoleName,
-                cts.Token),
-            Times.Once);
+        Roles.Tokens.Should().OnlyContain(t => t == cts.Token);
+        Transactions.LastToken.Should().Be(cts.Token);
     }
 }

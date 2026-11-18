@@ -216,4 +216,30 @@ public sealed class UpdateCalendarBlockHandlerTests : StaffCalendarHandlerTestBa
         Repository.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
         _tracked.StartUtc.Should().Be(At(NextMonday, 9));
     }
+
+    [Test]
+    public async Task Handle_OutsideTheOwnersWorkingDay_Is400_BeforeTheLock()
+    {
+        // The validator can't know whose block it is; the owner works the default day, so not Saturdays.
+        var act = () => _handler.Handle(Command(start: At(NextSaturday, 10), end: At(NextSaturday, 11)), Token);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(WorkingHours.NotWorking(DayOfWeek.Saturday));
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_InsideTheOwnersOwnHours_OnASaturday_MovesIt()
+    {
+        var siteId = Guid.NewGuid();
+        Hours.Staff.Add(MedApp.UnitTests.Common.Fixtures.InMemoryWorkingHours.StaffRow(
+            StaffUserId, DayOfWeek.Saturday, new TimeOnly(9, 0), new TimeOnly(13, 0), siteId));
+        Hours.Sites.Add(MedApp.UnitTests.Common.Fixtures.InMemoryWorkingHours.SiteRow(
+            siteId, DayOfWeek.Saturday, new TimeOnly(9, 0), new TimeOnly(13, 0)));
+        GivenCalendar(CreateData(NextSaturday, blocks: [], staffWeeks: []) with { Hours = new WorkingTimeSet(Hours.Staff, Hours.Sites) });
+
+        await _handler.Handle(Command(start: At(NextSaturday, 10), end: At(NextSaturday, 11)), Token);
+
+        _tracked.StartUtc.Should().Be(At(NextSaturday, 10));
+    }
 }

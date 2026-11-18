@@ -11,7 +11,7 @@ public sealed class CreateCalendarBlockValidator : AbstractValidator<CreateCalen
 
         RuleFor(x => x.ActivityTypeId).NotEmpty().WithMessage("Activity type is required.");
 
-        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, workingDays);
+        RuleFor(x => x.StartUtc).InsideWorkingDay(x => x.EndUtc, x => x.StaffUserId, workingDays);
 
         RuleFor(x => x.Note)
             .MaximumLength(CalendarLimits.MaxNoteLength)

@@ -86,6 +86,26 @@ describe('describeActivity', () => {
     expect(describe_('RoleCreated', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {role: 'Auditor'})).toBe('Auditor');
     expect(describe_('RoleDeleted', {})).toBe('');
+    expect(describe_('RoleCreated', {role: 'Auditor', permissions: ['ViewPatients', 'ViewInsights']})).toBe(
+      'Auditor: ViewPatients, ViewInsights',
+    );
+  });
+
+  it('gives what a change to a role did, by permission name, never its description', () => {
+    expect(activityActionLabel('RoleChanged')).toBe('Role changed');
+    expect(ACCOUNT_ACTIONS).toContain('RoleChanged');
+    expect(
+      describe_('RoleChanged', {
+        role: 'Nurse',
+        renamedFrom: 'Nurses',
+        descriptionChanged: true,
+        added: ['AssignPathways'],
+        removed: ['DeletePatients', 'EditPatients'],
+      }),
+    ).toBe('Nurse: renamed from Nurses; description changed; added AssignPathways; removed DeletePatients, EditPatients');
+    expect(describe_('RoleChanged', {role: 'Lab', archived: true})).toBe('Lab: archived');
+    expect(describe_('RoleChanged', {role: 'Lab', archived: false})).toBe('Lab: restored');
+    expect(describe_('RoleChanged', {})).toBe('');
   });
 
   it("gives a member of staff's specialties before and after, by name, as an account change", () => {

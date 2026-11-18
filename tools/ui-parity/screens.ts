@@ -328,6 +328,11 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'pathways-stage-reached',
+    title: 'Pathways waiting for histology: the Stage reached and Specialty filters ("Waiting for histology")',
+    path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.specialtyId ? `&specialty=${d.specialtyId}` : ''}`,
+  },
   { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
     name: 'referral-register',
@@ -569,7 +574,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'users-roles',
-    title: "Edit roles dialog: every role, the user's ticked (not saved)",
+    title: "Edit roles dialog: the roles that aren't archived, with their descriptions, the user's ticked (not saved)",
     path: '/admin/users',
     prepare: async (page) => {
       await rowAction(page, /edit roles/i).click();
@@ -623,6 +628,39 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Add Practice' }).click();
       await waitVisible(page, DIALOG);
+      },
+    },
+  { name: 'roles', title: 'Roles and Permissions (admin): each role, what it is for, who holds it, Admin first', path: '/admin/roles' },
+  {
+    name: 'role-edit',
+    title: "A role's page: its permissions ticked in groups, the Administrator-only group read only, and who holds it",
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'Open Nurse' }).click();
+      await page.getByRole('heading', { name: 'Edit Role', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'role-save-confirm',
+    title: 'Saving a role: what is added and removed, and how many people it affects (not saved)',
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'Open Nurse' }).click();
+      await page.getByRole('heading', { name: 'Edit Role', level: 1 }).waitFor();
+      await page.getByRole('checkbox', { name: 'Assign pathways' }).click();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  {
+    name: 'role-admin',
+    title: 'The built-in Admin role, read only',
+    path: '/admin/roles',
+    prepare: async (page) => {
+      await page.getByRole('link', { name: 'View Admin' }).click();
+      await page.getByRole('heading', { name: 'Admin Role', level: 1 }).waitFor();
+      await settle(page);
     },
   },
   { name: 'specialties', title: 'Specialties (admin): what templates belong to and staff work in, with what uses each', path: '/admin/specialties' },
@@ -724,6 +762,15 @@ export const screens: Screen[] = [
     name: 'admin-insights',
     title: 'Insights (admin): headline counts, overdue work, throughput and time at each stage',
     path: '/admin/insights',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-specialty',
+    title: "Insights on one specialty: its pathways only, and only its templates to choose from",
+    path: (d) => `/admin/insights${d.specialtyId ? `?specialty=${d.specialtyId}` : ''}`,
     prepare: async (page) => {
       await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
       await settle(page);

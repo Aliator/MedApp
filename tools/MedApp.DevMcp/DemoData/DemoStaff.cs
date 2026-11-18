@@ -2,6 +2,10 @@ using MediatR;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Authentication.Emails.Commands.ConfirmEmail;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
+using MedApp.Application.Authentication.Roles.Commands.CreateRole;
+using MedApp.Application.Authentication.Roles.Commands.SetRoleArchived;
+using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
+using MedApp.Application.Authentication.Roles.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Commands.BeginAuthenticatorSetup;
 using MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
@@ -9,6 +13,7 @@ using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Commands.UpdateMyNotificationPreferences;
+using MedApp.Contracts.Roles.Responses;
 using MedApp.Application.Pathways.Common;
 using MedApp.DevMcp.Tools;
 using MedApp.Infrastructure.Common.Identity;
@@ -94,9 +99,21 @@ public sealed class StaffMember(StaffSeed seed, Guid id)
     /// <summary>The starting role their job gives them from their first day (<see cref="DemoStaff.RoleOf"/>).</summary>
     public StandardRole Role => DemoStaff.RoleOf(Kind);
 
-    /// <summary>What their roles allowed at a moment: their job's starting role, and Admin once they were one.</summary>
-    public IReadOnlySet<Permission> PermissionsAt(DateTime utc) =>
-        IsAdminAt(utc) ? Permissions.GrantedBy([Role.Permissions, Permissions.Admin]) : Role.Permissions;
+    /// <summary>A role an admin made for them later, in place of their starting role (the visiting consultants').</summary>
+    public (DateTime FromUtc, string Name, IReadOnlySet<Permission> Permissions)? LaterRole { get; set; }
+
+    /// <summary>Their role's name now: the later one, if they were given one, or their starting role.</summary>
+    public string RoleName => LaterRole?.Name ?? Role.Name;
+
+    /// <summary>
+    /// What their roles allowed at a moment: their job's starting role (or the one given later, from then), and Admin
+    /// once they were one.
+    /// </summary>
+    public IReadOnlySet<Permission> PermissionsAt(DateTime utc)
+    {
+        var role = LaterRole is { } later && utc >= later.FromUtc ? later.Permissions : Role.Permissions;
+        return IsAdminAt(utc) ? Permissions.GrantedBy([role, Permissions.Admin]) : role;
+    }
 
     public bool WorksAt(DateTime utc) => utc >= StartedUtc && (LeftUtc is null || utc < LeftUtc);
 
@@ -292,9 +309,72 @@ public static class DemoStaff
         await services.Run(sp =>
             sp.GetRequiredService<IMediator>().Send(new UpdateMyNotificationPreferencesCommand(optedOut.Id, PathwayAssigned: false), ct));
 
+        await DemoRolesAsync(services, staff, timeline, ct);
+
         foreach (var member in staff)
             if (member.Kind == StaffKind.Leaver)
                 member.LeftUtc = timeline.LeaverLeftUtc;
+    }
+
+    /// <summary>A role the lead made for the visiting consultants: Clinician's, without overriding stages.</summary>
+    public const string VisitingConsultantRole = "Visiting consultant";
+
+    /// <summary>A role made for locums covering clinics, archived once the locums stopped.</summary>
+    public const string LocumRole = "Locum cover";
+
+    /// <summary>
+    /// Roles shaped to the centre, on the Roles and Permissions page, through the role commands (so they're in the
+    /// activity log as the page records them): a role for locums, made and later archived; and a role of their own for
+    /// the visiting consultants, who then hold it in place of Clinician.
+    /// </summary>
+    private static async Task DemoRolesAsync(SeedServices services, List<StaffMember> staff, DemoTimeline timeline, CancellationToken ct)
+    {
+        var lead = staff[0];
+
+        services.At(timeline.LocumRoleCreatedUtc, lead.ActivityActor);
+        var locum = await FreshRoleAsync(services, lead, LocumRole,
+            "Locums covering a clinic: patients, their pathways, appointments and files.",
+            [Permission.ViewPatients, Permission.WorkPathways, Permission.BookAppointments, Permission.AttachFiles], ct);
+
+        services.At(timeline.RolesRefinedUtc, lead.ActivityActor);
+        await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
+            new SetRoleArchivedCommand(locum.Id, true, locum.Version, lead.Id, lead.Username), ct)));
+
+        var visiting = StandardRoles.Clinician.Permissions.Where(p => p != Permission.OverrideStages).ToHashSet();
+        services.At(timeline.RolesRefinedUtc.AddMinutes(5), lead.ActivityActor);
+        await FreshRoleAsync(services, lead, VisitingConsultantRole,
+            "Consultants who visit for clinics: as Clinician, but they don't unlock stages or finish one without its visit.",
+            visiting, ct);
+
+        var minute = 10;
+        foreach (var username in new[] { GynaecologistUsername, UrologistUsername })
+        {
+            var at = timeline.RolesRefinedUtc.AddMinutes(minute++);
+            services.At(at, lead.ActivityActor);
+            var result = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
+                new SetUserRolesCommand(username, [VisitingConsultantRole], lead.Username), ct)));
+            Guards.Check(result, $"Give {username} the {VisitingConsultantRole} role");
+            Get(staff, username).LaterRole = (at, VisitingConsultantRole, visiting);
+        }
+    }
+
+    /// <summary>
+    /// Makes a role through the role command, first deleting one with its name from an earlier run (the wipe leaves
+    /// roles), so each run tells the same story.
+    /// </summary>
+    private static async Task<RoleResponse> FreshRoleAsync(
+        SeedServices services, StaffMember lead, string name, string description, IEnumerable<Permission> permissions, CancellationToken ct)
+    {
+        await services.Run(async sp =>
+        {
+            var roles = sp.GetRequiredService<IRoleRepository>();
+            var earlier = (await roles.GetAllAsync(ct)).FirstOrDefault(r => !r.IsBuiltIn && string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (earlier is not null && !await roles.DeleteIfUnheldAsync(earlier.Id, ct))
+                throw new McpException($"A kept account holds the role {name}: take it from them, then reset again.");
+        });
+
+        return await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
+            new CreateRoleCommand(name, description, permissions.Select(p => p.ToString()).ToList(), lead.Id, lead.Username), ct)));
     }
 
     public static StaffMember Get(IEnumerable<StaffMember> staff, string username) =>
