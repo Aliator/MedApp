@@ -13,12 +13,14 @@ import {Token} from '@astryxdesign/core/Token';
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {useCan} from '../../auth/auth';
 import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
   isPatientEntry,
+  isReferralEntry,
+  isReferralFileEntry,
   MAX_TIMELINE_PATHWAYS,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
@@ -30,17 +32,19 @@ import {
   type TimelineKind,
   type TimelineOverview,
   type TimelinePathway,
+  type TimelineReferral,
 } from '../../api/timeline';
 import {formatDayHeading, formatShortDate, formatTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
 import {RichText} from '../shared/RichText';
 import {AppIcon} from '../shared/icons';
-import {OverdueToken, StatusToken} from './PathwayCells';
+import {OverdueToken, PriorityToken, StatusToken} from './PathwayCells';
 
 const KIND_ICONS: Record<TimelineKind, IconType> = {
   Created: AppIcon.Add,
   Stages: AppIcon.Success,
   Appointments: AppIcon.AppointmentBooked,
+  Referrals: AppIcon.Referrals,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,
   Blocks: AppIcon.StatusBlocked,
@@ -72,6 +76,12 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'AppointmentNotesUpdated':
       return AppIcon.Notes;
+    case 'ReferralDetailsEdited':
+      return AppIcon.Edit;
+    case 'ReferralWithdrawn':
+      return AppIcon.Withdraw;
+    case 'ReferralEnteredInError':
+      return AppIcon.EnteredInError;
     case 'StageUnlocked':
       return AppIcon.Unlock;
     case 'Unassigned':
@@ -95,9 +105,9 @@ export interface PatientTimelineProps {
 }
 
 /**
- * A patient's timeline: everything that happened to their pathways and appointments, from the pathway audit log
- * and the appointment history, in one feed.
- * At the top, what's due (open pathways by target date, overdue flagged); then filter chips by kind and by
+ * A patient's timeline: everything that happened to their pathways, appointments and referrals, from the pathway
+ * audit log and the appointment and referral histories, in one feed.
+ * At the top, what's due (open pathways by target date, overdue flagged, and referrals awaiting triage); then filter chips by kind and by
  * pathway; then the feed, newest first, grouped by UK day, with "Load more" for older entries (keyset paging on
  * the server). Each entry says when, who, what and which pathway (a link to it). Files attached to or deleted from
  * the patient, a pathway or a stage are entries too (the Files kind); only admins get their names.
@@ -139,6 +149,7 @@ function UpcomingPathways({
 }) {
   const upcoming = overview?.upcoming ?? [];
   const more = (overview?.openCount ?? 0) - upcoming.length;
+  const referrals = overview?.awaitingReferrals ?? [];
   return (
     <VStack gap={3}>
       <Heading level={3}>Upcoming</Heading>
@@ -179,6 +190,36 @@ function UpcomingPathways({
           <Link href={`/patients/${patientId}/pathways`}>See all pathways</Link>
         </Text>
       )}
+      {referrals.length > 0 && <AwaitingReferrals referrals={referrals} />}
+    </VStack>
+  );
+}
+
+/** The patient's referrals awaiting triage, oldest first, beside their open pathways: each links to its page. */
+function AwaitingReferrals({referrals}: {referrals: readonly TimelineReferral[]}) {
+  return (
+    <VStack gap={2}>
+      <Heading level={4}>Referrals awaiting triage</Heading>
+      <List edge="flush" density="compact" aria-label="Referrals awaiting triage">
+        {referrals.map((referral) => (
+          <ListItem
+            key={referral.referralId}
+            label={
+              <Text type="body" weight="semibold" maxLines={2}>
+                <Link href={`/referrals/${referral.referralId}`}>{`Referral to ${referral.specialtyName}`}</Link>
+              </Text>
+            }
+            description={
+              <HStack gap={2} vAlign="center" wrap="wrap">
+                <Text type="supporting" color="secondary">
+                  {`Received ${formatShortDate(referral.receivedOn ?? '')}`}
+                </Text>
+                <PriorityToken priority={referral.requestedPriority ?? ''} />
+              </HStack>
+            }
+          />
+        ))}
+      </List>
     </VStack>
   );
 }
@@ -206,9 +247,9 @@ function TimelineFilterChips({
   filters: TimelineFilters;
   onFiltersChange: (filters: TimelineFilters) => void;
 }) {
-  const {isAdmin} = useCurrentUser();
-  // Staff never see deleted pathways' entries, so they have nothing to filter to.
-  const kinds = TIMELINE_KINDS.filter((kind) => isAdmin || kind !== 'Deleted');
+  // Only the timeline's full view (ViewAudit) has deleted pathways' entries; anyone else has nothing to filter to.
+  const hasFullView = useCan('ViewAudit');
+  const kinds = TIMELINE_KINDS.filter((kind) => hasFullView || kind !== 'Deleted');
   const toggle = <T,>(list: T[], value: T, isOn: boolean) => (isOn ? [...list, value] : list.filter((other) => other !== value));
   const [isShowingAll, setIsShowingAll] = useState(false);
   // The newest few, and any chosen, so a choice never hides.
@@ -300,7 +341,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
     return (
       <EmptyState
         title={isFiltered ? 'Nothing matches these filters' : 'Nothing has happened yet'}
-        description={isFiltered ? 'Choose other kinds or pathways, or show everything.' : "Changes to the patient's pathways and appointments will show here."}
+        description={isFiltered ? 'Choose other kinds or pathways, or show everything.' : "Changes to the patient's pathways, appointments and referrals will show here."}
         isCompact
         actions={isFiltered ? <Button label="Show Everything" variant="secondary" onClick={() => onFiltersChange(NO_TIMELINE_FILTERS)} /> : undefined}
       />
@@ -370,8 +411,13 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
           {/* A note's text (admins only), formatted as it is on the pathway's page. */}
           {noteText && <RichText>{noteText}</RichText>}
           <HStack gap={2} vAlign="center" wrap="wrap">
-            {/* No pathway to link to: an appointment not for one, or a patient's own file (its detail says "To the patient"). */}
-            {!entry.pathwayId || isPatientEntry(entry) ? null : entry.isPathwayDeleted ? (
+            {/* A referral's entry, or its letter's, links to the referral. No pathway to link to: an appointment not for
+                one, or a patient's own file (its detail says "To the patient"). */}
+            {(isReferralEntry(entry) || isReferralFileEntry(entry)) && entry.referralId ? (
+              <Text type="supporting" maxLines={1}>
+                <Link href={`/referrals/${entry.referralId}`}>{entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'The referral'}</Link>
+              </Text>
+            ) : !entry.pathwayId || isPatientEntry(entry) || isReferralFileEntry(entry) ? null : entry.isPathwayDeleted ? (
               <>
                 <Text type="supporting" color="secondary" maxLines={1}>
                   {entry.pathwayTitle}

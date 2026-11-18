@@ -5,6 +5,8 @@
 import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAccessibilityLine,
+  RiArrowGoBackLine,
+  RiInboxLine,
   RiAddLine,
   RiAlarmWarningLine,
   RiArchiveLine,
@@ -75,6 +77,7 @@ import {
   RiPaintBrushLine,
   RiPaletteLine,
   RiPlayCircleLine,
+  RiPlayLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -95,6 +98,7 @@ import {
   RiTableLine,
   RiTaskLine,
   RiTeamLine,
+  RiTimerLine,
   RiToolsLine,
   RiUserAddLine,
   RiUserFollowLine,
@@ -269,4 +273,11 @@ export const AppIcon = {
   LookUp: remix(RiUserSearchLine),
   // Monitoring (admin): rules for being told what staff do
   Monitoring: remix(RiRadarLine),
+  /** Referrals: requests to see a patient in a specialty, waiting for triage (the inbox). */
+  Referrals: remix(RiInboxLine),
+  /** Withdrawing a referral (the referrer or the patient withdrew it). */
+  Withdraw: remix(RiArrowGoBackLine),
+  // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
+  ScheduledJobs: remix(RiTimerLine),
+  RunNow: remix(RiPlayLine),
 } as const satisfies Record<string, IconType>;

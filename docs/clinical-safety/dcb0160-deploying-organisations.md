@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.6, draft |
+| **Version** | 0.7, draft |
 | **Date** | 18 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -58,6 +58,7 @@ The manufacturer's safety case holds only if you:
 - **book and follow up visits:** someone reviews the Requires Appointment list and Did not attend appointments on a set schedule;
 - **tell patients about their appointments,** and about every cancellation and change, by your own process. MedApp doesn't contact patients;
 - **train staff,** including what finishing a stage means, what a target date means, that notifications aren't to be relied on, and that My Worklist opens on work not yet started;
+- **handle referrals safely,** once you use them: give the permission to register referrals (`RegisterReferrals`), and later to triage them (`TriageReferrals`, with membership of the specialty), only to the right people, with at least one triager for every specialty; check the referral inbox every working day; keep a paper or downtime process for referrals; and, once the waiting-time clock exists, set its targets and review your waiting list;
 - **have at least two admins** who are available while staff work;
 - **reassign a leaver's open pathways** before removing their account;
 - **review overdue, unassigned and blocked pathways** on a set schedule;
@@ -98,6 +99,11 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-34 The wrong patient or pathway is booked | Positive patient identification; check the patient's name, date of birth and NHS number, which the booking dialog shows, when booking |
 | H-35 An appointment is left without its member of staff | Record leave and training in MedApp before booking around it; when someone is away unexpectedly, move or cancel their appointments and tell the patients |
 | H-36 A cancelled or moved appointment isn't passed on to the patient | A process for telling patients about every booking, change and cancellation, including the Booked appointments of a cancelled pathway |
+| H-40 A referral is lost or delayed before triage | **A daily check of the referral inbox** (Referrals, Awaiting triage, oldest first; the count is in the side navigation), with a named owner and cover; a process for referrals received while MedApp is unavailable (below); a rule that a referral MedApp refuses for a restricted patient goes to an admin at once, with its letter; at least one member of each specialty with the triage permission, once triage is built. **Until triage is built (Phase 2's next release), don't use referrals with patients:** MedApp can register them but nobody can triage them in it |
+| H-41 A referral is triaged into the wrong pathway, priority or patient | Positive patient identification when registering a referral (check the banner against the letter); once triage is built, clinical review of triage decisions, and the triage permission only for clinicians who triage that specialty |
+| H-42 A paused waiting-time clock is forgotten | Once the clock is built: a weekly look at the Paused clocks view, and pauses only for patient-initiated delays |
+| H-43 A breach of a waiting-time target goes unnoticed, or the target is wrong | Once the clock is built: set each specialty's targets under your clinical governance, review them, and review your waiting list on a set schedule |
+| H-44 A duplicate referral leads to two pathways for one need | Read MedApp's warning of an open referral to the same specialty before confirming; mark a duplicate registered by mistake as entered in error |
 
 ### Planned: what you'll provide for the centre's Phases 3 to 5
 
@@ -133,6 +139,7 @@ Specimens, results, letters, clinics, reminders, the MDT list, consent and the N
   - Put each step that must not be missed in its own stage, in the right order. MedApp enforces the order you give it.
   - Archive a template rather than editing it heavily; create a new one for a new way of working.
 - **Roles:** admins can manage users, templates, assignments and the audit log. Give the role to few people, but at least two. Remove it when someone changes job.
+- **Referrals:** give the permission to register referrals to the staff who receive referral letters (the starting roles Clinician, Nurse and Booking have it, and so do Admin and "All staff (before roles)"), and, once triage is built, the triage permission only to clinicians, each a member of the specialties they triage. Check every specialty has at least one. Decide who checks the referral inbox each working day, who covers them, and what happens to a letter MedApp refuses because the patient's record is restricted (it goes to an admin).
 - **Accounts:** one account per person; no shared accounts. Reassign a leaver's open pathways, then remove the account. Deleting an account doesn't reassign its work, which then shows as assigned to "Deleted user" and is on nobody's task list (H-21).
 - **Target dates:** decide locally what a target date means for each kind of pathway, and tell staff. In MedApp, a pathway is due by the end of its day, UK time.
 - **Attached files:** decide what may be attached (for example referral letters, results, consent forms, wound photos), where the master copy lives, and how files are named. Files aren't scanned for malware yet: each shows "Not scanned" (H-25). Any member of staff can open any patient's files, and each download is recorded.
@@ -167,6 +174,7 @@ Plan for MedApp being unavailable, whether for minutes or a day:
 - **During:** work from paper; record what was done, by whom and when. If only MedApp's files can't be opened (H-28), use the master copies in your own systems.
 - **After:** enter the work into MedApp, saying in the notes that it was done during downtime and when; check for work that was done twice or missed.
 - **Letters (planned, Phase 3):** once letters are built, keep a way to write and send an urgent letter outside MedApp (your own template and secure mailbox); afterwards, record it in MedApp as sent outside MedApp, with the date, so the To send list and the letter gates stay right.
+- **Referrals:** keep a paper log of referrals received while MedApp is unavailable (patient, specialty, date received, referrer, priority asked for), with the letters; register them afterwards with the date they were received, not the date entered; urgent ones go straight to a clinician of the specialty.
 - **Lab work (planned, Phase 3):** during downtime, keep a paper log of specimens taken and sent (with their numbers, if labels were printed), and enter them afterwards; reports that arrive meanwhile go to the responsible clinician on paper.
 - **After a restore** from backup: the manufacturer will tell you the restore point. Re-enter work done since then from your downtime records.
 
@@ -190,6 +198,7 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | D-12 | Patients aren't told of bookings, changes or cancellations | No owner for patient contact; MedApp sends nothing | A named owner and process; a check that every change has been passed on |
 | D-13 | Staff absence isn't in MedApp, so appointments are booked when nobody is there | Leave and sickness recorded only elsewhere | Record absence in MedApp before booking; a daily check of the next day's calendars |
 | D-14 | Visit requirements don't match local practice | Set without clinical review; left at none | Clinical sign-off of each stage's visit requirement |
+| D-15 | A referral letter is never registered, or the inbox isn't read | Letters arriving by post, email and fax to different people; no owner for the inbox | One route for referral letters; a named owner and cover for the daily inbox check; a paper log during downtime |
 
 ## Reporting incidents
 
@@ -213,3 +222,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | 0.4 | 16 November 2026 | The privacy features and NHS integrations (PRs #68 and #69): the optional NHS number in identifying patients, and the transferred control for H-22. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
 | 0.6 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), before they're built: the controls planned to transfer to you for H-45 to H-64 (among them a daily check of the lab worklist and of results awaiting sign-off), and downtime for letters and lab work. The hazard count brought up to date (64) | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-12 to D-14 (drafted as D-11 to D-13, renumbered after file attachments took D-11) | AI coding agent, for review |
+| 0.7 | 18 November 2026 | Referrals (branch `feature/referrals`, Phase 2's PR 5): your duties for referrals among the assumptions (the register and triage permissions to the right people, a triager for every specialty, a daily inbox check, a downtime process for referrals, and later the clock's targets), the controls that transfer to you for H-40 to H-44, configuring referral permissions and the inbox's owner, downtime for referrals, and starter hazard D-15; and a warning not to use referrals with patients until triage is built | AI coding agent, for review |

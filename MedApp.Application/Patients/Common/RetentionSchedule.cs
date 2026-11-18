@@ -14,8 +14,8 @@ public sealed record RetentionDue(RetentionClass Class, DateOnly ConclusionOfTre
 
 /// <summary>
 /// The retention schedule's rules (<see cref="RetentionOptions"/>), worked out for one patient. The conclusion of
-/// treatment is the later of the last change to the patient's record and the last change to any of their pathways
-/// (all closed by then), as a UK date.
+/// treatment is the latest of the last change to the patient's record, to any of their pathways (all closed by then)
+/// and to any of their referrals (none awaiting triage by then), as a UK date.
 /// </summary>
 public static class RetentionSchedule
 {
@@ -29,8 +29,12 @@ public static class RetentionSchedule
     /// <summary>When the patient's record is due for review.</summary>
     public static RetentionDue Due(RetentionCandidate patient, RetentionOptions options)
     {
-        // The latest of the record, its pathways, and their audit trail, which outlives a pathway deleted since.
-        var lastChange = new[] { patient.LastUpdatedUtc, patient.LastPathwayChangedUtc, patient.LastAuditUtc }
+        // The latest of the record, its pathways, their audit trail (which outlives a pathway deleted since), and its
+        // referrals' history.
+        var lastChange = new[]
+            {
+                patient.LastUpdatedUtc, patient.LastPathwayChangedUtc, patient.LastAuditUtc, patient.LastReferralChangeUtc
+            }
             .OfType<DateTime>()
             .Max();
         return Due(patient.DateOfBirth, DueDates.ToUkDate(lastChange), options);

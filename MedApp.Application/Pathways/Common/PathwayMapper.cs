@@ -30,7 +30,8 @@ public static class PathwayMapper
 
     /// <summary>
     /// A pathway's full response, looking up the usernames it shows. <paramref name="viewerId"/> is who it's for: their
-    /// own notes are the ones they can edit.
+    /// own notes are the ones they can edit. <paramref name="viewerPermissions"/> is what their roles allow: see
+    /// <see cref="ToResponse"/>.
     /// </summary>
     public static async Task<PatientPathwayResponse> ToResponseAsync(
         PatientPathway pathway,
@@ -39,12 +40,25 @@ public static class PathwayMapper
         CancellationToken ct,
         string? patientName = null,
         Guid? viewerId = null,
-        bool viewerCanCorrectRecords = false)
+        IReadOnlySet<Permission>? viewerPermissions = null)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(pathway), ct);
-        return ToResponse(pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerCanCorrectRecords: viewerCanCorrectRecords);
+        return ToResponse(pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerPermissions: viewerPermissions);
     }
 
+    /// <summary>
+    /// A pathway's full response. Its <c>Can...</c> flags say what this viewer can do: what the pathway and its
+    /// patient's record allow, and what <paramref name="viewerPermissions"/> (the viewer's, from their session) allow, as
+    /// the endpoints check. Working on it (stages, details, notes, status changes) needs
+    /// <see cref="Permission.WorkPathways"/>, assignments <see cref="Permission.AssignPathways"/>, unlocking a stage
+    /// <see cref="Permission.OverrideStages"/>, deleting it <see cref="Permission.DeletePathways"/>, and deleting a note
+    /// <see cref="Permission.CorrectRecords"/>.
+    /// <para>
+    /// Null <paramref name="viewerPermissions"/> means no viewer is known: the flags then say only what the pathway and
+    /// record allow, with nothing that needs <see cref="Permission.CorrectRecords"/>. Every response to a request passes
+    /// the caller's.
+    /// </para>
+    /// </summary>
     public static PatientPathwayResponse ToResponse(
         PatientPathway pathway,
         IReadOnlyDictionary<Guid, string> usernames,
@@ -52,7 +66,7 @@ public static class PathwayMapper
         string? patientName = null,
         Patient? patient = null,
         Guid? viewerId = null,
-        bool viewerCanCorrectRecords = false)
+        IReadOnlySet<Permission>? viewerPermissions = null)
     {
         // The patient comes with the pathway when it was loaded with them, or separately for one just created.
         patient ??= pathway.Patient;
@@ -62,6 +76,7 @@ public static class PathwayMapper
         var canChange = readOnlyReason is null;
         // A restricted record's pathways can still be paused: blocked or cancelled, with a reason.
         var canPause = !PatientRules.IsAnonymised(pathway.Patient);
+        var canWork = Allows(viewerPermissions, Permission.WorkPathways);
 
         return new PatientPathwayResponse
         {
@@ -84,15 +99,19 @@ public static class PathwayMapper
             CurrentStageId = current?.Id,
             CompletedStageCount = pathway.Stages.Count(s => s.IsCompleted),
             StageCount = pathway.Stages.Count,
-            AllowedStatusChanges = PathwayWorkflow.AllowedStatusChanges(pathway)
-                .Where(s => canChange || (canPause && PatientRules.PausesWhileRestricted.Contains(s)))
-                .Select(s => s.ToString())
-                .ToList(),
-            CanWorkOnStages = canChange && PathwayWorkflow.CanWorkOnStages(pathway),
-            CanEditDetails = canChange && PathwayWorkflow.CanEditDetails(pathway),
-            CanAddNotes = canChange && PathwayWorkflow.CanChangeNotes(pathway),
-            CanChangeAssignments = canChange && PathwayWorkflow.CanChangeAssignments(pathway),
-            CanBeDeleted = canChange && PathwayWorkflow.CanBeDeleted(pathway),
+            AllowedStatusChanges = canWork
+                ? PathwayWorkflow.AllowedStatusChanges(pathway)
+                    .Where(s => canChange || (canPause && PatientRules.PausesWhileRestricted.Contains(s)))
+                    .Select(s => s.ToString())
+                    .ToList()
+                : [],
+            CanWorkOnStages = canWork && canChange && PathwayWorkflow.CanWorkOnStages(pathway),
+            CanEditDetails = canWork && canChange && PathwayWorkflow.CanEditDetails(pathway),
+            CanAddNotes = canWork && canChange && PathwayWorkflow.CanChangeNotes(pathway),
+            CanChangeAssignments = Allows(viewerPermissions, Permission.AssignPathways)
+                && canChange && PathwayWorkflow.CanChangeAssignments(pathway),
+            CanBeDeleted = Allows(viewerPermissions, Permission.DeletePathways)
+                && canChange && PathwayWorkflow.CanBeDeleted(pathway),
             ReadOnlyReason = readOnlyReason,
             PatientFlags = pathway.Patient is null ? null : PatientMapper.ToFlags(pathway.Patient),
             Stages = pathway.Stages
@@ -112,8 +131,9 @@ public static class PathwayMapper
                     State = PathwayWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,
                     IsLocked = s.IsLocked,
-                    CanEdit = canChange && PathwayWorkflow.CanEditStage(pathway, s),
-                    CanUnlock = canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
+                    CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
+                    CanUnlock = Allows(viewerPermissions, Permission.OverrideStages)
+                        && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),
@@ -135,7 +155,7 @@ public static class PathwayMapper
                 .ToList(),
             Notes = PathwayNoteMapper.FirstNoteText(pathway),
             NoteList = PathwayNoteMapper.ToResponses(
-                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerCanCorrectRecords)
+                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerPermissions)
         };
     }
 
@@ -191,6 +211,13 @@ public static class PathwayMapper
             .ToList(),
         LastUpdated = pathway.LastUpdated
     };
+
+    /// <summary>
+    /// Whether the viewer's permissions allow a flag that needs this one; with no viewer known (null), the flag is left to
+    /// what the pathway and record allow. Not for <see cref="Permission.CorrectRecords"/>, which needs a known holder.
+    /// </summary>
+    internal static bool Allows(IReadOnlySet<Permission>? viewerPermissions, Permission permission) =>
+        viewerPermissions is null || viewerPermissions.Contains(permission);
 
     private static string Username(IReadOnlyDictionary<Guid, string> usernames, Guid userId) =>
         usernames.TryGetValue(userId, out var name) ? name : DeletedUser;

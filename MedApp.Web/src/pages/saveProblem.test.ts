@@ -34,6 +34,9 @@ describe('saveProblem', () => {
 
   it('names a pathway when that is what is being saved', () => {
     expect(saveProblem(new ApiError(403), 'save', 'pathway').message).toBe('You do not have permission to change pathways.');
+    // A permission the person's roles don't grant: the API names it.
+    const missing = new ApiError(403, undefined, "Your roles don't allow this. It needs the permission to: See Insights.", 'permission_missing');
+    expect(saveProblem(missing, 'save', 'pathway').message).toBe(missing.title);
     expect(saveProblem(new ApiError(404), 'save', 'pathway').message).toBe('Pathway not found. It may have been deleted.');
     expect(saveProblem(new ApiError(418), 'add', 'pathway').message).toBe(
       'An unexpected error occurred while adding the pathway.',

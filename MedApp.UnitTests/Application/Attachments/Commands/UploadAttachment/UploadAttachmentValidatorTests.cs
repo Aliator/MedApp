@@ -11,7 +11,7 @@ public sealed class UploadAttachmentValidatorTests
     private readonly UploadAttachmentValidator _validator = new();
 
     private static UploadAttachmentCommand Command(Guid? patientId, Guid? pathwayId, Guid? stageId, string? fileName = FileName) =>
-        new(patientId, pathwayId, stageId, fileName, 10, Stream(Pdf), Staff, false);
+        new(patientId, pathwayId, stageId, null, fileName, 10, Stream(Pdf), Staff, false);
 
     [TestCase(true, false, false)]
     [TestCase(false, true, false)]
@@ -33,7 +33,7 @@ public sealed class UploadAttachmentValidatorTests
             patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Target"
-                                                  && e.ErrorMessage == "Give exactly one of a patient, a pathway or a stage.");
+                                                  && e.ErrorMessage == "Give exactly one of a patient, a pathway, a stage or a referral.");
     }
 
     [TestCase(null)]

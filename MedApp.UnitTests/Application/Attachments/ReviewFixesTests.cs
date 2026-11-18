@@ -31,7 +31,7 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
     private UploadAttachmentHandler Handler => Fixture.Create<UploadAttachmentHandler>();
 
     private static UploadAttachmentCommand Upload(Guid? patientId = null, Guid? pathwayId = null, Guid? stageId = null) =>
-        new(patientId, pathwayId, stageId, FileName, Pdf.Length, Stream(Pdf), Staff, false);
+        new(patientId, pathwayId, stageId, null, FileName, Pdf.Length, Stream(Pdf), Staff, false);
 
     private static Patient PatientWith(Action<Patient> change)
     {
@@ -215,7 +215,9 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
             Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
             NoteVersions = [],
-            NoteDeletionRequests = []
+            NoteDeletionRequests = [],
+            Referrals = [],
+            ReferralHistory = []
         };
 
         var entries = PatientAnonymiser.Apply(withFiles, Now, ActivityTestConstants.Actor);

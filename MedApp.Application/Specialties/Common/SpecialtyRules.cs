@@ -54,6 +54,14 @@ public static class SpecialtyRules
         return found;
     }
 
+    /// <summary>
+    /// Why a specialty can't be archived: referrals await triage in it, and archiving would strand them, as nobody could
+    /// move a new one there (hazard H-40).
+    /// </summary>
+    public static string AwaitingTriageMessage(Specialty specialty, int count) =>
+        $"The '{specialty.Name}' specialty has {Count(count, "referral", "referrals")} awaiting triage, so it can't be archived " +
+        "until they're triaged or withdrawn.";
+
     private static string Describe(SpecialtyUsage usage)
     {
         var parts = new List<string>();
@@ -63,12 +71,9 @@ public static class SpecialtyRules
             parts.Add(Count(usage.PathwayCount, "pathway", "pathways"));
         if (usage.MemberCount > 0)
             parts.Add(Count(usage.MemberCount, "member of staff", "members of staff"));
-        return parts.Count switch
-        {
-            1 => parts[0],
-            2 => $"{parts[0]} and {parts[1]}",
-            _ => $"{parts[0]}, {parts[1]} and {parts[2]}"
-        };
+        if (usage.ReferralCount > 0)
+            parts.Add(Count(usage.ReferralCount, "referral", "referrals"));
+        return parts.Count == 1 ? parts[0] : $"{string.Join(", ", parts[..^1])} and {parts[^1]}";
     }
 
     private static string Count(int count, string one, string many) => count == 1 ? $"1 {one}" : $"{count} {many}";

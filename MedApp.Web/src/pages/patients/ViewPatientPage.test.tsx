@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
-import {adminUser, calls, isDisabled, json, openAlertDetails, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, openAlertDetails, mockApi, openDialog, pageOf, renderWithApp, staffUser, userWithRoles} from '../../test/render';
 import {ViewPatientPage} from './ViewPatientPage';
 
 const id = 'c184a7b8-2585-4437-bcd4-e1700be38299';
@@ -36,6 +36,31 @@ function renderPage(patient: object = oriel, user = adminUser, extra: Record<str
   return {fetch, ...renderWithApp(<ViewPatientPage id={id} />, {user, path: `/patients/${id}`})};
 }
 
+describe('ViewPatientPage, referrals', () => {
+  it("lists the patient's referrals, open first, with Register Referral for them", async () => {
+    renderPage(oriel, staffUser, {
+      'GET /api/referrals/search': () =>
+        json(
+          pageOf([
+            {id: 'r-closed', specialtyName: 'Urology', status: 'Withdrawn', receivedOn: '2026-10-01', requestedPriority: 'Low', referrerPractice: 'Synthetic Surgery'},
+            {id: 'r-open', specialtyName: 'Dermatology', status: 'AwaitingTriage', receivedOn: '2026-11-02', daysSinceReceived: 4, requestedPriority: 'High'},
+          ]),
+        ),
+    });
+
+    const links = await screen.findAllByRole('link', {name: /^Referral to/});
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/referrals/r-open', '/referrals/r-closed']);
+    expect(screen.getByRole('link', {name: 'Register Referral'})).toHaveAttribute('href', `/referrals/new?patientId=${id}`);
+  });
+
+  it("offers no Register Referral while the record can't change", async () => {
+    renderPage({...oriel, isRestricted: true, restrictedAtUtc: '2026-11-16T09:00:00Z'}, staffUser, {'GET /api/referrals/search': () => json(pageOf([]))});
+
+    expect(await screen.findByText('No referrals yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Register Referral'})).not.toBeInTheDocument();
+  });
+});
+
 describe('ViewPatientPage, privacy', () => {
   it('shows staff no Privacy menu and no access report, and never asks for one', async () => {
     const {fetch} = renderPage(oriel, staffUser);
@@ -45,6 +70,25 @@ describe('ViewPatientPage, privacy', () => {
     expect(screen.queryByText('Access Report')).not.toBeInTheDocument();
     // The patient and their timeline, but not the activity log.
     expect(calls(fetch).some((call) => call.startsWith(`GET ${ACCESS}`))).toBe(false);
+  });
+
+  it('shows a lab member neither Book Appointment nor Edit Patient, which their roles do not allow', async () => {
+    renderPage(oriel, userWithRoles('test-lab', 'Lab'));
+
+    expect(await screen.findByText('Oriel')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Pathways'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Privacy'})).not.toBeInTheDocument();
+  });
+
+  it('offers in the Privacy menu only what the roles allow: export alone, for someone with only that', async () => {
+    const {user} = renderPage(oriel, {...staffUser, permissions: [...staffUser.permissions, 'ExportPatientRecords']});
+
+    expect(await privacyItem(user, 'Export Record')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Restrict Record/, hidden: true})).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: /Anonymise Record/, hidden: true})).not.toBeInTheDocument();
+    expect(screen.queryByText('Access Report')).not.toBeInTheDocument();
   });
 
   it('shows admins the access report and the Privacy menu, with the export page', async () => {

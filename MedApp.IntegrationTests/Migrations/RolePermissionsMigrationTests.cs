@@ -19,8 +19,8 @@ public sealed class RolePermissionsMigrationTests
 {
     private const string Before = "20261118075440_RenamedProceduresToPathways";
     private const string Migration = "20261118111735_AddedRolePermissions";
-    private const string BeforeWorkingHours = "20261118122751_AddedSites";
-    private const string WorkingHoursMigration = "20261118125541_AddedWorkingHours";
+    private const string BeforeWorkingHours = "20261118131343_AddedReferrals";
+    private const string WorkingHoursMigration = "20261118133740_AddedWorkingHours";
 
     private static readonly Guid AdminRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
     private static readonly Guid UserRoleId = Guid.Parse("0000000d-0000-0000-0000-000000000002");

@@ -7,8 +7,8 @@ public sealed class GetAttachmentsValidator : AbstractValidator<GetAttachmentsQu
     public GetAttachmentsValidator()
     {
         RuleFor(x => x)
-            .Must(x => new[] { x.PatientId, x.PathwayId, x.StageId }.Count(id => id is not null) == 1)
+            .Must(x => new[] { x.PatientId, x.PathwayId, x.StageId, x.ReferralId }.Count(id => id is not null) == 1)
             .OverridePropertyName("Target")
-            .WithMessage("Give exactly one of a patient, a pathway or a stage.");
+            .WithMessage("Give exactly one of a patient, a pathway, a stage or a referral.");
     }
 }

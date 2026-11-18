@@ -9,6 +9,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useState, type ReactNode} from 'react';
 import {useAnnounce} from '../../app/announcements';
+import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
 import {
   dayTemplatesQuery,
@@ -80,6 +81,8 @@ export function calendarTemplatesPageQueries(tab: CalendarTemplatesTab, ownerId:
 export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplatesPageProps) {
   const tab: CalendarTemplatesTab = search.tab ?? 'day';
   const owner = useTemplatesOwner(search.staff);
+  // Holders of ManageClinics set anyone's working hours, so on that tab they pick whose too.
+  const canManageClinics = useCan('ManageClinics');
   const [error, setError] = useState<string | null>(null);
   // Each tab keeps its own search; switching starts the other on its default, for the same person.
   const listSearch: SetupListSearch = {name: search.name, status: search.status, page: search.page};
@@ -103,7 +106,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
       actions={
         // The picker never shows an error, so it drops the line kept for one, and lines up with New Day Template.
         <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-          {owner.isAdmin && (
+          {(owner.canManageAnyCalendar || (tab === 'hours' && canManageClinics)) && (
             <StaffPicker
               label="Whose calendar templates"
               staff={owner.staff.data}

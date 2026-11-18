@@ -2,6 +2,7 @@ import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
+import {referralFieldWords} from './referrals';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -9,6 +10,8 @@ export type TimelineChange = Schemas['PatientTimelineChangeResponse'];
 export type TimelineOverview = Schemas['PatientTimelineOverviewResponse'];
 export type TimelineUpcoming = Schemas['PatientTimelineUpcomingResponse'];
 export type TimelinePathway = Schemas['PatientTimelinePathwayResponse'];
+/** A referral awaiting triage, beside the open pathways above the timeline. */
+export type TimelineReferral = Schemas['PatientTimelineReferralResponse'];
 
 /** The most pathways a timeline can be filtered to at once (the API's `GetPatientTimelineValidator.MaxPathwayIds`). */
 export const MAX_TIMELINE_PATHWAYS = 50;
@@ -17,13 +20,14 @@ export const MAX_TIMELINE_PATHWAYS = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Referrals', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
   Created: 'Created',
   Stages: 'Stages',
   Appointments: 'Appointments',
+  Referrals: 'Referrals',
   Notes: 'Notes',
   Assignments: 'Assignments',
   Blocks: 'On hold',
@@ -216,7 +220,60 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
     case 'AttachmentDeleted':
       return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
     default:
+      if (isReferralEntry(entry)) return describeReferralEntry(entry);
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+  }
+}
+
+/** Whether an entry is from a referral's history (its action is "Referral" and what happened). */
+export const isReferralEntry = (entry: TimelineEntry) => entry.kind === 'Referrals' || (entry.action ?? '').startsWith('Referral');
+
+/** A referral's changed field in words, with its values where the API sends them (dates, priorities, specialties). */
+function describeReferralChange(change: TimelineChange): string {
+  const field = change.field ?? '';
+  const name = capitalised(referralFieldWords(field));
+  if (!hasValues(change)) return `${name} changed`;
+  switch (field) {
+    case 'receivedOn':
+      return `Received date ${date(change.from)} → ${date(change.to)}`;
+    case 'requestedPriority':
+      return `Requested priority ${words(change.from)} → ${words(change.to)}`;
+    default:
+      return `${name} ${change.from ?? 'none'} → ${change.to ?? 'none'}`;
+  }
+}
+
+/**
+ * A referral history entry in words. Staff get the structured values only (the specialty, the requested priority,
+ * which fields were edited, the status after); the reason for referral, a withdrawal's or an entry in error's
+ * detail and the referring practice come only to admins.
+ */
+function describeReferralEntry(entry: TimelineEntry): TimelineWording {
+  const referral = entry.specialtyName ? `Referral to ${entry.specialtyName}` : 'Referral';
+  const reason = entry.reason?.trim();
+  const practice = entry.referrerPractice?.trim();
+  switch (entry.action) {
+    case 'ReferralRegistered':
+      return {
+        title: `${referral} registered`,
+        detail: sentences(
+          [practice ? `From ${practice}` : null, entry.priority ? `${words(entry.priority)} priority asked for` : null]
+            .filter(Boolean)
+            .join(', '),
+          reason ? `Reason: ${reason}` : null,
+        ),
+      };
+    case 'ReferralDetailsEdited':
+      return {title: `${referral}: details edited`, detail: (entry.changes ?? []).map(describeReferralChange).join('; ')};
+    case 'ReferralWithdrawn':
+      return {title: `${referral} withdrawn`, detail: reason ?? ''};
+    case 'ReferralEnteredInError':
+      return {title: `${referral} marked entered in error`, detail: reason ?? ''};
+    default:
+      return {
+        title: `${referral} changed`,
+        detail: entry.toStatus ? `Now ${words(entry.toStatus)}` : '',
+      };
   }
 }
 
@@ -296,10 +353,15 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
  * Whether an entry is about the patient's own file, not one of their pathways: it has no pathway to link to
  * (its `pathwayId` is all zeros and its title empty).
  */
-export const isPatientEntry = (entry: TimelineEntry) => entry.attachedTo === 'Patient' || entry.pathwayId === NO_PATHWAY;
+export const isPatientEntry = (entry: TimelineEntry) =>
+  entry.attachedTo === 'Patient' || (entry.attachedTo !== 'Referral' && entry.pathwayId === NO_PATHWAY);
 
-/** What a file was attached to, in words: "the patient", "the pathway", "the Consultation stage". */
+/** Whether an entry is about a file attached to one of the patient's referrals (its letter). */
+export const isReferralFileEntry = (entry: TimelineEntry) => entry.attachedTo === 'Referral';
+
+/** What a file was attached to, in words: "the patient", "the referral", "the pathway", "the Consultation stage". */
 function attachedToWords(entry: TimelineEntry): string {
+  if (isReferralFileEntry(entry)) return 'the referral';
   if (isPatientEntry(entry)) return 'the patient';
   if (entry.attachedTo === 'Stage') return entry.stageName ? `the ${entry.stageName} stage` : 'a stage';
   return 'the pathway';

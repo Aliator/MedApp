@@ -10,12 +10,14 @@ The detail behind the root `AGENTS.md`, one file per area, read on demand. `AGEN
 |---|---|
 | [pathways.md](pathways.md) | Pathways, templates and stages, pathway notes and note deletion |
 | [specialties.md](specialties.md) | Specialties, each template's and pathway's specialty, and staff memberships |
+| [referrals.md](referrals.md) | Referrals, their history and letters, the inbox, and their privacy rules |
 | [timeline.md](timeline.md) | The patient timeline, and what staff and admins each see |
 | [notifications.md](notifications.md) | In-app notifications, their kinds and live delivery |
 | [calendar.md](calendar.md) | Calendars, templates, meetings, appointments and stage visits |
 | [notepad.md](notepad.md) | Each member of staff's notepad |
 | [monitoring.md](monitoring.md) | Admins' monitoring rules |
 | [attachments.md](attachments.md) | File attachments |
+| [jobs.md](jobs.md) | Scheduled jobs: the runner, the lease, and the operational purge |
 | [privacy.md](privacy.md) | The activity log, restriction, export, anonymisation and retention |
 | [insights.md](insights.md) | Admins' Insights page |
 | [nhs-fhir-snomed.md](nhs-fhir-snomed.md) | The NHS number, FHIR, SNOMED CT and the demographics lookup |

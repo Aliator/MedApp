@@ -1,6 +1,6 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
-import {userSearchQuery} from './search';
+import {staffQuery, staffWithPermissionQuery} from './calendar';
 
 /** One of the signed-in admin's monitoring rules, with the names of what it names (null for "any", or deleted). */
 export type MonitoringRule = Schemas['MonitoringRuleResponse'];
@@ -26,7 +26,7 @@ export const MONITORING_EVENTS = [
   {value: 'PathwayBlocked', label: 'Puts a pathway on hold'},
   {value: 'PathwayCancelled', label: 'Cancels a pathway'},
   {value: 'PathwayAssigned', label: 'Is assigned to a pathway'},
-  {value: 'StageUnlocked', label: 'Unlocks a stage (admins only)', hasStage: true},
+  {value: 'StageUnlocked', label: 'Unlocks a stage', hasStage: true},
   {value: 'DueDateChanged', label: "Changes a pathway's target date"},
 ] as const;
 
@@ -48,11 +48,14 @@ export const monitoringRulesQuery = queryOptions({
   queryFn: () => unwrap(api.GET(RULES)),
 });
 
-/** The most people the picker lists: the users search's largest page. A searchable picker is a to-do. */
-export const MAX_PEOPLE = 100;
+/**
+ * Everyone a rule can name: the staff list (everyone with a role), which holders of ManageMonitoring can read without
+ * ManageUsers.
+ */
+export const monitoringPeopleQuery = staffQuery;
 
-/** Everyone a rule can name: the first 100 accounts by username (the API's largest page). */
-export const monitoringPeopleQuery = userSearchQuery({PageSize: MAX_PEOPLE, Sort: 'username', Ascending: true});
+/** Who a "Stage unlocked" rule can name: holders of OverrideStages, as only they unlock stages (the API refuses anyone else). */
+export const monitoringUnlockersQuery = staffWithPermissionQuery('OverrideStages');
 
 /** Adds a rule (no `id`) or replaces one, switching it on or off too. */
 export function useSaveMonitoringRule() {

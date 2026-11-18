@@ -52,6 +52,7 @@ export const ACTIVITY_ACTIONS = [
   'EmailCodesEnabled',
   'EmailCodesDisabled',
   'StaffSpecialtiesChanged',
+  'ReferralViewed',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -99,6 +100,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   EmailCodesEnabled: 'Codes by email turned on',
   EmailCodesDisabled: 'Codes by email turned off',
   StaffSpecialtiesChanged: 'Specialties changed',
+  ReferralViewed: 'Referral viewed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -109,7 +111,7 @@ export const activityActionLabel = (action: string | null | undefined) =>
 export const FILE_ACTIONS: ActivityAction[] = ['AttachmentsViewed', 'AttachmentDownloaded'];
 
 /** The actions that read a patient's record, for the "who has looked" quick filter. */
-export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'PatientExported', ...FILE_ACTIONS];
+export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'ReferralViewed', 'PatientExported', ...FILE_ACTIONS];
 
 /** The sign-in actions, for their quick filter. */
 export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'TwoFactorChallenged', 'SignInFailed', 'SignedOut'];

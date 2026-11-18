@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -33,5 +34,22 @@ public sealed class GetPatientPathwayByIdHandlerTests : PathwayHandlerTestBase
         response.Id.Should().Be(pathway.Id);
         response.Assignments.Single().Username.Should().Be(Staff.Username);
         response.Stages.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task Handle_ViewerPermissions_DecideWhatTheResponseOffers()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.Assigned));
+        var handler = Fixture.Create<GetPatientPathwayByIdHandler>();
+
+        var manager = await handler.Handle(
+            new GetPatientPathwayByIdQuery(pathway.Id, OtherUserId, StandardRoles.Manager.Permissions), CancellationToken.None);
+        var nurse = await handler.Handle(
+            new GetPatientPathwayByIdQuery(pathway.Id, OtherUserId, StandardRoles.Nurse.Permissions), CancellationToken.None);
+
+        manager.Should().BeEquivalentTo(new { CanWorkOnStages = false, CanAddNotes = false, CanChangeAssignments = true });
+        manager.AllowedStatusChanges.Should().BeEmpty();
+        nurse.Should().BeEquivalentTo(new { CanWorkOnStages = true, CanAddNotes = true, CanChangeAssignments = false });
+        nurse.AllowedStatusChanges.Should().NotBeEmpty();
     }
 }

@@ -65,6 +65,6 @@ public sealed class RequestNoteDeletionHandler(
             request.Actor.UserId,
             canChange: PathwayWorkflow.CanChangeNotes(pathway),
             recordCanChange: true,
-            viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
+            viewerPermissions: request.Actor.Permissions);
     }
 }

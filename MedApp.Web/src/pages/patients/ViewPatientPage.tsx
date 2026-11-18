@@ -13,7 +13,7 @@ import {patientAppointmentsQuery, type Appointment} from '../../api/appointments
 import {ApiError} from '../../api/errors';
 import {patientQuery, useSetPatientFlag, whyCantChange, type Patient} from '../../api/patients';
 import {NO_TIMELINE_FILTERS, type TimelineFilters} from '../../api/timeline';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
@@ -26,6 +26,7 @@ import {PatientBanner} from '../../components/patients/PatientBanner';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
 import {PatientTimeline} from '../../components/pathways/PatientTimeline';
+import {PatientReferrals} from '../../components/referrals/PatientReferrals';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
@@ -38,7 +39,7 @@ import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
- * A patient's details (replaces Blazor's ViewPatient) and files, beside their timeline: everything that happened to
+ * A patient's details (replaces Blazor's ViewPatient), referrals and files, beside their timeline: everything that happened to
  * their pathways, with what's due. Like the pathway page, the two cards fill the page and each scrolls on its
  * own; a narrow window or a half view has one card of three folding sections instead (see PatientView). An unknown
  * patient goes back to the list, as in Blazor.
@@ -66,7 +67,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   // Held here, so they carry over when the window switches between one card and two.
   const [filters, setFilters] = useState<TimelineFilters>(NO_TIMELINE_FILTERS);
-  const [open, setOpen] = useState({details: true, files: true, timeline: true});
+  const [open, setOpen] = useState({details: true, referrals: true, files: true, timeline: true});
   // Files on their way, held here so they carry on when the window switches between one card and two.
   const attachments = useAttachmentsState();
   const [isBooking, setIsBooking] = useState(false);
@@ -77,14 +78,16 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   }, [error, navigate]);
 
   const timeline = <PatientTimeline patientId={id} filters={filters} onFiltersChange={setFilters} />;
-  const actions = patient && <Actions patient={patient} isAdmin={me.isAdmin} onBook={() => setIsBooking(true)} onProblem={setProblem} />;
+  const actions = patient && <Actions patient={patient} onBook={() => setIsBooking(true)} onProblem={setProblem} />;
   // Everything attached to the patient, anywhere; what's added here is attached to the patient themselves. Nothing
   // can be added or deleted while the record is restricted or anonymised.
   const isLocked = patient !== undefined && whyCantChange(patient) !== null;
   const files = <Attachments target={{patientId: id}} canChange={!isLocked} isLocked={isLocked} state={attachments} />;
   const details = patient && <PatientDetails patient={patient} />;
-  // For admins, who has accessed the record: under the details (and, in the wide layout, the files).
-  const accessReport = me.isAdmin && <PatientAccessReport patientId={id} />;
+  // Their referrals, open ones first, and Register Referral (for holders of RegisterReferrals, not while the record can't change).
+  const referrals = <PatientReferrals patientId={id} canRegister={!isLocked && can(me, 'RegisterReferrals')} />;
+  // For holders of ViewAudit, who has accessed the record: under the details (and, in the wide layout, the files).
+  const accessReport = can(me, 'ViewAudit') && <PatientAccessReport patientId={id} />;
 
   return (
     <Page
@@ -129,6 +132,17 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
                 ),
               },
               {
+                key: 'referrals',
+                title: 'Referrals',
+                isOpen: open.referrals,
+                onToggle: () => toggle('referrals'),
+                children: (
+                  <Section variant="transparent" padding={6}>
+                    {referrals}
+                  </Section>
+                ),
+              },
+              {
                 key: 'files',
                 title: 'Files',
                 isOpen: open.files,
@@ -148,6 +162,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
             start={
               <ViewCard fill footerActions={actions}>
                 {details}
+                <CardSection title="Referrals">{referrals}</CardSection>
                 <CardSection title="Files">{files}</CardSection>
                 {accessReport}
               </ViewCard>
@@ -164,27 +179,21 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
 }
 
 /**
- * Book Appointment, Pathways and Edit Patient (not booking or editing while the record is restricted or anonymised,
- * when it can't be changed), and an admin's Privacy menu.
+ * Book Appointment (BookAppointments), Pathways and Edit Patient (EditPatients), not booking or editing while the
+ * record is restricted or anonymised, when it can't be changed; and the Privacy menu, for holders of ManagePrivacy or
+ * ExportPatientRecords.
  */
-function Actions({
-  patient,
-  isAdmin,
-  onBook,
-  onProblem,
-}: {
-  patient: Patient;
-  isAdmin: boolean;
-  onBook: () => void;
-  onProblem: (problem: SaveProblem) => void;
-}) {
+function Actions({patient, onBook, onProblem}: {patient: Patient; onBook: () => void; onProblem: (problem: SaveProblem) => void}) {
+  const me = useCurrentUser();
   const canChange = whyCantChange(patient) === null;
   return (
     <>
-      {isAdmin && <PrivacyActions patient={patient} onProblem={onProblem} />}
-      {canChange && <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />}
+      {(can(me, 'ManagePrivacy') || can(me, 'ExportPatientRecords')) && <PrivacyActions patient={patient} onProblem={onProblem} />}
+      {canChange && can(me, 'BookAppointments') && (
+        <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />
+      )}
       <Button label="Pathways" variant="secondary" icon={<Icon icon={AppIcon.Pathways} />} href={`/patients/${patient.id}/pathways`} />
-      {canChange && (
+      {canChange && can(me, 'EditPatients') && (
         <Button label="Edit Patient" variant="secondary" icon={<Icon icon={AppIcon.Edit} />} href={`/patients/${patient.id}/edit`} />
       )}
     </>
@@ -281,11 +290,15 @@ function PatientDetails({patient}: {patient: Patient}) {
 }
 
 /**
- * An admin's privacy actions for the record, behind one Privacy button: export everything held (a subject access
+ * The privacy actions for the record (each for the permission it needs), behind one Privacy button: export everything held (a subject access
  * request), restrict or lift the restriction, mark or clear a dispute, and anonymise. Each asks to confirm first.
  */
 function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (problem: SaveProblem) => void}) {
   const id = patient.id ?? '';
+  // Exporting (ExportPatientRecords), and the rest (ManagePrivacy): each person sees the ones their roles allow.
+  const me = useCurrentUser();
+  const canExport = can(me, 'ExportPatientRecords');
+  const canManagePrivacy = can(me, 'ManagePrivacy');
   const setFlag = useSetPatientFlag(id);
   const [change, setChange] = useState<PatientFlagChange | null>(null);
   // Why the flag change failed: shown in its dialog, which stays open with the reason as typed.
@@ -312,8 +325,14 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
     );
   };
 
-  const items: DropdownMenuItemData[] = [
-    {id: 'export', label: 'Export Record', description: 'Everything held, for a subject access request', icon: AppIcon.View, href: `/patients/${id}/export`},
+  const exportItem: DropdownMenuItemData = {
+    id: 'export',
+    label: 'Export Record',
+    description: 'Everything held, for a subject access request',
+    icon: AppIcon.View,
+    href: `/patients/${id}/export`,
+  };
+  const privacyItems: DropdownMenuItemData[] = [
     patient.isRestricted
       ? {id: 'restrict', label: 'Lift Restriction', icon: AppIcon.Lock, onClick: () => open({flag: 'restriction', set: false})}
       : {
@@ -348,6 +367,7 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
       },
     },
   ];
+  const items = [...(canExport ? [exportItem] : []), ...(canManagePrivacy ? privacyItems : [])];
 
   return (
     <>

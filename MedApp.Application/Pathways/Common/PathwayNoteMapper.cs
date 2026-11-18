@@ -14,7 +14,11 @@ public static class PathwayNoteMapper
     /// <paramref name="canChange"/> (the pathway's notes can change, and its patient's record isn't restricted or
     /// anonymised). It can be deleted, or its deletion asked for, in any status, while <paramref name="recordCanChange"/>
     /// (the patient's record isn't restricted or anonymised; <paramref name="canChange"/> when not given): deleted only by
-    /// an admin (<paramref name="viewerCanCorrectRecords"/>), and asked for by anyone else, so the flags say what this viewer can do.
+    /// a holder of <see cref="Permission.CorrectRecords"/>, and asked for by anyone else, so the flags say what this viewer
+    /// can do. Editing a note and asking for its deletion also need <see cref="Permission.WorkPathways"/>, as their
+    /// endpoints do. <paramref name="viewerPermissions"/> are the viewer's, from their session; null means no viewer is
+    /// known: the flags then say only what the note and record allow, with nothing that needs
+    /// <see cref="Permission.CorrectRecords"/>.
     /// </summary>
     public static PatientPathwayNoteResponse ToResponse(
         PatientPathwayNote note,
@@ -22,20 +26,26 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        bool viewerCanCorrectRecords = false) => new()
+        IReadOnlySet<Permission>? viewerPermissions = null)
     {
-        Id = note.Id,
-        AuthorUserId = note.AuthorUserId,
-        AuthorUsername = AuthorName(note.AuthorUserId, usernames),
-        Text = note.Text,
-        CreatedAtUtc = note.CreatedAtUtc,
-        LastEditedAtUtc = note.LastEditedAtUtc,
-        Version = note.Version,
-        CanEdit = canChange && !note.IsDeleted && note.AuthorUserId is not null && note.AuthorUserId == viewerId,
-        CanDelete = viewerCanCorrectRecords && (recordCanChange ?? canChange) && !note.IsDeleted,
-        CanRequestDeletion = !viewerCanCorrectRecords && (recordCanChange ?? canChange) && !note.IsDeleted && note.PendingDeletionRequestId is null,
-        DeletionRequestId = note.PendingDeletionRequestId
-    };
+        var canCorrectRecords = viewerPermissions?.Contains(Permission.CorrectRecords) == true;
+        var canWork = PathwayMapper.Allows(viewerPermissions, Permission.WorkPathways);
+        return new PatientPathwayNoteResponse
+        {
+            Id = note.Id,
+            AuthorUserId = note.AuthorUserId,
+            AuthorUsername = AuthorName(note.AuthorUserId, usernames),
+            Text = note.Text,
+            CreatedAtUtc = note.CreatedAtUtc,
+            LastEditedAtUtc = note.LastEditedAtUtc,
+            Version = note.Version,
+            CanEdit = canWork && canChange && !note.IsDeleted && note.AuthorUserId is not null && note.AuthorUserId == viewerId,
+            CanDelete = canCorrectRecords && (recordCanChange ?? canChange) && !note.IsDeleted,
+            CanRequestDeletion = !canCorrectRecords && canWork && (recordCanChange ?? canChange) && !note.IsDeleted
+                && note.PendingDeletionRequestId is null,
+            DeletionRequestId = note.PendingDeletionRequestId
+        };
+    }
 
     /// <summary>A pathway's notes, newest first, leaving out those an admin has deleted (they're kept, but hidden).</summary>
     public static List<PatientPathwayNoteResponse> ToResponses(
@@ -44,12 +54,12 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        bool viewerCanCorrectRecords = false) =>
+        IReadOnlySet<Permission>? viewerPermissions = null) =>
         notes
             .Where(n => !n.IsDeleted)
             .OrderByDescending(n => n.CreatedAtUtc)
             .ThenByDescending(n => n.Id)
-            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerCanCorrectRecords))
+            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerPermissions))
             .ToList();
 
     /// <summary>

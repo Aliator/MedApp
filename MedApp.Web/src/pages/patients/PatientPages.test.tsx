@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, staffUser, calls, findAlert, isDisabled, openAlertDetails, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, staffUser, userWithRoles, calls, findAlert, isDisabled, openAlertDetails, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -343,6 +343,26 @@ describe('AddPatientPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
   });
+
+  it('goes back to Register Referral with the new patient chosen, when adding them for a referral', async () => {
+    mockApi({'POST /api/patients': () => json(freya, 201)});
+    const {user, router} = renderWithApp(<AddPatientPage then="referral" />, {path: '/patients/add?then=referral', user: staffUser});
+
+    expect(await screen.findByRole('link', {name: /Back/})).toHaveAttribute('href', '/referrals/new');
+    await user.type(await screen.findByLabelText(/^first name/i), 'Freya');
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/new'));
+    expect(router.state.location.search).toEqual({patientId: id});
+  });
+
+  it('cancels back to Register Referral when adding a patient for a referral', async () => {
+    const {user, router} = renderWithApp(<AddPatientPage then="referral" />, {path: '/patients/add?then=referral', user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/new'));
+  });
 });
 
 describe('EditPatientPage', () => {
@@ -354,6 +374,14 @@ describe('EditPatientPage', () => {
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
     expect(within(await openAlertDetails(user, label)).getByText(message)).toBeInTheDocument();
+  });
+
+  it('offers Delete Patient only to someone whose roles allow it (DeletePatients)', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya)});
+    renderWithApp(<EditPatientPage id={id} />, {user: userWithRoles('test-nurse', 'Nurse')});
+
+    expect(await screen.findByRole('button', {name: 'Save'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete Patient'})).not.toBeInTheDocument();
   });
 
   it("shows a dispute's banner, saying what the patient disputes", async () => {

@@ -19,18 +19,20 @@ import {AppIcon} from '../shared/icons';
  * pathway's page (for the admin to decide), a pathway on its page, and anything else about a day on the calendar
  * (a meeting, a day closed with something of yours on it) opens that day there, with the meeting itself open when it
  * has one (an invitation, a move, a decline; not a cancellation), so an organiser told of a decline sees who, even if
- * they aren't going.
+ * they aren't going. An admin's "Scheduled job failing" (a job that failed three times in a row) opens Scheduled Jobs.
  */
 const hrefOf = (notification: AppNotification) =>
-  notification.appointmentId
-    ? `/calendar?appointment=${notification.appointmentId}`
-    : notification.noteDeletionRequestId && notification.pathwayId
-      ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
-      : notification.pathwayId
-      ? `/pathways/${notification.pathwayId}`
-      : notification.calendarDate
-        ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
-        : undefined;
+  notification.kind === 'ScheduledJobFailing'
+    ? '/admin/jobs'
+    : notification.appointmentId
+      ? `/calendar?appointment=${notification.appointmentId}`
+      : notification.noteDeletionRequestId && notification.pathwayId
+        ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+        : notification.pathwayId
+          ? `/pathways/${notification.pathwayId}`
+          : notification.calendarDate
+            ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
+            : undefined;
 
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
@@ -49,6 +51,7 @@ const KIND_ICONS: Record<string, IconType> = {
   NoteDeletionApproved: AppIcon.Delete,
   NoteDeletionDeclined: AppIcon.Notes,
   AuthorsNoteDeleted: AppIcon.Delete,
+  ScheduledJobFailing: AppIcon.ScheduledJobs,
 };
 
 /** The bell, which the unread count is placed over. */

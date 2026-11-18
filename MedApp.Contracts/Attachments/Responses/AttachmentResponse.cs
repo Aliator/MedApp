@@ -1,13 +1,13 @@
 namespace MedApp.Contracts.Attachments.Responses;
 
-/// <summary>A file attached to a patient, a pathway or a stage, without its bytes.</summary>
+/// <summary>A file attached to a patient, a pathway, a stage or a referral, without its bytes.</summary>
 public sealed class AttachmentResponse
 {
     public Guid Id { get; set; }
 
     public Guid PatientId { get; set; }
 
-    /// <summary>What it's attached to: Patient, Pathway or Stage.</summary>
+    /// <summary>What it's attached to: Patient, Pathway, Stage or Referral.</summary>
     public string AttachedTo { get; set; } = string.Empty;
 
     /// <summary>The pathway it's attached to (a stage's file too); null for the patient's own file.</summary>
@@ -21,6 +21,9 @@ public sealed class AttachmentResponse
 
     /// <summary>That stage's name, if any.</summary>
     public string? StageName { get; set; }
+
+    /// <summary>The referral it's attached to (its letter), if any.</summary>
+    public Guid? ReferralId { get; set; }
 
     public string FileName { get; set; } = string.Empty;
 

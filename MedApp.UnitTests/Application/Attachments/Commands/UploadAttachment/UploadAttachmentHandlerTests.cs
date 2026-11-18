@@ -28,7 +28,7 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
         string fileName = FileName,
         long? contentLength = null,
         bool isAdmin = false) =>
-        new(patientId, pathwayId, stageId, fileName, contentLength ?? bytes.Length, Stream(bytes), Staff, isAdmin);
+        new(patientId, pathwayId, stageId, null, fileName, contentLength ?? bytes.Length, Stream(bytes), Staff, isAdmin);
 
     [Test]
     public async Task Handle_PdfOnThePatient_StoresItRecordsItAndAuditsIt()
@@ -102,7 +102,7 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
         var stage = GivenStage(pathway, 1);
         var body = new Mock<Stream>(MockBehavior.Strict);
 
-        var act = () => Handler.Handle(new UploadAttachmentCommand(null, null, stage.Id, FileName, 10, body.Object, Staff, false), CancellationToken.None);
+        var act = () => Handler.Handle(new UploadAttachmentCommand(null, null, stage.Id, null, FileName, 10, body.Object, Staff, false), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*finished and locked*");
         Store.Blobs.Should().BeEmpty();

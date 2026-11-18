@@ -1,6 +1,6 @@
 import {mockFetch, json} from '../test/render';
 import {SSR_KEY_HEADER, setSsrRequestContextProvider} from '../ssr/requestContext';
-import {api, pageNavigation, PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED, unwrap} from './client';
+import {api, onPermissionRefused, pageNavigation, PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED, unwrap} from './client';
 import {ApiError, ApiValidationError} from './errors';
 
 describe('api', () => {
@@ -149,5 +149,47 @@ describe('unwrap', () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({status: 409, title: 'Someone else changed it.'});
+  });
+});
+
+describe('a permission the roles do not grant', () => {
+  const refusal = {
+    title: 'Permission needed',
+    detail: "Your roles don't allow this. It needs the permission to: Assign staff to pathways, and unassign them.",
+    code: 'permission_missing',
+    permission: 'AssignPathways',
+  };
+
+  it("throws an ApiError naming the permission, with the API's words as its title", async () => {
+    mockFetch(() => json(refusal, 403));
+
+    const error = await unwrap(api.GET('/api/patients/search')).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({status: 403, code: 'permission_missing', permission: 'AssignPathways', title: refusal.detail});
+  });
+
+  it('tells every listener, once each, and stops when asked', async () => {
+    mockFetch(() => json(refusal, 403));
+    const listener = vi.fn();
+    const stop = onPermissionRefused(listener);
+
+    await api.GET('/api/patients/search');
+    stop();
+    await api.GET('/api/patients/search');
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({permission: 'AssignPathways', message: refusal.detail});
+  });
+
+  it('says nothing of any other 403', async () => {
+    mockFetch(() => json({title: 'Forbidden'}, 403));
+    const listener = vi.fn();
+    const stop = onPermissionRefused(listener);
+
+    await api.GET('/api/patients/search');
+    stop();
+
+    expect(listener).not.toHaveBeenCalled();
   });
 });

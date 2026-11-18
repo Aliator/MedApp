@@ -19,6 +19,6 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  // The server entry runs in Node: tsconfig.ssr.json checks it, with Node's types.
-  "exclude": ["src/entry-server.tsx", "src/entry-server.test.tsx"]
+  // The server entry runs in Node, as does the permission catalogue's test: tsconfig.ssr.json checks them, with Node's types.
+  "exclude": ["src/entry-server.tsx", "src/entry-server.test.tsx", "src/auth/permissionCatalogue.test.ts"]
 }

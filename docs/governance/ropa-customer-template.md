@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft template), 16 November 2026: adds appointments and staff calendars; 0.3 (draft template), 17 November 2026: meetings and personal calendar templates (review of #99) |
+| **Version** | 0.2 (draft template), 16 November 2026: adds appointments and staff calendars; 0.3 (draft template), 17 November 2026: meetings and personal calendar templates (review of #99); 0.4 (draft template), 18 November 2026: referrals |
 | **For** | Each customer, as the controller of the personal data it records in MedApp |
 | **Prepared by** | [Company name], the supplier of MedApp, as its processor |
 
@@ -28,14 +28,14 @@
 |---|---|
 | **Business function** | [For example: day surgery unit, outpatient procedures, clinic administration] |
 | **Purpose** | Recording patients and coordinating the stages of the pathways carried out for them, for their direct care, including booking their appointments with staff; keeping an accurate record of who did what and when. |
-| **Data subjects** | Patients, including children [if applicable] |
-| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Pathways: title, notes, target date, priority, status. Stage notes written by staff. Files staff attach to the patient, a pathway or a stage (scans, photos, results, letters), with their names. Appointments: the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes and a cancellation reason. |
+| **Data subjects** | Patients, including children [if applicable]; the clinicians who refer them (named on a referral) |
+| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Pathways: title, notes, target date, priority, status. Stage notes written by staff. Files staff attach to the patient, a pathway or a stage (scans, photos, results, letters), with their names. Appointments: the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes and a cancellation reason. Referrals: the specialty asked for, the date received, the referring practice and clinician (and the practice's ODS code), the priority asked for, the reason for referral, the status, and the letter as an attached file. |
 | **Special category data** | Health data: the pathways a patient is having, their appointments and whether they attended, clinical notes, and attached files, which can include images of the body and other people's details (for example in a letter). |
 | **Article 6 basis** | [NHS bodies: 6(1)(e) public task. Private providers: 6(1)(b) contract with the patient, or 6(1)(f) legitimate interests with an assessment.] |
 | **Article 9 condition** | 9(2)(h) health or social care |
 | **DPA 2018 Schedule 1 condition** | Part 1, paragraph 2 (health or social care purposes). No appropriate policy document needed. |
 | **Common law duty of confidentiality** | Implied consent for direct care |
-| **Source of the data** | The patient; referrers; [other services whose letters or results you attach]; [other sources] |
+| **Source of the data** | The patient; referrers (their referral letters, from which your staff register referrals); [other services whose letters or results you attach]; [other sources] |
 | **Recipients** | Your staff with MedApp accounts. Your processor, [Company name], and its sub-processors ([sub-processors.md](sub-processors.md)). [Others you share with, outside MedApp.] |
 | **Processor** | [Company name], under the data processing agreement signed [date] |
 | **Transfers outside the UK** | None by your processor: data is stored in the UK. Its sub-processor Microsoft may, in rare cases, access data from outside the UK for support, under Microsoft's data protection terms and the safeguards they contain ([international-transfers.md](international-transfers.md)) |

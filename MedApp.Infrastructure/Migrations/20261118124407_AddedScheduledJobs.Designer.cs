@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261118125541_AddedWorkingHours")]
-    partial class AddedWorkingHours
+    [Migration("20261118124407_AddedScheduledJobs")]
+    partial class AddedScheduledJobs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -788,42 +788,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("MeetingAttendees", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Calendar.StaffHours", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeOnly>("Ends")
-                        .HasColumnType("time");
-
-                    b.Property<Guid>("SiteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<TimeOnly>("Starts")
-                        .HasColumnType("time");
-
-                    b.Property<DateOnly>("ValidFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("ValidTo")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SiteId");
-
-                    b.HasIndex("StaffUserId", "ValidFrom");
-
-                    b.ToTable("StaffHours", (string)null);
-                });
-
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -909,6 +873,47 @@ namespace MedApp.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_WeekTemplateDays_DayOfWeek", "[DayOfWeek] BETWEEN 1 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Jobs.ScheduledJob", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LastCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LastErrorType")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LastFinishedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("LastOutcome")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaseHolder")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("NextRunUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("ScheduledJobs", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
@@ -1024,6 +1029,8 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
 
                     b.HasIndex("UserId", "CreatedAtUtc");
 
@@ -1712,37 +1719,6 @@ namespace MedApp.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Sites.SiteHours", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<TimeOnly>("Closes")
-                        .HasColumnType("time");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeOnly>("Opens")
-                        .HasColumnType("time");
-
-                    b.Property<Guid>("SiteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("ValidFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("ValidTo")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SiteId", "ValidFrom");
-
-                    b.ToTable("SiteHours", (string)null);
-                });
-
             modelBuilder.Entity("MedApp.Domain.Specialties.Specialty", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2176,15 +2152,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Meeting");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Calendar.StaffHours", b =>
-                {
-                    b.HasOne("MedApp.Domain.Sites.Site", null)
-                        .WithMany()
-                        .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
                 {
                     b.HasOne("MedApp.Domain.Calendar.WeekTemplate", "WeekTemplate")
@@ -2323,15 +2290,6 @@ namespace MedApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Sites.SiteHours", b =>
-                {
-                    b.HasOne("MedApp.Domain.Sites.Site", null)
-                        .WithMany()
-                        .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

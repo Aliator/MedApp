@@ -18,15 +18,15 @@ public sealed class GetAttachmentsHandler(
 {
     public async Task<AttachmentListResponse> Handle(GetAttachmentsQuery request, CancellationToken cancellationToken)
     {
-        // A 404 for a patient, pathway or stage that doesn't exist, rather than an empty list.
+        // A 404 for a patient, pathway, stage or referral that doesn't exist, rather than an empty list.
         var target = await AttachmentTargets.ResolveAsync(
-            request.PatientId, request.PathwayId, request.StageId, patients, pathways, attachments, cancellationToken);
+            request.PatientId, request.PathwayId, request.StageId, request.ReferralId, patients, pathways, attachments, cancellationToken);
 
         var (rows, totalCount) = await attachments.ListAsync(request, cancellationToken);
 
         // Files' names and details are the patient's data: recorded like other views (deduplicated over its window).
         await activityLog.RecordViewsAsync(
             ActivityAction.AttachmentsViewed, [target.PatientId], cancellationToken, target.Pathway?.Id);
-        return AttachmentMapper.ToListResponse(rows, totalCount, request.ViewerId, request.CanCorrectRecords);
+        return AttachmentMapper.ToListResponse(rows, totalCount, request.ViewerId, request.CanCorrectRecords, request.CanAttachFiles);
     }
 }

@@ -18,6 +18,7 @@ public static class AttachmentSearch
             { PatientId: { } patientId } => attachments.Where(a => a.PatientId == patientId),
             { PathwayId: { } pathwayId } => attachments.Where(a => a.PathwayId == pathwayId && a.StageId == null),
             { StageId: { } stageId } => attachments.Where(a => a.StageId == stageId),
+            { ReferralId: { } referralId } => attachments.Where(a => a.ReferralId == referralId),
             _ => attachments.Where(_ => false),
         };
 

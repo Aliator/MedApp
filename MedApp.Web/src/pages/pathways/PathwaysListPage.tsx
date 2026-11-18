@@ -6,8 +6,9 @@ import {useMemo} from 'react';
 import {patientQuery} from '../../api/patients';
 import type {PathwaySummary} from '../../api/pathways';
 import {allTemplatesQuery} from '../../api/pathwaySetup';
-import {pathwaySearchQuery, userSearchQuery} from '../../api/search';
-import {useCurrentUser} from '../../auth/auth';
+import {pathwaySearchQuery} from '../../api/search';
+import {staffQuery} from '../../api/calendar';
+import {useCan} from '../../auth/auth';
 import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
@@ -60,8 +61,8 @@ const FILTER_FIELDS: ListFilterField[] = [
 ];
 
 /**
- * Who a pathway can be filtered as assigned to: nobody, and (for admins, who can list the accounts) each person.
- * A person not in the list (staff can't list accounts) still shows, as "Selected person".
+ * Who a pathway can be filtered as assigned to: nobody, and each member of staff (the calendar's staff list, which
+ * anyone signed in can read). A person not in the list (an account since deleted) still shows, as "Selected person".
  */
 function assigneeField(users: readonly {userId?: string; username?: string | null}[], current: string | undefined): ListFilterField {
   const options = [
@@ -151,12 +152,10 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
 
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const {data, isPending, isError} = useQuery(pathwaysListQuery(search, {pageSize, startsOnMine}, patientId));
-  // Admins can filter by anyone assigned; the bar names them from the accounts list.
-  const me = useCurrentUser();
-  // The first 100 accounts, by username (the API's largest page): a larger team's later names can't be chosen here,
-  // and a link to one shows as "Selected person".
-  const staff = useQuery({...userSearchQuery({PageSize: 100, Sort: 'username'}), enabled: me.isAdmin});
-  const staffList = staff.data?.items;
+  // Starting a pathway needs CreatePathways.
+  const canCreate = useCan('CreatePathways');
+  // Anyone can filter by who is assigned; the bar names them from the staff list.
+  const staffList = useQuery(staffQuery).data;
   const templates = useQuery(allTemplatesQuery).data;
   const fields = useMemo(
     () => [
@@ -243,7 +242,8 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
         )
       }
       actions={
-        patientId && (
+        patientId &&
+        canCreate && (
           <Button label="New Pathway" variant="primary" icon={<Icon icon={AppIcon.Add} />} href={`/pathways/new?patientId=${patientId}`} />
         )
       }>

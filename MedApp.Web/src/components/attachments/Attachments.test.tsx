@@ -7,6 +7,7 @@ import {
   expectAnnounced,
   findAlert,
   json,
+  managerUser,
   mockApi,
   openDialog,
   renderWithApp,
@@ -120,6 +121,24 @@ describe('Attachments', () => {
     const download = screen.getByRole('link', {name: 'Download photo.jpg'});
     expect(download).toHaveAttribute('href', `/api/attachments/${files[0].id}/content`);
     expect(download).toHaveAttribute('download');
+  });
+
+  it("says a referral's letter in a patient's list is attached to the referral, linking to it", async () => {
+    const referralId = '00000036-0000-0000-0000-00000000000a';
+    mockList([attachment({fileName: 'letter.pdf', attachedTo: 'Referral', referralId})]);
+    render();
+
+    expect(await screen.findByText('letter.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'a referral'})).toHaveAttribute('href', `/referrals/${referralId}`);
+  });
+
+  it("lists a referral's own files, saying what it has none of", async () => {
+    const referralId = '00000036-0000-0000-0000-00000000000a';
+    const fetch = mockList([]);
+    renderWithApp(<Attachments target={{referralId}} canChange emptyText="No letter attached yet." />, {user: staffUser});
+
+    expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
+    expect(calls(fetch)).toEqual([`GET ${LIST}?ReferralId=${referralId}`]);
   });
 
   it("doesn't say what a pathway's or a stage's own files are attached to", async () => {
@@ -305,6 +324,15 @@ describe('Attachments', () => {
     render();
     expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
     expect(screen.queryByRole('switch', {name: 'Show deleted files'})).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to add for someone whose roles don't allow attaching files (a manager)", async () => {
+    mockList([attachment()]);
+    render({patientId}, {user: managerUser});
+
+    expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Download scan.pdf'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
   });
 
   it('in a narrow window or half view, puts the buttons under the details', async () => {
