@@ -7,6 +7,10 @@ import {ReferralsListPage} from './ReferralsListPage';
 import type {ReferralsListSearch} from './referralsSearch';
 
 const SEARCH = 'GET /api/referrals/search';
+const SPECIALTIES = 'GET /api/specialties';
+const SKIN_ID = '0000005a-0000-0000-0000-0000000000aa';
+/** The list's own searches, leaving out what it asks for its filters' choices (specialties). */
+const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 
 function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = false, user = staffUser}: {body?: unknown; status?: number; isNarrow?: boolean; user?: CurrentUser} = {}) {
   const fetch = mockApi({
@@ -22,6 +26,7 @@ function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = 
           ),
         status,
       ),
+    [SPECIALTIES]: () => json([{id: SKIN_ID, name: 'Dermatology', isArchived: false}]),
   });
   const onSearchChange = vi.fn();
   const page = <ReferralsListPage search={search} onSearchChange={onSearchChange} />;
@@ -38,7 +43,7 @@ describe('ReferralsListPage', () => {
     expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toHaveAttribute('href', '/referrals/r1');
     expect(screen.getByRole('heading', {name: 'Referrals', level: 1})).toBeInTheDocument();
     expect(screen.getByText('12 referrals awaiting triage')).toBeInTheDocument();
-    expect(calls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true&Statuses=AwaitingTriage`]);
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true&Statuses=AwaitingTriage`]);
     const table = within(screen.getByRole('table'));
     expect(table.getByText('NHS No. 999 000 0018')).toBeInTheDocument();
     expect(table.getByText('No NHS number')).toBeInTheDocument();
@@ -62,14 +67,24 @@ describe('ReferralsListPage', () => {
   it('asks the API for the closed ones, or all, sorted and searched as the URL says', async () => {
     const {fetch, unmount} = renderList({view: 'closed', sort: 'Patient', asc: false, page: 2, patient: 'ahmed'});
     await screen.findByText('12 matching referrals');
-    expect(calls(fetch)).toEqual([
+    expect(searchCalls(fetch)).toEqual([
       `${SEARCH}?Page=2&PageSize=10&Sort=patient&Ascending=false&Statuses=Accepted&Statuses=Rejected&Statuses=RedirectedElsewhere&Statuses=Withdrawn&Statuses=EnteredInError&Search=ahmed`,
     ]);
     unmount();
 
     const all = renderList({view: 'all'});
     expect(await screen.findByText('12 referrals')).toBeInTheDocument();
-    expect(calls(all.fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true`]);
+    expect(searchCalls(all.fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true`]);
+  });
+
+  it('filters by specialty, named in the search, and counts what matches', async () => {
+    const {fetch} = renderList({specialty: SKIN_ID});
+
+    expect(await screen.findByText('12 matching referrals')).toBeInTheDocument();
+    expect(searchCalls(fetch)).toEqual([
+      `${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true&Statuses=AwaitingTriage&SpecialtyIds=${SKIN_ID}`,
+    ]);
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Specialty: is\s*Dermatology/));
   });
 
   it('switches views from the favourites, keeping the inbox out of the URL', async () => {

@@ -136,6 +136,23 @@ export function choiceValues(value: string | undefined, options: readonly string
   return values.length ? values : undefined;
 }
 
+/**
+ * A choice filter of IDs (specialties, stages): one ID, or a comma list ("is any of"), in lower case. Not "not any
+ * of": the API takes the IDs wanted, and the full list isn't known when the URL is read. Anything else is dropped.
+ */
+export function parseIdChoice(value: unknown): string | undefined {
+  const t = text(value);
+  if (!t || t.startsWith('!')) return undefined;
+  const ids = t
+    .split(',')
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => GUID.test(v));
+  return ids.length ? [...new Set(ids)].join(',') : undefined;
+}
+
+/** The IDs an ID choice filter (`parseIdChoice`) names, for the API; undefined for none. */
+export const idChoiceValues = (value: string | undefined): string[] | undefined => (value ? value.split(',') : undefined);
+
 // My Worklist ------------------------------------------------------------------------------------------------
 
 /** URL sort names for My Worklist, and the API's names for them. Target date, soonest first, by default. */
@@ -161,6 +178,10 @@ export interface TasksSearch {
   /** A choice: one, a comma list, or `!` and a comma list (see `parseChoice`). */
   status?: string;
   priority?: string;
+  /** Specialty IDs: an ID choice (see `parseIdChoice`). */
+  specialty?: string;
+  /** The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). */
+  stage?: string;
   overdue?: boolean;
   dueFrom?: string;
   dueTo?: string;
@@ -178,6 +199,8 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
     progress: oneOf(raw.progress, ['started', 'any'] as const),
     status: parseChoice(raw.status, OPEN_PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
+    specialty: parseIdChoice(raw.specialty),
+    stage: parseIdChoice(raw.stage),
     overdue: bool(raw.overdue) ? true : undefined,
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),
@@ -186,7 +209,7 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
 
 /** Filters beyond the progress (which always applies, Not started by default). */
 export const hasTaskFilters = (s: TasksSearch) =>
-  Boolean(s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.dueFrom || s.dueTo);
+  Boolean(s.title || s.template || s.patient || s.status || s.priority || s.specialty || s.stage || s.overdue || s.dueFrom || s.dueTo);
 
 // Pathways --------------------------------------------------------------------------------------------
 
@@ -207,8 +230,14 @@ export interface PathwaysListSearch {
   status?: string;
   /** A choice (see `parseChoice`). */
   priority?: string;
+  /** Specialty IDs (the pathways' own): an ID choice (see `parseIdChoice`), e.g. from Insights on a specialty. */
+  specialty?: string;
+  /**
+   * The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). Pathways whose current stage is
+   * from one of them, not discharged, cancelled or archived ("Waiting for histology").
+   */
+  stage?: string;
   overdue?: boolean;
-  /** Only pathways assigned to the signed-in user. */
   /** Only pathways assigned to the signed-in user. `false` (in the URL) overrides starting on them (Account Settings). */
   mine?: boolean;
   /** Include Completed, Cancelled and Archived (hidden by default). */
@@ -258,6 +287,8 @@ export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysLis
     patient: text(raw.patient),
     status: parseChoice(raw.status, PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
+    specialty: parseIdChoice(raw.specialty),
+    stage: parseIdChoice(raw.stage),
     overdue: flag(raw.overdue),
     mine: bool(raw.mine),
     closed: flag(raw.closed),
@@ -270,7 +301,20 @@ export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysLis
 
 export const hasPathwayFilters = (s: PathwaysListSearch) =>
   Boolean(
-    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.assignee || s.templateId || s.dueFrom || s.dueTo,
+    s.title ||
+      s.template ||
+      s.patient ||
+      s.status ||
+      s.priority ||
+      s.specialty ||
+      s.stage ||
+      s.overdue ||
+      s.mine ||
+      s.closed ||
+      s.assignee ||
+      s.templateId ||
+      s.dueFrom ||
+      s.dueTo,
   );
 
 // Pathway setup (admin): stage definitions and templates --------------------------------------------
@@ -381,17 +425,18 @@ export const INSIGHTS_WEEKS = [4, 12, 26] as const;
 export type InsightsWeeks = (typeof INSIGHTS_WEEKS)[number];
 export const DEFAULT_INSIGHTS_WEEKS: InsightsWeeks = 12;
 
-/** Insights' filters: the period (12 weeks unless the URL says otherwise) and a template (its ID). */
+/** Insights' filters: the period (12 weeks unless the URL says otherwise), a specialty and a template (their IDs). */
 export interface InsightsSearch {
   weeks?: InsightsWeeks;
+  specialty?: string;
   template?: string;
 }
 
 export function parseInsightsSearch(raw: Record<string, unknown>): InsightsSearch {
   const weeks = INSIGHTS_WEEKS.find((w) => w === Number(text(raw.weeks)));
-  const template = text(raw.template);
   return compact({
     weeks: weeks === DEFAULT_INSIGHTS_WEEKS ? undefined : weeks,
-    template: template && GUID.test(template) ? template.toLowerCase() : undefined,
+    specialty: guid(raw.specialty),
+    template: guid(raw.template),
   });
 }

@@ -435,6 +435,10 @@ The clinical safety documents are already done (section 8), so the build starts 
 15. **The side nav's count** (18 November 2026, recommended option taken; PR 5): it has its own endpoint, `GET api/referrals/awaiting-triage/count`, which records nothing (a count names nobody), so the side nav doesn't log a patient listing on every page.
 16. **Time since received, before the clock** (18 November 2026, recommended option taken; PR 5): the referral page shows "N days since received" and the list "received N days ago", as plain date arithmetic, until the clock's PR (PR 7) replaces them with the wait.
 17. **`ReferralViewed` deduplication** (18 November 2026, recommended option taken; PR 5): deduplicated per referral, not per patient, over the view window, so opening two of a patient's referrals records both.
+18. **The stage reached counts pathways on hold,** but never discharged, cancelled or archived ones, even when the list includes closed pathways or asks for those statuses (decision 42's "open pathways only", read as "not closed": a pathway on hold at Histology is still waiting there). 18 November 2026, recommended option taken.
+19. **Specialty and stage reached filters are "is" or "is any of", never "is not any of":** the API takes the IDs wanted, and the list's URL is read before the specialties and stages are loaded, so "every one but" can't be turned into IDs. 18 November 2026, recommended option taken.
+20. **My Worklist has the specialty and stage reached filters too** (the same search behind it), and Insights' Template choice lists only the chosen specialty's templates, dropping a chosen template that isn't the new specialty's. 18 November 2026, recommended option taken.
+21. **The referral inbox's Specialty filter** (any of, `specialty` in the URL) is built with the Filters PR; starting the inbox on the viewer's own specialties (decision 39, the search's `mine`, which the API has) is left to a small follow-up, so the inbox shows every specialty until then. 18 November 2026, recommended option taken.
 
 ## 11. Left out, for later
 

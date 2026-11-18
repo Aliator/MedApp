@@ -9,7 +9,8 @@ namespace MedApp.DevMcp.DemoData;
 /// <summary>
 /// App settings saved with accounts, in the web app's own keys and shapes (<c>src/app/settingsStore.ts</c>: each a
 /// string under a <c>medapp.</c> key): the lead's rows per page, saved searches on the pathways and patients lists
-/// (one the pathways list starts on; stored under the lists' old keys, procedures), and pins; saved searches for two members of staff. Saved through the
+/// (one the pathways list starts on, and "Waiting for histology" by the stage reached; stored under the lists' old
+/// keys, procedures), and pins; saved searches for two members of staff. Saved through the
 /// app's command.
 /// </summary>
 public static class DemoSettings
@@ -22,6 +23,8 @@ public static class DemoSettings
         var skinLesion = world.TemplateIds[PathwayKind.SkinLesion].ToString();
         var prostate = world.TemplateIds[PathwayKind.Prostate].ToString();
         var bleeding = world.TemplateIds[PathwayKind.PostMenopausalBleeding].ToString();
+        // The stage reached, by its stage definition, as the pathways list's URL keeps it (lower case).
+        var histology = world.Definitions[DemoPathwayKinds.Histology].Id.ToString();
         var deleted = world.Deletions.Select(d => d.Pathway.Id).ToHashSet();
 
         var mine = world.Pathways
@@ -43,6 +46,7 @@ public static class DemoSettings
                         Favourite("Urgent skin referrals", new() { ["templateId"] = skinLesion, ["priority"] = "Urgent" }),
                         Favourite("Overdue prostate assessments", new() { ["templateId"] = prostate, ["overdue"] = true }),
                         Favourite("Blocked", new() { ["status"] = "Blocked" }),
+                        Favourite("Waiting for histology", new() { ["stage"] = histology }),
                     },
                     startId = myWork.id,
                 },

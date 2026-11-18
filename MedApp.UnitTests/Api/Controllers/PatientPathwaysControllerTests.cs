@@ -122,7 +122,8 @@ public sealed class PatientPathwaysControllerTests
             request.Page, request.PageSize, request.Sort, request.Ascending, request.Search, request.PatientId,
             request.TemplateId, request.Statuses, request.Priority, request.AssignedToUserId, request.AssignedToMe,
             request.OverdueOnly, request.DueFrom, request.DueTo, request.IncludeClosed, request.Started, UserId,
-            request.Priorities, request.Title, request.TemplateName, request.PatientName, request.NobodyAssigned));
+            request.Priorities, request.Title, request.TemplateName, request.PatientName, request.NobodyAssigned,
+            request.SpecialtyIds, request.StageDefinitionIds));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
 
