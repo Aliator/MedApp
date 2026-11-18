@@ -12,5 +12,9 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
         // As long as Identity's own Email column.
         builder.Property(user => user.PendingEmail)
             .HasMaxLength(256);
+
+        // TwoFactorMethod is stored as its number (0, none, until two-factor is turned on); the effective method is worked
+        // out from it and TwoFactorEnabled.
+        builder.Ignore(user => user.EffectiveTwoFactorMethod);
     }
 }

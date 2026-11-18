@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
@@ -36,6 +37,7 @@ public static class ServiceExtensions
         services.AddSingleton<EmailLinks>();
         services.AddSingleton<EmailAvailability>();
         services.AddScoped<ISecurityNotices, SecurityNotices>();
+        services.AddScoped<IEmailCodeService, EmailCodeService>();
 
         // Security events (two-factor changes, password resets, email addresses): to the activity log and the
         // application log.

@@ -9,15 +9,17 @@ using MediatR;
 namespace MedApp.Application.Authentication.TwoFactor.Commands.RegenerateRecoveryCodes;
 
 /// <summary>
-/// Checks the password and a current authenticator code (wrong ones count towards the lockout, and codes towards the
-/// account's limit), then makes a new set of recovery codes. The owner is told by email.
+/// Checks the password and a current code, from the app or, for codes by email, the one emailed to confirm it (wrong
+/// ones count towards the lockout, and codes towards the account's limit), then makes a new set of recovery codes. The
+/// owner is told by email.
 /// </summary>
 public sealed class RegenerateRecoveryCodesHandler(
     ITwoFactorService twoFactor,
     IIdentityUserService users,
     ISecurityNotices notices,
     ISecurityEventLog events,
-    IAccountAttemptLimiter attempts)
+    IAccountAttemptLimiter attempts,
+    IEmailCodeService emailCodes)
     : IRequestHandler<RegenerateRecoveryCodesCommand, RecoveryCodesResponse>
 {
     public async Task<RecoveryCodesResponse> Handle(RegenerateRecoveryCodesCommand request, CancellationToken ct)
@@ -29,7 +31,8 @@ public sealed class RegenerateRecoveryCodesHandler(
             throw new ConflictException("Two-factor authentication is off, so there are no recovery codes.");
 
         await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
-        await twoFactor.VerifyOrThrowAsync(attempts, notices, request.UserId, request.Code, nameof(request.Code), allowRecoveryCode: false, ct);
+        await twoFactor.VerifyOrThrowAsync(
+            emailCodes, attempts, notices, request.UserId, state.Method, request.Code, nameof(request.Code), allowRecoveryCode: false, ct);
 
         var codes = await twoFactor.RegenerateRecoveryCodesAsync(request.UserId, ct);
         if (!codes.Result.Succeeded)

@@ -6,10 +6,11 @@ export interface OneTimeCodeFieldProps {
   onChange: (value: string) => void;
   /**
    * `authenticator` (the default): the 6-digit code an authenticator app shows now, which phones can fill from the
-   * app (`one-time-code`) and type on a number pad. `recovery`: one of the account's recovery codes, letters and digits.
-   * `either`: one or the other, so a full keyboard.
+   * app (`one-time-code`) and type on a number pad. `email`: the 6-digit code MedApp emailed, filled and typed the same
+   * way. `recovery`: one of the account's recovery codes, letters and digits. `either`: an authenticator code or a
+   * recovery code, so a full keyboard (give a `label` for an emailed code or a recovery code).
    */
-  kind?: 'authenticator' | 'recovery' | 'either';
+  kind?: 'authenticator' | 'email' | 'recovery' | 'either';
   /** The field's label, if not the default for its kind. */
   label?: string;
   description?: string;
@@ -21,19 +22,22 @@ export interface OneTimeCodeFieldProps {
 
 const LABELS = {
   authenticator: 'Code from your authenticator app',
+  email: 'Code from the email',
   recovery: 'Recovery code',
   either: 'Authenticator code or recovery code',
 };
 
 const PLACEHOLDERS = {
   authenticator: 'Enter the 6-digit code',
+  email: 'Enter the 6-digit code',
   recovery: 'Enter a recovery code',
   either: 'Enter a code from the app, or a recovery code',
 };
 
 /**
- * A two-factor code: from an authenticator app, or a recovery code. Used wherever one is asked for: the second step of
- * signing in, turning two-factor on (`TwoFactorSetup`) or off, and getting new recovery codes. The API checks it (and
+ * A two-factor code: from an authenticator app, emailed by MedApp, or a recovery code. Used wherever one is asked for:
+ * the second step of signing in, turning two-factor on (`TwoFactorSetup`, `EmailCodesSetup`) or off, and getting new
+ * recovery codes. The API checks it (and
  * ignores spaces), so nothing is checked here.
  */
 export function OneTimeCodeField({
@@ -56,7 +60,7 @@ export function OneTimeCodeField({
       placeholder={PLACEHOLDERS[kind]}
       // A recovery code is never one an app could fill in.
       autoComplete={kind === 'recovery' ? 'off' : 'one-time-code'}
-      inputMode={kind === 'authenticator' ? 'numeric' : 'text'}
+      inputMode={kind === 'authenticator' || kind === 'email' ? 'numeric' : 'text'}
       autoCapitalize="off"
       hasAutoCorrect={false}
       hasSpellCheck={false}

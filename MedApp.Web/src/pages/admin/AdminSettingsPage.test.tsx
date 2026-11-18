@@ -25,8 +25,8 @@ describe('AdminSettingsPage', () => {
 
     expect(await requireSwitch()).not.toBeChecked();
     expect(screen.getByRole('heading', {name: 'Admin Settings', level: 1})).toBeInTheDocument();
-    expect(screen.getByText("2 admin accounts haven't set it up.")).toBeInTheDocument();
-    const who = screen.getByRole('list', {name: 'Admin accounts without two-factor authentication'});
+    expect(screen.getByText("2 admin accounts haven't set up an authenticator app.")).toBeInTheDocument();
+    const who = screen.getByRole('list', {name: 'Admin accounts without an authenticator app'});
     expect(within(who).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['a.hartwell', 'l.northcott']);
     // 09:30 UTC is 10:30 in the UK in June.
     expect(screen.getByText(/^Last changed by test-admin on .*10:30/)).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe('AdminSettingsPage', () => {
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     expect(await screen.findByText('Settings saved.')).toBeInTheDocument();
-    expect(screen.getByText("2 admin accounts haven't set it up; they'll be asked to at their next request.")).toBeInTheDocument();
+    expect(screen.getByText("2 admin accounts haven't set up an authenticator app; they'll be asked to at their next request.")).toBeInTheDocument();
     expect(await requireSwitch()).toBeChecked();
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     expect(await request.json()).toEqual({requireTwoFactorForAdmins: true});
@@ -85,7 +85,7 @@ describe('AdminSettingsPage', () => {
     renderPage({requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 0, adminsWithoutTwoFactorUsernames: []});
 
     expect(await screen.findByText('Not changed yet.')).toBeInTheDocument();
-    expect(screen.getByText('Every admin account uses it.')).toBeInTheDocument();
+    expect(screen.getByText('Every admin account uses an authenticator app.')).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
@@ -98,8 +98,8 @@ describe('AdminSettingsPage', () => {
 
   it('counts the admins without it in words', () => {
     const settings = {requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 1, updatedAtUtc: null, updatedBy: null};
-    expect(adminsWithoutTwoFactorText(settings)).toBe("1 admin account hasn't set it up; they'll be asked to at their next request.");
-    expect(adminsWithoutTwoFactorText({...settings, requireTwoFactorForAdmins: false})).toBe("1 admin account hasn't set it up.");
+    expect(adminsWithoutTwoFactorText(settings)).toBe("1 admin account hasn't set up an authenticator app; they'll be asked to at their next request.");
+    expect(adminsWithoutTwoFactorText({...settings, requireTwoFactorForAdmins: false})).toBe("1 admin account hasn't set up an authenticator app.");
   });
 
   it('names no one when the API says nobody in particular changed it', async () => {

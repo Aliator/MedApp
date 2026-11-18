@@ -11,6 +11,7 @@ function Field(props: Partial<OneTimeCodeFieldProps>) {
 describe('OneTimeCodeField', () => {
   it.each([
     ['authenticator', /code from your authenticator app/i, 'one-time-code', 'numeric'],
+    ['email', /code from the email/i, 'one-time-code', 'numeric'],
     ['recovery', /recovery code/i, 'off', 'text'],
     ['either', /authenticator code or recovery code/i, 'one-time-code', 'text'],
   ] as const)('asks for a %s code, with the keyboard and AutoFill to suit', async (kind, label, autoComplete, inputMode) => {

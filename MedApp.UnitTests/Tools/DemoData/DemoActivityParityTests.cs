@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
 using MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
+using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
@@ -56,7 +57,7 @@ public sealed class DemoActivityParityTests
     }
 
     private LoginHandler Login() =>
-        new(_authentication.Object, _sessions.Object, _activity, _twoFactor.Object, _challenges.Object, _clock);
+        new(_authentication.Object, _sessions.Object, _activity, _twoFactor.Object, _challenges.Object, Mock.Of<IEmailCodeService>(), _clock);
 
     /// <summary>What the seed writes, in the form the log stores it: action, details (as JSON) and by whom.</summary>
     private static IEnumerable<(ActivityAction Action, string Details, Guid? UserId)> AsWritten(
@@ -77,7 +78,7 @@ public sealed class DemoActivityParityTests
     [Test]
     public async Task SignIn_WithTwoFactor_WritesWhatTheSeedWrites()
     {
-        _twoFactor.Setup(t => t.IsEnabledAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.GetMethodAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(TwoFactorMethod.Authenticator);
         var outcome = await Login().Handle(new LoginCommand(Username, CurrentPassword, IpAddress, Browser), CancellationToken.None);
 
         // The second step, with the challenge the first gave and a right authenticator code.
@@ -90,7 +91,7 @@ public sealed class DemoActivityParityTests
         read.Setup(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, string> { [UserId] = Username });
         var secondStep = new LoginTwoFactorHandler(_challenges.Object, _twoFactor.Object, _sessions.Object, read.Object, _activity,
-            Mock.Of<ISecurityNotices>(), Mock.Of<ISecurityEventLog>(), Mock.Of<IAccountAttemptLimiter>(), _clock);
+            Mock.Of<ISecurityNotices>(), Mock.Of<ISecurityEventLog>(), Mock.Of<IAccountAttemptLimiter>(), Mock.Of<IEmailCodeService>(), _clock);
         await secondStep.Handle(new LoginTwoFactorCommand(outcome.Challenge!, AuthenticatorCode, null, IpAddress, Browser), CancellationToken.None);
 
         Written().Should().Equal(AsWritten(DemoActivity.SignInEntries(twoFactor: true), UserId));

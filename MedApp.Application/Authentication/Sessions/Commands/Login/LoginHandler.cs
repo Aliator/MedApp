@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
@@ -12,9 +13,11 @@ namespace MedApp.Application.Authentication.Sessions.Commands.Login;
 /// <summary>
 /// Checks the password. An account without two-factor authentication gets a session, as it always has. One with it
 /// gets no session yet: a short-lived, single-use challenge (<see cref="SignInChallenge"/>), which the second step
-/// (<c>LoginTwoFactorHandler</c>) exchanges, with a code, for the session. The activity log records the sign-in, a
-/// refused one with the username tried and why (wrong credentials or a locked account), or that a right password was
-/// challenged for a code (the second step records the sign-in itself), with the address it came from.
+/// (<c>LoginTwoFactorHandler</c>) exchanges, with a code, for the session. For an account using codes by email, the
+/// challenge lasts as long as an emailed code (<see cref="SignInChallenge.EmailLifetime"/>), and a code is emailed to the
+/// account's confirmed address. The activity log records the sign-in, a refused one with the username tried and why
+/// (wrong credentials or a locked account), or that a right password was challenged for a code (the second step records
+/// the sign-in itself), with the address it came from.
 /// </summary>
 public sealed class LoginHandler(
     IAuthenticationService authenticationService,
@@ -22,6 +25,7 @@ public sealed class LoginHandler(
     IActivityLog activityLog,
     ITwoFactorService twoFactor,
     ISignInChallengeRepository challenges,
+    IEmailCodeService emailCodes,
     TimeProvider timeProvider)
     : IRequestHandler<LoginCommand, LoginOutcome>
 {
@@ -49,17 +53,36 @@ public sealed class LoginHandler(
 
         var actor = new ActivityActor(userId, username, request.IpAddress);
 
-        if (await twoFactor.IsEnabledAsync(userId, ct))
+        var method = await twoFactor.GetMethodAsync(userId, ct);
+        if (method != TwoFactorMethod.None)
         {
+            var byEmail = method == TwoFactorMethod.Email;
+
             // Only the token's hash is stored; the browser keeps the token for the second step.
             var token = SignInChallengeTokens.Generate();
             var now = timeProvider.GetUtcNow().UtcDateTime;
-            var challenge = new SignInChallenge(userId, SignInChallengeTokens.Hash(token), now);
+            var challenge = new SignInChallenge(
+                userId, SignInChallengeTokens.Hash(token), now, byEmail ? SignInChallenge.EmailLifetime : null);
             await challenges.AddAsync(challenge, now, ct);
 
-            await activityLog.RecordAsync(activityLog.Entry(ActivityAction.TwoFactorChallenged, actor: actor), ct);
+            await activityLog.RecordAsync(
+                activityLog.Entry(
+                    ActivityAction.TwoFactorChallenged,
+                    details: byEmail ? new { method = "email" } : null,
+                    actor: actor),
+                ct);
 
-            return LoginOutcome.TwoFactorRequired(token, challenge.ExpiresAtUtc);
+            if (!byEmail)
+                return LoginOutcome.TwoFactorRequired(token, challenge.ExpiresAtUtc);
+
+            // Null when no code could be emailed (no confirmed address, or email unavailable just now): the page says so,
+            // and a recovery code still signs in. The code ends with the challenge.
+            var sent = await emailCodes.SendAsync(userId, EmailCodePurpose.SignIn, challenge.Id, ct, challenge.ExpiresAtUtc);
+            return LoginOutcome.TwoFactorRequired(
+                token,
+                challenge.ExpiresAtUtc,
+                TwoFactorMethod.Email,
+                sent is null ? null : TwoFactorMapper.ToResponse(sent, now));
         }
 
         var session = await sessionService.CreateSessionAsync(

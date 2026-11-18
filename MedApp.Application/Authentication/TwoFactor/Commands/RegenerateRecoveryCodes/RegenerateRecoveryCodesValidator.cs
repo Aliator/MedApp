@@ -13,8 +13,8 @@ public sealed class RegenerateRecoveryCodesValidator : AbstractValidator<Regener
 
         RuleFor(x => x.Code)
             .NotEmpty()
-            .WithMessage("Enter the 6-digit code from your authenticator app.")
+            .WithMessage("Enter the 6-digit code from your authenticator app or email.")
             .Must(TwoFactorCodes.IsAuthenticatorCode)
-            .WithMessage("Enter the 6-digit code from your authenticator app.");
+            .WithMessage("Enter the 6-digit code from your authenticator app or email.");
     }
 }

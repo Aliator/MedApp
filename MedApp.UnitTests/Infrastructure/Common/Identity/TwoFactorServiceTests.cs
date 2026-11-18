@@ -2,6 +2,7 @@ using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using FluentAssertions;
 using MedApp.Application.Common.Identity;
+using MedApp.Domain.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
@@ -110,6 +111,49 @@ public sealed class TwoFactorServiceTests
     }
 
     [Test]
+    public async Task Match_CurrentCode_GivesItsStepWithoutRecordingIt()
+    {
+        var code = CodeAt(NowUtc);
+        var step = Totp.TimeStep(new DateTimeOffset(NowUtc));
+
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().Be(step);
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().Be(step);
+        _lastStep.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Match_AfterItsStepIsRecorded_IsAReplay()
+    {
+        var code = CodeAt(NowUtc);
+        var step = (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None))!.Value;
+
+        (await _service.RecordAuthenticatorStepAsync(UserId, step, CancellationToken.None)).Should().BeTrue();
+
+        _lastStep.Should().Be(step.ToString());
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().BeNull();
+        (await _service.RecordAuthenticatorStepAsync(UserId, step, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Match_WrongCodeNoKeyOrNoUser_IsNull()
+    {
+        (await _service.MatchAuthenticatorCodeAsync(UserId, "000000", CancellationToken.None)).Should().BeNull();
+        (await _service.MatchAuthenticatorCodeAsync(Guid.NewGuid(), CodeAt(NowUtc), CancellationToken.None)).Should().BeNull();
+        (await _service.RecordAuthenticatorStepAsync(Guid.NewGuid(), 1, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Record_ConcurrentUseLosesTheSave_IsRefusedAndForgetsTheUser()
+    {
+        _userManager
+            .Setup(u => u.SetAuthenticationTokenAsync(_user, TwoFactorService.TokenProvider, TwoFactorService.LastTimeStepToken, It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
+
+        (await _service.RecordAuthenticatorStepAsync(UserId, Totp.TimeStep(new DateTimeOffset(NowUtc)), CancellationToken.None)).Should().BeFalse();
+        _lockouts.Verify(l => l.Forget(UserId), Times.Once);
+    }
+
+    [Test]
     public async Task GetState_SaysWhetherAdminAndHowManyCodesAreLeft()
     {
         _userManager.Setup(u => u.GetRolesAsync(_user)).ReturnsAsync(["admin"]);
@@ -117,7 +161,7 @@ public sealed class TwoFactorServiceTests
 
         var state = await _service.GetStateAsync(UserId, CancellationToken.None);
 
-        state.Should().Be(new TwoFactorState(Username, true, 8, true));
+        state.Should().Be(new TwoFactorState(Username, true, 8, true, TwoFactorMethod.Authenticator));
         (await _service.GetStateAsync(Guid.NewGuid(), CancellationToken.None)).Should().BeNull();
     }
 
@@ -199,23 +243,71 @@ public sealed class TwoFactorServiceTests
         _userManager.Setup(u => u.GenerateNewTwoFactorRecoveryCodesAsync(_user, TwoFactorService.RecoveryCodeCount)).ReturnsAsync(codes);
         _userManager.Setup(u => u.SetTwoFactorEnabledAsync(_user, true)).ReturnsAsync(IdentityResult.Success);
 
-        var result = await _service.EnableAsync(UserId, CancellationToken.None);
+        var result = await _service.EnableAsync(UserId, TwoFactorMethod.Authenticator, CancellationToken.None);
 
         result.Result.Succeeded.Should().BeTrue();
         result.Codes.Should().Equal(codes);
+        _user.TwoFactorMethod.Should().Be(TwoFactorMethod.Authenticator);
+    }
+
+    [Test]
+    public async Task Enable_WithEmailCodes_RecordsTheMethodInTheSameUpdate()
+    {
+        _user.TwoFactorEnabled = false;
+        TwoFactorMethod? methodWhenSaved = null;
+        _userManager.Setup(u => u.GenerateNewTwoFactorRecoveryCodesAsync(_user, TwoFactorService.RecoveryCodeCount)).ReturnsAsync(["A"]);
+        _userManager.Setup(u => u.SetTwoFactorEnabledAsync(_user, true))
+            .Callback(() => methodWhenSaved = _user.TwoFactorMethod)
+            .ReturnsAsync(IdentityResult.Success);
+
+        (await _service.EnableAsync(UserId, TwoFactorMethod.Email, CancellationToken.None)).Result.Succeeded.Should().BeTrue();
+
+        methodWhenSaved.Should().Be(TwoFactorMethod.Email);
+    }
+
+    [Test]
+    public async Task Enable_WithNoMethod_IsAMistake()
+    {
+        var act = () => _service.EnableAsync(UserId, TwoFactorMethod.None, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+    }
+
+    [TestCase(false, TwoFactorMethod.None, TwoFactorMethod.None)]
+    [TestCase(false, TwoFactorMethod.Email, TwoFactorMethod.None)]
+    [TestCase(true, TwoFactorMethod.None, TwoFactorMethod.Authenticator)]
+    [TestCase(true, TwoFactorMethod.Authenticator, TwoFactorMethod.Authenticator)]
+    [TestCase(true, TwoFactorMethod.Email, TwoFactorMethod.Email)]
+    public async Task GetMethod_IsTheEffectiveMethod(bool enabled, TwoFactorMethod stored, TwoFactorMethod expected)
+    {
+        _user.TwoFactorEnabled = enabled;
+        _user.TwoFactorMethod = stored;
+
+        (await _service.GetMethodAsync(UserId, CancellationToken.None)).Should().Be(expected);
+        (await _service.GetStateAsync(UserId, CancellationToken.None))!.Method.Should().Be(expected);
+        (await _service.GetMethodAsync(Guid.NewGuid(), CancellationToken.None)).Should().Be(TwoFactorMethod.None);
+    }
+
+    [Test]
+    public async Task ResetKey_WhileOnWithEmailCodes_GivesANewKey()
+    {
+        _user.TwoFactorMethod = TwoFactorMethod.Email;
+        _userManager.Setup(u => u.ResetAuthenticatorKeyAsync(_user)).ReturnsAsync(IdentityResult.Success);
+
+        (await _service.ResetAuthenticatorKeyAsync(UserId, CancellationToken.None)).Should().NotBeNull();
     }
 
     [Test]
     public async Task Enable_Failures_ReturnNoCodes()
     {
-        (await _service.EnableAsync(Guid.NewGuid(), CancellationToken.None)).Result.Succeeded.Should().BeFalse();
+        (await _service.EnableAsync(Guid.NewGuid(), TwoFactorMethod.Authenticator, CancellationToken.None)).Result.Succeeded.Should().BeFalse();
 
         _userManager.Setup(u => u.GenerateNewTwoFactorRecoveryCodesAsync(_user, It.IsAny<int>())).ReturnsAsync((IEnumerable<string>?)null);
-        (await _service.EnableAsync(UserId, CancellationToken.None)).Result.Succeeded.Should().BeFalse();
+        (await _service.EnableAsync(UserId, TwoFactorMethod.Authenticator, CancellationToken.None)).Result.Succeeded.Should().BeFalse();
 
         _userManager.Setup(u => u.GenerateNewTwoFactorRecoveryCodesAsync(_user, It.IsAny<int>())).ReturnsAsync(["A"]);
         _userManager.Setup(u => u.SetTwoFactorEnabledAsync(_user, true)).ReturnsAsync(IdentityResult.Failed());
-        var refused = await _service.EnableAsync(UserId, CancellationToken.None);
+        var refused = await _service.EnableAsync(UserId, TwoFactorMethod.Authenticator, CancellationToken.None);
         refused.Result.Succeeded.Should().BeFalse();
         refused.Codes.Should().BeEmpty();
     }
@@ -238,9 +330,12 @@ public sealed class TwoFactorServiceTests
         _userManager.Setup(u => u.ResetAuthenticatorKeyAsync(_user)).ReturnsAsync(IdentityResult.Success);
         _userManager.Setup(u => u.RemoveAuthenticationTokenAsync(_user, It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(IdentityResult.Success);
 
+        _user.TwoFactorMethod = TwoFactorMethod.Email;
+
         var result = await _service.DisableAsync(UserId, CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
+        _user.TwoFactorMethod.Should().Be(TwoFactorMethod.None);
         _userManager.Verify(u => u.ResetAuthenticatorKeyAsync(_user), Times.Once);
         _userManager.Verify(u => u.RemoveAuthenticationTokenAsync(_user, "[AspNetUserStore]", "RecoveryCodes"), Times.Once);
         _userManager.Verify(u => u.RemoveAuthenticationTokenAsync(_user, TwoFactorService.TokenProvider, TwoFactorService.LastTimeStepToken), Times.Once);
@@ -307,9 +402,12 @@ public sealed class TwoFactorServiceTests
             new ApplicationUser { UserName = "zed", TwoFactorEnabled = false },
             new ApplicationUser { UserName = "on", TwoFactorEnabled = true },
             new ApplicationUser { UserName = "amy", TwoFactorEnabled = false },
+            // Codes by email don't meet the admin requirement, which needs the app.
+            new ApplicationUser { UserName = "eve", TwoFactorEnabled = true, TwoFactorMethod = TwoFactorMethod.Email },
+            new ApplicationUser { UserName = "app", TwoFactorEnabled = true, TwoFactorMethod = TwoFactorMethod.Authenticator },
         ]);
 
-        (await _service.GetAdminsWithoutTwoFactorAsync(CancellationToken.None)).Should().Equal("amy", "zed");
+        (await _service.GetAdminsWithoutTwoFactorAsync(CancellationToken.None)).Should().Equal("amy", "eve", "zed");
     }
 
     [Test]
