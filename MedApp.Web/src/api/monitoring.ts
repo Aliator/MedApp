@@ -12,6 +12,9 @@ export interface MonitoringRuleInput {
   minimumPriority: string | null;
   templateId: string | null;
   stageDefinitionId: string | null;
+  /** A service alert's days (0 to 90); null for every other event. */
+  thresholdDays: number | null;
+  specialtyId: string | null;
   isEnabled: boolean;
 }
 
@@ -29,6 +32,13 @@ export const MONITORING_EVENTS = [
   {value: 'StageUnlocked', label: 'Unlocks a stage', hasStage: true},
   {value: 'DueDateChanged', label: "Changes a pathway's target date"},
   {value: 'StageFinishedWithoutVisit', label: 'Finishes a stage without its required visit', hasStage: true},
+  // The service alerts: found by a job every 15 minutes against the rule's days, rather than by what someone does.
+  {value: 'ReferralNotTriaged', label: 'Service alert: a referral awaits triage', isAlert: true, noPerson: true, noTemplate: true},
+  {value: 'ResultNotSignedOff', label: 'Service alert: a result awaits sign-off', isAlert: true},
+  {value: 'VisitNotBooked', label: 'Service alert: a visit awaits booking', isAlert: true, noPerson: true, hasStage: true},
+  {value: 'SpecimenOverdue', label: 'Service alert: a specimen is overdue at the lab', isAlert: true, noPerson: true, hasStage: true},
+  {value: 'WaitBreached', label: 'Service alert: a waiting-time target is near or passed', isAlert: true, noPerson: true},
+  {value: 'PauseReviewPassed', label: "Service alert: a paused clock's review date passed", isAlert: true, noPerson: true},
 ] as const;
 
 export type MonitoringEvent = (typeof MONITORING_EVENTS)[number]['value'];
@@ -37,6 +47,22 @@ export const monitoringEventOf = (value: string | null | undefined) => MONITORIN
 
 /** Whether a rule for this event can name a stage (the API refuses one for any other). */
 export const hasStage = (event: string | null | undefined) => MONITORING_EVENTS.some((e) => e.value === event && 'hasStage' in e);
+
+/** Whether the event is a service alert (time-based, with days and found by a job), rather than something someone does. */
+export const isServiceAlert = (event: string | null | undefined) => MONITORING_EVENTS.some((e) => e.value === event && 'isAlert' in e);
+
+/**
+ * Whether a rule for this event can name a person: who did it, for every change; the responsible clinician, for a
+ * result awaiting sign-off; nobody, for the other service alerts (the API refuses one).
+ */
+export const hasPerson = (event: string | null | undefined) => !MONITORING_EVENTS.some((e) => e.value === event && 'noPerson' in e);
+
+/** Whether a rule for this event can name a template: not a referral awaiting triage, which has no pathway yet. */
+export const hasTemplate = (event: string | null | undefined) => !MONITORING_EVENTS.some((e) => e.value === event && 'noTemplate' in e);
+
+/** The days a service alert can wait (the API's limits). */
+export const MIN_THRESHOLD_DAYS = 0;
+export const MAX_THRESHOLD_DAYS = 90;
 
 const RULES = '/api/monitoring/rules';
 const RULE = '/api/monitoring/rules/{id}';
@@ -98,6 +124,8 @@ export function inputOf(rule: MonitoringRule): MonitoringRuleInput {
     minimumPriority: rule.minimumPriority ?? null,
     templateId: rule.templateId ?? null,
     stageDefinitionId: rule.stageDefinitionId ?? null,
+    thresholdDays: rule.thresholdDays ?? null,
+    specialtyId: rule.specialtyId ?? null,
     isEnabled: rule.isEnabled ?? true,
   };
 }

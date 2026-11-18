@@ -187,6 +187,9 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'Server rendering', full: 'Pages are rendered on the server, so they arrive with their data and show at once.'},
   {title: 'The activity log and exports', full: 'Every read and change of a patient’s record is logged, and admins can export everything held about a patient.'},
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
-  {title: 'Background jobs', full: 'Appointment reminders to patients, purges of old operational data, and other jobs on a schedule.'},
+  {
+    title: 'Background jobs',
+    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens overdue in time), purges of old operational data, and other jobs on a schedule.',
+  },
   {title: 'Letters, the lab and setup', full: 'Letters from templates, specimens and the lab’s worklist, and the setup pages (templates, sites, roles).'},
 ];

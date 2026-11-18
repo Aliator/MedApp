@@ -4,6 +4,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -18,6 +19,8 @@ public interface IMonitoringRuleInput
     Guid? TemplateId { get; }
     Guid? StageDefinitionId { get; }
     bool IsEnabled { get; }
+    int? ThresholdDays { get; }
+    Guid? SpecialtyId { get; }
 }
 
 /// <summary>The checks every rule passes, for adding one and for editing one.</summary>
@@ -51,8 +54,37 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
         RuleFor(x => x.StageDefinitionId)
             .Null()
             .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasStage(e))
-            .WithMessage("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked.");
+            .WithMessage("A stage can only be chosen for a stage being finished, finished without its visit, or unlocked, a visit not booked or a specimen overdue.");
+
+        RuleFor(x => x.SpecialtyId)
+            .NotEqual(Guid.Empty)
+            .WithMessage("Choose a specialty, or any.");
+
+        RuleFor(x => x.ThresholdDays)
+            .NotNull()
+            .WithMessage("Choose how many days.")
+            .InclusiveBetween(MonitoringRuleInput.MinThresholdDays, MonitoringRuleInput.MaxThresholdDays)
+            .WithMessage($"Days must be from {MonitoringRuleInput.MinThresholdDays} to {MonitoringRuleInput.MaxThresholdDays}.")
+            .When(x => IsServiceAlert(x.Event));
+
+        RuleFor(x => x.ThresholdDays)
+            .Null()
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringEvents.IsServiceAlert(e))
+            .WithMessage("Days are only for a service alert.");
+
+        RuleFor(x => x.SubjectUserId)
+            .Null()
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasPerson(e))
+            .WithMessage("This alert isn't about a member of staff, so leave it on anyone.");
+
+        RuleFor(x => x.TemplateId)
+            .Null()
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasTemplate(e))
+            .WithMessage("A referral awaiting triage has no pathway yet, so it has no template: leave it on any.");
     }
+
+    private static bool IsServiceAlert(string value) =>
+        PathwayEnums.TryParse<MonitoringEvent>(value, out var e) && MonitoringEvents.IsServiceAlert(e);
 }
 
 public static class MonitoringRuleInput
@@ -63,9 +95,28 @@ public static class MonitoringRuleInput
     /// </summary>
     public const int MaxRulesPerAdmin = 50;
 
-    /// <summary>Whether a rule for this event can name a stage.</summary>
+    /// <summary>The fewest and most days a service alert can wait (decision 134).</summary>
+    public const int MinThresholdDays = 0;
+
+    public const int MaxThresholdDays = 90;
+
+    /// <summary>
+    /// Whether a rule for this event can name a stage: the stage events, a visit not booked (its stage) and a specimen
+    /// overdue (the stage it was taken at).
+    /// </summary>
     public static bool HasStage(MonitoringEvent monitoringEvent) =>
-        monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked or MonitoringEvent.StageFinishedWithoutVisit;
+        monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked or MonitoringEvent.StageFinishedWithoutVisit
+            or MonitoringEvent.VisitNotBooked or MonitoringEvent.SpecimenOverdue;
+
+    /// <summary>
+    /// Whether a rule for this event can name a person: every change (who did it), and of the service alerts only a
+    /// result not signed off (the responsible clinician); the other alerts are about the service, not someone's action.
+    /// </summary>
+    public static bool HasPerson(MonitoringEvent monitoringEvent) =>
+        !MonitoringEvents.IsServiceAlert(monitoringEvent) || monitoringEvent == MonitoringEvent.ResultNotSignedOff;
+
+    /// <summary>Whether a rule for this event can name a template: all but a referral awaiting triage (no pathway yet).</summary>
+    public static bool HasTemplate(MonitoringEvent monitoringEvent) => monitoringEvent != MonitoringEvent.ReferralNotTriaged;
 
     /// <summary>The message when "Stage unlocked" names someone who can't unlock stages.</summary>
     public const string UnlockNeedsAdmin = "Only people whose roles let them unlock stages do, so choose one of them, or anyone.";
@@ -73,7 +124,7 @@ public static class MonitoringRuleInput
     /// <summary>
     /// Checks what the input newly names: every person, template and stage it names (all of them for a new rule; for an
     /// edit, only those that differ from the stored rule's, so a rule may keep naming something since deleted) must
-    /// exist, archived or not (404 otherwise). And a person named for "Stage unlocked" must hold
+    /// exist, archived or not, and so must a specialty (404 otherwise). And a person named for "Stage unlocked" must hold
     /// <see cref="Permission.UnlockStages"/>, as only they unlock (400 otherwise; checked again whenever the person or
     /// the event changes, as roles do).
     /// </summary>
@@ -83,6 +134,7 @@ public static class MonitoringRuleInput
         IIdentityReadService identityReadService,
         IPermissionHolders permissionHolders,
         IPatientPathwayStagesRepository stagesRepository,
+        ISpecialtyRepository specialtyRepository,
         CancellationToken cancellationToken)
     {
         Guid? Newly(Guid? id, Guid? stored) => existing is not null && id == stored ? null : id;
@@ -109,6 +161,10 @@ public static class MonitoringRuleInput
         if (Newly(input.StageDefinitionId, existing?.StageDefinitionId) is { } stageId
             && await stagesRepository.GetStageDefinitionByIdAsync(stageId, cancellationToken) is null)
             throw new NotFoundException($"Stage '{stageId}' was not found.");
+
+        if (Newly(input.SpecialtyId, existing?.SpecialtyId) is { } specialtyId
+            && await specialtyRepository.GetAsync(specialtyId, cancellationToken) is null)
+            throw new NotFoundException($"Specialty '{specialtyId}' was not found.");
     }
 
     private static async Task CheckCanUnlockAsync(Guid userId, IPermissionHolders permissionHolders, CancellationToken cancellationToken)
@@ -126,6 +182,8 @@ public static class MonitoringRuleInput
         rule.MinimumPriority = input.MinimumPriority is null ? null : PathwayEnums.Parse<PatientPathwayPriority>(input.MinimumPriority);
         rule.TemplateId = input.TemplateId;
         rule.StageDefinitionId = input.StageDefinitionId;
+        rule.ThresholdDays = input.ThresholdDays;
+        rule.SpecialtyId = input.SpecialtyId;
         rule.IsEnabled = input.IsEnabled;
         rule.UpdatedAtUtc = nowUtc;
     }
