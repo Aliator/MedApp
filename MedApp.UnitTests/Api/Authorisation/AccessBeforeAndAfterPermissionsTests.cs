@@ -133,6 +133,15 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarSetupController.UpdateActivityType 00001
         CalendarSetupController.UpdateDayTemplate 00011
         CalendarSetupController.UpdateWeekTemplate 00011
+        ClinicsController.CancelSession 00001
+        ClinicsController.CreatePattern 00001
+        ClinicsController.CreateSession 00001
+        ClinicsController.CreateSessions 00001
+        ClinicsController.GetPatterns 00001
+        ClinicsController.GetSession 00011
+        ClinicsController.SearchSessions 00011
+        ClinicsController.UpdatePattern 00001
+        ClinicsController.UpdateSession 00001
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111

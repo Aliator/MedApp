@@ -21,7 +21,7 @@ This file is the core: what every change needs. Each area's detail is in `docs/a
 | Referrals, their history and letters | `referrals.md` | Change a referral only through `ReferralChange`, which saves its `ReferralEvent`s in the same save; the history holds no free text. Every read is logged (`ReferralViewed`, `PatientListed`). A restricted or anonymised record refuses changes, but withdrawing and entered in error stay allowed while restricted. |
 | Patient timeline | `timeline.md` | Staff never get free text from the audit log or appointment history (`TimelineMapper`'s `PublicValueFields`; `TimelineStaffCanaryTests`). |
 | Notifications | `notifications.md` | A title is a fixed phrase; a message holds only usernames, enums, admin-written names and dates, never free text or the patient. |
-| Calendar, appointments, meetings, visits, sites and rooms, working hours | `calendar.md` | Use `WorkingHours`, `WorkingTime`, `UkTime`, `CalendarClashes`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` before checking clashes. Validators use `WorkingDays` with the person, so their hours and closed days count; never assume 08:00 to 18:00 on weekdays. |
+| Calendar, appointments, meetings, visits, sites and rooms, working hours, clinic sessions | `calendar.md` | Use `WorkingHours`, `WorkingTime`, `UkTime`, `CalendarClashes`, `ClinicRules`, `AppointmentWorkflow` and `AppointmentChange`; take `ICalendarLock` (the person's, and a room's) before checking clashes. Validators use `WorkingDays` with the person, so their hours and closed days count; never assume 08:00 to 18:00 on weekdays. |
 | Notepad | `notepad.md` | Kept on the server only, never in browser storage. |
 | Monitoring | `monitoring.md` | Every pathway command calls `IPathwayMonitor.NotifyAsync(change)` after saving. Clinical follow-up never relies on it. |
 | Attachments | `attachments.md` | Types come from the contents (`FileTypeSniffer`), never the name; SVG and HTML are refused. Files leave only through the API, as downloads. |
@@ -106,7 +106,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 
 | Project | Responsibility |
 |---|---|
-| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
+| `MedApp.Domain` | Entities and enums (`Patient`, `PatientPathway`, `PatientPathwayStage*`, `Attachment`, `CalendarBlock`, `CalendarActivityType`, `ClosedDay`, `Site`, `Room`, `SiteHours`, `StaffHours`, `ClinicSession`, `ClinicPattern`, `Appointment`, `UserSession`, `Specialty`, `Referral`, ...). No dependencies. |
 | `MedApp.Contracts` | Request/response DTOs, generated as TypeScript types for the React app from the Swagger document. |
 | `MedApp.Application` | Commands, queries, handlers, validators (MediatR + FluentValidation); repository and service **interfaces**; app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repositories, Identity and session services, migrations. |
@@ -154,7 +154,7 @@ To add a feature end to end:
 
 ### Lists
 
-- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/pathways/patient-pathways/search`, `GET api/pathways/audit/search`, `GET api/activity/search`, `GET api/patients/retention-review`, `GET api/appointments/search` and `GET api/referrals/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, maximum 100.
+- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/pathways/patient-pathways/search`, `GET api/pathways/audit/search`, `GET api/activity/search`, `GET api/patients/retention-review`, `GET api/appointments/search` and `GET api/referrals/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, maximum 100. Clinic sessions (`GET api/clinics/sessions`) are a plain list, of at most 62 days.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
   - Exception: the retention review is narrowed in SQL, then sorted and paged in memory by the schedule's age-dependent rules (`SearchRetentionReviewHandler`).
 - **A feed pages by cursor:** a patient's timeline (`GET api/patients/{id}/timeline`) uses keyset paging, so new entries don't shift pages: `AtUtc` then `Id`, descending, with `NextCursor` encoding the last entry's pair (`PatientTimelineSearch`, `TimelineCursor`).
@@ -167,7 +167,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with preferences), `AuditEntryMapper`, `AttachmentMapper`, `MonitoringRuleMapper` (names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`, `SpecialtyMapper`, `ReferralMapper`
   - `PathwayMapper`, `PathwayNoteMapper`, `NoteDeletionRequestMapper`, `StageDefinitionMapper`, `PathwayTemplateMapper`, `TimelineMapper`, `PathwayInsightsMapper` (from totals)
-  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours)
+  - `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper` (activity types, day and week templates), `ClosedDayMapper`, `MeetingMapper` (meetings and free times), `SiteMapper` (sites and rooms), `WorkingHoursMapper` (staff and site hours), `ClinicMapper` (clinic sessions and patterns)
   - `FhirPatientMapper` (a UK Core Patient), `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into a `PagedResponse`.

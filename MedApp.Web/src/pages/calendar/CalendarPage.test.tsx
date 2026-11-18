@@ -9,6 +9,7 @@ import {adminUser, calls, expectAnnounced, json, managerUser, mockApi, openDialo
 import type {CurrentUser} from '../../auth/auth';
 import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, selectionMenuPlacement, shownView} from './CalendarPage';
 import {givenWidth} from '../../test/layout';
+import {testSession, testSessionDetail} from '../../test/clinics';
 import type {CalendarSearch} from './calendarSearch';
 
 // The meeting dialog has tests of its own: here, a stand-in that shows what it was opened with.
@@ -357,6 +358,32 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     await user.click(await screen.findByRole('button', {name: /^Lunch, 12:00 to 13:00/}));
     expect(await screen.findByRole('heading', {name: 'Change Blocked Time'})).toBeInTheDocument();
+  });
+
+  it('opens a clinic session from the grid, books one of its slots, or changes it', async () => {
+    const session = testSession({date: MONDAY, booked: 1, staffUserId: STAFF_ME.userId});
+    const {user} = renderPage({
+      calendar: {sessions: [session]},
+      user: adminUser,
+      handlers: {
+        'GET /api/clinics/sessions/session-1': () => json(testSessionDetail(session)),
+        'GET /api/clinics/sessions': () => json([session]),
+        'GET /api/rooms': () => json([]),
+        'GET /api/specialties': () => json([]),
+      },
+    });
+
+    expect(await screen.findByRole('link', {name: 'Clinics'})).toHaveAttribute('href', '/calendar/clinics');
+    await user.click(await screen.findByRole('button', {name: /^Synthetic dermatology clinic session/}));
+    expect(await screen.findByRole('heading', {name: 'Clinic Session'})).toBeInTheDocument();
+    await user.click(await dialog().findByRole('button', {name: 'Book 09:20'}));
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
+    expect(await dialog().findByRole('button', {name: '09:20', pressed: true})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+
+    await user.click(await screen.findByRole('button', {name: /^Synthetic dermatology clinic session/}));
+    await user.click(await dialog().findByRole('button', {name: 'Edit'}));
+    expect(await screen.findByRole('heading', {name: 'Edit Clinic Session'})).toBeInTheDocument();
   });
 
   it('moves an appointment by dragging it, after confirming the new time', async () => {

@@ -1136,6 +1136,7 @@ function GridItem({
   const marks = (
     <>
       {item.kind === 'meeting' && <Icon icon={AppIcon.Meeting} size="xsm" color="primary" />}
+      {item.kind === 'session' && <Icon icon={AppIcon.Clinics} size="xsm" color="primary" />}
       {item.isFlagged && <Icon icon={AppIcon.Warning} size="xsm" color="warning" />}
     </>
   );

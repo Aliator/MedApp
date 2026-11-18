@@ -262,6 +262,14 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
 
+## Clinic sessions (centre plan PR 23)
+
+- **Tell a cancelled session's patients by text or email** (decision 126): the call list is for phoning them until reminders (PR 26) give messages.
+- **An account's upcoming sessions** with no bookings stay when the account is deleted or loses its staff roles (sessions with bookings stop that, through their appointments): cancel them with it, or refuse it as for appointments.
+- **Closing a day** counts and tells of appointments, blocks and meetings, but not clinic sessions on it; a session on a day closed later stays, unflagged.
+- **Demo data:** patterns, sessions for the 18 months and the next 6 weeks, appointments in their slots and one cancelled session (PR 28).
+- **A session's own page or Calendar view of sessions by room** (the plan's "Clinics view, sessions by day and room"): today Clinics is a week's list, by day, time and room.
+
 ## Working hours (centre plan PR 22)
 
 - **A `WorkingHours:Default` setting** for a deployment whose usual week isn't Monday to Friday, 08:00 to 18:00: the default is fixed in code today (`WorkingHours`).

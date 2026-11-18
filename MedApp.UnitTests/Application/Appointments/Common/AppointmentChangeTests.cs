@@ -110,6 +110,54 @@ public sealed class AppointmentChangeTests
     }
 
     [Test]
+    public void Book_IntoASessionsSlot_KeepsTheSessionAndRoom_AndRecordsTheirIds()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested);
+        var change = ChangeOf(appointment, null);
+        var sessionId = Guid.NewGuid();
+        var roomId = Guid.NewGuid();
+
+        change.Book(StaffUserId, StaffUsername, At(NextMonday, 9), At(NextMonday, 9, 20), new AppointmentPlace(sessionId, roomId));
+
+        appointment.ClinicSessionId.Should().Be(sessionId);
+        appointment.RoomId.Should().Be(roomId);
+        var details = Details(change.Events.Single());
+        details.GetProperty("clinicSessionId").GetGuid().Should().Be(sessionId);
+        details.GetProperty("roomId").GetGuid().Should().Be(roomId);
+    }
+
+    [Test]
+    public void Book_MovedOutOfASession_LeavesItAndRecordsWhereItWas()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        var sessionId = Guid.NewGuid();
+        var roomId = Guid.NewGuid();
+        appointment.ClinicSessionId = sessionId;
+        appointment.RoomId = roomId;
+        var change = ChangeOf(appointment);
+
+        change.Book(StaffUserId, StaffUsername, At(NextMonday, 14), At(NextMonday, 14, 30));
+
+        appointment.ClinicSessionId.Should().BeNull();
+        appointment.RoomId.Should().BeNull();
+        var details = Details(change.Events.Single());
+        details.GetProperty("previousClinicSessionId").GetGuid().Should().Be(sessionId);
+        details.GetProperty("previousRoomId").GetGuid().Should().Be(roomId);
+        details.TryGetProperty("clinicSessionId", out _).Should().BeFalse();
+    }
+
+    [Test]
+    public void Book_SameTimeIntoAnotherRoom_IsAMove()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        var change = ChangeOf(appointment);
+
+        change.Book(StaffUserId, StaffUsername, At(NextMonday, 10), At(NextMonday, 10, 30), new AppointmentPlace(null, Guid.NewGuid()));
+
+        change.Events.Should().ContainSingle().Which.Action.Should().Be(AppointmentEventAction.Rescheduled);
+    }
+
+    [Test]
     public void RecordOutcome_Booked_MarksItAndRecordsWhoAndWhen()
     {
         var appointment = CreateAppointment(AppointmentStatus.Booked, Now.AddHours(-1));

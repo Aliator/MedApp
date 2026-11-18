@@ -22,6 +22,7 @@ import {
   worksThatDay,
 } from './calendarSlots';
 import {formatTime} from './dates';
+import {testSession} from '../test/clinics';
 
 // Monday 23 November 2026, early in the morning UK time.
 const MONDAY = '2026-11-23';
@@ -116,6 +117,13 @@ describe('busyTimes', () => {
     expect(times).not.toContain('09:00');
     expect(times).not.toContain('09:30');
     expect(times).toContain('10:00');
+  });
+
+  it('counts a clinic session as busy (appointments go into its slots), but not a cancelled one', () => {
+    const session = testSession({date: MONDAY, starts: '09:00', ends: '10:00'});
+    const calendar = testCalendar({from: MONDAY, dayCount: 1, today: MONDAY, sessions: [session, {...session, id: 'cancelled', status: 'Cancelled', startUtc: ukTime(MONDAY, '14:00'), endUtc: ukTime(MONDAY, '15:00')}]});
+
+    expect(busyTimes(calendar)).toEqual([intervalOf(session.startUtc!, session.endUtc!)]);
   });
 
   it("leaves out a meeting the calendar's owner declined, so its time is free for them, but not for anyone else", () => {

@@ -1,6 +1,7 @@
 import type {TokenColor} from '@astryxdesign/core/Token';
 import {appointmentStatusLabel, type Appointment} from '../../api/appointments';
 import {hasDeclined, type Calendar, type CalendarBlock, type Meeting} from '../../api/calendar';
+import {slotsWords, type ClinicSession} from '../../api/clinics';
 import {formatTimeRange} from '../../utils/calendarSlots';
 import {ukDay} from '../../utils/dates';
 import {APPOINTMENT_STATUS_COLOURS, activityColour} from './CalendarTokens';
@@ -13,8 +14,11 @@ import {APPOINTMENT_STATUS_COLOURS, activityColour} from './CalendarTokens';
 export interface CalendarGridItem {
   /** Unique on the grid. */
   key: string;
-  /** Appointments and meetings stand out (a meeting with its icon); blocks are quieter. */
-  kind: 'appointment' | 'block' | 'meeting';
+  /**
+   * Appointments and meetings stand out (a meeting with its icon); blocks are quieter. A clinic session shows beside
+   * the appointments booked into it, with its icon.
+   */
+  kind: 'appointment' | 'block' | 'meeting' | 'session';
   /** The UK day it's on (`yyyy-mm-dd`). */
   date: string;
   startUtc: string;
@@ -58,6 +62,34 @@ export const appointmentKey = (id: string | undefined) => `appointment-${id}`;
 
 /** A block's key on a grid: a stored block's ID, or a template block's on its day. */
 export const blockKey = (block: CalendarBlock) => `block-${block.blockId ?? `${block.templateBlockId}-${block.date}`}`;
+
+/** A clinic session's key on a grid. */
+export const sessionKey = (id: string | undefined) => `session-${id}`;
+
+/** A clinic session's colour on a calendar; it also has its icon (`AppIcon.Clinics`), so it never relies on colour alone. */
+export const SESSION_COLOUR: TokenColor = 'purple';
+
+/**
+ * A clinic session on a calendar: its specialty, room and how full it is ("Synthetic dermatology", "Room 2 · 4 of 9
+ * free"). It opens the session, with its slots; it's never dragged (it's moved, if at all, from its own dialog).
+ */
+export function sessionItem(session: ClinicSession): CalendarGridItem {
+  const start = session.startUtc ?? '';
+  const end = session.endUtc ?? '';
+  const specialty = session.specialtyName ?? 'Clinic';
+  const sub = `${session.roomName ?? ''} · ${slotsWords(session)}`;
+  return {
+    key: sessionKey(session.id),
+    kind: 'session',
+    date: session.date ?? ukDay(start),
+    startUtc: start,
+    endUtc: end,
+    colour: SESSION_COLOUR,
+    label: specialty,
+    sublabel: sub,
+    description: `${specialty} clinic session, ${session.roomName ?? ''}, ${formatTimeRange(start, end)}, ${slotsWords(session)}`,
+  };
+}
 
 /** A meeting's key on a grid. */
 export const meetingKey = (id: string | undefined) => `meeting-${id}`;
@@ -159,20 +191,22 @@ export function blockItem(block: CalendarBlock, {isMovable = false}: {isMovable?
 }
 
 /**
- * Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them.
+ * Everything on a calendar as grid items: its blocks first, then its clinic sessions and meetings, so its appointments
+ * draw over them.
  * Appointments and meetings are movable by their own flags (appointments only for someone who can book: `canBook`);
  * blocks only with `movableBlocks` (the Calendar page's Edit
  * blocks mode), and never on a day the calendar says is past. A meeting the calendar's owner (`staffUserId`) declined
  * is faded (`meetingItem`).
  */
 export function calendarItems(
-  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId'> | undefined,
+  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId' | 'sessions'> | undefined,
   {movableBlocks = false, canBook = true}: {movableBlocks?: boolean; canBook?: boolean} = {},
 ): CalendarGridItem[] {
   if (!calendar) return [];
   const pastDays = new Set((calendar.days ?? []).filter((d) => d.isPast).map((d) => d.date));
   return [
     ...(calendar.blocks ?? []).map((b) => blockItem(b, {isMovable: movableBlocks && !pastDays.has(b.date)})),
+    ...(calendar.sessions ?? []).filter((c) => c.startUtc && c.endUtc).map(sessionItem),
     ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map((m) => meetingItem(m, calendar.staffUserId)),
     ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map((a) => appointmentItem(a, {canBook})),
   ];

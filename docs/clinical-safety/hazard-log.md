@@ -2036,6 +2036,8 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Existing controls:** none (not built). Today's fixed working day and clash checks (H-31, H-33) apply until it's replaced.
 
+*Built so far:* the hours (PR 22), and clinic sessions (PR 23, `feature/clinic-sessions`): one patient per slot (the clinician's calendar lock, the clash check and a unique index on session and start), one session per room at a time (the room's lock and its clash check), a site's closed day and opening hours closing its rooms for sessions and bookings, cancelling with the list of patients to tell, moving a session with bookings refused, and Create sessions saying what it skipped. Integration tests race two bookings for one slot and two sessions for one room. Not yet: texting or emailing the patients of a cancelled session (PR 26, with reminders); until then the list is for phoning them.
+
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
 **Further controls** (planned, PRs 21 to 23 and 26; before the feature's first live use):
