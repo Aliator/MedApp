@@ -259,7 +259,7 @@ The PR's browser check found the whole flow working (axe clean) with two things 
   - **The trap is rolling back:** `database update AddedEmailTwoFactorCodes` also reverts `AddedNoteDeletion`, dropping note deletion data; `database update AddedNoteDeletion` (to undo this PR) leaves the codes table and column in place.
 - **Evidence:** `MedApp.Infrastructure/Migrations/20261118021716_AddedEmailTwoFactorCodes.Designer.cs:15` against `20261118025735_AddedNoteDeletion.Designer.cs:15`.
 - **Fix:** before merging, give the PR's two migrations IDs after `AddedNoteDeletion` (rename the files and the `[Migration("…")]` IDs, or remove them and scaffold again on top of `main`), then check `has-pending-model-changes`. They've been applied only to local databases, whose `__EFMigrationsHistory` rows would need the same rename. If that's not worth it, say in the rollback notes which target undoes what.
-- **What happened to it:** Not yet.
+- **What happened to it:** Fixed in the commit that follows this review ("Fixed the follow-up review's findings on #118"). `AddedEmailTwoFactorCodes` is now `20261118030000`, after `AddedNoteDeletion` and before `MadeEmailCodesOnePerPurpose` (both files renamed, the `[Migration]` ID changed; nothing else named the old ID). Both of the PR's Designer files were rebuilt from the model snapshot, so their target models include `main`'s note deletion columns and table, as they would if scaffolded on top of `main` (`AddedEmailTwoFactorCodes`'s with the plain index, `MadeEmailCodesOnePerPurpose`'s with the unique one). `has-pending-model-changes` reports no changes, and `migrations list` shows them in order. A local database that applied the old ID needs its `__EFMigrationsHistory` row renamed.
 
 ### 10. Low: a mistyped current code spends the new app's code
 
@@ -270,7 +270,7 @@ The PR's browser check found the whole flow working (axe clean) with two things 
   - They correct the emailed code and press the button again within 30 seconds. Now the app's code is refused as a replay, with "Check that your phone's clock is set automatically", which isn't the problem.
 - **Evidence:** `EnableTwoFactorHandler.cs:82-88`.
 - **Fix:** check the app's code without recording it, then the current factor, then record the step in the same transaction as `EnableAsync` (a `MatchesAuthenticatorCodeAsync` beside `VerifyAuthenticatorCodeAsync`). Checking the current factor first instead would be worse: a wrong app code would then spend a recovery code.
-- **What happened to it:** Not yet.
+- **What happened to it:** Fixed in the same commit. `ITwoFactorService` has `MatchAuthenticatorCodeAsync` (the step of a current, unused code, not recorded) and `RecordAuthenticatorStepAsync` (records it, re-checking for a replay); `VerifyAuthenticatorCodeAsync` is the two together. `EnableTwoFactorHandler` matches the app's code, then checks the current factor, then records the step inside the `EnableAsync` transaction (a code taken meanwhile is the usual 400 on `Code`). The app's code is still checked first, so a wrong one spends no recovery code. Tests: `EnableAuthenticator_WhileUsingEmailCodes_WrongCurrentCodeThenRight_TheSameAppCodeStillWorks` (fails without the fix), `..._WrongAppCode_UsesNoRecoveryCode`, `Enable_CodeAcceptedMeanwhile_...`, the service's `Match_`/`Record_` tests, and the integration test `RequirementForAdmins_NeedsTheApp_...` now sends a wrong emailed code, then the same app code with the right one.
 
 ### 11. Low: Email Address and the switch can hide "enter a code"
 
@@ -288,7 +288,7 @@ The PR's browser check found the whole flow working (axe clean) with two things 
   ```
 
   and the same for `currentCode` in `TwoFactorSetup`.
-- **What happened to it:** Not yet.
+- **What happened to it:** Fixed in the same commit. `EmailPage` and `TwoFactorSetup` leave the code field (`code`, `currentCode`) out of the alert's list while it isn't shown, so its message appears in the alert, and a 400 on that field invalidates `twoFactorStatusQuery`, so a stale status loads again and the field appears. Vitest tests for both: the message in the alert with the status checked again, the field appearing once the status says email (`EmailPage`), and the message on the field, not in the banner too, while switching (`TwoFactorSetup`).
 
 ### 12. Low: during a rolling update, old copies ignore the method
 
@@ -299,7 +299,7 @@ The PR's browser check found the whole flow working (axe clean) with two things 
   - An old pod also lets the address be changed with the password alone, or removed while it's used for codes: findings 2 and 6, on the old code.
 - **Evidence:** `deploy/helm/medapp/templates/migrations-job.yaml:14`; `main`'s `ChangeMyEmailHandler`, `RemoveMyEmailHandler` and `LoginHandler` have no method checks.
 - **Fix:** none needed in code. Add a line to the rollout notes: don't turn on codes by email until the rollout has finished; afterwards, look for accounts using codes by email with no confirmed address.
-- **What happened to it:** Not yet.
+- **What happened to it:** Documented in the same commit: the chart's README (its list of what old pods do) has a **Two-factor codes by email** entry, and `AGENTS.md` (two-factor) says the same: nobody turns on codes by email until the rollout has finished; afterwards, look for accounts using them with no confirmed address and reset their two-factor.
 
 ### 13. Low: `AGENTS.md` doesn't list the new sign-in failure reason
 
@@ -307,7 +307,7 @@ The PR's browser check found the whole flow working (axe clean) with two things 
 - **What goes wrong:** a refused sign-in with no live emailed code is logged with `reason: "CodeNotLive"` (`LoginTwoFactorHandler.cs:105`). `AGENTS.md` (two-factor in the activity log) lists every other reason but this one, so someone reading the log, or adding a reason, doesn't know it exists.
 - **Evidence:** `AGENTS.md:452`.
 - **Fix:** add `` `CodeNotLive` (no emailed code that could work: none sent, or used meanwhile; not counted) `` to the list.
-- **What happened to it:** Not yet.
+- **What happened to it:** Fixed in the same commit: `AGENTS.md` lists `CodeNotLive`, and also names the two lockout reasons (`InvalidCodeLockedOut`, `InvalidRecoveryCodeLockedOut`) it described only in words. No other reason the handler logs was missing.
 
 ## Detail
 

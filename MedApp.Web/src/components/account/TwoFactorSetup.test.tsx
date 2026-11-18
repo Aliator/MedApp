@@ -69,6 +69,45 @@ describe('TwoFactorSetup, switching from codes by email', () => {
     // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
   }, 15_000);
 
+  const CURRENT_CODE_NEEDED = "Enter the code we emailed you, or one of your recovery codes, to confirm it's you before switching.";
+  const currentCodeNeeded = () =>
+    json({title: 'One or more validation errors occurred.', status: 400, errors: {CurrentCode: [CURRENT_CODE_NEEDED]}}, 400);
+
+  it("says a current code is needed in the banner when its field isn't showing, and checks the status again", async () => {
+    // Codes by email were turned on in another tab, so this page's status (no field) is out of date.
+    const {user, queryClient} = renderSetup({[ENABLE]: currentCodeNeeded});
+    queryClient.setQueryData(twoFactorStatusQuery.queryKey, {
+      enabled: false,
+      method: 'None',
+      recoveryCodesLeft: 0,
+      required: false,
+      canUseEmailCodes: true,
+      emailCodesUnavailableReason: null,
+    });
+
+    await turnOn(user);
+
+    expect(await findAlert(CURRENT_CODE_NEEDED)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/code from the email, or a recovery code/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(queryClient.getQueryState(twoFactorStatusQuery.queryKey)?.isInvalidated).toBe(true));
+  });
+
+  it('shows a missing current code on its field while switching, not in the banner too', async () => {
+    const {user} = renderSetup({[ENABLE]: currentCodeNeeded}, {switchingFromEmail: true});
+
+    await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
+    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true'),
+    );
+    // Once, on the field (beside the screen reader's announcement of it), and not again in the banner.
+    const shown = screen.getAllByText(CURRENT_CODE_NEEDED).filter((el) => !el.closest('[data-astryx-live-region]'));
+    expect(shown).toHaveLength(1);
+    // Many steps, typed one key at a time: more than the default 5 seconds on a busy machine.
+  }, 15_000);
+
   it("doesn't ask for a current code when setting up the app from nothing", async () => {
     const {user, fetch} = renderSetup();
 

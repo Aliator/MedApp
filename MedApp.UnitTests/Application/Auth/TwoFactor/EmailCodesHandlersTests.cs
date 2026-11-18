@@ -465,10 +465,19 @@ public sealed class EmailCodesHandlersTests
     private EnableTwoFactorHandler EnableAppHandler() =>
         new(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _emailCodes.Object, _attempts.Object);
 
+    private const long AppCodeStep = 59_000_000;
+
+    // A right code from the new app: matched, then recorded as used with the change.
+    private void GivenTheAppsCode()
+    {
+        _twoFactor.Setup(t => t.MatchAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(AppCodeStep);
+        _twoFactor.Setup(t => t.RecordAuthenticatorStepAsync(UserId, AppCodeStep, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+    }
+
     private void SwitchingAdmin()
     {
         GivenState(Email(isAdmin: true));
-        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        GivenTheAppsCode();
         _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
     }
@@ -517,7 +526,7 @@ public sealed class EmailCodesHandlersTests
             .ContainSingle(e => e.PropertyName == "CurrentCode" && e.ErrorMessage == EnableTwoFactorHandler.CurrentCodeNeeded);
         _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<TwoFactorMethod>(), It.IsAny<CancellationToken>()), Times.Never);
         // The new app's code isn't spent on a request that can't succeed.
-        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _twoFactor.Verify(t => t.MatchAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -534,10 +543,64 @@ public sealed class EmailCodesHandlersTests
     }
 
     [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WrongCurrentCodeThenRight_TheSameAppCodeStillWorks()
+    {
+        // The follow-up review of #118, finding 10: a mistyped emailed code used to spend the new app's code, so the
+        // retry within its 30 seconds was refused as a replay. Here the app's code is used once, as the service does.
+        SwitchingAdmin();
+        long? used = null;
+        _twoFactor.Setup(t => t.MatchAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => used >= AppCodeStep ? null : AppCodeStep);
+        _twoFactor.Setup(t => t.RecordAuthenticatorStepAsync(UserId, AppCodeStep, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (used >= AppCodeStep)
+                    return false;
+                used = AppCodeStep;
+                return true;
+            });
+        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (used >= AppCodeStep)
+                    return false;
+                used = AppCodeStep;
+                return true;
+            });
+        _emailCodes.SetupSequence(c => c.CheckAsync(UserId, EmailCodePurpose.Confirm, null, EmailedCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(EmailCodeCheck.Wrong)
+            .ReturnsAsync(EmailCodeCheck.Right);
+        var command = new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, EmailedCode);
+
+        var mistyped = () => EnableAppHandler().Handle(command, CancellationToken.None);
+        (await mistyped.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "CurrentCode");
+        used.Should().BeNull();
+
+        var result = await EnableAppHandler().Handle(command, CancellationToken.None);
+
+        result.RecoveryCodes.Should().Equal(Codes);
+        used.Should().Be(AppCodeStep);
+        _twoFactor.Verify(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task EnableAuthenticator_WhileUsingEmailCodes_WrongAppCode_UsesNoRecoveryCode()
+    {
+        // Why the app's code is still checked first: a wrong one mustn't spend the current factor.
+        GivenState(Email());
+
+        var act = () => EnableAppHandler()
+            .Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId, RecoveryCode), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Code");
+        _twoFactor.Verify(t => t.RedeemRecoveryCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task EnableAuthenticator_NotUsingEmailCodes_NeedsNoCurrentCode()
     {
         GivenState(State(enabled: false));
-        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        GivenTheAppsCode();
         _twoFactor.Setup(t => t.EnableAsync(UserId, TwoFactorMethod.Authenticator, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 

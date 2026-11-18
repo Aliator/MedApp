@@ -354,6 +354,44 @@ describe('EmailPage, while the account signs in with codes by email', () => {
     await waitFor(() => expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true'));
   });
 
+  const CODE_NEEDED = "Enter the code we emailed you, or one of your recovery codes, to confirm it's you.";
+  const codeNeeded = () =>
+    json({title: 'One or more validation errors occurred.', status: 400, errors: {Code: [CODE_NEEDED]}}, 400);
+
+  it("says a code is needed in the banner when its field isn't showing, and checks the status again", async () => {
+    // The status says the app (out of date: codes by email were turned on elsewhere), so there's no code field.
+    const {user, fetch} = renderPage({
+      extra: {[STATUS]: () => json({...usingEmailCodes, method: 'Authenticator'}), [CHANGE]: codeNeeded},
+    });
+    await screen.findByLabelText(/new email address/i);
+    await waitFor(() => expect(calls(fetch).filter((c) => c === STATUS)).toHaveLength(1));
+
+    await change(user);
+
+    expect(await findAlert(CODE_NEEDED)).toBeInTheDocument();
+    await waitFor(() => expect(calls(fetch).filter((c) => c === STATUS)).toHaveLength(2));
+  });
+
+  it('shows the code field once the status, checked again, says codes by email', async () => {
+    let statusReads = 0;
+    const {user} = renderPage({
+      extra: {
+        [STATUS]: () => json(statusReads++ === 0 ? {...usingEmailCodes, method: 'Authenticator'} : usingEmailCodes),
+        [CHANGE]: codeNeeded,
+      },
+    });
+    await screen.findByLabelText(/new email address/i);
+    await waitFor(() => expect(statusReads).toBe(1));
+    expect(screen.queryByText(CODE_FOR_CHANGE)).not.toBeInTheDocument();
+
+    await change(user);
+
+    expect(await screen.findByText(CODE_FOR_CHANGE)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true'),
+    );
+  });
+
   it("asks for no code when the account doesn't use codes by email", async () => {
     const {user, fetch} = renderPage({
       extra: {

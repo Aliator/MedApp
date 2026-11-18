@@ -416,7 +416,17 @@ public sealed class EmailCodeTests : IntegrationTest
         Api.Emails.Clear();
         var adminAddress = NewAddress();
         await ConfirmAddressAsync(admin, AdminPassword, adminAddress);
-        var (key, _) = await SwitchToAppAsync(client, otherAdmin.Password, address);
+        // A mistyped emailed code doesn't spend the app's code: the same one works with the right emailed code, within
+        // its 30 seconds (the follow-up review of #118, finding 10).
+        var current = await ConfirmCodeAsync(client, otherAdmin.Password, address);
+        var appCode = NextCode(setup.SharedKey);
+        var mistyped = await client.PostAsJsonAsync("/api/auth/me/two-factor/enable",
+            new TwoFactorCodeRequest(otherAdmin.Password, appCode, Wrong(current)));
+        await mistyped.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+        (await mistyped.Content.ReadAsStringAsync()).Should().Contain("CurrentCode");
+        await (await client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(otherAdmin.Password, appCode, current)))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var key = setup.SharedKey;
         Api.Emails.To(adminAddress).Should().Contain(m => m.Subject == "An administrator moved their sign-in codes to an authenticator app");
         Api.Emails.To(address).Should().Contain(m => m.Subject == "Your MedApp sign-in codes moved to an authenticator app");
         await (await client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);

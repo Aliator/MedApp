@@ -7,8 +7,10 @@ import {Spinner} from '@astryxdesign/core/Spinner';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {useQueryClient} from '@tanstack/react-query';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {
+  twoFactorStatusQuery,
   useBeginAuthenticatorSetup,
   useEnableTwoFactor,
   useSendTwoFactorEmailCode,
@@ -82,8 +84,12 @@ export interface TwoFactorSetupProps {
   switchingFromEmail?: boolean;
 }
 
-/** The fields turning it on asks for, whose 400 messages show on them. */
+/**
+ * The fields turning it on shows, whose 400 messages show on them. The current code's field shows only while switching
+ * from codes by email; otherwise its message goes in the banner.
+ */
 const PASSWORD_AND_CODES = ['password', 'code', 'currentCode'];
+const PASSWORD_AND_CODE = ['password', 'code'];
 
 /** Why switching asks for a code from the email too. */
 export const PROVE_CURRENT =
@@ -102,6 +108,7 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   const begin = useBeginAuthenticatorSetup();
   const enable = useEnableTwoFactor();
   const send = useSendTwoFactorEmailCode();
+  const queryClient = useQueryClient();
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [currentCode, setCurrentCode] = useState('');
@@ -133,6 +140,12 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           setSetup(null);
           setCodes(recoveryCodes);
           onEnabled?.();
+        },
+        // A 400 on the current code: perhaps asked for without its field showing, as the status we had is out of date
+        // (codes by email turned on in another tab), so load it again, and the field appears if it's needed.
+        onError: (error) => {
+          if (error instanceof ApiValidationError && error.errors.fields.currentCode)
+            void queryClient.invalidateQueries({queryKey: twoFactorStatusQuery.queryKey});
         },
       },
     );
@@ -176,7 +189,7 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
 
   const validation = enable.error instanceof ApiValidationError ? enable.error.errors : null;
   const sendErrors = send.error instanceof ApiValidationError ? send.error.errors : null;
-  const other = otherMessages(validation, PASSWORD_AND_CODES);
+  const other = otherMessages(validation, switchingFromEmail ? PASSWORD_AND_CODES : PASSWORD_AND_CODE);
   const enableProblem = enable.isError && !validation
     ? refusalMessage(enable.error, 'Two-factor authentication could not be turned on. Please try again.')
     : other.length > 0

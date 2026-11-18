@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 
 /// <summary>
-/// Checks the password, then the code against the key just set up, then turns two-factor on with new recovery codes and ends the account's
-/// other sessions, together (one transaction). A wrong code is a validation error on <c>Code</c>; it doesn't count
+/// Checks the password, then the code against the key just set up, then turns two-factor on with new recovery codes and
+/// ends the account's other sessions, together (one transaction, which also records the code as used). A wrong code is a validation error on <c>Code</c>; it doesn't count
 /// towards the lockout, since the person setting up holds the key anyway. The owner is told by email. On an account
 /// using codes by email, the app replaces them (two-factor stays on throughout), recorded as turned on with
 /// <c>switchedFrom: "email"</c>; that switch needs the current factor too (<see cref="EnableTwoFactorCommand.CurrentCode"/>:
@@ -52,7 +52,10 @@ public sealed class EnableTwoFactorHandler(
         if (switchingFromEmail && string.IsNullOrWhiteSpace(request.CurrentCode))
             throw new ValidationException([new ValidationFailure(nameof(request.CurrentCode), CurrentCodeNeeded)]);
 
-        if (!await twoFactor.VerifyAuthenticatorCodeAsync(request.UserId, TwoFactorCodes.Normalise(request.Code), ct))
+        // The new app's code is matched, but not yet recorded as used: a mistyped current code below would otherwise
+        // spend it, and the retry within its 30 seconds would be refused as a replay. Checking the current factor first
+        // instead would let a wrong app code spend a recovery code.
+        if (await twoFactor.MatchAuthenticatorCodeAsync(request.UserId, TwoFactorCodes.Normalise(request.Code), ct) is not { } step)
             throw new ValidationException([new ValidationFailure(nameof(request.Code), TwoFactorCodes.WrongCode)]);
 
         if (switchingFromEmail)
@@ -61,8 +64,16 @@ public sealed class EnableTwoFactorHandler(
                 nameof(request.CurrentCode), allowRecoveryCode: true, ct);
 
         RecoveryCodesResult? codes = null;
+        var codeTaken = false;
         var result = await transactions.RunAsync(async () =>
         {
+            // Now the code is used, with the switch: each code once, so another request with it gets nowhere.
+            if (!await twoFactor.RecordAuthenticatorStepAsync(request.UserId, step, ct))
+            {
+                codeTaken = true;
+                return IdentityResult.Failed(new IdentityError { Description = TwoFactorCodes.WrongCode });
+            }
+
             codes = await twoFactor.EnableAsync(request.UserId, TwoFactorMethod.Authenticator, ct);
             if (!codes.Result.Succeeded)
                 return codes.Result;
@@ -72,6 +83,8 @@ public sealed class EnableTwoFactorHandler(
             return IdentityResult.Success;
         }, ct);
 
+        if (codeTaken)
+            throw new ValidationException([new ValidationFailure(nameof(request.Code), TwoFactorCodes.WrongCode)]);
         if (!result.Succeeded)
             throw new ConflictException(string.Join(" ", result.Errors.Select(e => e.Description)));
 

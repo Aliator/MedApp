@@ -106,20 +106,6 @@ public static class AccountSecurity
         return EmailedCodeTo(address);
     }
 
-    /// <summary>
-    /// Moves the signed-in account from codes by email to an authenticator app, proving the codes first with one emailed
-    /// to <paramref name="address"/>: the app's key and the new recovery codes.
-    /// </summary>
-    public static async Task<(string Key, IReadOnlyList<string> RecoveryCodes)> SwitchToAppAsync(HttpClient client, string password, string address)
-    {
-        var current = await ConfirmCodeAsync(client, password, address);
-        var setup = await (await client.PostAsync("/api/auth/me/two-factor/authenticator", null)).ReadAsAsync<AuthenticatorSetupResponse>();
-        var codes = await (await client.PostAsJsonAsync("/api/auth/me/two-factor/enable",
-                new TwoFactorCodeRequest(password, NextCode(setup.SharedKey), current)))
-            .ReadAsAsync<RecoveryCodesResponse>();
-        return (setup.SharedKey, codes.RecoveryCodes);
-    }
-
     /// <summary>Signs in to an account using codes by email, both steps, with the code emailed to <paramref name="address"/>.</summary>
     public static async Task<HttpClient> SignInWithEmailCodeAsync(string username, string password, string address)
     {

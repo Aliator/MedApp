@@ -5,7 +5,7 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
-import {useQuery} from '@tanstack/react-query';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useState} from 'react';
 import {
   featuresQuery,
@@ -33,8 +33,12 @@ import {CardSection} from '../../components/views/CardSection';
 export const EMAIL_UNAVAILABLE =
   "Email isn't available here: this server can't send email, so an address can't be added or confirmed.";
 
-/** The fields of the change form, whose 400 messages show on them. */
+/**
+ * The fields of the change form, whose 400 messages show on them. The code's field shows only while the account signs
+ * in with codes by email; otherwise its message goes in the banner.
+ */
 const CHANGE_FIELDS = ['email', 'password', 'code'];
+const CHANGE_FIELDS_WITHOUT_CODE = ['email', 'password'];
 
 /** Why changing the address asks for a code too, while it's where sign-in codes go. */
 export const CODE_FOR_CHANGE =
@@ -72,6 +76,7 @@ export function EmailPage() {
   const send = useSendTwoFactorEmailCode();
   const remove = useRemoveMyEmail();
   const announce = useAnnounce();
+  const queryClient = useQueryClient();
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -105,6 +110,12 @@ export function EmailPage() {
           const message = `We've sent a link to ${saved.pendingEmail ?? newEmail.trim()}. Open it to confirm the address.`;
           setNotice(message);
           announce(message);
+        },
+        // A 400 on the code: perhaps asked for without its field showing, as the two-factor status hadn't loaded or is
+        // out of date (codes by email turned on in another tab), so load it again, and the field appears if it's needed.
+        onError: (error) => {
+          if (error instanceof ApiValidationError && error.errors.fields.code)
+            void queryClient.invalidateQueries({queryKey: twoFactorStatusQuery.queryKey});
         },
       },
     );
@@ -140,7 +151,7 @@ export function EmailPage() {
     <AlertMessage message="Your email address could not be loaded. Please try again." />
   ) : change.isError ? (
     validation ? (
-      <ValidationAlert errors={validation} fields={CHANGE_FIELDS} />
+      <ValidationAlert errors={validation} fields={usesEmailCodes ? CHANGE_FIELDS : CHANGE_FIELDS_WITHOUT_CODE} />
     ) : (
       <AlertMessage message={refusalMessage(change.error, 'The link could not be sent. Please try again.')} />
     )

@@ -111,6 +111,49 @@ public sealed class TwoFactorServiceTests
     }
 
     [Test]
+    public async Task Match_CurrentCode_GivesItsStepWithoutRecordingIt()
+    {
+        var code = CodeAt(NowUtc);
+        var step = Totp.TimeStep(new DateTimeOffset(NowUtc));
+
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().Be(step);
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().Be(step);
+        _lastStep.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Match_AfterItsStepIsRecorded_IsAReplay()
+    {
+        var code = CodeAt(NowUtc);
+        var step = (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None))!.Value;
+
+        (await _service.RecordAuthenticatorStepAsync(UserId, step, CancellationToken.None)).Should().BeTrue();
+
+        _lastStep.Should().Be(step.ToString());
+        (await _service.MatchAuthenticatorCodeAsync(UserId, code, CancellationToken.None)).Should().BeNull();
+        (await _service.RecordAuthenticatorStepAsync(UserId, step, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Match_WrongCodeNoKeyOrNoUser_IsNull()
+    {
+        (await _service.MatchAuthenticatorCodeAsync(UserId, "000000", CancellationToken.None)).Should().BeNull();
+        (await _service.MatchAuthenticatorCodeAsync(Guid.NewGuid(), CodeAt(NowUtc), CancellationToken.None)).Should().BeNull();
+        (await _service.RecordAuthenticatorStepAsync(Guid.NewGuid(), 1, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Record_ConcurrentUseLosesTheSave_IsRefusedAndForgetsTheUser()
+    {
+        _userManager
+            .Setup(u => u.SetAuthenticationTokenAsync(_user, TwoFactorService.TokenProvider, TwoFactorService.LastTimeStepToken, It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
+
+        (await _service.RecordAuthenticatorStepAsync(UserId, Totp.TimeStep(new DateTimeOffset(NowUtc)), CancellationToken.None)).Should().BeFalse();
+        _lockouts.Verify(l => l.Forget(UserId), Times.Once);
+    }
+
+    [Test]
     public async Task GetState_SaysWhetherAdminAndHowManyCodesAreLeft()
     {
         _userManager.Setup(u => u.GetRolesAsync(_user)).ReturnsAsync(["admin"]);

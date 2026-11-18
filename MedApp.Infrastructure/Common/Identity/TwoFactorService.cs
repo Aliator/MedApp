@@ -77,15 +77,19 @@ public sealed class TwoFactorService(
         return key is null ? null : new AuthenticatorKey(user.UserName ?? string.Empty, key);
     }
 
-    public async Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct)
+    public async Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct) =>
+        await MatchAuthenticatorCodeAsync(userId, code, ct) is { } step
+        && await RecordAuthenticatorStepAsync(userId, step, ct);
+
+    public async Task<long?> MatchAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct)
     {
         var user = await FindAsync(userId);
         if (user is null)
-            return false;
+            return null;
 
         var key = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(key))
-            return false;
+            return null;
 
         byte[] keyBytes;
         try
@@ -94,15 +98,20 @@ public sealed class TwoFactorService(
         }
         catch (FormatException)
         {
-            return false;
+            return null;
         }
 
         if (Totp.Match(keyBytes, code, timeProvider.GetUtcNow()) is not { } step)
-            return false;
+            return null;
 
-        // Each code once: a step at or before the last one accepted is a replay.
-        var last = await userManager.GetAuthenticationTokenAsync(user, TokenProvider, LastTimeStepToken);
-        if (long.TryParse(last, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastStep) && step <= lastStep)
+        return await IsReplayAsync(user, step) ? null : step;
+    }
+
+    public async Task<bool> RecordAuthenticatorStepAsync(Guid userId, long step, CancellationToken ct)
+    {
+        // Read again: a code of this step or later may have been accepted since it matched.
+        var user = await FindAsync(userId);
+        if (user is null || await IsReplayAsync(user, step))
             return false;
 
         var saved = await userManager.SetAuthenticationTokenAsync(
@@ -110,6 +119,13 @@ public sealed class TwoFactorService(
         if (!saved.Succeeded)
             lockouts.Forget(userId);
         return saved.Succeeded;
+    }
+
+    /// <summary>Each code once: a step at or before the last one accepted is a replay.</summary>
+    private async Task<bool> IsReplayAsync(ApplicationUser user, long step)
+    {
+        var last = await userManager.GetAuthenticationTokenAsync(user, TokenProvider, LastTimeStepToken);
+        return long.TryParse(last, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastStep) && step <= lastStep;
     }
 
     public async Task<RecoveryCodeRedemption> RedeemRecoveryCodeAsync(Guid userId, string code, CancellationToken ct)

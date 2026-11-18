@@ -35,6 +35,19 @@ public interface ITwoFactorService
     /// </summary>
     Task<bool> VerifyAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct);
 
+    /// <summary>
+    /// The time step of <paramref name="code"/> if it's the account's current authenticator code and hasn't been
+    /// accepted before, without recording it: for a check that must pass something else before the code counts as used
+    /// (<see cref="RecordAuthenticatorStepAsync"/>). Null otherwise.
+    /// </summary>
+    Task<long?> MatchAuthenticatorCodeAsync(Guid userId, string code, CancellationToken ct);
+
+    /// <summary>
+    /// Records <paramref name="step"/> (from <see cref="MatchAuthenticatorCodeAsync"/>) as used, so its code can't be
+    /// used again. False if a code of that step or later was accepted meanwhile, or another request saved first.
+    /// </summary>
+    Task<bool> RecordAuthenticatorStepAsync(Guid userId, long step, CancellationToken ct);
+
     /// <summary>Uses up one of the account's recovery codes, if <paramref name="code"/> is one (ignoring case and spaces).</summary>
     Task<RecoveryCodeRedemption> RedeemRecoveryCodeAsync(Guid userId, string code, CancellationToken ct);
 
