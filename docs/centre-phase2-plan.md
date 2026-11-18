@@ -1,8 +1,8 @@
-# MedApp: referrals, specialties and waiting times
+# MedApp: roles, referrals, specialties and waiting times
 
-Status: **planned** · 2026-11-18 · Phase 2 of the community specialist centre (`docs/todo.md`, "Community specialist centre")
+Status: **planned** · 2026-11-18 · Phase 2 of the community specialist centre (`docs/todo.md`, "Community specialist centre") · **owner's answers, 18 November 2026:** open questions 2 to 8 accepted as recommended; question 1 answered with roles and permissions that admins manage, built in this phase (decisions 51 to 68)
 
-**In one paragraph:** a referral-led centre needs a front door. This phase adds **specialties** (admin-managed, each pathway template belongs to one, staff belong to several), **referrals** (a record of each request from a GP practice, with its letter, in an inbox), a **triage decision by a clinician** (accept into a pathway, reject, or redirect, with a reason), and a **waiting-time clock** on each referral (days waited, a target by specialty and priority, pauses with reasons, breaches shown). It also adds a filter for the stage a pathway has reached. **The clinician decides; the app records.** Nothing is scored, ranked by clinical content or suggested.
+**In one paragraph:** a referral-led centre needs a front door. This phase adds **roles and permissions** that admins manage (so each member of staff does only what their job needs), **specialties** (admin-managed, each pathway template belongs to one, staff belong to several), **referrals** (a record of each request from a GP practice, with its letter, in an inbox), a **triage decision by a clinician** (accept into a pathway, reject, or redirect, with a reason), and a **waiting-time clock** on each referral (days waited, a target by specialty and priority, pauses with reasons, breaches shown). It also adds a filter for the stage a pathway has reached. **The clinician decides; the app records.** Nothing is scored, ranked by clinical content or suggested.
 
 It's written in the names of the Pathway rename (`feature/pathways-rename`, `docs/glossary.md`): `PatientPathway`, `PathwayTemplate`, `PathwayChange`, `PathwayWorkflow`, `api/pathways`. Build it after that merges. Numbers for stored enums and `ActivityAction` and `NotificationKind` are the next free ones today; if another branch takes one first, use the next free one and correct this document.
 
@@ -17,9 +17,135 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
    - *Alternative:* read it through the template. No: moving a template would silently move every old pathway in reports.
 4. **Staff belong to any number of specialties** (`StaffSpecialty`), set by admins on the Users page. A GP with a special interest works in dermatology only; a pharmacist or nurse specialist may work across several.
    - *Alternative:* one specialty each. No: the demo clinic's own staff don't fit it.
-5. **Each membership says whether that person may triage for that specialty** (`CanTriage`). This is the only permission Phase 2 adds; Phase 4's roles replace or absorb it.
+5. **Membership is what ties triage to a specialty:** a referral is triaged by someone with the `TriageReferrals` permission who is a member of its specialty (decision 18). The inbox starts on your specialties.
 6. **Not yet:** calendars, day and week templates, meetings and clinics have no specialty. Phase 4's clinic sessions will. Specialty membership changes nothing about what staff can see.
 7. **Existing data:** the migration adds one specialty, **General** (fixed ID, seeded through `HasData`, like the default stage definition), and points every existing template and pathway at it. Admins rename it or move templates out of it.
+
+### Roles and permissions (decisions 51 to 68)
+
+The owner brought roles into this phase, managed by admins on a page of their own (18 November 2026). They're built before referrals, so triage can check a permission. These decisions are numbered from 51, so the ones above keep their numbers.
+
+51. **Permissions are fixed, in code. Roles are data.**
+    - **Permissions:** a named list (`Permission`, in `MedApp.Application/Common/Identity/Permissions.cs`). Each has a plain description and a group for the page (decision 68 has the list).
+    - **Roles:** admins create, rename and archive them, and choose each role's permissions. A person may hold several roles, and their permissions add up.
+    - **Policies check permissions, never role names:** `[Authorize(Policy = nameof(Permission.TriageReferrals))]`. A policy provider makes one policy per permission. Its requirement passes when any of the session's roles grants that permission.
+    - **Handlers that check something themselves** (the timeline's full view, deleting someone else's file, changing someone else's calendar) get the caller's permissions on their actor (`PathwayActor.Permissions`, `CalendarActor.Permissions`), in place of today's `IsAdmin`.
+    - *Alternative:* a fixed set of roles in code. No: the owner wants centres to shape roles to their own staff.
+    - *Alternative:* permissions that admins can define too. No: a permission is only real if code checks it, so only code can add one.
+52. **Roles stay Identity roles.** `ApplicationRole` extends `IdentityRole<Guid>` with `Description`, `IsArchived` and `IsBuiltIn`. A new table, `RolePermissions`, holds each role's permissions by name. Membership stays in `AspNetUserRoles`, so sessions, `RolesChanged` and the Users page keep working.
+    - **Names, not numbers:** permissions are stored by name, so the list can be reordered freely. Renaming one needs a migration that renames its rows.
+    - **Unknown names are ignored:** a stored name that code no longer knows grants nothing. A unit test checks that every name the seed and migrations write is known.
+53. **Permissions are read on every request,** with the roles, in the same query (`SessionService`). There's no cache. A change to a role, or to who holds it, applies on each person's next request, and the session cookie needs no change. One indexed join a request is cheap, and a cache would delay removing access.
+54. **Every role makes its holders staff.** A base permission, `UseApp`, belongs to every role automatically and isn't a tick. It covers:
+    - the person's own account, settings, notifications and notepad;
+    - their own calendar;
+    - reading other calendars and the setup lists.
+
+    "Has no staff role left" (deleting an account, `SetUserRoles`) then means holding no role at all.
+55. **Admin stays special:**
+    - `Admin` is the one built-in role (`IsBuiltIn`). It can't be renamed, edited, archived or deleted.
+    - Its permissions are fixed in code: every **administration** permission, and every other permission today's admins use. So admins can still do everything they do today.
+    - It doesn't have `TriageReferrals`, the clinical decision this phase is built around. An admin who triages holds a role that grants it too.
+56. **Administration permissions are for Admin only:**
+    - `ManageUsers`, `ManageRoles`, `ManageSecuritySettings`, `ViewAudit`, `ExportPatientRecords`, `ManagePrivacy`, `CorrectRecords`;
+    - the page shows them, read only, under "Administrator only";
+    - the server refuses them on any other role (400).
+
+    This stops a role editor making admins by another name. No reason was found to let another role have them. Reading the activity log, for an auditor, is the likeliest future exception; it would be a new, separate read permission, not `ViewAudit`.
+57. **Nobody locks everyone out:**
+    - **The last admin:** taking `Admin` from the last account that holds it (and isn't deleted or locked out) is a 409, and so is deleting that account.
+    - **Your own Admin:** you can't take `Admin` from your own account; another admin must. This guards against doing it by accident.
+    - **Recovery:** if every admin is locked out anyway, there's a `grant-admin <username>` command beside `create-first-admin`, run by whoever deploys. It's logged as a security event (open question 11).
+58. **A role editor can't give itself more than intended:**
+    - only holders of `ManageRoles` (Admin alone) edit roles;
+    - roles can't carry administration permissions (decision 56);
+    - every change is logged with who made it, and told to the other admins (decision 60);
+    - before saving, the editor shows what changes and how many people it affects (decision 62).
+
+    An admin giving themselves `TriageReferrals` through a role is allowed: it's recorded, and other admins are told.
+59. **Archived and deleted roles:**
+    - **Archiving** hides a role from the picker, so nobody new is given it. People who hold it keep its permissions, as archived templates keep applying. To take access away, remove the role from people or remove the permission.
+    - **Deleting:** a role nobody holds can be deleted (`RoleDeleted`). One that anyone holds can only be archived (409 on delete), like stage definitions.
+    - **Names** are unique (50 characters); descriptions are up to 200 characters.
+60. **Every change is logged and told:**
+    - **Logged:** creating a role is `RoleCreated` (22); deleting is `RoleDeleted` (23); changing a role's name, description, permissions, or archiving or restoring it, is a new `RoleChanged = 44`. Each records who did it, the role, and the permission names added and removed (never patient data). Giving people roles stays `RolesChanged`.
+    - **Told:** each change also goes through `ISecurityEventLog`, and `ISecurityNotices.SendToOtherAdminsAsync` emails the other admins, as two-factor changes do today.
+    - **Two admins saving at once:** each save carries the role's `ConcurrencyStamp` (`expectedVersion`). The later save is a 409.
+61. **Removing a permission mid-task** needs nothing more than the next request's 403. A grace period would defeat removing access urgently.
+    - The 403 carries `code: "permission_missing"` and the permission's description.
+    - The web app then reloads `whoami` and hides what the person can no longer do, but keeps an open dialog open, so typed text can be copied out.
+62. **The page: Roles and Permissions** (`/admin/roles`, under Administration after Users).
+    - **The list:** each role's name, description, how many people hold it, how many permissions it has, and whether it's archived (Admin first, marked built in).
+    - **A role's page:**
+      - its name and description;
+      - its permissions as ticks, grouped (Patients, Referrals, Pathways, Appointments and calendars, Files, Oversight, Setup), each with its description, and a search box that filters by name or description;
+      - the Administrator only group, shown read only;
+      - **People with this role**, linking to the Users page.
+    - **Saving** opens a confirmation listing the permissions added and removed and "This changes what 6 people can do".
+    - **Actions:** Archive, Restore and Delete, as decision 59 allows.
+    - **The Users page's role picker** lists roles that aren't archived, with their descriptions.
+    - **`whoami`** returns the caller's permissions, and the web app hides what they can't do (`useCan(permission)`), replacing its `isAdmin` checks. The server stays the authority.
+63. **The holds are unchanged.** The forced password change and the two-factor setup hold run before authorisation, and allow the same endpoints whatever roles someone holds. The setting that requires two-factor authentication applies to holders of `Admin`, as today.
+64. **The old roles, migrated:**
+    - **`Admin`** becomes the built-in role, with its fixed permissions.
+    - **`User`** stays, renamed **"All staff (before roles)"**, as an editable role with exactly today's staff permissions. Every account keeps the roles it has, so nobody loses access on deploy. Admins then move people onto the starting roles, and can archive it once nobody needs it.
+    - **The starting roles**, **Clinician**, **Nurse**, **Booking**, **Lab** and **Manager**, are added with the permissions in decision 68, and stay editable.
+    - **Any other role** an admin made through today's role endpoints stays, with no permissions, shown as such.
+    - **`FirstAdminSetup`** gives the first admin `Admin` alone, which now includes `UseApp`, so it can still change its own password.
+    - **`AppRoles.User`** and the `Staff` policy go.
+65. **The old role endpoints go:** `POST api/auth/roles`, `roles/assign`, `roles/revoke` and `DELETE roles/{roleName}`, replaced by `api/roles` (section 3). `GET` and `PUT api/auth/users/{username}/roles` stay, taking role IDs; an archived role can't be given (400).
+66. **Permissions are per action, not per stage.** A role with `WorkPathways` can work on any stage. Limiting stages to roles waits for Phase 3, which adds a lab permission for specimens (open question 9).
+67. **What people see doesn't change.** Every role reads every patient, as today; roles limit what people do. Narrowing what each role sees (by specialty, or hiding restricted patients) builds on this later.
+    - *Alternative:* reading limited by specialty now. No: every query and list would need a filter, and the booking team, the lab and the manager work across specialties anyway.
+68. **The permissions, and who has them at the start.** Columns:
+    - **A** = Admin (fixed)
+    - **S** = All staff (before roles)
+    - **C** = Clinician, **N** = Nurse, **B** = Booking, **L** = Lab, **M** = Manager (starting roles, editable)
+
+    Every endpoint under today's `AuthPolicies.Staff` maps to a row S has, and every `[Authorize(Roles = "Admin")]` to a row A has.
+
+| Permission | Group | What it allows | A | S | C | N | B | L | M |
+|---|---|---|---|---|---|---|---|---|---|
+| `UseApp` (every role) | — | Own account, email, two-factor, password, settings; notifications; notepad; own calendar, blocks and templates; reading calendars, meetings (and replying), activity types, closed days, the stage library and templates | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `ViewPatients` | Patients | Patients, their timeline, pathways, appointments, files (list and download) and referrals; FHIR reads | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `EditPatients` | Patients | Add and edit patients; the demographics lookup | ✓ | ✓ | ✓ | ✓ | ✓ | | |
+| `DeletePatients` | Patients | Delete a patient with nothing attached | ✓ | ✓ | | | ✓ | | |
+| `RegisterReferrals` | Referrals | Register, edit, withdraw, mark entered in error | ✓ | ✓ | ✓ | ✓ | ✓ | | |
+| `TriageReferrals` | Referrals | Accept, reject, redirect (also needs membership of the specialty) | | | ✓ | | | | |
+| `CreatePathways` | Pathways | Start a pathway without a referral | ✓ | ✓ | ✓ | ✓ | | | |
+| `WorkPathways` | Pathways | Stages, stage and pathway notes, details, hold, discharge, cancel; ask for a note's deletion; pause and resume the clock | ✓ | ✓ | ✓ | ✓ | | ✓ | |
+| `AssignPathways` | Pathways | Assign and unassign | ✓ | | | | | | ✓ |
+| `OverrideStages` | Pathways | Unlock a stage; finish a Required stage without its visit | ✓ | | ✓ | | | | |
+| `DeletePathways` | Pathways | Delete a cancelled or archived pathway | ✓ | | | | | | |
+| `BookAppointments` | Appointments and calendars | Request, book, move, cancel, record the outcome or after the event, notes, withdraw your own walk-in | ✓ | ✓ | ✓ | ✓ | ✓ | | |
+| `ManageAnyCalendar` | Appointments and calendars | Other people's blocks, day templates, default weeks and templates | ✓ | | | | ✓ | | |
+| `ArrangeMeetings` | Appointments and calendars | Meetings, the team view, suggested times | ✓ | | | | | | ✓ |
+| `AttachFiles` | Files | Upload, and delete your own | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| `ViewInsights` | Oversight | Insights | ✓ | | | | | | ✓ |
+| `ManageMonitoring` | Oversight | Your own monitoring rules | ✓ | | | | | | ✓ |
+| `ManageSetup` | Setup | Stage library, pathway templates, specialties and their targets, activity types, closed days | ✓ | | | | | | |
+| `ManageUsers` | Administrator only | Accounts, giving roles, specialty membership, password and two-factor resets, signing out everywhere, removing an email | ✓ | | | | | | |
+| `ManageRoles` | Administrator only | Roles and their permissions | ✓ | | | | | | |
+| `ManageSecuritySettings` | Administrator only | Security settings | ✓ | | | | | | |
+| `ViewAudit` | Administrator only | The pathway audit log, the activity log, the timeline's full view | ✓ | | | | | | |
+| `ExportPatientRecords` | Administrator only | A patient's export | ✓ | | | | | | |
+| `ManagePrivacy` | Administrator only | Restriction, dispute, anonymisation, retention review and keeping | ✓ | | | | | | |
+| `CorrectRecords` | Administrator only | Delete notes and decide deletion requests; delete anyone's file; withdraw anyone's walk-in | ✓ | | | | | | |
+
+**Rules that asked "is this an admin?" ask for a permission instead:**
+- **Assigning:** who can be assigned a pathway: holders of `WorkPathways`.
+- **Monitoring:** rules belong to holders of `ManageMonitoring`; an owner who loses it has their rules skipped, as an ex-admin's are today.
+- **Note deletion:** requests go to holders of `CorrectRecords`.
+
+**Tests:**
+- **Convention test:** it fails any controller action that has none of these: a permission policy, `[AllowAnonymous]`, or a plain `[Authorize]` from a short allowlist (the session, the notepad, email confirmation). It also fails any `Roles =`, `AuthPolicies.Staff` or `User.IsInRole` in the API.
+- **`AdminPermissionsTests`:** pins Admin's fixed set to the table.
+- **`PermissionCatalogueTests`:** every permission has a description and a group.
+- **Integration tests:**
+  - one allowed and one refused role for each permission;
+  - a permission removed from a role is refused on the next request;
+  - the last admin is protected;
+  - administration permissions are refused on an editable role.
 
 ### Referrals
 
@@ -37,15 +163,15 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
     - *Alternative:* a referral holding unmatched patient details until triage. No: a second, unchecked copy of identity details, and a matching step that's a wrong-patient hazard of its own.
 12. **Duplicates are shown, never merged.** Registering checks for open referrals (awaiting triage, or accepted with the pathway still open) for the same patient and specialty. If there are any, the server refuses with a 400 listing them unless `ConfirmPossibleDuplicate` is set, as `ConfirmOpenPathways` works; the form shows them (received when, by which practice, status) and asks. At triage, a duplicate is rejected with the reason `Duplicate`.
 13. **Details can be edited only while awaiting triage** (`expectedVersion`; 409 if it changed meanwhile), since the decision is made on them. The history records which fields changed, never the old text; the letter is the source of record. After triage, a wrong referral is dealt with through its pathway (cancel it).
-14. **Withdrawing** (the referrer or patient withdrew it) and **Entered in error** (registered on the wrong patient, or twice) are for awaiting triage only, by any staff member, each with a detail (500 characters, required). Both close the referral and stop its clock.
-15. **Who:** any staff member registers, edits, withdraws and reads referrals (as for pathways today). Only triagers triage (decision 18).
+14. **Withdrawing** (the referrer or patient withdrew it) and **Entered in error** (registered on the wrong patient, or twice) are for awaiting triage only, by holders of `RegisterReferrals`, each with a detail (500 characters, required). Both close the referral and stop its clock.
+15. **Who:** holders of `RegisterReferrals` register, edit and withdraw referrals; holders of `ViewPatients` read them. Only triagers triage (decision 18).
 16. **Every change is recorded in the referral's history** (`ReferralEvent`, its action a `ReferralEventAction`), like `AppointmentEvent`: no foreign keys, saved in the same `SaveChangesAsync` as the change, through one place (`ReferralChange`). Its details hold structured values only (statuses, enums, specialty IDs and names, dates, field names), **never free text**: the reason, decision details, pause details and the redirect destination live only on their rows.
 17. **Rows have a row version and a `Version` number.** Two triagers on one referral: the second gets a 409 naming who decided and how (`ReferralWorkflow.AlreadyTriagedMessage`). Every change carries `expectedVersion`, so a page loaded before someone else's change is told.
 
 ### Triage
 
-18. **Only a member of the referral's specialty with `CanTriage` may triage it** (403 otherwise), admins included: being an admin doesn't make someone a clinician. An admin can give anyone, themselves included, the permission, and that's in the activity log (decision 46).
-    - *Alternative:* any staff member, or admins. No: triage is a clinical decision, and Phase 2 has no other way to say who's a clinician.
+18. **Triage needs the `TriageReferrals` permission and membership of the referral's specialty** (403 otherwise, `ReferralWorkflow.WhyCantTriage`). The built-in Admin role doesn't have the permission (decision 55): being an admin doesn't make someone a clinician.
+    - *Alternative:* the permission alone. No: a dermatologist would then triage urology referrals.
 19. **Accept** takes a pathway template **of the referral's specialty**, a priority, and optionally a title, an assignee and a first note. It creates the pathway through the shared creation code (`PathwayCreation`) and sets the referral `Accepted` with its `PathwayId`, in one save, with the pathway's `Created` audit entry (its details gain `referralId`) and the referral's `Accepted` event. The pathway's target date comes from the clock (decision 32). The monitor and the assignment notification fire as for any new pathway.
     - **The priority isn't prefilled.** The form shows "The referrer asked for: Urgent" beside an empty choice, and the clinician picks one. *Alternative:* prefill the referrer's priority. No: it invites accepting without looking, and a prefilled value reads as the app's suggestion.
     - **Templates are listed by name**, never ranked or suggested. Using another specialty's template means redirecting first.
@@ -80,7 +206,7 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
     - While the clock runs or is paused, the Edit Pathway page shows the target date read-only ("from the waiting-time clock"), and `PATCH` refuses a `DueDate` (400, `WaitingClock.TargetFromClockMessage`).
     - Each move goes through `PathwayChange`, as a `DetailsUpdated` entry with `changes.dueDate` in today's format plus `"source":"clock"`, so Insights' history and the timeline's DueDates kind read it as they read a hand edit.
     - *Alternative:* a separate target column beside `DueDateUtc`. No: every overdue rule, list sort, Insights query and monitoring event would need changing twice.
-33. **Pauses are for patient-initiated delays only, after acceptance.** A pause (`ReferralClockPause`) has a reason (`ClockPauseReason`, stored by number: `PatientChoseToWait = 0`, `PatientUnavailable = 1`, `Other = 2`), a detail (500 characters, required for Other), a review date, and who paused and resumed it, when. It starts and ends **today** (no backdating). One open pause per referral (a filtered unique index). Any staff member pauses and resumes.
+33. **Pauses are for patient-initiated delays only, after acceptance.** A pause (`ReferralClockPause`) has a reason (`ClockPauseReason`, stored by number: `PatientChoseToWait = 0`, `PatientUnavailable = 1`, `Other = 2`), a detail (500 characters, required for Other), a review date, and who paused and resumed it, when. It starts and ends **today** (no backdating). One open pause per referral (a filtered unique index). Holders of `WorkPathways` pause and resume.
     - **On hold doesn't pause the clock.** "Waiting for histology" is the centre's own delay and counts. *Alternative:* pause on hold. No: it would hide the service's own waits from its figures.
     - **Before triage, the clock always runs.** The patient hasn't been offered anything yet.
 34. **To change a review date,** resume and pause again; each is recorded.
@@ -105,7 +231,7 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
 43. **Referrals are patient data,** special category, from a third party (the referrer). They follow [the privacy guide](agents/privacy.md) in full.
 44. **Restricted and anonymised records:** registering, editing, triaging, redirecting, resuming and attaching are refused (409, `PatientRules.EnsureCanChange`). **Withdrawing and pausing are allowed** while restricted, as blocking and cancelling a pathway are, so care can be stopped safely. Restricting a patient counts referrals awaiting triage with the open pathways and appointments (`ConfirmOpenPathways`). The register page's 409 says to give the letter to an admin, so it isn't lost (hazard H-40).
 45. **Anonymising is refused while a referral awaits triage.** It replaces the reason, the referrer's practice and clinician, the decision detail, the redirect destination and every pause's detail with placeholders, and clears the ODS code. Dates, statuses, enums and the specialty stay (pseudonymised, as today). Events hold no free text, so they stay.
-46. **The activity log:** opening a referral records `ReferralViewed = 43` against the patient (the referral's ID in its details), deduplicated like other views; the inbox and referral search record `PatientListed` for each patient shown. Admins changing someone's specialties records `StaffSpecialtiesChanged = 42` (the account as target, specialty IDs and `canTriage` in details). Referral changes go in the referral's history in the same save (decision 16), as pathway changes go in the pathway audit and appointment changes in their history; they aren't written twice. Every new GET is classified in `EndpointCoverageTests`.
+46. **The activity log:** opening a referral records `ReferralViewed = 43` against the patient (the referral's ID in its details), deduplicated like other views; the inbox and referral search record `PatientListed` for each patient shown. Admins changing someone's specialties records `StaffSpecialtiesChanged = 42` (the account as target, specialty IDs in details). Referral changes go in the referral's history in the same save (decision 16), as pathway changes go in the pathway audit and appointment changes in their history; they aren't written twice. Every new GET is classified in `EndpointCoverageTests`.
 47. **Free text** (the reason, decision and withdrawal details, pause details, the redirect destination) never reaches a staff timeline, a notification, an email or a log line. Admins see it on the timeline; staff see it on the referral page, as they see notes.
 48. **Patients with referrals can't be deleted** (409), as with pathways and appointments. Deleting a cancelled pathway clears its referral's `PathwayId` in the same save; the referral and its history stay.
 49. **Retention:** the referral history counts towards the conclusion of treatment (`RetentionSchedule`), so a patient with only a rejected referral has a clock from the rejection.
@@ -118,7 +244,8 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
 
 **New tables** (one `IEntityTypeConfiguration` each, in `Infrastructure/Data/Configurations/<Area>/`):
 - **`Specialties`:** `Id`, `Name` (nvarchar 100, unique index), `IsArchived`, `TargetDaysLow`, `TargetDaysMedium`, `TargetDaysHigh`, `TargetDaysUrgent` (int), `CreatedAt`, `LastUpdated`. Seeded: General.
-- **`StaffSpecialties`:** `UserId` (FK to `AspNetUsers`, cascade: goes with the account), `SpecialtyId` (FK, restrict), `CanTriage` (bit). Key (`UserId`, `SpecialtyId`).
+- **`StaffSpecialties`:** `UserId` (FK to `AspNetUsers`, cascade: goes with the account), `SpecialtyId` (FK, restrict). Key (`UserId`, `SpecialtyId`).
+- **`RolePermissions`:** `RoleId` (FK to `AspNetRoles`, cascade), `Permission` (varchar 64, the name). Key (`RoleId`, `Permission`).
 - **`Referrals`:**
   - `Id`, `PatientId` (FK, restrict), `SpecialtyId` (FK, restrict), `ReceivedOn` (date)
   - `ReferrerPractice` (nvarchar 200), `ReferrerClinician` (nvarchar 200, null), `ReferrerOdsCode` (varchar 10, null), `RequestedPriority` (int), `Reason` (nvarchar 2000)
@@ -132,13 +259,14 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
 - **`ReferralEvents`:** `Id`, `ReferralId`, `PatientId`, `PathwayId` (null), `Action` (int), `AtUtc`, `UserId` (null), `Username`, `Details` (JSON, structured values only). No foreign keys. Indexes (`ReferralId`, `AtUtc`) and (`PatientId`, `AtUtc`, `Id`) for the timeline.
 
 **New columns:**
+- `AspNetRoles`: `Description` (nvarchar 200), `IsArchived`, `IsBuiltIn` (bit), `CreatedAt`, `LastUpdated` (`ApplicationRole`). The migration marks `Admin` built in, renames `User` to "All staff (before roles)" with today's staff permissions (decision 64), and adds the five starting roles with fixed IDs and their permissions.
 - `PathwayTemplates.SpecialtyId` and `PatientPathways.SpecialtyId` (FK, restrict, required; General for existing rows).
 - `PathwayTemplateMaps.StopsClock` and `PatientPathwayStages.StopsClock` (bit, default 0).
 - `Attachments.ReferralId` (null, no FK, indexed). `Notifications.ReferralId` (null, no FK).
 
 **Stored enums, new** (never renumbered): `ReferralStatus` (decision 10), `ReferralRejectionReason` (20), `ClockPauseReason` (33), `ClockStopReason` (36), and `ReferralEventAction`: `Registered = 0`, `DetailsEdited = 1`, `SpecialtyChanged = 2`, `Accepted = 3`, `Rejected = 4`, `RedirectedElsewhere = 5`, `Withdrawn = 6`, `EnteredInError = 7`, `ClockPaused = 8`, `ClockResumed = 9`, `ClockStopped = 10`, `TargetChanged = 11`.
 
-**Stored enums, added to:** `ActivityAction` (`StaffSpecialtiesChanged = 42`, `ReferralViewed = 43`), `NotificationKind` (`ReferralTriaged = 23`).
+**Stored enums, added to:** `ActivityAction` (`StaffSpecialtiesChanged = 42`, `ReferralViewed = 43`, `RoleChanged = 44`), `NotificationKind` (`ReferralTriaged = 23`).
 
 **Where the rules live** (`MedApp.Application`):
 - `Specialties/`: commands, queries, `SpecialtyMapper`, `ISpecialtyRepository`; membership under `Authentication/Users/` (`SetUserSpecialties`), as roles are.
@@ -148,16 +276,19 @@ It's written in the names of the Pathway rename (`feature/pathways-rename`, `doc
 
 ## 3. The API
 
-All for staff (`AuthPolicies.Staff`) unless marked. Every change takes `expectedVersion`. Lists return `PagedResponse<T>`.
+Each endpoint names its permission (decision 68); triagers are holders of `TriageReferrals` in the referral's specialty. Every change takes `expectedVersion`. Lists return `PagedResponse<T>`.
 
 | Endpoint | What |
 |---|---|
-| `GET api/specialties` (`includeArchived`) | The list, with each one's targets and whether anyone can triage it |
-| `POST`, `PUT api/specialties/{id}`, `POST …/{id}/archive`, `…/restore`, `DELETE …/{id}` | **Admins.** Name and targets |
-| `GET`, `PUT api/auth/users/{username}/specialties` | **Admins.** `[{specialtyId, canTriage}]`. `GET api/auth/me/specialties` for your own |
+| `GET api/permissions` | **`ManageRoles`.** The catalogue: each permission's name, group, description, and whether it's for Admin only |
+| `GET api/roles`, `GET api/roles/{id}` | **`ManageRoles`** (the list also for `ManageUsers`). Each role with its permissions and how many people hold it; one role adds who holds it |
+| `POST api/roles`, `PUT api/roles/{id}`, `POST …/{id}/archive`, `…/restore`, `DELETE …/{id}` | **`ManageRoles`.** `{name, description, permissions[], expectedVersion}`. Admin's role refuses every change (409); an Admin-only permission is a 400 |
+| `GET api/specialties` (`includeArchived`) | The list, with each one's targets and whether any member can triage it |
+| `POST`, `PUT api/specialties/{id}`, `POST …/{id}/archive`, `…/restore`, `DELETE …/{id}` | **`ManageSetup`.** Name and targets |
+| `GET`, `PUT api/auth/users/{username}/specialties` | **`ManageUsers`.** `[specialtyId]`. `GET api/auth/me/specialties` for your own |
 | `POST api/referrals` | Register: `{patientId, specialtyId, receivedOn, referrerPractice, referrerClinician?, referrerOdsCode?, requestedPriority, reason, confirmPossibleDuplicate}`. 201 |
 | `GET api/referrals/search` | `status`, `specialtyIds`, `mine` (my specialties), `patientId`, `breachedOnly`, `paused`, `sort` (`daysWaited`, `receivedOn`, `targetOn`, `reviewOn`, `patient`) |
-| `GET api/referrals/{id}` | The referral, its clock, pauses, history (free text in it for admins only), `CanTriage`, `CanEdit`, `WhyCantTriage`, and the patient's flags for the banner |
+| `GET api/referrals/{id}` | The referral, its clock, pauses, history (free text in it for `ViewAudit` only), `CanTriage`, `CanEdit`, `WhyCantTriage`, and the patient's flags for the banner |
 | `PUT api/referrals/{id}` | Edit details (awaiting triage only) |
 | `POST api/referrals/{id}/accept` | **Triagers.** `{templateId, priority, title?, assigneeUserId?, notes?}`. 201, `Location` the pathway |
 | `POST api/referrals/{id}/reject` | **Triagers.** `{reason, detail?}` |
@@ -169,13 +300,13 @@ All for staff (`AuthPolicies.Staff`) unless marked. Every change takes `expected
 | `GET api/pathways/{id}` | Gains `referral` (ID, received, specialty) and its clock |
 | `GET api/pathways/insights` | Gains `specialtyId` |
 
-Errors as house style: `NotFoundException` (404), `ConflictException` (409: already triaged, changed meanwhile, restricted, closed, an open pause already), validation (400), 403 for triaging without `CanTriage`. After the DTOs change, `npm run gen:api`.
+Errors as house style: `NotFoundException` (404), `ConflictException` (409: already triaged, changed meanwhile, restricted, closed, an open pause already), validation (400), 403 without the permission (`code: "permission_missing"`) or the specialty. After the DTOs change, `npm run gen:api`.
 
 ## 4. The web app
 
 **Side nav:**
 - **Referrals** (`/referrals`), between My Worklist and Patients, with the count awaiting triage in your specialties (all, if you have none), like Requires Appointment's count.
-- **Specialties** (`/admin/specialties`), in Admin after Users.
+- **Roles and Permissions** (`/admin/roles`) and **Specialties** (`/admin/specialties`), in Admin after Users.
 
 **Pages** (Astryx, TanStack Query, filters and sort in the URL, a Vitest test each):
 - **Referrals** (`/referrals`): views **Awaiting triage** (the inbox), **Waiting list** (accepted, clock running), **Paused clocks** (by review date, past ones flagged) and **Closed**. Columns: patient, specialty, received, wait ("Day 84 of 126", Breached), requested priority, practice, letter (yes or no).
@@ -185,7 +316,9 @@ Errors as house style: `NotFoundException` (404), `ConflictException` (409: alre
 - **Pathway page:** a **Referral and wait** card: received, specialty, day N of target, Breached or Paused, **Pause clock** and **Resume clock**, past pauses.
 - **Pathways list:** the Wait column and sort, **Specialty** and **Stage reached** filters, Breached only.
 - **Pathway Templates:** a **Specialty** field, and the clock-stop stage choice.
-- **Users:** a **Specialties** action (a dialog: each specialty, member, can triage). Account Settings shows your own, read only.
+- **Users:** the role picker (roles that aren't archived, with descriptions) and a **Specialties** action (a dialog of ticks). Account Settings shows your own roles and specialties, read only.
+- **Roles and Permissions:** decision 62.
+- **Everywhere:** actions shown by permission (`useCan`), not `isAdmin`.
 - **Insights:** a **Specialty** choice.
 
 New screens go in `tools/ui-parity/screens.ts`, with the axe audit run on them.
@@ -209,8 +342,10 @@ New screens go in `tools/ui-parity/screens.ts`, with the axe audit run on them.
 ## 7. Demo data
 
 In `tools/MedApp.DevMcp/DemoData` (run by `tools/seed-demo-data.sh`), through the shared code the handlers call (`ReferralChange`, `WaitingClock`, `PathwayCreation`), never rows written around the rules:
-- **Specialties (PR 2):** Dermatology, Gynaecology, Urology, Diabetes and Biomechanics, with targets (dermatology urgent 14 days, routine 126; biomechanics routine 84, and so on). Each template in its specialty, the archived one too. Memberships: consultants, the GP with a special interest and the nurse specialists in theirs, triage for the consultants and the GP with a special interest; the pharmacist in several, without triage; the booking coordinator and lab in none.
-- **Referrals (PR 7):** every seeded pathway starts from a referral, registered by the booking coordinator, received a few days before (urgent ones sooner), triaged by a triager of its specialty. Around 10% rejected (reasons spread), a few redirected (one to another specialty here, one elsewhere), a few withdrawn, one entered in error. About 20 awaiting triage at "now", a few of them breached. Letters (the existing synthetic referral letters) attached to referrals, not patients.
+- **Specialties (PR 2):** Dermatology, Gynaecology, Urology, Diabetes and Biomechanics, with targets (dermatology urgent 14 days, routine 126; biomechanics routine 84, and so on). Each template in its specialty, the archived one too. Memberships: consultants, the GP with a special interest and the nurse specialists in theirs; the pharmacist in several; the booking coordinator and lab in none.
+- **Roles (PR 3):** each demo account gets the starting roles its job needs, never "All staff (before roles)": consultants, the GP with a special interest, the podiatrist and the pharmacist get Clinician; the nurse specialists and the healthcare assistant get Nurse; the booking coordinator gets Booking; the biomedical scientist gets Lab; the service manager gets Manager; the clinical lead gets Admin and Clinician. From PR 5, a custom role ("Visiting consultant": Clinician without `OverrideStages`) for the visiting consultants, and one archived role, made through the role commands, show the page. The second admin, the new starter, the locked-out account and the deleted leaver keep their stories. `reset_demo_data` puts the starting roles' permissions back as they were.
+- **`medapp-dev`:** `ensure_test_admin` gives `admin` Admin and Clinician, and membership of every specialty, so it can show triage; `create_user` and `set_roles` take any role's name; `list_roles` shows each role's permissions.
+- **Referrals (PR 10):** every seeded pathway starts from a referral, registered by the booking coordinator, received a few days before (urgent ones sooner), triaged by a Clinician of its specialty. Around 10% rejected (reasons spread), a few redirected (one to another specialty here, one elsewhere), a few withdrawn, one entered in error. About 20 awaiting triage at "now", a few of them breached. Letters (the existing synthetic referral letters) attached to referrals, not patients.
 - **Clocks:** clock-stop stages set on each template (the treatment or first clinic visit stage). About 10 paused clocks now, one with its review date passed (the H-42 control to show). Some breaches among open pathways and stopped ones.
 - **Stages:** "Referral received" and "Triage" leave the demo templates (decision 26).
 - **Saved searches:** "Waiting for histology" (stage reached: Histology (lab)) and "Longest waits" (`sort=daysWaited`).
@@ -228,50 +363,59 @@ In `tools/MedApp.DevMcp/DemoData` (run by `tools/seed-demo-data.sh`), through th
   - **Sorting by days waited, and the stage filter:** orders and filters by dates and labels staff set, not clinical values.
   - **Claims the manufacturer must not make** gains "MedApp triages referrals" and "MedApp tells you which patients are most urgent".
 - **`hazard-log.md`:** new drafts for the CSO:
-  - **H-40 A referral is lost or delayed before triage** (never registered, wrong specialty, unread inbox, nobody can triage the specialty, refused for a restricted patient). Controls: the inbox, longest wait first, with its count in the side nav; no way to close a referral without a named outcome; Specialties warns when nobody can triage; archiving refused with referrals waiting; the restricted 409 says to give it to an admin; DCB0160: a daily inbox check and a paper fallback.
+  - **H-40 A referral is lost or delayed before triage** (never registered, wrong specialty, unread inbox, nobody can triage the specialty, refused for a restricted patient). Controls: the inbox, longest wait first, with its count in the side nav; no way to close a referral without a named outcome; Specialties warns when no member holds `TriageReferrals`; archiving refused with referrals waiting; the restricted 409 says to give it to an admin; DCB0160: a daily inbox check and a paper fallback.
   - **H-41 A referral is triaged into the wrong pathway, priority or patient.** Controls: the banner on the referral page and every confirmation; the letter beside the decision; templates limited to the specialty; no prefilled priority; who and when recorded; correction by cancelling the pathway.
   - **H-42 A paused clock is forgotten.** Controls: a required review date at most 90 days ahead; the pathway's target date becomes the review date, so it shows Overdue; the Paused clocks view.
   - **H-43 A breach goes unnoticed, or the target is wrong** (wrong specialty targets, wrong priority). Controls: Breached on every list, sort by wait, the target's days shown with the specialty; DCB0160: the organisation reviews its waiting list and its targets. Not an alerting system (Phase 4).
   - **H-44 A duplicate referral leads to two pathways for one need.** Controls: the duplicate check and confirmation; the `Duplicate` rejection reason.
   - **H-01** (wrong patient) gains registering a referral on the wrong patient as a cause.
-- **`clinical-safety-case-report.md`** and **`dcb0160-deploying-organisations.md`:** the new hazards, and the deploying organisation's duties (set targets, give triage permission, check the inbox daily, keep a downtime process for referrals).
+- **`clinical-safety-case-report.md`** and **`dcb0160-deploying-organisations.md`:** the new hazards, and the deploying organisation's duties (set targets, give the triage permission to the right people, check the inbox daily, keep a downtime process for referrals).
 
 **Governance** (`docs/governance/`), each in the PR that adds the data:
-- **`data-inventory.md`** and **`dpia.md`:** referrals (special category, from the referrer: a new source), letters, pause reasons, referrer details (a GP's name: personal data of a third party), staff specialty memberships and triage permission. New DPIA risks: 27 (referral free text and letters reaching places they shouldn't), 28 (staff attribution of triage decisions).
-- **`ropa.md`**, **`privacy-notice-patients-template.md`** (data received from the referrer), **`privacy-notice-staff-template.md`** (specialties, triage permission, decisions recorded by name), **`data-subject-rights.md`** (the export covers referrals), **`retention-schedule.md`** (referrals kept with the record).
-- **Agent guides:** a new `docs/agents/referrals.md`; `privacy.md`, `timeline.md`, `notifications.md`, `attachments.md`, `insights.md` and `procedures.md` (pathways) updated; `AGENTS.md`'s project table and mapper list.
+- **`data-inventory.md`** and **`dpia.md`:** referrals (special category, from the referrer: a new source), letters, pause reasons, referrer details (a GP's name: personal data of a third party), staff specialty memberships, roles and permissions. New DPIA risks: 27 (referral free text and letters reaching places they shouldn't), 28 (staff attribution of triage decisions).
+- **`ropa.md`**, **`privacy-notice-patients-template.md`** (data received from the referrer), **`privacy-notice-staff-template.md`** (roles, specialties, decisions recorded by name), **`data-subject-rights.md`** (the export covers referrals), **`retention-schedule.md`** (referrals kept with the record).
+- **Security** (`docs/security/`), in the roles PRs: `threat-model.md` (elevation of privilege through role editing, the last admin, a page left open after a permission is removed) and `asvs.md` (V8 authorisation: least privilege, deny by default, checks on the server, administrative interfaces); also `docs/governance/security-policies.md` (access control), and `dpia.md` and `isms-risk-register.md` (the risk that any member of staff can change any record, now reduced).
+- **Agent guides:** a new `docs/agents/referrals.md`; `auth.md` (roles and permissions); `privacy.md`, `timeline.md`, `notifications.md`, `attachments.md`, `insights.md` and `procedures.md` (pathways) updated; `AGENTS.md`'s project table and mapper list.
 
 ## 9. Building it: the PRs in order
 
 Each is one implementation agent's work, with its migration (reviewed, `has-pending-model-changes` clean, tested up and down on LocalDB) and its tests. Each keeps the seed running.
 
 1. **Safety first (docs only).** The device decision's reassessment and hazards H-40 to H-44 as drafts (section 8). No code.
-2. **Specialties.** Migration `AddedSpecialties` (the table, General through `HasData`, `SpecialtyId` on templates and pathways, `StaffSpecialties`). Admin page, template field, pathway copy, Users dialog, `StaffSpecialtiesChanged`. Seed: specialties and memberships. Tests: handlers, validators, `SpecialtyMapper`, archiving rules, migration test (existing rows get General), Vitest for the pages.
-3. **Referrals.** Migration `AddedReferrals` (`Referrals` with the decision columns but not the clock's, `ReferralEvents`, `Attachments.ReferralId`). Register (with the duplicate check), edit, withdraw, entered in error, the letter, the Referrals page (inbox ordered by received date), the referral page, the patient's card. Privacy all in: restriction guard, `ReferralViewed` and `PatientListed`, `EndpointCoverageTests`, export, anonymisation, timeline feed and canary, retention. Governance documents for referral data.
-4. **Triage.** Migration `AddedReferralNotifications` (`Notifications.ReferralId`; the decision columns come with PR 3's table). Accept (pathway created in the same save), reject, redirect both ways, `CanTriage` checks, `ReferralTriaged`, the pathway page's referral link, the template choice and confirmations. An E2E journey: register a referral, accept it, find the pathway. Integration tests: two triagers at once (one 409), accept on a restricted patient (409).
-5. **The waiting-time clock.** Migration `AddedWaitingTimeClock` (the clock columns, targets on specialties, `ReferralClockPauses`, `StopsClock` on template maps and stages; existing referrals get their target from today's specialty table). `WaitingClock` with thorough tests (clock changes, same-day pauses, breaches before a pause), pause and resume, stop from `PathwayChange`, the pathway target date rule and the `PATCH` refusal, priority changes, the Wait column and sort, the Paused clocks view, the pathway card, the template editor's clock-stop choice. Insights' history reads `source: clock` entries (a test).
-6. **Filters.** Specialty and stage reached on the pathway list (and saved searches), specialty on the referral inbox and Insights. `ToQueryString` tests for the stage and days-waited expressions. No migration.
-7. **Demo data.** Referrals, triage outcomes, clocks, pauses and breaches, the stage changes, saved searches, the seed's tests and `docs/demo-data.md` (section 7).
+2. **Specialties.** Migration `AddedSpecialties` (the table, General through `HasData`, `SpecialtyId` on templates and pathways, `StaffSpecialties`). Admin page, template field, pathway copy, Users dialog, `StaffSpecialtiesChanged`. For now these sit behind today's Admin role; PR 3 moves them to `ManageSetup` and `ManageUsers`. Seed: specialties and memberships. Tests: handlers, validators, `SpecialtyMapper`, archiving rules, migration test (existing rows get General), Vitest for the pages.
+3. **Permissions and the policy layer.** Migration `AddedRolePermissions` (`ApplicationRole`'s columns, `RolePermissions`, Admin built in, User renamed with today's staff permissions, the five starting roles). The `Permission` catalogue, the policy provider, permissions read with the session, every endpoint and handler moved from `Staff`, `Roles = "Admin"` and `IsAdmin` to permissions, the last-admin rules, `whoami`'s permissions, `FirstAdminSetup`, the `grant-admin` command, and the convention test. It changes nothing for existing accounts: Admin and "All staff (before roles)" can do what they did. Seed and `medapp-dev`: the demo staff's roles. Security documents (decision 65). The largest PR, but mostly mechanical; split the endpoint move by controller over two agents if one can't finish it.
+4. **The web app follows permissions.** `useCan`, every `isAdmin` check replaced, the `permission_missing` 403 handling, and the Users page's role picker from `api/roles`. No migration.
+5. **The Roles and Permissions page.** `api/permissions` and `api/roles` (create, edit, archive, restore, delete, `RoleChanged`, notices to other admins), the page (decision 62), the old role endpoints removed. Integration tests for the last-admin and Admin-only rules. UI parity screens and the axe audit for the page.
+6. **Referrals.** Migration `AddedReferrals` (`Referrals` with the decision columns but not the clock's, `ReferralEvents`, `Attachments.ReferralId`). Register (with the duplicate check), edit, withdraw, entered in error, the letter, the Referrals page (inbox ordered by received date), the referral page, the patient's card. Privacy all in: restriction guard, `ReferralViewed` and `PatientListed`, `EndpointCoverageTests`, export, anonymisation, timeline feed and canary, retention. Governance documents for referral data.
+7. **Triage.** Migration `AddedReferralNotifications` (`Notifications.ReferralId`). Accept (pathway created in the same save), reject, redirect both ways, the `TriageReferrals` and specialty checks, `ReferralTriaged`, the pathway page's referral link, the template choice and confirmations. An E2E journey: register a referral, accept it as a Clinician, find the pathway. Integration tests: two triagers at once (one 409), the permission without the specialty (403), accept on a restricted patient (409).
+8. **The waiting-time clock.** Migration `AddedWaitingTimeClock` (the clock columns, targets on specialties, `ReferralClockPauses`, `StopsClock` on template maps and stages; existing referrals get their target from today's specialty table). `WaitingClock` with thorough tests (clock changes, same-day pauses, breaches before a pause), pause and resume, stop from `PathwayChange`, the pathway target date rule and the `PATCH` refusal, priority changes, the Wait column and sort, the Paused clocks view, the pathway card, the template editor's clock-stop choice. Insights' history reads `source: clock` entries (a test).
+9. **Filters.** Specialty and stage reached on the pathway list (and saved searches), specialty on the referral inbox and Insights. `ToQueryString` tests for the stage and days-waited expressions. No migration.
+10. **Demo data.** Referrals, triage outcomes, clocks, pauses and breaches, the stage changes, saved searches, the seed's tests and `docs/demo-data.md` (section 7).
 
-## 10. Open questions for the owner
+## 10. Questions for the owner
 
-Each has a recommendation; the plan assumes it until told otherwise.
+**Decided on 18 November 2026** (the plan follows these):
+1. **Who may triage:** holders of the `TriageReferrals` permission (the starting Clinician role) who are members of the referral's specialty. Roles and permissions are managed by admins on their own page and built in this phase (decisions 51 to 68). *(The owner chose this over the recommended "can triage" tick.)*
+2. **Targets** per specialty and priority, defaulting to 14, 28, 126 and 126 days for Urgent, High, Normal and Low. No separate "suspected cancer" priority.
+3. **The clock stops** when the template's marked stage is finished, otherwise at discharge or cancellation.
+4. **Pauses** are only for patient-initiated reasons, only after acceptance, with a review date at most 90 days ahead. On hold doesn't pause.
+5. **Pathways without a referral** are still allowed, with a target set by hand and no clock. No referrals are backfilled.
+6. **Notifications:** none for a new referral (the inbox count instead); whoever registered it is told of every outcome.
+7. **"Ask the referrer for more information"** comes later, with Phase 3's letters. Until then, reject with Insufficient information.
+8. **Restricted patients:** new referrals for them are refused, and the message tells staff to pass the letter to an admin.
 
-1. **Who may triage?** *Recommended:* members of the specialty with a "can triage" tick, set by admins (decision 18), until Phase 4's roles. Not admins by default.
-2. **Targets:** per specialty and priority, defaults 14, 28, 126 and 126 days for Urgent, High, Normal and Low? *Recommended:* yes. And no separate "suspected cancer" priority: Urgent covers it.
-3. **When does the clock stop?** *Recommended:* when the template's marked stage is finished (usually treatment, or the first visit for an assess-only pathway), otherwise at discharge or cancellation (decision 36).
-4. **Pauses:** only for patient-initiated reasons, only after acceptance, with a review date at most 90 days ahead; On hold doesn't pause. *Recommended:* yes.
-5. **Pathways without a referral** (follow-ups, existing ones): still allowed, for any staff member, with a hand-set target and no clock? *Recommended:* yes, and no backfilled referrals.
-6. **Notifications:** none for a new referral (the inbox count instead), and the registrant told of every outcome? *Recommended:* yes.
-7. **"Ask the referrer for more information"** as a triage outcome that keeps the referral open? *Recommended:* later, with Phase 3's letters; reject with Insufficient information until then.
-8. **Restricted patients:** refuse new referrals for them (an admin handles it)? *Recommended:* yes, with the message telling staff to pass the letter to an admin.
+**Still open** (each has a recommendation; the plan assumes it until told otherwise):
+
+9. **Should permissions go down to the stage**, so the lab works only lab stages? *Recommended:* not in Phase 2. Permissions are per action (decision 66). Phase 3 adds a lab permission with specimens, and can limit stages to it then.
+10. **When should Admin lose its everyday clinical and booking permissions, and "All staff (before roles)" be archived?** That would leave Admin with administration only, and staff working through the starting roles. *Recommended:* once every account has been moved onto the starting roles, as its own small change before a real team uses MedApp. Not on this phase's deploy, so nobody loses access.
+11. **Recovery when every admin is locked out:** a `grant-admin <username>` command beside `create-first-admin`, run by whoever deploys and logged as a security event? *Recommended:* yes. It needs the same access as the first admin's secret, so it adds no new way in. Without it, recovery means editing the database by hand.
 
 ## 11. Left out, for later
 
 - Receiving referrals electronically (the NHS e-Referral Service): Phase 5, after NHS onboarding.
 - Letters to the referrer about the outcome: Phase 3.
 - Monitoring rules and notifications for waiting referrals, breaches and pause reviews: Phase 4 (needs a scheduled job).
-- Roles beyond the triage tick, and hiding work by specialty: Phase 4.
+- Narrowing what each role sees (by specialty, hiding restricted patients) and an auditor's read-only permission: later, on top of this phase's permissions.
 - Specialties on clinics, calendars and rooms: Phase 4.
 - Waiting-time reports by specialty and month, with CSV: Phase 5.
 - A FHIR `ServiceRequest` for referrals: when the API needs more resources.
