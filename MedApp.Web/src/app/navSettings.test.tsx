@@ -38,12 +38,27 @@ describe('navSettings', () => {
     expect(localStorage.getItem('medapp.startPage')).toBe('tasks');
   });
 
+  it('folds the nav in a half view unless turned off, and remembers the choice', () => {
+    renderSettings();
+    expect(api.foldsInHalfView).toBe(true);
+
+    act(() => api.setFoldsInHalfView(false));
+    expect(api.foldsInHalfView).toBe(false);
+    expect(localStorage.getItem('medapp.navFoldsInHalfView')).toBe('false');
+
+    act(() => api.setFoldsInHalfView(true));
+    expect(api.foldsInHalfView).toBe(true);
+    expect(localStorage.getItem('medapp.navFoldsInHalfView')).toBe('true');
+  });
+
   it('takes stored values it does not know as the defaults', () => {
     localStorage.setItem('medapp.navFlyoutDelay', 'forever');
     localStorage.setItem('medapp.startPage', 'nowhere');
+    localStorage.setItem('medapp.navFoldsInHalfView', 'maybe');
     renderSettings();
 
     expect(screen.getByRole('status')).toHaveTextContent('standard 500 home /');
+    expect(api.foldsInHalfView).toBe(true);
   });
 
   it('has the defaults outside its provider (a part tested on its own), and changes nothing there', () => {

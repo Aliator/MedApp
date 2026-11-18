@@ -54,6 +54,7 @@ export const TOUR: TourStep[] = [
       'Close it again.',
       'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
       'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
+      'With two pages open the side nav folds to its icons. Open it from the side with the expand button (Expand sidebar) at the bottom of the icon rail. To stop it folding, turn off Fold the side nav in half view in Account Settings.',
     ],
     isNumbered: true,
     staysOnReadMe: true,

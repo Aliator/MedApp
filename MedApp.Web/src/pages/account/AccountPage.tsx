@@ -47,7 +47,7 @@ export function AccountPage() {
   const me = useCurrentUser();
   const {mode, setMode} = useColorMode();
   const {textSize, setTextSize} = useTextSize();
-  const {flyoutDelay, setFlyoutDelay, startPage, setStartPage} = useNavSettings();
+  const {flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView} = useNavSettings();
   const {pageSize, setPageSize, startsOnMine, setStartsOnMine} = useListSettings();
   const accessibility = useAccessibility();
   // Rows per page, as typed: it takes effect on Apply, or Enter. (Enter commits the typed number and applies it in
@@ -127,6 +127,12 @@ export function AccountPage() {
                   <RadioListItem key={page.value} value={page.value} label={page.label} />
                 ))}
               </RadioList>
+              <Switch
+                label="Fold the side nav in half view"
+                description="Opening a half view folds the side nav to its icons. Turn off to keep it open beside the two halves."
+                value={foldsInHalfView}
+                onChange={setFoldsInHalfView}
+              />
             </VStack>
           </CardSection>
         </ViewCard>
