@@ -229,6 +229,29 @@ describe('describeTimelineEntry', () => {
     expect(describeTimelineEntry(entry({action: 'StageFinished', finishedWithoutVisit: true})).detail).toBe('');
   });
 
+  it('words a skipped stage: the reason to everyone, its detail only to admins', () => {
+    expect(describeTimelineEntry(entry({action: 'StageSkipped', stageName: 'Scan', skipReason: 'PatientDeclined'}))).toEqual({title: 'Skipped Scan', detail: 'Patient declined'});
+    expect(describeTimelineEntry(entry({action: 'StageSkipped', stageName: 'Scan', skipReason: 'Other', reason: 'Seen at another hospital'}))).toEqual({
+      title: 'Skipped Scan',
+      detail: 'Other. Seen at another hospital',
+    });
+  });
+
+  it('words a branch chosen, with the stages it skipped, and a stage reinstated, with why only for admins', () => {
+    expect(
+      describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: 'Treatment', skippedStageNames: ['Discharge letter', 'Follow-up']})),
+    ).toEqual({title: 'Chose the Treatment branch at Biopsy', detail: 'Skipped: Discharge letter, Follow-up'});
+    expect(describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: null, skippedStageNames: []}))).toEqual({
+      title: 'Chose a branch at Biopsy',
+      detail: '',
+    });
+    expect(describeTimelineEntry(entry({action: 'StageReinstated', stageName: 'Follow-up', skipReason: 'BranchNotChosen', reason: 'Wrong branch'}))).toEqual({
+      title: 'Reinstated Follow-up',
+      detail: 'Had been skipped: Another branch was chosen. Wrong branch',
+    });
+    expect(describeTimelineEntry(entry({action: 'StageReinstated', stageName: 'Follow-up'}))).toEqual({title: 'Reinstated Follow-up', detail: ''});
+  });
+
   describe('appointments', () => {
     const appointment = (fields: Partial<TimelineEntry>) =>
       entry({

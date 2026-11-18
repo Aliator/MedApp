@@ -319,6 +319,9 @@ describe('PatientTimeline', () => {
         json({
           items: [
             entry({action: 'StageUnlocked'}),
+            entry({action: 'StageSkipped', skipReason: 'PatientDeclined'}),
+            entry({action: 'BranchChosen', branch: 'Treatment', skippedStageNames: ['Follow-up']}),
+            entry({action: 'StageReinstated', skipReason: 'NotNeeded'}),
             entry({action: 'Unassigned', kind: 'Assignments', assigneeUsername: 'other.staff'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'InProgress', toStatus: 'Blocked'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'Blocked', toStatus: 'InProgress'}),
@@ -336,6 +339,12 @@ describe('PatientTimeline', () => {
 
     for (const text of [
       'Unlocked Consultation',
+      'Skipped Consultation',
+      'Patient declined',
+      'Chose the Treatment branch at Consultation',
+      'Skipped: Follow-up',
+      'Reinstated Consultation',
+      'Had been skipped: Not needed',
       'Unassigned other.staff',
       'Put on hold',
       'Taken off hold',

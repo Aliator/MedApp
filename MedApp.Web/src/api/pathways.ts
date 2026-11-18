@@ -84,8 +84,21 @@ function cachePathway(queryClient: QueryClient, id: string, pathway: Pathway) {
   queryClient.setQueryData(pathwayQuery(id).queryKey, (cached) => ({...pathway, referral: pathway.referral ?? cached?.referral}));
 }
 
-/** Finishing a stage that involves a visit without an attended one: `withoutVisit`, and an admin's reason. */
+/**
+ * Finishing a stage: one that involves a visit without an attended one (`withoutVisit`, and an admin's reason), and a
+ * branch point's `branch`, chosen by the clinician.
+ */
 export type FinishStageRequest = Schemas['FinishPathwayStageRequest'];
+
+/** One branch after a branch point: its name and its stages' names, in the template's order. */
+export type PathwayBranch = Schemas['PatientPathwayBranchResponse'];
+
+/** Why an optional stage is skipped: one of the reasons by name (`STAGE_SKIP_REASONS`), and its detail, if any. */
+export interface StageSkipInput {
+  reason: string;
+  /** Sent as none when empty; required for Other. */
+  detail?: string | null;
+}
 
 /**
  * Everything staff (and admins) can do to a pathway from its page. Each action returns the updated pathway,
@@ -115,7 +128,8 @@ export function usePathwayActions(id: string) {
     }),
     /**
      * Finishes a stage: by its ID, or with `withoutVisit` (and an admin's `reason`) to finish one that involves a visit
-     * without an attended one (docs/calendar-plan.md, decisions 24 and 25).
+     * without an attended one (docs/calendar-plan.md, decisions 24 and 25), and with the `branch` the clinician chose
+     * when it's a branch point finished for the first time (the other branches' stages are skipped).
      */
     finishStage: useMutation({
       mutationFn: (finish: string | ({stageId: string} & FinishStageRequest)) => {
@@ -128,6 +142,20 @@ export function usePathwayActions(id: string) {
     }),
     unlockStage: useMutation({
       mutationFn: (stageId: string) => unwrap(api.POST(`${PATHWAY}/stages/{stageId}/unlock`, stage(stageId))),
+      onSuccess,
+    }),
+    /** Skips an optional stage while it's current, with a reason (and a detail, required for Other). */
+    skipStage: useMutation({
+      mutationFn: ({stageId, reason, detail}: {stageId: string} & StageSkipInput) =>
+        unwrap(
+          api.POST(`${PATHWAY}/stages/{stageId}/skip`, {...stage(stageId), body: {reason, detail: detail?.trim() ? detail.trim() : null}}),
+        ),
+      onSuccess,
+    }),
+    /** Reinstates a skipped stage (holders of OverrideStages), with a reason: it runs again in its place. */
+    reinstateStage: useMutation({
+      mutationFn: ({stageId, reason}: {stageId: string; reason: string}) =>
+        unwrap(api.POST(`${PATHWAY}/stages/{stageId}/reinstate`, {...stage(stageId), body: {reason: reason.trim()}})),
       onSuccess,
     }),
     changeStatus: useMutation({

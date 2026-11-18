@@ -80,6 +80,8 @@ import {
   RiPaletteLine,
   RiPlayCircleLine,
   RiPlayLine,
+  RiSkipForwardLine,
+  RiGitBranchLine,
   RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
@@ -289,4 +291,7 @@ export const AppIcon = {
   // Scheduled jobs (admin): work the API runs by itself on a schedule, and running one now
   ScheduledJobs: remix(RiTimerLine),
   RunNow: remix(RiPlayLine),
+  // Pathways that branch: skipping an optional stage, and a branch point (where the clinician chooses a branch)
+  Skip: remix(RiSkipForwardLine),
+  Branch: remix(RiGitBranchLine),
 } as const satisfies Record<string, IconType>;

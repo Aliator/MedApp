@@ -197,6 +197,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
       renderCell: (p) => (
         <StageProgressCell
           completed={p.completedStageCount ?? 0}
+          skipped={p.skippedStageCount ?? 0}
           total={p.stageCount ?? 0}
           currentStageName={p.currentStageName}
         />

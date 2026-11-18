@@ -91,6 +91,12 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'StageUnlocked':
       return AppIcon.Unlock;
+    case 'StageSkipped':
+      return AppIcon.Skip;
+    case 'BranchChosen':
+      return AppIcon.Branch;
+    case 'StageReinstated':
+      return AppIcon.Restore;
     case 'Unassigned':
       return AppIcon.Revoke;
     case 'AttachmentDeleted':
