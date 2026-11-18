@@ -24,7 +24,7 @@ permissions:
 concurrency:
   # One run at a time for each pull request, and one for main: a newer push (or label change) cancels the run before it.
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   # What this run does: the tier, and from it which jobs run (.github/scripts/ci-plan.sh has the rules, in one place,
   # and ci-plan.test.sh their cases). A job that isn't needed is skipped by its `if`, and GitHub counts a job skipped
