@@ -122,6 +122,24 @@ describe('Attachments', () => {
     expect(download).toHaveAttribute('download');
   });
 
+  it("says a referral's letter in a patient's list is attached to the referral, linking to it", async () => {
+    const referralId = '00000036-0000-0000-0000-00000000000a';
+    mockList([attachment({fileName: 'letter.pdf', attachedTo: 'Referral', referralId})]);
+    render();
+
+    expect(await screen.findByText('letter.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'a referral'})).toHaveAttribute('href', `/referrals/${referralId}`);
+  });
+
+  it("lists a referral's own files, saying what it has none of", async () => {
+    const referralId = '00000036-0000-0000-0000-00000000000a';
+    const fetch = mockList([]);
+    renderWithApp(<Attachments target={{referralId}} canChange emptyText="No letter attached yet." />, {user: staffUser});
+
+    expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
+    expect(calls(fetch)).toEqual([`GET ${LIST}?ReferralId=${referralId}`]);
+  });
+
   it("doesn't say what a pathway's or a stage's own files are attached to", async () => {
     mockList([attachment({attachedTo: 'Pathway', pathwayId, pathwayTitle: 'Knee assessment'})]);
     render({pathwayId});

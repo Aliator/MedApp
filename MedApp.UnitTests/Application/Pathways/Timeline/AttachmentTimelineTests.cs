@@ -132,6 +132,7 @@ public sealed class AttachmentTimelineTests
             .ReturnsAsync([new PatientTimelineRow(PatientFileAdded, null), new PatientTimelineRow(deletedPathways, null)]);
         fixture.Inject(patients.Object);
         fixture.Inject(audit.Object);
+        fixture.Inject(EmptyReferrals.Repository());
 
         var page = await fixture.Create<GetPatientTimelineHandler>().Handle(CreateTimelineQuery(), CancellationToken.None);
 

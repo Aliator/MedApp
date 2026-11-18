@@ -26,6 +26,7 @@ import {PatientBanner} from '../../components/patients/PatientBanner';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
 import {PatientTimeline} from '../../components/pathways/PatientTimeline';
+import {PatientReferrals} from '../../components/referrals/PatientReferrals';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
@@ -38,7 +39,7 @@ import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
- * A patient's details (replaces Blazor's ViewPatient) and files, beside their timeline: everything that happened to
+ * A patient's details (replaces Blazor's ViewPatient), referrals and files, beside their timeline: everything that happened to
  * their pathways, with what's due. Like the pathway page, the two cards fill the page and each scrolls on its
  * own; a narrow window or a half view has one card of three folding sections instead (see PatientView). An unknown
  * patient goes back to the list, as in Blazor.
@@ -66,7 +67,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   // Held here, so they carry over when the window switches between one card and two.
   const [filters, setFilters] = useState<TimelineFilters>(NO_TIMELINE_FILTERS);
-  const [open, setOpen] = useState({details: true, files: true, timeline: true});
+  const [open, setOpen] = useState({details: true, referrals: true, files: true, timeline: true});
   // Files on their way, held here so they carry on when the window switches between one card and two.
   const attachments = useAttachmentsState();
   const [isBooking, setIsBooking] = useState(false);
@@ -83,6 +84,8 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   const isLocked = patient !== undefined && whyCantChange(patient) !== null;
   const files = <Attachments target={{patientId: id}} canChange={!isLocked} isLocked={isLocked} state={attachments} />;
   const details = patient && <PatientDetails patient={patient} />;
+  // Their referrals, open ones first, and Register Referral (not while the record can't change).
+  const referrals = <PatientReferrals patientId={id} canRegister={!isLocked} />;
   // For admins, who has accessed the record: under the details (and, in the wide layout, the files).
   const accessReport = me.isAdmin && <PatientAccessReport patientId={id} />;
 
@@ -129,6 +132,17 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
                 ),
               },
               {
+                key: 'referrals',
+                title: 'Referrals',
+                isOpen: open.referrals,
+                onToggle: () => toggle('referrals'),
+                children: (
+                  <Section variant="transparent" padding={6}>
+                    {referrals}
+                  </Section>
+                ),
+              },
+              {
                 key: 'files',
                 title: 'Files',
                 isOpen: open.files,
@@ -148,6 +162,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
             start={
               <ViewCard fill footerActions={actions}>
                 {details}
+                <CardSection title="Referrals">{referrals}</CardSection>
                 <CardSection title="Files">{files}</CardSection>
                 {accessReport}
               </ViewCard>

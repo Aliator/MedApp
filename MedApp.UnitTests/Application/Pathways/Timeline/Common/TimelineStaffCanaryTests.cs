@@ -11,6 +11,9 @@ using Action = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
 using Status = MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Application.Referrals.Common;
+using MedApp.Domain.Referrals;
+using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Pathways.Timeline.Common;
 
@@ -59,7 +62,7 @@ public sealed class TimelineStaffCanaryTests
             [
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
-                Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
+                Action.AttachmentAdded, Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted,
             ]);
         foreach (var row in withText)
             Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
@@ -177,8 +180,13 @@ public sealed class TimelineStaffCanaryTests
         var onPatient = new AttachmentTarget(pathway.PatientId, null, null);
         var onPathway = new AttachmentTarget(pathway.PatientId, pathway, null);
         var onStage = new AttachmentTarget(pathway.PatientId, pathway, pathway.StageAt(1));
+        // A referral's letter.
+        var referral = ReferralsTestConstants.CreateReferral();
+        var letter = new Attachment { Id = Guid.NewGuid(), PatientId = pathway.PatientId, ReferralId = referral.Id, FileName = Canary, ContentType = "application/pdf" };
+        var onReferral = new AttachmentTarget(pathway.PatientId, null, null) { Referral = referral };
         var files = new[]
         {
+            AttachmentAudit.Entry(letter, onReferral, Staff, Action.AttachmentAdded, Now),
             AttachmentAudit.Entry(patientFile, onPatient, Staff, Action.AttachmentAdded, Now),
             AttachmentAudit.Entry(pathwayFile, onPathway, Staff, Action.AttachmentAdded, Now),
             AttachmentAudit.Entry(stageFile, onStage, Staff, Action.AttachmentAdded, Now),
@@ -224,6 +232,82 @@ public sealed class TimelineStaffCanaryTests
     {
         AppointmentEventsHoldingTheCanary().Select(e => e.Action).Distinct()
             .Should().BeEquivalentTo(Enum.GetValues<AppointmentEventAction>());
+    }
+
+    [Test]
+    public void ToResponse_StaffReferralEntries_NeverCarryFreeText()
+    {
+        foreach (var row in ReferralRowsHoldingTheCanary())
+            Serialised(row, isAdmin: false).Should().NotContain(Canary, row.Event.Action.ToString());
+    }
+
+    [Test]
+    public void ReferralEvents_NeverHoldFreeText()
+    {
+        // DPIA risk 27: the reason, the referrer and the details given live only on the referral.
+        ReferralRowsHoldingTheCanary().Should().AllSatisfy(r => r.Event.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_AdminReferralEntries_CarryTheReferralsFreeText()
+    {
+        // Registered (its reason), Withdrawn and EnteredInError (the detail given), each with the referring practice.
+        foreach (var row in ReferralRowsHoldingTheCanary())
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Event.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_ReferralEdit_GivesStructuredValuesAndOnlyTheNamesOfFreeTextFields()
+    {
+        var edited = ReferralRowsHoldingTheCanary().Single(r => r.Event.Action == ReferralEventAction.DetailsEdited);
+
+        var response = TimelineMapper.ToResponse(edited, isAdmin: false);
+
+        response.Kind.Should().Be(nameof(PatientTimelineKind.Referrals));
+        response.Action.Should().Be("ReferralDetailsEdited");
+        response.ReferralId.Should().Be(edited.Event.ReferralId);
+        response.PathwayId.Should().BeNull();
+        response.Changes.Single(c => c.Field == "requestedPriority").Should().BeEquivalentTo(new { From = "High", To = "Urgent" });
+        response.Changes.Single(c => c.Field == "reason").Should().BeEquivalentTo(new { From = (string?)null, To = (string?)null });
+    }
+
+    [Test]
+    public void ReferralRowsHoldingTheCanary_CoverEveryActionWrittenSoFar()
+    {
+        // Triage and the waiting-time clock add the rest; add them here when they're written.
+        ReferralRowsHoldingTheCanary().Select(r => r.Event.Action).Should().BeEquivalentTo(
+            [ReferralEventAction.Registered, ReferralEventAction.DetailsEdited, ReferralEventAction.Withdrawn, ReferralEventAction.EnteredInError]);
+    }
+
+    private static string Serialised(ReferralTimelineRow row, bool isAdmin) =>
+        JsonSerializer.Serialize(TimelineMapper.ToResponse(row, isAdmin), Json);
+
+    /// <summary>
+    /// Every referral action written so far, through <see cref="ReferralChange"/> as the handlers write it, with the
+    /// canary as all the referral's free text (its reason, referrer and the detail given), and each row carrying that
+    /// text as the timeline's search gives it to admins.
+    /// </summary>
+    private static List<ReferralTimelineRow> ReferralRowsHoldingTheCanary()
+    {
+        var referral = ReferralsTestConstants.CreateReferral();
+        referral.Reason = Canary;
+        referral.ReferrerPractice = Canary;
+        referral.ReferrerClinician = Canary;
+        var change = new ReferralChange(referral, Staff, Now);
+        change.Register(referral.Specialty);
+        change.EditDetails(
+            new ReferralDetails(referral.SpecialtyId, referral.ReceivedOn, $"{Canary} (edited)", null, null,
+                PatientPathwayPriority.Urgent, $"{Canary} (edited)"),
+            referral.Specialty, referral.Specialty);
+        change.Withdraw(Canary);
+
+        var other = ReferralsTestConstants.CreateReferral();
+        var error = new ReferralChange(other, Staff, Now);
+        error.MarkEnteredInError(Canary);
+
+        return change.Events.Concat(error.Events)
+            .Select(e => new ReferralTimelineRow(e, Canary, Canary, Canary))
+            .ToList();
     }
 
     /// <summary>An appointment history entry as the API sends it, for a pathway that still exists.</summary>

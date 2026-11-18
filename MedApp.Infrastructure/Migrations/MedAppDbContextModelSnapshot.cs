@@ -260,6 +260,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ReferralId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("ScanStatus")
                         .HasColumnType("int");
 
@@ -292,6 +295,8 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("DeletedAtUtc");
 
                     b.HasIndex("PathwayId");
+
+                    b.HasIndex("ReferralId");
 
                     b.HasIndex("StageId");
 
@@ -1581,6 +1586,150 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("Patients", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Referrals.Referral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DecidedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DecisionDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateOnly>("ReceivedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RedirectedTo")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReferrerClinician")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReferrerOdsCode")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("ReferrerPractice")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("RegisteredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RegisteredByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RegisteredByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("RejectionReason")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RequestedPriority")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PathwayId")
+                        .IsUnique()
+                        .HasFilter("[PathwayId] IS NOT NULL");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("SpecialtyId");
+
+                    b.HasIndex("Status", "SpecialtyId", "ReceivedOn");
+
+                    b.ToTable("Referrals", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Referrals.ReferralEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("PathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReferralId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferralId", "AtUtc");
+
+                    b.HasIndex("PatientId", "AtUtc", "Id");
+
+                    b.ToTable("ReferralEvents", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Specialties.Specialty", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2136,6 +2285,32 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("PatientPathway");
 
                     b.Navigation("StageDefinition");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Referrals.Referral", b =>
+                {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Specialties.Specialty", "Specialty")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Pathway");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("Specialty");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Specialties.StaffSpecialty", b =>

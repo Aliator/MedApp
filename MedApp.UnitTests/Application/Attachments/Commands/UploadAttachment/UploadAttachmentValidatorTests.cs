@@ -33,7 +33,7 @@ public sealed class UploadAttachmentValidatorTests
             patient ? Guid.NewGuid() : null, pathway ? Guid.NewGuid() : null, stage ? Guid.NewGuid() : null));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Target"
-                                                  && e.ErrorMessage == "Give exactly one of a patient, a pathway or a stage.");
+                                                  && e.ErrorMessage == "Give exactly one of a patient, a pathway, a stage or a referral.");
     }
 
     [TestCase(null)]

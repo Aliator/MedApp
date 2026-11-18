@@ -1,0 +1,71 @@
+import {screen} from '@testing-library/react';
+import {useState} from 'react';
+import type {ReferralDetailsInput} from '../../api/referrals';
+import {json, mockApi, renderWithApp, staffUser} from '../../test/render';
+import {DERMATOLOGY_ID, SPECIALTIES} from '../../test/referrals';
+import {aYearBefore, emptyReferralDetails, ReferralDetailsFields, ukToday} from './ReferralDetailsFields';
+
+function Harness({onChange, currentSpecialty}: {onChange: (value: ReferralDetailsInput) => void; currentSpecialty?: {id: string; name: string}}) {
+  const [value, setValue] = useState(() => emptyReferralDetails('2026-11-18'));
+  return (
+    <ReferralDetailsFields
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange(next);
+      }}
+      currentSpecialty={currentSpecialty}
+      errors={{title: 'Invalid', fields: {reason: ['Reason is required.']}, general: []}}
+    />
+  );
+}
+
+describe('ReferralDetailsFields', () => {
+  it('works out today (UK) and a year back', () => {
+    // 23:30 UTC in summer is the next day in the UK.
+    expect(ukToday(new Date('2026-07-01T23:30:00Z'))).toBe('2026-07-02');
+    expect(aYearBefore('2026-11-18')).toBe('2025-11-18');
+    expect(aYearBefore('2028-02-29')).toBe('2027-03-01');
+    expect(emptyReferralDetails('2026-11-18')).toMatchObject({receivedOn: '2026-11-18', requestedPriority: 'Medium'});
+  });
+
+  it('offers the active specialties, then the fields from the letter, with the API\'s errors on them', async () => {
+    mockApi({'GET /api/specialties': () => json(SPECIALTIES)});
+    const onChange = vi.fn();
+    const {user} = renderWithApp(<Harness onChange={onChange} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('combobox', {name: /Specialty/}));
+    await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({specialtyId: DERMATOLOGY_ID}));
+
+    await user.type(screen.getByRole('textbox', {name: /Practice/}), 'Synthetic Surgery');
+    await user.type(screen.getByRole('textbox', {name: /Clinician/}), 'Dr Test');
+    await user.type(screen.getByRole('textbox', {name: /ODS code/}), 'a12345');
+    await user.type(screen.getByRole('textbox', {name: /Reason/}), 'Rash');
+    await user.click(screen.getByRole('combobox', {name: /Priority asked for/}));
+    await user.click(await screen.findByRole('option', {name: 'Urgent'}));
+    expect(onChange).toHaveBeenLastCalledWith({
+      specialtyId: DERMATOLOGY_ID,
+      receivedOn: '2026-11-18',
+      referrerPractice: 'Synthetic Surgery',
+      referrerClinician: 'Dr Test',
+      referrerOdsCode: 'a12345',
+      requestedPriority: 'Urgent',
+      reason: 'Rash',
+    });
+    expect(screen.getAllByText('Reason is required.').length).toBeGreaterThan(0);
+
+    await user.clear(screen.getByRole('combobox', {name: /Received on/}));
+    await user.type(screen.getByRole('combobox', {name: /Received on/}), '03/11/2026');
+    await user.tab();
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({receivedOn: '2026-11-03'}));
+  });
+
+  it('keeps offering an archived specialty a referral is already to', async () => {
+    mockApi({'GET /api/specialties': () => json(SPECIALTIES)});
+    const {user} = renderWithApp(<Harness onChange={vi.fn()} currentSpecialty={{id: 'old', name: 'Old clinic'}} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('combobox', {name: /Specialty/}));
+    expect(await screen.findByRole('option', {name: 'Old clinic (archived)'})).toBeInTheDocument();
+  });
+});

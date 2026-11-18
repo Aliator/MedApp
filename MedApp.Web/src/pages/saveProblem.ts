@@ -18,7 +18,8 @@ export type SaveSubject =
   | 'activity type'
   | 'day template'
   | 'week template'
-  | 'specialty';
+  | 'specialty'
+  | 'referral';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
 export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {

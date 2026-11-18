@@ -1587,6 +1587,7 @@ export interface paths {
                     PatientId?: string;
                     PathwayId?: string;
                     StageId?: string;
+                    ReferralId?: string;
                     IncludeDeleted?: boolean;
                 };
                 header?: never;
@@ -1637,6 +1638,7 @@ export interface paths {
                     PatientId?: string;
                     PathwayId?: string;
                     StageId?: string;
+                    ReferralId?: string;
                 };
                 header?: {
                     "X-File-Name"?: string;
@@ -9335,6 +9337,445 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RegisterReferralRequest"];
+                    "text/json": components["schemas"]["RegisterReferralRequest"];
+                    "application/*+json": components["schemas"]["RegisterReferralRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralResponse"];
+                        "application/json": components["schemas"]["ReferralResponse"];
+                        "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    Ascending?: boolean;
+                    Statuses?: string[];
+                    SpecialtyIds?: string[];
+                    Mine?: boolean;
+                    PatientId?: string;
+                    Search?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralSummaryResponsePagedResponse"];
+                        "application/json": components["schemas"]["ReferralSummaryResponsePagedResponse"];
+                        "text/json": components["schemas"]["ReferralSummaryResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/awaiting-triage/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralCountResponse"];
+                        "application/json": components["schemas"]["ReferralCountResponse"];
+                        "text/json": components["schemas"]["ReferralCountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralResponse"];
+                        "application/json": components["schemas"]["ReferralResponse"];
+                        "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["EditReferralRequest"];
+                    "text/json": components["schemas"]["EditReferralRequest"];
+                    "application/*+json": components["schemas"]["EditReferralRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralResponse"];
+                        "application/json": components["schemas"]["ReferralResponse"];
+                        "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CloseReferralRequest"];
+                    "text/json": components["schemas"]["CloseReferralRequest"];
+                    "application/*+json": components["schemas"]["CloseReferralRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralResponse"];
+                        "application/json": components["schemas"]["ReferralResponse"];
+                        "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/{id}/entered-in-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CloseReferralRequest"];
+                    "text/json": components["schemas"]["CloseReferralRequest"];
+                    "application/*+json": components["schemas"]["CloseReferralRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReferralResponse"];
+                        "application/json": components["schemas"]["ReferralResponse"];
+                        "text/json": components["schemas"]["ReferralResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/roles": {
         parameters: {
             query?: never;
@@ -10346,6 +10787,8 @@ export interface components {
             /** Format: uuid */
             stageId?: string | null;
             stageName?: string | null;
+            /** Format: uuid */
+            referralId?: string | null;
             fileName?: string | null;
             contentType?: string | null;
             typeName?: string | null;
@@ -10478,6 +10921,11 @@ export interface components {
         ChangePatientPathwayStatusRequest: {
             status?: string | null;
             reason?: string | null;
+        };
+        CloseReferralRequest: {
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         ClosedDayResponse: {
             /** Format: uuid */
@@ -10673,6 +11121,19 @@ export interface components {
             /** Format: int32 */
             expectedVersion?: number;
         };
+        EditReferralRequest: {
+            /** Format: uuid */
+            specialtyId?: string;
+            /** Format: date */
+            receivedOn?: string;
+            referrerPractice?: string | null;
+            referrerClinician?: string | null;
+            referrerOdsCode?: string | null;
+            requestedPriority?: string | null;
+            reason?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         EmailCodeRequest: {
             code?: string | null;
         };
@@ -10757,6 +11218,8 @@ export interface components {
             /** Format: uuid */
             pathwayId?: string | null;
             stageName?: string | null;
+            /** Format: uuid */
+            referralId?: string | null;
             fileName?: string | null;
             contentType?: string | null;
             typeName?: string | null;
@@ -10882,6 +11345,41 @@ export interface components {
             /** Format: date */
             retentionKeptUntil?: string | null;
             retentionKeptReason?: string | null;
+        };
+        ExportedReferralHistoryEntryResponse: {
+            /** Format: date-time */
+            atUtc?: string;
+            action?: string | null;
+            username?: string | null;
+            /** Format: uuid */
+            referralId?: string;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            details?: string | null;
+        };
+        ExportedReferralResponse: {
+            /** Format: uuid */
+            id?: string;
+            specialtyName?: string | null;
+            /** Format: date */
+            receivedOn?: string;
+            referrerPractice?: string | null;
+            referrerClinician?: string | null;
+            referrerOdsCode?: string | null;
+            requestedPriority?: string | null;
+            reason?: string | null;
+            status?: string | null;
+            /** Format: date-time */
+            registeredAtUtc?: string;
+            registeredBy?: string | null;
+            /** Format: date-time */
+            decidedAtUtc?: string | null;
+            decidedBy?: string | null;
+            rejectionReason?: string | null;
+            decisionDetail?: string | null;
+            redirectedTo?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
         };
         ExportedStageResponse: {
             /** Format: int32 */
@@ -11273,6 +11771,8 @@ export interface components {
             accessLog?: components["schemas"]["ExportedAccessEntryResponse"][] | null;
             notifications?: components["schemas"]["ExportedNotificationResponse"][] | null;
             attachments?: components["schemas"]["ExportedAttachmentResponse"][] | null;
+            referrals?: components["schemas"]["ExportedReferralResponse"][] | null;
+            referralHistory?: components["schemas"]["ExportedReferralHistoryEntryResponse"][] | null;
         };
         PatientFlagsResponse: {
             isRestricted?: boolean;
@@ -11558,12 +12058,17 @@ export interface components {
             attachmentId?: string | null;
             attachedTo?: string | null;
             fileName?: string | null;
+            /** Format: uuid */
+            referralId?: string | null;
+            specialtyName?: string | null;
+            referrerPractice?: string | null;
         };
         PatientTimelineOverviewResponse: {
             upcoming?: components["schemas"]["PatientTimelineUpcomingResponse"][] | null;
             /** Format: int32 */
             openCount?: number;
             pathways?: components["schemas"]["PatientTimelinePathwayResponse"][] | null;
+            awaitingReferrals?: components["schemas"]["PatientTimelineReferralResponse"][] | null;
         };
         PatientTimelinePageResponse: {
             items?: components["schemas"]["PatientTimelineEntryResponse"][] | null;
@@ -11578,6 +12083,14 @@ export interface components {
             createdOn?: string | null;
             /** Format: date */
             deletedOn?: string | null;
+        };
+        PatientTimelineReferralResponse: {
+            /** Format: uuid */
+            referralId?: string;
+            specialtyName?: string | null;
+            /** Format: date */
+            receivedOn?: string;
+            requestedPriority?: string | null;
         };
         PatientTimelineUpcomingResponse: {
             /** Format: uuid */
@@ -11620,6 +12133,118 @@ export interface components {
         };
         RecoveryCodesResponse: {
             recoveryCodes?: string[] | null;
+        };
+        ReferralCountResponse: {
+            /** Format: int32 */
+            count?: number;
+            inYourSpecialties?: boolean;
+        };
+        ReferralEventResponse: {
+            /** Format: uuid */
+            id?: string;
+            action?: string | null;
+            /** Format: date-time */
+            atUtc?: string;
+            username?: string | null;
+            toStatus?: string | null;
+            specialtyName?: string | null;
+            previousSpecialtyName?: string | null;
+            requestedPriority?: string | null;
+            changedFields?: string[] | null;
+        };
+        ReferralResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            patient?: components["schemas"]["PathwayPatientResponse"];
+            patientFlags?: components["schemas"]["PatientFlagsResponse"];
+            /** Format: uuid */
+            specialtyId?: string;
+            specialtyName?: string | null;
+            /** Format: date */
+            receivedOn?: string;
+            referrerPractice?: string | null;
+            referrerClinician?: string | null;
+            referrerOdsCode?: string | null;
+            requestedPriority?: string | null;
+            reason?: string | null;
+            status?: string | null;
+            isOpen?: boolean;
+            /** Format: date-time */
+            registeredAtUtc?: string;
+            registeredByUsername?: string | null;
+            /** Format: date-time */
+            decidedAtUtc?: string | null;
+            decidedByUsername?: string | null;
+            rejectionReason?: string | null;
+            decisionDetail?: string | null;
+            redirectedTo?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            /** Format: int32 */
+            version?: number;
+            /** Format: date-time */
+            lastUpdated?: string;
+            /** Format: int32 */
+            letterCount?: number;
+            canEdit?: boolean;
+            canClose?: boolean;
+            canAttachFiles?: boolean;
+            readOnlyReason?: string | null;
+            canTriage?: boolean;
+            whyCantTriage?: string | null;
+            history?: components["schemas"]["ReferralEventResponse"][] | null;
+        };
+        ReferralSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            patientName?: string | null;
+            patientNhsNumber?: string | null;
+            /** Format: date */
+            patientDateOfBirth?: string;
+            /** Format: uuid */
+            specialtyId?: string;
+            specialtyName?: string | null;
+            /** Format: date */
+            receivedOn?: string;
+            /** Format: int32 */
+            daysSinceReceived?: number;
+            requestedPriority?: string | null;
+            referrerPractice?: string | null;
+            status?: string | null;
+            hasLetter?: boolean;
+            /** Format: date-time */
+            registeredAtUtc?: string;
+            /** Format: date-time */
+            decidedAtUtc?: string | null;
+        };
+        ReferralSummaryResponsePagedResponse: {
+            items?: components["schemas"]["ReferralSummaryResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        RegisterReferralRequest: {
+            /** Format: uuid */
+            patientId?: string;
+            /** Format: uuid */
+            specialtyId?: string;
+            /** Format: date */
+            receivedOn?: string;
+            referrerPractice?: string | null;
+            referrerClinician?: string | null;
+            referrerOdsCode?: string | null;
+            requestedPriority?: string | null;
+            reason?: string | null;
+            confirmPossibleDuplicate?: boolean;
         };
         RemoveEmailRequest: {
             password?: string | null;
@@ -11746,6 +12371,8 @@ export interface components {
             pathwayCount?: number;
             /** Format: int32 */
             memberCount?: number;
+            /** Format: int32 */
+            referralCount?: number;
             canBeDeleted?: boolean;
             /** Format: date-time */
             createdAt?: string;

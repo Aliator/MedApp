@@ -81,6 +81,8 @@ export interface AttachmentsProps {
    * changes layout. Without it, the component keeps its own.
    */
   state?: AttachmentsState;
+  /** What the list says while it has no files (a referral's says its letter isn't attached yet). */
+  emptyText?: string;
 }
 
 /**
@@ -92,7 +94,7 @@ export interface AttachmentsProps {
  * Files are never shown inline: Download always downloads, and only the server's small re-encoded thumbnails are
  * shown as images. Use it in a card's section, padded by its container (it lays out no padding of its own).
  */
-export function Attachments({target, canChange, isLocked = false, state}: AttachmentsProps) {
+export function Attachments({target, canChange, isLocked = false, state, emptyText = 'No files attached yet.'}: AttachmentsProps) {
   const ownState = useAttachmentsState();
   const {uploads, add, cancel, dismissFailed, isShowingDeleted, setShowingDeleted} = state ?? ownState;
   const {isAdmin} = useCurrentUser();
@@ -187,7 +189,7 @@ export function Attachments({target, canChange, isLocked = false, state}: Attach
         <AlertMessage message="The files could not be loaded. Please try again." />
       ) : items.length === 0 ? (
         <Text type="body" color="secondary">
-          No files attached yet.
+          {emptyText}
         </Text>
       ) : (
         <VStack gap={2}>
@@ -283,8 +285,14 @@ function ScanToken({status}: {status: string | null | undefined}) {
   return <Token size="sm" label="Not scanned" color="orange" description={NOT_SCANNED_NOTE} />;
 }
 
-/** What a file in a patient's list is attached to: the patient, or a pathway (and stage), linked. */
+/** What a file in a patient's list is attached to: the patient, a referral (its letter), or a pathway (and stage), linked. */
 function AttachedTo({attachment}: {attachment: Attachment}) {
+  if (attachment.attachedTo === 'Referral' && attachment.referralId)
+    return (
+      <Text type="supporting" color="secondary">
+        Attached to <Link href={`/referrals/${attachment.referralId}`}>a referral</Link>
+      </Text>
+    );
   if (attachment.attachedTo === 'Patient' || !attachment.pathwayId)
     return (
       <Text type="supporting" color="secondary">

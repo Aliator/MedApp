@@ -33,8 +33,11 @@ public static class DemoWipe
             await db.Database.CreateExecutionStrategy().ExecuteAsync(async cancellationToken =>
             {
                 await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-                // Children before parents: appointment → patient/pathway/stage, pathway → patient and stage/map →
-                // definition don't cascade; nor do calendar blocks and templates → activity type and day template.
+                // Children before parents: referral → patient/specialty/pathway, appointment → patient/pathway/stage,
+                // pathway → patient and stage/map → definition don't cascade; nor do calendar blocks and templates →
+                // activity type and day template.
+                await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
+                await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);

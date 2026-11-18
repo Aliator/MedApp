@@ -44,6 +44,8 @@ import { Route as AppPathwaysIndexRouteImport } from './routes/_app/pathways/ind
 import { Route as AppPathwaysNewRouteImport } from './routes/_app/pathways/new'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
+import { Route as AppReferralsIndexRouteImport } from './routes/_app/referrals/index'
+import { Route as AppReferralsNewRouteImport } from './routes/_app/referrals/new'
 import { Route as AppAdminPathwayTemplatesIndexRouteImport } from './routes/_app/admin/pathway-templates/index'
 import { Route as AppAdminPathwayTemplatesIdRouteImport } from './routes/_app/admin/pathway-templates/$id'
 import { Route as AppAdminPathwayTemplatesNewRouteImport } from './routes/_app/admin/pathway-templates/new'
@@ -54,6 +56,8 @@ import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
 import { Route as AppPatientsIdExportRouteImport } from './routes/_app/patients/$id/export'
 import { Route as AppPatientsIdPathwaysRouteImport } from './routes/_app/patients/$id/pathways'
+import { Route as AppReferralsIdIndexRouteImport } from './routes/_app/referrals/$id/index'
+import { Route as AppReferralsIdEditRouteImport } from './routes/_app/referrals/$id/edit'
 import { Route as AppCalendarTemplatesDayIdRouteImport } from './routes/_app/calendar/templates/day/$id'
 import { Route as AppCalendarTemplatesDayNewRouteImport } from './routes/_app/calendar/templates/day/new'
 import { Route as AppCalendarTemplatesWeekIdRouteImport } from './routes/_app/calendar/templates/week/$id'
@@ -235,6 +239,16 @@ const AppPatientsAddRoute = AppPatientsAddRouteImport.update({
   path: '/patients/add',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReferralsIndexRoute = AppReferralsIndexRouteImport.update({
+  id: '/referrals/',
+  path: '/referrals/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReferralsNewRoute = AppReferralsNewRouteImport.update({
+  id: '/referrals/new',
+  path: '/referrals/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminPathwayTemplatesIndexRoute =
   AppAdminPathwayTemplatesIndexRouteImport.update({
     id: '/admin/pathway-templates/',
@@ -287,6 +301,16 @@ const AppPatientsIdExportRoute = AppPatientsIdExportRouteImport.update({
 const AppPatientsIdPathwaysRoute = AppPatientsIdPathwaysRouteImport.update({
   id: '/patients/$id/pathways',
   path: '/patients/$id/pathways',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReferralsIdIndexRoute = AppReferralsIdIndexRouteImport.update({
+  id: '/referrals/$id/',
+  path: '/referrals/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReferralsIdEditRoute = AppReferralsIdEditRouteImport.update({
+  id: '/referrals/$id/edit',
+  path: '/referrals/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCalendarTemplatesDayIdRoute =
@@ -345,20 +369,24 @@ export interface FileRoutesByFullPath {
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
+  '/referrals/new': typeof AppReferralsNewRoute
   '/account/': typeof AppAccountIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
   '/pathways/': typeof AppPathwaysIndexRoute
   '/patients/': typeof AppPatientsIndexRoute
+  '/referrals/': typeof AppReferralsIndexRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
   '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
   '/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
+  '/referrals/$id/': typeof AppReferralsIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -395,20 +423,24 @@ export interface FileRoutesByTo {
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
+  '/referrals/new': typeof AppReferralsNewRoute
   '/account': typeof AppAccountIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
   '/pathways': typeof AppPathwaysIndexRoute
   '/patients': typeof AppPatientsIndexRoute
+  '/referrals': typeof AppReferralsIndexRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
   '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/admin/pathway-templates': typeof AppAdminPathwayTemplatesIndexRoute
   '/calendar/templates': typeof AppCalendarTemplatesIndexRoute
   '/pathways/$id': typeof AppPathwaysIdIndexRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
+  '/referrals/$id': typeof AppReferralsIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -447,20 +479,24 @@ export interface FileRoutesById {
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/_app/pathways/new': typeof AppPathwaysNewRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
+  '/_app/referrals/new': typeof AppReferralsNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/pathways/': typeof AppPathwaysIndexRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
+  '/_app/referrals/': typeof AppReferralsIndexRoute
   '/_app/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
   '/_app/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
   '/_app/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/_app/patients/$id/export': typeof AppPatientsIdExportRoute
   '/_app/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/_app/referrals/$id/edit': typeof AppReferralsIdEditRoute
   '/_app/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/_app/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
   '/_app/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
+  '/_app/referrals/$id/': typeof AppReferralsIdIndexRoute
   '/_app/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/_app/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/_app/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -499,20 +535,24 @@ export interface FileRouteTypes {
     | '/calendar/requires-appointment'
     | '/pathways/new'
     | '/patients/add'
+    | '/referrals/new'
     | '/account/'
     | '/calendar/'
     | '/pathways/'
     | '/patients/'
+    | '/referrals/'
     | '/admin/pathway-templates/$id'
     | '/admin/pathway-templates/new'
     | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
     | '/patients/$id/pathways'
+    | '/referrals/$id/edit'
     | '/admin/pathway-templates/'
     | '/calendar/templates/'
     | '/pathways/$id/'
     | '/patients/$id/'
+    | '/referrals/$id/'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -549,20 +589,24 @@ export interface FileRouteTypes {
     | '/calendar/requires-appointment'
     | '/pathways/new'
     | '/patients/add'
+    | '/referrals/new'
     | '/account'
     | '/calendar'
     | '/pathways'
     | '/patients'
+    | '/referrals'
     | '/admin/pathway-templates/$id'
     | '/admin/pathway-templates/new'
     | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
     | '/patients/$id/pathways'
+    | '/referrals/$id/edit'
     | '/admin/pathway-templates'
     | '/calendar/templates'
     | '/pathways/$id'
     | '/patients/$id'
+    | '/referrals/$id'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -600,20 +644,24 @@ export interface FileRouteTypes {
     | '/_app/calendar/requires-appointment'
     | '/_app/pathways/new'
     | '/_app/patients/add'
+    | '/_app/referrals/new'
     | '/_app/account/'
     | '/_app/calendar/'
     | '/_app/pathways/'
     | '/_app/patients/'
+    | '/_app/referrals/'
     | '/_app/admin/pathway-templates/$id'
     | '/_app/admin/pathway-templates/new'
     | '/_app/pathways/$id/edit'
     | '/_app/patients/$id/edit'
     | '/_app/patients/$id/export'
     | '/_app/patients/$id/pathways'
+    | '/_app/referrals/$id/edit'
     | '/_app/admin/pathway-templates/'
     | '/_app/calendar/templates/'
     | '/_app/pathways/$id/'
     | '/_app/patients/$id/'
+    | '/_app/referrals/$id/'
     | '/_app/calendar/templates/day/$id'
     | '/_app/calendar/templates/day/new'
     | '/_app/calendar/templates/week/$id'
@@ -878,6 +926,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsAddRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/referrals/': {
+      id: '/_app/referrals/'
+      path: '/referrals'
+      fullPath: '/referrals/'
+      preLoaderRoute: typeof AppReferralsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/referrals/new': {
+      id: '/_app/referrals/new'
+      path: '/referrals/new'
+      fullPath: '/referrals/new'
+      preLoaderRoute: typeof AppReferralsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/pathway-templates/': {
       id: '/_app/admin/pathway-templates/'
       path: '/admin/pathway-templates'
@@ -948,6 +1010,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIdPathwaysRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/referrals/$id/': {
+      id: '/_app/referrals/$id/'
+      path: '/referrals/$id'
+      fullPath: '/referrals/$id/'
+      preLoaderRoute: typeof AppReferralsIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/referrals/$id/edit': {
+      id: '/_app/referrals/$id/edit'
+      path: '/referrals/$id/edit'
+      fullPath: '/referrals/$id/edit'
+      preLoaderRoute: typeof AppReferralsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/calendar/templates/day/$id': {
       id: '/_app/calendar/templates/day/$id'
       path: '/calendar/templates/day/$id'
@@ -1003,20 +1079,24 @@ interface AppRouteChildren {
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
   AppPathwaysNewRoute: typeof AppPathwaysNewRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
+  AppReferralsNewRoute: typeof AppReferralsNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppPathwaysIndexRoute: typeof AppPathwaysIndexRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
+  AppReferralsIndexRoute: typeof AppReferralsIndexRoute
   AppAdminPathwayTemplatesIdRoute: typeof AppAdminPathwayTemplatesIdRoute
   AppAdminPathwayTemplatesNewRoute: typeof AppAdminPathwayTemplatesNewRoute
   AppPathwaysIdEditRoute: typeof AppPathwaysIdEditRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
   AppPatientsIdExportRoute: typeof AppPatientsIdExportRoute
   AppPatientsIdPathwaysRoute: typeof AppPatientsIdPathwaysRoute
+  AppReferralsIdEditRoute: typeof AppReferralsIdEditRoute
   AppAdminPathwayTemplatesIndexRoute: typeof AppAdminPathwayTemplatesIndexRoute
   AppCalendarTemplatesIndexRoute: typeof AppCalendarTemplatesIndexRoute
   AppPathwaysIdIndexRoute: typeof AppPathwaysIdIndexRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
+  AppReferralsIdIndexRoute: typeof AppReferralsIdIndexRoute
   AppCalendarTemplatesDayIdRoute: typeof AppCalendarTemplatesDayIdRoute
   AppCalendarTemplatesDayNewRoute: typeof AppCalendarTemplatesDayNewRoute
   AppCalendarTemplatesWeekIdRoute: typeof AppCalendarTemplatesWeekIdRoute
@@ -1047,20 +1127,24 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
   AppPathwaysNewRoute: AppPathwaysNewRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
+  AppReferralsNewRoute: AppReferralsNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppPathwaysIndexRoute: AppPathwaysIndexRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
+  AppReferralsIndexRoute: AppReferralsIndexRoute,
   AppAdminPathwayTemplatesIdRoute: AppAdminPathwayTemplatesIdRoute,
   AppAdminPathwayTemplatesNewRoute: AppAdminPathwayTemplatesNewRoute,
   AppPathwaysIdEditRoute: AppPathwaysIdEditRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
   AppPatientsIdExportRoute: AppPatientsIdExportRoute,
   AppPatientsIdPathwaysRoute: AppPatientsIdPathwaysRoute,
+  AppReferralsIdEditRoute: AppReferralsIdEditRoute,
   AppAdminPathwayTemplatesIndexRoute: AppAdminPathwayTemplatesIndexRoute,
   AppCalendarTemplatesIndexRoute: AppCalendarTemplatesIndexRoute,
   AppPathwaysIdIndexRoute: AppPathwaysIdIndexRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
+  AppReferralsIdIndexRoute: AppReferralsIdIndexRoute,
   AppCalendarTemplatesDayIdRoute: AppCalendarTemplatesDayIdRoute,
   AppCalendarTemplatesDayNewRoute: AppCalendarTemplatesDayNewRoute,
   AppCalendarTemplatesWeekIdRoute: AppCalendarTemplatesWeekIdRoute,

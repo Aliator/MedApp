@@ -15,9 +15,11 @@ import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
 import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
+import {referralFieldWords, referralStatusLabel} from '../../api/referrals';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/pathways/PathwayCells';
 import {PatientBanner} from '../../components/patients/PatientBanner';
+import {rejectionReasonWords} from '../referrals/ReferralPage';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
@@ -168,6 +170,43 @@ export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange,
   }
 }
 
+type ExportedReferral = NonNullable<PatientExport['referrals']>[number];
+
+/** A referral in words: "the referral to Dermatology received 3 November 2026". */
+export const referralName = (referral: Pick<ExportedReferral, 'specialtyName' | 'receivedOn'>) =>
+  `the referral to ${referral.specialtyName}${referral.receivedOn ? ` received ${formatDate(referral.receivedOn)}` : ''}`;
+
+const capitalised = (words: string) => words.charAt(0).toUpperCase() + words.slice(1);
+
+const REFERRAL_ACTIONS: Record<string, string> = {
+  Registered: 'Referral registered',
+  DetailsEdited: 'Referral details edited',
+  Withdrawn: 'Referral withdrawn',
+  EnteredInError: 'Referral marked entered in error',
+};
+
+/** A referral history action in words: "EnteredInError" → "Referral marked entered in error". */
+export const referralChangeLabel = (action: string | null | undefined) => REFERRAL_ACTIONS[action ?? ''] ?? `Referral: ${action ?? ''}`;
+
+/**
+ * What a referral history entry's details say, in words: the specialty and priority it was registered with, the
+ * fields an edit changed (with the specialty it moved from), or the status it moved to. The details hold structured
+ * values only: the reason and the details given are on the referral itself, above.
+ */
+export function describeReferralChange(details: string | null | undefined): string {
+  const d = parseDetails(details);
+  const fields = Array.isArray(d.changedFields) ? d.changedFields.filter((f): f is string => typeof f === 'string') : [];
+  return [
+    text(d.specialtyName) ? `Specialty: ${text(d.specialtyName)}` : null,
+    text(d.previousSpecialtyName) ? `was ${text(d.previousSpecialtyName)}` : null,
+    text(d.requestedPriority) ? `Priority asked for: ${text(d.requestedPriority)}` : null,
+    fields.length ? `Changed: ${fields.map(referralFieldWords).join(', ')}` : null,
+    text(d.toStatus) ? `Now ${referralStatusLabel(text(d.toStatus)).toLowerCase()}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 /** One titled part of the export, as a card. */
 function ExportSection({title, children}: {title: string; children: ReactNode}) {
   return (
@@ -264,8 +303,12 @@ type ExportedFile = NonNullable<PatientExport['attachments']>[number];
 
 const SCAN_STATES: Record<string, string> = {NotScanned: 'not scanned', Clean: 'clean', Infected: 'malware found'};
 
-/** What an exported file was attached to, in words: "Attached to the patient", "Attached to Consent, in Knee review". */
-function attachedToText(file: ExportedFile, pathwayTitles: Map<string | undefined, string>): string {
+/**
+ * What an exported file was attached to, in words: "Attached to the patient", "Attached to the referral to
+ * Dermatology received 3 November 2026", "Attached to Consent, in Knee review".
+ */
+function attachedToText(file: ExportedFile, pathwayTitles: Map<string | undefined, string>, referralNames: Map<string | undefined, string>): string {
+  if (file.attachedTo === 'Referral') return `Attached to ${referralNames.get(file.referralId ?? undefined) ?? 'a referral'}.`;
   if (file.attachedTo === 'Patient' || !file.pathwayId) return 'Attached to the patient.';
   const title = pathwayTitles.get(file.pathwayId) || 'a pathway';
   return file.attachedTo === 'Stage' ? `Attached to ${file.stageName ?? 'a stage'}, in ${title}.` : `Attached to ${title}.`;
@@ -284,6 +327,10 @@ function ExportContent({data}: {data: PatientExport}) {
   const access = data.accessLog ?? [];
   const notifications = data.notifications ?? [];
   const files = data.attachments ?? [];
+  const referrals = data.referrals ?? [];
+  const referralHistory = data.referralHistory ?? [];
+  // Each referral by its specialty and when it was received, for its letters and its history.
+  const referralNames = new Map(referrals.map((r) => [r.id, referralName(r)]));
   // What an appointment is for: its pathway's title (from the export's pathways) and its stage.
   const pathwayTitles = new Map(pathways.map((pathway) => [pathway.id, pathway.title ?? '']));
   const appointmentFor = (a: ExportedAppointment) =>
@@ -386,10 +433,43 @@ function ExportContent({data}: {data: PatientExport}) {
           )}
       </ExportSection>
 
+      <ExportSection title={`Referrals (${referrals.length})`}>
+        {referrals.length === 0
+          ? nothing('No referrals.')
+          : (
+            <VStack gap={6} hAlign="stretch">
+              {referrals.map((referral) => (
+                <VStack key={referral.id} gap={3} hAlign="stretch">
+                  <Heading level={3}>{`Referral to ${referral.specialtyName}`}</Heading>
+                  <MetadataList columns={2} label={{position: 'top'}}>
+                    <MetadataListItem label="Status">{referralStatusLabel(referral.status)}</MetadataListItem>
+                    <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
+                    <MetadataListItem label="Priority Asked For">{referral.requestedPriority}</MetadataListItem>
+                    <MetadataListItem label="Practice">{referral.referrerPractice || '—'}</MetadataListItem>
+                    <MetadataListItem label="Clinician">{referral.referrerClinician || '—'}</MetadataListItem>
+                    <MetadataListItem label="ODS Code">{referral.referrerOdsCode || '—'}</MetadataListItem>
+                    <MetadataListItem label="Registered">{`${when(referral.registeredAtUtc)} by ${referral.registeredBy}`}</MetadataListItem>
+                    <MetadataListItem label="Decided">
+                      {referral.decidedAtUtc ? `${when(referral.decidedAtUtc)} by ${referral.decidedBy}` : 'Not yet'}
+                    </MetadataListItem>
+                    {referral.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonWords(referral.rejectionReason)}</MetadataListItem>}
+                    {referral.redirectedTo && <MetadataListItem label="Redirected To">{referral.redirectedTo}</MetadataListItem>}
+                    {referral.decisionDetail && <MetadataListItem label="Detail">{referral.decisionDetail}</MetadataListItem>}
+                    {referral.pathwayId && (
+                      <MetadataListItem label="Accepted Into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
+                    )}
+                  </MetadataList>
+                  <Text type="body">{`Reason for referral: ${referral.reason ?? ''}`}</Text>
+                </VStack>
+              ))}
+            </VStack>
+          )}
+      </ExportSection>
+
       <ExportSection title={`Files (${files.length})`}>
         <VStack gap={4} hAlign="stretch">
           <Text type="body" color="secondary">
-            The details of every file attached to the patient, their pathways and stages, including deleted ones. The files
+            The details of every file attached to the patient, their pathways, stages and referrals, including deleted ones. The files
             themselves aren't included in this export.
           </Text>
           {files.length === 0
@@ -411,7 +491,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     description={
                       <VStack gap={1}>
                         <Text type="supporting" color="secondary">
-                          {`${file.typeName} (${file.contentType}), ${formatFileSize(file.sizeBytes ?? 0)}. ${attachedToText(file, pathwayTitles)}`}
+                          {`${file.typeName} (${file.contentType}), ${formatFileSize(file.sizeBytes ?? 0)}. ${attachedToText(file, pathwayTitles, referralNames)}`}
                         </Text>
                         <Text type="supporting" color="secondary">
                           {`Added ${when(file.uploadedAtUtc)} by ${file.uploadedBy}${file.deletedAtUtc ? `; deleted ${when(file.deletedAtUtc)} by ${file.deletedBy}` : ''}`}
@@ -555,6 +635,27 @@ function ExportContent({data}: {data: PatientExport}) {
                       ]
                         .filter(Boolean)
                         .join(' · ')}
+                    </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Referral History (${referralHistory.length})`}>
+        {referralHistory.length === 0
+          ? nothing('No referral changes recorded.')
+          : (
+            <List hasDividers edge="bleed">
+              {referralHistory.map((entry, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={<Text type="body">{`${when(entry.atUtc)}: ${referralChangeLabel(entry.action)} by ${entry.username}`}</Text>}
+                  description={
+                    <Text type="supporting" color="secondary">
+                      {[capitalised(referralNames.get(entry.referralId) ?? 'a referral'), describeReferralChange(entry.details)].filter(Boolean).join(' · ')}
                     </Text>
                   }
                 />
