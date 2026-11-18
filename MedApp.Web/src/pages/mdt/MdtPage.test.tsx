@@ -1,8 +1,9 @@
 import {screen, waitFor} from '@testing-library/react';
+import {QueryClient} from '@tanstack/react-query';
 import {mdtItem, mdtMeeting} from '../../test/mdt';
 import {calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {meetingLabel} from '../../components/mdt/MdtDialogs';
-import {MdtPage, shownMeeting} from './MdtPage';
+import {MdtPage, preloadMdtPage, shownMeeting} from './MdtPage';
 import {parseMdtSearch} from './mdtSearch';
 
 const later = mdtMeeting({id: '00000000-0000-4000-8000-0000000000a2', startUtc: '2099-12-10T13:00:00Z', endUtc: '2099-12-10T14:00:00Z'});
@@ -55,5 +56,64 @@ describe('shownMeeting', () => {
 describe('parseMdtSearch', () => {
   it('keeps IDs and drops anything else', () => {
     expect(parseMdtSearch({specialty: mdtMeeting().specialtyId, meeting: 'nonsense'})).toEqual({specialty: mdtMeeting().specialtyId});
+  });
+});
+
+describe('MdtPage, choosing and failing', () => {
+  const specialtyId = mdtMeeting().specialtyId!;
+
+  it('puts the specialty and the meeting chosen in the address, and every specialty back', async () => {
+    mockApi({
+      'GET /api/specialties': () => json([{id: specialtyId, name: 'Dermatology'}]),
+      'GET /api/mdt/meetings': () => json([mdtMeeting(), later]),
+      [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), items: []}),
+      'GET /api/mdt/awaiting-meeting': () => json([]),
+    });
+    const onSearchChange = vi.fn();
+    const {user} = renderWithApp(<MdtPage search={{specialty: specialtyId}} onSearchChange={onSearchChange} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('combobox', {name: 'Specialty'}));
+    await user.click(await screen.findByRole('option', {name: 'Every specialty'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: undefined, meeting: undefined});
+
+    await user.click(screen.getByRole('combobox', {name: 'Specialty'}));
+    await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: specialtyId, meeting: undefined});
+
+    await user.click(screen.getByRole('combobox', {name: 'Meeting'}));
+    await user.click(await screen.findByRole('option', {name: meetingLabel(later)}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({specialty: specialtyId, meeting: later.id});
+  });
+
+  it('says when there is no MDT, or the MDTs could not be loaded', async () => {
+    mockApi({
+      'GET /api/specialties': () => json([]),
+      'GET /api/mdt/meetings': () => json({title: 'Synthetic failure.', status: 500}, 500),
+      'GET /api/mdt/awaiting-meeting': () => json([]),
+    });
+    renderWithApp(<MdtPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
+
+    expect(await screen.findByText(/No MDTs in the last 60 days/)).toBeInTheDocument();
+    expect(await screen.findByText(/Synthetic failure|The MDTs could not be loaded/)).toBeInTheDocument();
+  });
+
+  it("says when a meeting's list could not be loaded", async () => {
+    mockApi({
+      'GET /api/specialties': () => json([]),
+      'GET /api/mdt/meetings': () => json([mdtMeeting()]),
+      [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({title: 'Synthetic list failure.', status: 500}, 500),
+      'GET /api/mdt/awaiting-meeting': () => json([]),
+    });
+    renderWithApp(<MdtPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
+
+    expect(await screen.findByText(/Synthetic list failure|The list could not be loaded/)).toBeInTheDocument();
+  });
+
+  it('preloads the specialties and the MDTs', async () => {
+    mockApi({'GET /api/specialties': () => json([]), 'GET /api/mdt/meetings': () => json([])});
+    const queryClient = new QueryClient();
+    const spy = vi.spyOn(queryClient, 'prefetchQuery');
+    await preloadMdtPage(queryClient, {});
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

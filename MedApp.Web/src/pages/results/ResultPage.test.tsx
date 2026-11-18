@@ -173,3 +173,14 @@ describe('ResultPage', () => {
     expect(await screen.findByText('The result could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });
+
+describe('ResultPage, folding', () => {
+  it('hides and shows its sections', async () => {
+    const {user} = renderPage();
+
+    await user.click(await screen.findByRole('button', {name: 'Hide details'}));
+    expect(await screen.findByRole('button', {name: 'Show details'})).toHaveAttribute('aria-expanded', 'false');
+    await user.click(screen.getByRole('button', {name: 'Show details'}));
+    expect(await screen.findByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
+  });
+});

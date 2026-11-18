@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +33,11 @@ public sealed class SeedServices : IAsyncDisposable
 {
     private readonly ServiceProvider _provider;
 
-    public SeedServices(IConfiguration configuration, DateTime nowUtc)
+    /// <param name="discardFiles">
+    /// No attachment store answers: files the app's commands make (letters' PDFs) are dropped, so their records still
+    /// save (as a snapshot loaded elsewhere has the records without the bytes).
+    /// </param>
+    public SeedServices(IConfiguration configuration, DateTime nowUtc, bool discardFiles = false)
     {
         Clock = new SeedClock(nowUtc);
         Context = new SeedActivityContext();
@@ -55,6 +60,8 @@ public sealed class SeedServices : IAsyncDisposable
         services.AddSingleton<TimeProvider>(Clock);
         services.AddSingleton<IActivityContext>(Context);
         services.AddSingleton<IEmailSender, DiscardedEmail>();
+        if (discardFiles)
+            services.AddSingleton<IFileStore, DiscardedFiles>();
         _provider = services.BuildServiceProvider();
     }
 
@@ -97,4 +104,16 @@ public sealed class DiscardedEmail : IEmailSender
     public bool CanSend => true;
 
     public Task SendAsync(EmailMessage message, CancellationToken ct) => Task.CompletedTask;
+}
+
+/// <summary>The seed's file store when no attachment store answers: it takes every file and keeps none.</summary>
+public sealed class DiscardedFiles : IFileStore
+{
+    public bool IsConfigured => true;
+
+    public Task SaveAsync(string key, Stream content, string contentType, CancellationToken ct) => Task.CompletedTask;
+
+    public Task<Stream?> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream?>(null);
+
+    public Task DeleteAsync(string key, CancellationToken ct) => Task.CompletedTask;
 }

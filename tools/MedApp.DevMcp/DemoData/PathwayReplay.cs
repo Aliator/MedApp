@@ -1,4 +1,5 @@
 using MedApp.Application.Appointments.Common;
+using MedApp.Application.Specimens.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Appointments;
@@ -28,7 +29,7 @@ namespace MedApp.DevMcp.DemoData;
 /// when the patient asks to wait, and sets the target date by hand once it has stopped.
 /// </para>
 /// </summary>
-public sealed class PathwayReplay
+public sealed partial class PathwayReplay
 {
     private readonly DemoWorld _world;
     private readonly PathwayPlan _plan;
@@ -92,6 +93,7 @@ public sealed class PathwayReplay
         // A copy of the template's stages, made as CreatePatientPathwayHandler (or AcceptReferralHandler) makes it.
         _pathway = PathwayCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.ChosenPriority, plan.CreatedUtc);
         _stages = _pathway.Stages.OrderBy(s => s.StageOrder).ToList();
+        ApplyStageRulesOfTheTime();
     }
 
     public PatientPathway Pathway => _pathway;
@@ -129,9 +131,17 @@ public sealed class PathwayReplay
         _world.Bypasses += Bypasses;
         if (DeleteAtUtc is { } at)
             _world.Deletions.Add((_pathway, at));
+        CommitLab();
     }
 
     public void Run()
+    {
+        RunStory();
+        // The lab reports what it has whatever happened to the pathway since (on hold, cancelled): a report is never stuck.
+        FinishOpenSpecimens();
+    }
+
+    private void RunStory()
     {
         var created = _plan.CreatedUtc;
         _floor = created;
@@ -282,6 +292,10 @@ public sealed class PathwayReplay
         var spec = _plan.Spec.Stages[index];
         var stage = _stages[index];
 
+        // A stage of a branch the clinician didn't choose was skipped with it: nothing to do.
+        if (!PathwayWorkflow.IsToDo(stage))
+            return StageOutcome.Finished;
+
         // The patient asked to wait: the clock is paused (and maybe resumed) before the stage is started.
         if (index == _plan.PauseStage && _plan.Pause != PauseFate.None && PauseClock(ref reached))
             return StageOutcome.Stopped;
@@ -342,9 +356,29 @@ public sealed class PathwayReplay
         if (startAt >= _now)
             return StageOutcome.Stopped;
 
+        // An optional stage the patient declines is skipped (and, for one, reinstated when they change their mind).
+        if (MaybeSkip(stage, ref reached, ref startAt) is { } skipped)
+            return skipped;
+
         var bypass = index == _plan.BypassStage && stage.VisitRequirement == VisitRequirement.Required;
         var worker = bypass ? _world.Lead : WorkerFor(spec);
         Change(worker, startAt, change => change.StartStage(stage));
+
+        // The patient withdraws consent before the biopsy: the pathway goes on hold.
+        if (ConsentWithdrawn(stage, worker, startAt))
+            return StageOutcome.Stopped;
+
+        // A skin lesion's results go to the skin cancer team's MDT first: the visit and the stage's finish come after.
+        if (stage.Name == DemoPathwayKinds.ResultsAndTeamReview && _plan.PathwayKind == PathwayKind.SkinLesion && LabAndLetters(startAt))
+        {
+            if (Mdt(stage, startAt) is not { } discussed)
+            {
+                MaybeProgressNote(stage, worker, startAt, _plan.NoteContext());
+                return StageOutcome.Stopped;
+            }
+
+            _floor = Max(_floor, discussed);
+        }
 
         // The pathway's first note brought up to date by whoever wrote it (only a note's author can edit it), or, when
         // there's none, a note from the person starting this stage.
@@ -357,8 +391,9 @@ public sealed class PathwayReplay
             EditDetails(_world.AdminAt(startAt), Working(startAt.AddMinutes(_random.Next(5, 120))), due: due);
         }
 
-        var occurrence = _plan.Spec.Stages.Take(index + 1).Count(s => s.Definition == spec.Definition);
-        var occurrences = _plan.Spec.Stages.Count(s => s.Definition == spec.Definition);
+        // Counting only the stages that run (not those of a branch not chosen, nor skipped).
+        var occurrence = Enumerable.Range(0, index + 1).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && !_stages[i].IsSkipped);
+        var occurrences = Enumerable.Range(0, _stages.Count).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && !_stages[i].IsSkipped);
         var context = _plan.NoteContext(occurrence, occurrences);
 
         var hasVisit = !bypass && stage.VisitRequirement != VisitRequirement.None && spec.VisitMinutes > 0
@@ -375,6 +410,10 @@ public sealed class PathwayReplay
             }
 
             notesAt = attendedAt.AddMinutes(_random.Next(2, 35));
+
+            // What the visit took to the lab, once the centre tracked specimens.
+            if (TakesSpecimens(stage) && LabAndLetters(startAt) && _plan.Fate != Fate.Deleted)
+                notesAt = Max(notesAt, TakeSpecimens(stage, worker, attendedAt).AddMinutes(_random.Next(2, 15)));
         }
         else
         {
@@ -383,6 +422,22 @@ public sealed class PathwayReplay
             notesAt = finishAt.AddMinutes(-_random.Next(1, 8));
             if (notesAt <= startAt)
                 notesAt = startAt.AddMinutes(1);
+
+            // The lab's stage waits for its reports and their sign-off; a discharge letter stage for its letter.
+            DateTime? ready = finishAt;
+            if (spec.Role == StageRole.Lab && _specimens.Any(s => SpecimenWorkflow.IsOpen(s.Status)))
+                ready = RunLab(stage, worker, startAt, finishAt);
+            else if (stage.NeedsLetterKind is not null)
+                ready = PlanLetter(stage, worker, startAt);
+
+            if (ready is not { } readyAt)
+            {
+                MaybeProgressNote(stage, worker, startAt, context);
+                return StageOutcome.Stopped;
+            }
+
+            if (readyAt > finishAt)
+                notesAt = readyAt.AddMinutes(_random.Next(2, 20));
         }
 
         var finishedAt = notesAt.AddMinutes(_random.Next(1, 10));
@@ -504,12 +559,14 @@ public sealed class PathwayReplay
             if (start >= _now)
                 return null;
 
-            // Didn't attend: recorded, and another booked.
+            // Didn't attend: recorded, what to do next decided by the booking coordinator, and another booked.
             var end = appointment.EndUtc!.Value;
             if (_random.NextDouble() < 0.05 && end.AddMinutes(20) < _now)
             {
                 RecordOutcome(appointment, stage, worker, end.AddMinutes(_random.Next(5, 20)), AppointmentStatus.DidNotAttend);
-                var rebookAt = Working(end.AddDays(0.5 + _random.NextDouble()));
+                if (DnaFollowUp(appointment, stage, end) is not { } decidedAt)
+                    return null;
+                var rebookAt = Working(Max(end.AddDays(0.5 + _random.NextDouble()), decidedAt.AddMinutes(5)));
                 if (rebookAt >= _now || FindSlot(worker, rebookAt.AddDays(3), minutes, spec.Prefer) is not { } next)
                     return null;
                 appointment = NewBooked(stage, _world.Coordinator, rebookAt, worker, next);
@@ -549,12 +606,25 @@ public sealed class PathwayReplay
             if (PathwayWorkflow.WhyStageNeedsVisit(stage, appointments.Where(a => a.StageId == stage.Id).ToList()) is { } needsVisit && reason is null)
                 throw new InvalidOperationException($"Seeding went wrong: {needsVisit}");
 
-            // The gates every finish path checks (StageGates). The demo takes no specimens or results yet (Phase 3's
-            // demo data does).
-            if ((StageGates.WhyCantFinish(_pathway, stage, []) ?? StageGates.WhyResultsAwaiting(_pathway, stage, [])) is { } gate)
+            // The gates every finish path checks (StageGates), with this pathway's specimens, results, letter and consent.
+            var open = _specimens.Where(s => SpecimenWorkflow.IsOpen(s.Status)).ToList();
+            var awaiting = _results.Where(r => r.IsAwaitingSignOff).ToList();
+            var last = StageGates.IsLastToFinish(_pathway, stage);
+            var gate = (last ? StageGates.WhyCantFinish(_pathway, stage, open) : null)
+                       ?? (stage.WaitsForResults || last ? StageGates.WhyResultsAwaiting(_pathway, stage, awaiting) : null)
+                       ?? StageGates.WhyConsentMissing(stage, _consents)
+                       ?? (stage.NeedsLetterKind is not null && _letter?.SentUtc is null ? "Its letter isn't sent." : null);
+            if (gate is not null)
                 throw new InvalidOperationException($"Seeding went wrong: {gate}");
 
-            if (StageFinishing.Finish(change, stage, appointments, reason) is { Requirement: VisitRequirement.Required })
+            var branch = BranchFor(stage);
+            if (branch is not null)
+            {
+                var touched = StageFinishing.StagesTouchedByFinish(_pathway, stage, branch);
+                appointments = _appointments.Where(a => a.StageId is { } id && touched.Contains(id)).ToList();
+            }
+
+            if (StageFinishing.Finish(change, stage, appointments, reason, branch) is { Requirement: VisitRequirement.Required })
                 Bypasses++;
         });
     }

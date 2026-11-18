@@ -1,3 +1,4 @@
+using MedApp.Domain.Letters;
 using MedApp.Domain.Pathways.PatientPathways;
 using Priority = MedApp.Domain.Pathways.PatientPathways.PatientPathwayPriority;
 
@@ -53,7 +54,10 @@ public sealed record StageSpec(
     int VisitMinutesMax = 0,
     Days Lead = default,
     DayKind Prefer = DayKind.Any,
-    double VisitChance = 1);
+    double VisitChance = 1,
+    string? Branch = null,
+    bool ChoosesBranch = false,
+    bool Optional = false);
 
 /// <summary>
 /// A pathway: its template, its stages in order, due dates, priorities and the kinds of referral it takes, and its
@@ -83,7 +87,10 @@ public sealed record DefinitionSpec(
     VisitRequirement Visit,
     string? SnomedCode = null,
     string? SnomedTerm = null,
-    bool IsArchived = false);
+    bool IsArchived = false,
+    bool WaitsForResults = false,
+    LetterKind? NeedsLetter = null,
+    bool NeedsConsent = false);
 
 /// <summary>The centre's stage definitions and pathways (pathway templates).</summary>
 public static class DemoPathwayKinds
@@ -102,6 +109,10 @@ public static class DemoPathwayKinds
     public const string ClinicReview = "Clinic review";
     public const string MedicinesReview = "Medicines review";
     public const string BiomechanicsSession = "Biomechanics session";
+
+    /// <summary>The skin lesion pathway's branches after its results and team review (a clinician chooses one).</summary>
+    public const string BenignBranch = "Benign";
+    public const string TreatmentBranch = "Treatment";
 
     /// <summary>
     /// The stage definitions. Visits are Required where the patient must be seen (clinic visits, biopsies, samples,
@@ -124,10 +135,10 @@ public static class DemoPathwayKinds
             VisitRequirement.Required, "11429006", "Consultation"),
         new(BiopsyOrSample, "A biopsy or sample has been taken and sent to the lab.",
             "Confirm the patient, the site and consent. Label the specimen at the bedside and complete the lab request.",
-            VisitRequirement.Required, "86273004", "Biopsy"),
+            VisitRequirement.Required, "86273004", "Biopsy", NeedsConsent: true),
         new(Histology, "The lab has processed and reported the specimen.",
             "Book the specimen in, check its label against the request, process and report. Authorise the report.",
-            VisitRequirement.None),
+            VisitRequirement.None, WaitsForResults: true),
         new(ResultsAndTeamReview, "The results have been reviewed with the team and given to the patient.",
             "Review the report, take it to the team meeting if needed, agree the plan and tell the patient. Can be by phone.",
             VisitRequirement.Suggested),
@@ -139,13 +150,13 @@ public static class DemoPathwayKinds
             VisitRequirement.Suggested, "390906007", "Follow-up encounter"),
         new(DischargeLetter, "The discharge letter has gone to the GP, with a copy to the patient.",
             "Summarise what was found, what was done and what the GP is asked to do. Copy to the patient.",
-            VisitRequirement.None, "58000006", "Patient discharge"),
+            VisitRequirement.None, "58000006", "Patient discharge", NeedsLetter: LetterKind.DischargeSummary),
         new(BloodAndUrineTests, "Bloods have been taken and a urine sample collected.",
             "Confirm the patient, take the bloods on the request and collect the urine sample. Label at the bedside; send to the lab the same day.",
             VisitRequirement.Required),
         new(LabTests, "The lab has run and reported the blood and urine tests.",
             "Book the samples in, run the tests on the request and authorise the results.",
-            VisitRequirement.None, "15220000", "Laboratory test"),
+            VisitRequirement.None, "15220000", "Laboratory test", WaitsForResults: true),
         new(ClinicReview, "The patient has been reviewed in clinic with their results.",
             "Review the results with the patient, examine as needed, agree targets and record the plan.",
             VisitRequirement.Required),
@@ -175,10 +186,11 @@ public static class DemoPathwayKinds
             new(FirstClinicVisit, StageRole.Lead, new(1, 4), default, 30, 30, new(4, 11), DayKind.Clinic),
             new(BiopsyOrSample, StageRole.Lead, new(0.5, 3), default, 30, 45, new(2, 7), DayKind.MinorSurgery),
             new(Histology, StageRole.Lab, new(0.3, 1.5), new(5, 11)),
-            new(ResultsAndTeamReview, StageRole.Lead, new(1, 4), new(0.2, 2), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.45),
-            new(Treatment, StageRole.Lead, new(1, 4), default, 45, 60, new(4, 9), DayKind.MinorSurgery),
-            new(FollowUp, StageRole.Nurse, new(5, 9), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5),
-            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
+            new(ResultsAndTeamReview, StageRole.Lead, new(1, 4), new(0.2, 2), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.45, ChoosesBranch: true),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1), Branch: BenignBranch),
+            new(Treatment, StageRole.Lead, new(1, 4), default, 45, 60, new(4, 9), DayKind.MinorSurgery, Branch: TreatmentBranch),
+            new(FollowUp, StageRole.Nurse, new(5, 9), new(0.1, 1), 20, 20, new(2, 6), DayKind.Clinic, VisitChance: 0.5, Branch: TreatmentBranch),
+            new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1), Branch: TreatmentBranch),
         ], DueWeeks: 12, UrgentDueWeeks: 6, SkinLesionPriorities, ClockStop: FirstClinicVisit),
 
         new(PathwayKind.SkinLesion2024, "Skin lesion pathway (2024)",
@@ -231,7 +243,7 @@ public static class DemoPathwayKinds
             new(FirstClinicVisit, StageRole.Lead, new(1, 5), default, 45, 45, new(2, 7), DayKind.Clinic),
             new(BiomechanicsSession, StageRole.Lead, new(0.5, 2), default, 30, 30, new(5, 8), DayKind.Clinic),
             new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(8, 12), DayKind.Clinic),
-            new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(10, 16), DayKind.Clinic),
+            new(BiomechanicsSession, StageRole.Lead, new(0.2, 1), default, 30, 30, new(10, 16), DayKind.Clinic, Optional: true),
             new(DischargeLetter, StageRole.Lead, new(0.2, 2), new(0.1, 1)),
         ], DueWeeks: 12, UrgentDueWeeks: 6, [(Priority.Low, 40), (Priority.Medium, 55), (Priority.High, 5)], ClockStop: FirstClinicVisit),
     ];

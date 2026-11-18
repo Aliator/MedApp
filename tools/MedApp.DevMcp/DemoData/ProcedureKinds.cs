@@ -90,6 +90,10 @@ public static class ProcedureKinds
                 "Histology: benign compound naevus, completely excised.",
                 "Benign; the second mole to be removed at the patient's request, as it catches and bleeds.",
                 "Shave excision of the second mole; haemostasis with aluminium chloride. Specimen sent."),
+            // No treatment: the Benign branch (discharged with advice).
+            new("7 mm evenly pigmented, symmetrical mole. Dermoscopy: regular network.",
+                "Histology: benign junctional naevus, completely excised.",
+                "Benign and completely removed: no further treatment; discharged to the GP with skin self-check advice."),
         ],
         SkinFollowUps, [], SkinSites);
 
@@ -111,6 +115,9 @@ public static class ProcedureKinds
                 "Histology: superficial basal cell carcinoma.",
                 "Excision, which the patient preferred to a cream.",
                 "Excised with a 3 mm margin; layered closure. Specimen sent."),
+            new("6 mm crusted, warty papule that bleeds when caught.",
+                "Histology: irritated seborrhoeic keratosis; no sign of malignancy.",
+                "Benign: no further treatment; discharged to the GP."),
         ],
         SkinFollowUps, [], SkinSites);
 

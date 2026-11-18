@@ -70,7 +70,10 @@ public static class DemoWipe
                 await db.CalendarBlocks.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarDayOverrides.ExecuteDeleteAsync(cancellationToken);
                 await db.ClosedDays.ExecuteDeleteAsync(cancellationToken);
-                // Rooms and every site but the main one, which goes back to how the migration made it.
+                // Working hours (staff and sites), then rooms and every site but the main one, which goes back to how
+                // the migration made it.
+                await db.StaffHours.ExecuteDeleteAsync(cancellationToken);
+                await db.SiteHours.ExecuteDeleteAsync(cancellationToken);
                 await db.Rooms.ExecuteDeleteAsync(cancellationToken);
                 await db.Sites.Where(x => x.Id != Site.MainSiteId).ExecuteDeleteAsync(cancellationToken);
                 await db.Sites.Where(x => x.Id == Site.MainSiteId).ExecuteUpdateAsync(x => x
