@@ -36,7 +36,7 @@ public sealed class PathwayRenameMigrationTests
     // A file's audit details as AttachmentAudit writes them, for a file whose own name holds the words being replaced
     // (System.Text.Json escapes its quotes), and stage notes that quote them: neither may change.
     private const string FileDetails =
-        """{"attachmentId":"99990000-0000-0000-0000-000000000001","fileName":""attachedTo":"Procedure".pdf","contentType":"application/pdf","size":10,"attachedTo":"Procedure"}""";
+        """{"attachmentId":"99990000-0000-0000-0000-000000000001","fileName":"\u0022attachedTo\u0022:\u0022Procedure\u0022.pdf","contentType":"application/pdf","size":10,"attachedTo":"Procedure"}""";
     private const string NotesDetails = """{"from":"","to":"\"attachedTo\":\"Procedure\" as someone typed it"}""";
 
     private MedAppDbContext _context = null!;
