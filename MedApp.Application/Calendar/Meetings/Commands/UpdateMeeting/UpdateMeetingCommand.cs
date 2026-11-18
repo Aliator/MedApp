@@ -18,5 +18,7 @@ public sealed record UpdateMeetingCommand(
     DateTime EndUtc,
     IReadOnlyList<Guid> AttendeeUserIds,
     DateTime? ExpectedLastUpdated,
-    CalendarActor Actor)
+    CalendarActor Actor,
+    bool? IsMdt = null,
+    Guid? SpecialtyId = null)
     : IRequest<MeetingResponse>, IMeetingCommand;

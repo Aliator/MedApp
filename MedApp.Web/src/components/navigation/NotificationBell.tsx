@@ -73,6 +73,7 @@ const KIND_ICONS: Record<string, IconType> = {
   LetterAwaitingApproval: AppIcon.Letters,
   LetterApproved: AppIcon.Success,
   LetterReturned: AppIcon.Back,
+  MdtOutcomeRecorded: AppIcon.Mdt,
 };
 
 /** The bell, which the unread count is placed over. */

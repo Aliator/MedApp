@@ -41,6 +41,10 @@ export const AUDIT_ACTIONS = [
   'SpecimenLost',
   'SpecimenEnteredInError',
   'SpecimenDetailsEdited',
+  'MdtListed',
+  'MdtOutcomeRecorded',
+  'MdtDeferred',
+  'MdtWithdrawn',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -72,6 +76,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   SpecimenLost: 'Specimen lost',
   SpecimenEnteredInError: 'Specimen entered in error',
   SpecimenDetailsEdited: 'Specimen details edited',
+  MdtListed: 'Listed for MDT',
+  MdtOutcomeRecorded: 'MDT outcome recorded',
+  MdtDeferred: 'MDT item moved',
+  MdtWithdrawn: 'Withdrawn from MDT',
 };
 
 /** The actions about attached files, for the log's Files look-up. */

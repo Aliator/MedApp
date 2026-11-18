@@ -90,6 +90,7 @@ describe('timeline filters', () => {
       'Target dates',
       'Other edits',
       'Files',
+      'MDT',
       'Deleted',
     ]);
   });
@@ -116,6 +117,17 @@ describe('groupByDay', () => {
 });
 
 describe('describeTimelineEntry', () => {
+  it('words MDT entries with the specialty, the meetings and who was present, never the question or outcome', () => {
+    const base = {kind: 'Mdt', specialtyName: 'Dermatology', meetingStartUtc: '2026-12-03T13:00:00Z'};
+    expect(describeTimelineEntry(entry({...base, action: 'MdtListed'})).title).toBe('Listed for the Dermatology MDT');
+    expect(describeTimelineEntry(entry({...base, action: 'MdtWithdrawn'})).title).toBe('Withdrawn from the Dermatology MDT');
+    const outcome = describeTimelineEntry(entry({...base, action: 'MdtOutcomeRecorded', presentUsernames: ['k.ashford', 's.brightwell']}));
+    expect(outcome).toEqual({title: 'The Dermatology MDT outcome recorded', detail: 'Present: k.ashford, s.brightwell'});
+    const moved = describeTimelineEntry(entry({...base, action: 'MdtDeferred', previousMeetingStartUtc: '2026-11-26T13:00:00Z'}));
+    expect(moved.title).toBe('Moved to a later Dermatology MDT');
+    expect(moved.detail).toMatch(/^From .+To .+/);
+  });
+
   it("gives a note's text (admins only) as Markdown to show formatted, never in the detail line", () => {
     const added = describeTimelineEntry(entry({action: 'NoteAdded', changes: [{field: 'note', from: null, to: 'Prefers **mornings**.'}]}));
     expect(added).toEqual({title: 'Note added', detail: '', noteText: 'Prefers **mornings**.'});

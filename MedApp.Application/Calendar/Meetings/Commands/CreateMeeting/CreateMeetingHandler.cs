@@ -1,6 +1,8 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Mdt.Common;
+using MedApp.Application.Specialties.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Domain.Calendar;
@@ -14,6 +16,7 @@ public sealed class CreateMeetingHandler(
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    ISpecialtyRepository specialties,
     TimeProvider timeProvider)
     : IRequestHandler<CreateMeetingCommand, MeetingResponse>
 {
@@ -26,6 +29,7 @@ public sealed class CreateMeetingHandler(
         CalendarGuards.EnsureNotPast(UkTime.DateOf(start), today);
 
         var attendees = await identityReadService.GetStaffOrThrowAsync(request.AttendeeUserIds, cancellationToken);
+        var mdtSpecialtyId = await MdtMeetings.ChooseSpecialtyAsync(request, null, specialties, cancellationToken);
 
         // Checked and saved holding every attendee's calendar lock, so nothing can take the time meanwhile.
         var meeting = await calendarLock.RunAsync(attendees.Select(a => a.UserId).ToList(), async ct =>
@@ -41,6 +45,8 @@ public sealed class CreateMeetingHandler(
                 StartUtc = start,
                 EndUtc = end,
                 OrganiserUserId = request.Actor.UserId,
+                IsMdt = mdtSpecialtyId is not null,
+                SpecialtyId = mdtSpecialtyId,
                 CreatedAtUtc = now,
                 LastUpdated = now,
                 Attendees = MeetingStaff.Attendees(id, attendees.Select(a => a.UserId))

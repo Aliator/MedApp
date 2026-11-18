@@ -60,6 +60,7 @@ public sealed class PermissionCatalogueTests
         Permissions.Admin.Should().NotContain(TriageReferrals).And.NotContain(FinishWithoutVisit);
         Permissions.Admin.Should().NotContain([WriteLetters, ApproveLetters, SendLetters]);
         Permissions.Admin.Should().NotContain(RecordSpecimens).And.NotContain(ProcessSpecimens);
+        Permissions.Admin.Should().NotContain(RecordMdtOutcomes);
     }
 
     [Test]
@@ -68,7 +69,7 @@ public sealed class PermissionCatalogueTests
         StandardRoles.AllStaffBeforeRoles.Permissions.Should().BeEquivalentTo(
             [UseApp, ViewPatients, EditPatients, DeletePatients, RegisterReferrals, CreatePathways, WorkPathways, BookAppointments, AttachFiles]);
         StandardRoles.Clinician.Permissions.Should().BeEquivalentTo(
-            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, UnlockStages, FinishWithoutVisit, BookAppointments, AttachFiles,
+            [UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways, UnlockStages, FinishWithoutVisit, RecordMdtOutcomes, BookAppointments, AttachFiles,
              RecordSpecimens, WriteLetters, ApproveLetters, SendLetters]);
         StandardRoles.SeniorClinician.Permissions.Should().BeEquivalentTo(
             StandardRoles.Clinician.Permissions.Union([UnlockStages, FinishWithoutVisit]));
@@ -168,10 +169,10 @@ public sealed class PermissionCatalogueTests
         starting.Select(r => (Guid.Parse(r.Id), r.Name, r.Description)).Should().Equal(
             startedWith.Select(r => (r.Id, r.Name, r.Description)));
         // Later migrations add the permissions that came after (AddedWorkingHours: ManageClinics; AddedLetters: the
-        // letter permissions; AddedSpecimens: RecordSpecimens and ProcessSpecimens).
+        // letter permissions; AddedSpecimens: RecordSpecimens and ProcessSpecimens; AddedMdtItems: RecordMdtOutcomes).
         foreach (var (role, standard) in starting.Zip(startedWith))
             AsNow(role.Permissions).Should().BeEquivalentTo(
-                standard.Permissions.Where(p => p is not (ManageClinics or WriteLetters or ApproveLetters or SendLetters or RecordSpecimens or ProcessSpecimens)).Select(p => p.ToString()),
+                standard.Permissions.Where(p => p is not (ManageClinics or WriteLetters or ApproveLetters or SendLetters or RecordSpecimens or ProcessSpecimens or RecordMdtOutcomes)).Select(p => p.ToString()),
                 standard.Name);
 
         ((string)migration.GetField("AdminId", Private)!.GetValue(null)!).Should().Be(StandardRoles.Admin.Id.ToString());
@@ -224,8 +225,22 @@ public sealed class PermissionCatalogueTests
         Field("SeniorClinicianId").Should().Be(StandardRoles.SeniorClinician.Id.ToString());
         Field("SeniorClinicianName").Should().Be(StandardRoles.SeniorClinician.Name);
         Field("SeniorClinicianDescription").Should().Be(StandardRoles.SeniorClinician.Description);
+        // AddedMdtItems gives it RecordMdtOutcomes later.
         ((string[])migration.GetField("SeniorClinicianPermissions", Private)!.GetValue(null)!)
             .Should().BeEquivalentTo(StandardRoles.SeniorClinician.Permissions
-                .Where(p => p is not (RecordSpecimens or ProcessSpecimens)).Select(p => p.ToString()), "AddedSpecimens adds the specimen permissions later");
+                .Where(p => p is not (RecordSpecimens or ProcessSpecimens or WriteLetters or ApproveLetters or SendLetters or RecordMdtOutcomes)).Select(p => p.ToString()),
+                "AddedLetters, AddedSpecimens and AddedMdtItems add theirs later");
+    }
+
+    /// <summary>AddedMdtItems gives RecordMdtOutcomes to Clinician and Senior clinician, as the standard roles have it.</summary>
+    [Test]
+    public void MdtMigration_GivesRecordMdtOutcomesToClinicianAndSeniorClinician_AsTheStandardRolesHaveIt()
+    {
+        const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Static;
+        var migration = typeof(AddedMdtItems);
+
+        ((string)migration.GetField("Permission", Private)!.GetValue(null)!).Should().Be(nameof(RecordMdtOutcomes));
+        ((string[])migration.GetField("RoleIds", Private)!.GetValue(null)!).Should().BeEquivalentTo(
+            StandardRoles.Starting.Where(r => r.Permissions.Contains(RecordMdtOutcomes)).Select(r => r.Id.ToString()));
     }
 }

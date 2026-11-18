@@ -14,10 +14,11 @@ public sealed record SpecialtyUsage(
     int AwaitingTriageCount = 0,
     int TriagerCount = 0,
     int ClinicCount = 0,
-    int LetterTemplateCount = 0)
+    int LetterTemplateCount = 0,
+    int MdtCount = 0)
 {
     public static readonly SpecialtyUsage None = new(0, 0, 0);
 
     public bool IsInUse => TemplateCount > 0 || PathwayCount > 0 || MemberCount > 0 || ReferralCount > 0 || ClinicCount > 0
-                           || LetterTemplateCount > 0;
+                           || LetterTemplateCount > 0 || MdtCount > 0;
 }
