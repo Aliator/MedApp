@@ -79,8 +79,9 @@ const PASSWORD_AND_CODE = ['password', 'code'];
  * as it opens, shows it as a QR code to scan and as text to type, then turns two-factor on with the account's password
  * (so a session alone can't) and a code from the app, and shows the recovery codes (`RecoveryCodes`) once, until
  * `onDone`. A 400 shows on its field; a 409 (already on), a locked account (423) or too many tries (429) shows in the
- * API's words. Used by Account Settings' Security page and by `/set-up-two-factor`, where an admin is held until
- * they've set it up. Put it in a card; it lays out its own steps.
+ * API's words. Used by Account Settings' Security page (also to switch from codes by email to an app: the API allows
+ * this set-up while codes by email are on, and two-factor stays on throughout) and by `/set-up-two-factor`, where an
+ * admin is held until they've set it up. Put it in a card; it lays out its own steps.
  */
 export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled}: TwoFactorSetupProps) {
   const begin = useBeginAuthenticatorSetup();

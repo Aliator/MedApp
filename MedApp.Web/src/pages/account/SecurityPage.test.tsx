@@ -1,8 +1,8 @@
 import {act, screen, waitFor, within} from '@testing-library/react';
 import {twoFactorStatusQuery} from '../../api/account';
 import {adminUser, calls, expectAnnounced, findAlert, isDisabled, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
-import {authenticatorSetup, recoveryCodes} from '../../test/twoFactor';
-import {REQUIRED, SecurityPage} from './SecurityPage';
+import {authenticatorSetup, emailCodeSent, recoveryCodes} from '../../test/twoFactor';
+import {EMAIL_NOT_ENOUGH, EMAIL_UNAVAILABLE, REQUIRED, SecurityPage} from './SecurityPage';
 
 const STATUS = 'GET /api/auth/me/two-factor';
 const DISABLE = 'POST /api/auth/me/two-factor/disable';
@@ -252,5 +252,145 @@ describe('SecurityPage', () => {
 
     expect(await findAlert('Your two-factor authentication settings could not be loaded. Please try again.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Set Up Two-Factor'})).not.toBeInTheDocument();
+  });
+});
+
+describe('SecurityPage, with codes by email', () => {
+  const SEND_SETUP = 'POST /api/auth/me/two-factor/email';
+  const ENABLE_EMAIL = 'POST /api/auth/me/two-factor/email/enable';
+  const SEND_CODE = 'POST /api/auth/me/two-factor/email/code';
+
+  const offWithEmail = {...off, method: 'None', canUseEmailCodes: true, emailCodesUnavailableReason: null};
+  const onWithEmail = {...on, method: 'Email', canUseEmailCodes: true, emailCodesUnavailableReason: null};
+
+  it('offers the authenticator app or codes by email, the app chosen, and email noted as weaker', async () => {
+    renderPage(offWithEmail);
+
+    expect(await screen.findByRole('radio', {name: /authenticator app/i})).toBeChecked();
+    const email = screen.getByRole('radio', {name: /codes by email/i});
+    expect(isDisabled(email)).toBe(false);
+    expect(screen.getByText(/The stronger choice/)).toBeInTheDocument();
+    expect(screen.getByText(/anyone who gets into your mailbox gets the code/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['NoConfirmedAddress', EMAIL_UNAVAILABLE.NoConfirmedAddress],
+    ['EmailUnavailable', EMAIL_UNAVAILABLE.EmailUnavailable],
+  ])("can't choose codes by email (%s), and says why", async (reason, message) => {
+    renderPage({...offWithEmail, canUseEmailCodes: false, emailCodesUnavailableReason: reason});
+
+    const email = await screen.findByRole('radio', {name: /codes by email/i});
+    expect(isDisabled(email)).toBe(true);
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it('sets up codes by email, then shows them on', async () => {
+    withAnnouncements();
+    let status: object = offWithEmail;
+    const {user} = renderPage(undefined, {
+      [STATUS]: () => json(status),
+      [SEND_SETUP]: () => json(emailCodeSent, 202),
+      [ENABLE_EMAIL]: () => {
+        status = {...onWithEmail, recoveryCodesLeft: 10};
+        return json({recoveryCodes});
+      },
+    });
+
+    await user.click(await screen.findByRole('radio', {name: /codes by email/i}));
+    await user.click(screen.getByRole('button', {name: 'Set Up Two-Factor'}));
+    await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.type(await screen.findByLabelText(/code from the email/i), '123456');
+    await user.click(screen.getByRole('button', {name: 'Turn on codes by email'}));
+    expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
+    await expectAnnounced('Codes by email turned on');
+    await user.click(screen.getByRole('button', {name: 'Done'}));
+
+    expect(await screen.findByText('Codes by email')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+  it('shows the method in use', async () => {
+    renderPage(onWithEmail);
+
+    expect(await screen.findByText('Codes come from')).toBeInTheDocument();
+    expect(screen.getByText('Codes by email')).toBeInTheDocument();
+  });
+
+  it('shows the authenticator app as the method for an account that uses it', async () => {
+    renderPage(on);
+
+    expect(await screen.findByText('Authenticator app')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Switch to an Authenticator App'})).not.toBeInTheDocument();
+  });
+
+  it('turns it off with the password and a code it emails on request', async () => {
+    const {user, fetch} = renderPage(onWithEmail, {
+      [SEND_CODE]: () => json(emailCodeSent, 202),
+      [DISABLE]: () => new Response(null, {status: 204}),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText(/a code we email you \(or a recovery code\)/)).toBeInTheDocument();
+    await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    expect(await dialog.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
+    expect(calls(fetch)).toContain(SEND_CODE);
+    await user.type(dialog.getByLabelText(/code from the email, or a recovery code/i), '654321');
+    await user.click(dialog.getByRole('button', {name: 'Turn Off'}));
+
+    expect(await screen.findByText('Two-factor authentication is off. Your other sessions have ended.')).toBeInTheDocument();
+    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/disable')).toEqual({password: 'Synthetic-Passw0rd', code: '654321'});
+  });
+
+  it("says why a code couldn't be emailed, in the API's words", async () => {
+    const tooMany = 'Too many codes for this account. Try again in 12 minutes.';
+    const {user} = renderPage(onWithEmail, {[SEND_CODE]: () => json({title: tooMany, status: 429}, 429)});
+
+    await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
+    const dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+
+    expect(await dialog.findByText(tooMany)).toBeInTheDocument();
+  });
+
+  it('gets new recovery codes with an emailed code, sending another on request', async () => {
+    withAnnouncements();
+    const {user, fetch} = renderPage(onWithEmail, {
+      [SEND_CODE]: () => json({...emailCodeSent, resendInSeconds: 0}, 202),
+      [CODES]: () => json({recoveryCodes}),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'New Recovery Codes'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText(/a code we email you to get them/)).toBeInTheDocument();
+    await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    await user.click(await dialog.findByRole('button', {name: 'Resend code'}));
+    await expectAnnounced(`A new code was emailed to ${emailCodeSent.sentTo}.`);
+    expect(calls(fetch).filter((c) => c === SEND_CODE)).toHaveLength(2);
+    await user.type(dialog.getByLabelText(/code from the email/i), '123456');
+    await user.click(dialog.getByRole('button', {name: 'Get New Codes'}));
+
+    expect(await dialog.findByText(recoveryCodes[0])).toBeInTheDocument();
+  });
+
+  it('switches to an authenticator app, keeping codes by email until it is set up', async () => {
+    const {user} = renderPage(onWithEmail, {'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup)});
+
+    await user.click(await screen.findByRole('button', {name: 'Switch to an Authenticator App'}));
+
+    expect(await screen.findByRole('img', {name: 'QR code for your authenticator app'})).toBeInTheDocument();
+    expect(screen.getByText(/Codes by email stay on until the app is set up/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Cancel'}));
+    expect(await screen.findByRole('button', {name: 'Switch to an Authenticator App'})).toBeInTheDocument();
+  });
+
+  it('says an admin must switch to an authenticator app while admins are required to use two-factor', async () => {
+    renderPage({...onWithEmail, required: true});
+
+    expect(await screen.findByText(EMAIL_NOT_ENOUGH)).toBeInTheDocument();
+    expect(isDisabled(screen.getByRole('button', {name: 'Turn Off'}))).toBe(true);
   });
 });

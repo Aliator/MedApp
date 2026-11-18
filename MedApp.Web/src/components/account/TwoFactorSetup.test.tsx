@@ -76,7 +76,14 @@ describe('TwoFactorSetup', () => {
   it('turns two-factor on with the password and code, then shows the recovery codes once, until Continue', async () => {
     withAnnouncements();
     const {user, fetch, onDone, onEnabled, queryClient} = renderSetup();
-    queryClient.setQueryData(twoFactorStatusQuery.queryKey, {enabled: false, recoveryCodesLeft: 0, required: true});
+    queryClient.setQueryData(twoFactorStatusQuery.queryKey, {
+      enabled: false,
+      method: 'None',
+      recoveryCodesLeft: 0,
+      required: true,
+      canUseEmailCodes: false,
+      emailCodesUnavailableReason: 'NoConfirmedAddress',
+    });
 
     await turnOn(user);
 

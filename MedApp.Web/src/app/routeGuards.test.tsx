@@ -134,6 +134,7 @@ describe('route guards', () => {
   it('sends an admin who must set up two-factor to do that, before loading anything the API would refuse', async () => {
     const fetch = mockApi({
       'GET /api/auth/me/settings': () => json({settings: null}),
+      'GET /api/auth/me/two-factor': () => json({enabled: false, method: 'None', recoveryCodesLeft: 0, required: true}),
       'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup),
     });
     const {router} = renderApp({path: '/patients', user: mustSetUpTwoFactorUser});
@@ -141,12 +142,11 @@ describe('route guards', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/set-up-two-factor'));
     expect(await screen.findByRole('heading', {name: 'Set up two-factor authentication'})).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
-    // Only what the hold allows: their settings, and a key for the app.
+    // Only what the hold allows: their settings, their two-factor state, and a key for the app.
     await screen.findByRole('img', {name: 'QR code for your authenticator app'});
-    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).toEqual([
-      '/api/auth/me/settings',
-      '/api/auth/me/two-factor/authenticator',
-    ]);
+    expect(new Set(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname))).toEqual(
+      new Set(['/api/auth/me/settings', '/api/auth/me/two-factor', '/api/auth/me/two-factor/authenticator']),
+    );
   });
 
   it('sends someone who must change their password there first, even if they must set up two-factor too', async () => {

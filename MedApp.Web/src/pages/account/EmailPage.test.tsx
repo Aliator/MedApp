@@ -237,6 +237,11 @@ describe('EmailPage', () => {
 
   it.each([
     ['locked', () => json({title: 'This account is locked. Try again in 5 minutes.', status: 423}, 423), 'This account is locked. Try again in 5 minutes.'],
+    [
+      'it signs in with codes by email',
+      () => json({title: 'You sign in with codes sent to this address. Turn off two-factor authentication first.', status: 409}, 409),
+      'You sign in with codes sent to this address. Turn off two-factor authentication first.',
+    ],
     ['a server error', () => json({title: 'Server error'}, 500), 'Your email address could not be removed. Please try again.'],
   ])('says in the dialog when the address could not be removed: %s', async (_, respond, message) => {
     const {user} = renderPage({extra: {[REMOVE]: respond}});

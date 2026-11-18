@@ -1,6 +1,7 @@
 import {queryOptions, useMutation, useQueryClient, useSuspenseQuery, type QueryClient} from '@tanstack/react-query';
 import {redirect, useNavigate} from '@tanstack/react-router';
-import {api, unwrap} from '../api/client';
+import {toEmailCodeSent, type EmailCodeSent} from '../api/account';
+import {api, unwrap, type Schemas} from '../api/client';
 import {settingsQuery} from '../api/settings';
 import {currentStartPagePath} from '../app/navSettings';
 import {appSettings, clearStorageAtSignOut, flushSettings} from '../app/settingsStore';
@@ -149,6 +150,10 @@ export interface TwoFactorChallenge {
   challenge: string;
   /** When it runs out (UTC), and the password must be given again. */
   expiresAtUtc: string;
+  /** How the code comes: from an authenticator app, or emailed by MedApp. */
+  method: 'Authenticator' | 'Email';
+  /** For codes by email, the code just sent (where, and when another can be); null if none could be sent. */
+  emailCode: EmailCodeSent | null;
 }
 
 /** How a password sign-in went: in, or (with two-factor authentication) a code still to give. */
@@ -165,8 +170,15 @@ export function useLogin(redirectTo?: string) {
     mutationFn: async (body: LoginInput): Promise<LoginResult> => {
       const result = await api.POST('/api/auth/login', {body});
       if (result.response.status === 202) {
-        const data = result.data as {challenge?: string | null; expiresAtUtc?: string} | undefined;
-        return {kind: 'twoFactor', challenge: data?.challenge ?? '', expiresAtUtc: data?.expiresAtUtc ?? ''};
+        const data = result.data as Schemas['TwoFactorChallengeResponse'] | undefined;
+        const method = data?.method === 'Email' ? 'Email' : 'Authenticator';
+        return {
+          kind: 'twoFactor',
+          challenge: data?.challenge ?? '',
+          expiresAtUtc: data?.expiresAtUtc ?? '',
+          method,
+          emailCode: method === 'Email' && data?.emailCode ? toEmailCodeSent(data.emailCode) : null,
+        };
       }
       await unwrap(Promise.resolve(result));
       return {kind: 'signedIn'};
@@ -189,6 +201,18 @@ export function useLoginTwoFactor(redirectTo?: string) {
   return useMutation({
     mutationFn: (body: LoginTwoFactorInput) => unwrap(api.POST('/api/auth/login/two-factor', {body})),
     onSuccess: enterApp,
+  });
+}
+
+/**
+ * Emails a new code for a sign-in using codes by email (`POST api/auth/login/two-factor/resend`), replacing the last:
+ * at most once a minute and three times a sign-in (a 429 whose title says when). A 401 with `code: "sign_in_expired"`
+ * when the sign-in has run out.
+ */
+export function useResendSignInCode() {
+  return useMutation({
+    mutationFn: async (challenge: string) =>
+      toEmailCodeSent(await unwrap(api.POST('/api/auth/login/two-factor/resend', {body: {challenge}}))),
   });
 }
 

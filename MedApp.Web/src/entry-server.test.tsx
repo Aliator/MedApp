@@ -197,6 +197,7 @@ describe('server rendering', () => {
     const requests = api({
       '/api/auth/whoami': {...signedIn, roles: ['Admin', 'User'], mustSetUpTwoFactor: true},
       '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
+      '/api/auth/me/two-factor': {enabled: true, method: 'Email', recoveryCodesLeft: 10, required: true},
     });
 
     const response = await page('/set-up-two-factor', 'medapp_session=abc');
@@ -205,7 +206,9 @@ describe('server rendering', () => {
     expect(response.status).toBe(200);
     expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
     expect(html).toContain('Set up two-factor authentication');
-    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(['/api/auth/whoami', '/api/auth/me/settings']);
+    // Why codes by email aren't enough, rendered with the page.
+    expect(html).toContain('You sign in with codes by email');
+    expect(requests.map((r) => new URL(r.url).pathname).sort()).toEqual(['/api/auth/me/settings', '/api/auth/me/two-factor', '/api/auth/whoami']);
   });
 
   it('renders Account Settings, Security with its two-factor state', async () => {
@@ -247,7 +250,7 @@ describe('server rendering', () => {
 
     const html = await (await page('/admin/settings', 'medapp_session=abc')).text();
 
-    expect(html).toContain("3 admin accounts haven&#x27;t set it up; they&#x27;ll be asked to at their next request.");
+    expect(html).toContain("3 admin accounts haven&#x27;t set up an authenticator app; they&#x27;ll be asked to at their next request.");
   });
 
   it("renders a signed-in page with its data, fetched as the user with their cookie, in the account's settings", async () => {

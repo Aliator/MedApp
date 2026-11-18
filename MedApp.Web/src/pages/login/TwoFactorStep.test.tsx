@@ -1,7 +1,8 @@
-import {screen, waitFor} from '@testing-library/react';
-import {calls, expectAnnounced, findAlert, json, mockApi, renderWithApp, withAnnouncements} from '../../test/render';
-import {CODE_STEP_ANNOUNCEMENT, LoginPage} from './LoginPage';
-import {SIGN_IN_EXPIRED} from './TwoFactorStep';
+import {act, screen, waitFor} from '@testing-library/react';
+import {calls, expectAnnounced, findAlert, isDisabled, json, mockApi, renderWithApp, withAnnouncements} from '../../test/render';
+import {emailCodeSent} from '../../test/twoFactor';
+import {CODE_STEP_ANNOUNCEMENT, EMAIL_CODE_STEP_ANNOUNCEMENT, LoginPage} from './LoginPage';
+import {CODE_NOT_SENT, NO_MORE_CODES, SIGN_IN_EXPIRED} from './TwoFactorStep';
 
 /** Signing in to an account with two-factor authentication: the password, then a code. */
 
@@ -182,5 +183,136 @@ describe('TwoFactorStep', () => {
     // No reason given: they chose to go back.
     expect(screen.queryByText(/run out|expired|invalid credentials/i)).not.toBeInTheDocument();
     expect(calls(fetch)).not.toContain('POST /api/auth/login/two-factor');
+  });
+});
+
+describe('TwoFactorStep, with codes by email', () => {
+  const RESEND = 'POST /api/auth/login/two-factor/resend';
+
+  function renderEmailLogin(extra: Parameters<typeof mockApi>[0] = {}, emailCode: unknown = emailCodeSent) {
+    const fetch = mockApi({
+      'GET /api/auth/features': () => json({canSendEmail: true}),
+      'POST /api/auth/login': () =>
+        json({challenge: CHALLENGE, expiresAtUtc: '2030-01-01T00:10:00Z', method: 'Email', emailCode}, 202),
+      'POST /api/auth/login/two-factor': () => json(session),
+      ...extra,
+    });
+    return {...renderWithApp(<LoginPage />, {path: '/login'}), fetch};
+  }
+
+  async function enterPasswordForEmail(user: User) {
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    return screen.findByLabelText(/code from the email/i);
+  }
+
+  it('says where the code went, asks for it, and signs in with it', async () => {
+    withAnnouncements();
+    const {user, router, fetch} = renderEmailLogin();
+
+    const code = await enterPasswordForEmail(user);
+
+    expect(screen.getByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
+    expect(screen.getByText(/We emailed a code to/)).toBeInTheDocument();
+    expect(screen.getByText('Enter the 6-digit code from the email.')).toBeInTheDocument();
+    expect(code).toHaveFocus();
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+    expect(code).toHaveAttribute('inputmode', 'numeric');
+    await expectAnnounced(EMAIL_CODE_STEP_ANNOUNCEMENT);
+
+    await user.type(code, '123456');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, code: '123456'});
+  });
+
+  it('waits before Resend, then sends a new code for this sign-in', async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    withAnnouncements();
+    const next = {...emailCodeSent, resendsLeft: 2};
+    const {user, fetch} = renderEmailLogin({[RESEND]: () => json(next)});
+
+    await enterPasswordForEmail(user);
+    expect(isDisabled(screen.getByRole('button', {name: /Resend in 60 s/}))).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(61_000));
+    const resend = screen.getByRole('button', {name: 'Resend code'});
+    expect(isDisabled(resend)).toBe(false);
+    await user.click(resend);
+
+    await expectAnnounced(`A new code was emailed to ${next.sentTo}.`);
+    expect(await bodyOf(fetch, '/api/auth/login/two-factor/resend')).toEqual({challenge: CHALLENGE});
+    expect(await screen.findByRole('button', {name: /Resend in 60 s/})).toBeInTheDocument();
+  });
+
+  it('says when no more codes can be sent', async () => {
+    const {user} = renderEmailLogin({}, {...emailCodeSent, resendInSeconds: 0, resendsLeft: 0});
+
+    await enterPasswordForEmail(user);
+
+    expect(screen.getByText(NO_MORE_CODES)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /resend/i})).not.toBeInTheDocument();
+  });
+
+  it("says why a resend was refused, in the API's words", async () => {
+    const tooSoon = 'You can ask for another code in 42 seconds.';
+    const {user} = renderEmailLogin({[RESEND]: () => json({title: tooSoon, status: 429}, 429)}, {...emailCodeSent, resendInSeconds: 0});
+
+    await enterPasswordForEmail(user);
+    await user.click(screen.getByRole('button', {name: 'Resend code'}));
+
+    expect(await findAlert(tooSoon)).toBeInTheDocument();
+  });
+
+  it('goes back to the password when a resend finds the sign-in has run out', async () => {
+    const expired = 'This sign-in has expired. Enter your password again.';
+    const {user} = renderEmailLogin(
+      {[RESEND]: () => json({title: expired, status: 401, code: SIGN_IN_EXPIRED}, 401)},
+      {...emailCodeSent, resendInSeconds: 0},
+    );
+
+    await enterPasswordForEmail(user);
+    await user.click(screen.getByRole('button', {name: 'Resend code'}));
+
+    expect(await findAlert(expired)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password/i)).toHaveValue('');
+  });
+
+  it('says a wrong code is wrong, pointing to the newest email', async () => {
+    const {user} = renderEmailLogin({'POST /api/auth/login/two-factor': () => new Response(null, {status: 401})});
+
+    await user.type(await enterPasswordForEmail(user), '000000');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    expect(await findAlert("That code isn't right. Check the newest email and try again.")).toBeInTheDocument();
+  });
+
+  it('uses a recovery code instead, and switches back to the emailed code', async () => {
+    const {user, fetch} = renderEmailLogin();
+
+    await enterPasswordForEmail(user);
+    await user.click(screen.getByRole('button', {name: 'Use a recovery code instead'}));
+    expect(screen.queryByText(/We emailed a code to/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Use a code from the email'}));
+    expect(screen.getByLabelText(/code from the email/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Use a recovery code instead'}));
+    await user.type(screen.getByLabelText(/recovery code/i), 'abcd-1234');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/auth/login/two-factor'));
+    expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, recoveryCode: 'abcd-1234'});
+  });
+
+  it('asks for a recovery code when no code could be emailed', async () => {
+    const {user} = renderEmailLogin({}, null);
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    expect(await findAlert(CODE_NOT_SENT)).toBeInTheDocument();
+    expect(screen.getByLabelText(/recovery code/i)).toHaveAttribute('autocomplete', 'off');
+    expect(screen.queryByRole('button', {name: /use a code/i})).not.toBeInTheDocument();
   });
 });

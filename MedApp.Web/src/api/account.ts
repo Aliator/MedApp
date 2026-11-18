@@ -93,22 +93,91 @@ export function useRemoveMyEmail() {
   });
 }
 
-/** The signed-in user's two-factor authentication: on or off, recovery codes left, and whether they must use it. */
+/** How an account's second step is made: none, a code from an authenticator app, or a code MedApp emails. */
+export type TwoFactorMethod = 'None' | 'Authenticator' | 'Email';
+
+/** Why codes by email can't be chosen: no confirmed address yet, or a server that can't send email. */
+export type EmailCodesUnavailableReason = 'NoConfirmedAddress' | 'EmailUnavailable';
+
+/** The signed-in user's two-factor authentication: on or off, how, recovery codes left, and whether they must use it. */
 export interface TwoFactorStatus {
   enabled: boolean;
+  method: TwoFactorMethod;
   recoveryCodesLeft: number;
-  /** They must use it (an admin, while Admin Settings requires it), so it can't be turned off. */
+  /**
+   * They must use it (an admin, while Admin Settings requires it), so it can't be turned off. The requirement needs an
+   * authenticator app: an admin using codes by email is held to switch.
+   */
   required: boolean;
+  /** Whether codes by email can be turned on (a confirmed address, and a server that can send email). */
+  canUseEmailCodes: boolean;
+  emailCodesUnavailableReason: EmailCodesUnavailableReason | null;
 }
+
+const toMethod = (method: string | null | undefined, enabled: boolean): TwoFactorMethod =>
+  method === 'Email' ? 'Email' : method === 'Authenticator' || (enabled && method !== 'None') ? 'Authenticator' : 'None';
+
+const toUnavailableReason = (reason: string | null | undefined): EmailCodesUnavailableReason | null =>
+  reason === 'NoConfirmedAddress' || reason === 'EmailUnavailable' ? reason : null;
 
 /** The signed-in user's two-factor authentication (`GET api/auth/me/two-factor`). */
 export const twoFactorStatusQuery = queryOptions({
   queryKey: ['account', 'two-factor'],
   queryFn: async (): Promise<TwoFactorStatus> => {
     const body = await unwrap(api.GET('/api/auth/me/two-factor'));
-    return {enabled: body?.enabled === true, recoveryCodesLeft: body?.recoveryCodesLeft ?? 0, required: body?.required === true};
+    const enabled = body?.enabled === true;
+    return {
+      enabled,
+      method: toMethod(body?.method, enabled),
+      recoveryCodesLeft: body?.recoveryCodesLeft ?? 0,
+      required: body?.required === true,
+      canUseEmailCodes: body?.canUseEmailCodes === true,
+      emailCodesUnavailableReason: toUnavailableReason(body?.emailCodesUnavailableReason),
+    };
   },
 });
+
+/**
+ * A two-factor code MedApp has just emailed: where it went (masked by the server, e.g. `j•••@example.com`), when it
+ * stops working, how many seconds before another can be sent (by the server's clock, so a device with a wrong clock
+ * still counts down right), and how many more can be sent.
+ */
+export interface EmailCodeSent {
+  sentTo: string;
+  expiresAtUtc: string;
+  resendInSeconds: number;
+  resendsLeft: number;
+}
+
+/** An emailed code's details from the API (`EmailCodeSentResponse`). */
+export const toEmailCodeSent = (body: Schemas['EmailCodeSentResponse'] | null | undefined): EmailCodeSent => ({
+  sentTo: body?.sentTo ?? '',
+  expiresAtUtc: body?.expiresAtUtc ?? '',
+  resendInSeconds: Math.max(0, body?.resendInSeconds ?? 0),
+  resendsLeft: Math.max(0, body?.resendsLeft ?? 0),
+});
+
+/**
+ * Starts turning on codes by email (`POST api/auth/me/two-factor/email`), given the password: the API emails a code to
+ * the account's confirmed address. Asking again sends a new one (at most once a minute, three times). A 400 on
+ * `password`; a 409 (already on, no confirmed address, or email can't be sent), 423 or 429 explains itself.
+ */
+export function useSendEmailCodesSetup() {
+  return useMutation({
+    mutationFn: async (password: string) =>
+      toEmailCodeSent(await unwrap(api.POST('/api/auth/me/two-factor/email', {body: {password}}))),
+  });
+}
+
+/**
+ * Emails the signed-in user a code for confirming a change (`POST api/auth/me/two-factor/email/code`), when they sign
+ * in with codes by email: turning it off, or new recovery codes. A 409 when they don't; a 429 when it's too soon.
+ */
+export function useSendTwoFactorEmailCode() {
+  return useMutation({
+    mutationFn: async () => toEmailCodeSent(await unwrap(api.POST('/api/auth/me/two-factor/email/code'))),
+  });
+}
 
 /** A new authenticator key: as a QR code (one SVG path of its dark modules, in a square `size` wide) and as text. */
 export interface AuthenticatorSetup {
@@ -166,8 +235,20 @@ export function useEnableTwoFactor() {
 }
 
 /**
- * Turns two-factor off (`POST api/auth/me/two-factor/disable`), given the password and a current code. A 409 when the
- * account must use it, a 423 when it's locked, a 429 after too many codes; the account's other sessions end.
+ * Turns two-factor on with codes by email (`POST api/auth/me/two-factor/email/enable`), with the code emailed by
+ * `useSendEmailCodesSetup`, returning the recovery codes, once. A wrong code is a 400 on `code`; the account's other
+ * sessions end.
+ */
+export function useEnableEmailCodes() {
+  return useTwoFactorMutation(async (code: string) =>
+    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/email/enable', {body: {code}}))),
+  );
+}
+
+/**
+ * Turns two-factor off (`POST api/auth/me/two-factor/disable`), given the password and a current code (from the app, or
+ * emailed for an account using codes by email, or a recovery code). A 409 when the account must use it, a 423
+ * when it's locked, a 429 after too many codes; the account's other sessions end.
  */
 export function useDisableTwoFactor() {
   return useTwoFactorMutation(({password, code}: PasswordAndCode) =>
@@ -177,7 +258,8 @@ export function useDisableTwoFactor() {
 
 /**
  * Replaces the recovery codes with a new set (`POST api/auth/me/two-factor/recovery-codes`), given the password and a
- * current authenticator code. A 400 on either; a 423 when the account is locked, a 429 after too many codes.
+ * current code (from the app, or emailed for an account using codes by email). A 400 on either; a 423 when the
+ * account is locked, a 429 after too many codes.
  */
 export function useRegenerateRecoveryCodes() {
   return useTwoFactorMutation(async ({password, code}: PasswordAndCode) =>
