@@ -131,6 +131,7 @@ public static class DemoDataSeeder
 
         var privacy = await DemoPrivacy.CreateAsync(services, world, patients, ct);
         var reminders = await DemoReminders.CreateAsync(services, world, ct);
+        var dataRequestFor = await DemoDataRequests.CreateAsync(services, world, patients.All, ct);
         Mark("privacy and reminders");
 
         object files;
@@ -218,6 +219,7 @@ public static class DemoDataSeeder
                 activityEntries = activity,
             },
             ["privacy"] = privacy,
+            ["openDataRequestFor"] = dataRequestFor,
             ["tour"] = DemoTour.Build(world, plans, patients.All, stories, letters.Records, clinics.Tour),
             ["files"] = files,
             ["settings"] = settings,

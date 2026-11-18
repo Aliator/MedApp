@@ -315,6 +315,10 @@ Each combination of period and template looks different. The **Specialty** choic
   - the new starter's creation, the service manager made an admin, the password reset, two-factor turned on
   - file views and downloads, and the retention "keep" decisions
 
+### Data requests (Administration, Data requests)
+
+One open subject access request (the summary's `openDataRequestFor`): received nine days ago from the patient's daughter (an invented name) with their written consent, logged by the clinical lead, her identity checked from documents two days later; its one-month deadline is ahead.
+
 ### Retention review
 
 Six imported records are due: five adults last seen 9 to 12 years ago, and one child seen at 11, now over 25. Two of them are kept until next year, with reasons (shown with "Include kept"). A seventh was anonymised three weeks ago (`privacy.anonymisedPatientId`), so it's no longer listed.
