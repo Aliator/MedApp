@@ -28,6 +28,7 @@ type StartPath = (typeof START_PAGES)[number]['path'];
 
 const FLYOUT_DELAY_KEY = defineSetting('medapp.navFlyoutDelay');
 const START_PAGE_KEY = defineSetting('medapp.startPage');
+const FOLDS_IN_HALF_VIEW_KEY = defineSetting('medapp.navFoldsInHalfView');
 
 interface NavSettingsContextValue {
   flyoutDelay: FlyoutDelay;
@@ -38,6 +39,9 @@ interface NavSettingsContextValue {
   startPage: StartPage;
   startPagePath: StartPath;
   setStartPage: (page: StartPage) => void;
+  /** Whether opening a half view folds the side nav to its icon rail (on unless turned off). */
+  foldsInHalfView: boolean;
+  setFoldsInHalfView: (folds: boolean) => void;
 }
 
 const NavSettingsContext = createContext<NavSettingsContextValue | null>(null);
@@ -54,18 +58,22 @@ export const currentStartPagePath = (): StartPath =>
 
 /**
  * How the side nav behaves (Account Settings), kept in this browser: how long its folded icons wait before bringing
- * their rows out (half a second), and the page sign-in opens on (Home). (A nav item always opens its page in the main
+ * their rows out (half a second), the page sign-in opens on (Home), and whether opening a half view folds it to its
+ * icons (yes; off, it stays as it was and the two halves share what's left). (A nav item always opens its page in the main
  * view, the left of a half view, and Shift-click opens it in the half view: the owner removed the setting that made it
  * close the half view instead, 18 November 2026. Its old key, `medapp.navClosesHalfView`, is no longer read.)
  */
 export function NavSettingsProvider({children}: {children: ReactNode}) {
   const [storedDelay, storeDelay] = useAppSetting(FLYOUT_DELAY_KEY);
   const [storedStart, storeStart] = useAppSetting(START_PAGE_KEY);
+  const [storedFolds, storeFolds] = useAppSetting(FOLDS_IN_HALF_VIEW_KEY);
   const flyoutDelay: FlyoutDelay = FLYOUT_DELAYS.find((option) => option.value === storedDelay)?.value ?? 'standard';
   const startPage: StartPage = START_PAGES.find((option) => option.value === storedStart)?.value ?? 'home';
+  const foldsInHalfView = storedFolds !== 'false';
 
   const setFlyoutDelay = useCallback((delay: FlyoutDelay) => storeDelay(delay), [storeDelay]);
   const setStartPage = useCallback((page: StartPage) => storeStart(page), [storeStart]);
+  const setFoldsInHalfView = useCallback((folds: boolean) => storeFolds(String(folds)), [storeFolds]);
 
   const value = useMemo(
     () => ({
@@ -75,8 +83,10 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
       startPage,
       startPagePath: startPath(startPage),
       setStartPage,
+      foldsInHalfView,
+      setFoldsInHalfView,
     }),
-    [flyoutDelay, setFlyoutDelay, startPage, setStartPage],
+    [flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView],
   );
   return <NavSettingsContext.Provider value={value}>{children}</NavSettingsContext.Provider>;
 }
@@ -88,6 +98,8 @@ const DEFAULTS: NavSettingsContextValue = {
   startPage: 'home',
   startPagePath: '/',
   setStartPage: () => {},
+  foldsInHalfView: true,
+  setFoldsInHalfView: () => {},
 };
 
 /** The side nav settings; outside the provider (tests of one part), the defaults. */

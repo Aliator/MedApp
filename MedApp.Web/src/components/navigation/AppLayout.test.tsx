@@ -112,6 +112,45 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/audit');
   });
 
+  it('folds the nav to its icons as a half view opens, with the button at the bottom of the rail to open it again', async () => {
+    emptyApi();
+    const {user} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    expect(screen.queryByRole('button', {name: 'Expand sidebar'})).not.toBeInTheDocument();
+    await openCategory(user, 'Oversight');
+    await user.click(await halfViewItem(user, 'Audit Log'));
+    await heading('Audit Log');
+
+    const expand = await screen.findByRole('button', {name: 'Expand sidebar'});
+    await user.click(expand);
+    expect(await screen.findByRole('button', {name: 'Collapse sidebar'})).toBeInTheDocument();
+  });
+
+  it('leaves the nav open as a half view opens when Account Settings says not to fold it', async () => {
+    localStorage.setItem('medapp.navFoldsInHalfView', 'false');
+    emptyApi();
+    const {user} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    await openCategory(user, 'Oversight');
+    await user.click(await halfViewItem(user, 'Audit Log'));
+    await heading('Audit Log');
+
+    expect(await screen.findByRole('button', {name: 'Collapse sidebar'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Expand sidebar'})).not.toBeInTheDocument();
+  });
+
+  it('keeps the nav open across a reload with a half view when Account Settings says not to fold it', async () => {
+    localStorage.setItem('medapp.navFoldsInHalfView', 'false');
+    sessionStorage.setItem('medapp.halfView', '/admin/pathway-templates');
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Pathway Templates');
+    expect(await screen.findByRole('button', {name: 'Collapse sidebar'})).toBeInTheDocument();
+  });
+
   it('closing the half view leaves the current page on its own, with the nav open', async () => {
     emptyApi();
     const {user, router} = renderApp({path: '/patients', user: adminUser});
