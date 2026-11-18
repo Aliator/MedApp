@@ -75,6 +75,8 @@ public static class SpecialtyRules
             parts.Add(Count(usage.ReferralCount, "referral", "referrals"));
         if (usage.ClinicCount > 0)
             parts.Add(Count(usage.ClinicCount, "clinic session or pattern", "clinic sessions and patterns"));
+        if (usage.LetterTemplateCount > 0)
+            parts.Add(Count(usage.LetterTemplateCount, "letter template", "letter templates"));
         return parts.Count == 1 ? parts[0] : $"{string.Join(", ", parts[..^1])} and {parts[^1]}";
     }
 

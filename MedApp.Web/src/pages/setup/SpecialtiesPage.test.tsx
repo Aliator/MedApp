@@ -38,6 +38,8 @@ describe('specialtyUse', () => {
     expect(specialtyUse({templateCount: 1, memberCount: 1})).toBe('1 template, 1 member of staff');
     expect(specialtyUse({referralCount: 1})).toBe('1 referral');
     expect(specialtyUse({pathwayCount: 2, referralCount: 5})).toBe('2 pathways, 5 referrals');
+    expect(specialtyUse({templateCount: 1, letterTemplateCount: 2})).toBe('1 template, 2 letter templates');
+    expect(specialtyUse({letterTemplateCount: 1})).toBe('1 letter template');
     expect(specialtyUse(specialties[1])).toBe('Not used yet');
   });
 });
