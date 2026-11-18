@@ -52,7 +52,7 @@ public sealed class Notification
     /// <see cref="NotificationKind.LetterAwaitingApproval"/>, <see cref="NotificationKind.LetterApproved"/> and
     /// <see cref="NotificationKind.LetterReturned"/>; a specimen for <see cref="NotificationKind.SpecimenRejectedByLab"/>
     /// and <see cref="NotificationKind.SpecimenLost"/>; a result for the result kinds; the rule's specialty, if it has one, for
-    /// the service alerts, 32 to 37), and the web app links each kind to its page. No foreign key: the
+    /// the service alerts, 32 to 37; a data request for <see cref="NotificationKind.DataRequestDueSoon"/>), and the web app links each kind to its page. No foreign key: the
     /// notification outlives what it's about.
     /// </summary>
     public Guid? SubjectId { get; init; }
@@ -74,7 +74,7 @@ public sealed class Notification
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
     /// "Appointment booked", the meeting kinds' "Meeting invitation"; the monitoring kinds' "Stage finished"; the note
-    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; the result kinds' "Result ready"; the letter kinds' "Letter to approve"; "Clinic session cancelled"; "Scheduled job failing"; and "MDT outcome recorded"), rather than the
+    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; the result kinds' "Result ready"; the letter kinds' "Letter to approve"; "Clinic session cancelled"; "Scheduled job failing"; "MDT outcome recorded"; and "Data request due soon"), rather than the
     /// pathway's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
@@ -92,6 +92,7 @@ public sealed class Notification
             or NotificationKind.ClinicSessionCancelled
             or NotificationKind.ScheduledJobFailing
             or NotificationKind.MdtOutcomeRecorded
+            or NotificationKind.DataRequestDueSoon
         || IsMonitoring(kind)
         || IsNoteDeletion(kind);
 

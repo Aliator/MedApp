@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using FluentAssertions;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Common;
@@ -73,6 +73,10 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/results/search"] = Records("PatientListed"),
         ["api/results/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/pathways/{id:guid}/consent-records"] = Records("PathwayViewed"), // the pathway page's consent card
+        ["api/data-requests/search"] = Records("PatientListed"),
+        ["api/data-requests/{id:guid}"] = Records("PatientViewed"), // the request's ID in the details
+        ["api/data-requests/{id:guid}/review-items"] = Records("PatientViewed"), // with review: true
+        ["api/data-requests/{id:guid}/pack"] = Records("DataRequestPackDownloaded"), // the pack itself, never stored
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
@@ -227,6 +231,20 @@ public sealed class EndpointCoverageTests : IntegrationTest
             AttachmentId = file.Id, Title = "Synthetic CT report", PathwayId = pathway.Id, ResponsibleUserId = writer.UserId
         })).ReadAsAsync<MedApp.Contracts.Results.Responses.ResultResponse>(HttpStatusCode.Created);
 
+        // A data request, with its identity check (admin) and review (a clinician), so its pack can be made.
+        var dataRequest = await (await admin.PostAsJsonAsync("/api/data-requests", new MedApp.Contracts.DataRequests.CreateDataRequestRequest
+        {
+            PatientId = patientId, ReceivedOn = UkToday, RequestedByPatient = true
+        })).ReadAsAsync<MedApp.Contracts.DataRequests.DataRequestResponse>(HttpStatusCode.Created);
+        dataRequest = await (await admin.PostAsJsonAsync($"/api/data-requests/{dataRequest.Id}/identity-check", new MedApp.Contracts.DataRequests.RecordIdentityCheckRequest
+        {
+            CheckedOn = UkToday, Method = "InPerson", ExpectedVersion = dataRequest.Version
+        })).ReadAsAsync<MedApp.Contracts.DataRequests.DataRequestResponse>();
+        (await writer.Client.PutAsJsonAsync($"/api/data-requests/{dataRequest.Id}/review", new MedApp.Contracts.DataRequests.RecordDataRequestReviewRequest
+        {
+            ExpectedVersion = dataRequest.Version
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
             ($"/api/patients/{patientId}", "PatientViewed", patientId),
@@ -257,6 +275,10 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/pathways/{pathway.Id}/consent-records", "PathwayViewed", patientId),
             ($"/api/results/{result.Id}", "ResultViewed", patientId),
             ("/api/results/search?view=Awaiting", "PatientListed", patientId),
+            ("/api/data-requests/search", "PatientListed", patientId),
+            ($"/api/data-requests/{dataRequest.Id}", "PatientViewed", patientId),
+            ($"/api/data-requests/{dataRequest.Id}/review-items", "PatientViewed", patientId),
+            ($"/api/data-requests/{dataRequest.Id}/pack", "DataRequestPackDownloaded", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

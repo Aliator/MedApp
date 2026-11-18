@@ -269,3 +269,12 @@ Consent records (PR 31, `docs/centre-phases-3-5-plan.md` decisions 145 to 147; D
 - **Anonymising** replaces the detail with a placeholder; the form, dates, who signed and statuses stay; the scan is deleted with every other file.
 - **Deleting:** a pathway with consent records can't be deleted, and a scan can't be deleted on its own.
 - **Retention:** kept with the patient's record; consent changes are pathway audit entries, so they count towards the conclusion of treatment.
+
+## 13. Data requests and the privacy features
+
+Data requests (PR 36 of `docs/centre-phases-3-5-plan.md`, decisions 160 to 163; DPIA risk 37): tables `DataRequests` and `DataRequestWithheldItems`. A request holds the patient, the date received, who asked (the patient, or someone on their behalf: name and relationship, free text), the identity check (date, method, a detail, who), the due date and any extension (with its reason), the clinician review (who, when, and each item withheld with its reason, free text), and how it ended (sent: date and method; refused: the reason; withdrawn).
+- **Who sees it:** holders of ManagePrivacy (admins) and of SignOffResults (the clinicians who review). Reading one records `PatientViewed` (with the request's ID), the list `PatientListed`; changes record `DataRequestChanged` (the request's ID and what changed, never a value). A daily job tells ManagePrivacy holders 7 days before the due date (`DataRequestDueSoon`: the due date only).
+- **The pack** (a ZIP: a plain-language PDF, the record as JSON, the files still held, leaving out what the review withheld) is built when downloaded and never stored; the download records `DataRequestPackDownloaded`. It's written to a temporary file on the API's disk while it's sent, deleted when the download ends.
+- **Restriction** doesn't stop a request (the right of access stays); an anonymised record's requests can't change. **Anonymising** is refused while one is open, and replaces the requester's name and relationship, the identity check's detail, the extension and refusal reasons and the withheld items' reasons.
+- **The subject access export** includes every request with its review. **Deleting** a patient with any request is refused.
+- **Retention:** kept with the patient's record.

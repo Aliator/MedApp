@@ -55,6 +55,8 @@ export const ACTIVITY_ACTIONS = [
   'ReferralViewed',
   'RoleChanged',
   'StaffDetailsChanged',
+  'DataRequestPackDownloaded',
+  'DataRequestChanged',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -105,6 +107,8 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   ReferralViewed: 'Referral viewed',
   RoleChanged: 'Role changed',
   StaffDetailsChanged: 'Staff details changed',
+  DataRequestPackDownloaded: 'Data request pack downloaded',
+  DataRequestChanged: 'Data request changed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -115,7 +119,15 @@ export const activityActionLabel = (action: string | null | undefined) =>
 export const FILE_ACTIONS: ActivityAction[] = ['AttachmentsViewed', 'AttachmentDownloaded'];
 
 /** The actions that read a patient's record, for the "who has looked" quick filter. */
-export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'ReferralViewed', 'PatientExported', ...FILE_ACTIONS];
+export const ACCESS_ACTIONS: ActivityAction[] = [
+  'PatientViewed',
+  'PatientListed',
+  'PathwayViewed',
+  'ReferralViewed',
+  'PatientExported',
+  'DataRequestPackDownloaded',
+  ...FILE_ACTIONS,
+];
 
 /** The sign-in actions, for their quick filter. */
 export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'TwoFactorChallenged', 'SignInFailed', 'SignedOut'];
@@ -223,6 +235,17 @@ const roles = (value: unknown) => (Array.isArray(value) && value.length ? value.
 
 const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : '');
 
+/** What a data request's change was, in words (`DataRequestChanged`'s `change`). */
+const DATA_REQUEST_CHANGES: Record<string, string> = {
+  Recorded: 'Request logged',
+  IdentityChecked: 'Identity checked',
+  Extended: 'Due date extended',
+  Reviewed: 'Clinician review recorded',
+  Sent: 'Response sent',
+  Refused: 'Request refused',
+  Withdrawn: 'Request withdrawn',
+};
+
 const names = (value: unknown) => (Array.isArray(value) ? value.map(String).join(', ') : '');
 
 /** A role change in words: "Nurse: renamed from Nurses; added AssignPathways; removed DeletePatients". */
@@ -302,6 +325,9 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       return entry.pathwayId ? "A pathway's or stage's files" : "All the patient's files";
     case 'AttachmentDownloaded':
       return entry.pathwayId ? 'A file on a pathway or stage' : 'A file on the patient';
+    // What changed, never the requester, a reason or anything withheld.
+    case 'DataRequestChanged':
+      return DATA_REQUEST_CHANGES[String(d.change)] ?? text(d.change);
     case 'PatientRestricted':
     case 'PatientRestrictionLifted':
     case 'PatientDisputed':

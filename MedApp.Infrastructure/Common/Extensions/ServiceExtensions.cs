@@ -1,4 +1,4 @@
-using MedApp.Application.Practices.Repositories;
+﻿using MedApp.Application.Practices.Repositories;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
@@ -294,6 +294,7 @@ public static class ServiceExtensions
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         services.AddScoped<MedApp.Application.Results.Repositories.IResultRepository, ResultRepository>();
         services.AddScoped<IConsentRepository, ConsentRepository>();
+        services.AddScoped<MedApp.Application.DataRequests.Repositories.IDataRequestRepository, DataRequestRepository>();
         
         return services;
     }

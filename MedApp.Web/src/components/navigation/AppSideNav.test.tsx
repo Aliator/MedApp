@@ -122,11 +122,13 @@ describe('AppSideNav', () => {
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then Results, Letters, the GP practice directory, the MDT list, then Patients.
+    // Then Results, Letters, the GP practice directory, the MDT list, then Patients (Data Requests, between the MDT list
+    // and Patients, is only for holders of ManagePrivacy, which this user isn't).
     expect(names.indexOf('/results')).toBe(names.indexOf('/referrals') + 1);
     expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
     expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
+    expect(names).not.toContain('/data-requests');
     expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
   });
 
@@ -199,6 +201,22 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
     expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /^Letters/})).not.toBeInTheDocument();
+  });
+
+  it("has Data Requests for those who answer or review them, current on a request's page", async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: seniorClinicianUser, path: '/data-requests/000000d1-0000-0000-0000-000000000001'});
+    const requests = await screen.findByRole('link', {name: 'Data Requests'});
+    expect(requests).toHaveAttribute('href', '/data-requests');
+    expect(requests).toHaveAttribute('aria-current', 'page');
+    unmount();
+
+    const admin = renderWithApp(<AppSideNav />, {user: adminUser});
+    expect(await screen.findByRole('link', {name: 'Data Requests'})).toBeInTheDocument();
+    admin.unmount();
+
+    renderWithApp(<AppSideNav />, {user: nurseUser});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Data Requests'})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {
