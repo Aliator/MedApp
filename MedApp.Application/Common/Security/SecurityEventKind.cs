@@ -46,4 +46,13 @@ public enum SecurityEventKind
     /// is locked out. By nobody (no one is signed in), with the account as its target.
     /// </summary>
     AdminGrantedByCommand,
+
+    /// <summary>An admin made a role (its name and permissions in the details). By the admin; no account is its target.</summary>
+    RoleCreated,
+
+    /// <summary>An admin changed a role (<c>RoleChange.Details</c>): the permission names added and removed, never patient data.</summary>
+    RoleChanged,
+
+    /// <summary>An admin deleted a role nobody held.</summary>
+    RoleDeleted,
 }

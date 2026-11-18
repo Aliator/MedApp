@@ -31,6 +31,8 @@ public sealed class DemoTimeline
         PasswordResetUtc = WorkingMoment(NowUtc.AddDays(-21), 8, 50);
         NotificationsTurnedOffUtc = WorkingMoment(NowUtc.AddDays(-45), 16, 20);
         MonitoringRulesUtc = WorkingMoment(NowUtc.AddDays(-63), 11, 0);
+        LocumRoleCreatedUtc = WorkingMoment(NowUtc.AddDays(-56), 11, 30);
+        RolesRefinedUtc = WorkingMoment(NowUtc.AddDays(-28), 14, 0);
         NotificationsFromUtc = NowUtc.AddDays(-30);
         ActivityFromUtc = NowUtc.AddDays(-60);
 
@@ -69,6 +71,12 @@ public sealed class DemoTimeline
     public DateTime NotificationsTurnedOffUtc { get; }
 
     public DateTime MonitoringRulesUtc { get; }
+
+    /// <summary>The lead made a role for locums covering clinics (archived at <see cref="RolesRefinedUtc"/>).</summary>
+    public DateTime LocumRoleCreatedUtc { get; }
+
+    /// <summary>The lead gave the visiting consultants a role of their own, and archived the locums' role.</summary>
+    public DateTime RolesRefinedUtc { get; }
 
     public DateTime NewStarterCreatedUtc { get; }
 
