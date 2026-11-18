@@ -82,6 +82,17 @@ describe('AccountPage', () => {
     expect(localStorage.getItem('medapp.startPage')).toBe('tasks');
   });
 
+  it('turns off folding the side nav in a half view, in the Navigation card, and remembers it', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    const folds = await screen.findByRole('switch', {name: 'Fold the side nav in half view'});
+    expect(folds).toBeChecked();
+    await user.click(folds);
+
+    expect(folds).not.toBeChecked();
+    expect(localStorage.getItem('medapp.navFoldsInHalfView')).toBe('false');
+  });
+
   it('chooses rows per page and where pathway lists start, in the Lists card', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 

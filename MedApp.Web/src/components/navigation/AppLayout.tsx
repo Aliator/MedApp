@@ -6,6 +6,7 @@ import {Theme} from '@astryxdesign/core/theme';
 import {Outlet, useRouter} from '@tanstack/react-router';
 import {lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {LiveNotifications} from '../../app/LiveNotifications';
+import {useNavSettings} from '../../app/navSettings';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
@@ -80,8 +81,9 @@ function storePath(path: string | null) {
  * The signed-in frame: side navigation plus the current page (replaces Blazor's MainLayout).
  *
  * With a half view open, the current page and the half view's page sit side by side, each in its narrow layout,
- * and the side nav is folded to its icons (its button opens it again). Closing either half goes back to the
- * other page on its own, with the side nav open.
+ * and the side nav is folded to its icons (its button opens it again), unless Account Settings says not to fold it
+ * (`foldsInHalfView`): then it stays as it was and the halves share what's left. Closing either half goes back to
+ * the other page on its own, with the side nav open.
  *
  * Inside a half view's own router, this is just the page: the shell is the main page's.
  */
@@ -98,12 +100,14 @@ export function AppLayout() {
 
 function MainLayout() {
   const router = useRouter();
+  // Whether opening a half view folds the side nav to its icons (Account Settings; on by default).
+  const {foldsInHalfView} = useNavSettings();
   // The half view's page; `key` starts it afresh when another page is opened in it.
   const [half, setHalf] = useState<{path: string; key: number} | null>(() => {
     const path = storedPath();
     return path ? {path, key: 0} : null;
   });
-  const [isNavCollapsed, setIsNavCollapsed] = useState(half !== null);
+  const [isNavCollapsed, setIsNavCollapsed] = useState(half !== null && foldsInHalfView);
   // Where the half view has got to: closing the main half opens it full size, and the nav won't open it twice.
   const [halfPath, setHalfPath] = useState(half?.path ?? null);
 
@@ -116,8 +120,9 @@ function MainLayout() {
     setHalfPath(path);
     storePath(path);
     setHalf({path, key: Date.now()});
-    setIsNavCollapsed(true);
-  }, []);
+    // Folded to its icons, unless the person chose to keep it as it was (then the halves share what's left).
+    if (foldsInHalfView) setIsNavCollapsed(true);
+  }, [foldsInHalfView]);
   // Back to one page: the half view closes and the nav opens again.
   const closeHalf = useCallback(() => {
     setHalfPath(null);

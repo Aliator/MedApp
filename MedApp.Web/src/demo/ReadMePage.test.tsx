@@ -21,6 +21,9 @@ const halfViewsWith = (openPath: string | null): HalfViews => ({
 });
 
 describe('ReadMePage', () => {
+  // A place kept by one test's button isn't for the next test's Read Me.
+  afterEach(() => sessionStorage.removeItem('medapp.readMePlace'));
+
   it('says what the light version is, the two accounts, the tour and what it leaves out, and counts as seen', async () => {
     startLightDemo(ADMIN);
     renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
@@ -86,6 +89,8 @@ describe('ReadMePage', () => {
     expect(first.closest('ol')).not.toBeNull();
     expect(screen.getByText(/Shift-click Patients in the side nav: it opens on the right again/)).toBeInTheDocument();
     expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) Patients: it opens on the left, and this Read Me moves to the right/)).toBeInTheDocument();
+    expect(screen.getByText(/expand button \(Expand sidebar\) at the bottom of the icon rail/)).toBeInTheDocument();
+    expect(screen.getByText(/turn off Fold the side nav in half view in Account Settings/)).toBeInTheDocument();
     expect(screen.getByText(/carry on with the tour from it/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Start here, on the Read Me'}));
 
@@ -124,6 +129,8 @@ describe('ReadMePage', () => {
     expect(await screen.findByText(/opens the exact page on the left, keeping this Read Me on the right/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Open the list of pathways'}));
     expect(halfViews.openOnLeft).toHaveBeenCalledWith('/pathways');
+    // The Read Me starts again in the right half: it's kept where the reader was, at that step.
+    expect(JSON.parse(sessionStorage.getItem('medapp.readMePlace')!)).toMatchObject({position: 'right'});
     await user.click(screen.getByRole('button', {name: 'Start Using MedApp'}));
     expect(halfViews.openOnLeft).toHaveBeenCalledWith('/');
     expect(router.state.location.pathname).toBe('/read-me');
@@ -163,6 +170,28 @@ describe('ReadMePage', () => {
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith(`/referrals/${REFERRALS.dermatologyToTriage}`));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/read-me');
+    // After the reload, the Read Me on the right is put back where the reader was.
+    expect(JSON.parse(sessionStorage.getItem('medapp.readMePlace')!)).toMatchObject({position: 'right'});
+  });
+
+  it('goes back to where the reader was, once, when a tour button moved it here', async () => {
+    startLightDemo(ADMIN);
+    sessionStorage.setItem('medapp.readMePlace', JSON.stringify({place: 'pin-patient', offset: 0, position: 'right', at: Date.now()}));
+    // jsdom has no layout: here the page itself has more than it shows, so it's what scrolls.
+    vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (this: Element) {
+      return this === document.documentElement ? 3000 : 0;
+    });
+    renderWithApp(
+      <HalfViewsContext.Provider value={halfViewsWith('/read-me')}>
+        <InHalfPaneContext.Provider value={true}>
+          <ReadMePage />
+        </InHalfPaneContext.Provider>
+      </HalfViewsContext.Provider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    await screen.findByRole('button', {name: 'Open the patient to pin'});
+    await waitFor(() => expect(sessionStorage.getItem('medapp.readMePlace')).toBeNull());
   });
 
   it('opens the notepad beside the Read Me, staying on it, and says Shift-click opens it in the half view', async () => {
