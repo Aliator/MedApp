@@ -2,6 +2,7 @@ import {screen, waitFor} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {
+  ANOTHER_PATIENTS_DETAILS,
   appointmentChangeLabel,
   deletedNoteText,
   deletionRequestOutcome,
@@ -267,7 +268,9 @@ describe('PatientExportPage', () => {
               version: 1,
               deletedAtUtc: '2026-09-05T10:00:00Z',
               deletedBy: 'test-admin',
-              deletionReason: 'Synthetic: on the wrong patient.',
+              deletionReason: 'WrongPatient',
+              deletionDetail: 'Synthetic: the other procedure.',
+              isAboutAnotherPatient: true,
             },
           ],
         },
@@ -279,7 +282,8 @@ describe('PatientExportPage', () => {
           procedureId,
           requestedBy: 's.nurse',
           requestedAtUtc: '2026-09-04T10:00:00Z',
-          reason: 'Synthetic request reason',
+          reason: 'Duplicate',
+          detail: 'Synthetic request detail',
           status: 'Approved',
           decidedBy: 'test-admin',
           decidedAtUtc: '2026-09-05T10:00:00Z',
@@ -290,7 +294,8 @@ describe('PatientExportPage', () => {
           procedureId: 'a184a7b8-2585-4437-bcd4-e1700be38219',
           requestedBy: 'l.northcott',
           requestedAtUtc: '2026-09-06T10:00:00Z',
-          reason: 'Synthetic second reason',
+          reason: 'Other',
+          detail: 'Synthetic second detail',
           status: 'Pending',
           decidedBy: null,
           decidedAtUtc: null,
@@ -301,11 +306,14 @@ describe('PatientExportPage', () => {
     // The deleted note is kept in the export, marked, with its text.
     expect(await screen.findByText('Synthetic note an admin deleted')).toBeInTheDocument();
     expect(screen.getByText('Deleted')).toBeInTheDocument();
-    expect(screen.getByText(/^Deleted by test-admin, .*\. Reason: Synthetic: on the wrong patient\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Deleted by test-admin, .*\. Reason: Wrong patient: Synthetic: the other procedure\.$/)).toBeInTheDocument();
+    // Flagged for whoever checks the export before it's released: another patient's details.
+    expect(screen.getByText(ANOTHER_PATIENTS_DETAILS)).toBeInTheDocument();
     // The requests, with their reasons and where each stands.
     expect(screen.getByText('Note Deletion Requests (2)')).toBeInTheDocument();
     expect(screen.getByText(/: s\.nurse asked for a note to be deleted$/)).toBeInTheDocument();
-    expect(screen.getByText('Reason: Synthetic request reason')).toBeInTheDocument();
+    expect(screen.getByText('Reason: Duplicate: Synthetic request detail')).toBeInTheDocument();
+    expect(screen.getByText('Reason: Other: Synthetic second detail')).toBeInTheDocument();
     expect(screen.getByText(/^Note deleted by test-admin, /)).toBeInTheDocument();
     expect(screen.getByText('Waiting for an admin to decide.')).toBeInTheDocument();
   });
@@ -402,10 +410,12 @@ describe('PatientExportPage', () => {
 
 describe('note deletion in words', () => {
   it("gives a deleted note's line, with or without a reason", () => {
-    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: 'test-admin', deletionReason: ' Synthetic. '})).toMatch(
-      /^Deleted by test-admin, .+\. Reason: Synthetic\.$/,
+    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: 'test-admin', deletionReason: 'WrittenInError', deletionDetail: ' Synthetic. '})).toMatch(
+      /^Deleted by test-admin, .+\. Reason: Written in error: Synthetic\.$/,
     );
-    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: null, deletionReason: null})).toMatch(/^Deleted by an admin, .+\.$/);
+    expect(deletedNoteText({deletedAtUtc: '2026-09-05T10:00:00Z', deletedBy: null, deletionReason: null, deletionDetail: null})).toMatch(
+      /^Deleted by an admin, .+\.$/,
+    );
   });
 
   it("says where each request stands", () => {

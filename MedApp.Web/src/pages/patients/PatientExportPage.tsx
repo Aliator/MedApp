@@ -13,6 +13,7 @@ import {activityActionLabel, describeActivity} from '../../api/activity';
 import {appointmentStatusLabel} from '../../api/appointments';
 import {auditActionLabel, describeAuditDetails} from '../../api/audit';
 import {ApiError} from '../../api/errors';
+import {describeNoteDeletionReason} from '../../api/noteDeletion';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/procedures/ProcedureCells';
@@ -35,9 +36,12 @@ export const exportFileName = (data: PatientExport) =>
 type ExportedNote = NonNullable<NonNullable<PatientExport['procedures']>[number]['notes']>[number];
 type ExportedDeletionRequest = NonNullable<PatientExport['noteDeletionRequests']>[number];
 
-/** A deleted note's line: "Deleted by admin, 17 Nov 2026, 10:32. Reason: On the wrong patient." */
-export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason'>): string {
-  const reason = note.deletionReason?.trim();
+/** Said beside a note deleted as written on the wrong patient: its text is most likely someone else's. */
+export const ANOTHER_PATIENTS_DETAILS = "Another patient's details: check before release";
+
+/** A deleted note's line: "Deleted by admin, 17 Nov 2026, 10:32. Reason: Wrong patient: belongs to the other procedure." */
+export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason' | 'deletionDetail'>): string {
+  const reason = describeNoteDeletionReason(note.deletionReason, note.deletionDetail);
   return `Deleted by ${note.deletedBy ?? 'an admin'}, ${formatDateTime(note.deletedAtUtc ?? '')}.${reason ? ` Reason: ${reason}` : ''}`;
 }
 
@@ -315,6 +319,8 @@ function ExportContent({data}: {data: PatientExport}) {
                           {`Note by ${note.author}, ${when(note.createdAtUtc)}${note.lastEditedAtUtc ? `, edited ${when(note.lastEditedAtUtc)}` : ''}`}
                         </Text>
                         {note.deletedAtUtc && <Token label="Deleted" size="sm" />}
+                        {/* For whoever checks the export before release: the third-party and serious harm tests. */}
+                        {note.isAboutAnotherPatient && <Token label={ANOTHER_PATIENTS_DETAILS} size="sm" color="red" />}
                       </HStack>
                       {/* Hidden from the procedure page, but kept: when, by whom and why. */}
                       {note.deletedAtUtc && <Text type="supporting" color="secondary">{deletedNoteText(note)}</Text>}
@@ -459,7 +465,7 @@ function ExportContent({data}: {data: PatientExport}) {
                       <Text type="supporting" color="secondary">
                         {procedureTitles.get(request.procedureId) || 'A deleted procedure'}
                       </Text>
-                      <Text type="body">{`Reason: ${request.reason ?? ''}`}</Text>
+                      <Text type="body">{`Reason: ${describeNoteDeletionReason(request.reason, request.detail)}`}</Text>
                       <Text type="body">{deletionRequestOutcome(request)}</Text>
                     </VStack>
                   }

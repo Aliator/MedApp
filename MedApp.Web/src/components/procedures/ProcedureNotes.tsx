@@ -3,10 +3,10 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
-import {TextArea} from '@astryxdesign/core/TextArea';
 import {Token} from '@astryxdesign/core/Token';
 import {useEffect, useRef, useState} from 'react';
-import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
+import {ApiError, ApiValidationError, problemMessage, type ValidationErrors} from '../../api/errors';
+import type {NoteDeletionReason} from '../../api/noteDeletion';
 import {
   useNoteDeletionActions,
   useProcedureNoteActions,
@@ -21,10 +21,12 @@ import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 import {RichTextField, type RichTextFieldHandle} from '../forms/RichTextField';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
+import {PatientBanner} from '../patients/PatientBanner';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {RichText} from '../shared/RichText';
-import {MAX_DELETION_REASON_LENGTH, NoteDeletionRequestDialog} from './NoteDeletionRequestDialog';
+import {NoteDeletionReasonFields, reasonFieldsComplete} from './NoteDeletionReasonFields';
+import {NoteDeletionRequestDialog} from './NoteDeletionRequestDialog';
 
 /** The most a note can hold, as the API allows. */
 export const MAX_NOTE_LENGTH = 4000;
@@ -55,6 +57,18 @@ export function whyNoNotes(procedure: Procedure): string {
 /** "k.ashford, 3 Nov 2026, 10:32": who wrote a note and when. */
 export const noteByline = (note: ProcedureNote) => `${note.authorUsername ?? ''}, ${formatDateTime(note.createdAtUtc ?? '')}`;
 
+/**
+ * Each note's buttons named for their note ("Delete note by k.ashford, 3 Nov 2026, 10:32"), so a screen reader user
+ * moving through the buttons can tell one note's from another's. Each starts with the button's visible words (WCAG
+ * 2.5.3).
+ */
+export const noteButtonName = {
+  edit: (note: ProcedureNote) => `Edit note by ${noteByline(note)}`,
+  delete: (note: ProcedureNote) => `Delete note by ${noteByline(note)}`,
+  request: (note: ProcedureNote) => `Request deletion of note by ${noteByline(note)}`,
+  review: (note: ProcedureNote) => `Review request for note by ${noteByline(note)}`,
+};
+
 export interface ProcedureNotesProps {
   procedure: Procedure;
 }
@@ -65,10 +79,12 @@ export interface ProcedureNotesProps {
  * takes notes (`canAddNotes`: not once it's cancelled or archived, nor while its patient's record is restricted or
  * anonymised). Nobody edits anyone else's note, admins included.
  *
- * Admins have Delete on every note (`canDelete`: in any status, but not while the record is restricted or
- * anonymised), and other staff Request deletion (`canRequestDeletion`); each asks for a reason first. Deleting is soft:
- * the note is hidden here, but kept. A note whose deletion has been asked for shows "Deletion requested", and an admin
- * can open the request there (`NoteDeletionRequestDialog`) to decide it.
+ * Delete (`canDelete`: admins, in any status, but not while the record is restricted or anonymised) and Request
+ * Deletion (`canRequestDeletion`: everyone else) follow the API's flags, which are for the signed-in user. Each asks
+ * for a reason (a choice, with an optional detail) under the patient, as the patient banner shows them, and the note;
+ * Delete sends the note's version, so one edited since is refused. Deleting is soft: the note is hidden here, but
+ * kept. A note whose deletion has been asked for shows "Deletion requested", and an admin can open the request beside
+ * it (Review Request, `NoteDeletionRequestDialog`) to decide it. Every note's buttons are named for their note.
  *
  * Saving goes through `useProcedureNoteActions`, which puts the note into the cached procedure at once. An edit sends
  * the version it started from (kept as Edit is pressed): if the note was changed somewhere else meanwhile (another
@@ -222,25 +238,32 @@ export function ProcedureNotes({procedure}: ProcedureNotesProps) {
                       {noteByline(note)}
                     </Text>
                     {note.lastEditedAtUtc && <Token label={`Edited ${formatDateTime(note.lastEditedAtUtc)}`} size="sm" />}
-                    {note.deletionRequestId && <Token label="Deletion requested" size="sm" color="orange" />}
-                    {note.deletionRequestId && isAdmin && (
-                      <Button
-                        label="Review Request"
-                        tooltip="Review the request to delete this note"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setOpenRequestId(note.deletionRequestId ?? null)}
-                      />
+                    {/* The token and its button wrap as one, so the button never sits alone between the byline and the note. */}
+                    {note.deletionRequestId && (
+                      <HStack gap={1} vAlign="center">
+                        <Token label="Deletion requested" size="sm" color="orange" />
+                        {isAdmin && (
+                          <Button
+                            label="Review Request"
+                            aria-label={noteButtonName.review(note)}
+                            tooltip="Review the request to delete this note"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setOpenRequestId(note.deletionRequestId ?? null)}
+                          />
+                        )}
+                      </HStack>
                     )}
                   </HStack>
                 }
                 description={<RichText>{note.text ?? ''}</RichText>}
                 endContent={
-                  (note.canEdit || (isAdmin ? note.canDelete : note.canRequestDeletion)) && (
+                  (note.canEdit || note.canDelete || note.canRequestDeletion) && (
                     <HStack gap={1} vAlign="center">
                       {note.canEdit && (
                         <Button
                           label="Edit"
+                          aria-label={noteButtonName.edit(note)}
                           tooltip="Edit your note"
                           variant="ghost"
                           size="sm"
@@ -252,9 +275,10 @@ export function ProcedureNotes({procedure}: ProcedureNotesProps) {
                           isDisabled={isBusy || editing !== null}
                         />
                       )}
-                      {isAdmin && note.canDelete && (
+                      {note.canDelete && (
                         <Button
                           label="Delete"
+                          aria-label={noteButtonName.delete(note)}
                           tooltip="Delete this note"
                           variant="ghost"
                           size="sm"
@@ -263,9 +287,10 @@ export function ProcedureNotes({procedure}: ProcedureNotesProps) {
                           isDisabled={isBusy || editing !== null}
                         />
                       )}
-                      {!isAdmin && note.canRequestDeletion && (
+                      {note.canRequestDeletion && (
                         <Button
                           label="Request Deletion"
+                          aria-label={noteButtonName.request(note)}
                           tooltip="Ask an admin to delete this note"
                           variant="ghost"
                           size="sm"
@@ -286,26 +311,25 @@ export function ProcedureNotes({procedure}: ProcedureNotesProps) {
         <NoteDeletionReasonDialog
           key={`${asking.kind}-${asking.note.id}`}
           note={asking.note}
+          patient={procedure.patient}
           kind={asking.kind}
           isProcessing={deletion.remove.isPending || deletion.request.isPending}
           onCancel={() => setAsking(null)}
-          onConfirm={(reason, fail) => {
+          onConfirm={(input, fail) => {
             const noteId = asking.note.id ?? '';
-            const mutation = asking.kind === 'delete' ? deletion.remove : deletion.request;
-            mutation.mutate(
-              {noteId, reason},
-              {
-                onSuccess: () => {
-                  setAsking(null);
-                  announce(asking.kind === 'delete' ? 'Note deleted' : 'Deletion requested. An admin will decide.');
-                },
-                onError: fail,
+            const done = {
+              onSuccess: () => {
+                setAsking(null);
+                announce(asking.kind === 'delete' ? 'Note deleted' : 'Deletion requested. An admin will decide.');
               },
-            );
+              onError: fail,
+            };
+            if (asking.kind === 'delete') deletion.remove.mutate({noteId, ...input, expectedVersion: asking.note.version ?? 1}, done);
+            else deletion.request.mutate({noteId, ...input}, done);
           }}
         />
       )}
-      <NoteDeletionRequestDialog requestId={openRequestId} onClose={() => setOpenRequestId(null)} />
+      <NoteDeletionRequestDialog requestId={openRequestId} procedureId={id} onClose={() => setOpenRequestId(null)} />
     </VStack>
   );
 }
@@ -315,7 +339,7 @@ const REASON_DIALOG = {
   delete: {
     title: 'Delete Note',
     message:
-      'Delete this note? It will be hidden from the procedure for everyone, but kept in the record\'s history and export, with your reason. If someone asked for it to be deleted, they are told.',
+      'Delete this note? It will be hidden from the procedure for everyone, but kept in the record\'s history and export, with your reason. Its author is told, and so is anyone who asked for it to be deleted.',
     confirmText: 'Delete Note',
   },
   request: {
@@ -327,23 +351,29 @@ const REASON_DIALOG = {
 
 interface NoteDeletionReasonDialogProps {
   note: ProcedureNote;
+  /** Who the note is about, as the patient banner shows them (a dialog covers the page's own banner). */
+  patient?: Procedure['patient'];
   kind: 'delete' | 'request';
   isProcessing: boolean;
-  /** Sends it; `fail` shows what went wrong (a 400 on the reason, or the API's words for a 409). */
-  onConfirm: (reason: string, fail: (error: unknown) => void) => void;
+  /** Sends it; `fail` shows what went wrong (a 400 on the reason or detail, or the API's words for a 409). */
+  onConfirm: (input: {reason: NoteDeletionReason; detail: string}, fail: (error: unknown) => void) => void;
   onCancel: () => void;
 }
 
-/** Confirms deleting a note, or asking for it to be, with the note shown and a reason (required, 500 characters at most). */
-function NoteDeletionReasonDialog({note, kind, isProcessing, onConfirm, onCancel}: NoteDeletionReasonDialogProps) {
-  const [reason, setReason] = useState('');
+/**
+ * Confirms deleting a note, or asking for it to be: the patient (as the patient banner shows them), the note, and a
+ * reason (a required choice, with an optional detail).
+ */
+function NoteDeletionReasonDialog({note, patient, kind, isProcessing, onConfirm, onCancel}: NoteDeletionReasonDialogProps) {
+  const [reason, setReason] = useState<NoteDeletionReason | ''>('');
+  const [detail, setDetail] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationErrors | null>(null);
-  const isTooLong = reason.length > MAX_DELETION_REASON_LENGTH;
   const words = REASON_DIALOG[kind];
 
   const fail = (error: unknown) => {
-    if (error instanceof ApiValidationError && error.errors.fields.reason?.length) setErrors(error.errors);
+    if (error instanceof ApiValidationError && (error.errors.fields.reason?.length || error.errors.fields.detail?.length))
+      setErrors(error.errors);
     else setProblem(problemMessage(error, kind === 'delete' ? 'The note could not be deleted.' : 'The request could not be sent.'));
   };
 
@@ -356,30 +386,29 @@ function NoteDeletionReasonDialog({note, kind, isProcessing, onConfirm, onCancel
       isDanger={kind === 'delete'}
       intent={kind === 'delete' ? 'danger' : 'warning'}
       confirmText={words.confirmText}
-      confirmDisabled={!reason.trim() || isTooLong}
+      confirmDisabled={!reasonFieldsComplete(reason, detail)}
       isProcessing={isProcessing}
       onConfirm={() => {
+        if (!reason) return;
         setProblem(null);
         setErrors(null);
-        onConfirm(reason.trim(), fail);
+        onConfirm({reason, detail: detail.trim()}, fail);
       }}
       onCancel={onCancel}>
+      {patient && <PatientBanner patient={patient} isCompact />}
       <VStack gap={1} hAlign="stretch">
         <Text type="body" weight="semibold">
           {noteByline(note)}
         </Text>
         <RichText>{note.text ?? ''}</RichText>
       </VStack>
-      <TextArea
-        label="Reason"
-        value={reason}
-        onChange={setReason}
-        rows={3}
-        isRequired
+      <NoteDeletionReasonFields
+        reason={reason}
+        onReasonChange={setReason}
+        detail={detail}
+        onDetailChange={setDetail}
+        errors={errors}
         isDisabled={isProcessing}
-        status={
-          fieldStatus(errors, 'reason') ?? (isTooLong ? {type: 'error', message: `At most ${MAX_DELETION_REASON_LENGTH} characters.`} : undefined)
-        }
       />
       {problem && <AlertMessage message={problem} />}
     </ConfirmDialog>

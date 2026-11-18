@@ -2,6 +2,7 @@ import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {formatShortDate} from '../utils/dates';
 import {formatFileSize} from '../utils/fileSize';
 import {NO_PROCEDURE} from './attachments';
+import {describeNoteDeletionReason} from './noteDeletion';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -157,9 +158,13 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'NoteEdited':
       return typeof d.version === 'number' ? `Version ${d.version}` : '';
     // The version deleted and the admin's reason; still never the note's text.
+    // The reason is a choice (by name), with an optional detail: "Version 2: Wrong patient: belongs to the other procedure".
     case 'NoteDeleted': {
       const version = typeof d.version === 'number' ? `Version ${d.version}` : '';
-      const reason = typeof d.reason === 'string' && d.reason.trim() ? d.reason.trim() : '';
+      const reason = describeNoteDeletionReason(
+        typeof d.deletionReason === 'string' ? d.deletionReason : null,
+        typeof d.detail === 'string' ? d.detail : null,
+      );
       return [version, reason].filter(Boolean).join(': ');
     }
     default:

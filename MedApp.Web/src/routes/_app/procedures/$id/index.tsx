@@ -27,6 +27,9 @@ export const Route = createFileRoute('/_app/procedures/$id/')({
         id={id}
         deletionRequest={deletionRequest}
         onCloseDeletionRequest={() => void navigate({search: {}, replace: true, resetScroll: false})}
+        onDeletionRequestElsewhere={(procedureId, requestId) =>
+          void navigate({to: '/procedures/$id', params: {id: procedureId}, search: {deletionRequest: requestId}, replace: true})
+        }
       />
     );
   },

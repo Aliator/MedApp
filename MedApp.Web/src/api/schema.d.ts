@@ -9143,10 +9143,16 @@ export interface components {
         };
         DecideNoteDeletionRequestRequest: {
             deleteNote?: boolean;
+            /** Format: int32 */
+            expectedVersion?: number | null;
             reason?: string | null;
+            detail?: string | null;
         };
         DeleteProcedureNoteRequest: {
             reason?: string | null;
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         DemographicsLookupResponse: {
             nhsNumber?: string | null;
@@ -9268,6 +9274,7 @@ export interface components {
             /** Format: date-time */
             requestedAtUtc?: string;
             reason?: string | null;
+            detail?: string | null;
             status?: string | null;
             decidedBy?: string | null;
             /** Format: date-time */
@@ -9337,6 +9344,8 @@ export interface components {
             deletedAtUtc?: string | null;
             deletedBy?: string | null;
             deletionReason?: string | null;
+            deletionDetail?: string | null;
+            isAboutAnotherPatient?: boolean;
         };
         ExportedProcedureResponse: {
             /** Format: uuid */
@@ -9583,16 +9592,20 @@ export interface components {
             createdAtUtc?: string;
             /** Format: date-time */
             lastEditedAtUtc?: string | null;
+            /** Format: int32 */
+            version?: number;
             /** Format: date-time */
             deletedAtUtc?: string | null;
             deletedByUsername?: string | null;
             deletionReason?: string | null;
+            deletionDetail?: string | null;
         };
         NoteDeletionRequestResponse: {
             /** Format: uuid */
             id?: string;
             status?: string | null;
             reason?: string | null;
+            detail?: string | null;
             requestedByUsername?: string | null;
             /** Format: date-time */
             requestedAtUtc?: string;
@@ -10055,6 +10068,7 @@ export interface components {
         };
         RequestNoteDeletionRequest: {
             reason?: string | null;
+            detail?: string | null;
         };
         ResetPasswordRequest: {
             /** Format: uuid */

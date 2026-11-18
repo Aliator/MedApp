@@ -96,15 +96,23 @@ interface Booking {
  *
  * A request to delete one of its notes in the address (`?deletionRequest=<id>`, from an admin's "Note deletion
  * requested" notification) opens in `NoteDeletionRequestDialog` over the page, for admins; closing it takes it out of
- * the address.
+ * the address. A request about another procedure's note (an edited link) isn't shown over this page: it goes to its
+ * own procedure's page (`onDeletionRequestElsewhere`).
  */
-export function ProcedurePage({id, deletionRequest, onCloseDeletionRequest}: ProcedurePageProps) {
+export function ProcedurePage({id, deletionRequest, onCloseDeletionRequest, onDeletionRequestElsewhere}: ProcedurePageProps) {
   const isNarrow = useIsNarrow();
   const {isAdmin} = useCurrentUser();
   return (
     <>
       <ProcedureView id={id} isNarrow={isNarrow} />
-      <NoteDeletionRequestDialog requestId={isAdmin ? (deletionRequest ?? null) : null} onClose={() => onCloseDeletionRequest?.()} />
+      <NoteDeletionRequestDialog
+        requestId={isAdmin ? (deletionRequest ?? null) : null}
+        procedureId={id}
+        onClose={() => onCloseDeletionRequest?.()}
+        onWrongProcedure={
+          onDeletionRequestElsewhere && deletionRequest ? (procedureId) => onDeletionRequestElsewhere(procedureId, deletionRequest) : undefined
+        }
+      />
     </>
   );
 }
@@ -115,6 +123,8 @@ export interface ProcedurePageProps {
   deletionRequest?: string;
   /** Takes the request out of the address. */
   onCloseDeletionRequest?: () => void;
+  /** Goes to another procedure's page with the request, when the request is about that procedure's note. */
+  onDeletionRequestElsewhere?: (procedureId: string, requestId: string) => void;
 }
 
 export interface ProcedureViewProps {

@@ -251,18 +251,36 @@ export function useReloadProcedure(id: string) {
   return () => queryClient.invalidateQueries({queryKey: procedureQuery(id).queryKey, refetchType: 'all'});
 }
 
+/** Why a note is being deleted, or should be: one of the API's reasons, and an optional detail. */
+export interface NoteDeletionReasonInput {
+  reason: string;
+  /** Sent as none when empty. */
+  detail?: string | null;
+}
+
+const detailOrNull = (detail: string | null | undefined) => (detail?.trim() ? detail.trim() : null);
+
 /**
- * Deleting a note (admins, with a reason) and asking an admin to delete one (staff, with a reason). Deleting is soft:
- * the API keeps the note, hidden, so it's taken out of the cached procedure at once; asking returns the note, which
- * then shows "Deletion requested". The procedure, lists and timelines then refresh.
+ * Deleting a note (admins, with a reason, from the version they read: `expectedVersion`, so a note edited since is a
+ * 409) and asking an admin to delete one (staff, with a reason). Deleting is soft: the API keeps the note, hidden, so
+ * it's taken out of the cached procedure at once; asking returns the note, which then shows "Deletion requested". The
+ * procedure, lists and timelines then refresh, and after a failure the procedure is read again, so a 409 (asked or
+ * changed meanwhile) shows the note as it is now.
  */
 export function useNoteDeletionActions(id: string) {
   const queryClient = useQueryClient();
   const show = useShowNote();
+  const reload = useReloadProcedure(id);
   return {
     remove: useMutation({
-      mutationFn: ({noteId, reason}: {noteId: string; reason: string}) =>
-        unwrap(api.POST(`${PROCEDURE}/notes/{noteId}/delete`, {params: {path: {id, noteId}}, body: {reason}})),
+      mutationFn: ({noteId, reason, detail, expectedVersion}: NoteDeletionReasonInput & {noteId: string; expectedVersion: number}) =>
+        unwrap(
+          api.POST(`${PROCEDURE}/notes/{noteId}/delete`, {
+            params: {path: {id, noteId}},
+            body: {reason, detail: detailOrNull(detail), expectedVersion},
+          }),
+        ),
+      onError: () => void reload(),
       onSuccess: async (_, {noteId}) => {
         queryClient.setQueryData(procedureQuery(id).queryKey, (procedure) =>
           procedure && {...procedure, noteList: (procedure.noteList ?? []).filter((n) => n.id !== noteId)},
@@ -273,9 +291,15 @@ export function useNoteDeletionActions(id: string) {
       },
     }),
     request: useMutation({
-      mutationFn: ({noteId, reason}: {noteId: string; reason: string}) =>
-        unwrap(api.POST(`${PROCEDURE}/notes/{noteId}/deletion-requests`, {params: {path: {id, noteId}}, body: {reason}})),
+      mutationFn: ({noteId, reason, detail}: NoteDeletionReasonInput & {noteId: string}) =>
+        unwrap(
+          api.POST(`${PROCEDURE}/notes/{noteId}/deletion-requests`, {
+            params: {path: {id, noteId}},
+            body: {reason, detail: detailOrNull(detail)},
+          }),
+        ),
       onSuccess: (note) => show(id, note),
+      onError: () => void reload(),
     }),
   };
 }
@@ -291,15 +315,26 @@ export function noteDeletionRequestQuery(id: string) {
   });
 }
 
+/** An admin's decision: keep the note, or delete it from the version they read, with a reason. */
+export type NoteDeletionDecision = {deleteNote: false} | ({deleteNote: true; expectedVersion: number} & NoteDeletionReasonInput);
+
 /**
- * An admin's decision on a request to delete a note: delete it (with the reason given) or keep it. The request comes
- * back decided; its procedure (the note gone, or no longer waiting), lists and timelines refresh.
+ * An admin's decision on a request to delete a note: delete it (from the version they read, with the reason given) or
+ * keep it. The request comes back decided; its procedure (the note gone, or no longer waiting), lists and timelines
+ * refresh.
  */
 export function useDecideNoteDeletion(requestId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: {deleteNote: boolean; reason?: string | null}) =>
-      unwrap(api.POST('/api/procedures/note-deletion-requests/{id}/decision', {params: {path: {id: requestId}}, body})),
+    mutationFn: (decision: NoteDeletionDecision) =>
+      unwrap(
+        api.POST('/api/procedures/note-deletion-requests/{id}/decision', {
+          params: {path: {id: requestId}},
+          body: decision.deleteNote
+            ? {deleteNote: true, expectedVersion: decision.expectedVersion, reason: decision.reason, detail: detailOrNull(decision.detail)}
+            : {deleteNote: false},
+        }),
+      ),
     onSuccess: async (decided) => {
       queryClient.setQueryData(noteDeletionRequestKey(requestId), decided);
       await queryClient.invalidateQueries({queryKey: procedureQuery(decided.procedureId ?? '').queryKey});

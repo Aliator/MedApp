@@ -66,6 +66,21 @@ describe('ProcedurePage', () => {
     expect(calls(fetch)).toContain(`GET /api/procedures/note-deletion-requests/${requestId}`);
   });
 
+  it("goes to the request's own procedure when the address names another procedure's request", async () => {
+    const requestId = '0000000d-0000-0000-0000-000000000001';
+    const otherProcedure = '0000000d-0000-0000-0000-0000000000aa';
+    mockApi({
+      [`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure),
+      [`GET /api/procedures/note-deletion-requests/${requestId}`]: () =>
+        json({id: requestId, status: 'Pending', reason: 'Duplicate', requestedByUsername: 's.nurse', requestedAtUtc: '2026-11-17T10:00:00Z', procedureId: otherProcedure, canDecide: true}),
+    });
+    const elsewhere = vi.fn();
+    renderWithApp(<ProcedurePage id={id} deletionRequest={requestId} onDeletionRequestElsewhere={elsewhere} />, {user: adminUser});
+
+    await waitFor(() => expect(elsewhere).toHaveBeenCalledWith(otherProcedure, requestId));
+    expect(openDialog()).toBeNull();
+  });
+
   it("never opens a request to delete a note for staff, who can't read it", async () => {
     const fetch = mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
     renderWithApp(<ProcedurePage id={id} deletionRequest="0000000d-0000-0000-0000-000000000001" />, {user: staffUser});

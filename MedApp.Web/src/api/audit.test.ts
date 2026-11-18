@@ -42,13 +42,14 @@ describe('describeAuditDetails', () => {
     );
   });
 
-  it("gives a deleted note's version and the admin's reason, never its text", () => {
+  it("gives a deleted note's version and the admin's reason in words, with its detail, never its text", () => {
     expect(auditActionLabel('NoteDeleted')).toBe('Note deleted');
-    expect(describe_('NoteDeleted', {noteId: 'n1', version: 2, reason: ' Synthetic: on the wrong patient. ', requestId: 'r1'})).toBe(
-      'Version 2: Synthetic: on the wrong patient.',
-    );
+    expect(
+      describe_('NoteDeleted', {noteId: 'n1', version: 2, deletionReason: 'WrongPatient', detail: ' Synthetic: the other procedure. ', requestId: 'r1'}),
+    ).toBe('Version 2: Wrong patient: Synthetic: the other procedure.');
+    expect(describe_('NoteDeleted', {noteId: 'n1', version: 1, deletionReason: 'Duplicate'})).toBe('Version 1: Duplicate');
     expect(describe_('NoteDeleted', {noteId: 'n1', version: 1})).toBe('Version 1');
-    expect(describe_('NoteDeleted', {reason: 'Synthetic reason.'})).toBe('Synthetic reason.');
+    expect(describe_('NoteDeleted', {detail: 'Synthetic detail.'})).toBe('Synthetic detail.');
   });
 
   it('names who was assigned, the notes saved, and what a deleted procedure was', () => {

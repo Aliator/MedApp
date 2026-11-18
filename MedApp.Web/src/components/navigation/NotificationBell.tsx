@@ -42,6 +42,7 @@ const KIND_ICONS: Record<string, IconType> = {
   NoteDeletionRequested: AppIcon.Delete,
   NoteDeletionApproved: AppIcon.Delete,
   NoteDeletionDeclined: AppIcon.Notes,
+  AuthorsNoteDeleted: AppIcon.Delete,
 };
 
 /** The bell, which the unread count is placed over. */
