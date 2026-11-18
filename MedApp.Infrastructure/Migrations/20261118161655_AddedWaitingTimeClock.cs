@@ -8,8 +8,9 @@ namespace MedApp.Infrastructure.Migrations
     /// <summary>
     /// The waiting-time clock: targets on specialties (the owner's defaults, 14, 28, 126 and 126 days for Urgent, High,
     /// Medium and Low, for every existing specialty), the clock on referrals, their pauses, and the clock-stop stage on
-    /// template maps and pathway stages. Existing referrals get their target from today's specialty table, counting
-    /// from the day they were received; those closed without a pathway are stopped on the day they were decided, and
+    /// template maps and pathway stages. Existing referrals get their target from today's specialty table (for the
+    /// priority asked for, or, once accepted, the pathway's priority the triager chose), counting from the day they were
+    /// received; those closed without a pathway are stopped on the day they were decided, and
     /// accepted ones whose pathway has closed on the day it last changed. An accepted pathway still open keeps the
     /// target date it has until its clock next moves it.
     /// </summary>
@@ -125,6 +126,18 @@ namespace MedApp.Infrastructure.Migrations
                         ELSE s.TargetDaysLow END
                 FROM Referrals r
                 JOIN Specialties s ON s.Id = r.SpecialtyId;
+
+                -- Accepted into a pathway: the clock follows the priority the triager chose (the pathway's), as
+                -- accepting does now, not the one asked for (Urgent 3, High 2, Medium 1, Low 0).
+                UPDATE r SET TargetDays = CASE p.Priority
+                        WHEN 3 THEN s.TargetDaysUrgent
+                        WHEN 2 THEN s.TargetDaysHigh
+                        WHEN 1 THEN s.TargetDaysMedium
+                        ELSE s.TargetDaysLow END
+                FROM Referrals r
+                JOIN PatientPathways p ON p.Id = r.PathwayId
+                JOIN Specialties s ON s.Id = r.SpecialtyId
+                WHERE r.Status = 1;
 
                 UPDATE Referrals SET WaitStartOn = ReceivedOn, TargetOn = DATEADD(day, TargetDays, ReceivedOn);
 

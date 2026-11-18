@@ -25,6 +25,8 @@ public sealed class WaitingClockMigrationTests
     private static readonly Guid Awaiting = Guid.Parse("dddddddd-0000-0000-0000-0000000000c1");
     private static readonly Guid Rejected = Guid.Parse("dddddddd-0000-0000-0000-0000000000c2");
     private static readonly Guid Discharged = Guid.Parse("dddddddd-0000-0000-0000-0000000000c3");
+    private static readonly Guid TriagedUp = Guid.Parse("dddddddd-0000-0000-0000-0000000000c4");
+    private static readonly Guid OpenPathway = Guid.Parse("cccccccc-0000-0000-0000-0000000000c2");
     private static readonly Guid Registrar = Guid.Parse("eeeeeeee-0000-0000-0000-0000000000c1");
 
     // 23:30 UTC on 1 July is 00:30 on 2 July in the UK (BST): the stop day is the UK day.
@@ -45,7 +47,8 @@ public sealed class WaitingClockMigrationTests
             INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, CreatedAt, LastUpdated) VALUES
                 ({Patient}, N'Synthetic', N'Person', '1980-05-06', {Now}, {Now});
             INSERT INTO PatientPathways (Id, Title, Notes, DueDateUtc, Priority, Status, PatientId, TemplateName, CreatedAt, LastUpdated) VALUES
-                ({Pathway}, N'Synthetic pathway', N'', {Now}, 2, 5, {Patient}, N'Synthetic template', {Now}, {DecidedAt});
+                ({Pathway}, N'Synthetic pathway', N'', {Now}, 2, 5, {Patient}, N'Synthetic template', {Now}, {DecidedAt}),
+                ({OpenPathway}, N'Synthetic urgent pathway', N'', {Now}, 3, 3, {Patient}, N'Synthetic template', {Now}, {Now});
             INSERT INTO Referrals (Id, PatientId, SpecialtyId, ReceivedOn, ReferrerPractice, RequestedPriority, Reason, Status,
                                    RegisteredAtUtc, RegisteredByUserId, RegisteredByUsername, DecidedAtUtc, PathwayId, Version, LastUpdated) VALUES
                 ({Awaiting}, {Patient}, {Specialty.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 3, N'Synthetic reason', 0,
@@ -53,7 +56,9 @@ public sealed class WaitingClockMigrationTests
                 ({Rejected}, {Patient}, {Specialty.GeneralId}, '2026-06-20', N'Synthetic Lane Surgery', 1, N'Synthetic reason', 2,
                  {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, NULL, 2, {Now}),
                 ({Discharged}, {Patient}, {Specialty.GeneralId}, '2026-06-01', N'Synthetic Lane Surgery', 2, N'Synthetic reason', 1,
-                 {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, {Pathway}, 2, {Now});
+                 {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, {Pathway}, 2, {Now}),
+                ({TriagedUp}, {Patient}, {Specialty.GeneralId}, '2026-07-01', N'Synthetic Lane Surgery', 0, N'Synthetic reason', 1,
+                 {Now}, {Registrar}, N'b.synthetic', {DecidedAt}, {OpenPathway}, 2, {Now});
             """);
     }
 
@@ -77,6 +82,8 @@ public sealed class WaitingClockMigrationTests
         (await ClockAsync(Awaiting)).Should().Be("14,2026-07-01,2026-07-15,0,,");
         (await ClockAsync(Rejected)).Should().Be("126,2026-06-20,2026-10-24,0,2026-07-02,3");
         (await ClockAsync(Discharged)).Should().Be("28,2026-06-01,2026-06-29,0,2026-07-02,1");
+        // Asked for Low, accepted as Urgent: the clock follows the triager's priority, and its pathway is still open.
+        (await ClockAsync(TriagedUp)).Should().Be("14,2026-07-01,2026-07-15,0,,");
     }
 
     [Test]
@@ -89,7 +96,7 @@ public sealed class WaitingClockMigrationTests
 
         (await CountAsync($"SELECT COUNT(*) AS Value FROM sys.tables WHERE name = N'ReferralClockPauses'")).Should().Be(0);
         (await CountAsync($"SELECT COUNT(*) AS Value FROM sys.columns WHERE name IN (N'TargetDays', N'StopsClock', N'TargetDaysUrgent')")).Should().Be(0);
-        (await CountAsync($"SELECT COUNT(*) AS Value FROM Referrals")).Should().Be(3);
+        (await CountAsync($"SELECT COUNT(*) AS Value FROM Referrals")).Should().Be(4);
 
         await migrator.MigrateAsync(Migration);
         (await ClockAsync(Awaiting)).Should().Be("14,2026-07-01,2026-07-15,0,,");
