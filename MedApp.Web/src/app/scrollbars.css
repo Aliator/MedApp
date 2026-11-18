@@ -1,0 +1,10 @@
+/*
+ * Scrollbars follow the theme and the chosen colours (Account Settings, Colours): a thumb in the theme's emphasised
+ * border colour (a field's outline, which keeps at least 3:1 against the page and cards) on a clear track, so the page,
+ * card or side nav colour shows through. Set on every element rather than inherited, so each takes its own theme's
+ * colour (the side nav's dark one inside its dark theme). Outside Astryx's cascade layers, so it wins over them.
+ * Only the colours change: the width stays the browser's, so a scrollbar is as easy to grab as ever.
+ */
+* {
+  scrollbar-color: var(--color-border-emphasized) transparent;
+}

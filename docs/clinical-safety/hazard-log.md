@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 17 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -1134,7 +1134,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## Staff calendars and appointments: draft hazards for the CSO
 
-H-30 to H-36 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (needs booking) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
+H-30 to H-36 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (Requires appointment) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
 
 **Ratings:** left for the CSO to assign. Each entry gives a draft estimate, on the same scheme as the rest of the log, as a starting point. Check every existing control against the code before relying on it.
 
@@ -1145,7 +1145,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Description.** A patient needs to be seen, but isn't: a Requested appointment is never booked, or a patient who didn't attend is never offered another appointment.
 
 **Causes:**
-- **A Requested appointment has nobody's name on it.** It has no member of staff until it's booked, so no one is notified about it (notifications go to the member of staff an appointment is booked with; decision 20). It waits on the Needs booking list (decision 29) until someone looks.
+- **A Requested appointment has nobody's name on it.** It has no member of staff until it's booked, so no one is notified about it (notifications go to the member of staff an appointment is booked with; decision 20). It waits on the Requires Appointment list (decision 29) until someone looks.
+- **The list has no side navigation item** (since 17 November 2026): it's reached only from the Calendar page's "Requires Appointment (N)" link, so someone who doesn't open the Calendar doesn't see it or its count.
 - **Nothing flags a request that has waited too long.** Flagging or notifying old Requested appointments is left for later (plan, section 8).
 - **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", but nothing reminds anyone later, and nobody else is notified.
 - **Cancelling a Booked appointment doesn't request another.** A Requested appointment is made only when a stage becomes current (decision 23), so after a cancellation the stage has no open appointment until someone books one.
@@ -1159,7 +1160,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Existing controls** (in the design):
 - **MedApp requests the appointment itself** when a stage with a visit becomes current, unless one is already Requested, Booked or Attended (decision 23), recorded in the appointment's history as requested by the app.
-- **The Needs booking list** shows every Requested appointment, soonest procedure due date first, each with Book (decision 29).
+- **The Requires Appointment list** shows every Requested appointment, soonest procedure due date first, each with Book (decision 29). It isn't in the side navigation: it's reached from the Calendar page's **Requires Appointment (N)** link, which shows how many are waiting, so the count is seen by whoever opens the Calendar, but not on other pages.
 - **A required visit holds up the stage:** it can't be finished until an appointment for it is Attended, except by an admin with a reason (decision 24), so a procedure can't quietly move on.
 - **One open appointment per stage** (decision 18), so a stage's appointment is never lost among duplicates.
 - The procedure's due date and overdue badge still apply to the procedure as a whole (H-04).
@@ -1169,8 +1170,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Further controls:**
 - **Flag or notify Requested appointments that have waited too long,** and Did not attend appointments not yet rebooked, to the procedure's assignees, or to admins when it has none. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); **before first live use**.
-- **A visible count of Needs booking,** in the side navigation or on Home, so the list isn't only seen by those who open it. Protective; **proposed**; before first live use.
-- **A local process:** who books from Needs booking, how often it's reviewed, and who follows up Did not attend. Information; transferred; before first live use.
+- **A visible count of Requires Appointment,** in the side navigation or on Home, so the list isn't only seen by those who open the Calendar. (Since 17 November 2026 the list has no side navigation item at all; the count shows only on the Calendar page's link.) Protective; **proposed**; before first live use.
+- **A local process:** who books from Requires Appointment, how often it's reviewed, and who follows up Did not attend. Information; transferred; before first live use.
 - **Reminders to patients** by email or SMS, which cut missed appointments. Protective; **planned** (`docs/todo.md`); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
@@ -1187,7 +1188,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Causes:**
 - **Two people book the same slot at the same moment,** from two browsers.
-- **Two people book the same Needs booking appointment at the same moment,** with different members of staff (found in the review of PR #93): the lock is per member of staff, so they didn't wait for each other, and the later save silently overwrote the earlier. The first member of staff was told about an appointment that wasn't on their calendar.
+- **Two people book the same Requires Appointment appointment at the same moment,** with different members of staff (found in the review of PR #93): the lock is per member of staff, so they didn't wait for each other, and the later save silently overwrote the earlier. The first member of staff was told about an appointment that wasn't on their calendar.
 - **A later template change** (an admin moves everyone's lunch, or applies a day template with leave to a day) lands on appointments already booked. MedApp allows that, and shows both (decision 6).
 - **A page left open** shows slots that have since been taken (H-16).
 - **Appointments kept elsewhere** (a paper diary, another system), so MedApp's calendar isn't the whole picture.
@@ -1268,7 +1269,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **"Today" on the server:** server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (H-12's residual note). Home's day calendar or the Calendar page could open on the wrong day for that hour.
 - **The wrong day or slot picked** in the booking dialog, or the wrong week open in the week view.
 - **A reschedule** that moves the appointment, when the patient was told the old time (H-36).
-- **A stale "book" that moves someone else's booking** (found in the review of PR #93): someone books a Needs booking appointment and tells the patient; a colleague whose list is out of date books it too, and the second request quietly moved it to their time, with nobody told.
+- **A stale "book" that moves someone else's booking** (found in the review of PR #93): someone books a Requires Appointment appointment and tells the patient; a colleague whose list is out of date books it too, and the second request quietly moved it to their time, with nobody told.
 
 **Effect.** The patient and the member of staff turn up at different times, or the patient is told the wrong time.
 
@@ -1312,7 +1313,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Possible harm.** Delayed care for one patient, or a step done on the basis of a visit that was someone else's. Considerable.
 
 **Existing controls** (in the design):
-- **The patient is filled in when it's known:** booking from the patient page, the procedure page, a stage ("Book visit") or the Needs booking list (decision 30), and the app's own requests link to the right stage (decision 23).
+- **The patient is filled in when it's known:** booking from the patient page, the procedure page, a stage ("Book visit") or the Requires Appointment list (decision 30), and the app's own requests link to the right stage (decision 23).
 - **One open appointment per stage** (decision 18): a second booking for a stage is refused, and the refusal points to the one there is.
 - **Every change is in the appointment's history**, so a wrong booking can be traced (decision 19).
 - **Transferred:** positive patient identification at the point of care.
@@ -1412,6 +1413,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Several patients' jottings in one notepad,** where all of it is added rather than the part about this patient.
 - **A note can't be deleted** (clinical record integrity): a wrong one stays, visible, until it's marked "entered in error", which isn't built (`docs/todo.md`).
 - **The same words in two patients' jottings** ("obs stable", "bloods sent", "call back"): taking the added text out of the notepad could take out the wrong copy, leaving the other patient's line short and this patient's still there, ready to be added again elsewhere. Found in the review of #110: the first build searched the notepad for the selected text and removed the first copy it found.
+- **The notepad in a half view** (`/notepad` beside a page, branch `feature/notepad-window`) offers the procedure page beside it, so the target is the page in the other half, which may not be the patient the jotting is about. (A separate notepad window, which would have offered procedure pages from other windows out of view, was tried on that branch and removed before merging, by the product owner's decision.)
 
 **Effect.** A clinical note about one patient sits on another patient's record: the wrong patient may be treated on it, the right one's record misses it, and it's a disclosure.
 
@@ -1420,10 +1422,11 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Existing controls:**
 - **A confirmation before anything is added** (`AddToProcedureDialog`), showing the patient as the patient banner does (`SURNAME, Forename`, date of birth and age, NHS number), the procedure's title, and the exact text that will be added. Protective; **built**.
 - **With two procedures open, it asks which,** naming each by its side (Left, Right), title and patient, and nothing is chosen until the member of staff chooses: Add Note stays disabled until then. Protective; **built**.
+- **The notepad in a half view uses the same confirmation** for the procedure page beside it (the signed-in page's, as the docked notepad offers): the patient as the banner shows them, the procedure's title and the text. With no procedure page open, Add Note to Procedure stays disabled. Protective; **built** (`NotepadProvider`, `NotepadPage`).
 - **Only the selected text is added when there is a selection,** so one patient's part can be added on its own. It's taken from the editor's own selection, as Markdown, so it keeps its formatting (bold, a whole list item's bullet) and the confirmation shows exactly what will be saved. Protective; **built**.
 - **"Remove it from the notepad" takes out exactly what was selected,** by its position in the editor (the editor deletes that range, as pressing Delete would), never by searching for the same words, so another line with the same text is never touched. It starts ticked, so the text doesn't linger there to be added again elsewhere. **When it can't be done exactly,** it says so rather than guessing: if the editor can't say where the selection is, the option is off and disabled in the confirmation, with the reason shown; if the notepad changed while the note was being added, nothing is taken out, and the pane says so, on the pane and to screen readers, so the member of staff removes it themselves. Protective; **built** (`RichTextField`'s `selection()`, `NotepadPane`; tested with the same words on two lines).
 - **The note is added by the member of staff, with the time, audited** (`NoteAdded`), and shows on the procedure page at once, under the patient banner; its author can edit it. Detective; **built**.
-- **The notepad says it's for jottings, and that anything about a patient belongs in their record.** Information; **built**.
+- ~~**The notepad says it's for jottings, and that anything about a patient belongs in their record.** Information; built.~~ **Removed** on 17 November 2026, by the product owner's decision (branch `feature/notepad-window`), with the notepad's prompt. The confirmation above stays the main control; the staff privacy notice still says what the notepad is for. The draft estimates below rest on the confirmation, not on that text, so they're unchanged; for the CSO to confirm.
 - **Transferred:** staff check the patient before writing in their record, as for any note.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3** (without the confirmation).
@@ -1467,3 +1470,5 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.8 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |
 | 0.9 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap. On merging 0.8 (email and two-factor sign-in): no new hazard, so the numbering stands | AI coding agent, for review |
 | 0.10 | 17 November 2026 | Several notes per procedure and the pop-out notepad (branch `feature/procedure-notes`): new draft hazard H-37 (a note added from the notepad to the wrong patient's procedure), with its confirmation as the control. Procedure notes can no longer be deleted or overwritten (each edit is a version, by its author only), which strengthens H-03 and H-15 without changing their ratings. After the review of #110: a new cause of H-37 (the same words in two patients' jottings), and "Remove it from the notepad" described as built: it takes out exactly the selection, by its position, or says it can't. Still a draft (0.10, after 0.9), not an issued version | AI coding agent, for review |
+| 0.11 | 17 November 2026 | The notepad in a half view, and its explanation removed (branch `feature/notepad-window`): the control "The notepad says it's for jottings, and that anything about a patient belongs in their record" removed by the product owner's decision, with the notepad's prompt, leaving the confirmation as H-37's main control (the staff privacy notice still says what the notepad is for); a new cause of H-37, the notepad in a half view offering the procedure page beside it, with the same confirmation as its control (a separate notepad window was removed before merging, by the product owner's decision). No rating changed. Still a draft, not an issued version | AI coding agent, for review |
+| 0.12 | 17 November 2026 | The Needs booking list renamed Requires Appointment (branch `feature/requires-appointment`, shipped with `feature/notepad-window`) and taken out of the side navigation: H-30 now records, as a cause and in its existing controls, that the list is reached from the Calendar page's "Requires Appointment (N)" link, which shows the count, and its proposed control (a visible count in the side navigation or on Home) stays proposed. No rating changed. Still a draft, not an issued version | AI coding agent, for review |

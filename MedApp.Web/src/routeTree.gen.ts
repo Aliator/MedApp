@@ -14,6 +14,7 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NotepadRouteImport } from './routes/notepad'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -36,6 +37,7 @@ import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
 import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calendar/needs-booking'
+import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
 import { Route as AppProceduresIndexRouteImport } from './routes/_app/procedures/index'
@@ -77,6 +79,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotepadRoute = NotepadRouteImport.update({
+  id: '/notepad',
+  path: '/notepad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -190,6 +197,12 @@ const AppCalendarNeedsBookingRoute = AppCalendarNeedsBookingRouteImport.update({
   path: '/calendar/needs-booking',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarRequiresAppointmentRoute =
+  AppCalendarRequiresAppointmentRouteImport.update({
+    id: '/calendar/requires-appointment',
+    path: '/calendar/requires-appointment',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppPatientsIndexRoute = AppPatientsIndexRouteImport.update({
   id: '/patients/',
   path: '/patients/',
@@ -292,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
@@ -311,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
+  '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
   '/account/': typeof AppAccountIndexRoute
@@ -337,6 +352,7 @@ export interface FileRoutesByTo {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
@@ -357,6 +373,7 @@ export interface FileRoutesByTo {
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
+  '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
   '/account': typeof AppAccountIndexRoute
@@ -385,6 +402,7 @@ export interface FileRoutesById {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
@@ -405,6 +423,7 @@ export interface FileRoutesById {
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
+  '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/procedures/new': typeof AppProceduresNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
@@ -434,6 +453,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
@@ -453,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
+    | '/calendar/requires-appointment'
     | '/patients/add'
     | '/procedures/new'
     | '/account/'
@@ -479,6 +500,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
@@ -499,6 +521,7 @@ export interface FileRouteTypes {
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
+    | '/calendar/requires-appointment'
     | '/patients/add'
     | '/procedures/new'
     | '/account'
@@ -526,6 +549,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
@@ -546,6 +570,7 @@ export interface FileRouteTypes {
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
+    | '/_app/calendar/requires-appointment'
     | '/_app/patients/add'
     | '/_app/procedures/new'
     | '/_app/account/'
@@ -574,6 +599,7 @@ export interface RootRouteChildren {
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  NotepadRoute: typeof NotepadRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetUpTwoFactorRoute: typeof SetUpTwoFactorRoute
 }
@@ -613,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notepad': {
+      id: '/notepad'
+      path: '/notepad'
+      fullPath: '/notepad'
+      preLoaderRoute: typeof NotepadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -769,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarNeedsBookingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar/requires-appointment': {
+      id: '/_app/calendar/requires-appointment'
+      path: '/calendar/requires-appointment'
+      fullPath: '/calendar/requires-appointment'
+      preLoaderRoute: typeof AppCalendarRequiresAppointmentRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/patients/': {
       id: '/_app/patients/'
       path: '/patients'
@@ -917,6 +957,7 @@ interface AppRouteChildren {
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
+  AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
@@ -958,6 +999,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
+  AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
   AppProceduresNewRoute: AppProceduresNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
@@ -988,6 +1030,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmEmailRoute: ConfirmEmailRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  NotepadRoute: NotepadRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SetUpTwoFactorRoute: SetUpTwoFactorRoute,
 }

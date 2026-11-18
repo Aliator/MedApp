@@ -48,7 +48,7 @@ import {
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
-import {useIsNarrow} from '../pages/Page';
+import {useIsNarrowWindow} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {MeetingReplyToken} from './CalendarTokens';
@@ -67,7 +67,7 @@ export interface MeetingDialogProps {
 /**
  * A meeting (team calendar plan, sections 2 and 4): its details for everyone (title, when, organiser, attendees with
  * their replies and a summary of them, notes); for an attendee, Accept and Decline (pressed as they last replied:
- * decision 70); and for admins, Change and Cancel Meeting; or, without a `meeting`, New Meeting (admins).
+ * decision 71); and for admins, Change and Cancel Meeting; or, without a `meeting`, New Meeting (admins).
  *
  * The form asks for a title, who (a multi-select of staff, with Everyone and Clear; the organiser goes too unless
  * they untick "I'm going too"), a length and notes (about staff, never patients). It suggests times in the next two
@@ -277,7 +277,8 @@ interface MeetingFormProps {
 /** New Meeting, or Change Meeting (`meeting`). */
 function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: MeetingFormProps) {
   const me = useCurrentUser();
-  const isNarrow = useIsNarrow();
+  // Its size and layout follow the window, as a dialog sits over all of it (not a half view it was opened from).
+  const isNarrow = useIsNarrowWindow();
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const actions = useMeetingActions();

@@ -183,7 +183,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
   it('books a Requested appointment, which says who asked for it', async () => {
     const {user} = renderDialog(testRequested({id: 'req-1', isAutomatic: true, notes: null}));
 
-    expect(await dialog().findByText('Needs booking')).toBeInTheDocument();
+    expect(await dialog().findByText('Requires appointment')).toBeInTheDocument();
     expect(dialog().getByText('Not booked yet')).toBeInTheDocument();
     expect(dialog().getByText('Automatically, 10 Nov 2026, 10:00')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Book'}));

@@ -412,7 +412,7 @@ describe('CalendarGrid', () => {
   it('moves an item between rows by whole rows from where it is, keeping its exact length', async () => {
     atMondayMorning();
     // 10:05 to 10:25 in 15-minute rows: it starts a third of the way into row 8 (10:00) and ends partway through row 9.
-    const block = blockItem(testBlock(MONDAY, '10:05', '10:25'));
+    const block = blockItem(testBlock(MONDAY, '10:05', '10:25'), {isMovable: true});
     const {onItemMove, onItemOpen} = renderGrid({items: [block]});
     const card = (await screen.findByRole('button', {name: /^Lunch, 10:05 to 10:25/})).closest<HTMLElement>('[data-kind]')!;
     layOutColumns();
@@ -455,8 +455,8 @@ describe('CalendarGrid', () => {
   it('opens an item pressed with a wobble under 5px, or on its own row, even once it has started; only a drag moves it', async () => {
     // 10:30 on Monday: the 09:00 to 12:00 block has started, so it can't be moved anywhere, but it still opens.
     atMondayMorning('2026-11-23T10:30:00Z');
-    const started = blockItem(testBlock(MONDAY, '09:00', '12:00', {blockId: 'started'}));
-    const later = blockItem(testBlock(MONDAY, '14:00', '15:00', {blockId: 'later'}));
+    const started = blockItem(testBlock(MONDAY, '09:00', '12:00', {blockId: 'started'}), {isMovable: true});
+    const later = blockItem(testBlock(MONDAY, '14:00', '15:00', {blockId: 'later'}), {isMovable: true});
     const {onItemMove, onItemOpen} = renderGrid({items: [started, later]});
     const startedCard = (await screen.findByRole('button', {name: /^Lunch, 09:00 to 12:00/})).closest<HTMLElement>('[data-kind]')!;
     const laterCard = screen.getByRole('button', {name: /^Lunch, 14:00 to 15:00/}).closest<HTMLElement>('[data-kind]')!;

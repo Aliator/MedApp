@@ -3,6 +3,9 @@ import {createContext, useCallback, useContext, useEffect, useId, useMemo, useRe
 import type {Procedure} from '../../api/procedures';
 import {useHalfView} from '../pages/halfView';
 
+/** The notepad's page, which a half view shows it in (the side nav's Notepad row). */
+export const NOTEPAD_PATH = '/notepad';
+
 /**
  * Whether the notepad is open is kept in this browser (it's a convenience, like the half view), under a `medapp.` key,
  * so signing out clears it with the rest. The notepad's text never is: that's on the server.
@@ -17,7 +20,8 @@ function storedOpen(): boolean {
   }
 }
 
-function storeOpen(isOpen: boolean) {
+/** Keeps whether the notepad is open in this browser, for the signed-in layout to read as it mounts. */
+export function storeNotepadOpen(isOpen: boolean) {
   try {
     if (isOpen) localStorage.setItem(NOTEPAD_OPEN_KEY, 'true');
     else localStorage.removeItem(NOTEPAD_OPEN_KEY);
@@ -78,40 +82,67 @@ const NotepadContext = createContext<NotepadState | null>(null);
 /** The notepad, or null outside the signed-in layout (and in tests of one part). */
 export const useNotepad = () => useContext(NotepadContext);
 
+export interface NotepadProviderProps {
+  children: ReactNode;
+  /**
+   * The notepad shown in a half view (`/notepad` in the half view's router), which closing (once saved) closes: it's
+   * always open, takes the focus as it starts, keeps nothing in this browser, and Add Note to Procedure offers the
+   * procedure pages of the signed-in layout's notepad, which it's inside.
+   */
+  onCloseHalf?: () => void;
+}
+
 /**
  * The notepad's state for the signed-in layout: whether it's open (remembered in this browser, read after mounting so
- * the server's render matches), and the procedure pages open, which its Add Note to Procedure can add to.
+ * the server's render matches), and the procedure pages open, which its Add Note to Procedure can add to. Or, with
+ * `onCloseHalf`, for the notepad shown in a half view.
  */
-export function NotepadProvider({children}: {children: ReactNode}) {
-  const [isOpen, setIsOpen] = useState(false);
+export function NotepadProvider({children, onCloseHalf}: NotepadProviderProps) {
+  const isHalf = onCloseHalf !== undefined;
+  // In a half view: the signed-in layout's notepad, whose procedure pages are the ones open beside this.
+  const layout = useNotepad();
+  const [isOpen, setIsOpen] = useState(isHalf);
   const [offers, setOffers] = useState<OpenProcedure[]>([]);
   const closer = useRef<(() => Promise<void>) | null>(null);
-  // Opened by its user: the pane takes the focus, and closing it gives the focus back to what opened it.
-  const shouldFocus = useRef(false);
+  // Opened by its user: the pane takes the focus, and closing it gives the focus back to what opened it. In a half
+  // view, it was opened to write in, so it takes the focus as it starts.
+  const shouldFocus = useRef(isHalf);
   const opener = useRef<HTMLElement | null>(null);
+  // The latest way to close the half (the half view makes a new one each render), so `close` stays the same.
+  const closeHalf = useRef(onCloseHalf);
+  useEffect(() => {
+    closeHalf.current = onCloseHalf;
+  }, [onCloseHalf]);
 
   useEffect(() => {
     // Read from this browser once mounted: the server can't know it, and its render must match the first one here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storedOpen()) setIsOpen(true);
-  }, []);
+    if (!isHalf && storedOpen()) setIsOpen(true);
+  }, [isHalf]);
 
   const open = useCallback(() => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     shouldFocus.current = true;
     setIsOpen(true);
-    storeOpen(true);
-  }, []);
+    if (!isHalf) storeNotepadOpen(true);
+  }, [isHalf]);
   const close = useCallback(() => {
+    // In a half view: closing it closes its half.
+    if (isHalf) {
+      closeHalf.current?.();
+      return;
+    }
     setIsOpen(false);
-    storeOpen(false);
+    storeNotepadOpen(false);
     shouldFocus.current = false;
     // Focus that was in the pane is lost as it goes: give it back to what opened it, or the side nav's Notepad, if
     // either is still shown; otherwise (a phone, whose nav drawer has closed) to the page's title. Again once the
     // sheet's closing animation is over, as its own focus return can't find the nav drawer's item either.
     const restore = () => {
       const active = document.activeElement;
-      const isLost = !active || active === document.body || !active.isConnected || active.closest('[role="region"][aria-label="Notepad"]');
+      // The notepad in a half view (the right half) is another notepad, whose box keeps the focus it took as it opened.
+      const isInThisPane = !!active?.closest('[role="region"][aria-label="Notepad"]') && !active?.closest('[aria-label="Right half"]');
+      const isLost = !active || active === document.body || !active.isConnected || isInThisPane;
       if (!isLost) return;
       const title = document.querySelector<HTMLElement>('main h1, [role="main"] h1');
       // The first that takes the focus (one that isn't shown can't).
@@ -125,7 +156,7 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     };
     setTimeout(restore);
     setTimeout(restore, FOCUS_AFTER_SHEET_MS);
-  }, []);
+  }, [isHalf]);
   const takeFocus = useCallback(() => {
     const should = shouldFocus.current;
     shouldFocus.current = false;
@@ -146,10 +177,13 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     return () => setOffers((current) => current.filter((o) => o.key !== offered.key));
   }, []);
 
-  const openProcedures = useMemo(
+  const ownProcedures = useMemo(
     () => [...offers].sort((a, b) => (a.side === 'right' ? 1 : 0) - (b.side === 'right' ? 1 : 0)),
     [offers],
   );
+  // In a half view, the procedure pages beside it: the signed-in layout's.
+  const layoutProcedures = layout?.openProcedures;
+  const openProcedures = useMemo(() => (isHalf ? (layoutProcedures ?? []) : ownProcedures), [isHalf, layoutProcedures, ownProcedures]);
   const value = useMemo(
     () => ({isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus}),
     [isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus],
