@@ -28,7 +28,8 @@ import {can, useCurrentUser, useLogout} from '../../auth/auth';
 import {rolesSummary} from '../../auth/roles';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
-import {HALF_VIEW_HREF, useCtrlClickWords} from './HalfViewClicks';
+import {placeBesideNav} from './besideNav';
+import {HALF_VIEW_HREF} from './HalfViewClicks';
 import {AppIcon} from '../shared/icons';
 import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
 import {pathwayNavLabel} from './navLabels';
@@ -99,46 +100,31 @@ function AlwaysShownButtons({children}: {children: ReactNode}) {
   return <ActiveRowsContext.Provider value={() => true}>{children}</ActiveRowsContext.Provider>;
 }
 
-/** Beside a menu item: the click on the nav item that does much the same (HalfViewClicks). */
-const clickHint = (words: string) => (
-  <Text type="supporting" color="secondary">
-    {words}
-  </Text>
-);
-/** Shift-click opens the page in the half view, on the right. */
-const SHIFT_CLICK_HINT = clickHint('Shift-click');
-
 /** The half-view part of a row's menu: open its page beside this one, or on either side while a half view is open. */
-function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
+function useHalfViewItems(href: string): DropdownMenuItemData[] {
   const halfViews = useHalfViews();
   const router = useRouter();
   const pathname = useRouterState({select: (state) => state.location.pathname});
-  const ctrlClick = useCtrlClickWords();
   if (!halfViews) return [];
 
   // With a half view open, it opens on the left (the main view) or the right (the half view). Both are greyed out
-  // while either side shows it, since a page is only open once.
+  // while either side shows it, since a page is only open once. Greyed out with no words saying why (the owner's
+  // choice): the row's own highlight already shows where it's open.
   if (halfViews.openPath !== null) {
     const openOn = href === pathname ? 'left' : href === halfViews.openPath ? 'right' : null;
-    const already = openOn ? `${label} is already open on the ${openOn}` : undefined;
     return [
       {
         id: 'left',
         label: 'Open on the left',
-        description: already,
         icon: AppIcon.OpenLeft,
         isDisabled: openOn !== null,
-        // Ctrl-click opens it on the left too, moving the left's page to the right.
-        endContent: clickHint(ctrlClick),
         onClick: () => void router.navigate({href}),
       },
       {
         id: 'right',
         label: 'Open on the right',
-        description: already,
         icon: AppIcon.OpenRight,
         isDisabled: openOn !== null,
-        endContent: SHIFT_CLICK_HINT,
         onClick: () => halfViews.open(href),
       },
     ];
@@ -149,10 +135,8 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
     {
       id: 'half',
       label: 'Open in half view',
-      description: isOpen ? `${label} is already open` : undefined,
       icon: AppIcon.HalfView,
       isDisabled: isOpen,
-      endContent: SHIFT_CLICK_HINT,
       onClick: () => halfViews.open(href),
     },
   ];
@@ -251,12 +235,8 @@ function RowMenu({
   const triggerId = useRef<string | null>(null);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  // Once it's open, the menu is set where it should be, found by the button that names it:
-  // - In the app's own mode, not the nav's (always dark). Astryx hosts it in the row (the nearest place it may),
-  //   outside any Theme put round it here, so its colours are switched there: the theme's follow `color-scheme`.
-  // - On the cards' colour (a popover's own is the theme's, and the nav's theme sets the card token to its own).
-  // - Beside the nav, as far out from its edge as the row's highlight is in from it, and level with the highlight
-  //   (Astryx anchors it to the button, which sits inside both).
+  // Once it's open, the menu is set where it should be (`placeBesideNav`: beside the nav, level with the row, in the
+  // app's own mode and on the cards' colour), found by the button that names it.
   useLayoutEffect(() => {
     if (!isOpen) return;
     let frame = 0;
@@ -265,25 +245,10 @@ function RowMenu({
     const place = () => {
       const menu = triggerId.current && document.querySelector(`[aria-labelledby="${CSS.escape(triggerId.current)}"]`);
       const button = triggerId.current ? document.getElementById(triggerId.current) : null;
-      const panel = menu instanceof HTMLElement ? (menu.closest<HTMLElement>('[popover]') ?? menu) : null;
       const row = button?.closest<HTMLElement>('.astryx-side-nav-item');
-      const nav = button?.closest<HTMLElement>('.astryx-side-nav');
-      if (panel && row && nav) {
-        (panel.closest<HTMLElement>('[data-astryx-layer-root]') ?? panel).style.colorScheme = mode;
-        // The menu's own surface: the popover element itself or inside it, never one round it (a flyout's).
-        const surface = panel.matches('.astryx-popover') ? panel : (panel.querySelector<HTMLElement>('.astryx-popover') ?? panel);
-        surface.style.backgroundColor = 'var(--medapp-card-background)';
-        panel.style.translate = '';
-        const box = panel.getBoundingClientRect();
-        if (box.width > 0) {
-          // The nav's edge; in a folded nav's flyout, the row's own (the flyout is just its rows). The gap is the
-          // nav's inset of its rows.
-          const navRight = nav.getBoundingClientRect().right;
-          const rowRight = row.getBoundingClientRect().right;
-          const edge = row.closest('[popover]') ? rowRight : navRight;
-          const dx = edge + (navRight - rowRight) - box.left;
-          const dy = row.getBoundingClientRect().top - box.top;
-          panel.style.translate = `${dx}px ${dy}px`;
+      if (menu instanceof HTMLElement && row) {
+        const surface = placeBesideNav({panel: menu, row, mode});
+        if (surface) {
           // Where the gap is once the menu has moved: from the button's end into the menu (the menu is in the
           // browser's top layer, so the part under it never takes the pointer), and a little above and below both.
           // Measured again once the menu has settled: it slides into place, and a strip measured mid-way stopped
@@ -318,7 +283,7 @@ function RowMenu({
     };
   }, [isOpen, mode]);
 
-  const halfViewItems = useHalfViewItems(label, href);
+  const halfViewItems = useHalfViewItems(href);
   const all = [...(isRightOnly ? halfViewItems.filter((item) => item.id !== 'left') : halfViewItems), ...items];
   if (all.length === 0) return null;
 
@@ -964,7 +929,9 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
             // so it's a plain link here, like the rail's icons.
             // With the bell under it, as the rail has no room beside it.
             // Room under the logo for the bell's count, which sits over its top right corner.
-            <VStack gap={3} hAlign="center">
+            // The column is as wide as the nav's rows, so the bell's list opens as far out from the nav as a row's menu
+            // does (NotificationBell).
+            <VStack gap={3} hAlign="center" data-nav-header="">
               <IconButton
                 label="MedApp"
                 icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}

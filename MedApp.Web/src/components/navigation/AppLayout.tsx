@@ -145,15 +145,18 @@ function MainLayout() {
     },
     [open, router],
   );
+  // The main view's page changed from the half view, which stays as it is.
+  const showOnLeft = useCallback((path: string) => void router.navigate({href: path}), [router]);
   const halfViews = useMemo(
     () => ({
       open,
       openFull,
       openOnLeft,
+      showOnLeft,
       close: closeHalf,
       openPath: half && halfPath ? halfPath.split('?')[0] : null,
     }),
-    [open, openFull, openOnLeft, closeHalf, half, halfPath],
+    [open, openFull, openOnLeft, showOnLeft, closeHalf, half, halfPath],
   );
 
   const notepad = useNotepad();
