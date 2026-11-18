@@ -16,3 +16,5 @@ None beyond the above.
 ## Remaining risk
 
 - `OpenListSearchAsync` assumes the page opens on its tabs or the search; a page that shows the search only after loading could race the visibility check, in which case the menu reads Tabs and the helper times out.
+
+Independent quick review (18 November 2026): no critical or high findings. One low, accepted: `EmailTemplates.TwoFactorCode` floors `lifetime + 5 s`, so the email can state up to 5 seconds more than the code has (9:55 reads "10 minutes"); the code itself still expires on time. No test weakened: `routeGuards.test.tsx` still checks `view: 'ToSend'` (from the POST body), and the E2E helper only reveals the search bar.
