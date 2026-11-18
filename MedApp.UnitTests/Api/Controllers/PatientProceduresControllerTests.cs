@@ -2,11 +2,13 @@
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Procedures.Common;
+using MedApp.Application.Procedures.NoteDeletionRequests.Commands.RequestNoteDeletion;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.DeleteProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
@@ -17,6 +19,7 @@ using MedApp.Application.Procedures.PatientProcedures.Commands.UpdateProcedureSt
 using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureById;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.UnitTests.Common.Fixtures;
@@ -151,6 +154,50 @@ public sealed class PatientProceduresControllerTests
     }
 
     [Test]
+    public async Task DeleteProcedureNote_DeletesAsTheUserWithTheReasonAndReturnsNoContent()
+    {
+        var noteId = Guid.NewGuid();
+
+        var request = new DeleteProcedureNoteRequest { Reason = "Other", Detail = "Synthetic detail.", ExpectedVersion = 3 };
+
+        var result = await Controller.DeleteProcedureNote(RecordId, noteId, request, _cts.Token);
+
+        _mediator.Request.Should().Be(new DeleteProcedureNoteCommand(RecordId, noteId, "Other", "Synthetic detail.", 3, Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task RequestNoteDeletion_ReturnsTheNoteWithTheRequestsAddress()
+    {
+        var note = _fixture.Create<PatientProcedureNoteResponse>();
+        _mediator = new RecordingMediator(_ => note);
+        var noteId = Guid.NewGuid();
+
+        var result = await Controller.RequestNoteDeletion(
+            RecordId, noteId, new RequestNoteDeletionRequest { Reason = "Duplicate", Detail = "Synthetic detail." }, _cts.Token);
+
+        _mediator.Request.Should().Be(new RequestNoteDeletionCommand(RecordId, noteId, "Duplicate", "Synthetic detail.", Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be($"/api/procedures/note-deletion-requests/{note.DeletionRequestId}");
+        created.Value.Should().Be(note);
+    }
+
+    [Test]
+    public async Task DeleteProcedureNote_AdminsOnly_AndRequestNoteDeletion_AnyStaff()
+    {
+        const string delete = nameof(PatientProceduresController.DeleteProcedureNote);
+        const string request = nameof(PatientProceduresController.RequestNoteDeletion);
+
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(delete, SignedIn("Admin"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(delete, SignedIn("User"))).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn("User"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn("Admin"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn())).Should().BeFalse();
+    }
+
+    [Test]
     public async Task AssignPatientProcedure_AssignsAsTheUser() =>
         ExpectSentAndOk(new AssignPatientProcedureCommand(RecordId, OtherId, Actor), await Controller.AssignPatientProcedure(RecordId, OtherId, _cts.Token));
 
@@ -191,7 +238,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await controller.FinishProcedureStage(RecordId, OtherId, request, _cts.Token);
 
-        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor with { IsAdmin = isAdmin }, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
     }
 
     [Test]
@@ -201,7 +248,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await controller.FinishProcedureStage(RecordId, OtherId, null, _cts.Token);
 
-        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, IsAdmin: true), result);
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor with { IsAdmin = true }, WithoutVisit: false, Reason: null, IsAdmin: true), result);
     }
 
     [Test]

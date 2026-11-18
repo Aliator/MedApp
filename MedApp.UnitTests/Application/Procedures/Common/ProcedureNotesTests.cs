@@ -79,11 +79,13 @@ public sealed class ProcedureNotesTests
     {
         var procedure = CreateProcedure();
         var change = new ProcedureChange(procedure, Staff, Now);
-        change.EditNote(change.AddNote("First."), "Second.");
+        var note = change.AddNote("First.");
+        change.EditNote(note, "Second.");
+        change.DeleteNote(note, NoteDeletionReason.WrongPatient, DeletionDetail);
 
         change.AuditEntries.Select(PatientTimelineKinds.Of).Should().AllBeEquivalentTo(PatientTimelineKind.Notes);
         change.AuditEntries.AsQueryable().WhereKindIn(new HashSet<PatientTimelineKind> { PatientTimelineKind.Notes })
-            .Should().HaveCount(2);
+            .Should().HaveCount(3);
         change.AuditEntries.AsQueryable().WhereKindIn(new HashSet<PatientTimelineKind> { PatientTimelineKind.Details })
             .Should().BeEmpty();
     }
@@ -92,7 +94,96 @@ public sealed class ProcedureNotesTests
     public void NoteChanges_CountAsChangesForRetention()
     {
         // Adding or editing a note is a change to the record: it moves the conclusion of treatment.
-        RetentionSchedule.ReadOnlyAuditActions.Should().NotContain([Action.NoteAdded, Action.NoteEdited]);
+        RetentionSchedule.ReadOnlyAuditActions.Should().NotContain([Action.NoteAdded, Action.NoteEdited, Action.NoteDeleted]);
+    }
+
+    [Test]
+    public void DeleteNote_MarksItDeletedKeepsItAndAuditsTheReasonButNeverTheText()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var note = procedure.AddNote(version: 2);
+        var requestId = Guid.NewGuid();
+        note.PendingDeletionRequestId = requestId;
+        var change = new ProcedureChange(procedure, Admin, Now);
+
+        change.DeleteNote(note, NoteDeletionReason.WrongPatient, DeletionDetail, requestId);
+
+        note.Should().BeEquivalentTo(new
+        {
+            IsDeleted = true,
+            DeletedAtUtc = (DateTime?)Now,
+            DeletedByUserId = (Guid?)Admin.UserId,
+            DeletionReason = (NoteDeletionReason?)NoteDeletionReason.WrongPatient,
+            DeletionDetail,
+            PendingDeletionRequestId = (Guid?)null,
+            Text = NoteText,
+            Version = 2
+        });
+        procedure.Notes.Should().Contain(note);
+        procedure.LastUpdated.Should().Be(Now);
+        change.DeletedNotes.Should().Equal(note);
+        change.NoteVersions.Should().BeEmpty("deleting writes no new version");
+        change.HasChanges.Should().BeTrue();
+        var entry = change.AuditEntries.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(Action.NoteDeleted);
+        entry.UserId.Should().Be(Admin.UserId);
+        entry.Details.Should().Be($$"""{"noteId":"{{note.Id}}","version":2,"deletionReason":"WrongPatient","detail":"{{DeletionDetail}}","requestId":"{{requestId}}"}""")
+            .And.NotContain(NoteText);
+        ProcedureNotes.VersionOf(entry).Should().Be(new NoteVersionKey(note.Id, 2));
+    }
+
+    [Test]
+    public void DeleteNote_TheOldestNote_ClearsTheOldNotesFieldItWasCopiedFrom()
+    {
+        // #110's migration copied the old single field into the procedure's first note and kept the column: deleting
+        // that note must not leave its text there, to come back when the column is dropped.
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.LegacyNotes = NoteText;
+        var first = procedure.AddNote(createdAt: Now.AddDays(-5));
+        procedure.AddNote(text: "Synthetic later note.", createdAt: Now.AddDays(-1));
+        var change = new ProcedureChange(procedure, Admin, Now);
+
+        change.DeleteNote(first, NoteDeletionReason.WrongPatient, null);
+
+        procedure.LegacyNotes.Should().BeEmpty();
+        change.AuditEntries.Single().Details.Should().Contain("\"oldNotesFieldCleared\":true");
+        ProcedureNoteMapper.FirstNoteText(procedure).Should().Be("Synthetic later note.");
+    }
+
+    [Test]
+    public void DeleteNote_ALaterNote_LeavesTheOldNotesField()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.LegacyNotes = NoteText;
+        procedure.AddNote(createdAt: Now.AddDays(-5));
+        var later = procedure.AddNote(text: "Synthetic later note.", createdAt: Now.AddDays(-1));
+        var change = new ProcedureChange(procedure, Admin, Now);
+
+        change.DeleteNote(later, NoteDeletionReason.Duplicate, null);
+
+        procedure.LegacyNotes.Should().Be(NoteText);
+        change.AuditEntries.Single().Details.Should().NotContain("oldNotesFieldCleared");
+    }
+
+    [Test]
+    public void AlreadyRequestedMessage_NamesWhoAndWhen()
+    {
+        var procedure = CreateProcedure();
+        var request = procedure.RequestDeletion(procedure.AddNote(), new ProcedureActor(OtherUserId, OtherUsername));
+
+        ProcedureNotes.AlreadyRequestedMessage(request).Should()
+            .Be($"{OtherUsername} already asked for this note to be deleted, Sunday 14 June at 13:00. An admin will decide.");
+        ProcedureNotes.AlreadyRequestedMessage(null).Should().Be("Someone has already asked for this note to be deleted. An admin will decide.");
+    }
+
+    [Test]
+    public void AlreadyDecidedMessage_WithoutWhoOrWhen_StillSaysWhatHappened()
+    {
+        var procedure = CreateProcedure();
+        var request = procedure.RequestDeletion(procedure.AddNote());
+        request.Status = NoteDeletionRequestStatus.Approved;
+
+        ProcedureNotes.AlreadyDecidedMessage(request).Should().Be("Someone already deleted this note.");
     }
 
     [Test]

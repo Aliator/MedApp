@@ -112,7 +112,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).Delete(RecordId, cts.Token);
 
-        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor, isAdmin));
+        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor with { IsAdmin = isAdmin }, isAdmin));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<NoContentResult>();
     }

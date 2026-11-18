@@ -133,6 +133,20 @@ public sealed class EditProcedureNoteHandlerTests : ProcedureHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_DeletedNote_ThrowsConflictWithoutSaving()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        var note = procedure.AddNote(Staff.UserId);
+        note.DeletedAtUtc = Now.AddDays(-1);
+
+        var act = () => Handler.Handle(new EditProcedureNoteCommand(procedure.Id, note.Id, Edited, 1, Staff), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(ProcedureNotes.DeletedMessage);
+        note.Text.Should().Be(NoteText);
+        VerifyNotSaved();
+    }
+
+    [Test]
     public async Task Handle_NoteNotOnTheProcedure_ThrowsNotFound()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));

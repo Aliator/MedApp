@@ -62,8 +62,8 @@ public sealed class ProcedureNotesMigrationTests
 
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
-        var notes = await _context.PatientProcedureNotes.AsNoTracking().ToListAsync();
-        var versions = await _context.PatientProcedureNoteVersions.AsNoTracking().ToListAsync();
+        var notes = await NotesAtMigration().ToListAsync();
+        var versions = await VersionsAtMigration().ToListAsync();
         notes.Select(n => n.PatientProcedureId).Should().BeEquivalentTo([withCreator, noCreator, twice]);
         notes.Should().NotContain(n => n.PatientProcedureId == blank || n.PatientProcedureId == empty);
 
@@ -88,7 +88,8 @@ public sealed class ProcedureNotesMigrationTests
         versions.Single(v => v.PatientProcedureId == noCreator).Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty });
 
         // The old column is kept as it was, for API copies from before the move during a rollout.
-        (await _context.PatientProcedures.AsNoTracking().SingleAsync(p => p.Id == withCreator)).LegacyNotes.Should().Be(moved.Text);
+        (await _context.PatientProcedures.AsNoTracking().Where(p => p.Id == withCreator).Select(p => p.LegacyNotes).SingleAsync())
+            .Should().Be(moved.Text);
     }
 
     [Test]
@@ -110,8 +111,8 @@ public sealed class ProcedureNotesMigrationTests
 
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
-        var notes = await _context.PatientProcedureNotes.AsNoTracking().ToDictionaryAsync(n => n.PatientProcedureId);
-        var versions = await _context.PatientProcedureNoteVersions.AsNoTracking().ToDictionaryAsync(v => v.PatientProcedureId);
+        var notes = await NotesAtMigration().ToDictionaryAsync(n => n.PatientProcedureId);
+        var versions = await VersionsAtMigration().ToDictionaryAsync(v => v.PatientProcedureId);
 
         notes[mixed].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)null, LastEditedAtUtc = (DateTime?)CreatedAt.AddDays(3), CreatedAtUtc = CreatedAt });
         versions[mixed].Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty, AtUtc = CreatedAt.AddDays(3), Version = 1 });
@@ -125,6 +126,23 @@ public sealed class ProcedureNotesMigrationTests
         notes[noCreator].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)null, LastEditedAtUtc = (DateTime?)CreatedAt.AddDays(5) });
         versions[noCreator].Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty });
     }
+
+    // Only the columns that exist at AddedProcedureNotes: later migrations add more to these tables, and reading whole
+    // entities would ask for them (AGENTS.md, Migrations).
+    private IQueryable<NoteAtMigration> NotesAtMigration() =>
+        _context.PatientProcedureNotes.AsNoTracking().Select(n => new NoteAtMigration(
+            n.Id, n.PatientProcedureId, n.AuthorUserId, n.Text, n.CreatedAtUtc, n.LastEditedAtUtc, n.Version, n.RowVersion));
+
+    private IQueryable<VersionAtMigration> VersionsAtMigration() =>
+        _context.PatientProcedureNoteVersions.AsNoTracking().Select(v => new VersionAtMigration(
+            v.Id, v.NoteId, v.Version, v.PatientProcedureId, v.PatientId, v.Text, v.UserId, v.Username, v.AtUtc));
+
+    private sealed record NoteAtMigration(
+        Guid Id, Guid PatientProcedureId, Guid? AuthorUserId, string Text, DateTime CreatedAtUtc, DateTime? LastEditedAtUtc, int Version,
+        byte[] RowVersion);
+
+    private sealed record VersionAtMigration(
+        Guid Id, Guid NoteId, int Version, Guid PatientProcedureId, Guid PatientId, string Text, Guid? UserId, string Username, DateTime AtUtc);
 
     [Test]
     public async Task Down_AfterUp_DropsTheNotesAndKeepsTheOldColumn_AndUpAgainWorks()

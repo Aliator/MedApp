@@ -1,6 +1,8 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Patients.Common;
+using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -15,6 +17,37 @@ namespace MedApp.UnitTests.Application.Patients.Common;
 public sealed class PatientAnonymiserTests
 {
     private static readonly DateTime AnonymisedAt = new(2026, 11, 16, 9, 0, 0, DateTimeKind.Utc);
+
+    [Test]
+    public void Apply_NoteDeletions_LoseTheirReasons_AndWaitingRequestsAreClosedByWhoeverAnonymises()
+    {
+        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
+        var deleted = procedure.AddNote();
+        var waiting = procedure.AddNote(text: "Synthetic second note.");
+        var approved = procedure.RequestDeletion(deleted);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, NoteDeletionReason.WrongPatient, DeletionDetail, approved.Id);
+        approved.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
+        var pending = procedure.RequestDeletion(waiting);
+        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, procedure), approved, pending);
+        var by = new ActivityActor(Admin.UserId, Admin.Username, null);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt, by);
+
+        deleted.DeletionDetail.Should().Be(PatientAnonymiser.RemovedText);
+        deleted.DeletionReason.Should().Be(NoteDeletionReason.WrongPatient, "the reason is a fixed choice, not free text");
+        deleted.IsDeleted.Should().BeTrue("a deleted note stays deleted");
+        waiting.DeletionDetail.Should().BeNull();
+        waiting.PendingDeletionRequestId.Should().BeNull();
+        record.NoteDeletionRequests.Should().AllSatisfy(r => r.Detail.Should().Be(PatientAnonymiser.RemovedText));
+        approved.Should().BeEquivalentTo(new { Status = NoteDeletionRequestStatus.Approved, DecidedAtUtc = (DateTime?)Now });
+        pending.Should().BeEquivalentTo(new
+        {
+            Status = NoteDeletionRequestStatus.Closed,
+            DecidedByUserId = (Guid?)Admin.UserId,
+            DecidedByUsername = Admin.Username,
+            DecidedAtUtc = (DateTime?)AnonymisedAt
+        });
+    }
 
     [Test]
     public void Apply_Patient_ReplacesTheirDetails_KeepsTheYearOfBirth_AndClearsTheFlags()
@@ -218,7 +251,7 @@ public sealed class PatientAnonymiserTests
 
     private static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
-    private static PatientRecord WithHistory(PatientRecord record, PatientProcedureAuditEntry entry) => new()
+    private static PatientRecord WithHistory(PatientRecord record, PatientProcedureAuditEntry entry) => new PatientRecord
     {
         Patient = record.Patient,
         Procedures = record.Procedures,
@@ -226,10 +259,13 @@ public sealed class PatientAnonymiserTests
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
-        Notifications = record.Notifications
+        Notifications = record.Notifications,
+        NoteVersions = [],
+        NoteDeletionRequests = [],
+        Attachments = []
     };
 
-    private static PatientRecord WithActivity(PatientRecord record, ActivityEntry entry) => new()
+    private static PatientRecord WithActivity(PatientRecord record, ActivityEntry entry) => new PatientRecord
     {
         Patient = record.Patient,
         Procedures = record.Procedures,
@@ -237,10 +273,13 @@ public sealed class PatientAnonymiserTests
         Activity = [.. record.Activity, entry],
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
-        Notifications = record.Notifications
+        Notifications = record.Notifications,
+        NoteVersions = [],
+        NoteDeletionRequests = [],
+        Attachments = []
     };
 
-    private static PatientRecord WithNotifications(PatientRecord record, params Notification[] notifications) => new()
+    private static PatientRecord WithNotifications(PatientRecord record, params Notification[] notifications) => new PatientRecord
     {
         Patient = record.Patient,
         Procedures = record.Procedures,
@@ -248,7 +287,10 @@ public sealed class PatientAnonymiserTests
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
-        Notifications = [.. record.Notifications, .. notifications]
+        Notifications = [.. record.Notifications, .. notifications],
+        NoteVersions = [],
+        NoteDeletionRequests = [],
+        Attachments = []
     };
 
     [Test]
@@ -328,7 +370,7 @@ public sealed class PatientAnonymiserTests
         notification.Message.Should().Be("test.staff moved your appointment to Monday 23 November at 10:00.");
     }
 
-    private static PatientRecord WithAppointments(PatientRecord record, params Appointment[] appointments) => new()
+    private static PatientRecord WithAppointments(PatientRecord record, params Appointment[] appointments) => new PatientRecord
     {
         Patient = record.Patient,
         Procedures = record.Procedures,
@@ -336,10 +378,13 @@ public sealed class PatientAnonymiserTests
         Activity = record.Activity,
         Appointments = [.. record.Appointments, .. appointments],
         AppointmentHistory = record.AppointmentHistory,
-        Notifications = record.Notifications
+        Notifications = record.Notifications,
+        NoteVersions = [],
+        NoteDeletionRequests = [],
+        Attachments = []
     };
 
-    private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new()
+    private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new PatientRecord
     {
         Patient = record.Patient,
         Procedures = record.Procedures,
@@ -347,6 +392,9 @@ public sealed class PatientAnonymiserTests
         Activity = record.Activity,
         Appointments = record.Appointments,
         AppointmentHistory = [.. record.AppointmentHistory, .. entries],
-        Notifications = record.Notifications
+        Notifications = record.Notifications,
+        NoteVersions = [],
+        NoteDeletionRequests = [],
+        Attachments = []
     };
 }

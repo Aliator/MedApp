@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Procedures.Common;
@@ -7,7 +8,13 @@ namespace MedApp.Application.Procedures.Common;
 /// <summary>
 /// The rules and messages of a procedure's notes, beside <see cref="ProcedureWorkflow.WhyNotesCantChange"/>: only a
 /// note's author can edit it (admins can't edit anyone else's: what someone wrote in the clinical record stays theirs),
-/// nobody can delete one, and an edit names the version it started from, so a stale one is refused.
+/// and an edit names the version it started from, so a stale one is refused.
+/// <para>
+/// Only admins delete notes, with a reason, and deleting is soft (the note is hidden, but kept). Staff ask an admin to
+/// (a <see cref="ProcedureNoteDeletionRequest"/>), one request per note at a time. Both are allowed in any status of the
+/// procedure, as a correction (a note on the wrong patient), like an admin deleting a file; neither while the patient's
+/// record is restricted or anonymised.
+/// </para>
 /// </summary>
 public static class ProcedureNotes
 {
@@ -15,6 +22,41 @@ public static class ProcedureNotes
 
     public const string ChangedMeanwhileMessage =
         "This note was changed somewhere else (another tab or window) after you opened it. Reload to see it as it is now, then make your change again.";
+
+    public const string DeletedMessage = "This note has been deleted.";
+
+    public const string DeletedMeanwhileMessage =
+        "This note, or the request to delete it, was changed somewhere else (another admin, tab or window) after you opened it. Reload to see it as it is now.";
+
+    /// <summary>Asking to delete a note that someone else changed, asked to delete or deleted at the same moment.</summary>
+    public const string RequestedMeanwhileMessage =
+        "Someone else changed this note, or asked for it to be deleted, at the same moment. Reload to see it as it is now.";
+
+    /// <summary>Asking to delete a note that already has a request waiting: who asked, and when.</summary>
+    public static string AlreadyRequestedMessage(ProcedureNoteDeletionRequest? pending) =>
+        pending is null
+            ? "Someone has already asked for this note to be deleted. An admin will decide."
+            : $"{pending.RequestedByUsername} already asked for this note to be deleted, {UkTime.Describe(pending.RequestedAtUtc)}. An admin will decide.";
+
+    /// <summary>Deciding a request that's already been decided: by whom, when and how.</summary>
+    public static string AlreadyDecidedMessage(ProcedureNoteDeletionRequest request)
+    {
+        var when = request.DecidedAtUtc is { } at ? $", {UkTime.Describe(at)}" : string.Empty;
+        var by = string.IsNullOrEmpty(request.DecidedByUsername) ? "Someone" : request.DecidedByUsername;
+        return request.Status switch
+        {
+            NoteDeletionRequestStatus.Approved => $"{by} already deleted this note{when}.",
+            NoteDeletionRequestStatus.Declined => $"{by} already decided to keep this note{when}.",
+            _ => "This request was closed without a decision: the note's procedure was deleted, or the patient's record anonymised."
+        };
+    }
+
+    /// <summary>
+    /// Deleting a note from a version other than the one the admin saw: it was edited after they opened it, so they
+    /// haven't read what they'd delete.
+    /// </summary>
+    public const string EditedSinceOpenedMessage =
+        "This note was edited after you opened it. Read it again before deleting it.";
 
     /// <summary>The note's text: not blank, and at most <see cref="PatientProcedureNote.MaxTextLength"/> characters.</summary>
     public static IRuleBuilderOptions<T, string> NoteText<T>(this IRuleBuilder<T, string> rule) =>
@@ -24,10 +66,14 @@ public static class ProcedureNotes
             .MaximumLength(PatientProcedureNote.MaxTextLength)
             .WithMessage($"A note must not exceed {PatientProcedureNote.MaxTextLength} characters.");
 
-    /// <summary>The note's ID and version a NoteAdded or NoteEdited audit entry names, or null for any other entry.</summary>
+    /// <summary>
+    /// The note's ID and version a NoteAdded, NoteEdited or NoteDeleted audit entry names (for a deletion, the version
+    /// that was deleted), or null for any other entry.
+    /// </summary>
     public static NoteVersionKey? VersionOf(PatientProcedureAuditEntry entry)
     {
-        if (entry.Action is not (PatientProcedureAuditAction.NoteAdded or PatientProcedureAuditAction.NoteEdited))
+        if (entry.Action is not (PatientProcedureAuditAction.NoteAdded or PatientProcedureAuditAction.NoteEdited
+            or PatientProcedureAuditAction.NoteDeleted))
             return null;
 
         try

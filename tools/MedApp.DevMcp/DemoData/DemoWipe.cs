@@ -54,6 +54,8 @@ public static class DemoWipe
                 await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(cancellationToken);
                 // Note versions have no foreign keys; the notes themselves go with their procedures (cascade).
                 await db.PatientProcedureNoteVersions.ExecuteDeleteAsync(cancellationToken);
+                // So do requests to delete notes.
+                await db.ProcedureNoteDeletionRequests.ExecuteDeleteAsync(cancellationToken);
                 // The activity log is about the patients and accounts being wiped, so it goes with them.
                 await db.ActivityEntries.ExecuteDeleteAsync(cancellationToken);
                 await db.PatientProcedureAssignments.ExecuteDeleteAsync(cancellationToken);
