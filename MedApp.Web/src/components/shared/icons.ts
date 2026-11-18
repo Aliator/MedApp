@@ -7,6 +7,9 @@ import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
   RiChatFollowUpLine,
+  RiCheckDoubleLine,
+  RiFileChartLine,
+  RiUserSharedLine,
   RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
@@ -339,4 +342,11 @@ export const AppIcon = {
   /** Finding a specimen by its number, typed or scanned from its label. */
   Scan: remix(RiQrScanLine),
   Print: remix(RiPrinterLine),
+  // Results: reports awaiting a clinician's sign-off
+  /** The Results list and a result's page. */
+  Results: remix(RiFileChartLine),
+  /** Signing a result off. */
+  SignOff: remix(RiCheckDoubleLine),
+  /** Giving a result to another responsible clinician. */
+  Reassign: remix(RiUserSharedLine),
 } as const satisfies Record<string, IconType>;

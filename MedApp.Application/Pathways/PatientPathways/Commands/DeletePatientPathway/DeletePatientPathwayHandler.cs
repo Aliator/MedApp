@@ -16,6 +16,7 @@ public sealed class DeletePatientPathwayHandler(
     INoteDeletionRequestRepository noteDeletionRequests,
     ILetterRepository letters,
     ISpecimenRepository specimens,
+    MedApp.Application.Results.Repositories.IResultRepository results,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<DeletePatientPathwayCommand>
@@ -44,6 +45,11 @@ public sealed class DeletePatientPathwayHandler(
         if (specimenCount > 0)
             throw new ConflictException(
                 $"This pathway has {specimenCount} specimen{(specimenCount == 1 ? "" : "s")}, so it can't be deleted.");
+
+        var resultCount = await results.CountForPathwayAsync(pathway.Id, cancellationToken);
+        if (resultCount > 0)
+            throw new ConflictException(
+                $"This pathway has {resultCount} result{(resultCount == 1 ? "" : "s")}, so it can't be deleted.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);

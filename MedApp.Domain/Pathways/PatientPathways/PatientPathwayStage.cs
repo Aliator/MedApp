@@ -32,6 +32,12 @@ public sealed class PatientPathwayStage
     /// letter of that kind on the pathway is approved and sent to every recipient; null for none.
     /// </summary>
     public Letters.LetterKind? NeedsLetterKind { get; set; }
+
+    /// <summary>
+    /// Copied from the stage definition: whether the stage waits for results (decision 95). It can't be finished while
+    /// any result of the pathway awaits sign-off.
+    /// </summary>
+    public bool WaitsForResults { get; set; }
     /// <summary>Copied from the template: whether staff may skip it, with a reason, when it's current.</summary>
     public bool IsOptional { get; set; }
 

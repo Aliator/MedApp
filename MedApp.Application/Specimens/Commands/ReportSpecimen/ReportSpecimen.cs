@@ -3,7 +3,10 @@ using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.Results.Common;
+using MedApp.Domain.Results;
 using MedApp.Application.Specimens.Common;
 using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Specimens.Responses;
@@ -47,7 +50,9 @@ public sealed class ReportSpecimenValidator : AbstractValidator<ReportSpecimenCo
 /// file is taken in as any attachment is (<see cref="AttachmentIntake"/>: its type from its contents, scanned, at most
 /// 20 MB) and attached to the specimen's pathway, or to the patient if the pathway no longer takes files (cancelled or
 /// archived meanwhile). The file's record, its <c>AttachmentAdded</c> entry, the specimen's change and its
-/// <c>SpecimenReported</c> entry are saved together. MedApp stores and shows the report as it came: it never reads it.
+/// <c>SpecimenReported</c> entry, and the result it makes (decision 91: awaiting sign-off by the requesting clinician)
+/// with its <c>ResultRecorded</c> entry are saved together; then the clinician is told (<c>ResultReady</c>). MedApp
+/// stores and shows the report as it came: it never reads it.
 /// </summary>
 public sealed class ReportSpecimenHandler(
     ISpecimenRepository repository,
@@ -57,6 +62,7 @@ public sealed class ReportSpecimenHandler(
     IThumbnailGenerator thumbnails,
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
+    INotificationSender notifications,
     TimeProvider timeProvider)
     : IRequestHandler<ReportSpecimenCommand, SpecimenResponse>
 {
@@ -82,6 +88,7 @@ public sealed class ReportSpecimenHandler(
             ? new AttachmentTarget(specimen.PatientId, pathway, null)
             : new AttachmentTarget(specimen.PatientId, null, null) { Patient = specimen.Patient };
 
+        Result? made = null;
         var intake = new AttachmentIntake(fileStore, staging, scanner, thumbnails);
         await intake.TakeInAsync(
             fileName,
@@ -111,12 +118,46 @@ public sealed class ReportSpecimenHandler(
                 change.Report(report.Id);
                 var fileEntry = AttachmentAudit.Entry(
                     report, target, request.Actor, PatientPathwayAuditAction.AttachmentAdded, now);
-                await repository.SaveReportAsync(report, [fileEntry, .. change.AuditEntries], cancellationToken);
+
+                // The result the report makes, for the requesting clinician to sign off (decision 91).
+                var result = new Result
+                {
+                    Id = Guid.NewGuid(),
+                    PatientId = specimen.PatientId,
+                    Patient = specimen.Patient,
+                    PathwayId = specimen.PathwayId,
+                    Pathway = pathway,
+                    SpecimenId = specimen.Id,
+                    Specimen = specimen,
+                    Source = ResultSource.Specimen,
+                    Title = ResultTitle(specimen),
+                    ReportAttachmentId = report.Id,
+                    ReportedAtUtc = now,
+                    ReportedByUserId = request.Actor.UserId,
+                    ResponsibleUserId = specimen.RequestingUserId,
+                };
+                var responsible = await identity.GetUsernamesByIdAsync([specimen.RequestingUserId], cancellationToken);
+                var resultChange = new ResultChange(result, pathway, request.Actor, now.AddTicks(2));
+                resultChange.Record(responsible.GetValueOrDefault(specimen.RequestingUserId, PathwayMapper.DeletedUser));
+
+                await repository.SaveReportAsync(
+                    report, result, [fileEntry, .. change.AuditEntries, .. resultChange.AuditEntries], cancellationToken);
+                made = result;
                 return report;
             },
             cancellationToken);
 
+        if (made is not null && ResultNotifications.Ready(made, request.Actor, timeProvider.GetUtcNow().UtcDateTime) is { } ready)
+            await notifications.SendAsync(ready, cancellationToken);
+
         return await repository.ToResponseAsync(
             specimen, identity, qrCodes, request.Actor, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+    }
+
+    /// <summary>A specimen's result's title: its type and number (admin-written and MedApp's own), "Skin biopsy (punch) MA26-000123".</summary>
+    public static string ResultTitle(Specimen specimen)
+    {
+        var title = $"{specimen.SpecimenType?.Name ?? "Specimen"} {specimen.Number}".Trim();
+        return title.Length <= Result.MaxTitleLength ? title : title[..Result.MaxTitleLength];
     }
 }

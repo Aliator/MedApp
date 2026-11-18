@@ -4,6 +4,7 @@ import {formatFileSize} from '../utils/fileSize';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
 import {describeNoteDeletionReason} from './noteDeletion';
+import {resultActionLabel, resultStatusLabel} from './results';
 import {describeSkipReason, skipReasonLabel} from './stageSkips';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
@@ -41,6 +42,11 @@ export const AUDIT_ACTIONS = [
   'SpecimenLost',
   'SpecimenEnteredInError',
   'SpecimenDetailsEdited',
+  'ResultRecorded',
+  'ResultSeen',
+  'ResultSignedOff',
+  'ResultReassigned',
+  'ResultEnteredInError',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -72,6 +78,11 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   SpecimenLost: 'Specimen lost',
   SpecimenEnteredInError: 'Specimen entered in error',
   SpecimenDetailsEdited: 'Specimen details edited',
+  ResultRecorded: 'Result recorded',
+  ResultSeen: 'Result seen',
+  ResultSignedOff: 'Result signed off',
+  ResultReassigned: 'Result reassigned',
+  ResultEnteredInError: 'Result entered in error',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -207,6 +218,7 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
       return [was, text(d.reason)].filter(Boolean).join(': ');
     }
     default:
+      if ((entry.action ?? '').startsWith('Result')) return describeResult(d);
       return (entry.action ?? '').startsWith('Specimen') ? describeSpecimen(d) : '';
   }
 }
@@ -226,6 +238,27 @@ function describeSpecimen(d: Details): string {
     text(d.rejectionReason) ? `Reason: ${words(d.rejectionReason)}` : null,
     fields.length ? `Changed: ${fields.join(', ')}` : null,
   ].filter(Boolean);
+  return [what, rest.join('; ')].filter(Boolean).join(': ');
+}
+
+/**
+ * A result's entry: what it came from (its specimen's number and type, or a report from elsewhere), the status it moved
+ * between, what was done (the action by name) and, reassigned, who it went from and to: "MA26-000123, Skin biopsy
+ * (punch): Awaiting sign-off → signed off; Patient informed". The audit holds no free text about a result (its title,
+ * the sign-off's detail and what an entry in error said are on the result itself).
+ */
+function describeResult(d: Details): string {
+  const what =
+    text(d.source) === 'ExternalReport' && !text(d.number) ? 'External report' : [text(d.number), text(d.specimenType)].filter(Boolean).join(', ');
+  const status =
+    text(d.from) && text(d.to) ? `${resultStatusLabel(text(d.from))} → ${resultStatusLabel(text(d.to)).toLowerCase()}` : null;
+  // A reassignment's clinicians: `changes.responsibleClinician.{from, to}` (usernames), as ResultChange writes them.
+  const changes = (d.changes ?? {}) as Record<string, {from?: unknown; to?: unknown} | undefined>;
+  const responsible = changes.responsibleClinician;
+  const from = text(responsible?.from);
+  const to = text(responsible?.to);
+  const reassigned = from || to ? `${from ?? 'nobody'} → ${to ?? 'nobody'}` : null;
+  const rest = [status, text(d.action) ? resultActionLabel(text(d.action)) : null, reassigned].filter(Boolean);
   return [what, rest.join('; ')].filter(Boolean).join(': ');
 }
 

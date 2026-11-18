@@ -32,10 +32,11 @@ public interface ISpecimenRepository
     Task SaveAsync(IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
     /// <summary>
-    /// Saves a reported specimen (loaded with <see cref="GetForUpdateAsync"/>), its report's attachment record, and
-    /// their audit entries, in one save.
+    /// Saves a reported specimen (loaded with <see cref="GetForUpdateAsync"/>), its report's attachment record, the
+    /// result it makes, and their audit entries, in one save.
     /// </summary>
-    Task SaveReportAsync(Attachment report, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
+    Task SaveReportAsync(
+        Attachment report, Domain.Results.Result result, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
     /// <summary>The specimens a stage took, oldest first, with their types and labs.</summary>
     Task<IReadOnlyList<Specimen>> GetForStageAsync(Guid stageId, CancellationToken ct);

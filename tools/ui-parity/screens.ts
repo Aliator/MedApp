@@ -56,6 +56,19 @@ async function openFirstSpecimen(page: Page) {
 }
 
 /**
+ * Opens the first result in one of the Results page's views, as the parity data names none: only when there is one
+ * (otherwise the screen is the view, saying it's empty).
+ */
+async function openFirstResult(page: Page) {
+  const first = page.getByRole('table').locator('a[href^="/results/"]').first();
+  if (await first.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+    await first.click();
+    await page.getByRole('region', { name: /^Patient: / }).first().waitFor();
+    await settle(page);
+  }
+}
+
+/**
  * Opens the first letter in the Letters list, trying its views in turn (To send, Sent, Awaiting my approval, My drafts),
  * as the parity data names none. When no view has one, the screen is the list, saying so.
  */
@@ -979,6 +992,17 @@ export const screens: Screen[] = [
         await settle(page);
       }
     },
+  },
+  {
+    name: 'results-list',
+    title: "Results: awaiting sign-off, needing a clinician and signed off, as tabs (everyone's awaiting sign-off, oldest report first)",
+    path: '/results?view=Awaiting',
+  },
+  {
+    name: 'result-view',
+    title: "A result's page: the banner, where it came from, who reported it and who signs it off, the report to download, and its sign-off (the first awaiting sign-off; nothing changed)",
+    path: '/results?view=Awaiting',
+    prepare: async (page) => openFirstResult(page),
   },
   { name: 'sites', title: 'Sites and rooms (admin): the places the centre works from, each with its rooms', path: '/admin/sites' },
   {

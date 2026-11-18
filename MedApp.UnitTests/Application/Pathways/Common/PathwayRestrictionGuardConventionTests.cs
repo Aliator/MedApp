@@ -64,6 +64,7 @@ public sealed class PathwayRestrictionGuardConventionTests
     [
         typeof(CreatePatientPathwayHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
         typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler),
+        typeof(MedApp.Application.Results.Commands.RecordExternalResult.RecordExternalResultHandler),
     ];
 
     /// <summary>

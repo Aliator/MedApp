@@ -254,6 +254,41 @@ describe('PatientTimeline', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Specimens`));
   });
 
+  it("shows results' sign-off, linking to the result and its specimen beside its pathway, and filters to them", async () => {
+    const resultId = '00000061-0000-0000-0000-000000000001';
+    const specimenId = '00000061-0000-0000-0000-000000000004';
+    const result = (fields: Partial<TimelineEntry>) =>
+      entry({kind: 'Results', resultId, resultSource: 'Specimen', specimenId, specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', ...fields});
+    const fetch = mockApi({
+      [`GET ${OVERVIEW}`]: () => json(overview),
+      [`GET ${TIMELINE}`]: () =>
+        json({
+          items: [
+            result({action: 'ResultRecorded'}),
+            result({action: 'ResultSeen'}),
+            result({action: 'ResultSignedOff', resultAction: 'PatientInformed'}),
+            result({action: 'ResultReassigned', changes: [{field: 'responsibleClinician', from: 'test-senior', to: 'dr.synthetic'}]}),
+            result({action: 'ResultEnteredInError', resultSource: 'ExternalReport', specimenId: null, specimenNumber: null}),
+          ],
+          nextCursor: null,
+        }),
+    });
+    renderWithApp(<Harness />, {user: staffUser});
+
+    const signedOff = within((await screen.findByText('Skin biopsy (punch) result signed off')).closest('li')!);
+    expect(signedOff.getByText('Patient informed')).toBeInTheDocument();
+    expect(signedOff.getByRole('link', {name: 'The result'})).toHaveAttribute('href', `/results/${resultId}`);
+    expect(signedOff.getByRole('link', {name: 'Specimen MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    expect(signedOff.getByRole('link', {name: 'Knee assessment'})).toBeInTheDocument();
+    expect(screen.getByText('Responsible clinician test-senior → dr.synthetic')).toBeInTheDocument();
+    expect(screen.getByText('External report marked entered in error')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', {name: 'The result'})).toHaveLength(5);
+    expect(screen.getAllByRole('link', {name: 'Specimen MA26-000123'})).toHaveLength(4);
+
+    screen.getByRole('button', {name: 'Results'}).click();
+    await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Results`));
+  });
+
   it('loads older entries after the last page, announces them, focuses the first, and stops when there are none', async () => {
     localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
     const fetch = mockApi({

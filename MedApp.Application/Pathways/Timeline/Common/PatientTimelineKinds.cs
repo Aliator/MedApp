@@ -50,6 +50,7 @@ public static class PatientTimelineKinds
         AttachmentAdded or AttachmentDeleted or AttachmentDownloaded => PatientTimelineKind.Files,
         >= LetterDrafted and <= LetterWithdrawn => PatientTimelineKind.Letters,
         >= SpecimenTaken and <= SpecimenDetailsEdited => PatientTimelineKind.Specimens,
+        >= ResultRecorded and <= ResultEnteredInError => PatientTimelineKind.Results,
         _ => PatientTimelineKind.Details
     };
 
@@ -73,6 +74,7 @@ public static class PatientTimelineKinds
         var files = kinds.Contains(PatientTimelineKind.Files);
         var letters = kinds.Contains(PatientTimelineKind.Letters);
         var specimens = kinds.Contains(PatientTimelineKind.Specimens);
+        var results = kinds.Contains(PatientTimelineKind.Results);
 
         return entries.Where(e =>
             (created && e.Action == Created)
@@ -89,7 +91,8 @@ public static class PatientTimelineKinds
             || (deleted && e.Action == Deleted)
             || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded))
             || (letters && e.Action >= LetterDrafted && e.Action <= LetterWithdrawn)
-            || (specimens && e.Action >= SpecimenTaken && e.Action <= SpecimenDetailsEdited));
+            || (specimens && e.Action >= SpecimenTaken && e.Action <= SpecimenDetailsEdited)
+            || (results && e.Action >= ResultRecorded && e.Action <= ResultEnteredInError));
     }
 
     /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>

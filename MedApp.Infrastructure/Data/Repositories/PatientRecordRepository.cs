@@ -129,6 +129,14 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var specimen in specimens)
             specimen.Patient = patient;
 
+        // Results; their history is in the audit entries above, their reports among the files.
+        var results = await Tracking(context.Results, forUpdate)
+            .Where(r => r.PatientId == patientId)
+            .OrderBy(r => r.ReportedAtUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        foreach (var result in results)
+            result.Patient = patient;
+
         return new PatientRecord
         {
             Patient = patient,
@@ -149,7 +157,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Referrals = referrals,
             ReferralHistory = referralHistory,
             Letters = letters,
-            Specimens = specimens
+            Specimens = specimens,
+            Results = results
         };
     }
 

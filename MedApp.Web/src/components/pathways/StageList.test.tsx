@@ -135,6 +135,13 @@ describe('StageList', () => {
     expect(screen.getAllByText(/^Needs a/)).toHaveLength(1);
   });
 
+  it('says when a stage waits for results, and nothing for one that does not', async () => {
+    renderWithApp(<StageList stages={[stage({isCurrent: true, waitsForResults: true}), stage({id: 'x', stageOrder: 2, waitsForResults: false})]} />);
+
+    expect(await screen.findByText('Waits for results: every result on the pathway must be signed off before it can be finished.')).toBeVisible();
+    expect(screen.getAllByText(/^Waits for results/)).toHaveLength(1);
+  });
+
   it('says when a stage has no notes', async () => {
     renderWithApp(<StageList stages={[stage({isCurrent: true})]} />);
 

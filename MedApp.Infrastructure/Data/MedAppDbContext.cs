@@ -57,6 +57,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Specimen> Specimens => Set<Specimen>();
     public DbSet<SpecimenType> SpecimenTypes => Set<SpecimenType>();
     public DbSet<Laboratory> Laboratories => Set<Laboratory>();
+    public DbSet<MedApp.Domain.Results.Result> Results => Set<MedApp.Domain.Results.Result>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

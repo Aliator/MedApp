@@ -3,7 +3,7 @@ import {PERMISSIONS, type Permission} from '../auth/permissions';
 
 /** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
 const NOT_FOR_ADMIN: readonly Permission[] = [
-  'TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens', 'WriteLetters', 'ApproveLetters', 'SendLetters',
+  'TriageReferrals', 'FinishWithoutVisit', 'RecordSpecimens', 'ProcessSpecimens', 'SignOffResults', 'WriteLetters', 'ApproveLetters', 'SendLetters',
 ];
 
 /**
@@ -20,13 +20,13 @@ export const ROLE_PERMISSIONS = {
   ],
   Clinician: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'WriteLetters', 'ApproveLetters',
-    'SendLetters',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters',
+    'ApproveLetters', 'SendLetters',
   ],
   'Senior clinician': [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'TriageReferrals', 'CreatePathways', 'WorkPathways',
-    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'WriteLetters', 'ApproveLetters',
-    'SendLetters',
+    'UnlockStages', 'FinishWithoutVisit', 'BookAppointments', 'AttachFiles', 'RecordSpecimens', 'SignOffResults', 'WriteLetters',
+    'ApproveLetters', 'SendLetters',
   ],
   Nurse: [
     'UseApp', 'ViewPatients', 'EditPatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways', 'BookAppointments', 'AttachFiles',

@@ -240,4 +240,17 @@ Specimens (branch `feature/specimens`, `docs/centre-phases-3-5-plan.md`, PR 13) 
 - **The patient timeline** shows staff the action, who, when, the number, the type, the lab and the statuses; never the site, request notes or any detail. Admins also see those, read from the specimen.
 - **Deleting:** a pathway with specimens can't be deleted, and a specimen's report can't be deleted on its own.
 - **Retention:** kept with the patient's record; specimen changes are pathway audit entries, so they count towards the conclusion of treatment.
-- **Not built yet:** results sign-off (PR 14). A reported specimen doesn't yet make a result for a clinician to sign off; that PR adds results to this inventory.
+- **Results** (PR 14, branch `feature/results-signoff`): see section 11.
+
+## 11. Results
+
+Results (`docs/centre-phases-3-5-plan.md`, PR 14, decisions 91 to 97): a report a named clinician must sign off, made when a specimen's report is attached or from an attached file marked as an external result.
+- **`Result` (`Results`):** `PatientId`, `PathwayId` (optional), `SpecimenId` (optional), `Source` (specimen or external report), `Title` (free text, 200: for a specimen's, its type and number), `ReportAttachmentId` (the report is an ordinary attached file), `ReportedAtUtc`, `ReportedByUserId`, `ResponsibleUserId` (the clinician who must sign it off), `Status` (awaiting sign-off, seen, signed off, entered in error), `SeenAtUtc`/`SeenByUserId`, `SignedOffAtUtc`/`SignedOffByUserId`, `Action` (a fixed choice: no further action, patient informed, appointment arranged, to be discussed at MDT, referred on, other), `ActionDetail` (free text, 1,000), `EnteredInErrorAtUtc`/`EnteredInErrorByUserId`, `ErrorDetail` (free text, 500), `Version`, `RowVersion`. Special category (health). **MedApp never reads or interprets the report.**
+- **Stage definitions and pathways' stages** gain `WaitsForResults` (a setting, no personal data).
+- **Reads:** opening a result records `ResultViewed` (its ID); the results list records `PatientListed`; the side nav's count names no patient and records nothing.
+- **History:** pathway audit entries (`ResultRecorded` to `ResultEnteredInError`) with IDs, the source, the specimen's number and type, statuses, the action by name and usernames; **never** the title, action detail or error detail. Staff's timeline shows those structured values; admins also the free text, read from the result.
+- **Notifications:** "Result ready", "Result reassigned to you", "Result signed off": fixed titles, usernames and the specimen type's name only.
+- **Export:** every result with its free text, staff by username. **Anonymisation** is refused while one awaits sign-off, then replaces the title, action detail and error detail; the report is deleted with every file.
+- **Restriction:** a restricted record's results can still be seen, signed off, reassigned and entered in error; a new external result can't be recorded.
+- **Deleting:** a pathway or patient with results can't be deleted; a result's report can't be deleted on its own (entered in error deletes it).
+- **Retention:** kept with the record; result changes are audit entries, counted towards the conclusion of treatment.

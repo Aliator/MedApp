@@ -77,6 +77,56 @@ public sealed class PatientExportResponse
     /// history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
     /// </summary>
     public List<ExportedSpecimenResponse> Specimens { get; set; } = [];
+
+    /// <summary>
+    /// The patient's results, oldest reported first: what each was, who was responsible, and who saw and signed it off
+    /// with what they did. Their history is in <c>PathwayHistory</c>; their reports are among <c>Attachments</c>.
+    /// </summary>
+    public List<ExportedResultResponse> Results { get; set; } = [];
+}
+
+/// <summary>A result in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedResultResponse
+{
+    public Guid Id { get; set; }
+
+    public Guid? PathwayId { get; set; }
+
+    public Guid? SpecimenId { get; set; }
+
+    public string? SpecimenNumber { get; set; }
+
+    public string Source { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public Guid ReportAttachmentId { get; set; }
+
+    public DateTime ReportedAtUtc { get; set; }
+
+    public string ReportedBy { get; set; } = string.Empty;
+
+    public string ResponsibleClinician { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTime? SeenAtUtc { get; set; }
+
+    public string? SeenBy { get; set; }
+
+    public DateTime? SignedOffAtUtc { get; set; }
+
+    public string? SignedOffBy { get; set; }
+
+    public string? Action { get; set; }
+
+    public string? ActionDetail { get; set; }
+
+    public DateTime? EnteredInErrorAtUtc { get; set; }
+
+    public string? EnteredInErrorBy { get; set; }
+
+    public string? ErrorDetail { get; set; }
 }
 
 /// <summary>A letter in a patient's export: everything it holds, with staff by username only.</summary>

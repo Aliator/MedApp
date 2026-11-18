@@ -8,7 +8,11 @@ using MedApp.Domain.Activity;
 
 namespace MedApp.Application.Patients.Commands.DeletePatient;
 
-public sealed class DeletePatientHandler(IPatientRepository repository, IActivityLog activityLog, IAttachmentRepository attachments)
+public sealed class DeletePatientHandler(
+    IPatientRepository repository,
+    IActivityLog activityLog,
+    IAttachmentRepository attachments,
+    MedApp.Application.Results.Repositories.IResultRepository results)
     : IRequestHandler<DeletePatientCommand, bool>
 {
     public async Task<bool> Handle(DeletePatientCommand request, CancellationToken cancellationToken)
@@ -39,6 +43,12 @@ public sealed class DeletePatientHandler(IPatientRepository repository, IActivit
         if (referralCount > 0)
             throw new ConflictException(
                 $"This patient has {referralCount} referral{(referralCount == 1 ? "" : "s")}, so they can't be deleted.");
+
+        // So do results (an external one entered in error can outlive its file).
+        var resultCount = await results.CountForPatientAsync(request.Id, cancellationToken);
+        if (resultCount > 0)
+            throw new ConflictException(
+                $"This patient has {resultCount} result{(resultCount == 1 ? "" : "s")}, so they can't be deleted.");
 
         // Nor can one with files attached: they must be deleted first (which is audited).
         var fileCount = await attachments.CountForPatientAsync(request.Id, cancellationToken);

@@ -233,7 +233,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Failing (as opposed to absent) file storage gave a general server error after minutes of retries | H-28 | Fixed after the review of #85: a 503, "File storage isn't available", with 2 retries, a 30-second timeout and a 10-second clean-up. |
 | Nothing warns before closing a tab with files still being sent | H-24 | Known. Proposed. |
 | Triage is built but not yet verified by the CSO; the waiting-time clock isn't built | H-40, H-41 | Known. Referrals mustn't be used with patients until the triage controls are verified; the clock is Phase 2's PR 7. |
-| A report attached to the wrong specimen can't be corrected in MedApp: a reported specimen is closed, and its report can't be deleted on its own | H-47 | Known (`docs/todo.md`). Entered in error for a reported specimen comes with results sign-off (Phase 3's PR 14). |
+| A report attached to the wrong specimen can't be corrected in MedApp: a reported specimen is closed, and its report can't be deleted on its own | H-47 | Fixed by results sign-off (PR 14, branch `feature/results-signoff`): marking the result entered in error deletes the report and sends the specimen back to Received, to be reported again. For the CSO to verify. |
 | A reported specimen doesn't yet make a result for a clinician to sign off: the report is filed, and nobody is told it's back | H-45, H-46 | Known. Results sign-off is Phase 3's PR 14; specimens' reports mustn't be relied on with patients before it. |
 | Patient changes and deletions are recorded without their old values | H-03 | Known (risk S2). Who, when and which fields since step 7; old values planned (step 7). |
 

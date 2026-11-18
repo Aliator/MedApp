@@ -598,7 +598,7 @@ Built in PR 13 (branch `feature/specimens`). The external lab is a new recipient
 | The patient privacy notice names labs as recipients; the ROPA lists them | Template | [privacy-notice-patients-template.md](privacy-notice-patients-template.md), [ropa.md](ropa.md) |
 | Staff guidance: write in the request notes only what the lab needs; check the label against the patient before the specimen leaves | Template | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | The customer's agreement with each lab, and its own courier and specimen-handling procedures, cover the specimen and its pages once they leave the clinic | The customer's | |
-| **Results** (PR 14): each report becomes a result a named clinician signs off; reading one records `ResultViewed`; results are in the export, and their free text replaced on anonymisation | Planned (PR 14) | `docs/centre-phases-3-5-plan.md`, section 2.3 |
+| **Results** (PR 14): each report becomes a result a named clinician signs off; reading one records `ResultViewed`; results are in the export, and their free text (title, action detail, error detail) replaced on anonymisation, which waits while one awaits sign-off; the audit and staff's timeline hold no free text; notifications have fixed titles | In place (branch `feature/results-signoff`) | `ResultWorkflow`, `ResultChange`, `ResultNotifications`, `EndpointCoverageTests`, `TimelineStaffCanaryTests` |
 
 **Residual risk:** **low** now, with the customer's agreements with its labs. Staff with `ViewPatients` can read every specimen's free text, as they read notes: that remainder is risk 1's, and the unscanned report is risk 22's. Results sign-off (PR 14) confirms it against the results it adds. For the DPO to confirm.
 

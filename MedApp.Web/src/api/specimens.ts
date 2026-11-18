@@ -272,8 +272,9 @@ export function useSpecimenActions(id: string) {
       mutationFn: ({file, expectedVersion, onProgress, signal}: SpecimenReportInput) =>
         sendFile<Specimen>({url: `/api/specimens/${id}/report?expectedVersion=${expectedVersion}`, file, onProgress, signal}),
       onSuccess: async (specimen: Specimen) => {
-        // The report is a file attached to the pathway (or the patient), so the file lists change too.
-        await Promise.all([onSuccess(specimen), refreshAfterAttachmentChange(queryClient)]);
+        // The report is a file attached to the pathway (or the patient), so the file lists change too, and it's a new
+        // result awaiting sign-off (`src/api/results.ts`, keyed under ['results']).
+        await Promise.all([onSuccess(specimen), refreshAfterAttachmentChange(queryClient), queryClient.invalidateQueries({queryKey: ['results']})]);
       },
       onError,
     }),

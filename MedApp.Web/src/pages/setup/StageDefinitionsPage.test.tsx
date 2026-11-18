@@ -15,6 +15,7 @@ const definitions = [
     instructions: 'Give the patient a copy.',
     visitRequirement: 'Required',
     needsLetterKind: 'DischargeSummary',
+    waitsForResults: true,
     snomedCode: '71388002',
     snomedTerm: 'Procedure',
     isArchived: false,
@@ -80,6 +81,8 @@ describe('StageDefinitionsPage', () => {
     expect(letter).toHaveTextContent('None');
     await user.click(letter);
     await user.click(await screen.findByRole('option', {name: 'Clinic letter'}));
+    expect(dialog.getByRole('switch', {name: /^Waits for results/})).not.toBeChecked();
+    await user.click(dialog.getByRole('switch', {name: /^Waits for results/}));
     await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -91,6 +94,7 @@ describe('StageDefinitionsPage', () => {
       snomedTerm: '',
       visitRequirement: 'Suggested',
       needsLetterKind: 'ClinicLetter',
+      waitsForResults: true,
     });
     await expectAnnounced('Stage added');
   });
@@ -106,6 +110,7 @@ describe('StageDefinitionsPage', () => {
     expect(richText(dialog.getByRole('textbox', {name: /Instructions/}))).toBe('Give the patient a copy.');
     expect(dialog.getByRole('radio', {name: /^Required/})).toBeChecked();
     expect(dialog.getByRole('combobox', {name: /Needs a letter/})).toHaveTextContent('Discharge summary');
+    expect(dialog.getByRole('switch', {name: /^Waits for results/})).toBeChecked();
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 
@@ -116,6 +121,7 @@ describe('StageDefinitionsPage', () => {
       instructions: 'Give the patient a copy.',
       visitRequirement: 'Required',
       needsLetterKind: 'DischargeSummary',
+      waitsForResults: true,
       snomedCode: '71388002',
       snomedTerm: 'Procedure',
     });

@@ -83,4 +83,10 @@ public sealed record PatientRecord
     /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
     /// </summary>
     public required IReadOnlyList<Specimen> Specimens { get; init; }
+
+    /// <summary>
+    /// The patient's results, in any status, oldest reported first, with their specimens. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public IReadOnlyList<Domain.Results.Result> Results { get; init; } = [];
 }

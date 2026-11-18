@@ -199,4 +199,13 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>A specimen entry: its lab, an admin-written name.</summary>
     public string? LaboratoryName { get; set; }
+
+    /// <summary>A result entry: the result.</summary>
+    public Guid? ResultId { get; set; }
+
+    /// <summary>A result entry: where it came from, <c>Specimen</c> or <c>ExternalReport</c>.</summary>
+    public string? ResultSource { get; set; }
+
+    /// <summary>ResultSignedOff: what the clinician did, by name (<c>ResultAction</c>); never its detail for staff.</summary>
+    public string? ResultAction { get; set; }
 }

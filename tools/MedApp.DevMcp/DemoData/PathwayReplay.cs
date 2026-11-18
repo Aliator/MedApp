@@ -549,8 +549,9 @@ public sealed class PathwayReplay
             if (PathwayWorkflow.WhyStageNeedsVisit(stage, appointments.Where(a => a.StageId == stage.Id).ToList()) is { } needsVisit && reason is null)
                 throw new InvalidOperationException($"Seeding went wrong: {needsVisit}");
 
-            // The gates every finish path checks (StageGates). The demo takes no specimens yet (Phase 3's demo data does).
-            if (StageGates.WhyCantFinish(_pathway, stage, []) is { } gate)
+            // The gates every finish path checks (StageGates). The demo takes no specimens or results yet (Phase 3's
+            // demo data does).
+            if ((StageGates.WhyCantFinish(_pathway, stage, []) ?? StageGates.WhyResultsAwaiting(_pathway, stage, [])) is { } gate)
                 throw new InvalidOperationException($"Seeding went wrong: {gate}");
 
             if (StageFinishing.Finish(change, stage, appointments, reason) is { Requirement: VisitRequirement.Required })
