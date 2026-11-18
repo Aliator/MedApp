@@ -1812,7 +1812,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
 **Further controls** (before the feature's first live use unless marked):
-- **Results sign-off** (PR 14): each report becomes a result its requesting clinician is told of and signs off, so a report that comes back is also seen (H-46). Protective; planned, PR 14.
+- **Results sign-off** (PR 14, built on branch `feature/results-signoff`): each report becomes a result its requesting clinician is told of and signs off, so a report that comes back is also seen (H-46). Protective.
 - **A service alert** for specimens N days past their expected turnaround. Protective; planned, Phase 4 (PR 25); later.
 - **Transferred** (`dcb0160-deploying-organisations.md`): a daily check of the lab worklist's Expected and Overdue views (and To send, for specimens left in the clinic), and a local process for chasing the lab.
 
@@ -1838,7 +1838,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A delayed or missed diagnosis or treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/results-signoff`, PR 14, for the CSO to verify): the named responsible clinician and "Result ready"; the results list with Awaiting my sign-off and its side-nav count, Awaiting sign-off (everyone) and Needs a clinician, oldest first with age in days; the `WaitsForResults` and last-stage gates (`StageGates.WhyResultsAwaiting`); sign-off records who and the action (none pre-selected), and tells the responsible clinician when someone else signs off; a restricted record's results can still be seen and signed off. The service alert (Phase 4) isn't built.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
@@ -1879,6 +1879,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 - **The label's identifiers:** the specimen number as text and as a QR code holding only that number, with the patient's name, date of birth and NHS number, and the request sheet with them too (decision 87; `SpecimenPrintPage`). Protective.
 - **A specimen's report can't be deleted on its own** (a 409, admins too; decision 71), so a report isn't removed from a specimen by mistake. Protective. (It also means a wrong one can't be removed yet: below.)
 - **A wrong specimen recorded before it's reported** (taken on the wrong patient, say) is marked **entered in error** with a detail, by whoever recorded it within 24 hours, or a holder of `CorrectRecords` at any time; it's closed and kept with its history. Corrective.
+- **A wrong report** (built with results sign-off, PR 14, branch `feature/results-signoff`; to be verified by the CSO): its result is marked **entered in error** with a detail, by whoever reported it within 24 hours or a holder of `CorrectRecords` at any time; the report file is deleted (audited) and the specimen goes back to Received, so the lab attaches the right report (decision 96; `MarkResultEnteredInErrorHandler`). Corrective.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 

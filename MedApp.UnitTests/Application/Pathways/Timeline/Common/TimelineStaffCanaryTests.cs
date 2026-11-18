@@ -149,6 +149,8 @@ public sealed class TimelineStaffCanaryTests
                 >= Action.LetterDrafted and <= Action.LetterWithdrawn => new PatientTimelineRow(e, CurrentTitle) { Letter = CanaryLetter },
                 // As the handler gives admins a specimen entry's specimen, for its free text (the audit holds none).
                 >= Action.SpecimenTaken and <= Action.SpecimenDetailsEdited => new PatientTimelineRow(e, CurrentTitle) { Specimen = SpecimenHoldingTheCanary() },
+                // And a result entry's result.
+                >= Action.ResultRecorded and <= Action.ResultEnteredInError => new PatientTimelineRow(e, CurrentTitle) { Result = ResultHoldingTheCanary() },
                 _ => new PatientTimelineRow(e, CurrentTitle),
             })
             .ToList();
@@ -238,7 +240,8 @@ public sealed class TimelineStaffCanaryTests
         };
 
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
-            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt).ToList();
+            .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
+            .Concat(ResultEntriesHoldingTheCanary()).ToList();
     }
 
     /// <summary>
@@ -324,6 +327,85 @@ public sealed class TimelineStaffCanaryTests
         wrong.MarkEnteredInError(Canary);
 
         return [.. change.AuditEntries, .. reject.AuditEntries, .. lose.AuditEntries, .. wrong.AuditEntries];
+    }
+
+    /// <summary>A specimen's result whose free text (title, action detail, error detail) is all the canary.</summary>
+    private static MedApp.Domain.Results.Result ResultHoldingTheCanary()
+    {
+        var specimen = SpecimenHoldingTheCanary();
+        specimen.Status = SpecimenStatus.Reported;
+        return new MedApp.Domain.Results.Result
+        {
+            Id = Guid.NewGuid(),
+            PatientId = specimen.PatientId,
+            PathwayId = specimen.PathwayId,
+            Pathway = specimen.Pathway,
+            SpecimenId = specimen.Id,
+            Specimen = specimen,
+            Source = MedApp.Domain.Results.ResultSource.Specimen,
+            Title = Canary,
+            ReportAttachmentId = Guid.NewGuid(),
+            ReportedAtUtc = Now,
+            ReportedByUserId = Staff.UserId,
+            ResponsibleUserId = OtherUserId,
+            ActionDetail = Canary,
+            ErrorDetail = Canary,
+        };
+    }
+
+    /// <summary>Every result action, through <see cref="MedApp.Application.Results.Common.ResultChange"/> as the handlers write them.</summary>
+    private static List<PatientPathwayAuditEntry> ResultEntriesHoldingTheCanary()
+    {
+        var result = ResultHoldingTheCanary();
+        var change = new MedApp.Application.Results.Common.ResultChange(result, result.Pathway, Staff, Now);
+        change.Record(OtherUsername);
+        change.MarkSeen();
+        change.Reassign(Staff.UserId, OtherUsername, Staff.Username);
+        change.SignOff(MedApp.Domain.Results.ResultAction.Other, Canary);
+
+        var wrong = ResultHoldingTheCanary();
+        var error = new MedApp.Application.Results.Common.ResultChange(wrong, wrong.Pathway, Staff, Now);
+        error.MarkEnteredInError(Canary);
+
+        return [.. change.AuditEntries, .. error.AuditEntries];
+    }
+
+    [Test]
+    public void ResultEntries_NeverHoldFreeText()
+    {
+        // The title, action detail and error detail live only on the result.
+        ResultEntriesHoldingTheCanary().Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+    }
+
+    [Test]
+    public void ToResponse_AdminResultEntries_CarryTheResultsFreeText()
+    {
+        // Recorded (its title), signed off (the action's detail) and entered in error (what was wrong).
+        var rows = RowsHoldingTheCanary()
+            .Where(r => r.Entry.Action is Action.ResultRecorded or Action.ResultSignedOff or Action.ResultEnteredInError)
+            .ToList();
+
+        rows.Should().HaveCount(3);
+        foreach (var row in rows)
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_ResultEntries_GiveStructuredValuesToStaff()
+    {
+        var rows = RowsHoldingTheCanary();
+        var signedOff = TimelineMapper.ToResponse(rows.Single(r => r.Entry.Action == Action.ResultSignedOff), isAdmin: false);
+        signedOff.Kind.Should().Be(nameof(PatientTimelineKind.Results));
+        signedOff.ResultAction.Should().Be(nameof(MedApp.Domain.Results.ResultAction.Other));
+        signedOff.ResultSource.Should().Be(nameof(MedApp.Domain.Results.ResultSource.Specimen));
+        signedOff.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
+        signedOff.Reason.Should().BeNull();
+
+        var reassigned = TimelineMapper.ToResponse(rows.Single(r => r.Entry.Action == Action.ResultReassigned), isAdmin: false);
+        reassigned.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Field = MedApp.Application.Results.Common.ResultChange.ResponsibleField, From = OtherUsername, To = Staff.Username,
+        });
     }
 
     [Test]

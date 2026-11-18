@@ -23,6 +23,12 @@ public sealed class PatientPathwayStageResponse
     /// </summary>
     public string? NeedsLetterKind { get; set; }
 
+    /// <summary>
+    /// Copied from the stage definition: whether the stage can't be finished while any of the pathway's results awaits
+    /// sign-off.
+    /// </summary>
+    public bool WaitsForResults { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Copied from the template: whether it can be skipped, with a reason, while it's current.</summary>

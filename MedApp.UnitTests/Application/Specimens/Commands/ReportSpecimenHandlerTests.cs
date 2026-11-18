@@ -30,7 +30,7 @@ public sealed class ReportSpecimenHandlerTests : SpecimenTestBase
 
     private ReportSpecimenHandler Handler => new(
         Repository.Object, _store, new MemoryStaging(), _scanner.Object, Mock.Of<IThumbnailGenerator>(),
-        Identity.Object, QrCodes.Object, Clock);
+        Identity.Object, QrCodes.Object, Notifications.Object, Clock);
 
     private static ReportSpecimenCommand Command(Specimen specimen, byte[]? file = null, string name = "report.pdf", int version = 3) =>
         new(specimen.Id, name, null, new MemoryStream(file ?? AttachmentsTestConstants.Pdf), version, LabStaff);
@@ -51,9 +51,34 @@ public sealed class ReportSpecimenHandlerTests : SpecimenTestBase
         specimen.Status.Should().Be(SpecimenStatus.Reported);
         specimen.ReportAttachmentId.Should().Be(report.Id);
         specimen.ReportedByUserId.Should().Be(LabStaff.UserId);
-        SavedAudit.Select(e => e.Action).Should().Equal(PatientPathwayAuditAction.AttachmentAdded, PatientPathwayAuditAction.SpecimenReported);
+        SavedAudit.Select(e => e.Action).Should().Equal(
+            PatientPathwayAuditAction.AttachmentAdded, PatientPathwayAuditAction.SpecimenReported, PatientPathwayAuditAction.ResultRecorded);
         Tokens.Should().Equal(Cts.Token);
         response.ReportAttachmentId.Should().Be(report.Id);
+    }
+
+    [Test]
+    public async Task Handle_Received_MakesAResultForTheRequestingClinician_AndTellsThem()
+    {
+        var specimen = Given(CreateSpecimen(status: SpecimenStatus.Received));
+
+        await Handler.Handle(Command(specimen), Cts.Token);
+
+        var result = SavedResults.Should().ContainSingle().Subject;
+        result.Source.Should().Be(MedApp.Domain.Results.ResultSource.Specimen);
+        result.Status.Should().Be(MedApp.Domain.Results.ResultStatus.AwaitingSignOff);
+        result.SpecimenId.Should().Be(specimen.Id);
+        result.PathwayId.Should().Be(specimen.PathwayId);
+        result.ReportAttachmentId.Should().Be(SavedReports.Single().Id);
+        result.ResponsibleUserId.Should().Be(specimen.RequestingUserId);
+        result.ReportedByUserId.Should().Be(LabStaff.UserId);
+        result.Version.Should().Be(1);
+        result.Title.Should().Contain(specimen.Number);
+        var ready = Sent.Should().ContainSingle().Subject;
+        ready.Kind.Should().Be(MedApp.Domain.Notifications.NotificationKind.ResultReady);
+        ready.UserId.Should().Be(specimen.RequestingUserId);
+        ready.SubjectId.Should().Be(result.Id);
+        ready.Message.Should().NotContain(specimen.Number);
     }
 
     [Test]
@@ -116,7 +141,7 @@ public sealed class ReportSpecimenHandlerTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Received));
         Repository
-            .Setup(r => r.SaveReportAsync(It.IsAny<Attachment>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.SaveReportAsync(It.IsAny<Attachment>(), It.IsAny<MedApp.Domain.Results.Result>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ConflictException("changed"));
 
         var act = () => Handler.Handle(Command(specimen), Cts.Token);

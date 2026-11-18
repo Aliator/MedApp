@@ -14,6 +14,7 @@ export const PERMISSION_GROUPS: {
   {group: 'AppointmentsAndCalendars', title: 'Appointments and calendars'},
   {group: 'Files', title: 'Files'},
   {group: 'Lab', title: 'Lab'},
+  {group: 'Results', title: 'Results'},
   {group: 'Letters', title: 'Letters'},
   {group: 'Oversight', title: 'Oversight'},
   {group: 'Setup', title: 'Setup'},

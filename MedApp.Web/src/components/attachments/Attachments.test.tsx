@@ -335,6 +335,49 @@ describe('Attachments', () => {
     expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
   });
 
+  describe('Record as Result', () => {
+    it("records a pathway's live file as a result: the title, who signs it off, its own pathway, then opens it", async () => {
+      withAnnouncements();
+      const resultId = '00000036-0000-0000-0002-000000000001';
+      const report = attachment({fileName: 'ct-report.pdf', attachedTo: 'Pathway', pathwayId, pathwayTitle: 'Knee assessment'});
+      const fetch = mockList([report, attachment({fileName: 'old.pdf', isDeleted: true})], {
+        'GET /api/calendar/staff': () => json([{userId: 'u-senior', username: 'test-senior'}]),
+        'POST /api/results/external': () => json({id: resultId, title: 'CT knee report'}, 201),
+      });
+      const ui = <Attachments target={{pathwayId}} canChange patient={{firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', nhsNumber: '9990000026'}} />;
+      const {user, router} = renderWithApp(ui, {user: staffUser});
+
+      await user.click(await screen.findByRole('button', {name: 'Record ct-report.pdf as a result'}));
+      expect(screen.queryByRole('button', {name: 'Record old.pdf as a result'})).not.toBeInTheDocument();
+      const dialog = within(await waitFor(() => openDialog()!));
+      expect(dialog.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+      expect(dialog.getByText('Knee assessment')).toBeInTheDocument();
+      await user.type(dialog.getByRole('textbox', {name: /^Title/}), 'CT knee report');
+      await user.click(dialog.getByRole('combobox', {name: /^Responsible clinician/}));
+      await user.click(await screen.findByRole('option', {name: 'test-senior'}));
+      await user.click(dialog.getByRole('button', {name: 'Record as Result'}));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/results/${resultId}`));
+      const sent = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
+      expect(await sent.json()).toEqual({attachmentId: report.id, title: 'CT knee report', pathwayId, responsibleUserId: 'u-senior'});
+      await expectAnnounced('Result recorded');
+    });
+
+    it("isn't offered on a referral's letter, or to someone who doesn't work on pathways", async () => {
+      mockList([attachment({fileName: 'letter.pdf', attachedTo: 'Referral', referralId: 'r1'})]);
+      render({patientId}, {user: managerUser});
+      expect(await screen.findByText('letter.pdf')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: /as a result$/})).not.toBeInTheDocument();
+    });
+
+    it("isn't offered while the record is locked", async () => {
+      mockList([attachment()]);
+      render({patientId}, {isLocked: true});
+      expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Record scan.pdf as a result'})).not.toBeInTheDocument();
+    });
+  });
+
   it('in a narrow window or half view, puts the buttons under the details', async () => {
     mockList([attachment()]);
     render({patientId}, {isNarrow: true});

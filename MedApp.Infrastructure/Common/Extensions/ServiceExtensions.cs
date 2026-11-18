@@ -290,6 +290,7 @@ public static class ServiceExtensions
         services.AddScoped<ILetterRepository, LetterRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
+        services.AddScoped<MedApp.Application.Results.Repositories.IResultRepository, ResultRepository>();
         
         return services;
     }

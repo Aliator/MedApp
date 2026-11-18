@@ -77,6 +77,12 @@ public sealed partial class AnonymisePatientHandler(
                 $"received), so their record can't be anonymised until {(openSpecimens == 1 ? "it's" : "they're")} reported, " +
                 "rejected, lost or entered in error.");
 
+        var awaitingResults = record.Results.Count(r => r.IsAwaitingSignOff);
+        if (awaitingResults > 0)
+            throw new ConflictException(
+                $"This patient has {awaitingResults} result{(awaitingResults == 1 ? "" : "s")} awaiting sign-off, so their " +
+                $"record can't be anonymised until {(awaitingResults == 1 ? "it's" : "they're")} signed off or marked entered in error.");
+
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(
                 [new ValidationFailure(nameof(request.Confirmation), "Type the patient's full name exactly as shown to confirm.")]);

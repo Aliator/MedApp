@@ -38,6 +38,7 @@ public static class PatientExportMapper
             .Concat(record.Letters.SelectMany(Letters.Common.LetterMapper.PeopleIn))
             .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
+            .Concat(record.Results.SelectMany(Results.Common.ResultMapper.PeopleIn))
             .Distinct();
 
     private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
@@ -404,6 +405,32 @@ public static class PatientExportMapper
                     ClosedDetail = s.ClosedDetail,
                     ClosedAtUtc = s.ClosedAtUtc,
                     ClosedBy = s.ClosedByUserId is null ? null : Username(s.ClosedByUserId),
+                })
+                .ToList(),
+            // Results, with their free text: the patient is entitled to it. Staff by username only.
+            Results = record.Results
+                .Select(r => new ExportedResultResponse
+                {
+                    Id = r.Id,
+                    PathwayId = r.PathwayId,
+                    SpecimenId = r.SpecimenId,
+                    SpecimenNumber = record.Specimens.FirstOrDefault(s => s.Id == r.SpecimenId)?.Number,
+                    Source = r.Source.ToString(),
+                    Title = r.Title,
+                    ReportAttachmentId = r.ReportAttachmentId,
+                    ReportedAtUtc = r.ReportedAtUtc,
+                    ReportedBy = Username(r.ReportedByUserId),
+                    ResponsibleClinician = Username(r.ResponsibleUserId),
+                    Status = r.Status.ToString(),
+                    SeenAtUtc = r.SeenAtUtc,
+                    SeenBy = r.SeenByUserId is null ? null : Username(r.SeenByUserId),
+                    SignedOffAtUtc = r.SignedOffAtUtc,
+                    SignedOffBy = r.SignedOffByUserId is null ? null : Username(r.SignedOffByUserId),
+                    Action = r.Action?.ToString(),
+                    ActionDetail = r.ActionDetail,
+                    EnteredInErrorAtUtc = r.EnteredInErrorAtUtc,
+                    EnteredInErrorBy = r.EnteredInErrorByUserId is null ? null : Username(r.EnteredInErrorByUserId),
+                    ErrorDetail = r.ErrorDetail,
                 })
                 .ToList()
         };

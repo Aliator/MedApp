@@ -53,6 +53,7 @@ public static class PathwayCreation
                     SnomedTerm = map.StageDefinition.SnomedTerm,
                     VisitRequirement = map.StageDefinition.VisitRequirement,
                     NeedsLetterKind = map.StageDefinition.NeedsLetterKind,
+                    WaitsForResults = map.StageDefinition.WaitsForResults,
                     IsOptional = map.IsOptional,
                     ChoosesBranch = map.ChoosesBranch,
                     Branch = map.Branch,

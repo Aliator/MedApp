@@ -14,5 +14,7 @@ public sealed record UpdatePatientPathwayStageDefinitionCommand(
     string? SnomedTerm = null,
     string? VisitRequirement = null,
     // A letter kind's name, "None" to remove it, or null to leave it as it is.
-    string? NeedsLetterKind = null)
+    string? NeedsLetterKind = null,
+    // Whether it waits for results, or null to leave it as it is.
+    bool? WaitsForResults = null)
     : IRequest<PatientPathwayStageDefinitionResponse>;

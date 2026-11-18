@@ -84,7 +84,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   // Everything attached to the patient, anywhere; what's added here is attached to the patient themselves. Nothing
   // can be added or deleted while the record is restricted or anonymised.
   const isLocked = patient !== undefined && whyCantChange(patient) !== null;
-  const files = <Attachments target={{patientId: id}} canChange={!isLocked} isLocked={isLocked} state={attachments} />;
+  const files = <Attachments target={{patientId: id}} patient={patient} canChange={!isLocked} isLocked={isLocked} state={attachments} />;
   const details = patient && <PatientDetails patient={patient} />;
   // Their referrals, open ones first, and Register Referral (for holders of RegisterReferrals, not while the record can't change).
   const referrals = <PatientReferrals patientId={id} canRegister={!isLocked && can(me, 'RegisterReferrals')} />;

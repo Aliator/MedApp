@@ -297,6 +297,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No referrals.')).toBeInTheDocument();
     expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No specimens.')).toBeInTheDocument();
+    expect(screen.getByText('No results.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 
@@ -355,6 +356,59 @@ describe('PatientExportPage', () => {
     expect(screen.getAllByText('A deleted pathway').length).toBeGreaterThan(0);
     expect(screen.getByText('Not sent')).toBeInTheDocument();
     expect(screen.getByText('Notes for the lab: none')).toBeInTheDocument();
+  });
+
+  it('lists every result: where it came from, who was responsible, who saw and signed it off, and what was done', async () => {
+    renderExport({
+      ...data,
+      results: [
+        {
+          id: 'd184a7b8-2585-4437-bcd4-e1700be38221',
+          pathwayId,
+          specimenId: 'b184a7b8-2585-4437-bcd4-e1700be38215',
+          specimenNumber: 'MA26-000123',
+          source: 'Specimen',
+          title: 'Skin biopsy (punch) report',
+          reportAttachmentId: 'c184a7b8-2585-4437-bcd4-e1700be38216',
+          reportedAtUtc: '2026-11-05T12:00:00Z',
+          reportedBy: 'test-lab',
+          responsibleClinician: 'test-senior',
+          status: 'SignedOff',
+          seenAtUtc: '2026-11-06T09:00:00Z',
+          seenBy: 'test-senior',
+          signedOffAtUtc: '2026-11-06T10:00:00Z',
+          signedOffBy: 'test-senior',
+          action: 'Other',
+          actionDetail: 'Synthetic: phoned the GP.',
+        },
+        {
+          id: 'd184a7b8-2585-4437-bcd4-e1700be38222',
+          pathwayId: null,
+          source: 'ExternalReport',
+          title: 'CT chest report',
+          reportAttachmentId: 'c184a7b8-2585-4437-bcd4-e1700be38217',
+          reportedAtUtc: '2026-11-04T12:00:00Z',
+          reportedBy: 'test-nurse',
+          responsibleClinician: 'dr.synthetic',
+          status: 'EnteredInError',
+          enteredInErrorAtUtc: '2026-11-04T13:00:00Z',
+          enteredInErrorBy: 'test-nurse',
+          errorDetail: 'Synthetic: wrong patient.',
+        },
+      ],
+    });
+
+    expect(await screen.findByRole('heading', {name: 'Results (2)'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Result: Skin biopsy (punch) report'})).toBeInTheDocument();
+    expect(screen.getByText('Specimen MA26-000123')).toBeInTheDocument();
+    expect(screen.getByText('5 Nov 2026, 12:00 by test-lab, its report is under Files')).toBeInTheDocument();
+    expect(screen.getByText('6 Nov 2026, 10:00 by test-senior')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: phoned the GP.')).toBeInTheDocument();
+    expect(screen.getByText('External report')).toBeInTheDocument();
+    expect(screen.getByText('Not on a pathway')).toBeInTheDocument();
+    expect(screen.getByText('Not signed off')).toBeInTheDocument();
+    expect(screen.getByText('4 Nov 2026, 13:00 by test-nurse')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic: wrong patient.')).toBeInTheDocument();
   });
 
   it('lists every referral with what the referrer sent and what was decided, its history, and its letters', async () => {

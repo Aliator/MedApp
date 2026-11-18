@@ -63,7 +63,24 @@ public enum PatientPathwayAuditAction
     /// <summary>A specimen's details were edited before it was sent: the names of the fields changed, values only for structured ones.</summary>
     SpecimenDetailsEdited = 23,
 
-    // 24 to 28 are kept for results (docs/centre-phases-3-5-plan.md, section 5).
+    // Results (docs/centre-phases-3-5-plan.md, section 5). Not changes to the pathway either. Details hold the result's
+    // ID, source, the specimen's number and type, statuses, the action by name and usernames; never its title, action
+    // detail or error detail (ResultChange).
+
+    /// <summary>A result was made: from a specimen's report, or an attached file marked as an external result.</summary>
+    ResultRecorded = 24,
+
+    /// <summary>A clinician marked a result seen.</summary>
+    ResultSeen = 25,
+
+    /// <summary>A result was signed off: the action by name, never its detail.</summary>
+    ResultSignedOff = 26,
+
+    /// <summary>A result was given to another responsible clinician (taken over, or reassigned): the usernames.</summary>
+    ResultReassigned = 27,
+
+    /// <summary>A result was marked entered in error: its file deleted, a specimen's back to Received.</summary>
+    ResultEnteredInError = 28,
 
     /// <summary>
     /// A letter was started (a draft, from a template). Letters' entries (29 to 34) hold the letter's ID, kind and

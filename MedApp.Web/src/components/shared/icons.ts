@@ -8,6 +8,9 @@ import {
   RiDiscussLine,
   RiArrowGoBackLine,
   RiChatFollowUpLine,
+  RiCheckDoubleLine,
+  RiFileChartLine,
+  RiUserSharedLine,
   RiMessage2Line,
   RiInboxLine,
   RiIdCardLine,
@@ -343,4 +346,11 @@ export const AppIcon = {
   Mdt: remix(RiDiscussLine),
   /** Printing a page (the MDT list). */
   Print: remix(RiPrinterLine),
+  // Results: reports awaiting a clinician's sign-off
+  /** The Results list and a result's page. */
+  Results: remix(RiFileChartLine),
+  /** Signing a result off. */
+  SignOff: remix(RiCheckDoubleLine),
+  /** Giving a result to another responsible clinician. */
+  Reassign: remix(RiUserSharedLine),
 } as const satisfies Record<string, IconType>;

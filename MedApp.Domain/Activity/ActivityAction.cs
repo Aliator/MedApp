@@ -130,9 +130,12 @@ public enum ActivityAction
 
     /// <summary>
     /// Someone opened a specimen's page or printed its label or request sheet, or found it by its number: the specimen's
-    /// ID in its details. (46 is kept for results: <c>docs/centre-phases-3-5-plan.md</c>, section 5.)
+    /// ID in its details.
     /// </summary>
     SpecimenViewed = 45,
+
+    /// <summary>Someone opened a result's page: the result's ID in its details.</summary>
+    ResultViewed = 46,
 
     /// <summary>Someone opened a letter's page, or its draft's preview: the letter's ID in its details.</summary>
     LetterViewed = 47,

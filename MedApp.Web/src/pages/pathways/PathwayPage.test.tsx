@@ -71,6 +71,25 @@ describe('PathwayPage', () => {
     expect(calls(fetch)).toContain(`GET /api/specimens/search?View=All&PathwayId=${id}&PageSize=100`);
   });
 
+  it("lists the pathway's results, each linking to its page, and says which stage waits for them", async () => {
+    const waits = {...pathway, stages: [pathway.stages[0], {...pathway.stages[1], waitsForResults: true}]};
+    const fetch = mockApi({
+      [`GET /api/pathways/patient-pathways/${id}`]: () => json(waits),
+      'GET /api/results/search': () =>
+        json(
+          pageOf([
+            {id: 'r-1', title: 'Wound swab report', specimenNumber: 'MA26-000123', reportedAtUtc: '2026-11-04T10:00:00Z', responsibleUsername: 'test-senior', status: 'AwaitingSignOff'},
+          ]),
+        ),
+    });
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    expect(await screen.findByRole('link', {name: 'Wound swab report'})).toHaveAttribute('href', '/results/r-1');
+    expect(screen.getByText('Responsible clinician: test-senior')).toBeInTheDocument();
+    expect(screen.getAllByText('Waits for results: every result on the pathway must be signed off before it can be finished.').length).toBeGreaterThan(0);
+    expect(calls(fetch)).toContain(`GET /api/results/search?View=All&PathwayId=${id}&PageSize=100`);
+  });
+
   it("lists the pathway's letters, and says what a stage that needs one waits for", async () => {
     const needsLetter = {...pathway, specialtyId: 'sp1', stages: [pathway.stages[0], {...pathway.stages[1], needsLetterKind: 'DischargeSummary'}]};
     const fetch = mockApi({

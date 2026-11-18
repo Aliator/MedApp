@@ -30,6 +30,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     /// </summary>
     public Specimen? Specimen { get; init; }
 
+    /// <summary>
+    /// For a result entry (only for admins), the result as it is now, for its free text (the title, the action detail
+    /// and the error detail): the audit entry itself holds none.
+    /// </summary>
+    public Domain.Results.Result? Result { get; init; }
+
     /// <summary>About a file attached to the patient themselves, not to one of their pathways.</summary>
     public bool IsAboutPatient => Entry.PatientPathwayId == PatientPathwayAuditEntry.NoPathway;
 }
