@@ -1,4 +1,5 @@
 import type {Schemas} from '../api/client';
+import {chainLinks} from '../api/pathwayRoutes';
 import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
 import {ADMIN, STAFF} from './accounts';
 import {
@@ -19,7 +20,17 @@ import {
 import {seedClinical} from './slices/clinical';
 import {seedLab} from './slices/lab';
 import {seedSetup} from './slices/setup';
-import type {BaseState, DemoAppointment, DemoPathway, DemoPathwayAccess, DemoReferral, DemoStage, DemoStageDefinition, DemoState} from './state';
+import type {
+  BaseState,
+  DemoAppointment,
+  DemoPathway,
+  DemoPathwayAccess,
+  DemoReferral,
+  DemoStage,
+  DemoStageDefinition,
+  DemoStageLink,
+  DemoState,
+} from './state';
 import {daysFrom, thisWeek, today, ukTime} from './time';
 
 /**
@@ -30,7 +41,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -105,7 +116,8 @@ export const stageDefinitionList = (): DemoStageDefinition[] =>
 /** A template's stage: its definition, and whether it's optional, a branch point or in a branch. */
 type TemplateStageSpec = StageKey | {key: StageKey; optional?: boolean; choosesBranch?: boolean; branch?: string};
 
-const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: TemplateStageSpec[]}[] = [
+/** A template: its stages in order, and its links by stage order when it has routes side by side (else its list's, `chainLinks`). */
+const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: TemplateStageSpec[]; links?: [number, number][]}[] = [
   {
     id: TEMPLATES.skinLesion,
     name: 'Skin lesion pathway',
@@ -143,6 +155,14 @@ const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: Templat
       'dischargeLetter',
     ],
   },
+  {
+    id: TEMPLATES.lesionWithBloods,
+    name: 'Skin lesion with blood tests',
+    teamId: TEAMS.dermatology,
+    stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'bloodAndUrineTests', 'labTests', 'resultsAndTeamReview', 'dischargeLetter'],
+    // A fork after the first visit (both routes run, side by side), joined at the review.
+    links: [[1, 2], [2, 3], [1, 4], [4, 5], [3, 6], [5, 6], [6, 7]],
+  },
 ];
 
 const stageSpec = (spec: TemplateStageSpec) => (typeof spec === 'string' ? {key: spec} : spec);
@@ -158,6 +178,15 @@ const TEAM_NAMES: [string, string][] = [
 ];
 
 export const teamName = (id: string | null | undefined) => TEAM_NAMES.find(([key]) => key === id)?.[1] ?? null;
+
+/** A new pathway's links: the template's, by stage order, onto the pathway's stages (made from it in the same order). */
+export function pathwayLinks(template: Schemas['PathwayTemplateResponse'], stages: readonly Pick<DemoStage, 'id' | 'stageOrder'>[]): DemoStageLink[] {
+  const idAt = (order: number | undefined) => stages.find((s) => s.stageOrder === order)?.id;
+  return (template.links ?? chainLinks(template.stages ?? [])).flatMap((link) => {
+    const [fromStageId, toStageId] = [idAt(link.fromStageOrder), idAt(link.toStageOrder)];
+    return fromStageId && toStageId ? [{fromStageId, toStageId}] : [];
+  });
+}
 
 /**
  * A template's stages, in order, for a new pathway made from it: the template's options (optional, branches) and the
@@ -249,6 +278,8 @@ interface PathwaySpec {
   priority: DemoPathway['priority'];
   /** How many stages are finished. */
   done: number;
+  /** Which stages are finished, by order, when they aren't the first `done` (a pathway with routes side by side). */
+  doneOrders?: number[];
   /** Whether the next stage has been started. */
   started?: boolean;
   status: DemoPathway['status'];
@@ -267,7 +298,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
   const step = Math.max(1, Math.floor((spec.createdDaysAgo - 2) / Math.max(1, spec.done)));
   const stages = templateStages(template, definitions).map((stage, i): DemoStage => {
     const finishedDaysAgo = spec.createdDaysAgo - step * (i + 1);
-    const isDone = i < spec.done;
+    const isDone = spec.doneOrders ? spec.doneOrders.includes(i + 1) : i < spec.done;
     const isStarted = isDone || (i === spec.done && spec.started === true);
     return {
       ...stage,
@@ -295,6 +326,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
     createdAt: created,
     lastUpdated: ago(1, 16, 0),
     stages,
+    links: pathwayLinks(template, stages),
     assignments: spec.assignee ? [{userId: spec.assignee, assignedByUserId: ADMIN.id, assignedAtUtc: ago(spec.createdDaysAgo, 9, 20)}] : [],
     notes: (spec.notes ?? []).map((note, i) => ({
       id: `000000dd-0000-4000-8000-${(spec.n * 100 + i + 1).toString(16).padStart(12, '0')}`,
@@ -412,6 +444,7 @@ export function seed(): DemoState {
     pathwayCount: 0,
     clockStopStageOrder: 1,
     stageDefinitionIdsInOrder: spec.stages.map((s) => STAGES[stageSpec(s).key]),
+    links: spec.links?.map(([fromStageOrder, toStageOrder]) => ({fromStageOrder, toStageOrder})),
     stages: spec.stages.map((s, i) => {
       const {key, optional, choosesBranch, branch} = stageSpec(s);
       return {
@@ -428,6 +461,7 @@ export function seed(): DemoState {
       };
     }),
   }));
+  for (const template of templates) template.links ??= chainLinks(template.stages ?? []);
 
   const pathways = (
     [
@@ -492,6 +526,13 @@ export function seed(): DemoState {
       {
         n: 12, id: PATHWAYS.ellisDiabetes, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.diabetesReview,
         title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, status: 'Completed', createdDaysAgo: 90,
+      },
+      // Routes side by side (MC8): the biopsy and the bloods are done, so histology and the lab tests are both current;
+      // the review waits for both.
+      {
+        n: 13, id: PATHWAYS.forkedTests, patientId: PATIENTS.aishaKhoury, templateId: TEMPLATES.lesionWithBloods,
+        title: 'Nodule, left shin, with blood tests', dueIn: 30, priority: 'Medium', done: 3, doneOrders: [1, 2, 4],
+        status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 20,
       },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));

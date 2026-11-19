@@ -1043,6 +1043,13 @@ describe('finishedMessage', () => {
     );
     expect(finishedMessage(consent, {currentStageId: null, stages: [consent]})).toBe('Consent finished. Every stage is finished');
   });
+
+  it('names every current stage where routes run side by side (MC8)', () => {
+    const stages = [consent, {id: 's2', name: 'Histology', stageOrder: 2}, {id: 's3', name: 'Bloods', stageOrder: 3}];
+    expect(finishedMessage(consent, {currentStageId: 's2', currentStageIds: ['s3', 's2'], stages})).toBe(
+      'Consent finished. Current stages: Histology and Bloods',
+    );
+  });
 });
 
 describe('PathwayPage: files', () => {
