@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
@@ -28,20 +29,22 @@ public sealed class SetReferralInformationRequestedValidator : AbstractValidator
 }
 
 /// <summary>
-/// Asks the referrer for more information, or records that it came (decision 106): the same checks as triage (403
+/// Asks the referrer for more information, or records that it came (decision 106): the same checks as triage (404
+/// behind the viewer's team wall, recorded; 403
 /// without <c>TriageReferrals</c> or membership of its team; 409 once it's closed, on a restricted or anonymised
 /// record, or if it changed since the caller's version), then 409 if it's already waiting (asking) or isn't (receiving).
 /// Asking keeps it open in the inbox's Information requested view, its clock still running (decision 106: the
 /// centre's own wait counts); receiving puts it back awaiting triage. The letter asking is written from the referral's
 /// page (a request for more information). Nobody is told: the inbox is the signal.
 /// </summary>
-public sealed class SetReferralInformationRequestedHandler(IReferralRepository repository, TimeProvider timeProvider)
+public sealed class SetReferralInformationRequestedHandler(
+    IReferralRepository repository, ITeamBoundary boundary, TimeProvider timeProvider)
     : IRequestHandler<SetReferralInformationRequestedCommand, ReferralResponse>
 {
     public async Task<ReferralResponse> Handle(SetReferralInformationRequestedCommand request, CancellationToken cancellationToken)
     {
         var referral = await repository.GetForTriageOrThrowAsync(
-            request.ReferralId, request.Actor, request.ExpectedVersion, cancellationToken);
+            request.ReferralId, request.Actor, request.ExpectedVersion, boundary, cancellationToken);
 
         var waiting = referral.Status == ReferralStatus.InformationRequested;
         if (request.Asked && waiting)

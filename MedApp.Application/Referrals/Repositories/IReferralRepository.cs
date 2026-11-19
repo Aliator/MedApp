@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
 using MedApp.Application.Referrals.Common;
@@ -58,14 +59,15 @@ public interface IReferralRepository
     Task<IReadOnlyList<Referral>> GetOpenForPatientAsync(Guid patientId, Guid teamId, CancellationToken ct);
 
     /// <summary>
-    /// One page of referrals matching the query (see <see cref="ReferralSearch"/>), with their patients and
-    /// teams; the clock's filters and sort count to <paramref name="today"/> (UK).
+    /// One page of referrals the query's viewer may see (its scope, the team walls) matching the query (see
+    /// <see cref="ReferralSearch"/>), with their patients and teams; the clock's filters and sort count to
+    /// <paramref name="today"/> (UK).
     /// </summary>
     Task<PagedResult<ReferralRow>> SearchAsync(
         SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today, CancellationToken ct);
 
-    /// <summary>How many referrals await triage, in any of these teams (every team when null).</summary>
-    Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? teamIds, CancellationToken ct);
+    /// <summary>How many referrals await triage that the viewer may see (the team walls: <see cref="ReferralSearch.Visible"/>).</summary>
+    Task<int> CountAwaitingTriageAsync(TeamScope scope, CancellationToken ct);
 
     /// <summary>A patient's referrals awaiting triage, oldest first, with their teams.</summary>
     Task<IReadOnlyList<Referral>> GetAwaitingTriageForPatientAsync(Guid patientId, CancellationToken ct);

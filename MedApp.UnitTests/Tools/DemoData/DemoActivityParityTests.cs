@@ -140,8 +140,13 @@ public sealed class DemoActivityParityTests
         repository.Setup(r => r.GetByIdAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync(referral);
         repository.Setup(r => r.GetHistoryAsync(referral.Id, It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
-        await new GetReferralByIdHandler(repository.Object, _activity, _clock)
-            .Handle(new GetReferralByIdQuery(referral.Id, ReferralsTestConstants.Registrar), CancellationToken.None);
+        var registrar = ReferralsTestConstants.Registrar with
+        {
+            Scope = GrantsTeamBoundary.MemberOf(ReferralsTestConstants.Registrar.UserId, referral.TeamId)
+        };
+
+        await new GetReferralByIdHandler(repository.Object, new GrantsTeamBoundary(_activity).Boundary, _activity, _clock)
+            .Handle(new GetReferralByIdQuery(referral.Id, registrar), CancellationToken.None);
 
         _activity.SingleViews.Should().Equal(
             (ActivityAction.ReferralViewed, referral.PatientId, ActivityLog.SerializeDetails(DemoActivity.ReferralViewDetails(referral.Id))));
