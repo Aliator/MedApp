@@ -45,7 +45,7 @@ function UnusableLink({message}: {message: string}) {
   return (
     <StandalonePage title={TITLE}>
       <Banner status="error" container="card" role="alert" title={message} />
-      <Button label="Ask for a new link" variant="primary" size="lg" href="/forgot-password" />
+      <Button label="Ask for a New Link" variant="primary" size="lg" href="/forgot-password" />
       <HStack hAlign="center">
         <Link href="/login">Back to sign in</Link>
       </HStack>
@@ -98,7 +98,7 @@ export function ResetPasswordPage() {
     return (
       <StandalonePage title="Password changed">
         <Banner status="success" container="card" title={PASSWORD_RESET} />
-        <Button label="Sign in" variant="primary" size="lg" href="/login" />
+        <Button label="Sign In" variant="primary" size="lg" href="/login" />
       </StandalonePage>
     );
   }
@@ -128,7 +128,7 @@ export function ResetPasswordPage() {
     <StandalonePage title={TITLE}>
       <form onSubmit={submit} noValidate>
         <VStack gap={4} hAlign="stretch">
-          <Text type="body">Choose a new password for your account. Every session it has will end, on every device.</Text>
+          <Text type="body">Choose a new password for your account. You'll be signed out on every device.</Text>
           {problem && <Banner status="error" title={problem} container="card" role="alert" />}
           <NewPasswordFields
             next={next}
@@ -138,7 +138,7 @@ export function ResetPasswordPage() {
             nextStatus={nextStatus}
             size="lg"
           />
-          <Button type="submit" label="Change password" variant="primary" size="lg" isLoading={reset.isPending} />
+          <Button type="submit" label="Change Password" variant="primary" size="lg" isLoading={reset.isPending} />
         </VStack>
       </form>
     </StandalonePage>

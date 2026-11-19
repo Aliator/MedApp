@@ -24,9 +24,9 @@ public sealed class SignInTests : E2ETest
         await Expect(account).ToBeVisibleAsync();
         await Expect(Page).Not.ToHaveURLAsync(new Regex("/login"));
 
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Logout" }).ClickAsync();
-        await Page.GetByRole(AriaRole.Dialog, new() { Name = "Log Out" })
-            .GetByRole(AriaRole.Button, new() { Name = "Log Out" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Sign Out" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Dialog, new() { Name = "Sign Out" })
+            .GetByRole(AriaRole.Button, new() { Name = "Sign Out" }).ClickAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex("/login$"));
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Sign in" })).ToBeVisibleAsync();
@@ -48,7 +48,7 @@ public sealed class SignInTests : E2ETest
         await Page.GetByRole(AriaRole.Textbox, new() { Name = "Password" }).FillAsync("Not-the-passw0rd");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
 
-        await Expect(Page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Invalid credentials" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Username or password is incorrect." })).ToBeVisibleAsync();
         await Expect(Page).ToHaveURLAsync(new Regex("/login$"));
     }
 }

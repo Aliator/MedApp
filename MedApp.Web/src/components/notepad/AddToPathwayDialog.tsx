@@ -31,7 +31,7 @@ export interface NoteToAdd {
 
 /** Why "Remove it from the notepad" is off, for a selection the notepad couldn't pin down exactly. */
 export const CANT_REMOVE_SELECTION =
-  "The selected text can't be taken out of the notepad exactly, so it won't be: remove it yourself after adding it.";
+  "The selected text couldn't be found exactly in the notepad, so remove it yourself after adding it.";
 
 export interface AddToPathwayDialogProps {
   note: NoteToAdd;
@@ -90,8 +90,8 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
       title="Add Note to Pathway"
       message={
         note.isSelection
-          ? 'Add the text you selected in the notepad to this pathway as a new note, by you? Check it is the right patient.'
-          : 'Add everything in the notepad to this pathway as a new note, by you? Check it is the right patient.'
+          ? "Add the selected text as a new note on this pathway, in your name? Check it's the right patient."
+          : "Add everything in the notepad as a new note on this pathway, in your name? Check it's the right patient."
       }
       icon={AppIcon.Notes}
       confirmText="Add Note"

@@ -310,7 +310,7 @@ describe('AddPatientPage', () => {
     await user.type(screen.getByLabelText(/^last name/i), 'Ahmed');
     await user.type(screen.getByLabelText(/^email address/i), 'freya.ahmed18@example.com');
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
     expect(await bodyOf(fetch, 'POST')).toEqual({
@@ -359,7 +359,7 @@ describe('AddPatientPage', () => {
     await user.click(screen.getByRole('option', {name: 'Testbrook Surgery (ZZZ123)'}));
     expect(practice).toHaveAccessibleDescription(/2 Surgery Lane, ZZ2 2ZZ/);
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
     expect(await bodyOf(fetch, 'POST')).toMatchObject({
@@ -383,7 +383,7 @@ describe('AddPatientPage', () => {
     await user.click(await screen.findByRole('option', {name: 'Text and email'}));
     expect(reminders).toHaveAccessibleDescription(/Texts can’t be sent without a mobile number/);
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
     expect(await bodyOf(fetch, 'POST')).toMatchObject({reminderChannel: 'TextAndEmail'});
@@ -397,7 +397,7 @@ describe('AddPatientPage', () => {
     const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
 
     await user.click(await screen.findByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await findAlert('One or more validation errors occurred.');
     // On the field, and said by Astryx's live region, which can come a moment later.
@@ -409,7 +409,7 @@ describe('AddPatientPage', () => {
     const fetch = mockApi({'POST /api/patients': () => json(freya, 201)});
     const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
 
-    const dateOfBirth = await screen.findByRole('combobox', {name: /Date of Birth/});
+    const dateOfBirth = await screen.findByRole('combobox', {name: /Date of birth/});
     await user.type(dateOfBirth, '01/12/1976');
     await user.tab();
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
@@ -420,7 +420,7 @@ describe('AddPatientPage', () => {
     await user.clear(dateOfBirth);
     await user.tab();
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     expect((await bodyOf(fetch, 'POST')).dateOfBirth).toBe(NO_DATE);
@@ -432,7 +432,7 @@ describe('AddPatientPage', () => {
     const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
 
     await user.click(await screen.findByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -454,7 +454,7 @@ describe('AddPatientPage', () => {
     expect(await screen.findByRole('link', {name: /Back/})).toHaveAttribute('href', '/referrals/new');
     await user.type(await screen.findByLabelText(/^first name/i), 'Freya');
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/new'));
     expect(router.state.location.search).toEqual({patientId: id});
@@ -723,7 +723,7 @@ describe('Patient forms, NHS number', () => {
   // Synthetic test numbers only (the 999 range is never issued to real patients).
   const STATUS = 'GET /api/demographics/status';
   const lookUpAvailable = {[STATUS]: () => json({isAvailable: true, source: 'Offline test data'})};
-  const nhsField = () => screen.findByRole('textbox', {name: /NHS Number/});
+  const nhsField = () => screen.findByRole('textbox', {name: /NHS number/});
 
   it("sends a new patient's NHS number without its spaces, and shows it in the confirmation", async () => {
     const fetch = mockApi({'POST /api/patients': () => json({...freya, nhsNumber: '9990000018'}, 201)});
@@ -732,7 +732,7 @@ describe('Patient forms, NHS number', () => {
     await user.type(await nhsField(), '999 000 0018');
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
     expect(within(openDialog()!).getByText('999 000 0018')).toBeInTheDocument();
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
     expect((await bodyOf(fetch, 'POST')).nhsNumber).toBe('9990000018');
@@ -754,7 +754,7 @@ describe('Patient forms, NHS number', () => {
     const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
 
     await user.click(await screen.findByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     const alert = await findAlert('One or more validation errors occurred.');
     expect(alert).not.toHaveTextContent('The NHS number is not valid.');
@@ -768,7 +768,7 @@ describe('Patient forms, NHS number', () => {
 
     await user.type(await nhsField(), '9990000026');
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
 
     expect(await findAlert(message)).toBeInTheDocument();
   });
@@ -797,7 +797,7 @@ describe('Patient forms, NHS number', () => {
 
     await waitFor(() => expect(screen.getByLabelText(/^first name/i)).toHaveValue('Oriel'));
     expect(screen.getByLabelText(/^last name/i)).toHaveValue('Penhallow');
-    expect(screen.getByRole('combobox', {name: /Date of Birth/})).toHaveValue('14 March 1951');
+    expect(screen.getByRole('combobox', {name: /Date of birth/})).toHaveValue('14 March 1951');
     expect(await nhsField()).toHaveValue('999 000 0034');
     expect(calls(fetch)).toContain('POST /api/demographics/lookup');
     // The number goes in the body, without its spaces, never in the URL.
@@ -910,7 +910,7 @@ describe('Patient forms, NHS number look-up and identity', () => {
   // Synthetic people and test NHS numbers only (the 999 range is never issued to real patients).
   const lookUpAvailable = {'GET /api/demographics/status': () => json({isAvailable: true, source: 'Offline test data'})};
   const ada = {nhsNumber: '9990000018', firstName: 'Ada', lastName: 'Synthetic', dateOfBirth: '1980-05-17', source: 'Offline test data'};
-  const nhsField = () => screen.findByRole('textbox', {name: /NHS Number/});
+  const nhsField = () => screen.findByRole('textbox', {name: /NHS number/});
   const held = /The name and date of birth were filled in from 999 000 0018\. Look the new number up again, or check the details\./;
 
   /** Add Patient with Ada looked up and filled in, and an email so the form can be saved. */
@@ -948,7 +948,7 @@ describe('Patient forms, NHS number look-up and identity', () => {
     expect(field).not.toHaveAccessibleDescription(held);
 
     await user.click(screen.getByRole('button', {name: 'Add Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Patient'}));
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
   });
 
@@ -1046,11 +1046,11 @@ describe('Patient forms, NHS number look-up and identity', () => {
 
     const dialog = within(openDialog()!);
     expect(dialog.getByText("This changes who the record identifies. Check it's the right patient before saving.")).toBeInTheDocument();
-    const first_ = dialog.getByText('First Name').closest('div')!.parentElement!;
+    const first_ = dialog.getByText('First name').closest('div')!.parentElement!;
     expect(first_).toHaveTextContent(/Freya.*changes to.*Fran/);
     expect(dialog.getByText('999 000 0042')).toBeInTheDocument();
     expect(dialog.getAllByText('Not given').length).toBeGreaterThan(0);
-    expect(dialog.queryByText('Last Name')).not.toBeInTheDocument();
+    expect(dialog.queryByText('Last name')).not.toBeInTheDocument();
   });
 
   it('asks plainly when nothing that says who the patient is changes', async () => {

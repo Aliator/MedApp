@@ -238,9 +238,9 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       };
     }
     case 'Assigned':
-      return {title: `Assigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
+      return {title: `Assigned to ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'Unassigned':
-      return {title: `Unassigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
+      return {title: entry.assigneeUsername ? `No longer assigned to ${entry.assigneeUsername}` : 'Assignee removed', detail: ''};
     case 'StatusChanged':
       return describeStatusChange(entry);
     // A target date the waiting-time clock moved (a pause's review date, or back to the clock's target) says so.
@@ -279,7 +279,8 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       if (isConsentEntry(entry)) return describeConsentEntry(entry);
       if (isLetterEntry(entry)) return describeLetterEntry(entry);
       if (isReferralEntry(entry)) return describeReferralEntry(entry);
-      return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+      // An action this version doesn't know yet: never its code name.
+      return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: 'Record changed', detail: ''};
   }
 }
 
@@ -598,8 +599,8 @@ const sentences = (...parts: (string | null | undefined)[]) =>
 
 /** An outcome that corrects an earlier one says what it was. */
 function correction(entry: TimelineEntry): string | null {
-  if (entry.fromStatus === 'Attended') return 'Was marked Attended';
-  if (entry.fromStatus === 'DidNotAttend') return 'Was marked Did not attend';
+  if (entry.fromStatus === 'Attended') return 'Was marked as attended';
+  if (entry.fromStatus === 'DidNotAttend') return 'Was marked as did not attend';
   return null;
 }
 
@@ -614,7 +615,7 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
     case 'AppointmentRequested':
       return {
         title: `Appointment requested${about}`,
-        detail: entry.isAutomatic ? 'Requested automatically, as the stage involves a visit. Requires appointment' : 'Requires appointment',
+        detail: entry.isAutomatic ? 'Added to Requires Appointment automatically, as the stage needs a visit' : 'Added to Requires Appointment',
       };
     case 'AppointmentBooked':
       return {title: `Appointment booked${about}`, detail: slot};
@@ -623,9 +624,9 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Appointment rescheduled${about}`, detail: before ? `From ${before}, to ${slot}` : `To ${slot}`};
     }
     case 'AppointmentAttended':
-      return {title: `Marked Attended${about}`, detail: sentences(slot, correction(entry))};
+      return {title: `Marked as attended${about}`, detail: sentences(slot, correction(entry))};
     case 'AppointmentDidNotAttend':
-      return {title: `Marked Did not attend${about}`, detail: sentences(slot, correction(entry))};
+      return {title: `Marked as did not attend${about}`, detail: sentences(slot, correction(entry))};
     case 'AppointmentRecordedAfterEvent':
       // A walk-in, or one booked outside MedApp, recorded with its outcome; or a visit that was waiting in Requires Appointment.
       return {

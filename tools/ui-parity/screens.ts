@@ -223,7 +223,7 @@ export const screens: Screen[] = [
     path: '/calendar',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
-      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await page.getByRole('menuitem', { name: 'Book Appointment' }).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
@@ -234,7 +234,7 @@ export const screens: Screen[] = [
     path: '/calendar',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
-      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await page.getByRole('menuitem', { name: 'Book Appointment' }).click();
       await waitVisible(page, DIALOG);
       await page.locator(DIALOG).getByRole('button', { name: 'Clinic slots' }).click();
       await settle(page);
@@ -297,7 +297,7 @@ export const screens: Screen[] = [
     path: '/calendar',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
-      await page.getByRole('menuitem', { name: 'Record past appointment' }).click();
+      await page.getByRole('menuitem', { name: 'Record Past Appointment' }).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
@@ -308,7 +308,7 @@ export const screens: Screen[] = [
     path: '/calendar',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
-      await page.getByRole('menuitem', { name: 'Block time' }).click();
+      await page.getByRole('menuitem', { name: 'Block Time' }).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
@@ -339,7 +339,7 @@ export const screens: Screen[] = [
     path: '/calendar?view=team',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'New' }).click();
-      await page.getByRole('menuitem', { name: 'New meeting' }).click();
+      await page.getByRole('menuitem', { name: 'New Meeting' }).click();
       await waitVisible(page, DIALOG);
       await page.locator(DIALOG).getByRole('group', { name: 'Suggested times' }).waitFor();
       await settle(page);

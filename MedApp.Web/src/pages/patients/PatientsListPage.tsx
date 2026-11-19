@@ -84,13 +84,13 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const columns: DataTableColumn<PatientRow>[] = [
     {
       key: 'Patients',
-      header: 'Patients',
+      header: 'Name',
       sortable: true,
       renderCell: (p) => <AvatarCell primaryText={`${p.firstName} ${p.lastName}`} secondaryText={`ID: ${p.id?.slice(0, 8)}`} />,
     },
     {
       key: 'DateOfBirth',
-      header: 'Date of Birth',
+      header: 'Date of birth',
       sortable: true,
       renderCell: (p) => (
         <HStack gap={2} vAlign="center">
@@ -103,7 +103,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
     },
     {
       key: 'nhsNumber',
-      header: 'NHS Number',
+      header: 'NHS number',
       renderCell: (p) => (
         <Text type="body" hasTabularNumbers>
           {p.nhsNumber ? formatNhsNumber(p.nhsNumber) : '—'}
@@ -159,9 +159,9 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       {noPatientsAtAll ? (
         <EmptyState
           title="No patients yet"
-          description="Get started by adding your first patient to the system."
+          description="No patients have been added yet."
           icon={<Icon icon={AppIcon.Patients} size="lg" />}
-          actions={canAdd && <Button label="Add Your First Patient" variant="primary" href="/patients/add" />}
+          actions={canAdd && <Button label="Add First Patient" variant="primary" href="/patients/add" />}
         />
       ) : (
         <DataTable

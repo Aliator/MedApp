@@ -23,13 +23,13 @@ import {appointmentPurpose} from './calendarItems';
 
 /** What the dialog says first: recording a follow-up is a record, never an action on the pathway (decision 132). */
 export const DNA_FOLLOW_UP_CHANGES_NOTHING =
-  'Recording this changes nothing else. MedApp never discharges a patient or changes a pathway because of a missed appointment.';
+  'This only records the decision. It books nothing, and MedApp never ends a pathway or changes one because of a missed appointment.';
 
 /** The decision that needs a detail (who decided there's to be no further appointment, and why). */
 const needsDetail = (decision: string) => decision === 'NoFurtherAppointment';
 
 /**
- * The follow-up recorded so far, in words: "Rebook, by k.ashford, 24 Nov 2026, 10:00", or null when there's none.
+ * The follow-up recorded so far, in words: "To be rebooked, by k.ashford, 24 Nov 2026, 10:00", or null when there's none.
  * The detail (free text) isn't part of it; show it on its own.
  */
 export function dnaFollowUpWords(appointment: Pick<Appointment, 'dnaFollowUp' | 'dnaFollowUpByUsername' | 'dnaFollowUpAtUtc'>): string | null {
@@ -51,11 +51,11 @@ export interface DnaFollowUpDialogProps {
 }
 
 /**
- * Recording what happens after a patient did not attend (centre plan decision 132, hazard H-55): **Rebook**,
+ * Recording what happens after a patient did not attend (centre plan decision 132, hazard H-55): **To be rebooked**,
  * **Clinician to review** or **No further appointment** (nothing chosen until someone chooses), with a detail of up
  * to 500 characters, required for No further appointment (who decided, and why). It shows who the patient is (their
  * banner, hazard H-34) and which appointment was missed, and says that recording it changes nothing else: MedApp
- * never discharges a patient or changes a pathway because of a missed appointment. The API's 400 shows on the
+ * never ends a pathway or changes one because of a missed appointment. The API's 400 shows on the
  * fields, anything else in its words.
  *
  * Used by the appointment dialog and the Requires Appointment page's Did not attend list.

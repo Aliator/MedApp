@@ -82,7 +82,7 @@ export function KeyboardShortcuts() {
   }, [isOn, shortcuts, router]);
 
   return (
-    <DialogFrame isOpen={isOn && isHelpOpen} title="Keyboard shortcuts" purpose="info" onClose={() => setIsHelpOpen(false)}>
+    <DialogFrame isOpen={isOn && isHelpOpen} title="Keyboard Shortcuts" purpose="info" onClose={() => setIsHelpOpen(false)}>
       <VStack gap={4}>
         <MetadataList>
           <MetadataListItem label="Show these shortcuts">

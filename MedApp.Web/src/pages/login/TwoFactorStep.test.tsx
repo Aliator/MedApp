@@ -24,7 +24,7 @@ type User = ReturnType<typeof renderLogin>['user'];
 async function enterPassword(user: User) {
   await user.type(await screen.findByLabelText(/username/i), 'test-admin');
   await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
-  await user.click(screen.getByRole('button', {name: 'Sign in'}));
+  await user.click(screen.getByRole('button', {name: 'Sign In'}));
   return screen.findByLabelText(/code from your authenticator app/i);
 }
 
@@ -52,7 +52,7 @@ describe('TwoFactorStep', () => {
     const {user, router, fetch} = renderLogin(() => json(session));
 
     await user.type(await enterPassword(user), '123456');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, code: '123456'});
@@ -70,7 +70,7 @@ describe('TwoFactorStep', () => {
     expect(screen.getByLabelText(/code from your authenticator app/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Use a recovery code instead'}));
     await user.type(screen.getByLabelText(/recovery code/i), 'abcd-1234');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, recoveryCode: 'abcd-1234'});
@@ -81,7 +81,7 @@ describe('TwoFactorStep', () => {
     const {user, router} = renderLogin(() => json({title: wrong, status: 401}, 401));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(wrong)).toBeInTheDocument();
     expect(screen.getByLabelText(/code from your authenticator app/i)).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('TwoFactorStep', () => {
     const {user, router} = renderWithApp(<LoginPage redirectTo="/confirm-email" />, {path: '/login'});
 
     await user.type(await enterPassword(user), '123456');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
   });
@@ -108,7 +108,7 @@ describe('TwoFactorStep', () => {
     const {user, router} = renderLogin(() => json({title: tooMany, status: 429}, 429));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(tooMany)).toBeInTheDocument();
     expect(screen.getByLabelText(/code from your authenticator app/i)).toHaveValue('000000');
@@ -124,7 +124,7 @@ describe('TwoFactorStep', () => {
     const {user} = renderLogin(() => new Response(null, {status}));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(message)).toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe('TwoFactorStep', () => {
     const {user} = renderLogin(() => json({title, status}, status));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(title)).toBeInTheDocument();
   });
@@ -146,7 +146,7 @@ describe('TwoFactorStep', () => {
     const {user} = renderLogin(() => json({title: expired, status: 401, code: SIGN_IN_EXPIRED}, 401));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(expired)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password/i)).toHaveValue('');
@@ -158,16 +158,16 @@ describe('TwoFactorStep', () => {
     const {user} = renderLogin(() => json({code: SIGN_IN_EXPIRED}, 401));
 
     await user.type(await enterPassword(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
-    expect(await findAlert('This sign-in has run out. Enter your password again.')).toBeInTheDocument();
+    expect(await findAlert('This sign-in timed out. Enter your password again.')).toBeInTheDocument();
   });
 
   it('shows a refused code on its field', async () => {
     const {user} = renderLogin(() => json({title: 'One or more validation errors occurred.', errors: {Code: ['Enter the 6-digit code.']}}, 400));
 
     await user.type(await enterPassword(user), '12');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await screen.findByText('Enter the 6-digit code.')).toBeInTheDocument();
     expect(screen.getByLabelText(/code from your authenticator app/i)).toHaveAttribute('aria-invalid', 'true');
@@ -203,7 +203,7 @@ describe('TwoFactorStep, with codes by email', () => {
   async function enterPasswordForEmail(user: User) {
     await user.type(await screen.findByLabelText(/username/i), 'test-admin');
     await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
     return screen.findByLabelText(/code from the email/i);
   }
 
@@ -222,7 +222,7 @@ describe('TwoFactorStep, with codes by email', () => {
     await expectAnnounced(EMAIL_CODE_STEP_ANNOUNCEMENT);
 
     await user.type(code, '123456');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, code: '123456'});
@@ -283,7 +283,7 @@ describe('TwoFactorStep, with codes by email', () => {
     const {user} = renderEmailLogin({'POST /api/auth/login/two-factor': () => new Response(null, {status: 401})});
 
     await user.type(await enterPasswordForEmail(user), '000000');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert("That code isn't right. Check the newest email and try again.")).toBeInTheDocument();
   });
@@ -298,7 +298,7 @@ describe('TwoFactorStep, with codes by email', () => {
     expect(screen.getByLabelText(/code from the email/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Use a recovery code instead'}));
     await user.type(screen.getByLabelText(/recovery code/i), 'abcd-1234');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/auth/login/two-factor'));
     expect(await bodyOf(fetch, '/api/auth/login/two-factor')).toEqual({challenge: CHALLENGE, recoveryCode: 'abcd-1234'});
@@ -309,7 +309,7 @@ describe('TwoFactorStep, with codes by email', () => {
 
     await user.type(await screen.findByLabelText(/username/i), 'test-admin');
     await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
-    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+    await user.click(screen.getByRole('button', {name: 'Sign In'}));
 
     expect(await findAlert(CODE_NOT_SENT)).toBeInTheDocument();
     // Nothing was sent (no address, no mail server, or the hour's allowance used up): it never says one was.

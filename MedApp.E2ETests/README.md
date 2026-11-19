@@ -6,7 +6,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 
 | Test | Journey |
 |---|---|
-| `Auth/SignInTests` | Signing in and out through the login page, and a wrong password ("Invalid credentials"). |
+| `Auth/SignInTests` | Signing in and out through the login page, and a wrong password ("Username or password is incorrect."). |
 | `Patients/PatientTests` | Adding a patient through the form and finding them with the filter bar; editing; deleting, confirmed and cancelled. |
 | `Pathways/PathwayTests` | A new pathway for a patient from a template, then its stages worked: notes, Finish Stage, the status from Unassigned to In progress to In review. |
 | `Tasks/MyTasksTests` | A pathway assigned to you in My Worklist, under Not started, then Started, and opening it. |

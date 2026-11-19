@@ -42,7 +42,7 @@ describe('ClinicPatternsPage', {timeout: 30_000}, () => {
     await user.click(await screen.findByRole('option', {name: '3 weeks'}));
     await user.click(dialog().getByRole('button', {name: 'Create Sessions'}));
 
-    await expectAnnounced('Made 2 sessions; skipped 1 date.');
+    await expectAnnounced('Created 2 sessions; skipped 1 date.');
     expect(within(dialog().getByRole('list', {name: 'Sessions made'})).getAllByRole('listitem')).toHaveLength(2);
     expect(dialog().getByText(/Closed: Staff training day\./)).toBeInTheDocument();
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
@@ -61,9 +61,9 @@ describe('ClinicPatternsPage', {timeout: 30_000}, () => {
   it('words patterns and what Create sessions made', () => {
     expect(patternWhen(testPattern())).toBe('Tuesdays, 09:00 to 12:00');
     expect(patternRepeat(testPattern({everyWeeks: 3, untilDate: '2027-03-01'}))).toBe('Every 3 weeks from 24 Nov 2026 until 1 Mar 2027');
-    expect(madeWords({created: [], skipped: []})).toBe('Made no sessions.');
-    expect(madeWords({created: [testSession()], skipped: []})).toBe('Made 1 session.');
-    expect(madeWords({created: [], skipped: [{}, {}]})).toBe('Made no sessions; skipped 2 dates.');
+    expect(madeWords({created: [], skipped: []})).toBe('Created no sessions.');
+    expect(madeWords({created: [testSession()], skipped: []})).toBe('Created 1 session.');
+    expect(madeWords({created: [], skipped: [{}, {}]})).toBe('Created no sessions; skipped 2 dates.');
   });
 
   it('opens New Pattern, Edit and Create Sessions, each closing again, and shows a refusal', async () => {

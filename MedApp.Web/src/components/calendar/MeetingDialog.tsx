@@ -106,6 +106,9 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
   // The meeting as the last reply returned it, until the dialog closes (the calendar behind refreshes too).
   const [replied, setReplied] = useState<Meeting | null>(null);
   const meeting = replied && replied.id === given?.id ? replied : given;
+  // An MDT's team, by name ("Dermatology MDT"); archived teams included, as an old MDT may belong to one.
+  const mdtTeams = useQuery({...teamsQuery(true), enabled: meeting?.isMdt === true});
+  const mdtTeamName = mdtTeams.data?.find((t) => t.id === meeting?.teamId)?.name;
 
   if (!meeting) return <MeetingForm isOpen={isOpen} onClose={onClose} initial={initial} onSaved={onSaved} />;
 
@@ -224,7 +227,9 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
                 ))}
               </VStack>
             </MetadataListItem>
-            {meeting.isMdt && <MetadataListItem label="MDT">A team's multidisciplinary team meeting</MetadataListItem>}
+            {meeting.isMdt && (
+              <MetadataListItem label="MDT">{mdtTeamName ? `${mdtTeamName} MDT` : 'Multidisciplinary team meeting'}</MetadataListItem>
+            )}
             {meeting.notes && <MetadataListItem label="Notes">{meeting.notes}</MetadataListItem>}
           </MetadataList>
         </VStack>
@@ -507,7 +512,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const extras = (
     <VStack gap={4} hAlign="stretch">
       <CheckboxInput
-        label="A team's MDT"
+        label="This is an MDT meeting"
         description="A multidisciplinary team meeting that pathways can be listed for. The list stays separate: don't name patients here."
         value={isMdt}
         onChange={setIsMdt}
@@ -626,14 +631,14 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
               options={startOptions(length, start).map((m) => ({value: String(m), label: clockTime(m)}))}
               status={
                 endsLate
-                  ? {type: 'error', message: 'It would end after 18:00.'}
+                  ? {type: 'error', message: 'It would end after 18:00, the end of the working day the times are chosen from.'}
                   : (fieldStatus(validation, 'startUtc') ?? fieldStatus(validation, 'endUtc'))
               }
             />
           </StackItem>
         </HStack>
         {closedName !== undefined ? (
-          <AlertMessage status="warning" label="Clinic closed then" message={`The clinic is closed then: ${closedName}. Choose another day.`} />
+          <AlertMessage status="warning" label="Centre closed" message={`The centre is closed on this day (${closedName}). Choose another day.`} />
         ) : (
           times && attendees.length > 0 && <BusyThen busy={busy} isError={dayAvailability.isError} />
         )}

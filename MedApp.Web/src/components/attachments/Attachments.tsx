@@ -184,7 +184,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
           value={null}
           // Several at once (`isMultiple`): an array, or null when none were picked.
           onChange={(files) => add(target, [files].flat().filter((picked) => picked !== null), limits)}
-          placeholder="Drop files here, or press to choose them"
+          placeholder="Drop files here, or choose files"
           description={`${allowedTypesText(limits)}, up to ${formatFileSize(limits.maxFileBytes)} each.`}
         />
       )}

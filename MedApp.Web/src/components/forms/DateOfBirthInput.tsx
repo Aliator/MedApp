@@ -22,7 +22,7 @@ export interface DateOfBirthInputProps {
 export function DateOfBirthInput({
   value,
   onChange,
-  label = 'Date of Birth',
+  label = 'Date of birth',
   isRequired = true,
   isDisabled = false,
   showAge = true,

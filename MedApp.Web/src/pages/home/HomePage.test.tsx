@@ -15,6 +15,17 @@ describe('HomePage', () => {
     expect(screen.getByRole('link', {name: 'Open Calendar'})).toHaveAttribute('href', `/calendar?date=${today}`);
   });
 
+  it('welcomes them by their full name when their staff details have one', async () => {
+    const today = ukToday();
+    mockApi({
+      'GET /api/calendar': () => json(testCalendar({from: today, dayCount: 1, today})),
+      'GET /api/auth/me/details': () => json({fullName: 'Dr Test Staff', jobTitle: null}),
+    });
+    renderWithApp(<HomePage />, {user: staffUser});
+
+    expect(await screen.findByRole('heading', {name: 'Welcome, Dr Test Staff', level: 1})).toBeInTheDocument();
+  });
+
   it('shows what needs your attention above the day, linking to its page', async () => {
     const today = ukToday();
     mockApi({

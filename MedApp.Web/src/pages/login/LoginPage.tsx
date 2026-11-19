@@ -38,11 +38,14 @@ export const CODE_STEP_ANNOUNCEMENT = 'Password accepted. Enter the code from yo
 /** The same, for an account using codes by email. */
 export const EMAIL_CODE_STEP_ANNOUNCEMENT = 'Password accepted. We emailed you a code: enter it to sign in.';
 
+/** A wrong username or password (a 401): which one isn't said, so usernames can't be guessed. */
+const INCORRECT_CREDENTIALS = 'Username or password is incorrect.';
+
 /**
  * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
  * many wrong passwords (a 423) says so, and for how long, in the API's words. So do too many attempts in a short time
- * (a 429, from the API's sign-in throttling), with how long to wait. Any other failure (a 401 for a wrong username or
- * password, or a server error) shows "Invalid credentials", as Blazor does. After a session timed out (`isExpired`),
+ * (a 429, from the API's sign-in throttling), with how long to wait. A 401 (a wrong username or password) shows
+ * "Username or password is incorrect."; any other failure (a server error) asks them to try again. After a session timed out (`isExpired`),
  * it says so until a sign-in is tried.
  *
  * An account with two-factor authentication answers the password with a challenge (a 202): the password form gives
@@ -70,7 +73,9 @@ export function LoginPage({isExpired = false, redirectTo}: {isExpired?: boolean;
       ? (failure.title ?? 'This account is locked. Try again later.')
       : failure?.status === 429
         ? (failure.title ?? 'Too many sign-in attempts. Wait a minute, then try again.')
-        : 'Invalid credentials';
+        : failure?.status === 401
+          ? INCORRECT_CREDENTIALS
+          : 'Sign-in failed. Please try again.';
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -137,7 +142,7 @@ export function LoginPage({isExpired = false, redirectTo}: {isExpired?: boolean;
               size="lg"
             />
 
-            <Button type="submit" label="Sign in" variant="primary" size="lg" isLoading={login.isPending} />
+            <Button type="submit" label="Sign In" variant="primary" size="lg" isLoading={login.isPending} />
             {features?.canSendEmail && (
               <HStack hAlign="center">
                 <Link href="/forgot-password">Forgot your password?</Link>

@@ -53,7 +53,7 @@ export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
           status="warning"
           label="Restricted record"
           summary="changes paused"
-          message="Restricted record: nothing about this patient, their pathways or their appointments can be changed until an admin lifts the restriction, except that a pathway can be put on hold or cancelled, with a reason, and an appointment cancelled."
+          message="Restricted record: nothing about this patient can be changed until an admin lifts the restriction. You can still put a pathway on hold or cancel it, and cancel appointments."
           details={[patient.restrictionReason ? `Reason: ${patient.restrictionReason}` : null, since(patient.restrictedAtUtc)].filter(
             (d): d is string => d !== null,
           )}

@@ -237,14 +237,14 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     await screen.findByRole('group', {name: /^My calendar,/});
     select('Tuesday 24 November, 10:00, free');
-    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     expect(await dialog().findByText('Tuesday 24 November, 10:00 to 10:15 with test-user')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     select('Tuesday 24 November, 11:00, free');
-    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.click(await screen.findByRole('button', {name: 'Block Time'}));
     expect(await screen.findByRole('heading', {name: 'Block Time'})).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:00');
   });
@@ -259,12 +259,12 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
     await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
     expect(selection).toHaveAttribute('tabindex', '-1');
-    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.click(await screen.findByRole('button', {name: 'Block Time'}));
     await user.keyboard('{Escape}');
     await waitFor(() => expect(openDialog()).toBeNull());
 
     select('Tuesday 24 November, 11:00, free');
-    expect(await screen.findByRole('button', {name: 'Book appointment'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Book Appointment'})).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole('button', {name: 'Tuesday 24 November, 11:00, free'})).toHaveFocus());
@@ -289,7 +289,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     await screen.findByRole('button', {name: /^Test Patient/});
     await user.click(await screen.findByRole('button', {name: 'New'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Block time'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Block Time'}));
     expect(await screen.findByRole('heading', {name: 'Block Time'})).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Monday 23 November');
     // It starts in the first free time, and ends where the appointment starts.
@@ -298,7 +298,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
 
     await user.click(screen.getByRole('button', {name: 'New'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Book appointment'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Book Appointment'}));
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
   });
 
@@ -306,7 +306,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     const {user} = renderPage({search: {staff: STAFF_OTHER.userId}});
 
     await user.click(await screen.findByRole('button', {name: 'New'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Record past appointment'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Record Past Appointment'}));
 
     expect(await screen.findByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /With/})).toHaveTextContent('b.staff'));
@@ -774,9 +774,9 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   it("offers in New only what the roles allow: a manager arranges meetings and sees the team, but books nothing", async () => {
     const {user} = renderPage({user: managerUser});
     await user.click(await screen.findByRole('button', {name: 'New'}));
-    expect(await screen.findByRole('menuitem', {name: 'New meeting'})).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', {name: 'Book appointment'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', {name: 'Record past appointment'})).not.toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', {name: 'New Meeting'})).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: 'Record Past Appointment'})).not.toBeInTheDocument();
     expect(screen.getByRole('radio', {name: 'Team'})).toBeInTheDocument();
   });
 
@@ -803,22 +803,22 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   it('offers admins a new meeting, with the person whose calendar it is', async () => {
     const own = renderPage({user: adminUser});
     await own.user.click(await screen.findByRole('button', {name: 'New'}));
-    await own.user.click(await screen.findByRole('menuitem', {name: 'New meeting'}));
+    await own.user.click(await screen.findByRole('menuitem', {name: 'New Meeting'}));
     expect(await meetingDialog()).toHaveAttribute('data-initial', 'null');
     own.unmount();
 
     const theirs = renderPage({user: adminUser, search: {staff: STAFF_OTHER.userId}});
     await screen.findByRole('group', {name: /^b.staff's calendar,/});
     await theirs.user.click(screen.getByRole('button', {name: 'New'}));
-    await theirs.user.click(await screen.findByRole('menuitem', {name: 'New meeting'}));
+    await theirs.user.click(await screen.findByRole('menuitem', {name: 'New Meeting'}));
     expect(JSON.parse((await meetingDialog()).getAttribute('data-initial')!)).toEqual({attendeeUserIds: [STAFF_OTHER.userId]});
     theirs.unmount();
 
     // Staff who aren't admins can't arrange one.
     const staff = renderPage();
     await staff.user.click(await screen.findByRole('button', {name: 'New'}));
-    expect(await screen.findByRole('menuitem', {name: 'Book appointment'})).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', {name: 'New meeting'})).not.toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', {name: 'Book Appointment'})).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: 'New Meeting'})).not.toBeInTheDocument();
   });
 
   it('shows admins the team view: when everyone is free, then each member of staff by name', async () => {
@@ -867,7 +867,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await screen.findByRole('group', {name: /^Team,/});
 
     select('Everyone free, Monday 23 November, 10:00, free');
-    await user.click(await screen.findByRole('button', {name: 'New meeting'}));
+    await user.click(await screen.findByRole('button', {name: 'New Meeting'}));
     expect(JSON.parse((await meetingDialog()).getAttribute('data-initial')!)).toEqual({
       attendeeUserIds: [STAFF_OTHER.userId, STAFF_ME.userId],
       startUtc: '2026-11-23T10:00:00.000Z',
@@ -876,13 +876,13 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('button', {name: 'Close meeting'}));
 
     select('b.staff, Monday 23 November, 10:00, free');
-    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
     expect(await dialog().findByText('Monday 23 November, 10:00 to 10:15 with b.staff')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     select('b.staff, Monday 23 November, 11:00, free');
-    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.click(await screen.findByRole('button', {name: 'Block Time'}));
     expect(await screen.findByRole('heading', {name: 'Block Time'})).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:00');
   });
@@ -897,8 +897,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
     await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
     expect(selection).toHaveAttribute('tabindex', '-1');
-    expect(await screen.findByRole('button', {name: 'New meeting'})).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Book appointment'})).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'New Meeting'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
@@ -953,13 +953,13 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     // A new meeting from New is with the people shown.
     await user.click(screen.getByRole('button', {name: 'New'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'New meeting'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'New Meeting'}));
     expect(JSON.parse((await meetingDialog()).getAttribute('data-initial')!)).toEqual({attendeeUserIds: [STAFF_THIRD.userId]});
     await user.click(screen.getByRole('button', {name: 'Close meeting'}));
     // Booking from New asks with whom: no one person's calendar is shown.
     await user.click(screen.getByRole('button', {name: 'New'}));
-    expect(screen.queryByRole('menuitem', {name: 'Block time'})).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('menuitem', {name: 'Book appointment'}));
+    expect(screen.queryByRole('menuitem', {name: 'Block Time'})).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('menuitem', {name: 'Book Appointment'}));
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
 
     // Everyone again.
@@ -1036,7 +1036,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(lab.onSearchChange).toHaveBeenLastCalledWith({view: 'team', team: TEAMS[1].id, who: undefined});
     // Someone who can't arrange meetings can't start one from when everyone's free.
     select('Everyone free, Monday 23 November, 10:00, free');
-    expect(screen.queryByRole('button', {name: 'New meeting'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'New Meeting'})).not.toBeInTheDocument();
     lab.unmount();
 
     // A team picked asks for that team.
@@ -1088,13 +1088,13 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
     select('Tuesday 24 November, 10:00, free');
-    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
     expect(await dialog().findByText('Tuesday 24 November, 10:00 to 10:15 with test-user')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     select('Thursday 26 November, 11:00, free');
-    expect(await screen.findByRole('button', {name: 'Block time'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Block Time'})).toBeInTheDocument();
   });
 
   it('switches between 15 and 5 minute rows, kept in the address, and books or blocks on 5-minute steps', async () => {
@@ -1110,14 +1110,14 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
 
     select('Tuesday 24 November, 10:05, free');
-    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
     // A click selects 15 minutes, from the 5-minute row clicked.
     expect(await dialog().findByText('Tuesday 24 November, 10:05 to 10:20 with test-user')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     select('Tuesday 24 November, 11:10, free');
-    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.click(await screen.findByRole('button', {name: 'Block Time'}));
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:10');
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -1197,7 +1197,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await screen.findByRole('group', {name: /^My calendar,/});
 
     select('Monday 23 November, 10:00, free');
-    const menu = (await screen.findByRole('button', {name: 'Book appointment'})).closest('[data-layer-root], [data-astryx-layer-root]') as HTMLElement;
+    const menu = (await screen.findByRole('button', {name: 'Book Appointment'})).closest('[data-layer-root], [data-astryx-layer-root]') as HTMLElement;
     // Astryx sets the surface's width from the prop (`width: var(--x-width)`): left to its default, the surface would
     // stretch to the selection, a whole column wide.
     expect(menu.style.getPropertyValue('--x-width')).toBe('max-content');

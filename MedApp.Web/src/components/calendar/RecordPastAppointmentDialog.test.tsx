@@ -78,7 +78,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
     withAnnouncements();
     const {user, fetch, onSaved, onClose} = renderDialog(FOR_STAGE);
 
-    expect(await screen.findByRole('heading', {name: 'Record Past Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
     // Who it's for, as the patient banner shows them, so staff can check they have the right patient.
     const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('NHS No. 999 000 0018')).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe('RecordPastAppointmentDialog', {timeout: 30_000}, () => {
       '10:00',
       '10:15',
     ]);
-    expect(dialog().getByText(/If one overlaps another of test-user's appointments,\s+you.ll be told when you record it/)).toBeInTheDocument();
+    expect(dialog().getByText(/If one overlaps another of\s+test-user's appointments, you.ll be told when you record it/)).toBeInTheDocument();
     await user.click(screen.getByRole('option', {name: '10:00'}));
 
     // Nothing is chosen as the outcome until someone chooses.

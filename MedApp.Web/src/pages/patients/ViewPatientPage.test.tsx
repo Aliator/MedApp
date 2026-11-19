@@ -200,7 +200,7 @@ describe('ViewPatientPage, privacy', () => {
     await user.click(await privacyItem(user, 'Mark as Disputed'));
     const dialog = await waitFor(() => openDialog()!);
     await user.type(within(dialog).getByRole('textbox', {name: /what's disputed/i}), 'Synthetic date of birth');
-    await user.click(within(dialog).getByRole('button', {name: 'Mark Disputed'}));
+    await user.click(within(dialog).getByRole('button', {name: 'Mark as Disputed'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();

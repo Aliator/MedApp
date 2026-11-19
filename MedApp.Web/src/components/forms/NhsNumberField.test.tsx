@@ -14,7 +14,7 @@ function Field(props: Partial<NhsNumberFieldProps> & {initial?: string}) {
   return <NhsNumberField value={value} onChange={setValue} {...props} />;
 }
 
-const input = () => screen.getByRole('textbox', {name: /NHS Number/});
+const input = () => screen.getByRole('textbox', {name: /NHS number/});
 
 describe('nhsNumberProblem', () => {
   it('accepts a blank number, and a valid one with or without spaces', () => {
@@ -48,7 +48,7 @@ describe('NhsNumberField', () => {
   it('is labelled, says what to type, and takes a number with spaces', async () => {
     const {user} = renderWithApp(<Field />);
 
-    await user.type(await screen.findByRole('textbox', {name: /NHS Number/}), '999 000 0018');
+    await user.type(await screen.findByRole('textbox', {name: /NHS number/}), '999 000 0018');
 
     expect(input()).toHaveValue('999 000 0018');
     expect(input()).toHaveAccessibleDescription(/10 digits, e\.g\. 999 123 4567/);
@@ -58,7 +58,7 @@ describe('NhsNumberField', () => {
   it('shows a wrong check digit as soon as the tenth digit is typed', async () => {
     const {user} = renderWithApp(<Field />);
 
-    await user.type(await screen.findByRole('textbox', {name: /NHS Number/}), WRONG_CHECK_DIGIT);
+    await user.type(await screen.findByRole('textbox', {name: /NHS number/}), WRONG_CHECK_DIGIT);
 
     expect(input()).toHaveAccessibleDescription(new RegExp(NHS_NUMBER_MESSAGES.notValid.replace('.', '\\.')));
   });
@@ -66,7 +66,7 @@ describe('NhsNumberField', () => {
   it('says a placeholder is one, and offers no look-up for it', async () => {
     renderWithApp(<Field initial="000 000 0000" onLookUp={() => {}} />);
 
-    expect(await screen.findByRole('textbox', {name: /NHS Number/})).toHaveAccessibleDescription(
+    expect(await screen.findByRole('textbox', {name: /NHS number/})).toHaveAccessibleDescription(
       expect.stringContaining(NHS_NUMBER_MESSAGES.placeholder),
     );
     expect(isDisabled(screen.getByRole('button', {name: 'Look up'}))).toBe(true);
@@ -75,7 +75,7 @@ describe('NhsNumberField', () => {
   it('says a short number is too short on leaving the field, and not while typing again', async () => {
     const {user} = renderWithApp(<Field />);
 
-    await user.type(await screen.findByRole('textbox', {name: /NHS Number/}), '999');
+    await user.type(await screen.findByRole('textbox', {name: /NHS number/}), '999');
     expect(input()).not.toHaveAccessibleDescription(/10 digits long/);
 
     await user.tab();
@@ -88,14 +88,14 @@ describe('NhsNumberField', () => {
   it("shows the server's error over its own", async () => {
     renderWithApp(<Field initial={WRONG_CHECK_DIGIT} status={{type: 'error', message: 'Another patient already has this NHS number.'}} />);
 
-    expect(await screen.findByRole('textbox', {name: /NHS Number/})).toHaveAccessibleDescription(/Another patient already has this NHS number\./);
+    expect(await screen.findByRole('textbox', {name: /NHS number/})).toHaveAccessibleDescription(/Another patient already has this NHS number\./);
     expect(input()).not.toHaveAccessibleDescription(/valid NHS number/);
   });
 
   it('shows a note while there is no error', async () => {
     const {user} = renderWithApp(<Field initial={VALID} note={{type: 'success', message: 'Details filled in.'}} />);
 
-    expect(await screen.findByRole('textbox', {name: /NHS Number/})).toHaveAccessibleDescription(/Details filled in\./);
+    expect(await screen.findByRole('textbox', {name: /NHS number/})).toHaveAccessibleDescription(/Details filled in\./);
     await user.type(input(), '9');
     expect(input()).not.toHaveAccessibleDescription(/Details filled in\./);
   });
@@ -103,7 +103,7 @@ describe('NhsNumberField', () => {
   it('has no Look up button without onLookUp', async () => {
     renderWithApp(<Field initial={VALID} />);
 
-    await screen.findByRole('textbox', {name: /NHS Number/});
+    await screen.findByRole('textbox', {name: /NHS number/});
     expect(screen.queryByRole('button', {name: 'Look up'})).not.toBeInTheDocument();
   });
 

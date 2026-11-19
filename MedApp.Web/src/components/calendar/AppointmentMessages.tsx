@@ -32,7 +32,7 @@ const lastMoment = (message: PatientMessage) => message.statusAtUtc ?? message.s
  * The texts and emails to the patient about an appointment (centre plan decisions 129 to 133), newest first: what
  * each was (a reminder, a move, a cancellation, a missed appointment), how it went and where, where it stands
  * ("Waiting to send", "Delivered", "Failed"), when, and its text. One that couldn't go says why: "No reminder: no
- * consent or contact (no mobile number)". With nothing to show it says "No messages."; while messages are off and
+ * mobile number". With nothing to show it says "No messages."; while messages are off and
  * there are none, it shows nothing at all.
  */
 export function AppointmentMessages({appointmentId, isEnabled}: AppointmentMessagesProps) {

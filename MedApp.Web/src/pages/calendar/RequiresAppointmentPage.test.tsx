@@ -47,7 +47,7 @@ describe('RequiresAppointmentPage', () => {
     expect(screen.getByText('Visit required')).toBeInTheDocument();
     expect(screen.getByText('Overdue')).toBeInTheDocument();
     expect(screen.getByText('Automatic')).toBeInTheDocument();
-    expect(screen.getByText('Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Not for a pathway')).toBeInTheDocument();
     // No pathway, so no target date: a dash, as other lists show a missing value.
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(screen.queryByText('None')).not.toBeInTheDocument();
@@ -68,7 +68,7 @@ describe('RequiresAppointmentPage', () => {
     const rows = await screen.findAllByRole('button', {name: 'Book'});
     await user.click(rows[0]);
 
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     const dialog = within(openDialog()!);
     await waitFor(() => expect(dialog.getByRole('combobox', {name: /With/})).toHaveTextContent('b.staff'));
     expect(await dialog.findByRole('region', {name: 'Patient: Patient, Test'})).toHaveTextContent('NHS No. 999 000 0018');
@@ -159,8 +159,8 @@ describe('RequiresAppointmentPage', () => {
         Search: 'Sam',
       });
       expect(requiresAppointmentPageQuery({}, 20)).toEqual(requiresAppointmentQuery({}, 20));
-      expect(missedWords({pathwayId: 'p', missedOnPathwayCount: 3})).toBe('Missed on this pathway: 3');
-      expect(missedWords({pathwayId: null, missedOnPathwayCount: null})).toBe('Missed, not for a pathway: 1');
+      expect(missedWords({pathwayId: 'p', missedOnPathwayCount: 3})).toBe('3 missed on this pathway');
+      expect(missedWords({pathwayId: null, missedOnPathwayCount: null})).toBe('1 missed (not on a pathway)');
     });
 
     it('lists missed appointments: who, when, what for, how many were missed there, and the follow-up so far', async () => {
@@ -170,8 +170,8 @@ describe('RequiresAppointmentPage', () => {
       expect(screen.getByText(DID_NOT_ATTEND_INTRO)).toBeInTheDocument();
       expect(screen.getByText('Mon 16 Nov 2026, 09:00 to 09:30')).toBeInTheDocument();
       expect(screen.getByRole('link', {name: 'Knee review: Assessment'})).toHaveAttribute('href', '/pathways/pathway-1');
-      expect(screen.getByText('Missed on this pathway: 2')).toBeInTheDocument();
-      expect(screen.getByText('Missed, not for a pathway: 1')).toBeInTheDocument();
+      expect(screen.getByText('2 missed on this pathway')).toBeInTheDocument();
+      expect(screen.getByText('1 missed (not on a pathway)')).toBeInTheDocument();
       expect(screen.getByText('None yet')).toBeInTheDocument();
       expect(screen.getByText('Clinician to review, by b.staff, 19 Nov 2026, 10:00')).toBeInTheDocument();
       expect(calls(fetch)).toContain('GET /api/appointments/search?View=didNotAttend&Sort=start&Ascending=true&Page=1&PageSize=10');
@@ -186,7 +186,7 @@ describe('RequiresAppointmentPage', () => {
       await user.click(await screen.findByRole('button', {name: 'Record Follow-up for Test Patient'}));
       const dialog = within(openDialog()!);
       expect(await dialog.findByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
-      await user.click(dialog.getByRole('radio', {name: 'Rebook'}));
+      await user.click(dialog.getByRole('radio', {name: 'To be rebooked'}));
       await user.click(dialog.getByRole('button', {name: 'Record Follow-up'}));
 
       await waitFor(() => expect(openDialog()).toBeNull());

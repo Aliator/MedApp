@@ -45,7 +45,7 @@ describe('ClinicSessionDialog', () => {
     const {user, fetch} = renderDialog({}, {'POST /api/clinics/sessions/session-1/cancel': () => json(cancelled)});
 
     await user.click(await dialog().findByRole('button', {name: 'Cancel Session'}));
-    expect(dialog().getByText(/Cancelling it cancels the appointment booked into it that haven’t started.*Any that have started stay/)).toBeInTheDocument();
+    expect(dialog().getByText(/This also cancels the appointment booked into it, except any that have started, and lists the patients to tell/)).toBeInTheDocument();
     const confirm = dialog().getAllByRole('button', {name: 'Cancel Session'}).at(-1)!;
     expect(isDisabled(confirm)).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Clinician away');

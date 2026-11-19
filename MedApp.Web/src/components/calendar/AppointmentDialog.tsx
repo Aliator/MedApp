@@ -132,7 +132,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
     setProblem(null);
     actions.recordOutcome.mutate(
       {id, outcome},
-      {onSuccess: () => announce(outcome === 'Attended' ? 'Marked Attended' : 'Marked Did not attend'), onError: fail},
+      {onSuccess: () => announce(outcome === 'Attended' ? 'Marked as attended' : 'Marked as did not attend'), onError: fail},
     );
   };
 
@@ -230,7 +230,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
             )}
             {canWithdraw && (
               <Button
-                label="Entered in Error"
+                label="Mark Entered in Error"
                 variant="destructive"
                 icon={<Icon icon={AppIcon.EnteredInError} />}
                 isDisabled={isBusy}
@@ -243,7 +243,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
             {canBook && appointment.canRecordOutcome && (
               <>
                 <Button
-                  label="Did not attend"
+                  label="Mark Did Not Attend"
                   variant={status === 'DidNotAttend' ? 'primary' : 'secondary'}
                   icon={<Icon icon={AppIcon.AppointmentDidNotAttend} />}
                   isDisabled={isBusy || status === 'DidNotAttend'}
@@ -251,7 +251,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
                   onClick={() => record('DidNotAttend')}
                 />
                 <Button
-                  label="Attended"
+                  label="Mark Attended"
                   variant={status === 'Attended' ? 'primary' : 'secondary'}
                   icon={<Icon icon={AppIcon.Success} />}
                   isDisabled={isBusy || status === 'Attended'}
@@ -317,7 +317,7 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
               <TextArea
                 label="Notes"
                 isOptional
-                description="About the visit, as pathway notes are."
+                description="Notes about the visit. Staff see them on the appointment."
                 value={shownNotes}
                 onChange={setNotes}
                 rows={3}

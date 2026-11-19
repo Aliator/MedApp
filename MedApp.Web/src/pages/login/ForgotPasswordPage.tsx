@@ -15,7 +15,7 @@ import {StandalonePage} from '../../components/pages/StandalonePage';
 
 /** What's said once a link is asked for, whatever matched: it never tells whether an account exists. */
 export const LINK_REQUESTED =
-  "If the account exists and has a confirmed email address, we've sent it a link to reset the password. The link works once, for 30 minutes.";
+  "If the account exists and has a confirmed email address, we've sent a link to that address to reset the password. The link works once, for 30 minutes.";
 
 /** Said when the server can't send email, so has no link to offer. */
 export const NO_EMAIL = "Password reset by email isn't available here. Ask an admin to reset your password.";
@@ -120,7 +120,7 @@ export function ForgotPasswordPage() {
             status={fieldError}
             size="lg"
           />
-          <Button type="submit" label="Send reset link" variant="primary" size="lg" isLoading={forgot.isPending} />
+          <Button type="submit" label="Send Reset Link" variant="primary" size="lg" isLoading={forgot.isPending} />
           <BackToSignIn />
         </VStack>
       </form>

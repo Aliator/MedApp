@@ -162,7 +162,7 @@ describe('server rendering', () => {
 
   it('renders the forgot-password page with whether email can be sent', async () => {
     api({'/api/auth/features': {canSendEmail: true}});
-    expect(await (await page('/forgot-password')).text()).toContain('Send reset link');
+    expect(await (await page('/forgot-password')).text()).toContain('Send Reset Link');
 
     api({'/api/auth/features': {canSendEmail: false}});
     expect(await (await page('/forgot-password')).text()).toContain('Password reset by email isn&#x27;t available here.');
@@ -656,9 +656,9 @@ describe('server rendering', () => {
     expect(html).toContain('aria-label="Restricted record: changes paused, show details"');
     expect(html).toContain('aria-expanded="false"');
     // The whole message is in the page (visually hidden), but its overlay isn't open.
-    expect(html).toMatch(/Restricted record: nothing about this patient[^<]*Reason: Synthetic accuracy check/);
+    expect(html).toMatch(/Restricted record: nothing about this patient[^<]*<\/span> <span[^>]*>Reason: Synthetic accuracy check/);
     // Only that message is the alert, not the label or the overlay.
-    expect(html).toMatch(/role="alert"[^>]*>Restricted record: nothing about this patient/);
+    expect(html).toMatch(/role="alert"[^>]*><span[^>]*>Restricted record: nothing about this patient/);
     expect(html).not.toContain('Restricted record: details');
   });
 

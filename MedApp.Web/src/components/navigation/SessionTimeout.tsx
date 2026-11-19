@@ -114,14 +114,14 @@ export function SessionTimeout() {
   return (
     <DialogFrame
       isOpen={isOpen}
-      title="Your session is ending"
+      title="Your Session Is Ending"
       purpose={extend.isPending ? 'required' : 'form'}
       onClose={() => setDismissedFor(endsAt)}
       footer={
         <>
-          <Button label="Sign out" variant="secondary" isDisabled={extend.isPending} onClick={() => logout.mutate()} />
+          <Button label="Sign Out" variant="secondary" isDisabled={extend.isPending} onClick={() => logout.mutate()} />
           {canExtend ? (
-            <Button label="Stay signed in" variant="primary" isLoading={extend.isPending} onClick={() => extend.mutate()} />
+            <Button label="Stay Signed In" variant="primary" isLoading={extend.isPending} onClick={() => extend.mutate()} />
           ) : (
             <Button label="OK" variant="primary" onClick={() => setDismissedFor(endsAt)} />
           )}

@@ -38,7 +38,7 @@ describe('AppointmentMessages', () => {
     renderWithApp(<AppointmentMessages appointmentId="appt-1" isEnabled />, {user: staffUser});
 
     const item = await screen.findByRole('listitem');
-    expect(item).toHaveTextContent(/^Moved: EmailNo message: no consent or contact \(no email address\)/);
+    expect(item).toHaveTextContent(/^Moved: EmailNo message: no email address/);
   });
 
   it('says when the list could not be loaded while messages are on', async () => {

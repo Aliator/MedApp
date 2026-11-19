@@ -43,6 +43,6 @@ describe('PatientSummary', () => {
     renderWithApp(<PatientSummary {...patient} />);
 
     expect(await screen.findByText('Freya Ahmed')).toBeInTheDocument();
-    expect(screen.queryByText('NHS Number')).not.toBeInTheDocument();
+    expect(screen.queryByText('NHS number')).not.toBeInTheDocument();
   });
 });

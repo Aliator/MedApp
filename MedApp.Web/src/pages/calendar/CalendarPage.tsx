@@ -512,15 +512,15 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const newItems = [
     ...(canBook
       ? [
-          {label: 'Book appointment', icon: <Icon icon={AppIcon.Book} />, onClick: () => setBooking({})},
-          {label: 'Record past appointment', icon: <Icon icon={AppIcon.RecordPast} />, onClick: () => setIsRecordingPast(true)},
+          {label: 'Book Appointment', icon: <Icon icon={AppIcon.Book} />, onClick: () => setBooking({})},
+          {label: 'Record Past Appointment', icon: <Icon icon={AppIcon.RecordPast} />, onClick: () => setIsRecordingPast(true)},
         ]
       : []),
-    ...(canEdit ? [{label: 'Block time', icon: <Icon icon={AppIcon.BlockTime} />, onClick: () => setBlocking({calendar: person})}] : []),
+    ...(canEdit ? [{label: 'Block Time', icon: <Icon icon={AppIcon.BlockTime} />, onClick: () => setBlocking({calendar: person})}] : []),
     ...(canArrangeMeetings
       ? [
           {
-            label: 'New meeting',
+            label: 'New Meeting',
             icon: <Icon icon={AppIcon.Meeting} />,
             onClick: () => setMeeting({initial: newMeetingWith ? {attendeeUserIds: newMeetingWith} : undefined}),
           },
@@ -821,7 +821,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 {held?.column === EVERYONE_FREE ? (
                   // When everyone shown is free: a meeting with them all, then.
                   <Button
-                    label="New meeting"
+                    label="New Meeting"
                     variant="ghost"
                     icon={<Icon icon={AppIcon.Meeting} />}
                     onClick={() => {
@@ -833,7 +833,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                   <>
                     {canBook && (
                       <Button
-                        label="Book appointment"
+                        label="Book Appointment"
                         variant="ghost"
                         icon={<Icon icon={AppIcon.Book} />}
                         onClick={() => {
@@ -843,7 +843,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                       />
                     )}
                     <Button
-                      label="Block time"
+                      label="Block Time"
                       variant="ghost"
                       icon={<Icon icon={AppIcon.BlockTime} />}
                       onClick={() => {

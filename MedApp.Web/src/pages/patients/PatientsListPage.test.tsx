@@ -53,7 +53,7 @@ describe('PatientsListPage', () => {
     const {fetch} = renderList({nhs: '999 000'}, pageOf([{...freya, nhsNumber: '9990000018'}, priya], 1));
 
     expect(await screen.findByText('999 000 0018')).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', {name: 'NHS Number'})).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name: 'NHS number'})).toBeInTheDocument();
     expect(screen.getAllByRole('row')[2]).toHaveTextContent('—');
     expect(calls(fetch).filter((c) => c.startsWith('GET /api/patients'))).toEqual(['GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&NhsNumber=999000']);
     expect(searchBar()).toHaveTextContent(/NHS number: contains\s*999 000/);
@@ -97,7 +97,8 @@ describe('PatientsListPage', () => {
     renderList({}, pageOf([], 0));
 
     expect(await screen.findByText('No patients yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Add Your First Patient'})).toHaveAttribute('href', '/patients/add');
+    expect(screen.getByText('No patients have been added yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Add First Patient'})).toHaveAttribute('href', '/patients/add');
   });
 
   it('says when a search matches nothing, and clears it keeping the sort', async () => {

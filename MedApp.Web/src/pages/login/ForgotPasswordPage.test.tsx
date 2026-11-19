@@ -14,7 +14,7 @@ type User = ReturnType<typeof renderPage>['user'];
 
 async function ask(user: User, value = 'test-user') {
   await user.type(await screen.findByLabelText(/username or email address/i), value);
-  await user.click(screen.getByRole('button', {name: 'Send reset link'}));
+  await user.click(screen.getByRole('button', {name: 'Send Reset Link'}));
 }
 
 describe('ForgotPasswordPage', () => {
@@ -38,7 +38,7 @@ describe('ForgotPasswordPage', () => {
     expect(await screen.findByText(LINK_REQUESTED)).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Check your email'})).toBeInTheDocument();
     expect(LINK_REQUESTED).toBe(
-      "If the account exists and has a confirmed email address, we've sent it a link to reset the password. The link works once, for 30 minutes.",
+      "If the account exists and has a confirmed email address, we've sent a link to that address to reset the password. The link works once, for 30 minutes.",
     );
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
     expect(await request.json()).toEqual({usernameOrEmail: 'test.user@example.org'});
@@ -75,7 +75,7 @@ describe('ForgotPasswordPage', () => {
       json({title: 'One or more validation errors occurred.', errors: {UsernameOrEmail: ['Enter your username or email address.']}}, 400),
     );
 
-    await user.click(await screen.findByRole('button', {name: 'Send reset link'}));
+    await user.click(await screen.findByRole('button', {name: 'Send Reset Link'}));
 
     expect(await screen.findByText('Enter your username or email address.')).toBeInTheDocument();
     expect(screen.getByLabelText(/username or email address/i)).toHaveAttribute('aria-invalid', 'true');
@@ -96,7 +96,7 @@ describe('ForgotPasswordPage', () => {
     const {fetch} = renderPage(undefined, false);
 
     expect(await screen.findByText(NO_EMAIL)).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Send reset link'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Send Reset Link'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Back to sign in'})).toBeInTheDocument();
     expect(calls(fetch)).toEqual(['GET /api/auth/features']);
   });

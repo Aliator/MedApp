@@ -59,10 +59,10 @@ export function AddPatientPage({then}: {then?: 'referral'} = {}) {
       dialogs={
         <ConfirmDialog
           isOpen={isConfirming}
-          title="Confirm Add Patient"
-          message="Are you sure you want to add this patient to the system?"
+          title="Add Patient?"
+          message="Check the name, date of birth and NHS number first."
           icon={AppIcon.UserPlus}
-          confirmText="Confirm Add"
+          confirmText="Add Patient"
           isProcessing={create.isPending}
           onConfirm={add}
           onCancel={() => setIsConfirming(false)}>

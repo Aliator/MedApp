@@ -226,7 +226,7 @@ export function NotificationBell() {
       {items.length === 0 ? (
         <VStack padding={3} paddingBlockStart={0}>
           <Text type="body" color="secondary">
-            Nothing yet. You’ll see it here when someone assigns you to a pathway, books, moves or cancels an appointment with you, or invites you to a meeting.
+            Nothing yet. Notifications about your pathways, appointments, meetings, results and letters appear here.
           </Text>
         </VStack>
       ) : (
