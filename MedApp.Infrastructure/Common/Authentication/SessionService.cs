@@ -49,6 +49,13 @@ public sealed class SessionService(
         // The roles and what they allow, in one query, on every request: a change to a role, or to who holds it, applies
         // on each person's next request. No cache, so removing access is never delayed.
         var access = await RolePermissionQueries.ForUserAsync(context, user.Id, ct);
+        // Their teams too, for their team walls: a change to someone's teams applies on their next request.
+        var teamIds = await context.TeamMemberships
+            .AsNoTracking()
+            .Where(m => m.UserId == user.Id)
+            .Select(m => m.TeamId)
+            .OrderBy(id => id)
+            .ToListAsync(ct);
 
         return new SessionValidationResult(
             user.Id,
@@ -56,7 +63,8 @@ public sealed class SessionService(
             access.Roles.ToArray(),
             user.MustChangePassword,
             await MustSetUpTwoFactorAsync(user, access.IsAdmin, ct),
-            access.Permissions);
+            access.Permissions,
+            teamIds);
     }
 
     /// <summary>

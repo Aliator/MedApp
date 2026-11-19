@@ -38,6 +38,7 @@ public enum Permission
 
     RecordSpecimens,
     ProcessSpecimens,
+    AuthoriseLabReports,
     SignOffResults,
     WriteLetters,
     ApproveLetters,
@@ -55,6 +56,7 @@ public enum Permission
     ExportPatientRecords,
     ManagePrivacy,
     CorrectRecords,
+    ViewAllTeams,
 }
 
 /// <summary>The groups the roles page shows permissions in.</summary>
@@ -142,6 +144,8 @@ public static class Permissions
             "Record specimens taken, sent and lost, and edit them before they're sent."),
         new(Permission.ProcessSpecimens, PermissionGroup.Lab,
             "Receive and reject specimens in the lab, mark them lost, and attach their reports."),
+        new(Permission.AuthoriseLabReports, PermissionGroup.Lab,
+            "Enter a lab case's results and authorise its report, which goes back to the clinic or the hospital."),
         new(Permission.SignOffResults, PermissionGroup.Results,
             "Mark results seen, sign them off, and take them over or reassign them; be a responsible clinician."),
         new(Permission.WriteLetters, PermissionGroup.Letters,
@@ -173,6 +177,8 @@ public static class Permissions
             "Restrict, dispute and anonymise records, and review and keep them past retention."),
         new(Permission.CorrectRecords, PermissionGroup.AdministratorOnly,
             "Delete notes and decide deletion requests, delete anyone's file, and withdraw anyone's visit recorded after the event."),
+        new(Permission.ViewAllTeams, PermissionGroup.AdministratorOnly,
+            "See every team's records, read only, and choose a team to look at."),
     ];
 
     private static readonly Dictionary<Permission, PermissionDescription> ByPermission =
@@ -182,24 +188,36 @@ public static class Permissions
         Catalogue.ToDictionary(p => p.Name, p => p.Permission, StringComparer.Ordinal);
 
     /// <summary>
-    /// The clinical permissions the built-in Admin role doesn't get (<c>docs/centre-phases-3-5-plan.md</c>, decisions 74
-    /// and 138): triage, finishing a stage without its visit, recording consent, recording and processing specimens, and
-    /// writing, approving and sending letters, signing off results, and recording an MDT's outcome. An admin who does
-    /// that work holds a role that grants it too. Admin keeps
-    /// <see cref="Permission.UnlockStages"/>, a correction.
+    /// The clinical permissions the built-in Admin role doesn't get: admins are read only (decisions 182 and 208 of
+    /// <c>docs/multi-clinic-plan.md</c>), so only staff do clinical work. Admin keeps setup, accounts, oversight,
+    /// <see cref="Permission.ArrangeMeetings"/>, <see cref="Permission.ManageAnyCalendar"/>,
+    /// <see cref="Permission.ManageClinics"/>, and the governance actions (<see cref="Permission.ManagePrivacy"/>,
+    /// <see cref="Permission.CorrectRecords"/>, <see cref="Permission.ExportPatientRecords"/>). The web app's copy is
+    /// <c>NOT_FOR_ADMIN</c> in <c>MedApp.Web/src/auth/permissions.ts</c>.
     /// </summary>
     public static readonly IReadOnlySet<Permission> NotForAdmin = new HashSet<Permission>
     {
+        Permission.EditPatients,
+        Permission.DeletePatients,
+        Permission.RegisterReferrals,
         Permission.TriageReferrals,
+        Permission.CreatePathways,
+        Permission.WorkPathways,
+        Permission.AssignPathways,
+        Permission.UnlockStages,
         Permission.FinishWithoutVisit,
+        Permission.RecordMdtOutcomes,
         Permission.RecordConsent,
+        Permission.DeletePathways,
+        Permission.BookAppointments,
+        Permission.AttachFiles,
         Permission.RecordSpecimens,
         Permission.ProcessSpecimens,
+        Permission.AuthoriseLabReports,
         Permission.SignOffResults,
         Permission.WriteLetters,
         Permission.ApproveLetters,
         Permission.SendLetters,
-        Permission.RecordMdtOutcomes,
     };
 
     /// <summary>

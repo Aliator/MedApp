@@ -41,4 +41,10 @@ public static class SessionAuthenticationDefaults
     /// Permission policies (<see cref="RequirePermissionAttribute"/>) check these, never role names.
     /// </summary>
     public const string PermissionClaim = "medapp:permission";
+
+    /// <summary>
+    /// One claim per team the session's user belongs to (the team's ID), read with the roles on every request: their
+    /// team walls (<c>TeamScope</c>, <see cref="ClaimsPrincipalExtensions.ToTeamScope"/>).
+    /// </summary>
+    public const string TeamClaim = "medapp:team";
 }
