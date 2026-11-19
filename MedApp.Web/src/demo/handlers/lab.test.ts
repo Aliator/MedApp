@@ -49,7 +49,7 @@ describe('the light demo’s lab, results and referrals', () => {
     startLightDemo(STAFF);
     const pathway = (await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body;
     const stage = current(pathway);
-    expect(stage).toMatchObject({name: 'Histology (lab)', canRecordSpecimen: true});
+    expect(stage).toMatchObject({name: 'Histology', canRecordSpecimen: true});
     const body = {stageId: stage.id, specimenTypeId: SPECIMEN_TYPES.skinBiopsy, requestingUserId: STAFF.id};
     expect((await call('POST', `/api/pathways/${PATHWAYS.histologyToFinish}/specimens`, {...body, specimenTypeId: SPECIMEN_TYPES.skinSwab})).status).toBe(400);
     const taken = await call('POST', `/api/pathways/${PATHWAYS.histologyToFinish}/specimens`, body);
@@ -79,14 +79,14 @@ describe('the light demo’s lab, results and referrals', () => {
   it('holds Priya’s results stage until her result is signed off, but not her Histology stage', async () => {
     startLightDemo(STAFF);
     expect((await call('GET', '/api/results/count')).body).toEqual({awaitingMine: 1});
-    // The lab finishes its Histology stage (the relay); the review is Dermatology's again.
+    // The lab finishes its Histology stage (the relay); the Histology result is Dermatology's again.
     db().user = LAB.username;
     const histology = current((await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body);
     const finished = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${histology.id}/finish`, {result: 'Compound naevus (synthetic).'});
     expect(finished.status).toBe(200);
     db().user = STAFF.username;
     const review = current(finished.body);
-    expect(review.name).toBe('Results and team review');
+    expect(review.name).toBe('Histology result');
     const held = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {
       withoutVisit: true,
       reason: 'Reviewed by the team',
@@ -110,7 +110,7 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(done.status).toBe(200);
   });
 
-  it('holds the last stage while a sample is open or a result awaits, and nothing of the lab’s holds Harriet’s photographs', () => {
+  it('holds the last stage while a sample is open or a result awaits, and nothing of the lab’s holds Harriet’s referral', () => {
     const {state} = startLightDemo(ADMIN);
     const ilona = state.pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
     const last = ilona.stages.at(-1)!;
@@ -118,8 +118,7 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(labGate(ilona, ilona.stages[2], false)).toBeNull();
     const daniyal = state.pathways.find((p) => p.id === PATHWAYS.notStarted)!;
     expect(labGate(daniyal, daniyal.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
-    const harriet = state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)!;
-    expect(labGate(harriet, harriet.stages.find((s) => s.name === 'Clinical photographs')!, false)).toBeNull();
+    const harriet = state.pathways.find((p) => p.id === PATHWAYS.referredToHospital)!;
     expect(labGate(harriet, harriet.stages.at(-1)!, true)).toBeNull();
   });
 
@@ -213,7 +212,7 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(ellis.clock).toMatchObject({state: 'Stopped', stopReason: 'StopStageFinished'});
     expect((await call('POST', `/api/referrals/${REFERRALS.ellisAccepted}/clock/pause`, {reason: 'PatientChoseToWait', reviewOn: daysFrom(14), expectedVersion: ellis.version})).status).toBe(409);
 
-    const pathway = (await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {templateId: TEMPLATES.skinLesion, priority: 'Urgent', expectedVersion: 1})).body;
+    const pathway = (await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {templateId: TEMPLATES.suspectedSkinCancer, priority: 'Urgent', expectedVersion: 1})).body;
     const accepted = (await call('GET', `/api/referrals/${REFERRALS.dermatologyToTriage}`)).body;
     expect(accepted).toMatchObject({clock: {state: 'Running', targetDays: 14}, canPauseClock: true});
     const pause = `/api/referrals/${REFERRALS.dermatologyToTriage}/clock/pause`;

@@ -93,6 +93,27 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **Put the safety gates back:** Testing, "Before first live use, make CI strict again".
   - **Background jobs and file scanning:** Privacy, "Turn the operational purge on", and Attachments, "A real malware scanner".
 
+## Dermatology pathways: gaps
+
+What the reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, in the light demo since `feature/dermatology-templates`) need that the model lacks:
+- **Lesions and photographs:** Lesion register: several lesions per patient, each with a body-map site and its own photos, specimens and results (skin cancer, mole check, surveillance).
+- **Lesions and photographs:** Clinical and dermoscopy photographs stored with consent and compared side by side over time (mole check, hair loss, acne, pigmentation).
+- **Specimens and results:** Several specimens on one pathway, each tracked through the lab on its own (two biopsies, or bloods and a biopsy taken at one visit).
+- **Specimens and results:** Structured histology fields recorded as the pathologist gives them (tumour type, Breslow thickness, margins), never calculated.
+- **Specimens and results:** Microbiology reports in two parts (microscopy now, culture weeks later), with organism and sensitivities as reported.
+- **Cancer pathways:** Urgent suspected cancer clocks (28-day Faster Diagnosis Standard, 62-day treatment target), time-based only.
+- **Cancer pathways:** MDT list: cases queued for the next meeting, with attendees and the decision recorded.
+- **Cancer pathways:** Oncology retention set by diagnosis, so a cancer found on a Standard template (inflammatory, pigmentation) is kept as long as a cancer record.
+- **Cancer pathways:** Start a linked pathway in the same clinic (for example mole check to suspected skin cancer), keeping the history.
+- **Recording without deciding:** Severity measures recorded as given and shown over time (PASI, BSA, DLQI, EASI, POEM, PEST), never calculated or scored by MedApp.
+- **Recording without deciding:** Current medicines and allergies recorded as given by the GP, without prescribing.
+- **Recording without deciding:** A condition code for the template itself (for example 9014002 | Psoriasis, 43116000 | Eczema, 88616000 | Acne vulgaris, 56727007 | Vitiligo), as stage codes describe the activity.
+- **Recall and referrals:** Recall driven by a stage's repeat rule (interval and stop date, often from the hospital's plan), with follow-up when a patient does not attend.
+- **Recall and referrals:** Same-day hospital referral by phone, recorded with its time, before the letter.
+- **Routes back:** the reviewed pathways loop (a repeat biopsy or sample, another review, back to surveillance's skin check), but routes only go forward; the demo turns each into a repeatable addable route, a stage that stays current, or an end (`src/demo/dermatology.ts`).
+- **A template's summary:** each reviewed template's one-line summary has no field yet (it's only in the YAML).
+- **The route editor names one outcome per stage:** a stage several outcomes lead to (Urgent hospital referral) shows one, and saving there would merge them.
+
 ## Accessibility
 
 The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light and a colour theme, WCAG 2.2 A and AA) passes, and the Accessibility card has the text size, the hover delay and the switches in `src/app/accessibility.tsx`. The statement is at `/accessibility`. Still to do:
