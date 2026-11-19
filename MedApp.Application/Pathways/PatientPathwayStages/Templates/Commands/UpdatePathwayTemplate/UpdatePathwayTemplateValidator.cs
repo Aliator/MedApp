@@ -41,14 +41,7 @@ public sealed class UpdatePathwayTemplateValidator : AbstractValidator<UpdatePat
 
         RuleFor(x => x.StageOptions)
             .Must((command, options) => options is null || options.Count == (command.StageDefinitionIdsInOrder?.Count ?? -1))
-            .WithMessage(TemplateBranchRules.CountMismatchMessage)
-            .DependentRules(() =>
-                RuleFor(x => x.StageOptions)
-                    .Custom((options, context) =>
-                    {
-                        if (options is not null && TemplateBranchRules.WhyInvalid(options) is { } problem)
-                            context.AddFailure(problem);
-                    }));
+            .WithMessage(TemplateShape.CountMismatchMessage);
         RuleFor(x => x.ClockStopStageOrder)
             .Must((command, order) => order is null || command.StageDefinitionIdsInOrder is not null)
             .WithMessage("Send the stage list with the stage that stops the waiting-time clock.")

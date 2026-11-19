@@ -78,15 +78,7 @@ public sealed class UpdatePathwayTemplateValidatorTests
     public void Validate_OptionsWithoutAStageList_Fails()
     {
         _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null, null, StageOptions: [TemplateStageOptions.Plain]))
-            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
-    }
-
-    [Test]
-    public void Validate_BranchWithoutABranchPoint_Fails()
-    {
-        _validator.Validate(new UpdatePathwayTemplateCommand(Guid.NewGuid(), null, null,
-                [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [new(Branch: "Benign"), TemplateStageOptions.Plain]))
-            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.BranchWithoutPointMessage);
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateShape.CountMismatchMessage);
     }
 
     [Test]

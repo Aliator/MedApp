@@ -11,25 +11,51 @@ namespace MedApp.Application.Pathways.Common;
 public static class StageVisits
 {
     /// <summary>
-    /// After a change, asks for the current stage's visit if it needs one. <paramref name="appointments"/> are the
-    /// stage's appointments as they stand (the change's new ones are counted too).
+    /// After a change, asks for the visits of the stages it made current (those it reached, MC7, and the first current
+    /// stage, as before routes side by side) that need one. <paramref name="appointments"/> are those stages'
+    /// appointments as they stand (the change's new ones are counted too).
     /// </summary>
-    /// <returns>The Requested appointment made, or null.</returns>
+    /// <returns>The first Requested appointment made, or null.</returns>
     public static Appointment? RequestForCurrentStage(PathwayChange change, IEnumerable<Appointment> appointments)
     {
         var pathway = change.Pathway;
         if (!PathwayWorkflow.IsOpen(pathway.Status))
             return null;
 
-        var current = PathwayWorkflow.CurrentStage(pathway);
-        if (current is null || current.VisitRequirement == VisitRequirement.None)
+        var existing = appointments.ToList();
+        var candidates = change.ReachedStages
+            .Append(PathwayWorkflow.CurrentStage(pathway))
+            .OfType<PatientPathwayStage>()
+            .Distinct()
+            .OrderBy(s => s.StageOrder)
+            .ToList();
+
+        Appointment? first = null;
+        foreach (var stage in candidates)
+        {
+            var made = RequestFor(change, stage, existing);
+            first ??= made;
+        }
+
+        return first;
+    }
+
+    /// <summary>
+    /// Asks for one stage's visit, if it's current, involves one, the pathway is open, and it has none Requested, Booked
+    /// or Attended among <paramref name="appointments"/> and the change's new ones.
+    /// </summary>
+    public static Appointment? RequestFor(PathwayChange change, PatientPathwayStage stage, IEnumerable<Appointment> appointments)
+    {
+        var pathway = change.Pathway;
+        if (!PathwayWorkflow.IsOpen(pathway.Status) || stage.VisitRequirement == VisitRequirement.None
+            || !PathwayWorkflow.IsCurrent(pathway, stage))
             return null;
 
         var hasOne = appointments.Concat(change.NewAppointments).Any(a =>
-            a.StageId == current.Id
+            a.StageId == stage.Id
             && a.Status is AppointmentStatus.Requested or AppointmentStatus.Booked or AppointmentStatus.Attended);
 
-        return hasOne ? null : change.RequestVisit(current);
+        return hasOne ? null : change.RequestVisit(stage);
     }
 
     /// <summary>
@@ -67,7 +93,7 @@ public static class StageVisits
         if (!PathwayWorkflow.IsOpen(pathway.Status))
             return (false, $"No visit is asked for again while the pathway is {PathwayWorkflow.Describe(pathway.Status)}.", false);
 
-        if (PathwayWorkflow.CurrentStage(pathway)?.Id != stage.Id)
+        if (!PathwayWorkflow.IsCurrent(pathway, stage))
             return (false, $"The '{stage.Name}' stage isn't the current stage, so no visit is asked for yet.", false);
 
         var other = visits.FirstOrDefault(a =>

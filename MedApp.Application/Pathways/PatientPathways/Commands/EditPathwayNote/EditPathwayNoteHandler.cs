@@ -19,7 +19,8 @@ public sealed class EditPathwayNoteHandler(
     public async Task<PatientPathwayNoteResponse> Handle(EditPathwayNoteCommand request, CancellationToken cancellationToken)
     {
         // A 409 for a restricted or anonymised record, as for every change to a pathway.
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
+        // Its own team, or the team working its current stage (the relay), adds and edits notes.
+        var pathway = await repository.GetForNotesOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var note = pathway.Notes.FirstOrDefault(n => n.Id == request.NoteId)
                    ?? throw new NotFoundException($"Note '{request.NoteId}' was not found on this pathway.");
 

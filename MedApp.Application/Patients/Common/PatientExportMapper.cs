@@ -110,7 +110,7 @@ public static class PatientExportMapper
                             SkippedBy = s.SkippedByUserId is null ? null : Username(s.SkippedByUserId),
                             SkipReason = s.SkipReason?.ToString(),
                             SkipDetail = s.SkipDetail,
-                            Branch = s.Branch
+                            Branch = s.Outcome
                         })
                         .ToList()
                 })

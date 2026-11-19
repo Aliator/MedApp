@@ -79,7 +79,7 @@ public static class DemoTour
         string? Of(Guid? pathwayId) => pathwayId is { } id && byId.TryGetValue(id, out var p) ? $"{p.Title}, for {names[p.PatientId]}" : null;
         string Specimen(Specimen s) => $"{s.Number} ({types[s.SpecimenTypeId].Name}): {Of(s.PathwayId)}";
         IEnumerable<string> Branch(string branch) => world.Audit
-            .Where(a => a.Action == AuditAction.BranchChosen && a.Details.Contains($"\"branch\":\"{branch}\""))
+            .Where(a => a.Action == AuditAction.BranchChosen && a.Details.Contains($"\"outcome\":\"{branch}\""))
             .OrderByDescending(a => a.AtUtc).Select(a => Of(a.PatientPathwayId)).OfType<string>().Take(2);
         var nextMdt = world.MdtMeetings.FirstOrDefault(m => m.StartUtc > now);
         var lastMdt = world.MdtMeetings.LastOrDefault(m => m.StartUtc <= now);

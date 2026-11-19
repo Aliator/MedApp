@@ -84,9 +84,12 @@ public static class StageGates
         Results.Common.ResultWorkflow.WhyAwaitingResultsBlockFinish(
             awaitingResults, IsLastToFinish(pathway, stage), stage.WaitsForResults);
 
-    /// <summary>Whether finishing this stage would leave none of the pathway's stages unfinished.</summary>
+    /// <summary>
+    /// Whether finishing this stage would leave none of the pathway's stages to do, on any route (MC8). A choice node
+    /// never is: recording its outcome adds that outcome's stages (or ends the route, which leaves the others).
+    /// </summary>
     public static bool IsLastToFinish(PatientPathway pathway, PatientPathwayStage stage) =>
-        pathway.Stages.All(s => s.Id == stage.Id || s.IsCompleted);
+        stage.ChoiceKind is null && pathway.Stages.All(s => s.Id == stage.Id || !PathwayWorkflow.IsToDo(s));
 
     /// <summary>
     /// Why the stage can't be finished for want of its letter, or null if it needs none or has it.

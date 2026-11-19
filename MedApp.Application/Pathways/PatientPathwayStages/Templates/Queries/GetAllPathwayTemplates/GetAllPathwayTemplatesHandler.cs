@@ -13,9 +13,11 @@ public sealed class GetAllPathwayTemplatesHandler(IPatientPathwayStagesRepositor
     {
         var templates = await repository.GetPathwayTemplatesAsync(request.IncludeArchived, cancellationToken);
         var counts = await repository.GetTemplatePathwayCountsAsync(templates.Select(t => t.Id), cancellationToken);
+        // Their addable branches' stages are named from the library (MC10).
+        var definitions = await PathwayTemplateMapper.BranchDefinitionsAsync(repository, templates, cancellationToken);
 
         return templates
-            .Select(t => PathwayTemplateMapper.ToResponse(t, counts.GetValueOrDefault(t.Id)))
+            .Select(t => PathwayTemplateMapper.ToResponse(t, counts.GetValueOrDefault(t.Id), definitions))
             .ToList();
     }
 }

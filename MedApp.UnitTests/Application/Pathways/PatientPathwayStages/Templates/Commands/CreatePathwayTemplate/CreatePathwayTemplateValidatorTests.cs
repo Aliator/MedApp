@@ -75,27 +75,10 @@ public sealed class CreatePathwayTemplateValidatorTests
             .Should().ContainSingle(e => e.ErrorMessage == "Team is required.");
 
     [Test]
-    public void Validate_WellFormedBranches_Passes()
-    {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId,
-                [ConsultationDefinitionId, PathwayDefinitionId, PathwayDefinitionId, ConsultationDefinitionId],
-                StageOptions: [new(ChoosesBranch: true), new(Branch: "Benign"), new(Branch: "Treatment"), TemplateStageOptions.Plain]))
-            .IsValid.Should().BeTrue();
-    }
-
-    [Test]
     public void Validate_OptionsForADifferentNumberOfStages_Fails()
     {
         _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId, [ConsultationDefinitionId], StageOptions: [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
-            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
-    }
-
-    [Test]
-    public void Validate_BranchesBreakingTheRules_FailsWithTheRule()
-    {
-        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, TeamId,
-                [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [TemplateStageOptions.Plain, new(IsOptional: true)]))
-            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.LastStageMessage);
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateShape.CountMismatchMessage);
     }
 
     [TestCase(null, true)]

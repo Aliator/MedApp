@@ -64,11 +64,25 @@ public sealed class PatientPathwayStageConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.IsOptional)
             .HasDefaultValue(false);
 
-        builder.Property(x => x.ChoosesBranch)
-            .HasDefaultValue(false);
-
-        builder.Property(x => x.Branch)
+        // A choice node (MC10b): its kind by number, its recorded outcome (an admin-written name), and the lab's results
+        // entered on its stage (free text).
+        builder.Property(x => x.Outcome)
             .HasMaxLength(PathwayBranchLimits.MaxBranchLength);
+
+        builder.Property(x => x.ResultText)
+            .HasMaxLength(PathwayBranchLimits.MaxResultTextLength);
+
+        // The relay (MC7): the team that works it, and the team that handed it over. Teams in use are archived, never
+        // deleted.
+        builder.HasOne(x => x.OwnerTeam)
+            .WithMany()
+            .HasForeignKey(x => x.OwnerTeamId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne(x => x.HandedOverFromTeam)
+            .WithMany()
+            .HasForeignKey(x => x.HandedOverFromTeamId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         // Skipped: the reason by number (StageSkipReason), and its detail (free text).
         builder.Property(x => x.SkipDetail)
@@ -90,8 +104,8 @@ public sealed class PatientPathwayStageConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(x => x.StageDefinitionId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // Unique by position, not by definition: a pathway can have the same stage more than once.
-        builder.HasIndex(x => new { x.PatientPathwayId, x.StageOrder })
-            .IsUnique();
+        // By position, not by definition: a pathway can have the same stage more than once. Not unique: a pathway that
+        // grows (MC10b) numbers its stages again in the same save.
+        builder.HasIndex(x => new { x.PatientPathwayId, x.StageOrder });
     }
 }

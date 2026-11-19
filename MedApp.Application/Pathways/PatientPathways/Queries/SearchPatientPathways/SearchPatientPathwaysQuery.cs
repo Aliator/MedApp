@@ -14,7 +14,9 @@ namespace MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathw
 /// <paramref name="NobodyAssigned"/> keeps only pathways with no one assigned. <paramref name="TeamIds"/> is any of
 /// the pathways' own teams, and <paramref name="StageDefinitionIds"/> the stage reached: any of the definitions
 /// their current stage comes from. <paramref name="Scope"/> is the viewer's team walls (from the request; null only
-/// outside one, which is unscoped): only pathways they see in full are listed.
+/// outside one, which is unscoped): only pathways they see in full are listed. <paramref name="View"/> is a team
+/// worklist view (MC7, <see cref="PathwaySearch.Views"/>), worked out for the viewer's teams with the lab's ID
+/// (<paramref name="LabTeamId"/>, which the handler finds); <paramref name="TeamId"/> the clinic picker's team (MC6).
 /// </summary>
 public sealed record SearchPatientPathwaysQuery(
     int Page,
@@ -42,7 +44,10 @@ public sealed record SearchPatientPathwaysQuery(
     IReadOnlyList<Guid>? TeamIds = null,
     IReadOnlyList<Guid>? StageDefinitionIds = null,
     bool BreachedOnly = false,
-    TeamScope? Scope = null)
+    TeamScope? Scope = null,
+    string? View = null,
+    Guid? TeamId = null,
+    Guid? LabTeamId = null)
     : IRequest<PagedResponse<PatientPathwaySummaryResponse>>
 {
     /// <summary>The viewer's team walls: the request's, or the system's outside a request.</summary>

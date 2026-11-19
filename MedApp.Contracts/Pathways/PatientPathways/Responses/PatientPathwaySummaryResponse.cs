@@ -21,8 +21,14 @@ public sealed class PatientPathwaySummaryResponse
     public int SkippedStageCount { get; set; }
     public int StageCount { get; set; }
 
-    /// <summary>The name of the stage being worked on, or null when every stage is finished.</summary>
+    /// <summary>The names of the stages being worked on ("A and B" for routes side by side), or null when none is.</summary>
     public string? CurrentStageName { get; set; }
+
+    /// <summary>The teams that have its current stages (MC7), as names ("Dermatology and Lab"), or null with none.</summary>
+    public string? CurrentStageTeamName { get; set; }
+
+    /// <summary>Whether one of its current stages was handed over and not picked up yet.</summary>
+    public bool AwaitingPickUp { get; set; }
 
     public List<string> Assignees { get; set; } = [];
     public DateTime LastUpdated { get; set; }

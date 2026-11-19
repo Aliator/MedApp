@@ -19,8 +19,9 @@ public sealed class UpdatePathwayStageNotesHandler(
 {
     public async Task<PatientPathwayResponse> Handle(UpdatePathwayStageNotesCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
-        var stage = pathway.GetStageOrThrow(request.StageId);
+        // The team that works the stage (the relay: the lab's stages are the lab's) works it.
+        var (pathway, stage) = await repository.GetForStageWorkOrThrowAsync(
+            request.PathwayId, request.StageId, boundary, request.Actor.Teams, cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);
@@ -36,6 +37,6 @@ public sealed class UpdatePathwayStageNotesHandler(
             await pathwayMonitor.NotifyAsync(change, cancellationToken);
         }
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams);
     }
 }

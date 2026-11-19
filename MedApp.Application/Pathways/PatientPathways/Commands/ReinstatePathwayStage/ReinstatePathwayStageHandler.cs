@@ -35,15 +35,15 @@ public sealed class ReinstatePathwayStageHandler(
         change.ReinstateStage(stage, request.Reason.Trim());
 
         // If it's now the current stage and involves a visit, it's asked for, as when any stage becomes current.
-        if (PathwayWorkflow.CurrentStage(pathway)?.Id == stage.Id && stage.VisitRequirement != VisitRequirement.None)
+        if (PathwayWorkflow.IsCurrent(pathway, stage) && stage.VisitRequirement != VisitRequirement.None)
         {
             var appointments = await appointmentRepository.GetForStagesForUpdateAsync([stage.Id], cancellationToken);
-            StageVisits.RequestForCurrentStage(change, appointments);
+            StageVisits.RequestFor(change, stage, appointments);
         }
 
         await repository.SaveAsync(change, cancellationToken);
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams);
     }
 }

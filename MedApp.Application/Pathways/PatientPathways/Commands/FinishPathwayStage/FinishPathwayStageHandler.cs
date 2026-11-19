@@ -25,6 +25,8 @@ public sealed class FinishPathwayStageHandler(
     IConsentRepository consentRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
+    IPathwayHandovers handovers,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<FinishPathwayStageCommand, PatientPathwayResponse>
 {
@@ -32,11 +34,14 @@ public sealed class FinishPathwayStageHandler(
 
     public async Task<PatientPathwayResponse> Handle(FinishPathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
-        var stage = pathway.GetStageOrThrow(request.StageId);
+        // The team that works the stage (the relay: the lab's stages are the lab's) works it.
+        var (pathway, stage) = await repository.GetForStageWorkOrThrowAsync(
+            request.PathwayId, request.StageId, boundary, request.Actor.Teams, cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var change = new PathwayChange(pathway, request.Actor, now);
+        // Teams are named in a handover's entry (MC7).
+        var teamNames = (await teams.GetAllAsync(includeArchived: true, cancellationToken)).ToDictionary(t => t.Id, t => t.Name);
+        var change = new PathwayChange(pathway, request.Actor, now) { TeamNames = teamNames };
 
         if (PathwayWorkflow.WhyStageCantBeEdited(pathway, stage) is { } reason)
             throw new ConflictException(reason);
@@ -53,14 +58,14 @@ public sealed class FinishPathwayStageHandler(
                 pathway, stage, await resultRepository.GetAwaitingForPathwayAsync(pathway.Id, cancellationToken)) is { } awaiting)
             throw new ConflictException(awaiting);
 
-        // A branch point finished for the first time needs one of its branches, chosen by the clinician (never assumed).
-        if (PathwayWorkflow.WhyBranchChoiceInvalid(pathway, stage, request.Branch) is { } branchProblem)
-            throw new ValidationException([new ValidationFailure(nameof(request.Branch), branchProblem)]);
+        // A choice node finished for the first time needs one of its outcomes, recorded by the clinician (never assumed).
+        if (PathwayWorkflow.WhyOutcomeInvalid(pathway, stage, request.Outcome) is { } outcomeProblem)
+            throw new ValidationException([new ValidationFailure(nameof(request.Outcome), outcomeProblem)]);
 
-        // The finished stage's appointments, those of any stage the branch choice skips, and the next stage's (which
-        // becomes current and may need its visit asked for).
+        // The finished stage's appointments, and those of the stages still to do (any may become current, on any route,
+        // and need its visit asked for).
         var appointments = await appointmentRepository.GetForStagesForUpdateAsync(
-            StageFinishing.StagesTouchedByFinish(pathway, stage, request.Branch).ToList(), cancellationToken);
+            StageFinishing.StagesTouchedByFinish(pathway, stage, request.Outcome).ToList(), cancellationToken);
         var stageAppointments = appointments.Where(a => a.StageId == stage.Id).ToList();
 
         // A Required visit: only a holder of FinishWithoutVisit can finish without it, on purpose and with a reason.
@@ -83,14 +88,16 @@ public sealed class FinishPathwayStageHandler(
             && StageGates.WhyConsentMissing(stage, await consentRepository.GetForStageAsync(stage.Id, cancellationToken)) is { } needsConsent)
             throw new ConflictException(needsConsent);
 
-        StageFinishing.Finish(change, stage, appointments, request.Reason, request.Branch);
+        StageFinishing.Finish(change, stage, appointments, request.Reason, request.Outcome);
 
         if (change.HasChanges)
         {
             await repository.SaveAsync(change, cancellationToken);
             await pathwayMonitor.NotifyAsync(change, cancellationToken);
+            await handovers.NotifyAsync(change, cancellationToken);
         }
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams,
+            teamNames: teamNames);
     }
 }

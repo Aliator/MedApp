@@ -170,7 +170,7 @@ public static class DemoLab
             mdtItems = world.MdtItems.Count,
             mdtItemsByStatus = world.MdtItems.GroupBy(i => i.Status).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
             mdtMeetings = world.MdtMeetings.Count,
-            branchesChosen = world.Pathways.SelectMany(p => p.Stages).Count(s => s.ChoosesBranch && s.IsCompleted),
+            branchesChosen = world.Pathways.SelectMany(p => p.Stages).Count(s => s.ChoiceKind is not null && s.Outcome is not null),
             stagesSkippedByBranch = world.Pathways.SelectMany(p => p.Stages).Count(s => s.SkipReason == StageSkipReason.BranchNotChosen),
             stagesSkippedDeclined = world.Pathways.SelectMany(p => p.Stages).Count(s => s.SkipReason == StageSkipReason.PatientDeclined),
             stagesReinstated = world.Audit.Count(a => a.Action == PatientPathwayAuditAction.StageReinstated),

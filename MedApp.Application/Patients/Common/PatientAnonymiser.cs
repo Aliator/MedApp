@@ -122,7 +122,13 @@ public static class PatientAnonymiser
                 stage.Notes = Removed(stage.Notes);
                 if (stage.SkipDetail is not null)
                     stage.SkipDetail = Removed(stage.SkipDetail);
+                // The lab's results entered on its stage (MC10b), free text.
+                if (stage.ResultText is not null)
+                    stage.ResultText = Removed(stage.ResultText);
             }
+            // An added branch's reason (MC10), free text.
+            foreach (var addition in pathway.BranchAdditions)
+                addition.Reason = Removed(addition.Reason);
             titles[pathway.Id] = pathway.Title;
         }
 

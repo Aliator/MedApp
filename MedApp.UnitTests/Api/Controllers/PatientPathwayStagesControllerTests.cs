@@ -1,3 +1,4 @@
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using AutoFixture;
 using FluentAssertions;
@@ -118,6 +119,8 @@ public sealed class PatientPathwayStagesControllerTests
     {
         var request = _fixture.Create<CreatePathwayTemplateRequest>();
         request.StageOptions = null;
+        request.Links = null;
+        request.AddableBranches = null;
         var template = _fixture.Create<PathwayTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
@@ -136,6 +139,8 @@ public sealed class PatientPathwayStagesControllerTests
     {
         var request = _fixture.Create<UpdatePathwayTemplateRequest>();
         request.StageOptions = null;
+        request.Links = null;
+        request.AddableBranches = null;
         await ExpectOk(_fixture.Create<PathwayTemplateResponse>(),
             new UpdatePathwayTemplateCommand(RecordId, request.Name, request.TeamId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
                 RetentionClass: request.RetentionClass),
@@ -143,16 +148,28 @@ public sealed class PatientPathwayStagesControllerTests
     }
 
     [Test]
-    public async Task CreateTemplate_WithStageOptions_SendsEachAsTheCommandsOptions()
+    public async Task CreateTemplate_WithStageOptionsLinksAndBranches_SendsThemAsTheCommands()
     {
         var request = _fixture.Create<CreatePathwayTemplateRequest>();
-        request.StageOptions = [new() { ChoosesBranch = true }, new() { IsOptional = true, Branch = "Benign" }];
+        var lab = Guid.NewGuid();
+        request.StageOptions =
+        [
+            new() { ChoiceKind = "Assessment", Outcomes = [new() { Name = "Benign", NextStageOrders = [2] }] },
+            new() { IsOptional = true, OwnerTeamId = lab }
+        ];
+        request.Links = [new() { FromStageOrder = 1, ToStageOrder = 2 }];
+        var definition = Guid.NewGuid();
+        request.AddableBranches = [new() { Name = "Repeat", StageDefinitionIds = [definition], AttachAfterStageOrders = [1], IsRepeatable = true }];
         var mediator = new RecordingMediator(_ => _fixture.Create<PathwayTemplateResponse>());
 
         await Controller(mediator).CreatePathwayTemplate(request, _cts.Token);
 
-        mediator.Request.Should().BeOfType<CreatePathwayTemplateCommand>().Which.StageOptions.Should().Equal(
-            new TemplateStageOptions(false, true, null), new TemplateStageOptions(true, false, "Benign"));
+        var command = mediator.Request.Should().BeOfType<CreatePathwayTemplateCommand>().Subject;
+        command.StageOptions!.Select(o => (o.IsOptional, o.ChoiceKind, o.OwnerTeamId)).Should().Equal(
+            (false, "Assessment", (Guid?)null), (true, null, lab));
+        command.StageOptions![0].Outcomes!.Single().Should().BeEquivalentTo(new PathwayTemplateOutcome("Benign", [2]));
+        command.Links.Should().Equal(new PathwayTemplateLink(1, 2));
+        command.AddableBranches!.Single().Should().BeEquivalentTo(new TemplateBranchInput(null, "Repeat", [definition], [1], true));
     }
 
     [Test]

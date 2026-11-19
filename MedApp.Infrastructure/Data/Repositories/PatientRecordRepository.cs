@@ -23,6 +23,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .Include(p => p.Assignments)
             .Include(p => p.Stages.OrderBy(s => s.StageOrder))
             .Include(p => p.Notes)
+            // Added branches' reasons (MC10), free text: replaced on anonymisation.
+            .Include(p => p.BranchAdditions)
             .Where(p => p.PatientId == patientId)
             .AsSplitQuery()
             .ToListAsync(ct);

@@ -41,6 +41,9 @@ public interface ITeamRepository
     /// <summary>Which of these people are the clinic admin of any of their teams (for their account type).</summary>
     Task<IReadOnlySet<Guid>> GetClinicAdminsAsync(IEnumerable<Guid> userIds, CancellationToken ct);
 
+    /// <summary>The IDs of a team's members (MC7: who's told of a handover), each once.</summary>
+    Task<IReadOnlyList<Guid>> GetMemberIdsAsync(Guid teamId, CancellationToken ct);
+
     /// <summary>The lab (the team of the lab kind that isn't archived), or null if there's none.</summary>
     Task<Team?> GetLabAsync(CancellationToken ct);
 

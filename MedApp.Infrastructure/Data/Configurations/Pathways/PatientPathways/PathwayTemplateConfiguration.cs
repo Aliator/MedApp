@@ -1,5 +1,6 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Teams;
+using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -21,6 +22,15 @@ public sealed class PathwayTemplateConfiguration : IEntityTypeConfiguration<Path
             .WithOne(x => x.Template)
             .HasForeignKey(x => x.TemplateId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Its routes (MC8) and addable branches (MC10), as JSON.
+        builder.Property(x => x.Links)
+            .HasJsonConversion()
+            .HasDefaultValueSql("N'[]'");
+
+        builder.Property(x => x.AddableBranches)
+            .HasJsonConversion()
+            .HasDefaultValueSql("N'[]'");
 
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);

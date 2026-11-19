@@ -127,9 +127,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
 
     public async Task UpdatePathwayTemplateAsync(
         PathwayTemplate template,
-        IReadOnlyList<Guid>? stageDefinitionIdsInOrder,
-        int? clockStopStageOrder,
-        IReadOnlyList<TemplateStageOptions>? stageOptions,
+        IReadOnlyList<PathwayTemplateMap>? newMaps,
         CancellationToken ct)
     {
         var existing = await Templates.Include(x => x.Maps).FirstOrDefaultAsync(x => x.Id == template.Id, ct);
@@ -143,19 +141,23 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         // Only the template's own: its existing pathways are raised, never lowered, by RaisePathwayRetentionClassesAsync.
         existing.RetentionClass = template.RetentionClass;
 
-        if (stageDefinitionIdsInOrder is not null)
+        // Its routes and addable branches (MC8, MC10), replaced whole.
+        existing.Links = template.Links.ToList();
+        existing.AddableBranches = template.AddableBranches.ToList();
+
+        if (newMaps is not null)
         {
             // Rows are keyed by position: reuse the positions that stay, add new ones, remove the rest.
             var byOrder = existing.Maps.ToDictionary(m => m.StageOrder);
-            var newMaps = PathwayTemplateMapper.ToMaps(existing.Id, stageDefinitionIdsInOrder, clockStopStageOrder, stageOptions);
             foreach (var newMap in newMaps)
             {
                 if (byOrder.TryGetValue(newMap.StageOrder, out var map))
                 {
                     map.StageDefinitionId = newMap.StageDefinitionId;
                     map.IsOptional = newMap.IsOptional;
-                    map.ChoosesBranch = newMap.ChoosesBranch;
-                    map.Branch = newMap.Branch;
+                    map.ChoiceKind = newMap.ChoiceKind;
+                    map.Outcomes = newMap.Outcomes.ToList();
+                    map.OwnerTeamId = newMap.OwnerTeamId;
                     map.StopsClock = newMap.StopsClock;
                 }
                 else
@@ -164,7 +166,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
                 }
             }
 
-            Maps.RemoveRange(existing.Maps.Where(m => m.StageOrder > stageDefinitionIdsInOrder.Count).ToList());
+            Maps.RemoveRange(existing.Maps.Where(m => m.StageOrder > newMaps.Count).ToList());
         }
 
         await context.SaveChangesAsync(ct);
@@ -200,5 +202,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         templates
             .Include(x => x.Team)
             .Include(x => x.Maps.OrderBy(m => m.StageOrder))
-            .ThenInclude(x => x.StageDefinition);
+            .ThenInclude(x => x.StageDefinition)
+            .Include(x => x.Maps.OrderBy(m => m.StageOrder))
+            .ThenInclude(x => x.OwnerTeam);
 }

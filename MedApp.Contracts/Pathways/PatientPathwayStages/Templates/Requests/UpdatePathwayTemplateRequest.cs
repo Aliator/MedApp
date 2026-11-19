@@ -28,4 +28,13 @@ public sealed class UpdatePathwayTemplateRequest
     /// left out with a new stage list, every stage is plain.
     /// </summary>
     public List<PathwayTemplateStageOptionsRequest>? StageOptions { get; set; }
+
+    /// <summary>
+    /// Its routes (MC8), by order. Left out, a template with routes keeps them (and its stages can't change as a list);
+    /// a list stays a chain.
+    /// </summary>
+    public List<PathwayTemplateLinkRequest>? Links { get; set; }
+
+    /// <summary>Its addable branches (MC10), replacing the ones it has; left out, they stay.</summary>
+    public List<PathwayTemplateBranchRequest>? AddableBranches { get; set; }
 }

@@ -42,6 +42,9 @@ public sealed class PatientPathwayResponse
 
     /// <summary>The stage being worked on: the first one neither finished nor skipped. Null when every stage is either.</summary>
     public Guid? CurrentStageId { get; set; }
+
+    /// <summary>Every stage being worked on (MC8): routes side by side each have one.</summary>
+    public List<Guid> CurrentStageIds { get; set; } = [];
     public int CompletedStageCount { get; set; }
 
     /// <summary>How many stages were skipped (an optional stage, or another branch chosen).</summary>
@@ -91,4 +94,41 @@ public sealed class PatientPathwayResponse
 
     /// <summary>Its notes, newest first.</summary>
     public List<PatientPathwayNoteResponse> NoteList { get; set; } = [];
+
+    /// <summary>Whether the viewer can add one of <see cref="AddableBranches"/> now (somewhere it may go).</summary>
+    public bool CanAddBranch { get; set; }
+
+    /// <summary>The template's addable branches (MC10), in the template's order: never suggested or pre-selected.</summary>
+    public List<PatientPathwayAddableBranchResponse> AddableBranches { get; set; } = [];
+
+    /// <summary>The branches added to it, with the clinician's reasons (free text, shown as a note is).</summary>
+    public List<PatientPathwayBranchAdditionResponse> BranchAdditions { get; set; } = [];
+}
+
+/// <summary>An addable branch as the pathway page lists it: its stages, and the stages it can be added after now.</summary>
+public sealed class PatientPathwayAddableBranchResponse
+{
+    public Guid TemplateBranchId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public List<string> StageNames { get; set; } = [];
+
+    /// <summary>The stages it can be added after now (none: it can't be added now).</summary>
+    public List<Guid> AfterStageIds { get; set; } = [];
+    public bool IsRepeatable { get; set; }
+    public int TimesAdded { get; set; }
+}
+
+/// <summary>A branch added to the pathway (MC10): what, after which stage, its stages, and why.</summary>
+public sealed class PatientPathwayBranchAdditionResponse
+{
+    public Guid Id { get; set; }
+    public Guid TemplateBranchId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Guid AfterStageId { get; set; }
+    public List<Guid> StageIds { get; set; } = [];
+
+    /// <summary>The clinician's reason (free text).</summary>
+    public string Reason { get; set; } = string.Empty;
+    public string? AddedByUsername { get; set; }
+    public DateTime AddedAtUtc { get; set; }
 }

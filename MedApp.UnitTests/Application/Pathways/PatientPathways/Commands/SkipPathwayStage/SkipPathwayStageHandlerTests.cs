@@ -154,7 +154,7 @@ public sealed class SkipPathwayStageHandlerTests : PathwayHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_LoadsTheAppointmentsOfItAndTheNextStageAndPassesTheToken()
+    public async Task Handle_LoadsTheAppointmentsOfItAndTheStagesStillToDoAndPassesTheToken()
     {
         var pathway = GivenOptionalFirstStage();
         using var cts = new CancellationTokenSource();
@@ -163,7 +163,7 @@ public sealed class SkipPathwayStageHandlerTests : PathwayHandlerTestBase
             new SkipPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, "NotNeeded", null, Staff), cts.Token);
 
         Appointments.Verify(r => r.GetForStagesForUpdateAsync(
-            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { pathway.StageAt(1).Id, pathway.StageAt(2).Id })),
+            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { pathway.StageAt(1).Id, pathway.StageAt(2).Id, pathway.StageAt(3).Id })),
             cts.Token), Times.Once);
         VerifySavedOnce(cts.Token);
     }

@@ -23,6 +23,12 @@ public sealed class PathwayTemplateResponse
 
     /// <summary>The position (from 1) of the stage that stops the waiting-time clock, or null for none.</summary>
     public int? ClockStopStageOrder { get; set; }
+
+    /// <summary>Its routes (MC8), by order: each stage to the next for a template written as a list.</summary>
+    public List<PathwayTemplateLinkResponse> Links { get; set; } = [];
+
+    /// <summary>The branches staff may add to its pathways part-way (MC10), in order.</summary>
+    public List<PathwayTemplateBranchResponse> AddableBranches { get; set; } = [];
 }
 
 public sealed class PathwayTemplateStageResponse
@@ -44,11 +50,47 @@ public sealed class PathwayTemplateStageResponse
     /// <summary>Staff may skip it, with a reason, while it's the current stage.</summary>
     public bool IsOptional { get; set; }
 
-    /// <summary>A branch point: finishing it, the clinician chooses one of the branches that follow.</summary>
-    public bool ChoosesBranch { get; set; }
+    /// <summary>A choice node's kind (Assessment or LabResult), or null for a plain stage.</summary>
+    public string? ChoiceKind { get; set; }
 
-    /// <summary>The branch it belongs to, or null for a stage that always runs.</summary>
-    public string? Branch { get; set; }
+    /// <summary>A choice node's outcomes, in order; null for a plain stage.</summary>
+    public List<PathwayTemplateOutcomeResponse>? Outcomes { get; set; }
+
     /// <summary>Finishing this stage stops a referral's waiting-time clock.</summary>
     public bool StopsClock { get; set; }
+
+    /// <summary>The team that works it (MC7): null for the template's own team, or the lab.</summary>
+    public Guid? OwnerTeamId { get; set; }
+    public string? OwnerTeamName { get; set; }
+}
+
+/// <summary>One of a choice node's outcomes: its name, and the stages it leads to, by order.</summary>
+public sealed class PathwayTemplateOutcomeResponse
+{
+    public string Name { get; set; } = string.Empty;
+    public List<int> NextStageOrders { get; set; } = [];
+}
+
+/// <summary>A link between two of a template's stages, by order.</summary>
+public sealed class PathwayTemplateLinkResponse
+{
+    public int FromStageOrder { get; set; }
+    public int ToStageOrder { get; set; }
+}
+
+/// <summary>An addable branch (MC10): its stages, where it may attach, and whether it repeats.</summary>
+public sealed class PathwayTemplateBranchResponse
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public List<PathwayTemplateBranchStageResponse> Stages { get; set; } = [];
+    public List<int> AttachAfterStageOrders { get; set; } = [];
+    public bool IsRepeatable { get; set; }
+}
+
+/// <summary>One stage of an addable branch.</summary>
+public sealed class PathwayTemplateBranchStageResponse
+{
+    public Guid StageDefinitionId { get; set; }
+    public string Name { get; set; } = string.Empty;
 }

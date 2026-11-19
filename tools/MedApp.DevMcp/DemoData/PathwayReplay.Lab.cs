@@ -80,17 +80,24 @@ public sealed partial class PathwayReplay
     {
         if (LabAndLetters(_plan.CreatedUtc))
             return;
-        foreach (var stage in _stages)
+        foreach (var stage in _pathway.Stages)
         {
             stage.NeedsLetterKind = null;
             stage.WaitsForResults = false;
             stage.NeedsConsent = false;
         }
+
+        // The stages it grows to later (MC10b) are copied from its plan: without them too.
+        if (_pathway.Plan is { } plan)
+            _pathway.Plan = plan with
+            {
+                Stages = plan.Stages.Select(s => s with { NeedsLetterKind = null, WaitsForResults = false, NeedsConsent = false }).ToList()
+            };
     }
 
-    /// <summary>The branch the clinician chose at a branch point: treatment if the outcome had one, otherwise benign.</summary>
-    private string? BranchFor(PatientPathwayStage stage) =>
-        !stage.ChoosesBranch ? null
+    /// <summary>The outcome the clinician recorded at a choice node: treatment if the outcome had one, otherwise benign.</summary>
+    private string? OutcomeFor(PatientPathwayStage stage) =>
+        stage.ChoiceKind is null || stage.Outcome is not null ? null
         : _plan.NoteContext().Result.Treatment.Length > 0 ? DemoPathwayKinds.TreatmentBranch
         : DemoPathwayKinds.BenignBranch;
 
@@ -635,8 +642,8 @@ public sealed partial class PathwayReplay
         if (PathwayWorkflow.WhySkipNotAllowed(_pathway, stage, _lead.PermissionsAt(startAt).Contains(Permission.FinishWithoutVisit)) is not null)
             return null;
 
-        var next = StageFinishing.NextStage(_pathway, stage);
-        var appointments = _appointments.Where(a => a.StageId == stage.Id || (next is not null && a.StageId == next.Id)).ToList();
+        var touched = StageFinishing.StagesTouchedByFinish(_pathway, stage);
+        var appointments = _appointments.Where(a => a.StageId is { } id && touched.Contains(id)).ToList();
         var skipAt = startAt;
         Change(_lead, skipAt, change => StageFinishing.Skip(change, stage, StageSkipReason.PatientDeclined,
             "The patient feels well enough to carry on with the home programme alone.", appointments));

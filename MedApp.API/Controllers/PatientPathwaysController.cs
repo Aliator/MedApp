@@ -1,7 +1,9 @@
 using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.NoteDeletionRequests.Commands.RequestNoteDeletion;
+using MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayBranch;
 using MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayNote;
+using MedApp.Application.Pathways.PatientPathways.Commands.PickUpPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.AssignPatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.ChangePatientPathwayStatus;
 using MedApp.Application.Pathways.PatientPathways.Commands.CreatePatientPathway;
@@ -109,7 +111,9 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request.TeamIds,
             request.StageDefinitionIds,
             request.BreachedOnly,
-            User.ToTeamScope()), ct));
+            User.ToTeamScope(),
+            request.View,
+            request.TeamId), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
@@ -243,6 +247,18 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     public async Task<IActionResult> UnassignPatientPathway(Guid id, Guid userId, CancellationToken ct) =>
         Ok(await mediator.Send(new UnassignPatientPathwayCommand(id, userId, User.ToPathwayActor()), ct));
 
+    /// <summary>
+    /// Picks up a stage handed to your team (the relay: it leaves New for us). Only the team that works it, while it's
+    /// current (409 otherwise, or when it wasn't handed over); again changes nothing. Audited (StagePickedUp).
+    /// </summary>
+    [HttpPost("{id:guid}/stages/{stageId:guid}/pick-up")]
+    [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.WorkPathways)]
+    public async Task<IActionResult> PickUpPathwayStage(Guid id, Guid stageId, CancellationToken ct) =>
+        Ok(await mediator.Send(new PickUpPathwayStageCommand(id, stageId, User.ToPathwayActor()), ct));
+
     [HttpPost("{id:guid}/stages/{stageId:guid}/start")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -262,7 +278,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
 
     /// <summary>
     /// Finishes a stage. A stage whose visit is required needs an attended appointment first (409), unless an admin
-    /// sends <c>{ withoutVisit: true, reason }</c>. No body works as before.
+    /// sends <c>{ withoutVisit: true, reason }</c>. A choice node finished for the first time needs the clinician's
+    /// <c>outcome</c> (400 without). The team that works the stage finishes it (the relay). No body works as before.
     /// </summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/finish")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
@@ -282,7 +299,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request?.WithoutVisit ?? false,
             request?.Reason,
             User.HasPermission(Permission.FinishWithoutVisit),
-            request?.Branch), ct));
+            request?.Outcome), ct));
 
     /// <summary>Reopens a finished stage for editing.</summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/unlock")]
@@ -292,6 +309,21 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [RequirePermission(Permission.UnlockStages)]
     public async Task<IActionResult> UnlockPathwayStage(Guid id, Guid stageId, CancellationToken ct) =>
         Ok(await mediator.Send(new UnlockPathwayStageCommand(id, stageId, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Adds one of the template's addable branches part-way, after one of the pathway's stages, with a reason (required,
+    /// 500 characters; shown on the pathway, never in the audit log). Only the pathway's own team; only from the
+    /// template's list; never suggested. Its stages run side by side with what's left. Audited (BranchAdded).
+    /// </summary>
+    [HttpPost("{id:guid}/branches")]
+    [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.WorkPathways)]
+    public async Task<IActionResult> AddPathwayBranch(Guid id, [FromBody] AddPathwayBranchRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new AddPathwayBranchCommand(
+            id, request.TemplateBranchId, request.AfterStageId, request.Reason, User.ToPathwayActor()), ct));
 
     /// <summary>
     /// Skips an optional stage while it's current, with a reason (NotNeeded, PatientDeclined or Other, with a detail for

@@ -219,9 +219,9 @@ public sealed class TimelineStaffCanaryTests
         var branching = CreateBranchingPathway();
         branching.Title = Canary;
         var branchChange = new PathwayChange(branching, Staff, Now);
-        branchChange.FinishStage(branching.StageAt(1), branch: TreatmentBranch);
-        branchChange.SkipStage(branching.StageAt(4), StageSkipReason.Other, Canary);
-        branchChange.ReinstateStage(branching.StageAt(2), Canary);
+        branchChange.FinishStage(branching.StageAt(1), outcome: TreatmentBranch);
+        branchChange.SkipStage(branching.TemplateStageAt(4)!, StageSkipReason.Other, Canary);
+        branchChange.ReinstateStage(branching.TemplateStageAt(4)!, Canary);
 
         // As the MDT handlers: an item listed, deferred, withdrawn and its outcome recorded, with the canary as the
         // question, the outcome and the meeting's title, none of which the details ever copy.
@@ -242,7 +242,20 @@ public sealed class TimelineStaffCanaryTests
             MdtAudit.OutcomeRecorded(item, "Dermatology", Staff, Now),
         };
 
-        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries)
+        // As the relay (MC7) and an added branch (MC10): handed to another team, picked up, and a branch added with
+        // the canary as its reason, which the details never copy.
+        var relay = CreatePathway(Status.InProgress, title: Canary);
+        relay.StageAt(2).OwnerTeamId = Guid.NewGuid();
+        relay.Plan = BranchingPlan() with
+        {
+            Branches = [new PathwayPlanBranch(Guid.NewGuid(), "Repeat", [Planned(1, PathwayDefinitionId, "Repeat sample")], [], true)]
+        };
+        var relayChange = new PathwayChange(relay, Staff, Now);
+        relayChange.FinishStage(relay.StageAt(1));
+        relayChange.PickUp(relay.StageAt(2));
+        relayChange.AddBranch(relay.Plan.Branches[0], relay.StageAt(1), Canary);
+
+        return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(relayChange.AuditEntries)
             .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
             .Concat(ResultEntriesHoldingTheCanary())
             .Concat(ConsentEntriesHoldingTheCanary()).ToList();
@@ -745,7 +758,7 @@ public sealed class TimelineStaffCanaryTests
     }
 
     [Test]
-    public void ToResponse_BranchChosen_EveryoneSeesTheBranchAndTheStagesItSkipped()
+    public void ToResponse_BranchChosen_EveryoneSeesTheOutcomeRecorded()
     {
         var chosen = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.BranchChosen);
 
@@ -754,7 +767,7 @@ public sealed class TimelineStaffCanaryTests
         staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
         staff.StageName.Should().Be(ResultsStage);
         staff.Branch.Should().Be(TreatmentBranch);
-        staff.SkippedStageNames.Should().Equal(BenignStage);
+        staff.SkippedStageNames.Should().BeEmpty();
     }
 
     [Test]
@@ -766,7 +779,7 @@ public sealed class TimelineStaffCanaryTests
         var admin = TimelineMapper.ToResponse(reinstated, isAdmin: true);
 
         staff.Kind.Should().Be(nameof(PatientTimelineKind.Stages));
-        staff.SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
+        staff.SkipReason.Should().Be(nameof(StageSkipReason.Other));
         staff.Reason.Should().BeNull();
         admin.Reason.Should().Be(Canary);
     }

@@ -26,14 +26,32 @@ public sealed class PathwaySearchSqlTests
     public void TearDown() => _context.Dispose();
 
     [Test]
-    public void Filter_StageReached_TranslatesTheCurrentStageToAnOrderedTopOneSubquery()
+    public void Filter_StageReached_TranslatesTheCurrentStagesThroughTheStageLinks()
     {
         var query = CreateSearchQuery() with { StageDefinitionIds = [PathwayDefinitionId, ConsultationDefinitionId] };
 
         var sql = _context.PatientPathways.Filter(query, Now).Sort(null, true).ToQueryString();
 
-        sql.Should().Contain("SELECT TOP(1)").And.Contain("[StageDefinitionId]").And.Contain("ORDER BY [p0].[StageOrder]")
-            .And.Contain("[IsCompleted] = CAST(0 AS bit)");
+        sql.Should().Contain("[PatientPathwayStageLinks]").And.Contain("[StageDefinitionId]")
+            .And.Contain("[IsCompleted] = CAST(0 AS bit)").And.Contain("[SkippedAtUtc] IS NULL");
+    }
+
+    [TestCase("OurTurn")]
+    [TestCase("NewForUs")]
+    [TestCase("AwaitingLab")]
+    [TestCase("BackFromLab")]
+    public void Filter_ATeamView_TranslatesToSql(string view)
+    {
+        var query = CreateSearchQuery() with
+        {
+            View = view,
+            Scope = new MedApp.Application.Common.Teams.TeamScope(Staff.UserId, [TeamId], false),
+            LabTeamId = Guid.NewGuid()
+        };
+
+        var sql = _context.PatientPathways.Filter(query, Now).Sort(null, true).ToQueryString();
+
+        sql.Should().Contain("[PatientPathwayStageLinks]").And.Contain("[Status] IN (");
     }
 
     [Test]

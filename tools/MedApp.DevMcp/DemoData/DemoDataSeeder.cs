@@ -266,9 +266,11 @@ public static class DemoDataSeeder
                 // "The waiting-time clock stops when this stage is finished": one per template.
                 StopsClock = i == p.ClockStopIndex,
                 IsOptional = s.Optional,
-                ChoosesBranch = s.ChoosesBranch,
-                Branch = s.Branch,
+                // A branch point is a choice node (MC10b): the clinician records which branch's stages follow.
+                ChoiceKind = s.ChoosesBranch ? StageChoiceKind.Assessment : null,
+                Outcomes = s.ChoosesBranch ? DemoPathwayKinds.OutcomesAfter(p.Stages, i) : [],
             }).ToList(),
+            Links = DemoPathwayKinds.LinksOf(p.Stages),
         });
 
         await services.Run(async sp =>
