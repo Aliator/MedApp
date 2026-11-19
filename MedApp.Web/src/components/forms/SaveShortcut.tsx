@@ -1,5 +1,6 @@
 import {useToast} from '@astryxdesign/core/Toast';
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject} from 'react';
+import {isDialogOpen} from '../modals/openDialogs';
 
 /** The save shortcut, as `Kbd` shows it: Ctrl+S, or ⌘S on a Mac. */
 export const SAVE_KEYS = 'mod+s';
@@ -44,7 +45,7 @@ export function pickSaver(savers: readonly Saver[], focused: Element | null, doc
   if (holding.length > 0) {
     return holding.find((s) => !holding.some((other) => other !== s && s.element()!.contains(other.element()))) ?? holding[0];
   }
-  if (focused?.closest(DIALOG) || document.querySelector('dialog[open]')) return null;
+  if (focused?.closest(DIALOG) || isDialogOpen(document)) return null;
   const onPage = savers.filter((s) => {
     const element = s.element();
     return element !== null && element.closest(DIALOG) === null;

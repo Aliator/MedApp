@@ -49,11 +49,34 @@ export const HalfViewsContext = createContext<HalfViews | null>(null);
 export const useHalfViews = () => useContext(HalfViewsContext);
 
 /**
- * Inside a dialog, which sits over the whole window rather than in a half: what's in it lays out by the window alone,
- * not by a half view or the docked notepad beside the page that opened it (`DialogFrame` sets it; `useIsNarrow` reads
- * it).
+ * Inside a dialog that sits over the whole window (a page on its own, a phone): what's in it lays out by the window
+ * alone (`DialogFrame` sets it; `useIsNarrow` reads it). A dialog over its own region (`DialogRegionContext`) doesn't
+ * set it: what's in it lays out by that region, as the page under it does.
  */
 export const OverWholeWindowContext = createContext(false);
+
+/**
+ * The part of the window a page is shown in, for its dialogs: a half of a half view, or the page beside the docked
+ * notepad. While something sits beside the page (`isBeside`), a dialog it opens covers only this region, so what's
+ * beside it (the other half, the notepad, the side nav) stays usable, to copy from (`RegionDialog`). Otherwise
+ * dialogs sit over the whole window. `AppLayout` provides it; there's none outside the signed-in layout.
+ */
+export interface DialogRegion {
+  /** The region's element (what the page scrolls in), made inert while a dialog covers it; null before it mounts. */
+  element: HTMLElement | null;
+  /** Where dialogs over a region are rendered: after the app shell, so they're above the page and its sticky header. */
+  host: HTMLElement | null;
+  /** Whether something is beside the page: the other half of a half view, or the docked notepad. */
+  isBeside: boolean;
+}
+
+export const DialogRegionContext = createContext<DialogRegion | null>(null);
+
+/** The region a dialog opened here covers, or null when it would sit over the whole window. */
+export function useDialogRegion(): DialogRegion | null {
+  const region = useContext(DialogRegionContext);
+  return region !== null && region.isBeside && region.element !== null && region.host !== null ? region : null;
+}
 
 /**
  * Inside a half view's own router. Its pages render without the app shell (the side nav is the main page's).

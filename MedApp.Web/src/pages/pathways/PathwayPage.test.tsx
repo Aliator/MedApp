@@ -225,7 +225,7 @@ describe('PathwayPage', () => {
     expect(screen.getByRole('button', {name: /^2\. Procedure/})).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('starts with Details (Patient info and Assigned staff open) and the Current stage open, beside Stages folded', async () => {
+  it('starts with Details (Pathway info and Assigned staff open) and the Current stage open, beside Stages folded', async () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json(pathway)});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
@@ -242,7 +242,7 @@ describe('PathwayPage', () => {
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: 'Hide notes'})).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Pathway info'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Hide appointments'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Hide assigned staff'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
@@ -251,9 +251,9 @@ describe('PathwayPage', () => {
     await openStages(user);
     expect(screen.getAllByText('2. Procedure')).toHaveLength(2);
 
-    await user.click(screen.getByRole('button', {name: 'Patient info'}));
+    await user.click(screen.getByRole('button', {name: 'Pathway info'}));
 
-    expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', {name: 'Pathway info'})).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('folds the notes away and opens them again', async () => {
@@ -719,8 +719,8 @@ describe('PathwayPage on a narrow window', () => {
     expect(screen.queryByRole('button', {name: /^(show|hide) details/i})).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
-    // Patient info starts open; Assigned staff starts folded here, to save room.
-    expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
+    // Pathway info starts open; Assigned staff starts folded here, to save room.
+    expect(screen.getByRole('button', {name: 'Pathway info'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show assigned staff'})).toHaveAttribute('aria-expanded', 'false');
     expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Prep done.');
   });
