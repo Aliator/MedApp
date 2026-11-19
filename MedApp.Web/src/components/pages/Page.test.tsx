@@ -1,5 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
-import {act, screen, waitFor, within} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {DialogFrame} from '../modals/DialogFrame';
 import {Page, useIsNarrow, useIsNarrowWindow} from './Page';
@@ -125,32 +125,28 @@ describe('Page', () => {
     expect(banner.compareDocumentPosition(screen.getByText('Details go here')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('keeps a long page’s header at the top while the page scrolls under it, with a line once it’s stuck', async () => {
-    let report: IntersectionObserverCallback = () => {};
-    vi.stubGlobal(
-      'IntersectionObserver',
-      class {
-        constructor(callback: IntersectionObserverCallback) {
-          report = callback;
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+  it('keeps a long page’s header at the top while the page scrolls under it, with a line once it has scrolled', async () => {
     renderWithApp(
-      <Page title="Account Settings" actions={<Button label="Save" />}>
-        <p>A long page</p>
-      </Page>,
+      // What scrolls the page (the main area, or a half), as the app shell has it.
+      <section data-testid="scroller" style={{overflowY: 'auto', height: '200px'}}>
+        <Page title="Account Settings" actions={<Button label="Save" />}>
+          <p>A long page</p>
+        </Page>
+      </section>,
     );
 
     const header = (await screen.findByRole('heading', {name: 'Account Settings'})).closest<HTMLElement>('[data-page-header]')!;
     expect(header.style.position).toBe('sticky');
     expect(within(header).getByRole('button', {name: 'Save'})).toBeInTheDocument();
     expect(header.style.boxShadow).toBe('');
-    // Scrolled: a pixel of it out of view.
-    act(() => report([{intersectionRatio: 0.99} as IntersectionObserverEntry], {} as IntersectionObserver));
-    expect(header.style.boxShadow).toContain('var(--color-border)');
-    vi.unstubAllGlobals();
+    // Scrolled: the line under it shows; back at the top, it goes.
+    const scroller = screen.getByTestId('scroller');
+    scroller.scrollTop = 120;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(header.style.boxShadow).toContain('var(--color-border)'));
+    scroller.scrollTop = 0;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(header.style.boxShadow).toBe(''));
   });
 
   it('leaves a fill page’s header as it is: its cards scroll, not the page', async () => {
