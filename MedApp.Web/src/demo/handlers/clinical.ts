@@ -15,7 +15,7 @@ export function registerClinical() {
  * why `stage` can't be finished yet, or null. No override.
  */
 export function clinicalGate(pathway: DemoPathway, stage: DemoStage): string | null {
-  return whyLetterMissing(pathway.id, stage.needsLetterKind) ?? whyConsentMissing(stage);
+  return whyLetterMissing(pathway.id, stage.needsLetterKind) ?? whyConsentMissing(stage, pathway.id);
 }
 
 /** Whether the signed-in person can record consent at this stage (the stage's `canRecordConsent`). */

@@ -7,7 +7,7 @@ import type {DemoStageDefinition} from './state';
  * The owner's reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, copied in `dermatologyReviewed.ts`)
  * mapped onto the model, for the light demo's seed:
  * - `kind`: assessment and labResult are choice nodes (`Assessment`, `LabResult`), their `outcomes` the outcomes.
- * - `owner: lab` makes a lab stage; `visit`, `needsLetter` (the letter kind: a discharge summary, else a clinic letter)
+ * - `owner: lab` makes a lab stage; `visit`, `needsLetter` (the letter kind: a discharge summary, an onward referral to hospital, else a clinic letter)
  *   and `needsConsent` go to the stage definition; `snomed` to its code and term; `retentionClass` to the template.
  * - `repeat`, `endOutcome` and the letter's own name have no field: they're written into the stage's description.
  * - **Routes only go forward** (no cycles). A route back is left out: an outcome looping to its own stage (another
@@ -66,8 +66,9 @@ const END_OUTCOMES: Record<string, string> = {
   monitoring: 'monitoring',
 };
 
-/** The letter kind a stage's letter is (`LetterKind` by name): a discharge summary, or a clinic letter. */
-const letterKind = (letter: string | undefined) => (!letter ? null : /^discharge/i.test(letter) ? 'DischargeSummary' : 'ClinicLetter');
+/** The letter kind a stage's letter is (`LetterKind` by name): a discharge summary, an onward referral to the hospital (MC28), or a clinic letter. */
+const letterKind = (letter: string | undefined) =>
+  !letter ? null : /^discharge/i.test(letter) ? 'DischargeSummary' : /to hospital$/i.test(letter) ? 'OnwardReferral' : 'ClinicLetter';
 
 const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
 

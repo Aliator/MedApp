@@ -40,6 +40,7 @@ const KIND_WORDS: Record<string, string> = {
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
+  OnwardReferral: 'Onward referral',
   Other: 'Letter',
 };
 
@@ -47,7 +48,7 @@ const KIND_WORDS: Record<string, string> = {
 export const letterKindWords = (kind: string | null | undefined) => KIND_WORDS[kind ?? ''] ?? kind ?? 'Letter';
 
 /** The kinds a stage can need (`NeedsLetterKind`), in the order pickers offer them. */
-export const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other'] as const;
+export const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'OnwardReferral', 'Other'] as const;
 
 /** The kinds a letter written from a referral can be (decision 106). */
 export const REFERRAL_LETTER_KINDS: readonly string[] = ['ReferralResponse', 'InformationRequest'];
@@ -87,6 +88,8 @@ export const RECIPIENT_KINDS = [
   {value: 'GpPractice', label: 'GP practice'},
   {value: 'Patient', label: 'The patient'},
   {value: 'Referrer', label: 'The referrer'},
+  /** A hospital (MC28, `LetterRecipientKind.Hospital = 4`): its name and address typed, as someone else's are. */
+  {value: 'Hospital', label: 'A hospital'},
   {value: 'Other', label: 'Someone else'},
 ] as const;
 export type RecipientKind = (typeof RECIPIENT_KINDS)[number]['value'];
@@ -270,8 +273,9 @@ export function toRecipientRequest(recipient: RecipientInput): LetterRecipientRe
         ? {kind: 'Referrer', addressLines: optional(recipient.addressLines), postcode: optional(recipient.postcode)}
         : {kind: 'Referrer'};
     default:
+      // Someone else, or a hospital: a name and address typed.
       return {
-        kind: 'Other',
+        kind: recipient.kind === 'Hospital' ? 'Hospital' : 'Other',
         name: optional(recipient.name),
         addressLines: optional(recipient.addressLines),
         postcode: optional(recipient.postcode),

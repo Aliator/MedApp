@@ -15,7 +15,14 @@ export type LetterTemplate = Schemas['LetterTemplateResponse'];
 export type LetterMergeField = Schemas['LetterMergeFieldResponse'];
 
 /** What letters from a template are for, by name, as the API sends them. */
-export type LetterKind = 'ClinicLetter' | 'DischargeSummary' | 'ReferralResponse' | 'InformationRequest' | 'AppointmentLetter' | 'Other';
+export type LetterKind =
+  | 'ClinicLetter'
+  | 'DischargeSummary'
+  | 'ReferralResponse'
+  | 'InformationRequest'
+  | 'AppointmentLetter'
+  | 'OnwardReferral'
+  | 'Other';
 
 /** Each kind in words, in the order pickers offer them. */
 export const LETTER_KIND_LABELS: Record<LetterKind, string> = {
@@ -24,6 +31,8 @@ export const LETTER_KIND_LABELS: Record<LetterKind, string> = {
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
+  /** A referral on to the hospital (MC28, `LetterKind.OnwardReferral = 7`). */
+  OnwardReferral: 'Onward referral to hospital',
   Other: 'Other',
 };
 
