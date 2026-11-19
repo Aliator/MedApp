@@ -1,6 +1,6 @@
 import {screen, within} from '@testing-library/react';
 import {json, mockApi, openDialog, renderWithApp, userWithRoles} from '../../test/render';
-import {CASE_ID, testCase} from '../../test/labCases';
+import {CASE_ID, testCase, testClock} from '../../test/labCases';
 import {LabCasePage} from './LabCasePage';
 
 const labUser = userWithRoles('test-lab', 'Lab');
@@ -57,6 +57,16 @@ describe('LabCasePage', () => {
     expect(screen.getByText('Nothing: the report has been authorised.')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Dermatology: its result'})).toHaveAttribute('href', '/results/result-1');
     expect(screen.queryByRole('button', {name: /Record/})).not.toBeInTheDocument();
+  });
+
+  it('shows its clock: both deadlines, which one applies, and the countdown (MC19)', async () => {
+    renderPage(() => json(testCase({clock: testClock()})));
+    expect(await screen.findByText("The hospital's date (the sooner applies)")).toBeInTheDocument();
+    expect(screen.getByText('7 November 2026')).toBeInTheDocument();
+    expect(screen.getByText('Due tomorrow')).toBeInTheDocument();
+    expect(screen.getByText('At risk')).toBeInTheDocument();
+    expect(screen.getByText('10 November 2026 (limit 13 Nov 2026)')).toBeInTheDocument();
+    expect(screen.getByText('7 November 2026, as the request gave it')).toBeInTheDocument();
   });
 
   it('says when it isn’t there, or is another team’s', async () => {

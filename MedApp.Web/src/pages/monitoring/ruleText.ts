@@ -95,6 +95,18 @@ function alert(rule: RuleDescription): SentencePart[] | null {
         ...referral(rule),
         ...(zero ? [{text: ' has passed'}] : [{text: ' is less than '}, days(rule), {text: ' away, or passed'}]),
       ];
+    case 'LabCaseAtRisk':
+      return [
+        {text: 'Notify me when '},
+        ...labCase(rule),
+        ...(zero ? [{text: ' reaches its at-risk point'}] : [{text: ' has been at risk more than '}, days(rule)]),
+      ];
+    case 'LabCaseOverdue':
+      return [
+        {text: 'Notify me when '},
+        ...labCase(rule),
+        ...(zero ? [{text: ' is past its due date'}] : [{text: ' is more than '}, days(rule), {text: ' past its due date'}]),
+      ];
     case 'PauseReviewPassed':
       return [
         {text: 'Notify me when the review date of a paused clock on '},
@@ -107,6 +119,12 @@ function alert(rule: RuleDescription): SentencePart[] | null {
 }
 
 /** "Bloods" (strong), "a stage", or "a deleted stage". */
+/** "a lab case", or "a lab case from Dermatology" (strong): the clinic it came from (MC19). */
+function labCase(rule: RuleDescription): SentencePart[] {
+  const chosen = named(rule.teamId, rule.teamName, 'a deleted team');
+  return [{text: 'a lab case'}, ...(chosen ? [{text: ' from '}, chosen] : [])];
+}
+
 function stage(rule: RuleDescription): SentencePart[] {
   return [named(rule.stageDefinitionId, rule.stageName, 'a deleted stage') ?? {text: 'a stage'}];
 }

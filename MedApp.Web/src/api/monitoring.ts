@@ -39,6 +39,9 @@ export const MONITORING_EVENTS = [
   {value: 'SpecimenOverdue', label: 'Service alert: a specimen is overdue at the lab', isAlert: true, noPerson: true, hasStage: true},
   {value: 'WaitBreached', label: 'Service alert: a waiting-time target is near or passed', isAlert: true, noPerson: true},
   {value: 'PauseReviewPassed', label: "Service alert: a paused clock's review date passed", isAlert: true, noPerson: true},
+  // MC19's strict clocks: a lab case at risk of missing its due date, or past it (dates only, never a test's values).
+  {value: 'LabCaseAtRisk', label: 'Service alert: a lab case is at risk of missing its due date', isAlert: true, noPerson: true, noTemplate: true, noPriority: true},
+  {value: 'LabCaseOverdue', label: 'Service alert: a lab case is past its due date', isAlert: true, noPerson: true, noTemplate: true, noPriority: true},
 ] as const;
 
 export type MonitoringEvent = (typeof MONITORING_EVENTS)[number]['value'];
@@ -59,6 +62,9 @@ export const hasPerson = (event: string | null | undefined) => !MONITORING_EVENT
 
 /** Whether a rule for this event can name a template: not a referral awaiting triage, which has no pathway yet. */
 export const hasTemplate = (event: string | null | undefined) => !MONITORING_EVENTS.some((e) => e.value === event && 'noTemplate' in e);
+
+/** Whether a rule for this event can name a minimum priority: not a lab case's clock, which has no pathway priority. */
+export const hasPriority = (event: string | null | undefined) => !MONITORING_EVENTS.some((e) => e.value === event && 'noPriority' in e);
 
 /** The days a service alert can wait (the API's limits). */
 export const MIN_THRESHOLD_DAYS = 0;

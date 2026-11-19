@@ -12,6 +12,7 @@ import {fieldStatus} from '../../api/errors';
 import {ApiError} from '../../api/errors';
 import {
   hasPerson,
+  hasPriority,
   hasStage,
   hasTemplate,
   inputOf,
@@ -144,6 +145,7 @@ export function MonitoringPage() {
         stageDefinitionId: hasStage(form.event) ? form.stageDefinitionId : null,
         subjectUserId: hasPerson(form.event) ? form.subjectUserId : null,
         templateId: hasTemplate(form.event) ? form.templateId : null,
+        minimumPriority: hasPriority(form.event) ? form.minimumPriority : null,
         thresholdDays: isServiceAlert(form.event) ? form.thresholdDays : null,
       },
       {
@@ -377,13 +379,15 @@ export function MonitoringPage() {
                   status={fieldStatus(problem.validation, 'stageDefinitionId')}
                 />
               )}
-              <AnchoredSelector
-                label="Priority"
-                options={priorityOptions}
-                value={form.minimumPriority ?? ANY}
-                onChange={(value: string) => set('minimumPriority', fromAny(value))}
-                status={fieldStatus(problem.validation, 'minimumPriority')}
-              />
+              {hasPriority(form.event) && (
+                <AnchoredSelector
+                  label="Priority"
+                  options={priorityOptions}
+                  value={form.minimumPriority ?? ANY}
+                  onChange={(value: string) => set('minimumPriority', fromAny(value))}
+                  status={fieldStatus(problem.validation, 'minimumPriority')}
+                />
+              )}
               {hasTemplate(form.event) && (
                 <AnchoredSelector
                   label="Template"

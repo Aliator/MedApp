@@ -1,7 +1,7 @@
 import {LAB_CASE_VIEWS, type LabCaseView} from '../../api/labCases';
 
 /** The columns Lab Cases sorts by, as the API names them. */
-export const LAB_CASE_SORTS = ['number', 'patient', 'source', 'test', 'opened'] as const;
+export const LAB_CASE_SORTS = ['number', 'patient', 'source', 'test', 'due', 'opened'] as const;
 export type LabCaseSort = (typeof LAB_CASE_SORTS)[number];
 
 /**

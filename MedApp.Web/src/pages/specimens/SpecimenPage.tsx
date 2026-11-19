@@ -21,6 +21,7 @@ import {
 } from '../../api/specimens';
 import {useCan} from '../../auth/auth';
 import {AttachmentRow, DownloadLink} from '../../components/attachments/Attachments';
+import {labClockLine} from '../../components/labCases/LabClock';
 import {OpenLabCaseDialog} from '../../components/labCases/OpenLabCaseDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
@@ -277,9 +278,14 @@ function SpecimenDetails({specimen}: {specimen: Specimen}) {
             {specimen.isOverdueAtLab && <OverdueAtLabToken />}
           </HStack>
         </MetadataListItem>
-        <MetadataListItem label="Expected by">
-          {`${formatDateTime(specimen.expectedByUtc ?? '')} (${specimen.expectedTurnaroundDays} ${specimen.expectedTurnaroundDays === 1 ? 'day' : 'days'})`}
-        </MetadataListItem>
+        {specimen.clock ? (
+          // In a lab case: its strict clock (MC19), the sooner of the lab's target and the hospital's date.
+          <MetadataListItem label="Due (its lab case's clock)">{labClockLine(specimen.clock)}</MetadataListItem>
+        ) : (
+          <MetadataListItem label="Expected by">
+            {`${formatDateTime(specimen.expectedByUtc ?? '')} (${specimen.expectedTurnaroundDays} ${specimen.expectedTurnaroundDays === 1 ? 'day' : 'days'})`}
+          </MetadataListItem>
+        )}
         <MetadataListItem label="From">
           <HStack gap={2} vAlign="center" wrap="wrap">
             <SampleSourceToken source={specimen.source} />
