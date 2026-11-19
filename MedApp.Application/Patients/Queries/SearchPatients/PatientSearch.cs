@@ -1,4 +1,7 @@
+using MedApp.Domain.Appointments;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Referrals;
 
 namespace MedApp.Application.Patients.Queries.SearchPatients;
 
@@ -36,6 +39,26 @@ public static class PatientSearch
         if (NhsNumberDigits(query.NhsNumber) is { } nhsNumber)
             patients = patients.Where(p => p.NhsNumber != null && p.NhsNumber.Contains(nhsNumber));
         return patients;
+    }
+
+    /// <summary>
+    /// The clinic picker (MC6, the light demo's patient search): with a team, only patients with a pathway, a referral or
+    /// an appointment in it (any status); without one, every patient. The tables are passed in (DbSets, or lists in a
+    /// test), so it's three <c>EXISTS</c> in SQL.
+    /// </summary>
+    public static IQueryable<Patient> InTeam(
+        this IQueryable<Patient> patients,
+        Guid? teamId,
+        IQueryable<PatientPathway> pathways,
+        IQueryable<Referral> referrals,
+        IQueryable<Appointment> appointments)
+    {
+        if (teamId is not { } id)
+            return patients;
+
+        return patients.Where(p => pathways.Any(x => x.PatientId == p.Id && x.TeamId == id)
+                                   || referrals.Any(x => x.PatientId == p.Id && x.TeamId == id)
+                                   || appointments.Any(x => x.PatientId == p.Id && x.TeamId == id));
     }
 
     /// <summary>
