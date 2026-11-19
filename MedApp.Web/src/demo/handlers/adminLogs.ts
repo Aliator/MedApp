@@ -7,6 +7,7 @@ import {db} from '../store';
 import {teamName} from '../seed';
 import {nowUtc, ukDateOf} from '../time';
 import {contains, list, me, paged, patientName, requirePermission} from './common';
+import {labCaseAuditEntries} from './labCases';
 
 /**
  * The admin's logs and oversight: the activity log (seeded, and added to by sign-ins, patient views and the setup and
@@ -127,6 +128,8 @@ export function auditEntries(): AuditEntry[] {
     for (const [i, c] of p.statusChanges.entries())
       add(`status:${i}`, 'StatusChanged', c.atUtc, c.userId, {details: JSON.stringify({from: c.from, to: c.to})});
   }
+  // The lab cases' entries (MC15): a clinic case's on its pathway, a hospital case's with no pathway.
+  entries.push(...labCaseAuditEntries());
   return entries.sort((a, b) => (b.atUtc ?? '').localeCompare(a.atUtc ?? '') || (b.id ?? '').localeCompare(a.id ?? ''));
 }
 

@@ -21,6 +21,7 @@ import {
 } from '../../api/specimens';
 import {useCan} from '../../auth/auth';
 import {AttachmentRow, DownloadLink} from '../../components/attachments/Attachments';
+import {OpenLabCaseDialog} from '../../components/labCases/OpenLabCaseDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -36,8 +37,8 @@ import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCa
 import {formatDateTime} from '../../utils/dates';
 import {specimenTurnarounds} from '../../utils/specimenTimes';
 
-/** The dialog the page has open: a step, Edit, or Attach Report. */
-type Dialog = {kind: 'step'; step: SpecimenStep} | {kind: 'edit'} | {kind: 'report'} | null;
+/** The dialog the page has open: a step, Edit, Attach Report, or Open Lab Case. */
+type Dialog = {kind: 'step'; step: SpecimenStep} | {kind: 'edit'} | {kind: 'report'} | {kind: 'openCase'} | null;
 
 /** One step of a specimen's journey, as its page lists them. */
 export interface SpecimenStepLine {
@@ -101,6 +102,8 @@ function useOffered(specimen: Specimen | undefined) {
     sent: Boolean(specimen?.canMarkSent) && canRecord,
     received: Boolean(specimen?.canMarkReceived) && canProcess,
     report: Boolean(specimen?.canReport) && canProcess,
+    // A received sample with no lab case (MC15): the lab opens one, choosing the test.
+    openCase: Boolean(specimen?.canOpenLabCase) && canProcess,
     rejected: Boolean(specimen?.canReject) && canProcess,
     lost: Boolean(specimen?.canMarkLost) && (canRecord || canProcess),
     // Whoever recorded it, in its first 24 hours, or a holder of CorrectRecords: the API's flag says which.
@@ -161,6 +164,7 @@ export function SpecimenPage({id}: {id: string}) {
             {dialog?.kind === 'step' && <SpecimenStepDialog step={dialog.step} specimen={specimen} onClose={close} />}
             {dialog?.kind === 'edit' && <SpecimenDetailsDialog isOpen onClose={close} patient={specimen.patient} specimen={specimen} />}
             {dialog?.kind === 'report' && <ReportSpecimenDialog isOpen specimen={specimen} onClose={close} />}
+            {dialog?.kind === 'openCase' && <OpenLabCaseDialog specimen={specimen} onClose={close} />}
           </>
         )
       }>
@@ -252,6 +256,9 @@ function Actions({specimen, offered, onOpen}: ActionsProps) {
         />
       )}
       {offered.report && <Button label="Attach Report" variant="primary" icon={<Icon icon={AppIcon.Upload} />} onClick={() => onOpen({kind: 'report'})} />}
+      {offered.openCase && (
+        <Button label="Open Lab Case" variant="primary" icon={<Icon icon={AppIcon.LabCases} />} onClick={() => onOpen({kind: 'openCase'})} />
+      )}
       {closing.length > 0 && <DropdownMenu items={closing} alignment="end" button={{label: 'More', variant: 'secondary', icon: <Icon icon={AppIcon.Menu} />}} />}
     </>
   );
@@ -280,6 +287,9 @@ function SpecimenDetails({specimen}: {specimen: Specimen}) {
           </HStack>
         </MetadataListItem>
         <MetadataListItem label="Test">{shown(specimen.labTestName)}</MetadataListItem>
+        <MetadataListItem label="Lab case">
+          {specimen.labCaseId ? <Link href={`/lab/cases/${specimen.labCaseId}`}>{specimen.labCaseNumber ?? 'Open the case'}</Link> : 'None yet'}
+        </MetadataListItem>
         <MetadataListItem label="Type">{shown(specimen.specimenTypeName)}</MetadataListItem>
         <MetadataListItem label={specimen.source === 'Hospital' ? 'Registered by' : 'Requesting clinician'}>{shown(specimen.requestingUsername)}</MetadataListItem>
         <MetadataListItem label="Site">{shown(specimen.site)}</MetadataListItem>

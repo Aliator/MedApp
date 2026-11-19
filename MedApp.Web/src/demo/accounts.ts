@@ -47,6 +47,9 @@ const CLINICIAN: Permission[] = [
 /** What the Lab role allows (the API's `StandardRoles.Lab`). */
 const LAB_ROLE: Permission[] = ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'];
 
+/** What the Pathologist role allows (MC15's new starting role): the Lab role's, and authorising lab reports. */
+export const PATHOLOGIST_ROLE: Permission[] = [...LAB_ROLE, 'AuthoriseLabReports'];
+
 /**
  * The admin account a visitor can be: Admin alone, read only (decision 182 of `docs/multi-clinic-plan.md`): the
  * overview, Insights, every team's records, accounts and setup, and no clinical changes. In no team.
@@ -75,14 +78,17 @@ export const STAFF: DemoPerson = {
 /** The Dermatology clinic admin, by its type's name. */
 export const CLINIC_ADMIN = STAFF;
 
-/** The lab's member of staff a visitor can be: the Lab role, in the lab team. */
+/**
+ * The lab's member of staff a visitor can be: the Lab and Pathologist roles (the second so the demo's one lab account
+ * can authorise a report, MC15), in the lab team.
+ */
 export const LAB: DemoPerson = {
   id: USERS.aldous,
   username: 'r.aldous',
   fullName: 'Ravi Aldous',
-  jobTitle: 'Biomedical scientist (the lab)',
-  roles: ['Lab'],
-  permissions: LAB_ROLE,
+  jobTitle: 'Biomedical scientist, authorising reports (the lab)',
+  roles: ['Lab', 'Pathologist'],
+  permissions: PATHOLOGIST_ROLE,
   teams: [member(TEAMS.lab)],
 };
 

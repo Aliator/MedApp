@@ -32,6 +32,7 @@ export const ROLE_PERMISSIONS = {
     'ManageClinics', 'AttachFiles', 'SendLetters',
   ],
   Lab: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'],
+  Pathologist: ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens', 'AuthoriseLabReports'],
   Manager: ['UseApp', 'ViewPatients', 'AssignPathways', 'ArrangeMeetings', 'ManageClinics', 'ViewInsights', 'ManageMonitoring'],
 } satisfies Record<string, Permission[]>;
 

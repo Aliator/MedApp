@@ -52,8 +52,6 @@ export interface DemoHospitalRequest {
   source: 'Hospital';
   labCaseId: string;
   labCaseNumber: string;
-  /** `LabCaseStatus` by name: Open until MC15 adds its steps and report. */
-  labCaseStatus: 'Open';
   registeredAtUtc: string;
   registeredByUserId: string;
 }
@@ -79,7 +77,8 @@ export const HOSPITAL_REQUESTS = {
   ellisExcision: id(0xc2, 3),
 } as const;
 
-const LAB_CASES = {
+/** Each request's lab case (MC15 seeds them: `slices/labCases.ts`). */
+export const HOSPITAL_LAB_CASES = {
   wilfred: id(0xc3, 1),
   maya: id(0xc3, 2),
   ellis: id(0xc3, 3),
@@ -147,7 +146,6 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
       source: 'Hospital',
       labCaseId: caseId,
       labCaseNumber: specimenNumber(lab.specimenSequence, registeredAtUtc.slice(0, 10)),
-      labCaseStatus: 'Open',
       registeredAtUtc,
       registeredByUserId: LAB.id,
       ...fields,
@@ -175,7 +173,7 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
       },
     ],
     hospitalRequests: [
-      request(HOSPITAL_REQUESTS.wilfredExcision, LAB_CASES.wilfred, 2, {
+      request(HOSPITAL_REQUESTS.wilfredExcision, HOSPITAL_LAB_CASES.wilfred, 2, {
         patientId: HOSPITAL_PATIENTS.wilfredAshdown,
         hospitalPatientNumber: 'RG-204817',
         nhsNumber: '9991031375',
@@ -184,7 +182,7 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         isCancerPathway: true,
         reportNeededBy: daysFrom(5),
       }),
-      request(HOSPITAL_REQUESTS.mayaBiopsy, LAB_CASES.maya, 1, {
+      request(HOSPITAL_REQUESTS.mayaBiopsy, HOSPITAL_LAB_CASES.maya, 1, {
         patientId: HOSPITAL_PATIENTS.mayaThistlewood,
         hospitalPatientNumber: 'RG-311402',
         nhsNumber: '9991032746',
@@ -193,7 +191,7 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         isCancerPathway: false,
         reportNeededBy: null,
       }),
-      request(HOSPITAL_REQUESTS.ellisExcision, LAB_CASES.ellis, 4, {
+      request(HOSPITAL_REQUESTS.ellisExcision, HOSPITAL_LAB_CASES.ellis, 4, {
         patientId: PATIENTS.ellisVarden,
         hospitalPatientNumber: 'RG-118953',
         nhsNumber: ellis?.nhsNumber ?? null,

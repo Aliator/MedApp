@@ -249,6 +249,16 @@ function ResultDetails({result}: {result: Result}) {
  * name. Never shown inline: Download downloads. Once it's entered in error, its file is deleted and it says so.
  */
 function ResultReport({result}: {result: Result}) {
+  // A lab case's report (MC15; the light demo's is the results the lab entered, as text).
+  if (result.reportText && result.status !== 'EnteredInError')
+    return (
+      <VStack gap={2} hAlign="stretch">
+        <Text type="body" style={{whiteSpace: 'pre-wrap'}}>
+          {result.reportText}
+        </Text>
+        {result.labCaseId && <Link href={`/lab/cases/${result.labCaseId}`}>{`Lab case ${result.labCaseNumber ?? ''}`.trim()}</Link>}
+      </VStack>
+    );
   if (!result.reportFileName)
     return (
       <Text type="body" color="secondary">
