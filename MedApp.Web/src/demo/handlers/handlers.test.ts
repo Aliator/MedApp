@@ -32,21 +32,25 @@ describe('the light demo handlers', () => {
     startLightDemo(LAB);
     const before = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`)).body;
     const current = before.stages.find(isCurrent);
-    expect(current.name).toBe('Histology (lab)');
+    expect(current.name).toBe('Histology');
     const after = await call('POST', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}/stages/${current.id}/finish`, {
       result: 'Compound naevus (synthetic).',
     });
     expect(after.status).toBe(200);
-    expect(after.body.stages.find(isCurrent).name).toBe('Results and team review');
-    expect(after.body.completedStageCount).toBe(3);
+    expect(after.body.stages.find(isCurrent).name).toBe('Histology result');
+    expect(after.body.completedStageCount).toBe(4);
   });
 
   it('asks for a reason to finish a stage whose visit wasn’t attended', async () => {
     startLightDemo(STAFF);
-    const pathway = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`)).body;
-    const finish = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}/stages/${pathway.currentStageId}/finish`;
-    expect((await call('POST', finish, {})).status).toBe(409);
-    expect((await call('POST', finish, {withoutVisit: true, reason: 'Done at the GP'})).status).toBe(200);
+    // Tobias Lund's changing mole check: Triage needs no visit; the dermoscopy needs one, not booked.
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.unassigned}`;
+    const triage = (await call('GET', url)).body.currentStageId;
+    const pathway = (await call('POST', `${url}/stages/${triage}/finish`, {})).body;
+    expect(pathway.stages.find(isCurrent).name).toBe('Dermoscopy assessment');
+    const finish = `${url}/stages/${pathway.currentStageId}/finish`;
+    expect((await call('POST', finish, {outcome: 'Looks benign'})).status).toBe(409);
+    expect((await call('POST', finish, {outcome: 'Looks benign', withoutVisit: true, reason: 'Done at the GP'})).status).toBe(200);
   });
 
   it('puts a pathway on hold with a reason, and takes it off again', async () => {
@@ -67,15 +71,15 @@ describe('the light demo handlers', () => {
     // Another team's referral is behind the team wall: not found, as if it weren't there.
     expect(gynae.status).toBe(404);
     const accepted = await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {
-      templateId: TEMPLATES.skinLesion,
+      templateId: TEMPLATES.suspectedSkinCancer,
       priority: 'Urgent',
       expectedVersion: 1,
     });
     expect(accepted.status).toBe(200);
-    expect(accepted.body).toMatchObject({patientId: PATIENTS.oliverMaddox, templateName: 'Skin lesion pathway', status: 'Unassigned'});
+    expect(accepted.body).toMatchObject({patientId: PATIENTS.oliverMaddox, templateName: 'Suspected skin cancer', status: 'Unassigned'});
     const referral = (await call('GET', `/api/referrals/${REFERRALS.dermatologyToTriage}`)).body;
     expect(referral).toMatchObject({status: 'Accepted', pathwayId: accepted.body.id, canTriage: false});
-    const again = await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {templateId: TEMPLATES.skinLesion, priority: 'High'});
+    const again = await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {templateId: TEMPLATES.suspectedSkinCancer, priority: 'High'});
     expect(again.status).toBe(409);
   });
 
@@ -117,7 +121,7 @@ describe('the light demo handlers', () => {
       startUtc: start.toISOString(),
       endUtc: new Date(start.getTime() + 30 * 60000).toISOString(),
     });
-    expect(booked.body).toMatchObject({status: 'Booked', stageName: 'Biopsy or sample', staffUsername: STAFF.username});
+    expect(booked.body).toMatchObject({status: 'Booked', stageName: 'Take biopsy', staffUsername: STAFF.username});
     const onPathway = (await call('GET', `/api/appointments/search?PathwayId=${PATHWAYS.biopsyToBook}&PageSize=100`)).body;
     expect(onPathway.items.map((a: {id: string}) => a.id)).toContain(booked.body.id);
     const timeline = (await call('GET', `/api/patients/${PATIENTS.ellisVarden}/timeline?PageSize=50`)).body;
@@ -163,45 +167,49 @@ describe('the light demo handlers', () => {
     startLightDemo(STAFF);
     const url = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`;
     const pathway = (await call('GET', url)).body;
-    // At first it holds only the stages up to its first choice node: here, the first visit itself.
-    expect(pathway.stages.map((s: {name: string}) => s.name)).toEqual(['First clinic visit']);
+    // At first it holds only the stages up to its first choice node: Triage (done), then the dermoscopy.
+    expect(pathway.stages.map((s: {name: string}) => s.name)).toEqual(['Triage', 'Dermoscopy assessment']);
     const node = pathway.stages.find(isCurrent);
     expect(node).toMatchObject({choiceKind: 'Assessment', needsOutcome: true, outcome: null});
     expect(node.outcomes).toEqual([
-      {name: 'Suspicious: biopsy', stageNames: ['Biopsy or sample', 'Histology (lab)', 'Results and team review']},
-      {name: 'Looks benign', stageNames: ['Discharge letter to GP']},
+      {name: 'Looks benign', stageNames: ['Agree care plan', 'Letter to GP and discharge']},
+      {name: 'Actinic keratosis', stageNames: ['Refer to GP']},
+      {name: 'Suspected BCC', stageNames: ['Refer to hospital']},
+      {name: 'Suspected SCC', stageNames: ['Urgent hospital referral']},
+      {name: 'Suspected melanoma', stageNames: ['Urgent hospital referral']},
+      {name: 'Uncertain: biopsy', stageNames: ['Take biopsy', 'Histology', 'Histology result']},
     ]);
     // None is pre-selected: finishing without one is refused, and so is a name not among them.
     const finish = `${url}/stages/${node.id}/finish`;
     expect((await call('POST', finish, {})).status).toBe(400);
     expect((await call('POST', finish, {outcome: 'Treat directly'})).status).toBe(400);
-    const after = (await call('POST', finish, {outcome: 'suspicious: biopsy'})).body;
-    expect(after.stages.map((s: {name: string}) => s.name)).toEqual(['First clinic visit', 'Biopsy or sample', 'Histology (lab)', 'Results and team review']);
-    expect(after.stages[0]).toMatchObject({outcome: 'Suspicious: biopsy', needsOutcome: false});
-    expect(after.stages.find(isCurrent).name).toBe('Biopsy or sample');
-    // Progress counts the stages it has, and nothing is struck through: the other outcome's stages never appear.
-    expect([after.completedStageCount, after.stageCount, after.skippedStageCount]).toEqual([1, 4, 0]);
+    const after = (await call('POST', finish, {outcome: 'uncertain: biopsy'})).body;
+    expect(after.stages.map((s: {name: string}) => s.name)).toEqual(['Triage', 'Dermoscopy assessment', 'Take biopsy', 'Histology', 'Histology result']);
+    expect(after.stages[1]).toMatchObject({outcome: 'Uncertain: biopsy', needsOutcome: false});
+    expect(after.stages.find(isCurrent).name).toBe('Take biopsy');
+    // Progress counts the stages it has, and nothing is struck through: the other outcomes' stages never appear.
+    expect([after.completedStageCount, after.stageCount, after.skippedStageCount]).toEqual([2, 5, 0]);
   });
 
-  it('runs a fork’s routes side by side, and starts the join only when each is done (MC8)', async () => {
+  it('runs an added route side by side with the template’s (MC8, MC10)', async () => {
     startLightDemo(STAFF);
     const url = `/api/pathways/patient-pathways/${PATHWAYS.forkedTests}`;
     let pathway = (await call('GET', url)).body;
-    const [histology, labTests] = pathway.stages.filter(isCurrent);
-    expect([histology.name, labTests.name]).toEqual(['Histology (lab)', 'Lab tests (lab)']);
-    expect(pathway.currentStageIds).toEqual([histology.id, labTests.id]);
-    const review = pathway.stages.find((s: {name: string}) => s.name === 'Results and team review');
-    expect(review.predecessorIds).toEqual([histology.id, labTests.id]);
-    expect((await call('POST', `${url}/stages/${review.id}/finish`, {withoutVisit: true})).status).toBe(409);
-    // Both routes are the lab's (the relay): the lab finishes them, and the join comes back to Dermatology once.
+    // Biopsy another lesion was added after the dermoscopy: both biopsies are taken, so both Histology stages are current.
+    const [histology, second] = pathway.stages.filter(isCurrent);
+    expect([histology.name, second.name]).toEqual(['Histology', 'Histology']);
+    expect(pathway.currentStageIds).toEqual([histology.id, second.id]);
+    expect(second.branchAdditionId).toBe(pathway.branchAdditions[0].id);
+    const review = pathway.stages.find((s: {name: string}) => s.name === 'Histology result');
+    expect(review.predecessorIds).toEqual([histology.id]);
+    // Both are the lab's (the relay): the lab finishes them, each on its own.
     expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
     db().user = LAB.username;
+    pathway = (await call('POST', `${url}/stages/${second.id}/finish`, {result: 'Benign (synthetic).'})).body;
+    expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([histology.id]);
     pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {result: 'Benign (synthetic).'})).body;
-    expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([labTests.id]);
-    pathway = (await call('POST', `${url}/stages/${labTests.id}/finish`, {result: 'Normal (synthetic).'})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
     expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});
-    expect(db().pathways.find((p) => p.id === PATHWAYS.forkedTests)!.handovers.filter((h) => h.stageId === review.id)).toHaveLength(1);
   });
 
   it('adds a template’s branch on new information, with a reason kept out of the audit log (MC10)', async () => {
@@ -209,25 +217,28 @@ describe('the light demo handlers', () => {
     const url = `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`;
     let pathway = (await call('GET', url)).body;
     const stage = (name: string) => pathway.stages.find((s: {name: string}) => s.name === name);
-    const histology = stage('Histology (lab)');
-    // Listed in the template's order, none chosen; the blood tests may follow histology or the review only.
-    expect(pathway.addableBranches.map((b: {name: string}) => b.name)).toEqual(['Blood tests', 'Repeat biopsy']);
-    const bloods = pathway.addableBranches[0];
-    expect(bloods.afterStageIds).toEqual([histology.id, stage('Results and team review').id]);
-    const add = {templateBranchId: bloods.templateBranchId, afterStageId: histology.id};
+    const dermoscopy = stage('Dermoscopy assessment');
+    // Listed in the template's order, none chosen: the reviewed route, then the repeats its loops became. A second
+    // biopsy may follow the dermoscopy only; a repeat biopsy, the lab's histology.
+    expect(pathway.addableBranches.map((b: {name: string}) => b.name)).toEqual(['Biopsy another lesion', 'Repeat biopsy']);
+    const another = pathway.addableBranches[0];
+    expect(another.afterStageIds).toEqual([dermoscopy.id]);
+    expect(pathway.addableBranches[1].afterStageIds).toEqual([stage('Histology').id]);
+    const add = {templateBranchId: another.templateBranchId, afterStageId: dermoscopy.id};
     expect((await call('POST', `${url}/branches`, {...add, reason: ' '})).status).toBe(400);
-    const reason = 'Also needs blood tests';
+    const reason = 'A second lesion on the left shoulder';
     pathway = (await call('POST', `${url}/branches`, {...add, reason})).body;
-    const [tests, labTests] = pathway.branchAdditions[0].stageIds;
-    expect(pathway.stages.find((s: {id: string}) => s.id === tests).predecessorIds).toEqual([histology.id]);
+    const [biopsy, histology] = pathway.branchAdditions[0].stageIds;
+    expect(pathway.stages.find((s: {id: string}) => s.id === biopsy).predecessorIds).toEqual([dermoscopy.id]);
     // It runs beside what's left, on a route of its own (routes may end anywhere): the pathway counts it.
-    expect(pathway.stages.at(-1).id).toBe(labTests);
-    expect(pathway.stageCount).toBe(6);
-    expect(pathway.branchAdditions[0]).toMatchObject({name: 'Blood tests', reason, addedByUsername: STAFF.username});
+    expect(pathway.stages.at(-1).id).toBe(histology);
+    expect(pathway.stages.at(-1)).toMatchObject({name: 'Histology', ownerTeamName: 'Lab'});
+    expect(pathway.stageCount).toBe(7);
+    expect(pathway.branchAdditions[0]).toMatchObject({name: 'Biopsy another lesion', reason, addedByUsername: STAFF.username});
     // Not repeatable: once is all.
     expect((await call('POST', `${url}/branches`, {...add, reason})).status).toBe(409);
     const entry = auditEntries().find((e) => e.action === 'BranchAdded' && e.patientPathwayId === PATHWAYS.histologyToFinish);
-    expect(entry?.details).toContain('Blood tests');
+    expect(entry?.details).toContain('Biopsy another lesion');
     expect(entry?.details).not.toContain(reason);
   });
 
@@ -252,9 +263,9 @@ describe('the light demo handlers', () => {
 
   it('refuses to finish a stage that needs consent until it’s recorded', async () => {
     startLightDemo(STAFF);
-    const url = `/api/pathways/patient-pathways/${PATHWAYS.consentToRecord}`;
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`;
     const photos = (await call('GET', url)).body.stages.find(isCurrent);
-    expect(photos).toMatchObject({name: 'Clinical photographs', needsConsent: true});
+    expect(photos).toMatchObject({name: 'Take biopsy', needsConsent: true});
     const refused = await call('POST', `${url}/stages/${photos.id}/finish`, {});
     expect(refused.status).toBe(409);
   });
@@ -262,7 +273,7 @@ describe('the light demo handlers', () => {
   it('keeps the stage library and templates, and refuses deleting what’s in use', async () => {
     startLightDemo(ADMIN);
     const definitions = (await call('GET', '/api/pathways/patient-pathway-stage/definitions')).body;
-    const histology = definitions.find((d: {name: string}) => d.name === 'Histology (lab)');
+    const histology = definitions.find((d: {name: string}) => d.name === 'Histology');
     expect(histology.canBeDeleted).toBe(false);
     expect((await call('DELETE', `/api/pathways/patient-pathway-stage/definitions/${histology.id}`)).status).toBe(409);
     const made = await call('POST', '/api/pathways/patient-pathway-stage/definitions', {name: 'Phone review', visitRequirement: 'None'});
@@ -281,7 +292,7 @@ describe('the light demo handlers', () => {
       stageDefinitionIdsInOrder: [made.body.id, histology.id],
     });
     expect(template.status).toBe(201);
-    expect((await call('DELETE', `/api/pathways/patient-pathway-stage/templates/${TEMPLATES.skinLesion}`)).status).toBe(409);
+    expect((await call('DELETE', `/api/pathways/patient-pathway-stage/templates/${TEMPLATES.suspectedSkinCancer}`)).status).toBe(409);
     expect((await call('DELETE', `/api/pathways/patient-pathway-stage/templates/${template.body.id}`)).status).toBe(204);
   });
 

@@ -31,35 +31,37 @@ export const TEAMS = {
 } as const;
 
 export const TEMPLATES = {
-  skinLesion: id(0xd2, 1),
+  /** Dermatology's ten (the owner's reviewed templates, `docs/pathways/dermatology.yaml`, mapped in `dermatology.ts`). */
+  suspectedSkinCancer: id(0xd2, 5),
   inflammatorySkin: id(0xd2, 2),
+  changingMole: id(0xd2, 8),
+  skinCancerSurveillance: id(0xd2, 9),
+  eczema: id(0xd2, 10),
+  psoriasis: id(0xd2, 11),
+  acne: id(0xd2, 12),
+  skinInfection: id(0xd2, 13),
+  hairLoss: id(0xd2, 14),
+  pigmentation: id(0xd2, 15),
   postMenopausalBleeding: id(0xd2, 3),
   diabetesReview: id(0xd2, 4),
-  /** Two choice nodes: the first visit (an assessment: biopsy, or looks benign), then the histology result. */
-  suspectedSkinCancer: id(0xd2, 5),
-  /** A fork after the first visit (MC8): the biopsy and histology beside the bloods and lab tests, joined at the review. */
-  lesionWithBloods: id(0xd2, 6),
   /** Biomechanics, assessment only: the assessment's outcomes (orthoses, exercises, footwear advice, the hospital). */
   lowerLimb: id(0xd2, 7),
 } as const;
 
-/** The skin lesion template's addable branches (MC10): routes a clinician may add on new information, never suggested. */
+/** Addable routes (MC10): routes a clinician may add on new information, never suggested. */
 export const TEMPLATE_BRANCHES = {
-  /** Blood tests and the lab's tests, after histology or the review: the tour adds it to Priya Holloway's pathway. */
-  bloodTests: id(0xfc, 1),
-  /** Another biopsy and its histology, after any stage, as often as needed. */
-  repeatBiopsy: id(0xfc, 2),
+  /** Suspected skin cancer's "Biopsy another lesion" (Take biopsy, then Histology), after Dermoscopy assessment. */
+  biopsyAnother: id(0xfc, 1),
 } as const;
 
 /** Stage definitions (the stage library), shared by the templates. */
 export const STAGES = {
-  /** Every definition below; the ones after `clinicReview` came with the light demo's second seed. */
+  /** Every definition below; the ones after `clinicReview` came with the light demo's second seed. Dermatology's from
+   * the reviewed templates are numbered from `id(0xd3, 0x20)` (`dermatologyStageDefinitions`). */
   firstClinicVisit: id(0xd3, 1),
   biopsyOrSample: id(0xd3, 2),
   histology: id(0xd3, 3),
   resultsAndTeamReview: id(0xd3, 4),
-  /** Photographs for a referral, with consent (was Treatment: the centre treats nothing). */
-  clinicalPhotos: id(0xd3, 5),
   followUp: id(0xd3, 6),
   dischargeLetter: id(0xd3, 7),
   /** Was Medicines review: the centre doesn't prescribe, so medicines go to the GP. */
@@ -78,11 +80,11 @@ export const STAGES = {
 } as const;
 
 export const PATIENTS = {
-  /** Has the skin lesion pathway waiting for its biopsy to be booked. */
+  /** Has the suspected skin cancer pathway at Take biopsy: the visit to book, and consent to record again. */
   ellisVarden: id(0xd4, 1),
-  /** Has the skin lesion pathway at histology: its stage can be finished. */
+  /** Has the suspected skin cancer pathway at Histology (the lab's): its stage can be finished. */
   priyaHolloway: id(0xd4, 2),
-  /** Has the inflammatory skin review on hold. */
+  /** Has the suspected skin infection pathway on hold. */
   samuelOkafor: id(0xd4, 3),
   /** Has the overdue post-menopausal bleeding pathway. */
   margaretFenwick: id(0xd4, 4),
@@ -95,18 +97,18 @@ export const PATIENTS = {
   aishaKhoury: id(0xd4, 10),
   ruthPenrose: id(0xd4, 11),
   callumAshby: id(0xd4, 12),
-  /** Has the skin lesion pathway at Treatment: the excision was done, and its consent isn't recorded yet. */
+  /** Has the suspected skin cancer pathway past its histology result (Low-risk BCC): at Refer to hospital. */
   harrietQuill: id(0xd4, 13),
-  /** Has the suspected skin cancer pathway at its branch point: biopsy first, or treat directly. */
+  /** Has the suspected skin cancer pathway at Dermoscopy assessment, a choice node. */
   felixMoreton: id(0xd4, 14),
 } as const;
 
 export const PATHWAYS = {
-  /** Skin lesion, Ellis Varden, Nadia Thornbury's: the biopsy (a visit) is next and not booked. */
+  /** Suspected skin cancer, Ellis Varden, Nadia Thornbury's: at Take biopsy (a visit, not booked; his consent was withdrawn). */
   biopsyToBook: id(0xd5, 1),
-  /** Skin lesion, Priya Holloway, Nadia Thornbury's: at histology, ready to finish. */
+  /** Suspected skin cancer, Priya Holloway, Nadia Thornbury's: with the lab at Histology, ready to finish. */
   histologyToFinish: id(0xd5, 2),
-  /** Inflammatory skin review, Samuel Okafor: on hold. */
+  /** Suspected skin infection, Samuel Okafor: on hold at Take skin sample, the sample sent. */
   onHold: id(0xd5, 3),
   /** Post-menopausal bleeding, Margaret Fenwick, Tom Hallworth's (Gynaecology): overdue. */
   overdue: id(0xd5, 4),
@@ -114,21 +116,21 @@ export const PATHWAYS = {
   notStarted: id(0xd5, 5),
   /** Diabetes review, Grace Abernethy: discharged. */
   completed: id(0xd5, 6),
-  /** Skin lesion, Tobias Lund: nobody assigned yet. */
+  /** Changing mole or lesion check, Tobias Lund: at Triage, nobody assigned yet. */
   unassigned: id(0xd5, 7),
-  /** Inflammatory skin review, Ilona Petrova, Nadia Thornbury's: follow-up booked this week. */
+  /** Psoriasis assessment, Ilona Petrova, Nadia Thornbury's: assessment only, past its care plan; the review booked this week. */
   followUpBooked: id(0xd5, 8),
-  /** Skin lesion, Harriet Quill, Nadia Thornbury's: Basal cell carcinoma recorded; at Clinical photographs, which needs a consent record. */
-  consentToRecord: id(0xd5, 9),
-  /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at the first visit, an assessment choice node (biopsy, or looks benign). */
+  /** Suspected skin cancer, Harriet Quill, Nadia Thornbury's: Low-risk BCC recorded; at Refer to hospital (needs its letter). */
+  referredToHospital: id(0xd5, 9),
+  /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at Dermoscopy assessment, a choice node with six outcomes. */
   branchToChoose: id(0xd5, 10),
   /** Post-menopausal bleeding, Priya Holloway, Gynaecology's: beside her Dermatology one, behind the team wall; at Histology, new for the lab. */
   priyaGynaecology: id(0xd5, 11),
   /** Diabetes review, Ellis Varden, Diabetes's: discharged; Dermatology sees it only as "completed". */
   ellisDiabetes: id(0xd5, 12),
-  /** Skin lesion with blood tests, Aisha Khoury, Nadia Thornbury's: two current stages side by side (histology, lab tests). */
+  /** Suspected skin cancer, Aisha Khoury, Nadia Thornbury's: Biopsy another lesion added, so two Histology stages run side by side. */
   forkedTests: id(0xd5, 13),
-  /** Skin lesion, Callum Ashby, Nadia Thornbury's: back from the lab (Histology finished), not picked up yet. */
+  /** Suspected skin cancer, Callum Ashby, Nadia Thornbury's: back from the lab at Histology result (a choice node), not picked up yet. */
   backFromLab: id(0xd5, 14),
   /** Lower limb biomechanics, Samuel Okafor, Biomechanics's: at its assessment, a choice node. */
   biomechanicsAssessment: id(0xd5, 15),
@@ -176,8 +178,8 @@ export const ROOMS = {
 
 /** Appointments added with the second seed (pathways' extras). */
 export const MORE_APPOINTMENTS = {
-  /** Harriet Quill's clinical photographs, attended this morning (its stage needs a consent record to finish). */
-  harrietExcision: id(0xf9, 1),
+  /** Harriet Quill's results visit (Histology result), attended this morning. */
+  harrietResults: id(0xf9, 1),
   harrietFirstVisit: id(0xf9, 2),
   harrietBiopsy: id(0xf9, 3),
   felixFirstVisit: id(0xf9, 4),
