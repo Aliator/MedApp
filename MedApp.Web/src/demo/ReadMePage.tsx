@@ -8,7 +8,6 @@ import {useClipboard} from '@astryxdesign/core/hooks';
 import {useNavigate} from '@tanstack/react-router';
 import {useContext, useEffect, useRef, useState} from 'react';
 import {useCurrentUser} from '../auth/auth';
-import {useNotepad} from '../components/notepad/NotepadContext';
 import {Page} from '../components/pages/Page';
 import {InHalfPaneContext, useHalfView, useHalfViews} from '../components/pages/halfView';
 import {AlertMessage} from '../components/shared/AlertMessage';
@@ -83,7 +82,6 @@ export function ReadMePage() {
   const me = useCurrentUser();
   const navigate = useNavigate();
   const halfViews = useHalfViews();
-  const notepad = useNotepad();
   const [notes, setNotes] = useState<Record<string, string>>({});
   // This Read Me's content, where its place is kept and put back.
   const root = useRef<HTMLDivElement>(null);
@@ -143,9 +141,13 @@ export function ReadMePage() {
       await switchAccount(step.account, step.path ?? READ_ME_PATH, {readMeOnRight});
       return;
     }
-    // A step with no page (the notepad's) stays where it is.
     if (step.path) await openPage(step.path, step.key);
-    if (step.opensNotepad) notepad?.open();
+  };
+
+  /** A step's own "Switch to …" (`switchTo`): signs in as that account and comes back to the Read Me, where it was. */
+  const switchForStep = async (step: TourStep, username: string) => {
+    rememberReadMePlace(root.current, step.key, 'whole');
+    await switchAccount(username, READ_ME_PATH);
   };
 
   const others = DEMO_ACCOUNTS.filter((account) => account.username !== me.username);
@@ -229,11 +231,24 @@ export function ReadMePage() {
                       <ListItem key={line} label={<Text type="body">{line}</Text>} />
                     ))}
                   </List>
+                  {/* Above the sample text, for a step done as one account with no page of its own (the notepad's). */}
+                  {step.switchTo && step.switchTo !== me.username && (
+                    <HStack>
+                      <Button
+                        label={`Switch to ${step.switchTo}`}
+                        variant="secondary"
+                        icon={<Icon icon={AppIcon.Account} />}
+                        onClick={() => void switchForStep(step, step.switchTo!)}
+                      />
+                    </HStack>
+                  )}
                   {step.sampleText && <SampleText lines={step.sampleText} />}
                   {notes[step.key] && <AlertMessage status="info" label="About this step" message={notes[step.key]} />}
-                  <HStack>
-                    <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
-                  </HStack>
+                  {step.buttonLabel && (
+                    <HStack>
+                      <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
+                    </HStack>
+                  )}
                 </VStack>
               ))}
             </VStack>
@@ -244,7 +259,12 @@ export function ReadMePage() {
           <CardSection title="What doesn’t work in the light version">
             <List listStyle="disc" edge="flush" density="compact">
               {NOT_IN_THE_LIGHT_VERSION.map((item) => (
-                <ListItem key={item.title} label={item.title} description={`The full version: ${item.full}`} />
+                // As text, so each wraps onto more lines instead of being cut off (a plain string is cut to one line).
+                <ListItem
+                  key={item.title}
+                  label={<Text type="body" weight="semibold">{item.title}</Text>}
+                  description={<Text type="body" color="secondary">{`The full version: ${item.full}`}</Text>}
+                />
               ))}
             </List>
           </CardSection>

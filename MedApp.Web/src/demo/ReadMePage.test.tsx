@@ -1,5 +1,4 @@
 import {screen, waitFor} from '@testing-library/react';
-import {NotepadProvider, useNotepad} from '../components/notepad/NotepadContext';
 import {HalfViewsContext, InHalfPaneContext, type HalfViews} from '../components/pages/halfView';
 import {renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
@@ -186,24 +185,29 @@ describe('ReadMePage', () => {
     await waitFor(() => expect(sessionStorage.getItem('medapp.readMePlace')).toBeNull());
   });
 
-  it('opens the notepad beside the Read Me, staying on it, and says Shift-click opens it in the half view', async () => {
-    startLightDemo(ADMIN);
-    function NotepadShown() {
-      return <p>{useNotepad()!.isOpen ? 'notepad open' : 'notepad closed'}</p>;
-    }
-    const {user, router} = renderWithApp(
-      <NotepadProvider>
-        <ReadMePage />
-        <NotepadShown />
-      </NotepadProvider>,
-      {user: asCurrentUser(ADMIN), path: '/read-me'},
-    );
+  it('offers the notepad step a switch to its account, and opens the notepad from the side nav, not a button of its own', async () => {
+    const {state} = startLightDemo(ADMIN);
+    const assign = vi.spyOn(demoNavigation, 'assign').mockImplementation(() => {});
+    const {user} = renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
 
-    expect(await screen.findByText(/Shift-click Notepad in the side nav to open it in the half view on the right/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Open the notepad'}));
+    expect(await screen.findByText(/Open the notepad from Notepad in the side nav/)).toBeInTheDocument();
+    expect(screen.getByText(/Or Shift-click Notepad in the side nav/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Open the notepad'})).not.toBeInTheDocument();
+    // Above the sample notes' Copy button.
+    const switchTo = screen.getByRole('button', {name: `Switch to ${STAFF.username}`});
+    expect(switchTo.compareDocumentPosition(screen.getByRole('button', {name: 'Copy the Notes'})) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(switchTo);
 
-    expect(await screen.findByText('notepad open')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/read-me');
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/read-me'));
+    expect(state.user).toBe(STAFF.username);
+  });
+
+  it('has no switch button once signed in as the step’s account', async () => {
+    startLightDemo(STAFF);
+    renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
+
+    expect(await screen.findByRole('button', {name: 'Copy the Notes'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: `Switch to ${STAFF.username}`})).not.toBeInTheDocument();
   });
 
   it('shows the notepad step’s sample notes as text, and copies them', async () => {
