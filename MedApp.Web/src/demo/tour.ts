@@ -1,7 +1,7 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, USERS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
@@ -257,12 +257,25 @@ export const TOUR: TourStep[] = [
     steps: [
       `As ${STAFF.fullName}, a dermatologist, open Priya Holloway. Patients are centre-wide: anyone can find anyone.`,
       'Her Gynaecology pathway shows only as “A pathway in Gynaecology, in progress since …”, under Upcoming: no title, stages, notes or link. Its appointments and letters don’t show either.',
-      'Pathways, appointments, letters, results, consent and MDT items belong to a team. Opening another team’s by its link answers “not found”, as if it weren’t there.',
+      'Pathways, referrals, appointments, letters, results, consent and MDT items belong to a team. Opening another team’s by its link answers “not found”, as if it weren’t there, and lists, home page counts and Insights leave it out.',
+      'A referral registered for another clinic goes to that clinic: whoever registered it doesn’t keep it, and one redirected to another team leaves the old team’s list.',
       `The lab (${LAB.fullName}) sees all of a pathway once a sample is passed to it, keeps reading it afterwards, and can’t look up any other. The admin reads everything and changes nothing clinical.`,
     ],
     account: STAFF.username,
     path: `/patients/${PATIENTS.priyaHolloway}`,
     buttonLabel: 'Open the patient as the dermatologist',
+  },
+  {
+    key: 'busy-calendar',
+    title: 'Another team’s appointments are busy time',
+    steps: [
+      `As ${STAFF.fullName}, open Tom Hallworth’s calendar. He also works in Gynaecology.`,
+      'His Gynaecology appointment (the next weekday; go to next week if it isn’t in this one) shows only as “Busy, another team”: no patient, nothing to open. His Dermatology ones show in full.',
+      'It still counts as busy when suggesting free times, so nobody is double-booked. Booking needs a clinician in the appointment’s team.',
+    ],
+    account: STAFF.username,
+    path: `/calendar?staff=${USERS.hallworth}&view=week`,
+    buttonLabel: 'Open Tom Hallworth’s calendar',
   },
   {
     key: 'on-hold-overdue',
@@ -307,7 +320,7 @@ export const TOUR: TourStep[] = [
     key: 'insights',
     title: 'Insights',
     steps: [
-      'As the admin: open, in progress and overdue pathways, who has overdue work, how long each stage takes, and the weekly flow.',
+      'As the admin: open, in progress and overdue pathways, who has overdue work, how long each stage takes, and the weekly flow, for every team or the one picked. Staff see only their own teams’.',
       'This week’s counts come from the demo’s pathways; the history behind the charts is made up for the light version.',
     ],
     account: ADMIN.username,

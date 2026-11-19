@@ -5,6 +5,7 @@ import {
   appointmentPurpose,
   attendingCount,
   blockItem,
+  busyItem,
   calendarItems,
   MEETING_COLOUR,
   meetingItem,
@@ -169,5 +170,24 @@ describe('calendarItems', () => {
     });
     const calendar = testCalendar({from: MONDAY, today: MONDAY, sessions: [session, {...session, id: 'no-time', startUtc: undefined}]});
     expect(calendarItems(calendar).filter((i) => i.kind === 'session').map((i) => i.key)).toEqual([sessionKey('session-1')]);
+  });
+
+  it("shows another team's appointment as busy time only: no patient, never opened or moved", () => {
+    const busy = {staffUserId: 'staff-other', username: 'other', startUtc: '2026-11-23T10:00:00Z', endUtc: '2026-11-23T10:30:00Z', what: 'Busy'};
+
+    expect(busyItem(busy)).toEqual({
+      key: 'busy-staff-other-2026-11-23T10:00:00Z',
+      kind: 'block',
+      date: MONDAY,
+      startUtc: busy.startUtc,
+      endUtc: busy.endUtc,
+      colour: 'gray',
+      label: 'Busy',
+      sublabel: 'Another team',
+      description: "Busy, another team's appointment, 10:00 to 10:30",
+      isReadOnly: true,
+    });
+    const calendar = {...testCalendar({from: MONDAY, today: MONDAY}), otherTeamsBusy: [busy, {...busy, startUtc: undefined}]};
+    expect(calendarItems(calendar).filter((i) => i.label === 'Busy')).toHaveLength(1);
   });
 });

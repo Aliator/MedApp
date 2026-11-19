@@ -546,7 +546,7 @@ export function registerLetters() {
     const viewer = me();
     const scope = myScope();
     return {
-      toApprove: db().letters.filter((l) => l.status === 'AwaitingApproval' && l.approverUserId === viewer.id).length,
+      toApprove: db().letters.filter((l) => l.status === 'AwaitingApproval' && l.approverUserId === viewer.id && canSeeRecord(l, scope)).length,
       toSend: db().letters.filter((l) => l.status === 'Approved' && !isSentToEveryone(l) && canSeeRecord(l, scope)).length,
     };
   });

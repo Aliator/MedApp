@@ -19789,6 +19789,7 @@ export interface components {
             appointments?: components["schemas"]["AppointmentResponse"][] | null;
             meetings?: components["schemas"]["MeetingResponse"][] | null;
             sessions?: components["schemas"]["ClinicSessionResponse"][] | null;
+            otherTeamsBusy?: components["schemas"]["BusyTimeResponse"][] | null;
         };
         CancelAppointmentRequest: {
             reason?: string | null;
