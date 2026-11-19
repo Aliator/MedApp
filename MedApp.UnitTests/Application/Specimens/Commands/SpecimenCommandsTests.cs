@@ -31,6 +31,50 @@ public sealed class RecordSpecimenHandlerTests : SpecimenTestBase
         pathway.Id, pathway.StageAt(stage).Id, Biopsy.Id, InHouse.Id, takenAt, "  left forearm ", " ", requesting ?? Nurse.UserId, Nurse);
 
     [Test]
+    public async Task Handle_FirstSample_PassesThePathwayToTheLabInTheSameSave()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.InProgress));
+        pathway.TeamId = PathwaysTestConstants.TeamId;
+
+        await Handler.Handle(Command(pathway), Cts.Token);
+
+        var grant = SavedGrants.Should().ContainSingle().Subject;
+        grant.Should().BeEquivalentTo(new
+        {
+            PathwayId = pathway.Id,
+            PatientId = pathway.PatientId,
+            TeamId = (Guid?)Lab.Id,
+            Reason = MedApp.Domain.Teams.PathwayAccessReason.StageOwner,
+            EndedAtUtc = (DateTime?)null,
+        });
+        Added.Should().ContainSingle().Which.TeamId.Should().Be(PathwaysTestConstants.TeamId);
+    }
+
+    [Test]
+    public async Task Handle_AlreadyPassedToTheLab_GrantsNothingMore()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.InProgress));
+        Access.Setup(a => a.HasGrantAsync(pathway.Id, Lab.Id, MedApp.Domain.Teams.PathwayAccessReason.StageOwner, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await Handler.Handle(Command(pathway), Cts.Token);
+
+        SavedGrants.Should().BeEmpty();
+        Added.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task Handle_TheLabsOwnPathway_NeedsNoGrant()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.InProgress));
+        pathway.TeamId = Lab.Id;
+
+        await Handler.Handle(Command(pathway), Cts.Token);
+
+        SavedGrants.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Handle_CurrentStage_AddsItTakenWithItsNumberAndAuditsIt()
     {
         var pathway = GivenPathway(CreatePathway(Status.InProgress));

@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using FluentAssertions;
 using MedApp.Application.Teams.Common;
 using static MedApp.UnitTests.Common.Constants.TeamsTestConstants;
@@ -59,4 +60,40 @@ public sealed class TeamMapperTests
             (dermatology.Id, TeamName, false),
             (urology.Id, OtherTeamName, true));
     }
+
+    [Test]
+    public void ToResponse_SaysItsKind()
+    {
+        TeamMapper.ToResponse(CreateTeam(), MedApp.Application.Teams.Common.TeamUsage.None).Kind.Should().Be("Clinic");
+        TeamMapper.ToResponse(CreateTeam(kind: TeamKind.Lab), MedApp.Application.Teams.Common.TeamUsage.None).Kind.Should().Be("Lab");
+    }
+
+    [Test]
+    public void ToStaffResponses_Memberships_GiveEachTeamsKindAndTheirRole_SortedByName()
+    {
+        var lab = CreateTeam("Synthetic lab", kind: TeamKind.Lab);
+        var dermatology = CreateTeam();
+
+        var responses = TeamMapper.ToStaffResponses(
+        [
+            new TeamMembership { TeamId = lab.Id, Team = lab, Role = TeamMemberRole.Member },
+            new TeamMembership { TeamId = dermatology.Id, Team = dermatology, Role = TeamMemberRole.ClinicAdmin },
+        ]);
+
+        responses.Select(r => (r.Name, r.Kind, r.Role)).Should().Equal(
+            (TeamName, "Clinic", "ClinicAdmin"),
+            ("Synthetic lab", "Lab", "Member"));
+        TeamMapper.ActivityName(responses[0]).Should().Be($"{TeamName} (clinic admin)");
+        TeamMapper.ActivityName(responses[1]).Should().Be("Synthetic lab");
+    }
+
+    [TestCase(null, TeamMemberRole.Member)]
+    [TestCase("", TeamMemberRole.Member)]
+    [TestCase("Member", TeamMemberRole.Member)]
+    [TestCase("ClinicAdmin", TeamMemberRole.ClinicAdmin)]
+    [TestCase("clinicadmin", null)]
+    [TestCase("1", null)]
+    [TestCase("Admin", null)]
+    public void ParseRole_ByItsExactName(string? role, TeamMemberRole? expected) =>
+        TeamRules.ParseRole(role).Should().Be(expected);
 }
