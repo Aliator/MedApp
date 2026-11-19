@@ -18,11 +18,19 @@ describe('PageHeader', () => {
 
   it('shows a page message in the header, between the title and the actions', async () => {
     renderWithApp(
-      <PageHeader title="Patients" message={<AlertMessage message="The patients could not be loaded." />} actions={<Button label="Search" />} />,
+      <PageHeader
+        title="Patients"
+        subtitle="Everyone registered with the centre"
+        message={<AlertMessage message="The patients could not be loaded." />}
+        actions={<Button label="Search" />}
+      />,
     );
 
     const heading = await screen.findByRole('heading', {level: 1, name: 'Patients'});
     const alert = screen.getByRole('alert');
+    // In the title's own line, not beside the subtitle under it (the owner, 19 November 2026).
+    expect(heading.parentElement).toContainElement(alert);
+    expect(heading.parentElement).not.toContainElement(screen.getByText('Everyone registered with the centre'));
     expect(alert).toHaveTextContent('The patients could not be loaded.');
     expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alert.compareDocumentPosition(screen.getByRole('button', {name: 'Search'})) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
