@@ -9,7 +9,9 @@ Captures the same screens in the React app (`MedApp.Web`) and, optionally, the d
 ## One-time setup
 
 1. Install Node.js, then run `npm install` and `npm run install-browser` (Chromium only) in this folder.
-2. Create the tools' own login with `medapp-dev`: `create_user`, username `dev-parity`, roles Admin and User, and a password of your choosing. Then copy `.env.example` to `.env` (git-ignored) and put the password in it. It's a separate account because each screen sets its saved settings (the app keeps settings with the account, and the server renders pages with them), so your own account's are never touched. It needs to be an admin to reach `/admin/users`. `reset_demo_data` removes it unless you pass `keepUsers: ["dev-parity"]`.
+2. Create the tools' own logins with `medapp-dev`, then copy `.env.example` to `.env` (git-ignored) and put their passwords in it. They're separate accounts because each screen sets its saved settings (the app keeps settings with the account, and the server renders pages with them), so your own account's are never touched.
+   - **The admin** (`PARITY_USERNAME`): `create_user`, username `dev-parity`, roles `["Admin"]`, and a password of your choosing. It reaches `/admin/users` and the setup pages. `reset_demo_data` removes it unless you pass `keepUsers: ["dev-parity"]`.
+   - **Members of staff** (`PARITY_STAFF_*`, `PARITY_LAB_*`): admins are read only and clinical records sit behind team walls, so screens that need clinical access (`as: 'clinic'` or `as: 'lab'` in `screens.ts`) are captured as staff. `ensure_test_staff` with prefix `dev-parity` and a password makes `dev-parity-clinician` (Clinician and Booking, Dermatology's clinic admin) and `dev-parity-lab` (Lab and Pathologist, in the lab). The lab account is optional: its screens skip without it. Run `ensure_test_staff` again after `reset_demo_data`, which remakes the teams.
 
 ## Running it
 

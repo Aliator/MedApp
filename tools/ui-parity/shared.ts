@@ -1,9 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 
 export type AppName = 'blazor' | 'react';
 export const APPS: AppName[] = ['blazor', 'react'];
+
+/**
+ * Who a screen is captured as: the parity admin (the default: setup, accounts and the read-only view), or, for screens
+ * that need clinical access (admins are read only, and records sit behind team walls), a member of staff in their
+ * team: the clinic's (Dermatology) or the lab's. See README.md for the accounts.
+ */
+export type Account = 'admin' | 'clinic' | 'lab';
 
 export interface ProjectMeta {
   app: AppName;
@@ -36,7 +43,22 @@ export interface ParityData {
 }
 
 const root = __dirname;
-export const authFile = (app: AppName) => path.join(root, '.auth', `${app}.json`);
+export const authFile = (app: AppName, account: Account = 'admin') =>
+  path.join(root, '.auth', account === 'admin' ? `${app}.json` : `${app}-${account}.json`);
+
+/** Whether the setup signed this account in (the lab account is optional). */
+export const isSignedIn = (app: AppName, account: Account) => existsSync(authFile(app, account));
+
+/**
+ * The browser session a screen runs with, as a `storageState` fixture: the account's saved by the setup, or nobody's
+ * when that account isn't set up (the screen then skips itself, see `skipUnlessSignedIn`).
+ */
+export const storageStateFor =
+  (account: Account) =>
+  async ({}, use: (state: string | { cookies: []; origins: [] }) => Promise<void>, info: TestInfo) => {
+    const { app } = info.project.metadata as ProjectMeta;
+    await use(isSignedIn(app, account) ? authFile(app, account) : { cookies: [], origins: [] });
+  };
 const dataFile = (app: AppName) => path.join(root, '.auth', `${app}-data.json`);
 
 export function writeData(app: AppName, data: ParityData) {
