@@ -1,6 +1,6 @@
 import type {TokenColor} from '@astryxdesign/core/Token';
 import {appointmentStatusLabel, type Appointment} from '../../api/appointments';
-import {hasDeclined, type Calendar, type CalendarBlock, type Meeting} from '../../api/calendar';
+import {hasDeclined, type BusyTime, type Calendar, type CalendarBlock, type Meeting} from '../../api/calendar';
 import {slotsWords, type ClinicSession} from '../../api/clinics';
 import {formatTimeRange} from '../../utils/calendarSlots';
 import {ukDay} from '../../utils/dates';
@@ -159,6 +159,30 @@ export function appointmentItem(appointment: Appointment, {canBook = true}: {can
   };
 }
 
+/** Another team's appointment's key on a grid: whose calendar and when, as it has no ID to show. */
+export const busyKey = (busy: BusyTime) => `busy-${busy.staffUserId}-${busy.startUtc}`;
+
+/**
+ * Another team's appointment on a calendar (the team walls): busy time, with no patient or what it's for. Quiet like
+ * blocked time, and never opened or moved.
+ */
+export function busyItem(busy: BusyTime): CalendarGridItem {
+  const start = busy.startUtc ?? '';
+  const end = busy.endUtc ?? '';
+  return {
+    key: busyKey(busy),
+    kind: 'block',
+    date: ukDay(start),
+    startUtc: start,
+    endUtc: end,
+    colour: 'gray',
+    label: 'Busy',
+    sublabel: 'Another team',
+    description: `Busy, another team's appointment, ${formatTimeRange(start, end)}`,
+    isReadOnly: true,
+  };
+}
+
 /**
  * Blocked time on a calendar, in its activity's colour. Movable only when asked for (`isMovable`: the Calendar page's
  * Edit blocks mode) and it can be changed (its calendar's owner or an admin, not on a past day: the API's `canEdit`).
@@ -191,21 +215,22 @@ export function blockItem(block: CalendarBlock, {isMovable = false}: {isMovable?
 }
 
 /**
- * Everything on a calendar as grid items: its blocks first, then its clinic sessions and meetings, so its appointments
- * draw over them.
+ * Everything on a calendar as grid items: its blocks and other teams' busy time first, then its clinic sessions and
+ * meetings, so its appointments draw over them.
  * Appointments and meetings are movable by their own flags (appointments only for someone who can book: `canBook`);
  * blocks only with `movableBlocks` (the Calendar page's Edit
  * blocks mode), and never on a day the calendar says is past. A meeting the calendar's owner (`staffUserId`) declined
  * is faded (`meetingItem`).
  */
 export function calendarItems(
-  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId' | 'sessions'> | undefined,
+  calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings' | 'days' | 'staffUserId' | 'sessions' | 'otherTeamsBusy'> | undefined,
   {movableBlocks = false, canBook = true}: {movableBlocks?: boolean; canBook?: boolean} = {},
 ): CalendarGridItem[] {
   if (!calendar) return [];
   const pastDays = new Set((calendar.days ?? []).filter((d) => d.isPast).map((d) => d.date));
   return [
     ...(calendar.blocks ?? []).map((b) => blockItem(b, {isMovable: movableBlocks && !pastDays.has(b.date)})),
+    ...(calendar.otherTeamsBusy ?? []).filter((b) => b.startUtc && b.endUtc).map(busyItem),
     ...(calendar.sessions ?? []).filter((c) => c.startUtc && c.endUtc).map(sessionItem),
     ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map((m) => meetingItem(m, calendar.staffUserId)),
     ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map((a) => appointmentItem(a, {canBook})),

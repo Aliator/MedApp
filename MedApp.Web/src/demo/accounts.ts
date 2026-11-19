@@ -140,7 +140,8 @@ const OTHERS: DemoPerson[] = [
     jobTitle: 'GP with a special interest in skin',
     roles: ['Clinician'],
     permissions: CLINICIAN,
-    teams: [member(TEAMS.dermatology)],
+    // Also a visiting clinician in Gynaecology (staff may be in several teams), so his calendar shows the team walls.
+    teams: [member(TEAMS.dermatology), member(TEAMS.gynaecology)],
   },
 ];
 

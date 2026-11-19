@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import type {DemoPerson} from '../accounts';
 import {notFound, problem, refuse} from '../api/http';
 import {teamName} from '../seed';
-import type {DemoPathway} from '../state';
+import type {DemoAppointment, DemoPathway} from '../state';
 import {db} from '../store';
 import {nowUtc, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
@@ -16,9 +16,13 @@ import {me, teamIdsOf} from './common';
  *   (`pathwayAccess`): its own team (`Owner`), and the lab once a sample is passed to it (`StageOwner`, kept after
  *   hand-back). Anyone else sees it only as a summary line on the patient (`otherTeamPathways`).
  * - **Its records** (appointments, letters, results, consent, specimens, MDT items) follow it; one without a
- *   pathway follows its own team.
- * - **Only the pathway's own team changes it.** The lab's specimen work is checked by its own handlers.
+ *   pathway follows its own team. **A referral** is its current team's (and its pathway's, once accepted): redirected,
+ *   the old team stops seeing it; registered for another team, the registrar doesn't keep it (MC5).
+ * - **Only the pathway's own team changes it** (and a record's own team, the record). The lab's specimen work is
+ *   checked by its own handlers.
  * - **Across a wall is a 404**, never a 403, and records `TeamBoundaryRefused` once per target in the view window.
+ * - **On a calendar**, another team's appointment is busy time with no patient (`busyTimeOf`), so clashes still count.
+ * - **Counts and Insights** count only what the viewer's teams may see (admins: every team).
  */
 
 /** Whose walls apply: the viewer's teams, and whether they see every team's (admins). */
@@ -71,6 +75,37 @@ export function seeRecord<T extends {id?: string; teamId: string | null; pathway
   if (!record) refuse(notFound(what));
   if (!canSeeRecord(record)) refuseAcrossWall(targetKind, record.id ?? '', what);
   return record;
+}
+
+/** Whether the viewer's team owns a record (an appointment, a referral), so may change it. */
+export const canChangeRecord = (record: {teamId: string | null}, scope: TeamScope = myScope()) =>
+  record.teamId !== null && scope.teamIds.includes(record.teamId);
+
+/** Refuses a change to a record the viewer can read but their team doesn't own (an admin's, the lab's). */
+export function ensureCanChangeRecord(record: {teamId: string | null}, what: string) {
+  if (!canChangeRecord(record))
+    refuse(problem(409, `${what} is ${teamName(record.teamId) ?? 'another team'}’s: your team can read it, and only its own team changes it.`));
+}
+
+/**
+ * Another team's appointment on a calendar (decision 183): busy time only, with no patient, pathway, stage, notes or
+ * appointment ID.
+ */
+export const busyTimeOf = (appointment: Pick<DemoAppointment, 'staffUserId' | 'staffUsername' | 'startUtc' | 'endUtc'>): Schemas['BusyTimeResponse'] => ({
+  staffUserId: appointment.staffUserId ?? undefined,
+  username: appointment.staffUsername ?? null,
+  startUtc: appointment.startUtc ?? undefined,
+  endUtc: appointment.endUtc ?? appointment.startUtc ?? undefined,
+  what: 'Busy',
+});
+
+/**
+ * The teams Insights counts (`InsightsScope.TeamIds`): an admin's every team, or the one picked; anyone else's own
+ * teams, narrowed to the one picked (another team's picked counts nothing).
+ */
+export function insightsTeams(teamId: string | null, scope: TeamScope = myScope()): (id: string) => boolean {
+  if (scope.seesAllTeams) return (id) => !teamId || id === teamId;
+  return (id) => scope.teamIds.includes(id) && (!teamId || id === teamId);
 }
 
 /** Refuses a change to a pathway the viewer's team can read but doesn't own (the lab's, after hand-back). */

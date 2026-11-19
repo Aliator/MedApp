@@ -159,7 +159,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Also:** booking needs the appointment's team in scope and its clinician a member of that team (400 on `StaffUserId`); a referral redirected to another team ends the old team's view.
 - **Migration:** none (MC4 added the columns).
 - **Tests:** the probes for each endpoint; handler tests; `PathwayInsightsSqlTests` with a team scope.
-- **Light demo:** the same helper in `handlers/lab.ts`, `clinical.ts`, referrals and appointments; counts by team.
+- **Light demo (built first, demo-first rule):** referrals walled by team (or their pathway's), redirected or registered elsewhere leaves the old team; home counts and Insights by team; other teams' appointments as `otherTeamsBusy` on `CalendarResponse` ("Busy, another team"); booking 400s a clinician outside the appointment's team, and only its own team changes an appointment or referral (409). Tom Hallworth also in Gynaecology, with a Gynaecology appointment, for the tour's busy-calendar step.
 
 **MC6. The clinic picker on every grid** (M). After MC5. ∥ MC7 to MC11.
 - **Scope:** a `teamId` filter on Patients, Pathways, Referrals, Appointments, Results, Letters and Insights searches: **"All clinics"** or one team. Shown to admins (`SeesAllTeams`) and to staff in more than one team (their own only; another team is a 400). Kept in the URL (`clinic=<id>`) and remembered per page in account settings (`medapp.clinicPicker.<page>`). Patients: "has a pathway, referral or appointment in that clinic".
