@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {usernameOf} from '../accounts';
 import {invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {specimenNumber} from '../slices/lab';
+import {hospitalSample, specimenNumber} from '../slices/lab';
 import type {DemoHospital, DemoHospitalRequest, LabRequestPriority} from '../slices/hospitals';
 import {db} from '../store';
 import {nowUtc, today, ukDateOf} from '../time';
@@ -308,6 +308,8 @@ export function registerHospitals() {
       registeredByUserId: me().id,
     };
     state.hospitalRequests.push(request);
+    // Its sample joins the samples database (MC14), the hospital's source on it.
+    state.specimens.push(hospitalSample(request, newId()));
     return requestResponse(request);
   });
 

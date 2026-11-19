@@ -83,7 +83,7 @@ function alert(rule: RuleDescription): SentencePart[] | null {
       return [{text: 'Notify me when a visit for '}, ...stage(rule), {text: ' on '}, ...pathway(rule), {text: ' has awaited booking more than '}, days(rule)];
     case 'SpecimenOverdue':
       return [
-        {text: 'Notify me when a specimen from '},
+        {text: 'Notify me when a sample from '},
         ...stage(rule),
         {text: ' on '},
         ...pathway(rule),

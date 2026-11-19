@@ -20,7 +20,7 @@ describe('PathwayResults', () => {
     renderWithApp(<PathwayResults pathwayId={RESULT_PATHWAY_ID} />, {user: staffUser});
 
     expect(await screen.findByRole('link', {name: 'Skin biopsy (punch) report'})).toHaveAttribute('href', `/results/${RESULT_ID}`);
-    expect(screen.getAllByText('Specimen MA26-000123 · reported 4 Nov 2026, 10:00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sample MA26-000123 · reported 4 Nov 2026, 10:00').length).toBeGreaterThan(0);
     expect(screen.getAllByText('External report · reported 4 Nov 2026, 10:00').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Responsible clinician: Deleted user').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Signed off').length).toBeGreaterThan(0);

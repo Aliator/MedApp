@@ -41,7 +41,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Appointments: 'Appointments',
   Referrals: 'Referrals',
   WaitingTime: 'Waiting time',
-  Specimens: 'Specimens',
+  Specimens: 'Samples',
   Results: 'Results',
   Consent: 'Consent',
   Letters: 'Letters',
@@ -341,32 +341,32 @@ const specimenWords = (status: string | null | undefined) => specimenStatusLabel
  * an entry in error said come only to admins. The number links to the specimen (`PatientTimeline`).
  */
 function describeSpecimenEntry(entry: TimelineEntry): TimelineWording {
-  const type = entry.specimenTypeName?.trim() || 'Specimen';
+  const type = entry.specimenTypeName?.trim() || 'A';
   const lab = entry.laboratoryName?.trim();
   const was = entry.fromStatus ? `Was ${specimenWords(entry.fromStatus)}` : null;
   const reason = entry.reason?.trim();
   switch (entry.action) {
     case 'SpecimenTaken':
       return {
-        title: `${type} specimen taken`,
+        title: `${type} sample taken`,
         detail: sentences(lab ? `For ${lab}` : null, ...(entry.changes ?? []).filter(hasValues).map(describeSpecimenChange)),
       };
     case 'SpecimenSent':
-      return {title: `${type} specimen sent${lab ? ` to ${lab}` : ''}`, detail: ''};
+      return {title: `${type} sample sent${lab ? ` to ${lab}` : ''}`, detail: ''};
     case 'SpecimenReceived':
-      return {title: `${type} specimen received${lab ? ` by ${lab}` : ''}`, detail: ''};
+      return {title: `${type} sample received${lab ? ` by ${lab}` : ''}`, detail: ''};
     case 'SpecimenReported':
-      return {title: `${type} specimen reported`, detail: lab ? `The report from ${lab} is attached` : 'The report is attached'};
+      return {title: `${type} sample reported`, detail: lab ? `The report from ${lab} is attached` : 'The report is attached'};
     case 'SpecimenRejected':
-      return {title: `${type} specimen rejected${lab ? ` by ${lab}` : ' by the lab'}`, detail: sentences(was, reason ? `Reason: ${reason}` : null)};
+      return {title: `${type} sample rejected${lab ? ` by ${lab}` : ' by the lab'}`, detail: sentences(was, reason ? `Reason: ${reason}` : null)};
     case 'SpecimenLost':
-      return {title: `${type} specimen marked lost`, detail: sentences(was, reason)};
+      return {title: `${type} sample marked lost`, detail: sentences(was, reason)};
     case 'SpecimenEnteredInError':
-      return {title: `${type} specimen marked entered in error`, detail: sentences(was, reason)};
+      return {title: `${type} sample marked entered in error`, detail: sentences(was, reason)};
     case 'SpecimenDetailsEdited':
-      return {title: `${type} specimen: details edited`, detail: (entry.changes ?? []).map(describeSpecimenChange).join('; ')};
+      return {title: `${type} sample: details edited`, detail: (entry.changes ?? []).map(describeSpecimenChange).join('; ')};
     default:
-      return {title: `${type} specimen changed`, detail: entry.toStatus ? `Now ${specimenWords(entry.toStatus)}` : ''};
+      return {title: `${type} sample changed`, detail: entry.toStatus ? `Now ${specimenWords(entry.toStatus)}` : ''};
   }
 }
 
@@ -383,7 +383,7 @@ const resultWords = (status: string | null | undefined) => resultStatusLabel(sta
  * result and its specimen are linked by `PatientTimeline`. Nothing here says what a report showed.
  */
 function describeResultEntry(entry: TimelineEntry): TimelineWording {
-  const what = entry.resultSource === 'ExternalReport' ? 'External report' : `${entry.specimenTypeName?.trim() || 'Specimen'} result`;
+  const what = entry.resultSource === 'ExternalReport' ? 'External report' : `${entry.specimenTypeName?.trim() || 'Sample'} result`;
   const reason = entry.reason?.trim();
   const was = entry.fromStatus ? `Was ${resultWords(entry.fromStatus)}` : null;
   switch (entry.action) {

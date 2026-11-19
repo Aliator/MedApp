@@ -42,7 +42,7 @@ function ResultSummaryLines({result}: {result: Result}) {
       <MetadataList columns={2} label={{position: 'top'}}>
         <MetadataListItem label="Result">{result.title}</MetadataListItem>
         <MetadataListItem label="Source">
-          {result.specimenNumber ? `Specimen ${result.specimenNumber}` : resultSourceLabel(result.source)}
+          {result.specimenNumber ? `Sample ${result.specimenNumber}` : resultSourceLabel(result.source)}
         </MetadataListItem>
         <MetadataListItem label="Reported">{formatDateTime(result.reportedAtUtc ?? '')}</MetadataListItem>
         <MetadataListItem label="Status">{resultStatusLabel(result.status)}</MetadataListItem>
@@ -275,7 +275,7 @@ export function ResultEnteredInErrorDialog({result, onClose}: ResultDialogProps)
       title="Mark Entered in Error?"
       message={
         result.specimenId
-          ? `The report is on the wrong patient or specimen. Its file will be deleted, and specimen ${result.specimenNumber ?? ''} goes back to the lab to be reported again. The result stays in the record, marked entered in error. This can't be undone.`
+          ? `The report is on the wrong patient or sample. Its file will be deleted, and sample ${result.specimenNumber ?? ''} goes back to the lab to be reported again. The result stays in the record, marked entered in error. This can't be undone.`
           : "The report is on the wrong patient, or isn't a result. Its file will be deleted. The result stays in the record, marked entered in error. This can't be undone."
       }
       icon={AppIcon.EnteredInError}

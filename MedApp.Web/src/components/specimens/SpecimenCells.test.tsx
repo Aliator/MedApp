@@ -38,7 +38,7 @@ describe('SpecimenCells', () => {
     expect(document.querySelectorAll('svg')).toHaveLength(0);
   });
 
-  it("links the number to the specimen and the patient to their page, with the NHS number", async () => {
+  it("links the number to the sample and the patient to their page, with the NHS number", async () => {
     renderWithApp(
       <>
         <SpecimenNumberCell specimen={testSummary()} />

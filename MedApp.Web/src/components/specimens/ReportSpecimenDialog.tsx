@@ -70,7 +70,7 @@ export function ReportSpecimenDialog({isOpen, specimen, onClose}: ReportSpecimen
     <ConfirmDialog
       isOpen={isOpen}
       title="Attach Report"
-      message="The lab's report, as a file. It's attached to the pathway and the specimen is marked reported."
+      message="The lab's report, as a file. It's attached to the pathway and the sample is marked reported."
       icon={AppIcon.Upload}
       confirmText="Attach Report"
       confirmDisabled={!file || checkAttachmentFile(file, limits) !== null}
@@ -80,7 +80,7 @@ export function ReportSpecimenDialog({isOpen, specimen, onClose}: ReportSpecimen
       <VStack gap={3} hAlign="stretch">
         {specimen.patient && <PatientBanner patient={specimen.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Specimen">{specimen.number}</MetadataListItem>
+          <MetadataListItem label="Sample">{specimen.number}</MetadataListItem>
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
           <MetadataListItem label="Lab's reference">{specimen.labReference || '—'}</MetadataListItem>
         </MetadataList>

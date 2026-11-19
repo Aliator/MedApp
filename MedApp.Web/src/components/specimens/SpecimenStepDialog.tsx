@@ -41,32 +41,32 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     message: "It's on its way to the lab. The lab's worklist expects it until it's marked received.",
     confirm: 'Mark Sent',
     icon: AppIcon.SpecimenSent,
-    announced: 'Specimen marked sent',
-    failed: 'The specimen could not be marked sent.',
+    announced: 'Sample marked sent',
+    failed: 'The sample could not be marked sent.',
   },
   received: {
     title: 'Mark Received',
     message: 'The lab has it. It stays in the lab until its report is attached.',
     confirm: 'Mark Received',
     icon: AppIcon.SpecimenReceived,
-    announced: 'Specimen marked received',
-    failed: 'The specimen could not be marked received.',
+    announced: 'Sample marked received',
+    failed: 'The sample could not be marked received.',
   },
   rejected: {
-    title: 'Reject Specimen',
-    message: "The lab can't test it. It's closed, and whoever asked for it and took it are told; taking another is a new specimen.",
-    confirm: 'Reject Specimen',
+    title: 'Reject Sample',
+    message: "The lab can't test it. It's closed, and whoever asked for it and took it are told; taking another is a new sample.",
+    confirm: 'Reject Sample',
     icon: AppIcon.StatusCancelled,
-    announced: 'Specimen rejected',
-    failed: 'The specimen could not be rejected.',
+    announced: 'Sample rejected',
+    failed: 'The sample could not be rejected.',
   },
   lost: {
     title: 'Mark Lost',
-    message: "It can't be found. It's closed, and whoever asked for it and took it are told; taking another is a new specimen.",
+    message: "It can't be found. It's closed, and whoever asked for it and took it are told; taking another is a new sample.",
     confirm: 'Mark Lost',
     icon: AppIcon.Warning,
-    announced: 'Specimen marked lost',
-    failed: 'The specimen could not be marked lost.',
+    announced: 'Sample marked lost',
+    failed: 'The sample could not be marked lost.',
   },
   enteredInError: {
     title: 'Mark Entered in Error?',
@@ -74,8 +74,8 @@ const WORDS: Record<SpecimenStep, StepWords> = {
       "It was recorded by mistake, or on the wrong patient. It's closed and stays in the record, marked entered in error. This can't be undone.",
     confirm: 'Mark Entered in Error',
     icon: AppIcon.EnteredInError,
-    announced: 'Specimen marked entered in error',
-    failed: 'The specimen could not be marked entered in error.',
+    announced: 'Sample marked entered in error',
+    failed: 'The sample could not be marked entered in error.',
   },
 };
 
@@ -155,7 +155,7 @@ export function SpecimenStepDialog({step, specimen, onClose}: SpecimenStepDialog
       <VStack gap={3} hAlign="stretch">
         {specimen.patient && <PatientBanner patient={specimen.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Specimen">{specimen.number}</MetadataListItem>
+          <MetadataListItem label="Sample">{specimen.number}</MetadataListItem>
           <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
           <MetadataListItem label="Taken">{formatDateTime(specimen.takenAtUtc ?? '')}</MetadataListItem>

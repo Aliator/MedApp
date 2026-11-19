@@ -12,7 +12,20 @@ const pageOf = (items: unknown[], totalCount = items.length) => json({items, pag
 
 function renderPage(search: LabSearch = {}, user = labUser, handlers: Record<string, (request: Request) => Response> = {}) {
   const onSearchChange = vi.fn();
-  const items = [testSummary({isOverdueAtLab: true}), testSummary({id: 'second', number: 'MA26-000124', patientNhsNumber: null})];
+  const items = [
+    testSummary({isOverdueAtLab: true}),
+    testSummary({
+      id: 'second',
+      number: 'MA26-000124',
+      patientNhsNumber: null,
+      source: 'Hospital',
+      requestingTeamId: null,
+      requestingTeamName: null,
+      hospitalName: 'Riverside General (demo)',
+      pathwayId: null,
+      stageId: null,
+    }),
+  ];
   const fetch = mockApi({
     [WORKLIST]: () => pageOf(items),
     ...handlers,
@@ -28,28 +41,34 @@ async function worklistCalls(fetch: ReturnType<typeof mockApi>) {
 }
 
 describe('LabPage', () => {
-  it("opens on Expected for the lab's staff: each specimen's number, patient, status and when it was sent", async () => {
+  it("opens on To receive: each sample's number, patient, where it came from, test, status and when it was taken", async () => {
     const {fetch} = renderPage();
 
     expect(await screen.findByRole('heading', {name: 'Samples', level: 1})).toBeInTheDocument();
-    expect(await screen.findByRole('tab', {name: 'Expected', selected: true})).toBeInTheDocument();
-    expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label') ?? t.textContent)).toHaveLength(6);
+    expect(await screen.findByRole('tab', {name: 'To receive', selected: true})).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label') ?? t.textContent)).toHaveLength(5);
+    expect(screen.getByText('Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Dermatology')).toBeInTheDocument();
+    expect(screen.getByText('Hospital')).toBeInTheDocument();
+    expect(screen.getByText('Riverside General (demo)')).toBeInTheDocument();
+    expect(screen.getAllByText('Skin histology')).toHaveLength(2);
     expect(await screen.findByRole('link', {name: 'MA26-000123'})).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}`);
     expect(screen.getAllByText('Freya Ahmed').length).toBeGreaterThan(0);
     expect(screen.getByText('NHS No. 999 000 0026')).toBeInTheDocument();
     expect(screen.getByText('No NHS number')).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', {name: /Sent/})).toBeInTheDocument();
-    expect(screen.getAllByText('2 Nov 2026, 15:00')).toHaveLength(2);
+    expect(screen.getByRole('columnheader', {name: /Taken/})).toBeInTheDocument();
+    expect(screen.getAllByText('2 Nov 2026, 09:00')).toHaveLength(2);
+    expect(screen.getAllByText('7 Nov 2026, 09:00')).toHaveLength(2);
     expect(screen.getByText('Overdue at lab')).toBeInTheDocument();
-    expect(screen.getByText('Expected: 2 specimens')).toBeInTheDocument();
-    expect(await worklistCalls(fetch)).toEqual([{search: '', body: {view: 'Expected', page: 1, pageSize: 10}}]);
+    expect(screen.getByText('To receive: 2 samples')).toBeInTheDocument();
+    expect(await worklistCalls(fetch)).toEqual([{search: '', body: {view: 'ToReceive', page: 1, pageSize: 10}}]);
   });
 
-  it('opens on To send for those who send them, and keeps a view and sort from the address', async () => {
+  it('keeps a view and sort from the address, for clinic staff too', async () => {
     const {fetch} = renderPage({view: 'Reported', sort: 'patient', asc: false}, nurseUser);
 
     expect(await screen.findByRole('tab', {name: 'Reported', selected: true})).toBeInTheDocument();
-    expect(await screen.findByText('Reported: 2 specimens')).toBeInTheDocument();
+    expect(await screen.findByText('Reported: 2 samples')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: /Reported/})).toBeInTheDocument();
     expect((await worklistCalls(fetch))[0].body).toEqual({
       view: 'Reported',
@@ -60,15 +79,32 @@ describe('LabPage', () => {
     });
   });
 
+  it('sends the filters (source, clinic, test, status, due) to the API', async () => {
+    const clinic = 'd1000000-0000-0000-0000-000000000001';
+    const {fetch} = renderPage({view: 'All', source: 'Clinic', clinic, test: clinic, status: 'Sent', due: 'Overdue'});
+
+    expect(await screen.findByText('All samples: 2 matching samples')).toBeInTheDocument();
+    expect((await worklistCalls(fetch))[0].body).toEqual({
+      view: 'All',
+      page: 1,
+      pageSize: 10,
+      source: 'Clinic',
+      teamId: clinic,
+      labTestId: clinic,
+      status: 'Sent',
+      due: 'Overdue',
+    });
+  });
+
   it('changes the view from its tabs, in the address, with no lab picker (the external labs list was dropped)', async () => {
     const {user, onSearchChange} = renderPage({page: 2});
 
     await pickFavourite(user, 'In the lab');
-    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'InLab', sort: undefined, asc: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'InLab', sort: undefined, asc: undefined}));
     expect(screen.queryByRole('combobox', {name: /^Lab/})).not.toBeInTheDocument();
   });
 
-  it('narrows the list to a specimen number typed or scanned into the search, sent in the body and never the address', async () => {
+  it('narrows the list to a sample number typed or scanned into the search, sent in the body and never the address', async () => {
     const {user, fetch, onSearchChange} = renderPage();
     await screen.findByRole('link', {name: 'MA26-000123'});
 
@@ -76,29 +112,27 @@ describe('LabPage', () => {
     const input = within(searchBar()).getByRole('combobox');
     await user.type(input, 'MA26-000123{Enter}');
 
-    await waitFor(async () => expect((await worklistCalls(fetch)).at(-1)?.body).toMatchObject({search: 'MA26-000123', view: 'Expected'}));
+    await waitFor(async () => expect((await worklistCalls(fetch)).at(-1)?.body).toMatchObject({search: 'MA26-000123', view: 'ToReceive'}));
     expect((await worklistCalls(fetch)).every((c) => c.search === '')).toBe(true);
     expect(JSON.stringify(onSearchChange.mock.calls)).not.toContain('MA26');
-    expect(screen.getByText('Expected: 2 specimens')).toBeInTheDocument();
+    expect(screen.getByText('To receive: 2 matching samples')).toBeInTheDocument();
   });
 
-  it('shows every specimen once the view is removed, and says when nothing matches the search', async () => {
+  it('shows every sample on All, and says when there are none', async () => {
     const {user, onSearchChange} = renderPage({view: 'All'}, labUser, {[WORKLIST]: () => pageOf([])});
 
-    expect(await screen.findByText('No specimens yet')).toBeInTheDocument();
-    expect(screen.getByText('All specimens: 0 specimens')).toBeInTheDocument();
+    expect(await screen.findByText('No samples yet')).toBeInTheDocument();
+    expect(screen.getByText('All samples: 0 samples')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: /Taken/})).toBeInTheDocument();
-    // No tab shows every specimen, so the search shows; going back to the tabs takes the first.
-    expect(searchBar()).not.toBeNull();
-    await pickFavourite(user, 'Overdue');
-    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'Overdue'}));
+    await pickFavourite(user, 'Rejected and lost');
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'RejectedAndLost'}));
   });
 
   it('sorts by a column, back to the first page', async () => {
     const {user, onSearchChange} = renderPage({view: 'InLab', page: 3});
 
     await screen.findByRole('link', {name: 'MA26-000123'});
-    await user.click(screen.getByRole('button', {name: /^Specimen/}));
+    await user.click(screen.getByRole('button', {name: /^Sample/}));
 
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'InLab', page: undefined, sort: 'number', asc: true});
   });
@@ -107,18 +141,18 @@ describe('LabPage', () => {
     renderPage({view: 'Overdue'}, labUser, {[WORKLIST]: () => pageOf([])});
     expect(await screen.findByText('Nothing overdue')).toBeInTheDocument();
     expect(screen.getByText("Not reported by the type's expected days, oldest first.")).toBeInTheDocument();
-    expect(screen.getByText('Overdue: 0 specimens')).toBeInTheDocument();
+    expect(screen.getByText('Overdue: 0 samples')).toBeInTheDocument();
   });
 
-  it("says when the specimens couldn't be loaded", async () => {
+  it("says when the samples couldn't be loaded", async () => {
     renderPage({}, labUser, {[WORKLIST]: () => json({}, 500)});
-    expect(await screen.findByText('The specimens could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The samples could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it.each([
     ['ToSend', 'Taken', '2 Nov 2026, 09:00'],
     ['InLab', 'Received', '3 Nov 2026, 10:00'],
-    ['Overdue', 'Expected by', '7 Nov 2026, 09:00'],
+    ['Expected', 'Sent', '2 Nov 2026, 15:00'],
     ['RejectedAndLost', 'Closed', '4 Nov 2026, 10:00'],
   ] as const)('shows the time the %s view is about', async (view, header, time) => {
     const row = testSummary({receivedAtUtc: '2026-11-03T10:00:00Z', closedAtUtc: '2026-11-04T10:00:00Z'});

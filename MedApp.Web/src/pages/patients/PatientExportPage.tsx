@@ -631,14 +631,14 @@ function ExportContent({data}: {data: PatientExport}) {
           )}
       </ExportSection>
 
-      <ExportSection title={`Specimens (${specimens.length})`}>
+      <ExportSection title={`Samples (${specimens.length})`}>
         {specimens.length === 0
-          ? nothing('No specimens.')
+          ? nothing('No samples.')
           : (
             <VStack gap={6} hAlign="stretch">
               {specimens.map((specimen) => (
                 <VStack key={specimen.id} gap={3} hAlign="stretch">
-                  <Heading level={3}>{`Specimen ${specimen.number}: ${specimen.specimenTypeName}`}</Heading>
+                  <Heading level={3}>{`Sample ${specimen.number}: ${specimen.specimenTypeName}`}</Heading>
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
                     <MetadataListItem label="Pathway">{pathwayTitles.get(specimen.pathwayId) || 'A deleted pathway'}</MetadataListItem>
@@ -678,7 +678,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{resultStatusLabel(result.status)}</MetadataListItem>
                     <MetadataListItem label="Source">
-                      {result.specimenNumber ? `Specimen ${result.specimenNumber}` : resultSourceLabel(result.source)}
+                      {result.specimenNumber ? `Sample ${result.specimenNumber}` : resultSourceLabel(result.source)}
                     </MetadataListItem>
                     <MetadataListItem label="Pathway">
                       {result.pathwayId ? pathwayTitles.get(result.pathwayId) || 'A deleted pathway' : 'Not on a pathway'}

@@ -9,7 +9,7 @@ export function SpecimenQrCode({path, size, number, displaySize = 96}: {path: st
   return (
     <svg
       role="img"
-      aria-label={`QR code of specimen number ${number}`}
+      aria-label={`QR code of sample number ${number}`}
       viewBox={`0 0 ${size} ${size}`}
       width={displaySize}
       height={displaySize}

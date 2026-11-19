@@ -49,11 +49,11 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
   const [recordingAt, setRecordingAt] = useState<PathwayStage | null>(null);
   const [recorded, setRecorded] = useState<Specimen | null>(null);
 
-  if (isError) return <AlertMessage message="The specimens could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage message="The samples could not be loaded. Please try again." />;
   if (isPending)
     return (
       <Text type="body" color="secondary">
-        Loading specimens...
+        Loading samples...
       </Text>
     );
 
@@ -69,10 +69,10 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
         <Banner
           status="success"
           container="card"
-          title={`Specimen ${recorded.number} recorded`}
+          title={`Sample ${recorded.number} recorded`}
           description={
             <HStack gap={4} wrap="wrap">
-              <Link href={`/specimens/${recorded.id}`}>Open the specimen</Link>
+              <Link href={`/specimens/${recorded.id}`}>Open the sample</Link>
               <Link href={specimenPrintHref(recorded.id ?? '', 'label')}>Print its label</Link>
             </HStack>
           }
@@ -82,7 +82,7 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
       )}
       {groups.length === 0 ? (
         <Text type="body" color="secondary">
-          No specimens taken.
+          No samples taken.
         </Text>
       ) : (
         groups.map(({stage, specimens}) => (
@@ -91,8 +91,8 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
               <Heading level={3}>{stage.name}</Heading>
               {canRecord && stage.canRecordSpecimen && (
                 <Button
-                  label="Record Specimen"
-                  tooltip={`Record a specimen taken at ${stage.name}`}
+                  label="Record Sample"
+                  tooltip={`Record a sample taken at ${stage.name}`}
                   variant="secondary"
                   size="sm"
                   icon={<Icon icon={AppIcon.Specimens} />}
@@ -105,7 +105,7 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
                 None taken yet.
               </Text>
             ) : (
-              <List edge="flush" hasDividers aria-label={`Specimens taken at ${stage.name}`}>
+              <List edge="flush" hasDividers aria-label={`Samples taken at ${stage.name}`}>
                 {specimens.map((specimen) => (
                   <ListItem
                     key={specimen.id}
