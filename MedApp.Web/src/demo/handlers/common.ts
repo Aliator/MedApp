@@ -1,5 +1,5 @@
 import type {Schemas} from '../../api/client';
-import type {Permission} from '../../auth/permissions';
+import {needsPermissionText, type Permission} from '../../auth/permissions';
 import {personByUsername, type DemoMembership, type DemoPerson} from '../accounts';
 import {DemoReply, problem, refuse} from '../api/http';
 import {db} from '../store';
@@ -39,7 +39,7 @@ export function requirePermission(permission: Permission) {
         status: 403,
         code: 'permission_missing',
         permission,
-        detail: `Your roles don't allow this. It needs the permission: ${permission}.`,
+        detail: `Your roles don't allow this. ${needsPermissionText(permission)}`,
       }),
     );
 }

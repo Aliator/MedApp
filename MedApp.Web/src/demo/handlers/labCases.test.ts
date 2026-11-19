@@ -13,10 +13,10 @@ describe('the light demo’s lab cases (MC15)', () => {
   it('lists the lab’s cases by tab, and a clinic only its own clinic’s', async () => {
     startLightDemo(LAB);
     const open = (await call('POST', '/api/lab-cases/search', {view: 'Open'})).body;
-    // Six worked (the tour's relay's among them), and a lab stage's case waiting for its sample (MC16: Aisha's first;
-    // her second's asked for a repeat).
-    expect(open.totalCount).toBe(7);
-    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(1);
+    // Six worked (the tour's relay's among them), and two lab stages' cases waiting for their samples (MC16: Aisha's
+    // first, her second's asked for a repeat; and Samuel's Microbiology, his scraping still on its way).
+    expect(open.totalCount).toBe(8);
+    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(2);
     const repeats = (await call('POST', '/api/lab-cases/search', {view: 'RepeatRequested'})).body;
     expect(repeats.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.aishaBiopsy]);
     const toReport = (await call('POST', '/api/lab-cases/search', {view: 'ToReport'})).body;
@@ -137,8 +137,10 @@ describe('the light demo’s lab cases (MC15)', () => {
 
   it('opens a case when the lab receives a clinic sample with a test, and by hand for one without', async () => {
     startLightDemo(LAB);
-    const samuel = db().specimens.find((s) => s.id === SPECIMENS.samuelScraping)!;
-    const received = (await call('POST', `/api/specimens/${samuel.id}/received`, {expectedVersion: samuel.version})).body;
+    // Ilona's scraping, taken this morning: its pathway's lab stage isn't reached, so no case waits for it.
+    const scraping = db().specimens.find((s) => s.id === SPECIMENS.ilonaScraping)!;
+    await call('POST', `/api/specimens/${scraping.id}/sent`, {expectedVersion: scraping.version});
+    const received = (await call('POST', `/api/specimens/${scraping.id}/received`, {expectedVersion: scraping.version})).body;
     expect(received.labCaseId).toBeTruthy();
     expect(received.canOpenLabCase).toBe(false);
     const opened = await caseOf(received.labCaseId);
@@ -147,12 +149,12 @@ describe('the light demo’s lab cases (MC15)', () => {
     // Its case marked entered in error (the wrong test, say): the sample can open the right one by hand.
     const wrong = (await call('POST', `/api/lab-cases/${opened.id}/entered-in-error`, {detail: 'Wrong test.', expectedVersion: opened.version})).body;
     expect(wrong.status).toBe('EnteredInError');
-    expect(samuel.labCaseId).toBeNull();
-    expect((await call('POST', '/api/lab-cases', {specimenId: samuel.id, labTestId: '', expectedVersion: samuel.version})).status).toBe(400);
-    const right = (await call('POST', '/api/lab-cases', {specimenId: samuel.id, labTestId: LAB_TESTS.skinHistology, expectedVersion: samuel.version})).body;
+    expect(scraping.labCaseId).toBeNull();
+    expect((await call('POST', '/api/lab-cases', {specimenId: scraping.id, labTestId: '', expectedVersion: scraping.version})).status).toBe(400);
+    const right = (await call('POST', '/api/lab-cases', {specimenId: scraping.id, labTestId: LAB_TESTS.skinHistology, expectedVersion: scraping.version})).body;
     expect(right).toMatchObject({status: 'Open', labTestName: 'Skin histology'});
-    expect(samuel.labCaseId).toBe(right.id);
-    expect((await call('POST', '/api/lab-cases', {specimenId: samuel.id, labTestId: LAB_TESTS.skinHistology, expectedVersion: samuel.version})).status).toBe(409);
+    expect(scraping.labCaseId).toBe(right.id);
+    expect((await call('POST', '/api/lab-cases', {specimenId: scraping.id, labTestId: LAB_TESTS.skinHistology, expectedVersion: scraping.version})).status).toBe(409);
   });
 
   it('opens a case with each hospital request', async () => {

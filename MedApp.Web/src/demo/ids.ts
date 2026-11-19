@@ -80,15 +80,15 @@ export const PATIENTS = {
 } as const;
 
 export const PATHWAYS = {
-  /** Suspected skin cancer, Ellis Varden, Nadia Thornbury's: at Take biopsy (a visit, not booked; his consent was withdrawn). */
+  /** Suspected skin cancer, Ellis Varden, Nadia Thornbury's: a non-healing scaly lesion, at Take biopsy (a visit, not booked; his consent was withdrawn). */
   biopsyToBook: id(0xd5, 1),
   /** Suspected skin cancer, Priya Holloway, Nadia Thornbury's: with the lab at Histology, ready to finish. */
   histologyToFinish: id(0xd5, 2),
-  /** Suspected skin infection, Samuel Okafor: on hold at Take skin sample, the sample sent. */
+  /** Suspected skin infection, Samuel Okafor: on hold, his scraping sent, so the lab's Microbiology is current. */
   onHold: id(0xd5, 3),
   /** Changing mole or lesion check, Tobias Lund: at Triage, nobody assigned yet. */
   unassigned: id(0xd5, 7),
-  /** Psoriasis assessment, Ilona Petrova, Nadia Thornbury's: assessment only, past its care plan; the review booked this week. */
+  /** Inflammatory skin assessment, Ilona Petrova, Nadia Thornbury's: blood tests with the lab; the results visit booked. */
   followUpBooked: id(0xd5, 8),
   /** Suspected skin cancer, Harriet Quill, Nadia Thornbury's: Low-risk BCC recorded; at Refer to hospital (needs its letter), overdue. */
   referredToHospital: id(0xd5, 9),
@@ -100,8 +100,10 @@ export const PATHWAYS = {
   backFromLab: id(0xd5, 14),
   /** Changing mole or lesion check, Nora Fennick, Nadia Thornbury's: at Take photographs, no photo consent yet (MC29). */
   photosToTake: id(0xd5, 15),
-  /** The tour's relay: Triage (consent needed), the lab's Testing, then a Results appointment (Leah Corrin). */
+  /** The tour's relay: Triage (a visit, consent needed), the lab's Testing, then a Results appointment (Leah Corrin). */
   relay: id(0xd5, 16),
+  /** Suspected skin infection, Ilona Petrova, Nadia Thornbury's: at Take skin sample, seen this morning, her scraping not yet sent. */
+  scrapingToSend: id(0xd5, 17),
 } as const;
 
 export const REFERRALS = {
@@ -128,7 +130,7 @@ export const ACTIVITY_TYPES = {
   admin: id(0xd9, 2),
   lunch: id(0xd9, 3),
   triage: id(0xd9, 4),
-  minorSurgery: id(0xd9, 5),
+  procedureList: id(0xd9, 5),
 } as const;
 
 export const SITES = {
@@ -147,6 +149,13 @@ export const MORE_APPOINTMENTS = {
   harrietFirstVisit: id(0xf9, 2),
   harrietBiopsy: id(0xf9, 3),
   felixFirstVisit: id(0xf9, 4),
+  /** Leah Corrin's Triage visit yesterday afternoon, where her skin scraping was taken (the tour's relay). */
+  leahTriage: id(0xf9, 5),
+  /** Ilona Petrova's blood test visits: the first sample (rejected by the lab), then the repeat. */
+  ilonaBloods: id(0xf9, 6),
+  ilonaRepeatBloods: id(0xf9, 7),
+  /** Ilona Petrova's skin sample visit this morning. */
+  ilonaSample: id(0xf9, 8),
 } as const;
 
 /** Every record ID in the seed, by kind (the tour's test checks its links against these). */
