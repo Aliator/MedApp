@@ -252,12 +252,26 @@ export const TOUR: TourStep[] = [
     buttonLabel: 'Open the patient’s timeline',
   },
   {
+    key: 'team-walls',
+    title: 'Team walls between clinics',
+    steps: [
+      `As ${STAFF.fullName}, a dermatologist, open Priya Holloway. Patients are centre-wide: anyone can find anyone.`,
+      'Her Gynaecology pathway shows only as “A pathway in Gynaecology, in progress since …”, under Upcoming: no title, stages, notes or link. Its appointments and letters don’t show either.',
+      'Pathways, appointments, letters, results, consent and MDT items belong to a team. Opening another team’s by its link answers “not found”, as if it weren’t there.',
+      `The lab (${LAB.fullName}) sees all of a pathway once a sample is passed to it, keeps reading it afterwards, and can’t look up any other. The admin reads everything and changes nothing clinical.`,
+    ],
+    account: STAFF.username,
+    path: `/patients/${PATIENTS.priyaHolloway}`,
+    buttonLabel: 'Open the patient as the dermatologist',
+  },
+  {
     key: 'on-hold-overdue',
     title: 'On hold and overdue',
     steps: [
-      'The Pathways list shows every open pathway, with its status, target date and progress.',
+      'As the admin, the Pathways list shows every team’s open pathways, with their status, target date and progress.',
       'Samuel Okafor’s is on hold; Margaret Fenwick’s is overdue. Sort and filter with the bar above the list.',
     ],
+    account: ADMIN.username,
     path: '/pathways',
     buttonLabel: 'Open the list of pathways',
   },

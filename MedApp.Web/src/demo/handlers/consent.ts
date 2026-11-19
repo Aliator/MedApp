@@ -7,7 +7,8 @@ import type {DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {daysFrom, nowUtc, today} from '../time';
 import {can, me, requirePermission} from './common';
-import {findPathway} from './pathways';
+import {findPathway, pathwayToChange} from './pathways';
+import {seeRecord} from './teamWalls';
 
 /**
  * Consent forms (`api/consent-forms`, ManageSetup; archived, not deleted, once used) and consent records, simplified
@@ -90,9 +91,10 @@ function formResponse(form: DemoConsentForm): Schemas['ConsentFormResponse'] {
   return {...form, canBeDeleted: !db().consentRecords.some((r) => r.consentFormId === form.id)};
 }
 
+/** The record, or a 404 (also when its pathway is behind the viewer's team wall); changed only by the pathway's team. */
 function findRecord(id: string): DemoConsentRecord {
-  const record = db().consentRecords.find((r) => r.id === id);
-  if (!record) refuse(notFound('The consent record'));
+  const record = seeRecord(db().consentRecords.find((r) => r.id === id), 'ConsentRecord', 'The consent record');
+  pathwayToChange(record.pathwayId);
   return record;
 }
 
@@ -153,7 +155,7 @@ export function registerConsent() {
       errors.signedBy = ['Say who signed: Patient, PersonWithParentalResponsibility or BestInterestsDecision.'];
     if (body.scanAttachmentId) errors.scanAttachmentId = ['No files in the light demo: leave the scan out.'];
     if (Object.keys(errors).length > 0) return invalid(errors);
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const stage = pathway.stages.find((s) => s.id === body.stageId);
     if (!stage) return notFound('The stage');
     const why = whyCantRecord(pathway, stage);
@@ -167,6 +169,7 @@ export function registerConsent() {
       id: newId(),
       patientId: pathway.patientId,
       pathwayId: pathway.id,
+      teamId: pathway.teamId,
       stageId: stage.id,
       consentFormId: form.id,
       formName: form.name,

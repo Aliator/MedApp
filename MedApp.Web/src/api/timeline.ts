@@ -18,6 +18,12 @@ export type TimelineUpcoming = Schemas['PatientTimelineUpcomingResponse'];
 export type TimelinePathway = Schemas['PatientTimelinePathwayResponse'];
 /** A referral awaiting triage, beside the open pathways above the timeline. */
 export type TimelineReferral = Schemas['PatientTimelineReferralResponse'];
+/** Another team's pathway, as the team walls let it show: its clinic, in progress or completed, and since when. */
+export type OtherTeamPathway = Schemas['OtherTeamPathwaySummaryResponse'];
+
+/** Another team's pathway in words: "A pathway in Gynaecology, in progress since 3 Nov 2026" or "..., completed 17 Nov 2026". */
+export const otherTeamPathwayLine = (pathway: OtherTeamPathway) =>
+  `A pathway in ${pathway.teamName ?? 'another clinic'}, ${pathway.state === 'Completed' ? 'completed' : 'in progress since'} ${formatShortDate(pathway.since ?? '')}`;
 
 /** The most pathways a timeline can be filtered to at once (the API's `GetPatientTimelineValidator.MaxPathwayIds`). */
 export const MAX_TIMELINE_PATHWAYS = 50;

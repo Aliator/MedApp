@@ -32,6 +32,8 @@ export interface DemoLetter {
   id: string;
   patientId: string;
   pathwayId: string | null;
+  /** Its pathway's team, or its referral's (the team walls, `handlers/teamWalls.ts`). */
+  teamId: string;
   referralId: string | null;
   templateId: string;
   templateName: string;
@@ -110,6 +112,8 @@ export interface DemoConsentRecord {
   id: string;
   patientId: string;
   pathwayId: string;
+  /** Its pathway's team. */
+  teamId: string;
   stageId: string;
   consentFormId: string;
   formName: string;
@@ -307,6 +311,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       id: id(0xe7, n),
       patientId: pathway(pathwayId).patientId,
       pathwayId,
+      teamId: pathway(pathwayId).teamId,
       referralId: null,
       templateId,
       templateName: template.name,
@@ -492,6 +497,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       id: CONSENT.priyaValid,
       patientId: priya.patientId,
       pathwayId: priya.id,
+      teamId: priya.teamId,
       stageId: stage(priya, 'Treatment').id,
       consentFormId: CONSENT.adultForm,
       formName: consentForms[0].name,
@@ -511,6 +517,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       id: CONSENT.ellisWithdrawn,
       patientId: ellis.patientId,
       pathwayId: ellis.id,
+      teamId: ellis.teamId,
       stageId: stage(ellis, 'Treatment').id,
       consentFormId: CONSENT.adultFormOld,
       formName: consentForms[1].name,

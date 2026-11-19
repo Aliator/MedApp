@@ -19,7 +19,7 @@ import {
 import {seedClinical} from './slices/clinical';
 import {seedLab} from './slices/lab';
 import {seedSetup} from './slices/setup';
-import type {BaseState, DemoPathway, DemoReferral, DemoStage, DemoStageDefinition, DemoState} from './state';
+import type {BaseState, DemoAppointment, DemoPathway, DemoPathwayAccess, DemoReferral, DemoStage, DemoStageDefinition, DemoState} from './state';
 import {daysFrom, thisWeek, today, ukTime} from './time';
 
 /**
@@ -30,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -388,6 +388,16 @@ const weekdayBack = (n: number) => {
   return date;
 };
 
+/** A pathway's own team's grant to see it (the team walls), from when it was made. */
+export const ownerAccess = (pathway: DemoPathway): DemoPathwayAccess => ({
+  pathwayId: pathway.id,
+  patientId: pathway.patientId,
+  teamId: pathway.teamId,
+  reason: 'Owner',
+  startedAtUtc: pathway.createdAt,
+  endedAtUtc: null,
+});
+
 /** Builds the light demo's data as of today. Everyone starts signed out. */
 export function seed(): DemoState {
   const on = today();
@@ -473,6 +483,16 @@ export function seed(): DemoState {
         title: 'Suspicious lesion, right shin', dueIn: 35, priority: 'High', done: 0, started: true, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 6,
       },
+      // Pathways in other clinics beside a Dermatology one, so the team walls show: Dermatology's staff see each only
+      // as a summary line ("a pathway in Gynaecology, in progress since ..."), and opening one is a 404.
+      {
+        n: 11, id: PATHWAYS.priyaGynaecology, patientId: PATIENTS.priyaHolloway, templateId: TEMPLATES.postMenopausalBleeding,
+        title: 'Post-menopausal bleeding', dueIn: 18, priority: 'High', done: 1, status: 'InProgress', createdDaysAgo: 12,
+      },
+      {
+        n: 12, id: PATHWAYS.ellisDiabetes, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.diabetesReview,
+        title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, status: 'Completed', createdDaysAgo: 90,
+      },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
@@ -507,12 +527,13 @@ export function seed(): DemoState {
     minutes: number,
     status: 'Requested' | 'Booked' | 'Attended',
     roomId: string = ROOMS.clinicRoom1,
-  ): Schemas['AppointmentResponse'] => {
+  ): DemoAppointment => {
     const p = pathway(pathwayId);
     const stage = p.stages[stageIndex];
     const startUtc = date ? ukTime(date, hour, minute) : null;
     return {
       id,
+      teamId: p.teamId,
       patientId: p.patientId,
       patientName: patientName(p.patientId),
       pathwayId: p.id,
@@ -660,6 +681,7 @@ export function seed(): DemoState {
     noteDeletionRequests: [],
     referrals,
     appointments,
+    pathwayAccess: [],
     blocks,
     meetings,
     notifications: [
@@ -701,5 +723,14 @@ export function seed(): DemoState {
   };
   // Each area's slice seeds after the base, reading (or adding to) its records.
   const state: DemoState = {...base, ...seedLab(base), ...seedClinical(base), ...seedSetup(base)};
+  // The team walls' grants: each pathway's own team, and the lab on every pathway with a sample passed to it.
+  state.pathwayAccess = [
+    ...pathways.map((p) => ownerAccess(p)),
+    ...[...new Set(state.specimens.map((s) => s.pathwayId))].map((pathwayId) => {
+      const p = pathways.find((x) => x.id === pathwayId)!;
+      const first = state.specimens.filter((s) => s.pathwayId === pathwayId).sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc))[0];
+      return {pathwayId, patientId: p.patientId, teamId: TEAMS.lab, reason: 'StageOwner' as const, startedAtUtc: first.takenAtUtc, endedAtUtc: null};
+    }),
+  ];
   return state;
 }

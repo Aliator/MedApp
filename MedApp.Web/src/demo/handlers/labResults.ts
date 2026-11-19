@@ -1,10 +1,11 @@
 import type {Schemas} from '../../api/client';
 import {personById, usernameOf} from '../accounts';
-import {invalid, notFound, on, problem, refuse} from '../api/http';
+import {invalid, on, problem, refuse} from '../api/http';
 import type {DemoResult, ResultStatus} from '../slices/lab';
 import {db} from '../store';
 import {nowUtc} from '../time';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
+import {canSeeRecord, myScope, seeRecord} from './teamWalls';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, wholeDaysBetween} from './labCommon';
 
 /**
@@ -122,10 +123,9 @@ function resultResponse(result: DemoResult): Schemas['ResultResponse'] {
   };
 }
 
+/** The result, or a 404: also when it's behind the viewer's team wall. */
 function findResult(id: string): DemoResult {
-  const result = db().results.find((r) => r.id === id);
-  if (!result) refuse(notFound('The result'));
-  return result;
+  return seeRecord(db().results.find((r) => r.id === id), 'Result', 'The result');
 }
 
 /** A result that can move on (seen, signed off, reassigned): from the version the page showed, and awaiting sign-off. */
@@ -161,9 +161,11 @@ export function registerResults() {
     // The patient's name only, as the API: a title can hold a specimen number, which stays out of URLs.
     const search = query.get('Search')?.trim() ?? '';
     if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
+    const scope = myScope();
     const items = db()
       .results.filter(
         (r) =>
+          canSeeRecord(r, scope) &&
           view.match(r, viewer.id) &&
           (!teamId || pathwayOf(r)?.teamId === teamId) &&
           (!pathwayId || r.pathwayId === pathwayId) &&
