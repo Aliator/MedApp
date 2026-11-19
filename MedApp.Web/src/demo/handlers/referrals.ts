@@ -10,6 +10,7 @@ import {daysFrom, nowUtc, today, ukDateOf} from '../time';
 import {can, contains, flag, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {ensureVersion, optionalText, patientBanner, patientFlags, whyRecordCantChange} from './labCommon';
 import {createPathway, pathwayResponse} from './pathways';
+import {canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
 
 /**
  * Referrals, triage and the waiting-time clock, a simplified copy of the API's `ReferralWorkflow` and `WaitingClock`.
@@ -245,9 +246,18 @@ function referralSummary(referral: DemoReferral): Schemas['ReferralSummaryRespon
   };
 }
 
+/**
+ * The referral, or a 404: also when it's another team's (the team walls: its current team's, or its pathway's once
+ * accepted). Redirected to another team, the old team stops seeing it.
+ */
 function findReferral(id: string): DemoReferral {
-  const referral = db().referrals.find((r) => r.id === id);
-  if (!referral) refuse(notFound('The referral'));
+  return seeRecord(db().referrals.find((r) => r.id === id), 'Referral', 'The referral');
+}
+
+/** A referral to change: visible, and its own team's (admins and other teams only read it). */
+function referralToChange(id: string): DemoReferral {
+  const referral = findReferral(id);
+  ensureCanChangeRecord(referral, 'This referral');
   return referral;
 }
 
@@ -335,7 +345,7 @@ function checkDetails(body: DetailsBody) {
 /** Withdrawing or marking entered in error: open only, a detail required, never once anonymised. */
 function closeReferral(id: string, body: {detail?: string | null; expectedVersion?: number}, status: 'Withdrawn' | 'EnteredInError') {
   requirePermission('RegisterReferrals');
-  const referral = findReferral(id);
+  const referral = referralToChange(id);
   const why = whyCantClose(referral);
   if (why) refuse(problem(409, why));
   ensureVersion(body.expectedVersion, referral.version, CHANGED_MEANWHILE);
@@ -355,7 +365,9 @@ export function registerReferrals() {
     const paused = flag(query, 'Paused');
     const stopped = flag(query, 'ClockStopped');
     const search = query.get('Search');
+    const scope = myScope();
     const items = db().referrals.filter((r) => {
+      if (!canSeeRecord(r, scope)) return false;
       const clock = referralSummaryClock(r);
       return (
         (statuses.length === 0 || statuses.includes(r.status)) &&
@@ -392,13 +404,11 @@ export function registerReferrals() {
   });
 
   on('get', '/api/referrals/awaiting-triage/count', () => {
-    const viewer = me();
-    const awaiting = db().referrals.filter((r) => r.status === 'AwaitingTriage');
-    const mine = teamIdsOf(viewer);
-    const inMine = mine.length > 0;
+    // Only what the viewer may see: their teams' (an admin's, every team's).
+    const scope = myScope();
     return {
-      count: (inMine ? awaiting.filter((r) => mine.includes(r.teamId)) : awaiting).length,
-      inYourTeams: inMine,
+      count: db().referrals.filter((r) => r.status === 'AwaitingTriage' && canSeeRecord(r, scope)).length,
+      inYourTeams: !scope.seesAllTeams && scope.teamIds.length > 0,
     };
   });
 
@@ -482,7 +492,7 @@ export function registerReferrals() {
 
   on('put', '/api/referrals/{id}', ({params, body}) => {
     requirePermission('RegisterReferrals');
-    const referral = findReferral(params.id);
+    const referral = referralToChange(params.id);
     const why = whyCantEdit(referral);
     if (why) return problem(409, why);
     ensureVersion(body.expectedVersion, referral.version, CHANGED_MEANWHILE);
@@ -595,7 +605,7 @@ export function registerReferrals() {
   on('post', '/api/referrals/{id}/clock/pause', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
-    const referral = findReferral(params.id);
+    const referral = referralToChange(params.id);
     ensureVersion(body.expectedVersion, referral.version, CHANGED_MEANWHILE);
     if (patientFlags(referral.patientId).isAnonymised) return problem(409, "This patient's record has been anonymised, so it can't be changed.");
     if (referral.status !== 'Accepted')
@@ -635,7 +645,7 @@ export function registerReferrals() {
   on('post', '/api/referrals/{id}/clock/resume', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
-    const referral = findReferral(params.id);
+    const referral = referralToChange(params.id);
     ensureVersion(body.expectedVersion, referral.version, CHANGED_MEANWHILE);
     const why = whyRecordCantChange(referral.patientId);
     if (why) return problem(409, why);

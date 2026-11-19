@@ -60,7 +60,8 @@ describe('the light demo handlers', () => {
       templateId: TEMPLATES.postMenopausalBleeding,
       priority: 'Urgent',
     });
-    expect(gynae.status).toBe(409);
+    // Another team's referral is behind the team wall: not found, as if it weren't there.
+    expect(gynae.status).toBe(404);
     const accepted = await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {
       templateId: TEMPLATES.skinLesion,
       priority: 'Urgent',

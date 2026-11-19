@@ -156,6 +156,8 @@ export const MORE_APPOINTMENTS = {
   harrietFirstVisit: id(0xf9, 2),
   harrietBiopsy: id(0xf9, 3),
   felixFirstVisit: id(0xf9, 4),
+  /** Priya Holloway's Gynaecology biopsy with Tom Hallworth: "Busy", with no patient, on his calendar for Dermatology. */
+  priyaGynaecologyBiopsy: id(0xf9, 5),
 } as const;
 
 /** Every record ID in the seed, by kind (the tour's test checks its links against these). */

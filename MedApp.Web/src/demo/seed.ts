@@ -30,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 6;
+export const SEED_VERSION = 7;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -596,6 +596,7 @@ export function seed(): DemoState {
       lastUpdated: ago(1, 9, 0),
     };
   };
+  const HALLWORTH = {id: USERS.hallworth, username: 't.hallworth'};
   const appointments = [
     appointment(APPOINTMENTS.margaretFirstVisit, PATHWAYS.overdue, 0, ADMIN, weekdayAhead(1), 10, 0, 45, 'Booked'),
     appointment(APPOINTMENTS.ilonaFollowUp, PATHWAYS.followUpBooked, 2, STAFF, weekdayAhead(1), 14, 0, 20, 'Booked'),
@@ -607,6 +608,8 @@ export function seed(): DemoState {
     appointment(MORE_APPOINTMENTS.harrietBiopsy, PATHWAYS.consentToRecord, 1, STAFF, weekdayBack(28), 11, 30, 30, 'Attended', ROOMS.procedureRoom),
     appointment(MORE_APPOINTMENTS.harrietExcision, PATHWAYS.consentToRecord, 4, STAFF, weekdayBack(0), 9, 0, 45, 'Attended', ROOMS.procedureRoom),
     appointment(MORE_APPOINTMENTS.felixFirstVisit, PATHWAYS.branchToChoose, 0, STAFF, weekdayBack(1), 14, 0, 30, 'Attended'),
+    // Gynaecology's, so Dermatology sees it on Tom Hallworth's calendar only as busy time, with no patient.
+    appointment(MORE_APPOINTMENTS.priyaGynaecologyBiopsy, PATHWAYS.priyaGynaecology, 1, HALLWORTH, weekdayAhead(1), 11, 0, 30, 'Booked', ROOMS.procedureRoom),
   ];
   // Pathways whose stage visits were attended had those stages started by the visit.
   pathway(PATHWAYS.followUpBooked).stages[2].startedAtUtc = ago(2, 9, 0);

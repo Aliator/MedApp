@@ -1,13 +1,17 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {expectAnnounced, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
-import {DERMATOLOGY_ID, REFERRAL_PATIENT, REFERRAL_PATIENT_ID, TEAMS, testReferral, testReferralSummary} from '../../test/referrals';
+import {DERMATOLOGY_ID, REFERRAL_PATIENT, REFERRAL_PATIENT_ID, TEAMS, testReferral, testReferralSummary, UROLOGY_ID} from '../../test/referrals';
 import {RegisterReferralPage} from './RegisterReferralPage';
 
 const PATIENT = `GET /api/patients/${REFERRAL_PATIENT_ID}`;
 const DUPLICATE = 'This patient already has an open referral to Dermatology, received 2 Nov 2026.';
 const RESTRICTED = "This patient's record is restricted, so a referral can't be registered. Give the letter to an admin.";
 
-function renderPage(patientId: string | null = REFERRAL_PATIENT_ID, handlers: Record<string, (request: Request) => Response | Promise<Response>> = {}) {
+function renderPage(
+  patientId: string | null = REFERRAL_PATIENT_ID,
+  handlers: Record<string, (request: Request) => Response | Promise<Response>> = {},
+  user = staffUser,
+) {
   const fetch = mockApi({
     [PATIENT]: () => json(REFERRAL_PATIENT),
     'GET /api/teams': () => json(TEAMS),
@@ -16,7 +20,7 @@ function renderPage(patientId: string | null = REFERRAL_PATIENT_ID, handlers: Re
     ...handlers,
   });
   const onPatientChange = vi.fn();
-  const result = renderWithApp(<RegisterReferralPage patientId={patientId ?? undefined} onPatientChange={onPatientChange} />, {user: staffUser});
+  const result = renderWithApp(<RegisterReferralPage patientId={patientId ?? undefined} onPatientChange={onPatientChange} />, {user});
   return {...result, fetch, onPatientChange};
 }
 
@@ -37,6 +41,19 @@ const posts = async (fetch: ReturnType<typeof renderPage>['fetch']) =>
   );
 
 describe('RegisterReferralPage', () => {
+  it("goes back to the list after registering one for another team, as the registrar doesn't keep it (the team walls)", async () => {
+    withAnnouncements();
+    const urology = testReferral({id: 'sent-elsewhere', teamId: UROLOGY_ID, teamName: 'Urology'});
+    const inDermatology = {...staffUser, teams: [{id: DERMATOLOGY_ID, name: 'Dermatology', kind: 'Clinic' as const, role: 'Member' as const}]};
+    const {user, router} = renderPage(REFERRAL_PATIENT_ID, {'POST /api/referrals': () => json(urology, 201)}, inDermatology);
+
+    await fillDetails(user);
+    await user.click(screen.getByRole('button', {name: 'Register Referral'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/referrals'));
+    await expectAnnounced('Referral registered and sent to Urology');
+  });
+
   it('finds the patient first, offering to add them', async () => {
     const {user, onPatientChange} = renderPage(null, {'GET /api/patients/search': () => json(pageOf([REFERRAL_PATIENT]))});
 
