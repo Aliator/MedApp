@@ -1,6 +1,6 @@
 import type {Schemas} from '../../api/client';
 import {dayOfWeek, nextWeekday} from '../../utils/calendarSlots';
-import {CARROW, HALLWORTH, STAFF} from '../accounts';
+import {CARROW, HALLWORTH, LAB, STAFF} from '../accounts';
 import {id, MEETINGS, PATHWAYS, TEAMS, USERS} from '../ids';
 import type {BaseState, DemoPathway} from '../state';
 import {daysFrom, nowUtc, today, ukTime} from '../time';
@@ -94,6 +94,8 @@ export interface DemoMdtItem {
   presentUserIds: string[];
   withdrawnByUserId: string | null;
   withdrawnAtUtc: string | null;
+  /** Who presents it at the MDT (MC21): one of the meeting's attendees, often the lab's pathologist; null for nobody. */
+  presenterUserId: string | null;
   version: number;
 }
 
@@ -177,6 +179,8 @@ export const MDT_ITEMS = {
   priyaListed: id(0xea, 3),
   /** Felix Moreton's pathway on the skin MDT ahead. */
   felixListed: id(0xea, 4),
+  /** Harriet Quill's pathway on today's MDT, presented by r.aldous from the lab with her biopsy's report (MC21). */
+  harrietPresented: id(0xea, 5),
 } as const;
 
 /** Consent forms (kind 0xeb, numbers below 0x100) and consent records (kind 0xeb, from 0x101). */
@@ -201,6 +205,8 @@ export const CLINICAL_IDS = {
   mdtAhead: MEETINGS.skinMdt,
   /** Ellis Varden's item on today's MDT, to record an outcome on (n.thornbury is assigned: the admin recording it tells her). */
   mdtItemToDiscuss: MDT_ITEMS.toDiscuss,
+  /** Harriet Quill's item on today's MDT, which r.aldous (the lab) presents. */
+  mdtItemPresented: MDT_ITEMS.harrietPresented,
   /** The consent form to choose for Harriet Quill's Treatment stage. */
   consentFormToChoose: CONSENT.adultForm,
   /** n.thornbury's letter to approve. */
@@ -431,6 +437,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       {userId: STAFF.id, username: STAFF.username, reply: 'Accepted', repliedAtUtc: ago(6, 9, 30)},
       {userId: USERS.sandiford, username: 'b.sandiford', reply: 'Accepted', repliedAtUtc: ago(6, 10, 0)},
       {userId: USERS.hallworth, username: 't.hallworth', reply: 'NoReply', repliedAtUtc: null},
+      // The lab's pathologist, invited to present (MC21: anyone may attend an MDT).
+      {userId: LAB.id, username: LAB.username, reply: 'Accepted', repliedAtUtc: ago(6, 11, 0)},
     ],
     createdAtUtc: ago(7, 9, 0),
     lastUpdated: ago(6, 10, 0),
@@ -445,6 +453,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     question: string,
     listedDaysAgo: number,
     discussed?: {outcome: string; present: string[]; atUtc: string},
+    presenterUserId: string | null = null,
   ): DemoMdtItem => ({
     id: itemId,
     patientId: pathway(pathwayId).patientId,
@@ -462,7 +471,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     presentUserIds: discussed?.present ?? [],
     withdrawnByUserId: null,
     withdrawnAtUtc: null,
-    version: discussed ? 2 : 1,
+    presenterUserId,
+    version: (discussed ? 2 : 1) + (presenterUserId ? 1 : 0),
   });
   const todayMeeting = {id: MDT_MEETINGS.today, startUtc: todayStart};
   const aheadMeeting = {id: MEETINGS.skinMdt, startUtc: ahead?.startUtc ?? todayStart};
@@ -475,6 +485,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     }),
     item(MDT_ITEMS.priyaListed, PATHWAYS.histologyToFinish, aheadMeeting, 'Histology due this week: agree the treatment plan.', 2),
     item(MDT_ITEMS.felixListed, PATHWAYS.branchToChoose, aheadMeeting, 'Suspicious lesion on the shin: biopsy first, or excise directly?', 1),
+    item(MDT_ITEMS.harrietPresented, PATHWAYS.consentToRecord, todayMeeting, 'Biopsy reported: agree the treatment plan.', 4, undefined, LAB.id),
   ];
 
   const consentForms: DemoConsentForm[] = [

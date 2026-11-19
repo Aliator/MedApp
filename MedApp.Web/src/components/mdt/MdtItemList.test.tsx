@@ -142,6 +142,60 @@ describe('MdtItemList', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('shows the presenter and the lab work on the pathway, with a link to the report', async () => {
+    const item = mdtItem({
+      presenterUserId: 'u-2',
+      presenterUsername: 's.brightwell',
+      labWork: [
+        {specimenId: 's-1', number: 'S-0001', typeName: 'Skin biopsy', status: 'Reported', reportedAtUtc: '2099-12-01T14:00:00Z', resultId: 'r-1'},
+        {specimenId: 's-2', number: 'S-0002', typeName: null, status: 'Sent', reportedAtUtc: null, resultId: null},
+      ],
+    });
+    renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
+
+    expect(await screen.findByText('Presenter: s.brightwell')).toBeInTheDocument();
+    expect(screen.getByText(/^Lab: Skin biopsy S-0001: Reported /)).toBeInTheDocument();
+    expect(screen.getByText('Lab: S-0002: Sent')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', {name: 'Report'})).toHaveLength(1);
+    expect(screen.getByRole('link', {name: 'Report'})).toHaveAttribute('href', '/results/r-1');
+  });
+
+  it("chooses the presenter from the meeting's attendees, and can clear it", async () => {
+    const item = mdtItem({canChoosePresenter: true, version: 4});
+    const fetch = mockApi({[`POST /api/mdt/items/${item.id}/presenter`]: () => json({...item, presenterUserId: 'u-2'})});
+    const {user} = renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
+
+    await user.click(await screen.findByRole('button', {name: 'Presenter'}));
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('button', {name: 'Save'})).toHaveAttribute('aria-disabled', 'true');
+    await user.click(dialog.getByRole('combobox', {name: /Presenter/}));
+    await user.click(await screen.findByRole('option', {name: 's.brightwell'}));
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/mdt/items/${item.id}/presenter`));
+    const body = await (fetch.mock.calls[0][0] as Request).clone().json();
+    expect(body).toEqual({presenterUserId: 'u-2', expectedVersion: 4});
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('clears the presenter by choosing nobody', async () => {
+    const item = mdtItem({canChoosePresenter: true, presenterUserId: 'u-1', presenterUsername: 'k.ashford'});
+    const fetch = mockApi({[`POST /api/mdt/items/${item.id}/presenter`]: () => json({...item, presenterUserId: null})});
+    const {user} = renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
+
+    await user.click(await screen.findByRole('button', {name: 'Presenter'}));
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    const dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('combobox', {name: /Presenter/}));
+    await user.click(await screen.findByRole('option', {name: 'Nobody'}));
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/mdt/items/${item.id}/presenter`));
+    const body = await (fetch.mock.calls[0][0] as Request).clone().json();
+    expect(body).toEqual({presenterUserId: null, expectedVersion: 1});
+  });
+
   it("offers Record Outcome only when the item's flag says so", async () => {
     renderWithApp(<MdtItemList items={[mdtItem({canRecordOutcome: true})]} meetings={[mdtMeeting()]} emptyText="None." />);
     expect(await screen.findByRole('button', {name: 'Record Outcome'})).toBeInTheDocument();
