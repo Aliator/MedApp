@@ -130,10 +130,17 @@ export async function rowMenuItem(user: ReturnType<typeof userEvent.setup>, row:
   return within(menu).findByRole('menuitem', {name, hidden: true});
 }
 
-/** A list's search bar (its filters show in it as tokens, e.g. "Status: is Active"). */
-export const searchBar = () => document.querySelector<HTMLElement>('.astryx-power-search')!;
+/**
+ * The search bar showing (its filters show in it as tokens, e.g. "Status: is Active"), or null. A list keeps its search
+ * mounted but hidden while its favourites show, so the hidden one doesn't count.
+ */
+const shownSearch = () =>
+  [...document.querySelectorAll<HTMLElement>('.astryx-power-search')].find((bar) => !bar.closest('[aria-hidden="true"]')) ?? null;
 
-/** Picks an item from the menu beside a list's tabs or search ("List options"): Search, Tabs or Configuration…. */
+/** A list's search bar (its filters show in it as tokens, e.g. "Status: is Active"). */
+export const searchBar = () => shownSearch()!;
+
+/** Picks an item from the menu beside a list's favourites or search ("List options"): Search, Favourites or Configuration…. */
 export async function pickListOption(user: ReturnType<typeof userEvent.setup>, item: string) {
   // Its name says which tab the list is showing, if any: "List options (showing Not started)".
   const button = await screen.findByRole('button', {name: /^List options/});
@@ -149,15 +156,15 @@ export async function pickListOption(user: ReturnType<typeof userEvent.setup>, i
 
 /** Shows a list's search bar in place of its tabs (the menu's Search), if it isn't showing already. */
 export async function openSearch(user: ReturnType<typeof userEvent.setup>) {
-  if (document.querySelector('.astryx-power-search')) return;
+  if (shownSearch()) return;
   await pickListOption(user, 'Search');
-  await waitFor(() => expect(document.querySelector('.astryx-power-search')).not.toBeNull());
+  await waitFor(() => expect(shownSearch()).not.toBeNull());
 }
 
 /** Picks one of a list's tabs (its favourites), going back to the tabs from its search first if need be. */
 export async function pickFavourite(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await waitFor(() => expect(screen.queryAllByRole('tab').length > 0 || document.querySelector('.astryx-power-search') !== null).toBe(true));
-  if (!screen.queryByRole('tab', {name})) await pickListOption(user, 'Tabs');
+  await waitFor(() => expect(screen.queryAllByRole('tab').length > 0 || shownSearch() !== null).toBe(true));
+  if (!screen.queryByRole('tab', {name})) await pickListOption(user, 'Favourites');
   await user.click(await screen.findByRole('tab', {name}));
 }
 
