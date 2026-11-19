@@ -18,15 +18,11 @@ export const USERS = {
   marsh: id(0xd0, 5),
   hallworth: id(0xd0, 6),
   aldous: id(0xd0, 7),
-  carrow: id(0xd0, 8),
 } as const;
 
 export const TEAMS = {
+  /** The one clinic (19 Nov: one clinic, one lab). */
   dermatology: id(0xd1, 1),
-  gynaecology: id(0xd1, 2),
-  urology: id(0xd1, 3),
-  diabetes: id(0xd1, 4),
-  biomechanics: id(0xd1, 5),
   lab: id(0xd1, 6),
 } as const;
 
@@ -42,10 +38,6 @@ export const TEMPLATES = {
   skinInfection: id(0xd2, 13),
   hairLoss: id(0xd2, 14),
   pigmentation: id(0xd2, 15),
-  postMenopausalBleeding: id(0xd2, 3),
-  diabetesReview: id(0xd2, 4),
-  /** Biomechanics, assessment only: the assessment's outcomes (orthoses, exercises, footwear advice, the hospital). */
-  lowerLimb: id(0xd2, 7),
 } as const;
 
 /** Addable routes (MC10): routes a clinician may add on new information, never suggested. */
@@ -54,29 +46,10 @@ export const TEMPLATE_BRANCHES = {
   biopsyAnother: id(0xfc, 1),
 } as const;
 
-/** Stage definitions (the stage library), shared by the templates. */
+/** The stage library's own definition, which Dermatology's reviewed templates share; theirs are numbered from
+ * `id(0xd3, 0x20)` (`dermatologyStageDefinitions`). */
 export const STAGES = {
-  /** Every definition below; the ones after `clinicReview` came with the light demo's second seed. Dermatology's from
-   * the reviewed templates are numbered from `id(0xd3, 0x20)` (`dermatologyStageDefinitions`). */
-  firstClinicVisit: id(0xd3, 1),
-  biopsyOrSample: id(0xd3, 2),
-  histology: id(0xd3, 3),
-  resultsAndTeamReview: id(0xd3, 4),
-  followUp: id(0xd3, 6),
-  dischargeLetter: id(0xd3, 7),
-  /** Was Medicines review: the centre doesn't prescribe, so medicines go to the GP. */
-  gpReferral: id(0xd3, 8),
-  bloodAndUrineTests: id(0xd3, 9),
-  labTests: id(0xd3, 10),
-  clinicReview: id(0xd3, 11),
-  /** Was Excision: surgery and specialist treatment are the hospital's. */
-  hospitalReferral: id(0xd3, 12),
   carePlan: id(0xd3, 13),
-  biomechanicalAssessment: id(0xd3, 14),
-  castingAndMeasurement: id(0xd3, 15),
-  orthosesMade: id(0xd3, 16),
-  orthosesFitted: id(0xd3, 17),
-  exercisePlan: id(0xd3, 18),
 } as const;
 
 export const PATIENTS = {
@@ -86,16 +59,13 @@ export const PATIENTS = {
   priyaHolloway: id(0xd4, 2),
   /** Has the suspected skin infection pathway on hold. */
   samuelOkafor: id(0xd4, 3),
-  /** Has the overdue post-menopausal bleeding pathway. */
-  margaretFenwick: id(0xd4, 4),
-  daniyalRees: id(0xd4, 5),
+  /** No pathway: her care ended over eight years ago, so the retention review has a record to show. */
   graceAbernethy: id(0xd4, 6),
   tobiasLund: id(0xd4, 7),
   ilonaPetrova: id(0xd4, 8),
   /** Referred to Dermatology: awaiting triage. */
   oliverMaddox: id(0xd4, 9),
   aishaKhoury: id(0xd4, 10),
-  ruthPenrose: id(0xd4, 11),
   callumAshby: id(0xd4, 12),
   /** Has the suspected skin cancer pathway past its histology result (Low-risk BCC): at Refer to hospital. */
   harrietQuill: id(0xd4, 13),
@@ -110,49 +80,33 @@ export const PATHWAYS = {
   histologyToFinish: id(0xd5, 2),
   /** Suspected skin infection, Samuel Okafor: on hold at Take skin sample, the sample sent. */
   onHold: id(0xd5, 3),
-  /** Post-menopausal bleeding, Margaret Fenwick, Tom Hallworth's (Gynaecology): overdue. */
-  overdue: id(0xd5, 4),
-  /** Diabetes review, Daniyal Rees: assigned, not started. */
-  notStarted: id(0xd5, 5),
-  /** Diabetes review, Grace Abernethy: discharged. */
-  completed: id(0xd5, 6),
   /** Changing mole or lesion check, Tobias Lund: at Triage, nobody assigned yet. */
   unassigned: id(0xd5, 7),
   /** Psoriasis assessment, Ilona Petrova, Nadia Thornbury's: assessment only, past its care plan; the review booked this week. */
   followUpBooked: id(0xd5, 8),
-  /** Suspected skin cancer, Harriet Quill, Nadia Thornbury's: Low-risk BCC recorded; at Refer to hospital (needs its letter). */
+  /** Suspected skin cancer, Harriet Quill, Nadia Thornbury's: Low-risk BCC recorded; at Refer to hospital (needs its letter), overdue. */
   referredToHospital: id(0xd5, 9),
   /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at Dermoscopy assessment, a choice node with six outcomes. */
   branchToChoose: id(0xd5, 10),
-  /** Post-menopausal bleeding, Priya Holloway, Gynaecology's: beside her Dermatology one, behind the team wall; at Histology, new for the lab. */
-  priyaGynaecology: id(0xd5, 11),
-  /** Diabetes review, Ellis Varden, Diabetes's: discharged; Dermatology sees it only as "completed". */
-  ellisDiabetes: id(0xd5, 12),
   /** Suspected skin cancer, Aisha Khoury, Nadia Thornbury's: Biopsy another lesion added, so two Histology stages run side by side. */
   forkedTests: id(0xd5, 13),
   /** Suspected skin cancer, Callum Ashby, Nadia Thornbury's: back from the lab at Histology result (a choice node), not picked up yet. */
   backFromLab: id(0xd5, 14),
-  /** Lower limb biomechanics, Samuel Okafor, Biomechanics's: at its assessment, a choice node. */
-  biomechanicsAssessment: id(0xd5, 15),
 } as const;
 
 export const REFERRALS = {
   /** Oliver Maddox to Dermatology, awaiting triage: the tour's triage step. */
   dermatologyToTriage: id(0xd6, 1),
   aishaDermatology: id(0xd6, 2),
-  ruthGynaecology: id(0xd6, 3),
-  callumDiabetes: id(0xd6, 4),
   /** Ellis Varden's, accepted into the biopsy pathway. */
   ellisAccepted: id(0xd6, 5),
 } as const;
 
 export const APPOINTMENTS = {
-  margaretFirstVisit: id(0xd7, 1),
   ilonaFollowUp: id(0xd7, 2),
   ellisFirstVisit: id(0xd7, 3),
   priyaFirstVisit: id(0xd7, 4),
   priyaBiopsy: id(0xd7, 5),
-  daniyalBloods: id(0xd7, 6),
 } as const;
 
 export const MEETINGS = {
@@ -183,8 +137,6 @@ export const MORE_APPOINTMENTS = {
   harrietFirstVisit: id(0xf9, 2),
   harrietBiopsy: id(0xf9, 3),
   felixFirstVisit: id(0xf9, 4),
-  /** Priya Holloway's Gynaecology biopsy with Tom Hallworth: "Busy", with no patient, on his calendar for Dermatology. */
-  priyaGynaecologyBiopsy: id(0xf9, 5),
 } as const;
 
 /** Every record ID in the seed, by kind (the tour's test checks its links against these). */

@@ -428,6 +428,8 @@ Never renumber; add new values with new numbers. Reserved by the earlier plan an
 
 ## 11. Stage 2 (one entry per clinic; each its own plan later)
 
+- **One clinic for now** (the owner, 19 Nov 2026): the light demo, and the full app's demo data at the backend stage, have one clinic, Dermatology, and the lab; the other clinics below stay later work.
+
 - **S2-1 Dietetics:** weight and BMI recorded over time (as written, never banded), repeat appointment series (S2-8).
 - **S2-2 Eye clinic:** eye images as files, visual acuity records, recalls.
 - **S2-3 Audiology:** audiograms as files, hearing aid fittings and repairs; children's hearing by consult with Paediatrics.

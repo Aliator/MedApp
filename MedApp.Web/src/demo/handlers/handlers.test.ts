@@ -1,7 +1,7 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, CARROW, LAB, STAFF} from '../accounts';
+import {addOtherClinic, OTHER_CLINIC} from '../../test/otherClinic';
+import {ADMIN, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
-import {growPathway} from '../seed';
 import {db} from '../store';
 import {auditEntries} from './adminLogs';
 
@@ -62,13 +62,13 @@ describe('the light demo handlers', () => {
   });
 
   it('accepts a referral into a new pathway, once, and only for a member of its team', async () => {
-    startLightDemo(STAFF);
-    const gynae = await call('POST', `/api/referrals/${REFERRALS.ruthGynaecology}/accept`, {
-      templateId: TEMPLATES.postMenopausalBleeding,
+    addOtherClinic(startLightDemo(STAFF).state);
+    const other = await call('POST', `/api/referrals/${OTHER_CLINIC.referralId}/accept`, {
+      templateId: TEMPLATES.suspectedSkinCancer,
       priority: 'Urgent',
     });
     // Another team's referral is behind the team wall: not found, as if it weren't there.
-    expect(gynae.status).toBe(404);
+    expect(other.status).toBe(404);
     const accepted = await call('POST', `/api/referrals/${REFERRALS.dermatologyToTriage}/accept`, {
       templateId: TEMPLATES.suspectedSkinCancer,
       priority: 'Urgent',
@@ -245,22 +245,20 @@ describe('the light demo handlers', () => {
   });
 
   it('skips an optional stage with a reason, and reinstates it', async () => {
-    startLightDemo(CARROW);
-    const url = `/api/pathways/patient-pathways/${PATHWAYS.notStarted}`;
-    // Daniyal Rees's review, past its results (Well controlled), at the care plan: finished here, without visits.
-    const stored = db().pathways.find((p) => p.id === PATHWAYS.notStarted)!;
-    for (const done of stored.stages) done.completedAtUtc = new Date().toISOString();
-    stored.stages[2].outcome = 'Well controlled';
-    growPathway(stored, (order) => `added-${order}`);
-    stored.stages.find((s) => s.name === 'Agree care plan')!.completedAtUtc = new Date().toISOString();
+    startLightDemo(STAFF);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.unassigned}`;
+    // Tobias Lund's changing mole check, at Triage: Dermatology's templates have no optional stage, so one is made here.
+    const stored = db().pathways.find((p) => p.id === PATHWAYS.unassigned)!;
+    stored.status = 'InProgress';
+    const triage = stored.stages.find((s) => s.name === 'Triage')!;
+    triage.isOptional = true;
     let pathway = (await call('GET', url)).body;
-    const followUp = pathway.stages.find(isCurrent);
-    expect(followUp).toMatchObject({name: 'Follow-up', isOptional: true, canSkip: true});
-    expect((await call('POST', `${url}/stages/${followUp.id}/skip`, {})).status).toBe(400);
-    pathway = (await call('POST', `${url}/stages/${followUp.id}/skip`, {reason: 'NotNeeded'})).body;
-    expect(pathway.stages.find(isCurrent).name).toBe('Discharge letter to GP');
-    pathway = (await call('POST', `${url}/stages/${followUp.id}/reinstate`, {reason: 'Wanted after all'})).body;
-    expect(pathway.stages.find(isCurrent).id).toBe(followUp.id);
+    expect(pathway.stages.find(isCurrent)).toMatchObject({id: triage.id, isOptional: true, canSkip: true});
+    expect((await call('POST', `${url}/stages/${triage.id}/skip`, {})).status).toBe(400);
+    pathway = (await call('POST', `${url}/stages/${triage.id}/skip`, {reason: 'NotNeeded'})).body;
+    expect(pathway.stages.find(isCurrent).id).not.toBe(triage.id);
+    pathway = (await call('POST', `${url}/stages/${triage.id}/reinstate`, {reason: 'Wanted after all'})).body;
+    expect(pathway.stages.find(isCurrent).id).toBe(triage.id);
   });
 
   it('refuses to finish a stage that needs consent until it’s recorded', async () => {

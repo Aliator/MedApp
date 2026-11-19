@@ -125,7 +125,7 @@ describe('the Read Me tour', () => {
     // The admin's steps are what an admin does: reading every team's list is one (the team walls).
     for (const step of TOUR.filter((s) => s.account === ADMIN.username))
       expect(['account-types', 'draw-routes', 'dermatology-templates', 'assessment-only', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
-    expect(byKey('team-walls').account).toBe(STAFF.username);
+    expect(byKey('team-walls').account).toBe(LAB.username);
   });
 
   it('runs the relay in order: Dermatology hands Ellis Varden’s pathway over, and it is new for the lab', async () => {
