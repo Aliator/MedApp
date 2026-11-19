@@ -35,6 +35,7 @@ import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminCalendarTemplatesRouteImport } from './routes/_app/admin/calendar-templates'
 import { Route as AppAdminClosedDaysRouteImport } from './routes/_app/admin/closed-days'
 import { Route as AppAdminConsentFormsRouteImport } from './routes/_app/admin/consent-forms'
+import { Route as AppAdminHospitalsRouteImport } from './routes/_app/admin/hospitals'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
 import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
 import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
@@ -50,6 +51,9 @@ import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calen
 import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
 import { Route as AppDataRequestsIndexRouteImport } from './routes/_app/data-requests/index'
 import { Route as AppDataRequestsIdRouteImport } from './routes/_app/data-requests/$id'
+import { Route as AppHospitalRequestsIndexRouteImport } from './routes/_app/hospital-requests/index'
+import { Route as AppHospitalRequestsIdRouteImport } from './routes/_app/hospital-requests/$id'
+import { Route as AppHospitalRequestsNewRouteImport } from './routes/_app/hospital-requests/new'
 import { Route as AppLabIndexRouteImport } from './routes/_app/lab/index'
 import { Route as AppLabSamplesRouteImport } from './routes/_app/lab/samples'
 import { Route as AppLettersIndexRouteImport } from './routes/_app/letters/index'
@@ -219,6 +223,11 @@ const AppAdminConsentFormsRoute = AppAdminConsentFormsRouteImport.update({
   path: '/admin/consent-forms',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminHospitalsRoute = AppAdminHospitalsRouteImport.update({
+  id: '/admin/hospitals',
+  path: '/admin/hospitals',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
   id: '/admin/insights',
   path: '/admin/insights',
@@ -293,6 +302,22 @@ const AppDataRequestsIndexRoute = AppDataRequestsIndexRouteImport.update({
 const AppDataRequestsIdRoute = AppDataRequestsIdRouteImport.update({
   id: '/data-requests/$id',
   path: '/data-requests/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHospitalRequestsIndexRoute =
+  AppHospitalRequestsIndexRouteImport.update({
+    id: '/hospital-requests/',
+    path: '/hospital-requests/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppHospitalRequestsIdRoute = AppHospitalRequestsIdRouteImport.update({
+  id: '/hospital-requests/$id',
+  path: '/hospital-requests/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHospitalRequestsNewRoute = AppHospitalRequestsNewRouteImport.update({
+  id: '/hospital-requests/new',
+  path: '/hospital-requests/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLabIndexRoute = AppLabIndexRouteImport.update({
@@ -523,6 +548,7 @@ export interface FileRoutesByFullPath {
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/admin/consent-forms': typeof AppAdminConsentFormsRoute
+  '/admin/hospitals': typeof AppAdminHospitalsRoute
   '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -536,6 +562,8 @@ export interface FileRoutesByFullPath {
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/hospital-requests/$id': typeof AppHospitalRequestsIdRoute
+  '/hospital-requests/new': typeof AppHospitalRequestsNewRoute
   '/lab/samples': typeof AppLabSamplesRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
@@ -544,6 +572,7 @@ export interface FileRoutesByFullPath {
   '/account/': typeof AppAccountIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
   '/data-requests/': typeof AppDataRequestsIndexRoute
+  '/hospital-requests/': typeof AppHospitalRequestsIndexRoute
   '/lab/': typeof AppLabIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/pathways/': typeof AppPathwaysIndexRoute
@@ -603,6 +632,7 @@ export interface FileRoutesByTo {
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/admin/consent-forms': typeof AppAdminConsentFormsRoute
+  '/admin/hospitals': typeof AppAdminHospitalsRoute
   '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -616,6 +646,8 @@ export interface FileRoutesByTo {
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/hospital-requests/$id': typeof AppHospitalRequestsIdRoute
+  '/hospital-requests/new': typeof AppHospitalRequestsNewRoute
   '/lab/samples': typeof AppLabSamplesRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
@@ -624,6 +656,7 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
   '/data-requests': typeof AppDataRequestsIndexRoute
+  '/hospital-requests': typeof AppHospitalRequestsIndexRoute
   '/lab': typeof AppLabIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/pathways': typeof AppPathwaysIndexRoute
@@ -685,6 +718,7 @@ export interface FileRoutesById {
   '/_app/admin/calendar-templates': typeof AppAdminCalendarTemplatesRoute
   '/_app/admin/closed-days': typeof AppAdminClosedDaysRoute
   '/_app/admin/consent-forms': typeof AppAdminConsentFormsRoute
+  '/_app/admin/hospitals': typeof AppAdminHospitalsRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
   '/_app/admin/jobs': typeof AppAdminJobsRoute
   '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
@@ -698,6 +732,8 @@ export interface FileRoutesById {
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/_app/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/_app/hospital-requests/$id': typeof AppHospitalRequestsIdRoute
+  '/_app/hospital-requests/new': typeof AppHospitalRequestsNewRoute
   '/_app/lab/samples': typeof AppLabSamplesRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
   '/_app/pathways/new': typeof AppPathwaysNewRoute
@@ -706,6 +742,7 @@ export interface FileRoutesById {
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/data-requests/': typeof AppDataRequestsIndexRoute
+  '/_app/hospital-requests/': typeof AppHospitalRequestsIndexRoute
   '/_app/lab/': typeof AppLabIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/pathways/': typeof AppPathwaysIndexRoute
@@ -767,6 +804,7 @@ export interface FileRouteTypes {
     | '/admin/calendar-templates'
     | '/admin/closed-days'
     | '/admin/consent-forms'
+    | '/admin/hospitals'
     | '/admin/insights'
     | '/admin/jobs'
     | '/admin/monitoring'
@@ -780,6 +818,8 @@ export interface FileRouteTypes {
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/data-requests/$id'
+    | '/hospital-requests/$id'
+    | '/hospital-requests/new'
     | '/lab/samples'
     | '/letters/$id'
     | '/pathways/new'
@@ -788,6 +828,7 @@ export interface FileRouteTypes {
     | '/account/'
     | '/calendar/'
     | '/data-requests/'
+    | '/hospital-requests/'
     | '/lab/'
     | '/letters/'
     | '/pathways/'
@@ -847,6 +888,7 @@ export interface FileRouteTypes {
     | '/admin/calendar-templates'
     | '/admin/closed-days'
     | '/admin/consent-forms'
+    | '/admin/hospitals'
     | '/admin/insights'
     | '/admin/jobs'
     | '/admin/monitoring'
@@ -860,6 +902,8 @@ export interface FileRouteTypes {
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/data-requests/$id'
+    | '/hospital-requests/$id'
+    | '/hospital-requests/new'
     | '/lab/samples'
     | '/letters/$id'
     | '/pathways/new'
@@ -868,6 +912,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/calendar'
     | '/data-requests'
+    | '/hospital-requests'
     | '/lab'
     | '/letters'
     | '/pathways'
@@ -928,6 +973,7 @@ export interface FileRouteTypes {
     | '/_app/admin/calendar-templates'
     | '/_app/admin/closed-days'
     | '/_app/admin/consent-forms'
+    | '/_app/admin/hospitals'
     | '/_app/admin/insights'
     | '/_app/admin/jobs'
     | '/_app/admin/monitoring'
@@ -941,6 +987,8 @@ export interface FileRouteTypes {
     | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
     | '/_app/data-requests/$id'
+    | '/_app/hospital-requests/$id'
+    | '/_app/hospital-requests/new'
     | '/_app/lab/samples'
     | '/_app/letters/$id'
     | '/_app/pathways/new'
@@ -949,6 +997,7 @@ export interface FileRouteTypes {
     | '/_app/account/'
     | '/_app/calendar/'
     | '/_app/data-requests/'
+    | '/_app/hospital-requests/'
     | '/_app/lab/'
     | '/_app/letters/'
     | '/_app/pathways/'
@@ -1179,6 +1228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminConsentFormsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/hospitals': {
+      id: '/_app/admin/hospitals'
+      path: '/admin/hospitals'
+      fullPath: '/admin/hospitals'
+      preLoaderRoute: typeof AppAdminHospitalsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/insights': {
       id: '/_app/admin/insights'
       path: '/admin/insights'
@@ -1282,6 +1338,27 @@ declare module '@tanstack/react-router' {
       path: '/data-requests/$id'
       fullPath: '/data-requests/$id'
       preLoaderRoute: typeof AppDataRequestsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hospital-requests/': {
+      id: '/_app/hospital-requests/'
+      path: '/hospital-requests'
+      fullPath: '/hospital-requests/'
+      preLoaderRoute: typeof AppHospitalRequestsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hospital-requests/$id': {
+      id: '/_app/hospital-requests/$id'
+      path: '/hospital-requests/$id'
+      fullPath: '/hospital-requests/$id'
+      preLoaderRoute: typeof AppHospitalRequestsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hospital-requests/new': {
+      id: '/_app/hospital-requests/new'
+      path: '/hospital-requests/new'
+      fullPath: '/hospital-requests/new'
+      preLoaderRoute: typeof AppHospitalRequestsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/lab/': {
@@ -1571,6 +1648,7 @@ interface AppRouteChildren {
   AppAdminCalendarTemplatesRoute: typeof AppAdminCalendarTemplatesRoute
   AppAdminClosedDaysRoute: typeof AppAdminClosedDaysRoute
   AppAdminConsentFormsRoute: typeof AppAdminConsentFormsRoute
+  AppAdminHospitalsRoute: typeof AppAdminHospitalsRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
   AppAdminJobsRoute: typeof AppAdminJobsRoute
   AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
@@ -1584,6 +1662,8 @@ interface AppRouteChildren {
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
   AppDataRequestsIdRoute: typeof AppDataRequestsIdRoute
+  AppHospitalRequestsIdRoute: typeof AppHospitalRequestsIdRoute
+  AppHospitalRequestsNewRoute: typeof AppHospitalRequestsNewRoute
   AppLabSamplesRoute: typeof AppLabSamplesRoute
   AppLettersIdRoute: typeof AppLettersIdRoute
   AppPathwaysNewRoute: typeof AppPathwaysNewRoute
@@ -1592,6 +1672,7 @@ interface AppRouteChildren {
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppDataRequestsIndexRoute: typeof AppDataRequestsIndexRoute
+  AppHospitalRequestsIndexRoute: typeof AppHospitalRequestsIndexRoute
   AppLabIndexRoute: typeof AppLabIndexRoute
   AppLettersIndexRoute: typeof AppLettersIndexRoute
   AppPathwaysIndexRoute: typeof AppPathwaysIndexRoute
@@ -1645,6 +1726,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminCalendarTemplatesRoute: AppAdminCalendarTemplatesRoute,
   AppAdminClosedDaysRoute: AppAdminClosedDaysRoute,
   AppAdminConsentFormsRoute: AppAdminConsentFormsRoute,
+  AppAdminHospitalsRoute: AppAdminHospitalsRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
   AppAdminJobsRoute: AppAdminJobsRoute,
   AppAdminMonitoringRoute: AppAdminMonitoringRoute,
@@ -1658,6 +1740,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
   AppDataRequestsIdRoute: AppDataRequestsIdRoute,
+  AppHospitalRequestsIdRoute: AppHospitalRequestsIdRoute,
+  AppHospitalRequestsNewRoute: AppHospitalRequestsNewRoute,
   AppLabSamplesRoute: AppLabSamplesRoute,
   AppLettersIdRoute: AppLettersIdRoute,
   AppPathwaysNewRoute: AppPathwaysNewRoute,
@@ -1666,6 +1750,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppDataRequestsIndexRoute: AppDataRequestsIndexRoute,
+  AppHospitalRequestsIndexRoute: AppHospitalRequestsIndexRoute,
   AppLabIndexRoute: AppLabIndexRoute,
   AppLettersIndexRoute: AppLettersIndexRoute,
   AppPathwaysIndexRoute: AppPathwaysIndexRoute,

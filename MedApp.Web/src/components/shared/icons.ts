@@ -292,6 +292,8 @@ export const AppIcon = {
   ClosedDays: remix(RiDoorClosedLine),
   /** Sites (admin): the places the centre works from. */
   Sites: remix(RiBuilding2Line),
+  /** Hospitals (MC18): the hospitals that send the lab samples, and their requests. */
+  Hospitals: remix(RiBuilding2Line),
   /** A site's rooms. */
   Rooms: remix(RiDoorOpenLine),
   /** Clinic sessions: a clinician's time in a room for a team, cut into slots. */
