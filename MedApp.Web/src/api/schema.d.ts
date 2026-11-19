@@ -2705,6 +2705,7 @@ export interface paths {
             parameters: {
                 query?: {
                     Date?: string;
+                    TeamId?: string;
                     StaffUserIds?: string[];
                 };
                 header?: never;
@@ -23072,9 +23073,13 @@ export interface components {
         TeamCalendarResponse: {
             /** Format: date */
             date?: string;
+            /** Format: uuid */
+            teamId?: string | null;
+            teamName?: string | null;
             day?: components["schemas"]["CalendarDayResponse"];
             members?: components["schemas"]["CalendarResponse"][] | null;
             everyoneFree?: components["schemas"]["TimeRangeResponse"][] | null;
+            teamMembers?: components["schemas"]["StaffMemberResponse"][] | null;
         };
         TemplateStageTimesResponse: {
             /** Format: uuid */

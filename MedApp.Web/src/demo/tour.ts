@@ -1,7 +1,7 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS, USERS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
@@ -289,6 +289,18 @@ export const TOUR: TourStep[] = [
     account: STAFF.username,
     path: `/calendar?staff=${USERS.hallworth}&view=week`,
     buttonLabel: 'Open Tom Hallworth’s calendar',
+  },
+  {
+    key: 'team-calendar',
+    title: 'Any team’s calendar',
+    steps: [
+      `As ${LAB.fullName}, the Team view shows Dermatology’s calendar: anyone can look at any team’s, picked in Team.`,
+      `Go to the day of the Skin cancer team meeting (two weekdays ahead). On ${STAFF.fullName}’s column it shows only as “Meeting, another team”: no title, no one invited, nothing to open.`,
+      'Meetings are arranged only with your own team, except an MDT. The admin arranges any.',
+    ],
+    account: LAB.username,
+    path: `/calendar?view=team&team=${TEAMS.dermatology}`,
+    buttonLabel: 'Open Dermatology’s calendar as the lab',
   },
   {
     key: 'on-hold-overdue',

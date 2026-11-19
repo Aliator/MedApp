@@ -6,6 +6,7 @@ import {
   attendingCount,
   blockItem,
   busyItem,
+  busyKey,
   calendarItems,
   MEETING_COLOUR,
   meetingItem,
@@ -176,7 +177,7 @@ describe('calendarItems', () => {
     const busy = {staffUserId: 'staff-other', username: 'other', startUtc: '2026-11-23T10:00:00Z', endUtc: '2026-11-23T10:30:00Z', what: 'Busy'};
 
     expect(busyItem(busy)).toEqual({
-      key: 'busy-staff-other-2026-11-23T10:00:00Z',
+      key: 'busy-staff-other-2026-11-23T10:00:00Z-Busy',
       kind: 'block',
       date: MONDAY,
       startUtc: busy.startUtc,
@@ -189,5 +190,18 @@ describe('calendarItems', () => {
     });
     const calendar = {...testCalendar({from: MONDAY, today: MONDAY}), otherTeamsBusy: [busy, {...busy, startUtc: undefined}]};
     expect(calendarItems(calendar).filter((i) => i.label === 'Busy')).toHaveLength(1);
+  });
+
+  it("shows another team's meeting as just \"Meeting\": no title or attendees, never opened (MC11)", () => {
+    const busy = {staffUserId: 'staff-other', username: 'other', startUtc: '2026-11-23T10:00:00Z', endUtc: '2026-11-23T10:30:00Z', what: 'Meeting'};
+    expect(busyItem(busy)).toMatchObject({
+      kind: 'block',
+      label: 'Meeting',
+      sublabel: 'Another team',
+      description: "Meeting, another team's, 10:00 to 10:30",
+      isReadOnly: true,
+    });
+    // Beside an appointment at the same time, each keeps its own key.
+    expect(busyKey(busy)).not.toBe(busyKey({...busy, what: 'Busy'}));
   });
 });
