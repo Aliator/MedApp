@@ -132,13 +132,6 @@ export function ReadMePage() {
       await switchAccount(step.account, step.path ?? READ_ME_PATH, {readMeOnRight});
       return;
     }
-    if (step.staysOnReadMe) {
-      // The Read Me on its own, where the step's instructions start: from the right half, it takes the whole view.
-      if (isOnRight || halfViews?.openPath) rememberReadMePlace(root.current, step.key, 'whole');
-      if (isOnRight) halfViews?.openFull(READ_ME_PATH);
-      else if (halfViews?.openPath) halfViews.close();
-      return;
-    }
     // A step with no page (the notepad's) stays where it is.
     if (step.path) await openPage(step.path, step.key);
     if (step.opensNotepad) notepad?.open();
