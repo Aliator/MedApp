@@ -3,7 +3,7 @@ import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Layout, LayoutContent} from '@astryxdesign/core/Layout';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {StackItem, VStack} from '@astryxdesign/core/Stack';
-import {useContext, type ReactNode} from 'react';
+import {useContext, useEffect, useRef, useState, type ReactNode, type RefObject} from 'react';
 import {usePageTitle} from '../../app/announcements';
 import {useNarrowBesideNotepad} from '../notepad/NotepadContext';
 import {InHalfPaneContext, OverWholeWindowContext, useHalfView} from './halfView';
@@ -67,6 +67,58 @@ export function useIsNarrow(): boolean {
  */
 export const useIsNarrowWindow = () => useMediaQuery(NARROW_WINDOW_QUERY, false);
 
+/**
+ * A long page's header (the title, Back and its buttons) stays at the top while the page scrolls under it (the owner,
+ * 19 November 2026). It's stuck to whatever scrolls the page: the window's main area, a half of a half view, or the
+ * page beside the docked notepad. Its own background hides what passes under it; a little room above and below the
+ * title while stuck is given back with negative margins, and it reaches across the page's side margins, so nothing
+ * shows beside it, without moving it from where every page's title sits. Where it sticks (`top`) is set by
+ * `useStickyHeader`.
+ */
+const STICKY_HEADER = {
+  position: 'sticky',
+  // Above what the page holds (Astryx's tables and focus rings use up to 3), below the app's overlays (500 and up).
+  zIndex: 10,
+  backgroundColor: 'var(--color-background-surface)',
+  paddingBlock: 'var(--spacing-3)',
+  marginBlock: 'calc(-1 * var(--spacing-3))',
+  paddingInline: 'var(--spacing-6)',
+  marginInline: 'calc(-1 * var(--spacing-6))',
+} as const;
+
+/** A line under the header while it's stuck, between it and the page scrolling under it. */
+const STUCK_LINE = {boxShadow: '0 1px 0 var(--color-border)'} as const;
+
+/** What scrolls this element: its nearest ancestor that scrolls up and down (one shown as its contents isn't a box). */
+function scrollingAncestor(element: HTMLElement): HTMLElement | null {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent);
+    if (style.display !== 'contents' && /auto|scroll/.test(style.overflowY)) return parent;
+  }
+  return null;
+}
+
+/**
+ * Where the sticky header sticks, and whether it's stuck. A sticky element stops at the inside of its scroller's
+ * padding (the main area has some), so it's given that back to stick at the very edge; and one pixel more, so that while
+ * it's stuck a pixel is out of view, which is how it knows (its line, `STUCK_LINE`).
+ */
+function useStickyHeader(ref: RefObject<HTMLElement | null>): {top: number; isStuck: boolean} {
+  const [top, setTop] = useState(-1);
+  const [isStuck, setIsStuck] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const scroller = scrollingAncestor(element);
+    setTop(-1 - (scroller ? parseFloat(getComputedStyle(scroller).paddingTop) || 0 : 0));
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setIsStuck(entry.intersectionRatio < 1), {threshold: [1]});
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return {top, isStuck};
+}
+
 export function Page({
   isLoading = false,
   loadingMessage = 'Loading...',
@@ -78,13 +130,24 @@ export function Page({
   ...header
 }: PageProps) {
   usePageTitle(header.title, !useContext(InHalfPaneContext));
+  const headerRef = useRef<HTMLElement>(null);
+  const {top, isStuck} = useStickyHeader(headerRef);
   return (
     // A Layout sits flush in AppShell's content area and insets only its regions, so the page goes in a
     // LayoutContent region with the same 24px inset as pages without a Layout.
     <Layout height={fill ? 'fill' : 'auto'} padding={6} contentWidth={maxWidth}>
-      <LayoutContent>
+      {/* A page that grows scrolls in what holds it, so its region mustn't scroll itself (it never did, being as tall
+          as the page), or the sticky header would stick to it rather than to what scrolls. A `fill` page's cards
+          scroll, not the page, so its header is always in view already. */}
+      <LayoutContent isScrollable={fill}>
         <VStack gap={6} height={fill ? '100%' : undefined}>
-          <PageHeader {...header} />
+          {fill ? (
+            <PageHeader {...header} />
+          ) : (
+            <VStack ref={headerRef} style={{...STICKY_HEADER, top, ...(isStuck ? STUCK_LINE : {})}} data-page-header="">
+              <PageHeader {...header} />
+            </VStack>
+          )}
           {banner}
           {isLoading ? (
             <Center axis="horizontal" padding={10}>

@@ -1,5 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
-import {screen, waitFor, within} from '@testing-library/react';
+import {act, screen, waitFor, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {DialogFrame} from '../modals/DialogFrame';
 import {Page, useIsNarrow, useIsNarrowWindow} from './Page';
@@ -115,6 +115,44 @@ describe('Page', () => {
     const banner = screen.getByText('Who it is about');
     expect(heading.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(banner.compareDocumentPosition(screen.getByText('Details go here')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps a long page’s header at the top while the page scrolls under it, with a line once it’s stuck', async () => {
+    let report: IntersectionObserverCallback = () => {};
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          report = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    renderWithApp(
+      <Page title="Account Settings" actions={<Button label="Save" />}>
+        <p>A long page</p>
+      </Page>,
+    );
+
+    const header = (await screen.findByRole('heading', {name: 'Account Settings'})).closest<HTMLElement>('[data-page-header]')!;
+    expect(header.style.position).toBe('sticky');
+    expect(within(header).getByRole('button', {name: 'Save'})).toBeInTheDocument();
+    expect(header.style.boxShadow).toBe('');
+    // Scrolled: a pixel of it out of view.
+    act(() => report([{intersectionRatio: 0.99} as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(header.style.boxShadow).toContain('var(--color-border)');
+    vi.unstubAllGlobals();
+  });
+
+  it('leaves a fill page’s header as it is: its cards scroll, not the page', async () => {
+    renderWithApp(
+      <Page title="Patients" fill>
+        <p>Table goes here</p>
+      </Page>,
+    );
+
+    expect((await screen.findByRole('heading', {name: 'Patients'})).closest('[data-page-header]')).toBeNull();
   });
 
   it('renders its dialogs even while loading', async () => {
