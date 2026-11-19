@@ -232,7 +232,7 @@ export function SpecimenSetupPage() {
               />
               <TextInput
                 label="SNOMED CT code"
-                description="The specimen's concept ID (FHIR's Specimen.type), optional."
+                isOptional
                 value={snomedCode}
                 onChange={setSnomedCode}
                 autoComplete="off"

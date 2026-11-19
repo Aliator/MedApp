@@ -75,12 +75,12 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect((await call('GET', '/api/letters/count')).body.toSend).toBe(0);
   });
 
-  it('keeps the discharge stage unfinished until its letter is approved and sent to everyone', async () => {
+  it('keeps the referral stage unfinished until its letter is approved and sent to everyone', async () => {
     startLightDemo(STAFF);
     const pathway = pathwayOf(PATHWAYS.consentToRecord);
-    const stage = stageNamed(PATHWAYS.consentToRecord, 'Discharge letter to GP');
-    expect(clinicalGate(pathway, stage)).toMatch(/needs a discharge summary.*None has been written yet/);
-    const created = await call('POST', '/api/letters', {templateId: LETTER_TEMPLATES.dischargeSummary, pathwayId: pathway.id});
+    const stage = stageNamed(PATHWAYS.consentToRecord, 'Referral to hospital');
+    expect(clinicalGate(pathway, stage)).toMatch(/needs a clinic letter.*None has been written yet/);
+    const created = await call('POST', '/api/letters', {templateId: LETTER_TEMPLATES.clinicLetter, pathwayId: pathway.id});
     expect(created.status).toBe(201);
     expect(clinicalGate(pathway, stage)).toMatch(/still a draft/);
     const approved = (await call('POST', `/api/letters/${created.body.id}/approve`, {expectedVersion: 1})).body;
@@ -92,10 +92,10 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect(clinicalGate(pathway, stage)).toBeNull();
   });
 
-  it('keeps a treatment stage unfinished until a valid consent record is there', async () => {
+  it('keeps a photographs stage unfinished until a valid consent record is there', async () => {
     startLightDemo(STAFF);
     const pathway = pathwayOf(PATHWAYS.consentToRecord);
-    const treatment = stageNamed(PATHWAYS.consentToRecord, 'Treatment');
+    const treatment = stageNamed(PATHWAYS.consentToRecord, 'Clinical photographs');
     expect(canRecordConsent(pathway, treatment)).toBe(true);
     expect(canRecordConsent(pathway, pathway.stages[0])).toBe(false);
     expect(clinicalGate(pathway, treatment)).toMatch(/needs the patient's consent recorded/);

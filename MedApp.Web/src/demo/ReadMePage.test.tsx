@@ -38,6 +38,9 @@ describe('ReadMePage', () => {
     expect(screen.getByText(`${STAFF.fullName} (${STAFF.username})`)).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: /Triage a referral/})).toBeInTheDocument();
     expect(screen.getByText('Real-time notifications')).toBeInTheDocument();
+    // The full app's architecture, in plain words.
+    expect(screen.getByText('How the full app is built')).toBeInTheDocument();
+    expect(screen.getByText('.NET 10 Web API, Clean Architecture')).toBeInTheDocument();
     expect(hasSeenReadMe()).toBe(true);
   });
 

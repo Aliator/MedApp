@@ -2,7 +2,6 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {PathwayTemplateEditorPage, startingStopKey, stopStageOrder} from './PathwayTemplateEditorPage';
-import {BRANCH_WITHOUT_POINT_MESSAGE} from './templateBranches';
 
 const BASE = '/api/pathways/patient-pathway-stage';
 
@@ -359,116 +358,77 @@ describe('PathwayTemplateEditorPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
   });
 
-  describe('optional stages and branches', () => {
+  describe('optional stages and choice nodes', () => {
     const row = (n: number) => within(within(screen.getByRole('list', {name: 'Stages in order'})).getAllByRole('listitem')[n]);
 
-    it('builds branches after a branch point, indented, saying what the API would refuse until they are right', async () => {
-      const {user, fetch} = renderEditor(undefined, {[`POST ${BASE}/templates`]: () => json({id: 't9'}, 201)});
-
-      await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Biopsy pathway');
-      const addable = within(screen.getByRole('list', {name: 'Stages to add'}));
-      for (const name of ['Consultation', 'Scan', 'Scan', 'Consultation']) await user.click(addable.getByRole('button', {name: `Add ${name}`}));
-
-      // Plain stages: two boxes, unticked, and no branch until there's a branch point before them.
-      expect(row(0).getByRole('checkbox', {name: 'Optional'})).not.toBeChecked();
-      expect(row(0).getByRole('checkbox', {name: 'Branch point'})).not.toBeChecked();
-      expect(row(1).queryByRole('textbox', {name: 'Branch'})).not.toBeInTheDocument();
-
-      await user.click(row(0).getByRole('checkbox', {name: 'Branch point'}));
-      expect(row(0).getByText(/needs at least two branches after it/)).toBeInTheDocument();
-      expect(row(0).queryByRole('textbox', {name: 'Branch'})).not.toBeInTheDocument();
-      await user.type(row(1).getByRole('textbox', {name: 'Branch'}), 'Benign');
-      await user.type(row(2).getByRole('textbox', {name: 'Branch'}), 'Treatment');
-      await user.click(row(2).getByRole('checkbox', {name: 'Optional'}));
-      expect(screen.queryByText(/needs at least two branches/)).not.toBeInTheDocument();
-
-      // Stages in a branch sit indented under the branch point; the one after them always runs.
-      const items = within(screen.getByRole('list', {name: 'Stages in order'})).getAllByRole('listitem');
-      expect(items[1].getAttribute('style')).toContain('margin-inline-start');
-      expect(items[3].getAttribute('style') ?? '').not.toContain('margin-inline-start');
-
-      // The last stage always runs.
-      await user.click(row(3).getByRole('checkbox', {name: 'Optional'}));
-      expect(row(3).getByText("The last stage always runs: it can't be optional, a branch point or in a branch.")).toBeInTheDocument();
-      await user.click(row(3).getByRole('checkbox', {name: 'Optional'}));
-
-      await chooseTeam(user, 'Urology');
-      await user.click(screen.getByRole('button', {name: 'Create Template'}));
-      expect(within(openDialog()!).getByText(/1\. Consultation \(branch point\), 2\. Scan \(Benign\), 3\. Scan \(optional, Treatment\), 4\. Consultation/)).toBeInTheDocument();
-      await user.click(within(openDialog()!).getByRole('button', {name: 'Create Template'}));
-
-      await waitFor(() => expect(sent(fetch, 'POST')).toBeDefined());
-      expect(await sent(fetch, 'POST')!.json()).toEqual({
-        name: 'Biopsy pathway',
-        stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1'],
-        stageOptions: [
-          {isOptional: false, choosesBranch: true, branch: null},
-          {isOptional: false, choosesBranch: false, branch: 'Benign'},
-          {isOptional: true, choosesBranch: false, branch: 'Treatment'},
-          {isOptional: false, choosesBranch: false, branch: null},
-        ],
-        teamId: 'sp2',
-        clockStopStageOrder: null,
-      });
+    it('keeps the last stage of a list not optional', async () => {
+      const {user} = renderEditor();
+      const addable = within(await screen.findByRole('list', {name: 'Stages to add'}));
+      for (const name of ['Consultation', 'Scan']) await user.click(addable.getByRole('button', {name: `Add ${name}`}));
+      expect(row(0).queryByRole('textbox', {name: 'Outcome'})).not.toBeInTheDocument();
+      await user.click(row(1).getByRole('checkbox', {name: 'Optional'}));
+      expect(row(1).getByText("The last stage can't be optional.")).toBeInTheDocument();
     });
 
-    it("starts from a template's stage options, and sends none once every stage is plain again", async () => {
-      const options = (stageOrder: number, stageDefinitionId: string, more: Record<string, unknown> = {}) => ({
+    it('opens a template with a choice node in the route editor, each stage after it naming its outcome, and saves them', async () => {
+      const stage = (stageOrder: number, stageDefinitionId: string, more: Record<string, unknown> = {}) => ({
         stageOrder,
         stageDefinitionId,
         isOptional: false,
-        choosesBranch: false,
-        branch: null,
+        choiceKind: null,
+        outcomes: null,
         ...more,
       });
       const {user, fetch} = renderEditor('t1', {
         [`GET ${BASE}/templates/t1`]: () =>
           json({
             ...template,
-            stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1'],
-            stages: [options(1, 'd1', {choosesBranch: true}), options(2, 'd2', {branch: 'Benign'}), options(3, 'd2', {branch: 'Treatment'}), options(4, 'd1')],
+            stageDefinitionIdsInOrder: ['d1', 'd2', 'd2'],
+            stages: [
+              stage(1, 'd1', {
+                choiceKind: 'LabResult',
+                outcomes: [
+                  {name: 'Benign', nextStageOrders: [2]},
+                  {name: 'Malignant', nextStageOrders: [3]},
+                ],
+              }),
+              stage(2, 'd2'),
+              stage(3, 'd2'),
+            ],
+            links: [
+              {fromStageOrder: 1, toStageOrder: 2},
+              {fromStageOrder: 1, toStageOrder: 3},
+            ],
           }),
         [`PATCH ${BASE}/templates/t1`]: () => json(template),
       });
 
       await screen.findByRole('list', {name: 'Stages in order'});
-      expect(row(0).getByRole('checkbox', {name: 'Branch point'})).toBeChecked();
-      expect(row(1).getByRole('textbox', {name: 'Branch'})).toHaveValue('Benign');
-      expect(row(2).getByRole('textbox', {name: 'Branch'})).toHaveValue('Treatment');
+      expect(screen.queryByRole('button', {name: 'Draw Routes'})).not.toBeInTheDocument();
+      expect(row(1).getByRole('textbox', {name: 'Outcome'})).toHaveValue('Benign');
+      expect(row(2).getByRole('textbox', {name: 'Outcome'})).toHaveValue('Malignant');
 
-      await user.clear(row(1).getByRole('textbox', {name: 'Branch'}));
-      await user.clear(row(2).getByRole('textbox', {name: 'Branch'}));
-      await user.click(row(0).getByRole('checkbox', {name: 'Branch point'}));
-      // With no branch point before them, the emptied branch fields go.
-      expect(row(1).queryByRole('textbox', {name: 'Branch'})).not.toBeInTheDocument();
+      // An outcome left unnamed is what a save would be refused for.
+      await user.clear(row(2).getByRole('textbox', {name: 'Outcome'}));
+      expect(row(2).getByText(/Name the outcome that leads to this stage/)).toBeInTheDocument();
+      await user.type(row(2).getByRole('textbox', {name: 'Outcome'}), 'Melanoma');
+
       await user.click(screen.getByRole('button', {name: 'Save'}));
       await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
-
       await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
-      expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1'], clockStopStageOrder: null});
-    });
-
-    it('says a stage in a branch must come after a branch point', async () => {
-      const {user} = renderEditor('t1', {
-        [`GET ${BASE}/templates/t1`]: () =>
-          json({
-            ...template,
-            stageDefinitionIdsInOrder: ['d1', 'd2', 'd1'],
-            stages: [
-              {stageOrder: 1, stageDefinitionId: 'd1', isOptional: false, choosesBranch: true, branch: null},
-              {stageOrder: 2, stageDefinitionId: 'd2', isOptional: false, choosesBranch: false, branch: null},
-              {stageOrder: 3, stageDefinitionId: 'd1', isOptional: false, choosesBranch: false, branch: null},
-            ],
-          }),
+      const body = await sent(fetch, 'PATCH')!.json();
+      expect(body.stageOptions[0]).toEqual({
+        isOptional: false,
+        choiceKind: 'LabResult',
+        outcomes: [
+          {name: 'Benign', nextStageOrders: [2]},
+          {name: 'Melanoma', nextStageOrders: [3]},
+        ],
       });
-
-      await screen.findByRole('list', {name: 'Stages in order'});
-      await user.type(row(1).getByRole('textbox', {name: 'Branch'}), 'Benign');
-      await user.click(row(0).getByRole('checkbox', {name: 'Branch point'}));
-
-      // The name stays, so it can be cleared, with the reason it can't be saved.
-      expect(row(1).getByRole('textbox', {name: 'Branch'})).toHaveValue('Benign');
-      expect(row(1).getByText(BRANCH_WITHOUT_POINT_MESSAGE)).toBeInTheDocument();
+      expect(body.links).toEqual([
+        {fromStageOrder: 1, toStageOrder: 2},
+        {fromStageOrder: 1, toStageOrder: 3},
+      ]);
     });
   });
 

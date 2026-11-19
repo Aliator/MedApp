@@ -266,7 +266,7 @@ const makeResult = (resultId: string, fields: ResultFields): DemoResult => ({
  * Seeds this slice, after the base seed: specimens in each of the Lab page's views (to send, expected, in the lab,
  * overdue, rejected, reported), a result awaiting each account's sign-off and two signed off. Priya Holloway's result
  * awaits Nadia Thornbury, so her "Results and team review" stage is held until it's signed off; Harriet Quill's
- * biopsy is reported and signed off, so nothing here holds her Treatment stage. Adds the notifications they'd have
+ * biopsy is reported and signed off, so nothing here holds her Clinical photographs stage. Adds the notifications they'd have
  * caused.
  */
 export function seedLab(state: BaseState): LabSlice {

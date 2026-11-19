@@ -1,6 +1,7 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, LAB, STAFF} from '../accounts';
+import {ADMIN, CARROW, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
+import {growPathway} from '../seed';
 import {db} from '../store';
 import {auditEntries} from './adminLogs';
 
@@ -32,7 +33,9 @@ describe('the light demo handlers', () => {
     const before = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`)).body;
     const current = before.stages.find(isCurrent);
     expect(current.name).toBe('Histology (lab)');
-    const after = await call('POST', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}/stages/${current.id}/finish`, {});
+    const after = await call('POST', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}/stages/${current.id}/finish`, {
+      result: 'Compound naevus (synthetic).',
+    });
     expect(after.status).toBe(200);
     expect(after.body.stages.find(isCurrent).name).toBe('Results and team review');
     expect(after.body.completedStageCount).toBe(3);
@@ -156,18 +159,28 @@ describe('the light demo handlers', () => {
     expect(insights.stageTimes.length).toBeGreaterThan(0);
   });
 
-  it('asks for a branch at a branch point, and skips the branch not chosen', async () => {
+  it('records a choice node’s outcome, adding that outcome’s stages and only those (the owner’s model)', async () => {
     startLightDemo(STAFF);
-    const pathway = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`)).body;
-    const point = pathway.stages.find(isCurrent);
-    expect(point).toMatchObject({choosesBranch: true, needsBranchChoice: true});
-    expect(point.branches.map((b: {name: string}) => b.name)).toEqual(['Biopsy first', 'Treat directly']);
-    const finish = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}/stages/${point.id}/finish`;
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`;
+    const pathway = (await call('GET', url)).body;
+    // At first it holds only the stages up to its first choice node: here, the first visit itself.
+    expect(pathway.stages.map((s: {name: string}) => s.name)).toEqual(['First clinic visit']);
+    const node = pathway.stages.find(isCurrent);
+    expect(node).toMatchObject({choiceKind: 'Assessment', needsOutcome: true, outcome: null});
+    expect(node.outcomes).toEqual([
+      {name: 'Suspicious: biopsy', stageNames: ['Biopsy or sample', 'Histology (lab)', 'Results and team review']},
+      {name: 'Looks benign', stageNames: ['Discharge letter to GP']},
+    ]);
+    // None is pre-selected: finishing without one is refused, and so is a name not among them.
+    const finish = `${url}/stages/${node.id}/finish`;
     expect((await call('POST', finish, {})).status).toBe(400);
-    const after = (await call('POST', finish, {branch: 'treat directly'})).body;
-    expect(after.stages.find(isCurrent).name).toBe('Excision');
-    expect(after.skippedStageCount).toBe(2);
-    expect(after.stages.filter((s: {state: string}) => s.state === 'Skipped').every((s: {skipReason: string}) => s.skipReason === 'BranchNotChosen')).toBe(true);
+    expect((await call('POST', finish, {outcome: 'Treat directly'})).status).toBe(400);
+    const after = (await call('POST', finish, {outcome: 'suspicious: biopsy'})).body;
+    expect(after.stages.map((s: {name: string}) => s.name)).toEqual(['First clinic visit', 'Biopsy or sample', 'Histology (lab)', 'Results and team review']);
+    expect(after.stages[0]).toMatchObject({outcome: 'Suspicious: biopsy', needsOutcome: false});
+    expect(after.stages.find(isCurrent).name).toBe('Biopsy or sample');
+    // Progress counts the stages it has, and nothing is struck through: the other outcome's stages never appear.
+    expect([after.completedStageCount, after.stageCount, after.skippedStageCount]).toEqual([1, 4, 0]);
   });
 
   it('runs a fork’s routes side by side, and starts the join only when each is done (MC8)', async () => {
@@ -183,9 +196,9 @@ describe('the light demo handlers', () => {
     // Both routes are the lab's (the relay): the lab finishes them, and the join comes back to Dermatology once.
     expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
     db().user = LAB.username;
-    pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {})).body;
+    pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {result: 'Benign (synthetic).'})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([labTests.id]);
-    pathway = (await call('POST', `${url}/stages/${labTests.id}/finish`, {})).body;
+    pathway = (await call('POST', `${url}/stages/${labTests.id}/finish`, {result: 'Normal (synthetic).'})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
     expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});
     expect(db().pathways.find((p) => p.id === PATHWAYS.forkedTests)!.handovers.filter((h) => h.stageId === review.id)).toHaveLength(1);
@@ -197,35 +210,37 @@ describe('the light demo handlers', () => {
     let pathway = (await call('GET', url)).body;
     const stage = (name: string) => pathway.stages.find((s: {name: string}) => s.name === name);
     const histology = stage('Histology (lab)');
-    // Listed in the template's order, none chosen; the melanoma route may follow histology or the review only.
-    expect(pathway.addableBranches.map((b: {name: string}) => b.name)).toEqual(['Melanoma route', 'Repeat biopsy']);
-    const melanoma = pathway.addableBranches[0];
-    expect(melanoma.afterStageIds).toEqual([histology.id, stage('Results and team review').id]);
-    const add = {templateBranchId: melanoma.templateBranchId, afterStageId: histology.id};
+    // Listed in the template's order, none chosen; the blood tests may follow histology or the review only.
+    expect(pathway.addableBranches.map((b: {name: string}) => b.name)).toEqual(['Blood tests', 'Repeat biopsy']);
+    const bloods = pathway.addableBranches[0];
+    expect(bloods.afterStageIds).toEqual([histology.id, stage('Results and team review').id]);
+    const add = {templateBranchId: bloods.templateBranchId, afterStageId: histology.id};
     expect((await call('POST', `${url}/branches`, {...add, reason: ' '})).status).toBe(400);
-    const reason = 'Histology shows a melanoma';
+    const reason = 'Also needs blood tests';
     pathway = (await call('POST', `${url}/branches`, {...add, reason})).body;
-    const [excision, followUp] = pathway.branchAdditions[0].stageIds;
-    expect(pathway.stages.find((s: {id: string}) => s.id === excision).predecessorIds).toEqual([histology.id]);
-    // It runs beside what's left, and the last stage waits for it.
-    expect(stage('Discharge letter to GP').predecessorIds).toContain(followUp);
-    expect(pathway.stages.at(-1).name).toBe('Discharge letter to GP');
-    expect(pathway.branchAdditions[0]).toMatchObject({name: 'Melanoma route', reason, addedByUsername: STAFF.username});
+    const [tests, labTests] = pathway.branchAdditions[0].stageIds;
+    expect(pathway.stages.find((s: {id: string}) => s.id === tests).predecessorIds).toEqual([histology.id]);
+    // It runs beside what's left, on a route of its own (routes may end anywhere): the pathway counts it.
+    expect(pathway.stages.at(-1).id).toBe(labTests);
+    expect(pathway.stageCount).toBe(6);
+    expect(pathway.branchAdditions[0]).toMatchObject({name: 'Blood tests', reason, addedByUsername: STAFF.username});
     // Not repeatable: once is all.
     expect((await call('POST', `${url}/branches`, {...add, reason})).status).toBe(409);
     const entry = auditEntries().find((e) => e.action === 'BranchAdded' && e.patientPathwayId === PATHWAYS.histologyToFinish);
-    expect(entry?.details).toContain('Melanoma route');
+    expect(entry?.details).toContain('Blood tests');
     expect(entry?.details).not.toContain(reason);
   });
 
   it('skips an optional stage with a reason, and reinstates it', async () => {
-    startLightDemo(STAFF);
-    const url = `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`;
-    let pathway = (await call('POST', `${url}/stages/${(await call('GET', url)).body.currentStageId}/finish`, {branch: 'Treat directly'})).body;
-    // Excision needs consent first: the consent gate refuses until a record is made.
-    const excision = pathway.stages.find(isCurrent);
-    db().pathways.find((p) => p.id === PATHWAYS.branchToChoose)!.stages.find((s) => s.id === excision.id)!.completedAtUtc = new Date().toISOString();
-    pathway = (await call('GET', url)).body;
+    startLightDemo(CARROW);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.notStarted}`;
+    // Daniyal Rees's review, past its results (Well controlled), at the care plan: finished here, without visits.
+    const stored = db().pathways.find((p) => p.id === PATHWAYS.notStarted)!;
+    for (const done of stored.stages) done.completedAtUtc = new Date().toISOString();
+    stored.stages[2].outcome = 'Well controlled';
+    growPathway(stored, (order) => `added-${order}`);
+    stored.stages.find((s) => s.name === 'Agree care plan')!.completedAtUtc = new Date().toISOString();
+    let pathway = (await call('GET', url)).body;
     const followUp = pathway.stages.find(isCurrent);
     expect(followUp).toMatchObject({name: 'Follow-up', isOptional: true, canSkip: true});
     expect((await call('POST', `${url}/stages/${followUp.id}/skip`, {})).status).toBe(400);
@@ -238,9 +253,9 @@ describe('the light demo handlers', () => {
   it('refuses to finish a stage that needs consent until it’s recorded', async () => {
     startLightDemo(STAFF);
     const url = `/api/pathways/patient-pathways/${PATHWAYS.consentToRecord}`;
-    const treatment = (await call('GET', url)).body.stages.find(isCurrent);
-    expect(treatment).toMatchObject({name: 'Treatment', needsConsent: true});
-    const refused = await call('POST', `${url}/stages/${treatment.id}/finish`, {});
+    const photos = (await call('GET', url)).body.stages.find(isCurrent);
+    expect(photos).toMatchObject({name: 'Clinical photographs', needsConsent: true});
+    const refused = await call('POST', `${url}/stages/${photos.id}/finish`, {});
     expect(refused.status).toBe(409);
   });
 
@@ -256,7 +271,8 @@ describe('the light demo handlers', () => {
       name: 'Phone pathway',
       teamId: definitions.length && db().teams[0].id,
       stageDefinitionIdsInOrder: [made.body.id, histology.id],
-      stageOptions: [{choosesBranch: true}, {}],
+      // A choice node needs routes, and at least two outcomes.
+      stageOptions: [{choiceKind: 'Assessment'}, {}],
     });
     expect(badBranch.status).toBe(400);
     const template = await call('POST', '/api/pathways/patient-pathway-stage/templates', {

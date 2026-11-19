@@ -1,69 +1,51 @@
 import {
-  BRANCH_POINT_OPTIONS_MESSAGE,
-  BRANCH_TOO_LONG_MESSAGE,
-  BRANCH_WITHOUT_POINT_MESSAGE,
-  branchesAfter,
-  isAfterBranchPoint,
   LAST_STAGE_MESSAGE,
+  outcomesFromRows,
   PLAIN_STAGE,
+  rowOutcomes,
   stageOptionProblems,
   stageOptionsToSend,
-  TOO_FEW_BRANCHES_MESSAGE,
   type StageOptionsInput,
 } from './templateBranches';
 
 const plain = PLAIN_STAGE;
-const point: StageOptionsInput = {...plain, choosesBranch: true};
-const inBranch = (branch: string, isOptional = false): StageOptionsInput => ({...plain, branch, isOptional});
+const choice: StageOptionsInput = {...plain, choiceKind: 'LabResult'};
+const outcome = (name: string): StageOptionsInput => ({...plain, outcome: name});
 const optional: StageOptionsInput = {...plain, isOptional: true};
+const links = (pairs: [number, number][]) => pairs.map(([fromStageOrder, toStageOrder]) => ({fromStageOrder, toStageOrder}));
 
-describe('template branches', () => {
-  it('finds nothing wrong with plain stages, an optional one, or a branch point with two branches', () => {
+describe('template options and choice nodes', () => {
+  it('finds nothing wrong with plain stages or an optional one, but keeps the last stage not optional', () => {
     expect(stageOptionProblems([plain, optional, plain]).size).toBe(0);
-    expect(stageOptionProblems([plain, point, inBranch('Benign'), inBranch('Treatment', true), inBranch('treatment'), plain]).size).toBe(0);
-  });
-
-  it('keeps the last stage plain', () => {
     expect(stageOptionProblems([plain, optional])).toEqual(new Map([[1, LAST_STAGE_MESSAGE]]));
-    expect(stageOptionProblems([point, inBranch('A'), inBranch('B')]).get(2)).toBe(LAST_STAGE_MESSAGE);
   });
 
-  it('needs two different branches after a branch point, ignoring case, before the next one', () => {
-    expect(stageOptionProblems([point, inBranch('A'), inBranch('a'), plain]).get(0)).toBe(TOO_FEW_BRANCHES_MESSAGE);
-    expect(stageOptionProblems([point, inBranch('A'), point, inBranch('B'), inBranch('C'), plain]).get(0)).toBe(TOO_FEW_BRANCHES_MESSAGE);
+  it('makes a choice node’s outcomes from the names on the stages after it, one name leading to each stage given it', () => {
+    const rows = [choice, outcome(' Benign '), outcome('Malignant'), outcome('benign'), plain];
+    expect(outcomesFromRows(rows, links([[1, 2], [1, 3], [1, 4], [2, 5]]), 0)).toEqual([
+      {name: 'Benign', nextStageOrders: [2, 4]},
+      {name: 'Malignant', nextStageOrders: [3]},
+    ]);
   });
 
-  it("won't have a branch point optional or in a branch, nor a branch before any branch point", () => {
-    expect(stageOptionProblems([{...point, isOptional: true}, inBranch('A'), inBranch('B'), plain]).get(0)).toBe(BRANCH_POINT_OPTIONS_MESSAGE);
-    expect(stageOptionProblems([{...point, branch: 'X'}, inBranch('A'), inBranch('B'), plain]).get(0)).toBe(BRANCH_POINT_OPTIONS_MESSAGE);
-    expect(stageOptionProblems([inBranch('A'), plain]).get(0)).toBe(BRANCH_WITHOUT_POINT_MESSAGE);
+  it('reads each row’s outcome back from a saved template', () => {
+    const template = {stages: [{stageOrder: 1, outcomes: [{name: 'A', nextStageOrders: [2]}, {name: 'B', nextStageOrders: [3]}]}]};
+    expect(rowOutcomes(template, 3)).toEqual(['', 'A', 'B']);
   });
 
-  it('ends the branches at a plain stage, their join (MC8), so a branch after it has no branch point', () => {
-    const rows = [point, inBranch('A'), plain, inBranch('B'), plain];
-    expect(stageOptionProblems(rows).get(0)).toBe(TOO_FEW_BRANCHES_MESSAGE);
-    expect(stageOptionProblems(rows).get(3)).toBe(BRANCH_WITHOUT_POINT_MESSAGE);
-    expect(isAfterBranchPoint(rows, 3)).toBe(false);
-  });
-
-  it('keeps branch names short', () => {
-    expect(stageOptionProblems([point, inBranch('x'.repeat(51)), inBranch('B'), plain]).get(1)).toBe(BRANCH_TOO_LONG_MESSAGE);
-  });
-
-  it('lists the branches after a branch point, as first written, and says which stages come after one', () => {
-    const rows = [plain, point, inBranch(' Benign '), inBranch('Treatment'), inBranch('benign'), plain];
-    expect(branchesAfter(rows, 1)).toEqual(['Benign', 'Treatment']);
-    expect(isAfterBranchPoint(rows, 1)).toBe(false);
-    expect(isAfterBranchPoint(rows, 2)).toBe(true);
-  });
-
-  it('sends options only when a stage has one, each trimmed, with no branch as none', () => {
-    expect(stageOptionsToSend([plain, {...plain, branch: '  '}, plain])).toBeUndefined();
-    expect(stageOptionsToSend([point, inBranch(' A '), inBranch('B', true), plain])).toEqual([
-      {isOptional: false, choosesBranch: true, branch: null},
-      {isOptional: false, choosesBranch: false, branch: 'A'},
-      {isOptional: true, choosesBranch: false, branch: 'B'},
-      {isOptional: false, choosesBranch: false, branch: null},
+  it('sends options only when a stage has one, a choice node with its outcomes', () => {
+    expect(stageOptionsToSend([plain, outcome('A'), plain])).toBeUndefined();
+    expect(stageOptionsToSend([choice, outcome('A'), outcome('B')], null, false, links([[1, 2], [1, 3]]))).toEqual([
+      {
+        isOptional: false,
+        choiceKind: 'LabResult',
+        outcomes: [
+          {name: 'A', nextStageOrders: [2]},
+          {name: 'B', nextStageOrders: [3]},
+        ],
+      },
+      {isOptional: false, choiceKind: null, outcomes: null},
+      {isOptional: false, choiceKind: null, outcomes: null},
     ]);
   });
 });

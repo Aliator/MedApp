@@ -271,7 +271,6 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               <Grid columns={2} gap={4}>
                 <TextInput
                   label="SNOMED CT Code"
-                  description="The concept's ID, e.g. 80146002."
                   value={form.snomedCode}
                   onChange={set('snomedCode')}
                   placeholder="e.g. 80146002"
@@ -282,7 +281,6 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 />
                 <TextInput
                   label="Display Term"
-                  description="The concept's name, e.g. Appendectomy."
                   value={form.snomedTerm}
                   onChange={set('snomedTerm')}
                   placeholder="e.g. Appendectomy"
