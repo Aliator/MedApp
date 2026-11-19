@@ -75,7 +75,7 @@ export const TOUR: TourStep[] = [
     part: 'start',
     title: 'Two pages side by side',
     steps: [
-      'Rest the pointer on Patients in the side nav and open its menu (the … at the end of the row), then choose Open in half view. Patients opens on the right, beside this Read Me.',
+      'Rest the pointer on Patients in the side nav and open its menu (the … at the end of the row), then choose Open in half view on the right. Patients opens on the right, beside this Read Me.',
       'Close it with the close button (×) at the top of the Patients half.',
       'Shift-click Patients in the side nav: it opens on the right again.',
       'Close it again.',
