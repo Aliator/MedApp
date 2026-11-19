@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, STAFF} from '../accounts';
+import {ADMIN, LAB, STAFF} from '../accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATES} from '../ids';
 import {LAB_IDS, SPECIMEN_TYPES, LABORATORIES, RESULTS} from '../slices/lab';
 import {db} from '../store';
@@ -56,9 +56,12 @@ describe('the light demo’s lab, results and referrals', () => {
   it('holds Priya’s results stage until her result is signed off, but not her Histology stage', async () => {
     startLightDemo(STAFF);
     expect((await call('GET', '/api/results/count')).body).toEqual({awaitingMine: 1});
+    // The lab finishes its Histology stage (the relay); the review is Dermatology's again.
+    db().user = LAB.username;
     const histology = current((await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body);
     const finished = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${histology.id}/finish`, {});
     expect(finished.status).toBe(200);
+    db().user = STAFF.username;
     const review = current(finished.body);
     expect(review.name).toBe('Results and team review');
     const held = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {withoutVisit: true, reason: 'Reviewed by the team'});

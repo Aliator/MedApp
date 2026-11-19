@@ -37,6 +37,11 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
       {stage.choosesBranch && <Token size="sm" label="Branch point" color="purple" />}
       {stage.branch && <Token size="sm" label={`Branch: ${stage.branch}`} color="purple" />}
+      {/* The relay: a stage another team works (the lab's), named on it wherever the pathway is seen. */}
+      {stage.ownerTeamName && (
+        <Token size="sm" label={`Worked by ${stage.ownerTeamName}`} color="orange" />
+      )}
+      {stage.isCurrent && stage.handedOverFromTeamName && !stage.pickedUpAtUtc && <Token size="sm" label="Not picked up yet" color="red" />}
     </HStack>
   );
 }
@@ -44,6 +49,10 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
 /** Who started, finished or skipped the stage, and when; a skip's reason in words, and its detail. */
 function StageActivity({stage}: {stage: PathwayStage}) {
   const lines = [
+    stage.handedOverFromTeamName &&
+      stage.reachedAtUtc &&
+      `Handed over by ${stage.handedOverFromTeamName}, ${formatDateTime(stage.reachedAtUtc)}`,
+    stage.pickedUpAtUtc && `Picked up by ${stage.pickedUpByUsername ?? 'unknown'}, ${formatDateTime(stage.pickedUpAtUtc)}`,
     stage.startedAtUtc && `Started by ${stage.startedByUsername ?? 'unknown'}, ${formatDateTime(stage.startedAtUtc)}`,
     stage.completedAtUtc && `Finished by ${stage.completedByUsername ?? 'unknown'}, ${formatDateTime(stage.completedAtUtc)}`,
     stage.skippedAtUtc &&

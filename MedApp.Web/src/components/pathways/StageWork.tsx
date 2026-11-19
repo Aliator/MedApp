@@ -38,6 +38,8 @@ export interface StageWorkProps {
   onSkip?: () => void;
   /** Reinstate a skipped stage, with a reason: offered while the API says the viewer can (`canReinstate`). */
   onReinstate?: () => void;
+  /** Pick up a stage handed to the viewer's team (the relay): offered while the API says it can be (`canPickUp`). */
+  onPickUp?: () => void;
 }
 
 /** The notes box's usual height (five lines), and the least a fitted one has: fitting only ever grows it. */
@@ -96,6 +98,7 @@ export function StageWork({
   finishDisabledReason,
   onSkip,
   onReinstate,
+  onPickUp,
 }: StageWorkProps) {
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
@@ -191,6 +194,16 @@ export function StageWork({
           </Text>
         )}
         {skip}
+        {onPickUp && stage.canPickUp && (
+          <Button
+            label="Pick Up"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Tasks} />}
+            onClick={onPickUp}
+            isDisabled={isBusy}
+            tooltip={`${stage.handedOverFromTeamName ?? 'Another team'} handed this stage to your team: picking it up says it's in hand.`}
+          />
+        )}
         {stage.state === 'NotStarted' && <Button label="Start Stage" variant="ghost" onClick={onStart} isDisabled={isBusy} />}
         <Button
           label="Save Notes"

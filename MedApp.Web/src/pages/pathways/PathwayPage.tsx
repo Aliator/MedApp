@@ -283,6 +283,14 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
 
   const startStage = (stage: PathwayStage) =>
     checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('The stage could not be started.')}));
+  // Picking up a stage handed to your team is the team's, not the assignee's: it isn't asked about.
+  const pickUpStage = (stage: PathwayStage) => {
+    setActionError(null);
+    actions.pickUpStage.mutate(stage.id ?? '', {
+      onSuccess: () => announce('Stage picked up'),
+      onError: failed('The stage could not be picked up.'),
+    });
+  };
   const saveNotes = (stage: PathwayStage, notes: string) =>
     checked(() =>
       actions.saveNotes.mutate(
@@ -347,6 +355,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       canUnlock={canUnlockStages}
       isBusy={isBusy}
       onStart={() => startStage(stage)}
+      onPickUp={() => pickUpStage(stage)}
       onSaveNotes={(notes) => saveNotes(stage, notes)}
       onFinish={(notes) => finishStage(stage, notes)}
       onUnlock={() => {
@@ -1264,6 +1273,11 @@ function CurrentStage({pathway, canWork, stage, work, files, instructions, visit
   return (
     <VStack gap={3}>
       <StageTitle stage={stage} extra={visit} />
+      {stage.isWithAnotherTeam && (
+        <Text type="body" color="secondary">
+          {`${stage.ownerTeamName ?? 'Another team'} works this stage: the pathway comes back when they finish it.`}
+        </Text>
+      )}
       {!pathway.canWorkOnStages && (
         <Text type="body" color="secondary">
           {canWork

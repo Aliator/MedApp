@@ -1,7 +1,7 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS, USERS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
@@ -148,18 +148,31 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'finish-stage',
-    title: 'Finish a stage',
+    title: 'The relay: the lab finishes its stage',
     steps: [
-      'Opens Priya Holloway’s pathway, at Histology (lab).',
-      'Write a note on the stage if you like, then choose Finish Stage. The next stage becomes current.',
+      `As ${LAB.fullName}, in the lab, open Priya Holloway’s pathway, at Histology (lab). Stages belong to a team: this one is the lab’s, so the lab works it and adds notes, and Dermatology waits.`,
+      'Write a note if you like, then choose Finish Stage. The next stage, Dermatology’s, becomes current: the pathway is handed back, and Dermatology’s staff are told (the bell).',
+      'The lab keeps reading the pathway, but can’t change it now.',
     ],
-    account: STAFF.username,
+    account: LAB.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
-    buttonLabel: 'Open the pathway at its current stage',
+    buttonLabel: 'Open the pathway as the lab',
     whyNot: (state) =>
       state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.stages.find((s) => s.name === 'Histology (lab)')?.completedAtUtc
         ? `You've finished Histology already in your copy of the demo; the next stage is current now. ${RESET_HINT}`
         : null,
+  },
+  {
+    key: 'relay-back',
+    title: 'Back from the lab',
+    steps: [
+      `As ${STAFF.fullName}, My Worklist’s team views show work passed between the clinic and the lab: Our turn, New for us, Awaiting the lab and Back from the lab.`,
+      'Back from the lab lists Dermatology’s pathways the lab has handed back, not picked up yet. Open one and choose Pick Up on its current stage (or just start it): it leaves the list.',
+      'Awaiting the lab lists the ones at a lab stage. The lab has the same views for its side.',
+    ],
+    account: STAFF.username,
+    path: '/tasks?view=backFromLab',
+    buttonLabel: 'Open Back from the lab',
   },
   {
     key: 'sign-off',
@@ -259,7 +272,7 @@ export const TOUR: TourStep[] = [
       'Her Gynaecology pathway shows only as “A pathway in Gynaecology, in progress since …”, under Upcoming: no title, stages, notes or link. Its appointments and letters don’t show either.',
       'Pathways, referrals, appointments, letters, results, consent and MDT items belong to a team. Opening another team’s by its link answers “not found”, as if it weren’t there, and lists, home page counts and Insights leave it out.',
       'A referral registered for another clinic goes to that clinic: whoever registered it doesn’t keep it, and one redirected to another team leaves the old team’s list.',
-      `The lab (${LAB.fullName}) sees all of a pathway once a sample is passed to it, keeps reading it afterwards, and can’t look up any other. The admin reads everything and changes nothing clinical.`,
+      `The lab (${LAB.fullName}) sees all of a pathway once one of its stages is reached or a sample is passed to it, keeps reading it afterwards, and can’t look up any other. The admin reads everything and changes nothing clinical.`,
     ],
     account: STAFF.username,
     path: `/patients/${PATIENTS.priyaHolloway}`,
@@ -276,6 +289,18 @@ export const TOUR: TourStep[] = [
     account: STAFF.username,
     path: `/calendar?staff=${USERS.hallworth}&view=week`,
     buttonLabel: 'Open Tom Hallworth’s calendar',
+  },
+  {
+    key: 'team-calendar',
+    title: 'Any team’s calendar',
+    steps: [
+      `As ${LAB.fullName}, the Team view shows Dermatology’s calendar: anyone can look at any team’s, picked in Team.`,
+      `Go to the day of the Skin cancer team meeting (two weekdays ahead). On ${STAFF.fullName}’s column it shows only as “Meeting, another team”: no title, no one invited, nothing to open.`,
+      'Meetings are arranged only with your own team, except an MDT. The admin arranges any.',
+    ],
+    account: LAB.username,
+    path: `/calendar?view=team&team=${TEAMS.dermatology}`,
+    buttonLabel: 'Open Dermatology’s calendar as the lab',
   },
   {
     key: 'on-hold-overdue',

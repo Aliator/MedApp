@@ -59,7 +59,8 @@ import {useNarrowerThan} from '../../components/views/useNarrowerThan';
 import {addDays, formatCalendarDay, formatTimeRange, nextWeekday, ukToday, weekStart} from '../../utils/calendarSlots';
 import {formatDate, formatDayHeading, ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import type {CalendarSearch, CalendarView} from './calendarSearch';
-import {AnchoredMultiSelector} from '../../components/forms/AnchoredSelector';
+import {AnchoredMultiSelector, AnchoredSelector} from '../../components/forms/AnchoredSelector';
+import {teamsQuery} from '../../api/teams';
 
 /** The toolbar's date and whose-calendar fields: enough for "Mon, 16 Nov 2026" and a username. */
 const TOOLBAR_FIELD_WIDTH = 175;
@@ -101,14 +102,12 @@ export function calendarRange(date: string, view: CalendarView): {from: string; 
 }
 
 /**
- * The view shown for a search: the one it names (the team view only for holders of ArrangeMeetings: `canSeeTeam`), or
- * by default the week, and in a
+ * The view shown for a search: the one it names (the team view for anyone, MC11), or by default the week, and in a
  * narrow window or a half view the day. A week asked for there is kept (compact if its card is too narrow for the
  * full one); the team view works there too, scrolling sideways.
  */
-export function shownView(search: CalendarSearch, canSeeTeam: boolean, isNarrow = false): CalendarView {
-  const view = search.view === 'team' && !canSeeTeam ? undefined : search.view;
-  return view ?? (isNarrow ? 'day' : 'week');
+export function shownView(search: CalendarSearch, isNarrow = false): CalendarView {
+  return search.view ?? (isNarrow ? 'day' : 'week');
 }
 
 /** One person's calendar for a search (what its route preloads): the week by default, the user's own. */
@@ -116,23 +115,23 @@ export function calendarPageQuery(search: CalendarSearch, today: string = ukToda
   return calendarQuery({staffUserId: search.staff, ...calendarRange(search.date ?? today, search.view === 'day' ? 'day' : 'week')});
 }
 
-/** The team view's day for a search (holders of ArrangeMeetings): everyone with a staff role, or those in `who`. */
+/** The team view's day for a search: the team's (yours by default) members, or those of them in `who`. */
 export function teamPageQuery(search: CalendarSearch, today: string = ukToday()) {
-  return teamCalendarQuery({date: search.date ?? today, staffUserIds: search.who ?? []});
+  return teamCalendarQuery({date: search.date ?? today, teamId: search.team, staffUserIds: search.who ?? []});
 }
 
 /** The Calendar page's search, Requested appointments counted: the Requires Appointment link's number. */
 export const requiresAppointmentCountQuery = appointmentsQuery({Statuses: ['Requested'], PageSize: 1});
 
 /**
- * What the Calendar page reads, for its route's loader: the team view's day (`canSeeTeam`), or the person's calendar and
+ * What the Calendar page reads, for its route's loader: the team view's day, or the person's calendar and
  * then (once it's known whose it is) their week templates. Rendering on the server it all waits; in the browser the
  * templates start only if the calendar is already here. Their day templates aren't preloaded: only Apply Template
  * shows them, and the page reads them after mount when it offers that.
  */
-export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, canSeeTeam: boolean, today: string = ukToday()) {
+export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, today: string = ukToday()) {
   const shared = [staffQuery, requiresAppointmentCountQuery];
-  if (shownView(search, canSeeTeam) === 'team') return preload(queryClient, teamPageQuery(search, today), ...shared);
+  if (shownView(search) === 'team') return preload(queryClient, teamPageQuery(search, today), ...shared);
   const query = calendarPageQuery(search, today);
   await preload(queryClient, query, ...shared);
   const calendar = queryClient.getQueryData(query.queryKey);
@@ -169,8 +168,9 @@ interface PendingMove {
 
 /**
  * The Calendar page (docs/calendar-plan.md, decision 28): a member of staff's week or day on a `CalendarGrid`, yours
- * by default, anyone's from the staff picker, and for admins the team view: one day with a column for each member of
- * staff (all of them, or those picked in Who), after a first column of when everyone shown is free.
+ * by default, anyone's from the staff picker, and the team view (anyone, MC11): one day of a team picked in Team (your
+ * first by default), with a column for each member (all of them, or those picked in Who), after a first column of
+ * when everyone shown is free. Other teams' appointments and meetings show there as busy time only.
  *
  * Selecting free time offers Book appointment or Block time there (or goes straight to booking, on a calendar you can
  * only book on), in the team view for the person whose column it is; selecting in "Everyone free" offers New meeting
@@ -202,7 +202,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const canArrangeMeetings = can(me, 'ArrangeMeetings');
   const canBook = can(me, 'BookAppointments');
   const canManageAnyCalendar = can(me, 'ManageAnyCalendar');
-  const view = shownView(search, canArrangeMeetings, isNarrow);
+  const view = shownView(search, isNarrow);
   const isTeam = view === 'team';
   // A week in a card too narrow for the full one (a narrow window, a half view, a phone): Monday to Friday, squeezed in.
   // Measured, so it's the full week on the server and at first, and the window's width doesn't matter. A rem over the
@@ -220,7 +220,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const staff = useQuery(staffQuery);
   const myId = staff.data?.find((s) => s.username === me.username)?.userId;
   const calendar = useQuery({...calendarQuery({staffUserId: search.staff, from, to}), placeholderData: keepPreviousData, enabled: !isTeam});
-  const team = useQuery({...teamCalendarQuery({date, staffUserIds: search.who ?? []}), placeholderData: keepPreviousData, enabled: isTeam});
+  const team = useQuery({...teamPageQuery(search, today), placeholderData: keepPreviousData, enabled: isTeam});
+  const teams = useQuery({...teamsQuery(false), enabled: isTeam});
   // The one person's calendar shown (none in the team view).
   const person = isTeam ? undefined : calendar.data;
   const requiresAppointment = useQuery(requiresAppointmentCountQuery);
@@ -233,7 +234,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const canEdit = person?.canEdit === true;
   const canSetDefaultWeek = !isTeam && (isOwn || canManageAnyCalendar);
   const personName = person?.staffUsername ?? staff.data?.find((s) => s.userId === search.staff)?.username ?? '';
-  const whose = isTeam ? 'Team' : isOwn ? 'My calendar' : `${personName}'s calendar`;
+  const whose = isTeam ? (team.data?.teamName ? `${team.data.teamName} team` : 'Team') : isOwn ? 'My calendar' : `${personName}'s calendar`;
   const rangeLabel = view === 'week' ? formatRange(from, to) : formatDayHeading(`${date}T12:00:00Z`);
   const days = person?.days ?? [];
 
@@ -305,8 +306,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const onSelectRange = (selection: CalendarSelection, anchor: HTMLElement | null) => {
     setMessage(null);
     const owner = calendarOf(selection.column);
-    // Nothing to do with a time on someone else's calendar for anyone who can't book.
+    // Nothing to do with a time on someone else's calendar for anyone who can't book, nor with when everyone's free
+    // for anyone who can't arrange a meeting.
     if (selection.column !== EVERYONE_FREE && owner?.canEdit !== true && !canBook) return;
+    if (selection.column === EVERYONE_FREE && !canArrangeMeetings) return;
     if (selection.column === EVERYONE_FREE || owner?.canEdit === true) {
       heldAnchor.current = anchor;
       // The slot it ended at is as wide as the selection: its column.
@@ -457,7 +460,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
         ? {label: `${personName}'s calendar templates`, href: `/calendar/templates?staff=${staffUserId}`}
         : null;
 
-  const whoOptions = (staff.data ?? [])
+  // Who: the team's members (the team view is always one team's).
+  const whoOptions = (team.data?.teamMembers ?? [])
     .map((s) => ({value: s.userId ?? '', label: s.username ?? ''}))
     .sort((a, b) => a.label.localeCompare(b.label));
 
@@ -499,7 +503,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const viewChoices: {value: CalendarView; label: string}[] = [
     {value: 'day', label: 'Day'},
     {value: 'week', label: 'Week'},
-    ...(canArrangeMeetings ? [{value: 'team' as const, label: 'Team'}] : []),
+    {value: 'team', label: 'Team'},
   ];
   const requestedCount = requiresAppointment.data?.totalCount ?? 0;
   // What New offers: what this person's roles allow here (nothing at all, and no New, for someone who can't book on a
@@ -583,8 +587,23 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       hasSearch={whoOptions.length > 8}
       hasSelectAll
       hasClear
-      isLoading={staff.isLoading}
+      isLoading={team.isLoading}
       startIcon={AppIcon.Users}
+      width={TOOLBAR_FIELD_WIDTH}
+    />
+  );
+  // Which team the team view shows: any team (MC11), yours by default. Choosing one starts with everyone in it.
+  const teamOptions = (teams.data ?? []).map((t) => ({value: t.id ?? '', label: t.name ?? ''}));
+  const teamPicker = (
+    <AnchoredSelector
+      label="Team"
+      isLabelHidden
+      value={team.data?.teamId ?? search.team ?? ''}
+      onChange={(value) => go({team: value || undefined, who: undefined})}
+      options={teamOptions}
+      hasSearch={teamOptions.length > 8}
+      isLoading={teams.isLoading}
+      startIcon={AppIcon.Teams}
       width={TOOLBAR_FIELD_WIDTH}
     />
   );
@@ -846,6 +865,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             {dayButtons}
             {viewSwitch}
             {dateInput}
+            {isTeam && teamPicker}
             {isTeam && whoPicker}
             {viewOptions}
           </HStack>
@@ -858,6 +878,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               {dayButtons}
               {dateInput}
               {viewSwitch}
+              {isTeam && teamPicker}
               {isTeam ? whoPicker : staffPicker}
             </HStack>
             <HStack gap={2} vAlign="center" wrap="wrap">

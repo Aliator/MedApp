@@ -51,6 +51,8 @@ export const AUDIT_ACTIONS = [
   'MdtOutcomeRecorded',
   'MdtDeferred',
   'MdtWithdrawn',
+  'StageHandedOver',
+  'StagePickedUp',
   'BranchAdded',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -92,6 +94,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   MdtOutcomeRecorded: 'MDT outcome recorded',
   MdtDeferred: 'MDT item moved',
   MdtWithdrawn: 'Withdrawn from MDT',
+  StageHandedOver: 'Stage handed over',
+  StagePickedUp: 'Stage picked up',
   BranchAdded: 'Branch added',
 };
 
@@ -222,6 +226,9 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
         .filter(Boolean)
         .join('; ');
     }
+    // The relay (MC7): which team passed the stage to which, by the teams' names.
+    case 'StageHandedOver':
+      return text(d.from) && text(d.to) ? `${text(d.from)} → ${text(d.to)}` : '';
     // A template's branch added on new information (MC10): which, and how many stages; the reason is on the pathway.
     case 'BranchAdded': {
       const count = Array.isArray(d.stageIds) ? d.stageIds.length : 0;

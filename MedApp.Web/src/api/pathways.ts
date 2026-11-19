@@ -121,6 +121,11 @@ export function usePathwayActions(id: string) {
       mutationFn: (stageId: string) => unwrap(api.POST(`${PATHWAY}/stages/{stageId}/start`, stage(stageId))),
       onSuccess,
     }),
+    /** Picks up a stage handed to the viewer's team (the relay, MC7): it leaves the team's New for us list. */
+    pickUpStage: useMutation({
+      mutationFn: (stageId: string) => unwrap(api.POST(`${PATHWAY}/stages/{stageId}/pick-up`, stage(stageId))),
+      onSuccess,
+    }),
     saveNotes: useMutation({
       mutationFn: ({stageId, notes}: {stageId: string; notes: string}) =>
         unwrap(api.PUT(`${PATHWAY}/stages/{stageId}/notes`, {...stage(stageId), body: {notes}})),

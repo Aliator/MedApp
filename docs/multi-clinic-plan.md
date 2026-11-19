@@ -177,6 +177,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Governance:** H-67, H-68 controls built.
 - **Tests:** `PathwayChangeHandOverTests`, the worklist SQL, `PathwayCommandsMonitoringTests`, template validators.
 - **Light demo:** "Histology (lab)" and "Lab tests (lab)" stages owned by the lab in the seed's templates; handover and pick up in `handlers/pathways.ts`; the worklist views for `n.thornbury` and `r.aldous`.
+- **Built in the demo first (19 Nov 2026), decisions:** the owner team no longer works the lab's stages (the lab does, and adds notes while it has one); starting or finishing a handed-over stage also picks it up; the template editor's owner is a "The lab's stage" box (Stage 1 has only two owners); the views are My Worklist's `view` filter (`Team view`), replacing "assigned to me" while chosen; stage responses carry `ownerTeamId` (null = the pathway's team), `isWithAnotherTeam`, `reachedAtUtc`, `handedOverFromTeamName`, `pickedUp*`, `canPickUp`; summaries `currentStageTeamName`, `awaitingPickUp`. Not in the demo yet: the `HandoverNotPickedUp` alert, handovers on the timeline, reinstating or unlocking as a handover.
 
 **MC8. Tree pathways: the model** (XL). After MC4. ∥ MC7 (both touch `PathwayChange`: rebase carefully).
 - **Scope:**
@@ -205,6 +206,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 **MC11. Team calendars and the meeting rule** (M). After MC5. ∥ MC7 to MC10.
 - **Scope:** the Calendar page's **team picker** (any team; defaults to your first; the team view shows its members); other teams' appointments as "Busy" (MC5's masking), their meetings as "Meeting" without title or attendees (Q16). **Meetings:** attendees must share a team with the organiser (400 naming who), **except** an MDT (`IsMdt`) and a consult meeting (`ConsultId`, MC25). Admins arrange any meeting. Booking stays limited to your team's members (MC5).
 - **Light demo:** the picker and the masking in `handlers/calendar.ts`.
+- **Built (demo first):** `GET api/calendar/team` takes `TeamId` (default your first team; an admin's the first by name) and answers `teamId`, `teamName`, `teamMembers`; other teams' meetings go in `otherTeamsBusy` as `what: "Meeting"` (no meeting ID); opening one is a 404 (`TeamBoundaryRefused`). A meeting is "yours" when you're in it, it's your team's MDT, or anyone in it shares a team with you. The Team view and picker are for everyone (no longer `ArrangeMeetings` only). The meeting rule's 400 is on `attendeeUserIds`. Backend to follow.
 
 **MC12. Phase 1 demo data** (M). Last in the phase.
 - **Full demo** (`docs/demo-data.md`): the five clinics plus the lab as teams; each person in their team (`r.aldous` and `c.dunmore`'s lab work in the lab team; `d.quince` in three teams); `n.thornbury` Dermatology's clinic admin; `admin` a pure admin and `j.whitlock` Admin (their clinical work moves to `m.carrow` and the clinicians); stage owners on every lab stage; handovers picked up and one not (on time for the alert); one forked pathway and one with an added branch; a patient seen by two clinics (the summary). Through the commands, as now.

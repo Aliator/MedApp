@@ -10,7 +10,7 @@ import {nowUtc, today, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
 import {can, contains, int, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {pathwayToChange} from './pathways';
-import {busyTimeOf, canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
+import {busyTimeOf, canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, refuseAcrossWall, seeRecord, type TeamScope} from './teamWalls';
 import {activityType, calendarDay, findSession, sessionsFor, sharedWorkingTime, templateBlocksOn, workingDayOf} from './setupCalendar';
 
 /**
@@ -75,6 +75,57 @@ function meetingResponse(meeting: Meeting): Meeting {
 const involves = (meeting: Meeting, userId: string) =>
   meeting.organiserUserId === userId || (meeting.attendees ?? []).some((a) => a.userId === userId && a.reply !== 'Declined');
 
+/**
+ * Whether the viewer sees a meeting in full (MC11, Q16): admins every one; anyone else one they're in, their team's
+ * MDT, or one with someone (organiser or attendee) who shares a team with them. Others' are busy "Meeting" time only:
+ * no title, notes, attendees or ID.
+ */
+export function canSeeMeeting(meeting: Meeting, scope: TeamScope = myScope()): boolean {
+  if (scope.seesAllTeams) return true;
+  const people = [meeting.organiserUserId, ...(meeting.attendees ?? []).map((a) => a.userId)];
+  if (people.includes(scope.userId)) return true;
+  if (meeting.teamId && scope.teamIds.includes(meeting.teamId)) return true;
+  return people.some((id) => teamsOfStaff(id).some((teamId) => scope.teamIds.includes(teamId)));
+}
+
+/** Another team's meeting on someone's calendar: busy time called "Meeting", and nothing else about it. */
+const meetingBusy = (meeting: Meeting, staffUserId: string): Schemas['BusyTimeResponse'] => ({
+  staffUserId,
+  username: usernameOf(staffUserId),
+  startUtc: meeting.startUtc,
+  endUtc: meeting.endUtc,
+  what: 'Meeting',
+});
+
+/**
+ * The meeting rule (decision 185): everyone invited shares a team with the organiser (a 400 naming who doesn't),
+ * except an MDT. Admins arrange any meeting. A consult's meeting (MC25) will be the other exception.
+ */
+function ensureMeetingWithOwnTeam(attendeeIds: string[], isMdt: boolean) {
+  const scope = myScope();
+  if (isMdt || scope.seesAllTeams) return;
+  const outside = attendeeIds.filter((id) => !teamsOfStaff(id).some((teamId) => scope.teamIds.includes(teamId)));
+  if (outside.length === 0) return;
+  const names = outside.map((id) => usernameOf(id) ?? 'Someone').join(', ');
+  refuse(
+    invalid({
+      attendeeUserIds: [`${names} ${outside.length === 1 ? 'isn’t' : 'aren’t'} in your team. Meetings are with your own team, except an MDT.`],
+    }),
+  );
+}
+
+/** Someone as a calendar's staff picker lists them, with their default week. */
+function staffMember(person: (typeof PEOPLE)[number]): Schemas['StaffMemberResponse'] {
+  const state = db();
+  const week = state.defaultWeeks[person.id];
+  return {
+    userId: person.id,
+    username: person.username,
+    weekTemplateId: week?.weekTemplateId ?? null,
+    weekTemplateName: state.weekTemplates.find((w) => w.id === week?.weekTemplateId)?.name ?? null,
+  };
+}
+
 const inRange = (startUtc: string | null | undefined, from: string, to: string) =>
   !!startUtc && ukDateOf(startUtc) >= from && ukDateOf(startUtc) <= to;
 
@@ -106,6 +157,9 @@ function calendar(staffUserId: string, from: string, to: string, withAppointment
         (a) => a.staffUserId === staffUserId && inRange(a.startUtc, from, to) && a.status !== 'Cancelled' && a.status !== 'EnteredInError',
       )
     : [];
+  const theirMeetings = state.meetings
+    .filter((m) => involves(m, staffUserId) && inRange(m.startUtc, from, to))
+    .sort((a, b) => (a.startUtc ?? '').localeCompare(b.startUtc ?? ''));
   return {
     staffUserId,
     staffUsername: usernameOf(staffUserId),
@@ -120,11 +174,12 @@ function calendar(staffUserId: string, from: string, to: string, withAppointment
     days: datesBetween(from, to).map((date) => calendarDay(staffUserId, date)),
     blocks: blocksOf(staffUserId, from, to, canEdit),
     appointments: theirs.filter((a) => canSeeRecord(a, scope)).map(appointmentResponse),
-    otherTeamsBusy: theirs.filter((a) => !canSeeRecord(a, scope)).map(busyTimeOf),
-    meetings: state.meetings
-      .filter((m) => involves(m, staffUserId) && inRange(m.startUtc, from, to))
-      .sort((a, b) => (a.startUtc ?? '').localeCompare(b.startUtc ?? ''))
-      .map(meetingResponse),
+    // Other teams' appointments, and their meetings (MC11), as busy time with nothing about them.
+    otherTeamsBusy: [
+      ...theirs.filter((a) => !canSeeRecord(a, scope)).map(busyTimeOf),
+      ...theirMeetings.filter((m) => !canSeeMeeting(m, scope)).map((m) => meetingBusy(m, staffUserId)),
+    ].sort((a, b) => (a.startUtc ?? '').localeCompare(b.startUtc ?? '')),
+    meetings: theirMeetings.filter((m) => canSeeMeeting(m, scope)).map(meetingResponse),
     sessions: sessionsFor(staffUserId, from, to),
   };
 }
@@ -144,7 +199,7 @@ function busyFor(userIds: string[], dates: string[], exceptMeetingId?: string | 
         busy.push({staffUserId: userId, username, startUtc: a.startUtc!, endUtc: a.endUtc ?? a.startUtc!, what: 'Appointment'});
     for (const m of state.meetings)
       if (m.id !== exceptMeetingId && involves(m, userId) && inRange(m.startUtc, from, to))
-        busy.push({staffUserId: userId, username, startUtc: m.startUtc, endUtc: m.endUtc, what: m.title});
+        busy.push({staffUserId: userId, username, startUtc: m.startUtc, endUtc: m.endUtc, what: canSeeMeeting(m) ? m.title : 'Meeting'});
     for (const s of sessionsFor(userId, from, to))
       busy.push({staffUserId: userId, username, startUtc: s.startUtc, endUtc: s.endUtc, what: `Clinic session in ${s.roomName}`});
   }
@@ -199,9 +254,11 @@ const teamsOfStaff = (staffUserId: string | null | undefined) => {
   return person ? teamIdsOf(person) : [];
 };
 
+/** The meeting, or a 404: also when it's another team's (seen only as busy "Meeting" time). */
 function findMeeting(id: string): Meeting {
   const meeting = db().meetings.find((m) => m.id === id);
   if (!meeting) refuse(notFound('The meeting'));
+  if (!canSeeMeeting(meeting)) refuseAcrossWall('Meeting', id, 'The meeting');
   return meeting;
 }
 
@@ -322,13 +379,27 @@ export function registerCalendar() {
     return calendar(query.get('StaffUserId') || viewer.id, from, to, query.get('WithoutAppointments') !== 'true');
   });
 
+  // A team's calendar (MC11): any team, for anyone; your first team by default (an admin's: the first by name).
   on('get', '/api/calendar/team', ({query}) => {
-    me();
+    const scope = myScope();
     const date = query.get('Date') ?? today();
-    const ids = list(query, 'StaffUserIds');
-    const members = (ids.length > 0 ? ids : PEOPLE.slice(0, 4).map((p) => p.id)).filter((id) => personById(id));
+    const teams = db().teams.filter((t) => !t.isArchived).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    const asked = query.get('TeamId');
+    const team = asked ? db().teams.find((t) => t.id === asked) : (teams.find((t) => scope.teamIds.includes(t.id ?? '')) ?? teams[0]);
+    if (asked && !team) refuse(notFound('The team'));
+    const inTeam = PEOPLE.filter((p) => team && teamIdsOf(p).includes(team.id ?? '')).sort((a, b) => a.username.localeCompare(b.username));
+    const ids = list(query, 'StaffUserIds').filter((id) => inTeam.some((p) => p.id === id));
+    const members = ids.length > 0 ? ids : inTeam.map((p) => p.id);
     const busy = busyFor(members, [date]);
-    return {date, day: calendarDay(null, date), members: members.map((id) => calendar(id, date, date)), everyoneFree: freeOn(date, members, busy)};
+    return {
+      date,
+      teamId: team?.id ?? null,
+      teamName: team?.name ?? null,
+      day: calendarDay(null, date),
+      members: members.map((id) => calendar(id, date, date)),
+      everyoneFree: members.length > 0 ? freeOn(date, members, busy) : [],
+      teamMembers: inTeam.map(staffMember),
+    };
   });
 
   on('get', '/api/calendar/availability', ({query}) => {
@@ -351,16 +422,7 @@ export function registerCalendar() {
   on('get', '/api/calendar/staff', ({query}) => {
     me();
     const permission = query.get('permission');
-    const state = db();
-    return PEOPLE.filter((p) => !permission || p.permissions.includes(permission as never)).map((p) => {
-      const week = state.defaultWeeks[p.id];
-      return {
-        userId: p.id,
-        username: p.username,
-        weekTemplateId: week?.weekTemplateId ?? null,
-        weekTemplateName: state.weekTemplates.find((w) => w.id === week?.weekTemplateId)?.name ?? null,
-      };
-    });
+    return PEOPLE.filter((p) => !permission || p.permissions.includes(permission as never)).map(staffMember);
   });
 
   on('post', '/api/calendar/blocks', ({body}) => {
@@ -424,6 +486,7 @@ export function registerCalendar() {
     const viewer = me();
     requirePermission('ArrangeMeetings');
     const input = meetingInput(body);
+    ensureMeetingWithOwnTeam((body.attendeeUserIds ?? []).filter((id) => id !== viewer.id && personById(id)), body.isMdt ?? false);
     const now = nowUtc();
     const meeting: Meeting = {
       id: newId(),
@@ -460,6 +523,7 @@ export function registerCalendar() {
     const isMdt = body.isMdt ?? meeting.isMdt ?? false;
     const input = meetingInput({...body, isMdt, teamId: body.teamId ?? meeting.teamId});
     const attendeeIds = (body.attendeeUserIds ?? []).filter((id) => id !== viewer.id && personById(id));
+    ensureMeetingWithOwnTeam(attendeeIds, isMdt);
     Object.assign(meeting, input, {
       date: ukDateOf(input.startUtc),
       attendees: attendeeIds.map(
