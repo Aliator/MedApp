@@ -1,5 +1,5 @@
 import {renderToString} from 'react-dom/server';
-import {appSettings, clearStorageAtSignOut, defineSetting, flushSettings, onFlushSettings, ServerSettingsContext, useAppSetting} from './settingsStore';
+import {appSettings, clearAllAppStorage, clearStorageAtSignOut, defineSetting, flushSettings, onFlushSettings, ServerSettingsContext, useAppSetting} from './settingsStore';
 
 function Shows({setting}: {setting: string}) {
   const [value] = useAppSetting(setting);
@@ -131,6 +131,36 @@ describe('clearStorageAtSignOut', () => {
 
     expect(() => clearStorageAtSignOut()).not.toThrow();
     expect(appSettings.get(other)).toBeNull();
+  });
+});
+
+describe('clearAllAppStorage', () => {
+  const visual = defineSetting('medapp.testVisualAll', {keepOnSignOut: true});
+  const other = defineSetting('medapp.testOtherAll');
+
+  afterEach(() => sessionStorage.clear());
+
+  it("removes every app key, the visual settings too, leaving other apps' keys, and saves nothing", () => {
+    appSettings.set(visual, 'dark');
+    appSettings.set(other, 'saved search');
+    localStorage.setItem('another.app', 'theirs');
+    sessionStorage.setItem('medapp.halfView', '/patients');
+    const listener = vi.fn();
+    const saver = vi.fn();
+    const unsubscribe = appSettings.subscribe(listener);
+    const stopSaving = appSettings.onLocalChange(saver);
+
+    clearAllAppStorage();
+
+    expect(appSettings.get(visual)).toBeNull();
+    expect(appSettings.get(other)).toBeNull();
+    expect(localStorage.getItem(visual)).toBeNull();
+    expect(localStorage.getItem('another.app')).toBe('theirs');
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+    expect(listener).toHaveBeenCalledOnce();
+    expect(saver).not.toHaveBeenCalled();
+    unsubscribe();
+    stopSaving();
   });
 });
 

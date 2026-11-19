@@ -79,11 +79,25 @@ function removeFrom(storage: () => Storage, key: string) {
  * defaults at once, without being saved to the account, which still has them for the next sign-in.
  */
 export function clearStorageAtSignOut() {
-  for (const key of appKeys(() => localStorage)) if (!keptOnSignOut.has(key)) removeFrom(() => localStorage, key);
+  clearStorage((key) => keptOnSignOut.has(key));
+}
+
+/**
+ * Everything the app keeps in this browser removed, the visual settings too, and every setting back to its default at
+ * once, without being saved: for the light demo's Reset, which starts the demo again from scratch (the owner,
+ * 19 November 2026: pins, Shrink the side nav and the rest go back to how a first visit has them).
+ */
+export function clearAllAppStorage() {
+  clearStorage(() => false);
+}
+
+/** Removes every `medapp.` key but those `keep` keeps, from both stores, and puts those settings back to their defaults. */
+function clearStorage(keep: (key: string) => boolean) {
+  for (const key of appKeys(() => localStorage)) if (!keep(key)) removeFrom(() => localStorage, key);
   for (const key of appKeys(() => sessionStorage)) removeFrom(() => sessionStorage, key);
   let isChanged = false;
   for (const key of keys) {
-    if (keptOnSignOut.has(key) || values.get(key) === null) continue;
+    if (keep(key) || values.get(key) === null) continue;
     values.set(key, null);
     isChanged = true;
   }
