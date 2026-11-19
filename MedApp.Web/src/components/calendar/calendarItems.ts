@@ -160,15 +160,28 @@ export function appointmentItem(appointment: Appointment, {canBook = true}: {can
 }
 
 /** Another team's appointment's key on a grid: whose calendar and when, as it has no ID to show. */
-export const busyKey = (busy: BusyTime) => `busy-${busy.staffUserId}-${busy.startUtc}`;
+export const busyKey = (busy: BusyTime) => `busy-${busy.staffUserId}-${busy.startUtc}-${busy.what ?? ''}`;
 
 /**
- * Another team's appointment on a calendar (the team walls): busy time, with no patient or what it's for. Quiet like
- * blocked time, and never opened or moved.
+ * Another team's appointment or meeting on a calendar (the team walls): busy time, with no patient or what it's for,
+ * a meeting called just "Meeting" (MC11). Quiet like blocked time, and never opened or moved.
  */
 export function busyItem(busy: BusyTime): CalendarGridItem {
   const start = busy.startUtc ?? '';
   const end = busy.endUtc ?? '';
+  if (busy.what === 'Meeting')
+    return {
+      key: busyKey(busy),
+      kind: 'block',
+      date: ukDay(start),
+      startUtc: start,
+      endUtc: end,
+      colour: 'gray',
+      label: 'Meeting',
+      sublabel: 'Another team',
+      description: `Meeting, another team's, ${formatTimeRange(start, end)}`,
+      isReadOnly: true,
+    };
   return {
     key: busyKey(busy),
     kind: 'block',
