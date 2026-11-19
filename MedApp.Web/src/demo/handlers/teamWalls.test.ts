@@ -30,9 +30,9 @@ describe('the team walls in the light demo', () => {
     expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/notes`, {text: 'x'})).status).toBe(200);
     expect((await call('PATCH', `${PATHWAY}/${PATHWAYS.histologyToFinish}`, {title: 'x'})).status).toBe(409);
     // Handed back (Harriet's is at Treatment): read only.
-    const back = (await call('GET', `${PATHWAY}/${PATHWAYS.consentToRecord}`)).body;
+    const back = (await call('GET', `${PATHWAY}/${PATHWAYS.referredToHospital}`)).body;
     expect(back).toMatchObject({canWorkOnStages: false, canAddNotes: false});
-    expect((await call('POST', `${PATHWAY}/${PATHWAYS.consentToRecord}/notes`, {text: 'x'})).status).toBe(409);
+    expect((await call('POST', `${PATHWAY}/${PATHWAYS.referredToHospital}/notes`, {text: 'x'})).status).toBe(409);
     expect((await call('GET', `${PATHWAY}/${PATHWAYS.unassigned}`)).status).toBe(404);
   });
 

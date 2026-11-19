@@ -29,8 +29,8 @@ describe('the relay in the light demo', () => {
     expect((await call('POST', histology, {})).status).toBe(400);
     const finished = await call('POST', histology, {result: 'Compound naevus, no atypia (synthetic).'});
     expect(finished.status).toBe(200);
-    expect(current(finished.body)).toMatchObject({name: 'Results and team review', handedOverFromTeamName: 'Lab', canPickUp: false, needsOutcome: true});
-    expect(finished.body.stages.find((s: {name: string}) => s.name === 'Histology (lab)').result).toMatchObject({
+    expect(current(finished.body)).toMatchObject({name: 'Histology result', handedOverFromTeamName: 'Lab', canPickUp: false, needsOutcome: true});
+    expect(finished.body.stages.find((s: {name: string}) => s.name === 'Histology').result).toMatchObject({
       text: 'Compound naevus, no atypia (synthetic).',
       enteredByUsername: LAB.username,
     });

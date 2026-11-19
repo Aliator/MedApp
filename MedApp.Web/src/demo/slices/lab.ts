@@ -267,8 +267,8 @@ const makeResult = (resultId: string, fields: ResultFields): DemoResult => ({
 /**
  * Seeds this slice, after the base seed: specimens in each of the Lab page's views (to send, expected, in the lab,
  * overdue, rejected, reported), a result awaiting each account's sign-off and two signed off. Callum Ashby's result
- * awaits Nadia Thornbury, so his "Results and team review" stage is held until it's signed off; Harriet Quill's
- * biopsy is reported and signed off, so nothing here holds her Clinical photographs stage. Adds the notifications they'd have
+ * awaits Nadia Thornbury, so his "Histology result" stage is held until it's signed off; Harriet Quill's
+ * biopsy is reported and signed off, so nothing here holds her Refer to hospital stage. Adds the notifications they'd have
  * caused.
  */
 export function seedLab(state: BaseState): LabSlice {
@@ -329,9 +329,9 @@ export function seedLab(state: BaseState): LabSlice {
 
   const priyaTaken = plusMinutes(visit(APPOINTMENTS.priyaBiopsy), 20);
   const harrietTaken = plusMinutes(visit(MORE_APPOINTMENTS.harrietBiopsy), 20);
-  const callumTaken = plusMinutes(stage(PATHWAYS.backFromLab, 2).completedAtUtc!, -120);
+  const callumTaken = plusMinutes(stage(PATHWAYS.backFromLab, 3).completedAtUtc!, -120);
   const specimens: DemoSpecimen[] = [
-    specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
+    specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 3, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
       requestNotes: 'Pigmented lesion, 7 mm. Please report the margins.',
       status: 'Received',
@@ -343,7 +343,7 @@ export function seedLab(state: BaseState): LabSlice {
       labReference: 'EVP-55120',
       version: 3,
     }),
-    specimen(SPECIMENS.harrietBiopsy, PATHWAYS.consentToRecord, 2, SPECIMEN_TYPES.skinBiopsy, harrietTaken, STAFF.id, {
+    specimen(SPECIMENS.harrietBiopsy, PATHWAYS.referredToHospital, 3, SPECIMEN_TYPES.skinBiopsy, harrietTaken, STAFF.id, {
       site: 'Left temple',
       status: 'Reported',
       sentAtUtc: plusMinutes(harrietTaken, 240),
@@ -356,7 +356,7 @@ export function seedLab(state: BaseState): LabSlice {
       reportAttachmentId: REPORT_FILES.harriet,
       version: 4,
     }),
-    specimen(SPECIMENS.samuelScraping, PATHWAYS.onHold, 1, SPECIMEN_TYPES.skinScraping, ago(13, 10, 30), USERS.hallworth, {
+    specimen(SPECIMENS.samuelScraping, PATHWAYS.onHold, 3, SPECIMEN_TYPES.skinScraping, ago(13, 10, 30), USERS.hallworth, {
       site: 'Both hands',
       requestingUserId: USERS.hallworth,
       status: 'Sent',
@@ -365,7 +365,7 @@ export function seedLab(state: BaseState): LabSlice {
       courierReference: 'BATCH-0398',
       version: 2,
     }),
-    specimen(SPECIMENS.ilonaBloodRejected, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, ago(4, 10, 0), STAFF.id, {
+    specimen(SPECIMENS.ilonaBloodRejected, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.bloodSample, ago(4, 10, 0), STAFF.id, {
       status: 'RejectedByLab',
       sentAtUtc: ago(4, 12, 0),
       sentByUserId: STAFF.id,
@@ -374,7 +374,7 @@ export function seedLab(state: BaseState): LabSlice {
       closedByUserId: LAB.id,
       version: 3,
     }),
-    specimen(SPECIMENS.ilonaBlood, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, ago(3, 11, 0), STAFF.id, {
+    specimen(SPECIMENS.ilonaBlood, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.bloodSample, ago(3, 11, 0), STAFF.id, {
       requestNotes: 'Repeat sample: the first was insufficient.',
       status: 'Received',
       sentAtUtc: ago(3, 13, 0),
@@ -385,7 +385,7 @@ export function seedLab(state: BaseState): LabSlice {
       version: 3,
     }),
     // Taken this morning (or half an hour ago, early in the day), never in the future.
-    specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.skinScraping, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
+    specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 4, SPECIMEN_TYPES.skinScraping, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
       site: 'Right elbow',
     }),
     specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, ago(59, 9, 30), CARROW.id, {
@@ -402,7 +402,7 @@ export function seedLab(state: BaseState): LabSlice {
       version: 4,
     }),
     // Reported when its case's report was authorised, which finished his Histology (MC16).
-    specimen(SPECIMENS.callumBiopsy, PATHWAYS.backFromLab, 2, SPECIMEN_TYPES.skinBiopsy, callumTaken, STAFF.id, {
+    specimen(SPECIMENS.callumBiopsy, PATHWAYS.backFromLab, 3, SPECIMEN_TYPES.skinBiopsy, callumTaken, STAFF.id, {
       site: 'Back of the right hand',
       status: 'Reported',
       sentAtUtc: plusMinutes(callumTaken, 240),
@@ -410,7 +410,7 @@ export function seedLab(state: BaseState): LabSlice {
       receivedAtUtc: plusMinutes(callumTaken, 24 * 60),
       receivedByUserId: LAB.id,
       labReference: 'EVP-55187',
-      reportedAtUtc: stage(PATHWAYS.backFromLab, 3).completedAtUtc!,
+      reportedAtUtc: stage(PATHWAYS.backFromLab, 4).completedAtUtc!,
       reportedByUserId: LAB.id,
       reportAttachmentId: REPORT_FILES.callum,
       version: 4,
@@ -474,7 +474,7 @@ export function seedLab(state: BaseState): LabSlice {
       message: `${LAB.username} reported a Skin biopsy (punch) specimen.`,
       pathwayId: PATHWAYS.backFromLab,
       subjectId: RESULTS.callumBiopsy,
-      createdAtUtc: stage(PATHWAYS.backFromLab, 3).completedAtUtc!,
+      createdAtUtc: stage(PATHWAYS.backFromLab, 4).completedAtUtc!,
       isRead: false,
     },
     {

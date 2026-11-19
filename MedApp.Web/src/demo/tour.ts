@@ -24,6 +24,8 @@ export interface TourStep {
   staysOnReadMe?: boolean;
   /** Its steps are numbered, as they're done in order. */
   isNumbered?: boolean;
+  /** Synthetic sample text shown under the steps to select or copy (the notepad's notes), one line each. */
+  sampleText?: string[];
   buttonLabel: string;
   /** Why the step can't do what it says in this copy of the demo (already done, say), or null when it can. */
   whyNot?: (state: DemoState) => string | null;
@@ -136,30 +138,47 @@ export const TOUR: TourStep[] = [
     key: 'book',
     title: 'Book an appointment',
     steps: [
-      'Opens Ellis Varden’s skin lesion pathway: its Biopsy or sample stage needs a visit.',
+      'Opens Ellis Varden’s suspected skin cancer pathway: his dermoscopy was uncertain, so its Take biopsy stage is next, and needs a visit.',
       'Choose Book Visit on that stage, pick who and a free time, and book it. It shows on the stage, the timeline and the Calendar.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.biopsyToBook}`,
     buttonLabel: 'Open the pathway to book its visit',
     whyNot: (state) =>
-      state.appointments.some((a) => a.pathwayId === PATHWAYS.biopsyToBook && a.stageName === 'Biopsy or sample' && a.status === 'Booked')
+      state.appointments.some((a) => a.pathwayId === PATHWAYS.biopsyToBook && a.stageName === 'Take biopsy' && a.status === 'Booked')
         ? `You've booked this visit already in your copy of the demo. ${RESET_HINT}`
         : null,
+  },
+  {
+    key: 'consent',
+    title: 'Record consent, then finish the stage',
+    steps: [
+      'Opens Ellis Varden’s pathway. Take biopsy needs a consent record (a stage gate), and he withdrew his first consent to think it over, so Finish Stage is refused.',
+      'He has now agreed: record the consent in the Consent card (the form, who signed, the date). Then Finish Stage works, in the next step. MedApp never judges capacity.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.biopsyToBook}`,
+    buttonLabel: 'Open the pathway that needs consent',
+    whyNot: (state) => {
+      const biopsy = state.pathways.find((p) => p.id === PATHWAYS.biopsyToBook)?.stages.find((s) => s.name === 'Take biopsy');
+      return biopsy && state.consentRecords.some((c) => c.stageId === biopsy.id && c.status === 'Valid')
+        ? `You've recorded his consent already in your copy of the demo. ${RESET_HINT}`
+        : null;
+    },
   },
   {
     key: 'relay-hand-over',
     title: 'The relay, 1: hand a stage to the lab',
     steps: [
-      'Stages belong to a team. On Ellis Varden’s pathway, Biopsy or sample is Dermatology’s; the next, Histology (lab), is the lab’s.',
-      'Choose Finish Stage on Biopsy or sample (say why, if the visit hasn’t happened yet). The pathway is handed to the lab, and the lab is told.',
+      'Stages belong to a team. On Ellis Varden’s pathway, Take biopsy is Dermatology’s; the next, Histology, is the lab’s.',
+      'With his consent recorded (the step before), choose Finish Stage on Take biopsy (say why, if the visit hasn’t happened yet). The pathway is handed to the lab, and the lab is told.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.biopsyToBook}`,
     buttonLabel: 'Open the pathway to hand over',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.biopsyToBook)?.stages.find((s) => s.name === 'Biopsy or sample')?.completedAtUtc
-        ? `You've finished Biopsy or sample already in your copy of the demo: it's with the lab. ${RESET_HINT}`
+      state.pathways.find((p) => p.id === PATHWAYS.biopsyToBook)?.stages.find((s) => s.name === 'Take biopsy')?.completedAtUtc
+        ? `You've finished Take biopsy already in your copy of the demo: it's with the lab. ${RESET_HINT}`
         : null,
   },
   {
@@ -177,14 +196,14 @@ export const TOUR: TourStep[] = [
     key: 'finish-stage',
     title: 'The relay, 3: the lab hands it back',
     steps: [
-      'Opens Priya Holloway’s pathway at Histology (lab). The lab works it and adds notes; Dermatology waits.',
-      'Choose Finish Stage and enter the result. The next stage, the results review, is Dermatology’s, so the pathway goes back with the result on it, and Dermatology is told. The lab keeps reading it.',
+      'Opens Priya Holloway’s pathway at Histology, the lab’s stage. The lab works it and adds notes; Dermatology waits.',
+      'Choose Finish Stage and enter the result. The next stage, Histology result (a choice node), is Dermatology’s, so the pathway goes back with the result on it, and Dermatology is told. The lab keeps reading it.',
     ],
     account: LAB.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
     buttonLabel: 'Open the pathway as the lab',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.stages.find((s) => s.name === 'Histology (lab)')?.completedAtUtc
+      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.stages.find((s) => s.name === 'Histology')?.completedAtUtc
         ? `You've finished Histology already in your copy of the demo; the next stage is current now. ${RESET_HINT}`
         : null,
   },
@@ -204,7 +223,7 @@ export const TOUR: TourStep[] = [
     title: 'Sign off a result',
     steps: [
       `Opens Priya Holloway’s biopsy result, waiting for ${STAFF.fullName}’s sign-off.`,
-      'Choose Sign Off and say what’s been done. Nothing is chosen for you; her review stage waits for it.',
+      'Choose Sign Off and say what’s been done. Nothing is chosen for you; her Histology result stage waits for it.',
     ],
     account: STAFF.username,
     path: `/results/${LAB_IDS.priyaResult}`,
@@ -269,8 +288,8 @@ export const TOUR: TourStep[] = [
     key: 'fork',
     title: 'A pathway that forks',
     steps: [
-      'Opens Aisha Khoury’s pathway: after the first visit it forks, so Histology and Lab tests are current side by side.',
-      'Stages shows the tree: each route indented under the fork, meeting again at the review (a lab result choice node), which starts once both are done.',
+      'Opens Aisha Khoury’s pathway: the skin check found a second lesion, so Biopsy another lesion was added after the dermoscopy. Both biopsies are taken, so two Histology stages are current side by side, both the lab’s.',
+      'Stages shows the tree: the added route indented on its own. It ends by itself, and she isn’t discharged until it’s done.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.forkedTests}`,
@@ -280,8 +299,8 @@ export const TOUR: TourStep[] = [
     key: 'branch',
     title: 'Record an outcome: the pathway grows',
     steps: [
-      'Opens Felix Moreton’s pathway. It has one stage so far: the first visit, an assessment (a choice node). A template is the full tree; a pathway shows only the stages up to its next choice node.',
-      'Choose Finish Stage and record the outcome (nothing is chosen for you). Its stages are added, up to the next choice node, the histology result; the other outcome’s never appear, and progress counts the stages it has.',
+      'Opens Felix Moreton’s suspected skin cancer pathway. Triage is done, and Dermoscopy assessment is a choice node (an assessment). A template is the full tree; a pathway shows only the stages up to its next choice node.',
+      'Choose Finish Stage and record one of its six outcomes (nothing is chosen for you). Uncertain: biopsy adds Take biopsy, Histology and Histology result, the next choice node; the others add a care plan or a referral. Outcomes not chosen never appear, and progress counts the stages it has.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.branchToChoose}`,
@@ -295,28 +314,39 @@ export const TOUR: TourStep[] = [
     key: 'added-branch',
     title: 'Add a branch on new information',
     steps: [
-      'Opens Priya Holloway’s pathway. Say something new means she needs blood tests too.',
-      'Choose Add Branch, then Blood tests (its template lists what may be added; nothing is suggested), the stage it comes after, and why.',
+      'Opens Priya Holloway’s pathway. Say the skin check found a second lesion that needs a biopsy too.',
+      'Choose Add Branch, then Biopsy another lesion (its template lists what may be added; nothing is suggested), after Dermoscopy assessment, and why.',
       'Its stages run beside what’s left, on a route of their own; she isn’t discharged until they’re done. The reason stays on the pathway, never in the audit log.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
     buttonLabel: 'Open the pathway to add a branch to',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.branchAdditions?.some((a) => a.templateBranchId === TEMPLATE_BRANCHES.bloodTests)
-        ? `You've added the blood tests already in your copy of the demo. ${RESET_HINT}`
+      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.branchAdditions?.some((a) => a.templateBranchId === TEMPLATE_BRANCHES.biopsyAnother)
+        ? `You've added the second biopsy already in your copy of the demo. ${RESET_HINT}`
         : null,
   },
   {
     key: 'draw-routes',
     title: 'Draw a template’s routes',
     steps: [
-      'Opens the Skin lesion template as the admin (setup is the admin’s): the full tree. Results and team review is a choice node (a lab result); each stage after it names the outcome that leads to it (Benign, Basal cell carcinoma, Melanoma).',
-      'Each stage says what it comes after, so routes can run side by side and meet again, and ends in a discharge or a referral. Histology is the lab’s stage. Leave without saving if you’re only looking.',
+      'Opens the Suspected skin cancer template as the admin (setup is the admin’s): the full tree, from the clinic’s reviewed pathways. Dermoscopy assessment and Histology result are choice nodes (an assessment, a lab result); each stage after one names the outcome that leads to it.',
+      'Each stage says what it comes after; every route ends in a discharge or a referral. Histology is the lab’s stage. A stage several outcomes lead to shows one outcome’s name here, so leave without saving.',
     ],
     account: ADMIN.username,
-    path: `/admin/pathway-templates/${TEMPLATES.skinLesion}`,
+    path: `/admin/pathway-templates/${TEMPLATES.suspectedSkinCancer}`,
     buttonLabel: 'Open the template editor',
+  },
+  {
+    key: 'dermatology-templates',
+    title: 'Dermatology’s ten templates',
+    steps: [
+      'Pathway Templates lists Dermatology’s ten, from the clinic’s reviewed pathways: suspected skin cancer, a changing mole, surveillance after treatment, and assessments of inflammatory skin, eczema, psoriasis, acne, infection, hair loss and pigmentation.',
+      'They share the stage library’s stages (Triage, Take biopsy, Histology and the rest), and the skin cancer ones are kept for the Oncology retention period. Routes back (a repeat biopsy, another review) are addable routes or stay at the review: routes only go forward.',
+    ],
+    account: ADMIN.username,
+    path: '/admin/pathway-templates',
+    buttonLabel: 'Open the pathway templates',
   },
   {
     key: 'assessment-only',
@@ -328,21 +358,6 @@ export const TOUR: TourStep[] = [
     account: ADMIN.username,
     path: `/pathways/${PATHWAYS.biomechanicsAssessment}`,
     buttonLabel: 'Open the assessment-only pathway',
-  },
-  {
-    key: 'consent',
-    title: 'Record consent, then finish the stage',
-    steps: [
-      'Opens Harriet Quill’s pathway: the review recorded a basal cell carcinoma, so its route was added. At Clinical photographs, Finish Stage is refused first: the stage needs a consent record (a stage gate).',
-      'Record the consent in the Consent card (the form, who signed, the date); then Finish Stage works. MedApp never judges capacity.',
-    ],
-    account: STAFF.username,
-    path: `/pathways/${PATHWAYS.consentToRecord}`,
-    buttonLabel: 'Open the pathway that needs consent',
-    whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Clinical photographs')?.completedAtUtc
-        ? `You've finished Clinical photographs already in your copy of the demo. ${RESET_HINT}`
-        : null,
   },
   {
     key: 'mdt',
@@ -427,9 +442,17 @@ export const TOUR: TourStep[] = [
     key: 'notepad',
     title: 'The notepad',
     steps: [
-      'Opens your notepad beside this page. It stays open as you move around the app.',
-      'Jot anything down: it saves as you type. Each account has its own.',
+      `As ${STAFF.fullName} (switch above if you’re not her), copy the sample notes below: select them, or choose Copy the Notes.`,
+      'Open the notepad with the button below: it opens beside this page and stays open as you move around the app. Paste the notes into it; it saves as you type, and each account has its own.',
+      'Open Ilona Petrova’s pathway, Psoriasis, new care plan (Patients, then Ilona Petrova, then the pathway).',
+      'In the notepad, choose Add Note to Pathway, check it’s her pathway, and add it. The pathway then shows the note under Notes, by you.',
       'Shift-click Notepad in the side nav to open it in the half view on the right instead.',
+    ],
+    isNumbered: true,
+    sampleText: [
+      'Seen in clinic today.',
+      'Plaques on both elbows, unchanged since the last visit.',
+      'Patient happy with the care plan; review in 8 weeks.',
     ],
     opensNotepad: true,
     buttonLabel: 'Open the notepad',

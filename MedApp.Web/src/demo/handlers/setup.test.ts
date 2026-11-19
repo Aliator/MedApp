@@ -221,7 +221,7 @@ describe('the light demo’s setup and admin handlers', () => {
   it('keeps each admin’s monitoring rules their own, lists the jobs, and won’t require two-factor', async () => {
     startLightDemo(ADMIN);
     const rules = (await call('GET', '/api/monitoring/rules')).body;
-    expect(rules[0]).toMatchObject({id: MONITORING_RULES.urgentHistology, templateName: 'Skin lesion pathway', stageName: 'Histology (lab)'});
+    expect(rules[0]).toMatchObject({id: MONITORING_RULES.urgentHistology, templateName: 'Suspected skin cancer', stageName: 'Histology'});
     expect((await call('PUT', `/api/monitoring/rules/${MONITORING_RULES.hallworthOnHold}/enabled`, {isEnabled: true})).body.isEnabled).toBe(true);
     expect((await call('POST', '/api/monitoring/rules', {event: 'Nonsense'})).status).toBe(400);
     expect((await call('GET', '/api/jobs')).body.map((j: {name: string}) => j.name)).toEqual(['operational-purge', 'patient-reminders']);
