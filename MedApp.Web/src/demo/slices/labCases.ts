@@ -128,8 +128,8 @@ export const LAB_CASE_IDS = {
   justReceived: LAB_CASES.maya,
   /** Priya Holloway's Histology case: authorising it finishes her pathway's lab stage (MC16). */
   stageToReport: LAB_CASES.priyaBiopsy,
-  /** Ellis Varden's earlier hospital case: reported and sent, awaiting the hospital's surgery details (MC20). */
-  awaitingSurgeryDetails: LAB_CASES.ellisBiopsy,
+  /** Samuel Okafor's earlier hospital case: reported and sent, awaiting the hospital's surgery details (MC20). */
+  awaitingSurgeryDetails: LAB_CASES.samuelBiopsy,
   /** Aisha Khoury's second biopsy: closed with a repeat requested, its Take biopsy reopened (MC22). */
   repeatRequested: LAB_CASES.aishaBiopsy,
 } as const;
@@ -340,9 +340,9 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
     ),
     make(HOSPITAL_LAB_CASES.maya, request(HOSPITAL_REQUESTS.mayaBiopsy).labCaseNumber, [hospitalSampleOf(HOSPITAL_REQUESTS.mayaBiopsy)], histology, [], hoursAgo(1)),
     make(
-      HOSPITAL_LAB_CASES.ellis,
-      request(HOSPITAL_REQUESTS.ellisExcision).labCaseNumber,
-      [hospitalSampleOf(HOSPITAL_REQUESTS.ellisExcision)],
+      HOSPITAL_LAB_CASES.samuel,
+      request(HOSPITAL_REQUESTS.samuelExcision).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.samuelExcision)],
       histology,
       [
         ...adequate,
@@ -378,15 +378,15 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
         closed: {atUtc: wilfredSurgeryAt, byUserId: LAB.id},
       },
     ),
-    // MC20: Ellis's biopsy, reported and sent 12 days ago: awaiting the hospital's surgery details.
+    // MC20: Samuel's biopsy, reported and sent 12 days ago: awaiting the hospital's surgery details.
     make(
-      HOSPITAL_LAB_CASES.ellisBiopsy,
-      request(HOSPITAL_REQUESTS.ellisBiopsy).labCaseNumber,
-      [hospitalSampleOf(HOSPITAL_REQUESTS.ellisBiopsy)],
+      HOSPITAL_LAB_CASES.samuelBiopsy,
+      request(HOSPITAL_REQUESTS.samuelBiopsy).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.samuelBiopsy)],
       histology,
       [...adequate, ...histologySteps, noMoreWork],
       daysAgo(12),
-      sentBack(HOSPITAL_REQUESTS.ellisBiopsy, 12, biopsyReport),
+      sentBack(HOSPITAL_REQUESTS.samuelBiopsy, 12, biopsyReport),
     ),
   ];
   // Every other lab stage reached and still to do opened its case then, waiting for a sample (and its test).

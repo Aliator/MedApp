@@ -47,7 +47,7 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect(db().activityLog.some((a) => a.action === 'LabCaseViewed' && a.details?.includes(LAB_CASES.wilfred))).toBe(true);
 
     expect((await caseOf(LAB_CASES.maya)).next).toMatchObject({kind: 'Step', name: 'Accessioned'});
-    expect((await caseOf(LAB_CASES.ellis)).next).toMatchObject({kind: 'Step', name: 'Second opinion back'});
+    expect((await caseOf(LAB_CASES.samuel)).next).toMatchObject({kind: 'Step', name: 'Second opinion back'});
   });
 
   it('works a case through its steps and choices to the report, in order, from the version shown', async () => {
@@ -191,7 +191,7 @@ describe('the light demo’s lab cases (MC15)', () => {
     const ids = async (view: string) => (await call('POST', '/api/lab-cases/search', {view})).body.items.map((c: {id: string}) => c.id);
     expect(await ids('AtRisk')).toEqual([LAB_CASES.ilonaBlood]);
     // Priya's biopsy reached the lab over a week ago, and its report (which finishes her Histology, MC16) isn't in yet.
-    expect((await ids('Overdue')).sort()).toEqual([LAB_CASES.ellis, LAB_CASES.priyaBiopsy].sort());
+    expect((await ids('Overdue')).sort()).toEqual([LAB_CASES.samuel, LAB_CASES.priyaBiopsy].sort());
     expect((await caseOf(LAB_CASES.wilfred)).clock).toMatchObject({setBy: 'Hospital', hospitalDueBasis: 'ReportNeededBy', state: 'OnTime', daysLeft: 3});
     expect((await caseOf(LAB_CASES.maya)).clock).toMatchObject({setBy: 'Lab', hospitalDueBasis: 'HospitalDefault', state: 'OnTime'});
     expect((await caseOf(LAB_CASES.callumBiopsy)).clock?.state).toMatch(/^Reported/);
@@ -233,7 +233,7 @@ describe('the light demo’s lab cases (MC15)', () => {
 
   it('adds the hospital’s surgery details as written, closing a case awaiting them, with no text in the audit log (MC20)', async () => {
     startLightDemo(LAB);
-    let c = await caseOf(LAB_CASES.ellisBiopsy);
+    let c = await caseOf(LAB_CASES.samuelBiopsy);
     expect(c).toMatchObject({status: 'AwaitingSurgeryDetails', canAddSurgeryDetails: true, hospitalReport: {letterKind: 'LabReport'}});
     const url = `/api/lab-cases/${c.id}/surgery-details`;
     expect((await call('POST', url, {expectedVersion: c.version})).status).toBe(400);
@@ -264,7 +264,7 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect((await call('POST', `/api/lab-cases/${clinic.id}/surgery-details`, {procedure: 'x', expectedVersion: clinic.version})).status).toBe(409);
 
     startLightDemo(ADMIN);
-    const asAdmin = await caseOf(LAB_CASES.ellisBiopsy);
+    const asAdmin = await caseOf(LAB_CASES.samuelBiopsy);
     expect(asAdmin.canAddSurgeryDetails).toBe(false);
     expect((await call('POST', `/api/lab-cases/${asAdmin.id}/surgery-details`, {procedure: 'x', expectedVersion: asAdmin.version})).status).toBeGreaterThanOrEqual(403);
   });

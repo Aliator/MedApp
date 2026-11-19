@@ -60,8 +60,8 @@ describe('the light demo’s hospitals and hospital requests (MC18)', () => {
     const found = async () => (await call('GET', '/api/patients/search?LastName=Ashdown')).body.totalCount;
     startLightDemo(STAFF);
     expect(await found()).toBe(0);
-    // Ellis Varden is the centre's patient too, so he stays findable.
-    expect((await call('GET', '/api/patients/search?LastName=Varden')).body.totalCount).toBe(1);
+    // Samuel Okafor is the centre's patient too, so he stays findable.
+    expect((await call('GET', '/api/patients/search?LastName=Okafor')).body.totalCount).toBe(1);
     startLightDemo(LAB);
     expect(await found()).toBe(1);
     startLightDemo(ADMIN);

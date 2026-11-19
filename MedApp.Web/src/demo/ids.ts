@@ -71,6 +71,8 @@ export const PATIENTS = {
   harrietQuill: id(0xd4, 13),
   /** Has the suspected skin cancer pathway at Dermoscopy assessment, a choice node. */
   felixMoreton: id(0xd4, 14),
+  /** Has the changing mole pathway at Take photographs, which needs her consent to clinical photography (MC27, MC29). */
+  noraFennick: id(0xd4, 15),
 } as const;
 
 export const PATHWAYS = {
@@ -92,6 +94,8 @@ export const PATHWAYS = {
   forkedTests: id(0xd5, 13),
   /** Suspected skin cancer, Callum Ashby, Nadia Thornbury's: back from the lab at Histology result (a choice node), not picked up yet. */
   backFromLab: id(0xd5, 14),
+  /** Changing mole or lesion check, Nora Fennick, Nadia Thornbury's: at Take photographs, no photo consent yet (MC29). */
+  photosToTake: id(0xd5, 15),
 } as const;
 
 export const REFERRALS = {

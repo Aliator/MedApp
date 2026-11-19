@@ -76,24 +76,24 @@ export const HOSPITAL_REQUESTS = {
   wilfredExcision: id(0xc2, 1),
   /** Maya Thistlewood: routine, no date given (the lab's 7 days are sooner than the hospital's default 10). Only the hospital links her here. */
   mayaBiopsy: id(0xc2, 2),
-  /** Ellis Varden, a centre patient too (matched by the lab to his record): routine, received 9 days ago, so past the lab's 7 (breached, MC19) while away for a second opinion. */
-  ellisExcision: id(0xc2, 3),
+  /** Samuel Okafor, a centre patient too (matched by the lab to his record): routine, received 9 days ago, so past the lab's 7 (breached, MC19) while away for a second opinion. */
+  samuelExcision: id(0xc2, 3),
   /**
    * Wilfred Ashdown's diagnostic biopsy before it (MC20): reported and sent back to the hospital 10 days ago; the
    * hospital's surgery details (the excision now in the lab) arrived since, so the case is closed.
    */
   wilfredBiopsy: id(0xc2, 4),
-  /** Ellis Varden's earlier biopsy (MC20): reported and sent 12 days ago, awaiting the hospital's surgery details. */
-  ellisBiopsy: id(0xc2, 5),
+  /** Samuel Okafor's earlier biopsy (MC20): reported and sent 12 days ago, awaiting the hospital's surgery details. */
+  samuelBiopsy: id(0xc2, 5),
 } as const;
 
 /** Each request's lab case (MC15 seeds them: `slices/labCases.ts`). */
 export const HOSPITAL_LAB_CASES = {
   wilfred: id(0xc3, 1),
   maya: id(0xc3, 2),
-  ellis: id(0xc3, 3),
+  samuel: id(0xc3, 3),
   wilfredBiopsy: id(0xc3, 4),
-  ellisBiopsy: id(0xc3, 5),
+  samuelBiopsy: id(0xc3, 5),
 } as const;
 
 /** Patients the hospital sent and the centre doesn't otherwise see (hidden from non-lab staff's search). */
@@ -107,7 +107,7 @@ export const HOSPITAL_IDS = {
   /** A hospital request to open as the lab (`r.aldous`). */
   urgentRequest: HOSPITAL_REQUESTS.wilfredExcision,
   /** A hospital case reported and sent, awaiting the hospital's surgery details (MC20). */
-  awaitingSurgeryDetails: HOSPITAL_LAB_CASES.ellisBiopsy,
+  awaitingSurgeryDetails: HOSPITAL_LAB_CASES.samuelBiopsy,
   hospitalOnlyPatient: HOSPITAL_PATIENTS.wilfredAshdown,
 } as const;
 
@@ -140,7 +140,7 @@ export const HOSPITAL_PATIENT_RECORDS: Schemas['PatientResponse'][] = [
  */
 export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSequence'>): HospitalSlice {
   state.patients.push(...HOSPITAL_PATIENT_RECORDS.map((p) => ({...p})));
-  const ellis = state.patients.find((p) => p.id === PATIENTS.ellisVarden);
+  const samuel = state.patients.find((p) => p.id === PATIENTS.samuelOkafor);
   const request = (
     requestId: string,
     caseId: string,
@@ -205,10 +205,10 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         isCancerPathway: false,
         reportNeededBy: null,
       }),
-      request(HOSPITAL_REQUESTS.ellisExcision, HOSPITAL_LAB_CASES.ellis, 9, {
-        patientId: PATIENTS.ellisVarden,
+      request(HOSPITAL_REQUESTS.samuelExcision, HOSPITAL_LAB_CASES.samuel, 9, {
+        patientId: PATIENTS.samuelOkafor,
         hospitalPatientNumber: 'RG-118953',
-        nhsNumber: ellis?.nhsNumber ?? null,
+        nhsNumber: samuel?.nhsNumber ?? null,
         surgeonName: 'Ms A. Example (synthetic)',
         priority: 'Routine',
         isCancerPathway: false,
@@ -224,10 +224,10 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         isCancerPathway: true,
         reportNeededBy: null,
       }),
-      request(HOSPITAL_REQUESTS.ellisBiopsy, HOSPITAL_LAB_CASES.ellisBiopsy, 18, {
-        patientId: PATIENTS.ellisVarden,
+      request(HOSPITAL_REQUESTS.samuelBiopsy, HOSPITAL_LAB_CASES.samuelBiopsy, 18, {
+        patientId: PATIENTS.samuelOkafor,
         hospitalPatientNumber: 'RG-118953',
-        nhsNumber: ellis?.nhsNumber ?? null,
+        nhsNumber: samuel?.nhsNumber ?? null,
         surgeonName: 'Ms A. Example (synthetic)',
         priority: 'Routine',
         isCancerPathway: false,
