@@ -36,7 +36,7 @@ export function DemoBanner() {
       <ConfirmDialog
         isOpen={isConfirmingReset}
         title="Reset the Demo"
-        message="This puts every patient, pathway, referral and appointment back as they started, for every account, in this browser."
+        message="This puts every patient, pathway, referral and appointment back as they started, for every account, in this browser. Pins and settings (the side nav, colours, accessibility) go back to their defaults too."
         icon={AppIcon.Refresh}
         confirmText="Reset"
         isProcessing={isResetting}
