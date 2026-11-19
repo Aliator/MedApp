@@ -33,6 +33,8 @@ public static class ServiceAlertNotifications
         MonitoringEvent.SpecimenOverdue => NotificationKind.MonitoredSpecimenOverdue,
         MonitoringEvent.WaitBreached => NotificationKind.MonitoredWaitBreached,
         MonitoringEvent.PauseReviewPassed => NotificationKind.MonitoredPauseReviewPassed,
+        MonitoringEvent.LabCaseAtRisk => NotificationKind.MonitoredLabCaseAtRisk,
+        MonitoringEvent.LabCaseOverdue => NotificationKind.MonitoredLabCaseOverdue,
         _ => throw new ArgumentOutOfRangeException(nameof(monitoringEvent), monitoringEvent, "Not a service alert.")
     };
 
@@ -42,9 +44,11 @@ public static class ServiceAlertNotifications
         MonitoringEvent.ReferralNotTriaged => "Referrals awaiting triage",
         MonitoringEvent.ResultNotSignedOff => "Results awaiting sign-off",
         MonitoringEvent.VisitNotBooked => "Visits not booked",
-        MonitoringEvent.SpecimenOverdue => "Specimens overdue",
+        MonitoringEvent.SpecimenOverdue => "Samples overdue",
         MonitoringEvent.WaitBreached => "Waiting-time targets",
         MonitoringEvent.PauseReviewPassed => "Pause reviews passed",
+        MonitoringEvent.LabCaseAtRisk => "Lab cases at risk",
+        MonitoringEvent.LabCaseOverdue => "Lab cases overdue",
         _ => throw new ArgumentOutOfRangeException(nameof(monitoringEvent), monitoringEvent, "Not a service alert.")
     };
 
@@ -70,8 +74,14 @@ public static class ServiceAlertNotifications
                 ? $"{Things("visit", "visits")} {are} waiting to be booked."
                 : $"{Things("visit", "visits")} {have} waited {moreThan} to be booked.",
             MonitoringEvent.SpecimenOverdue => days == 0
-                ? $"{Things("specimen", "specimens")} {are} past {(plural ? "their" : "its")} expected turnaround."
-                : $"{Things("specimen", "specimens")} {are} {moreThan} past {(plural ? "their" : "its")} expected turnaround.",
+                ? $"{Things("sample", "samples")} {are} past {(plural ? "their" : "its")} expected turnaround."
+                : $"{Things("sample", "samples")} {are} {moreThan} past {(plural ? "their" : "its")} expected turnaround.",
+            MonitoringEvent.LabCaseAtRisk => days == 0
+                ? $"{Things("lab case", "lab cases")} {are} at risk of missing {(plural ? "their" : "its")} due date."
+                : $"{Things("lab case", "lab cases")} {have} been at risk of missing {(plural ? "their" : "its")} due date for {moreThan}.",
+            MonitoringEvent.LabCaseOverdue => days == 0
+                ? $"{Things("lab case", "lab cases")} {are} past {(plural ? "their" : "its")} due date."
+                : $"{Things("lab case", "lab cases")} {are} {moreThan} past {(plural ? "their" : "its")} due date.",
             MonitoringEvent.WaitBreached => days == 0
                 ? $"{Things("referral", "referrals")} {have} passed {(plural ? "their" : "its")} waiting-time target."
                 : $"{Things("referral", "referrals")} {are} within {Days(days)} of {(plural ? "their" : "its")} waiting-time target, or past it.",

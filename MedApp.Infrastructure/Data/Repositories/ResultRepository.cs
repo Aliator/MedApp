@@ -95,5 +95,6 @@ public sealed class ResultRepository(MedAppDbContext context) : IResultRepositor
         results
             .Include(r => r.Patient)
             .Include(r => r.Pathway).ThenInclude(p => p!.Stages)
-            .Include(r => r.Specimen).ThenInclude(s => s!.SpecimenType);
+            .Include(r => r.Specimen).ThenInclude(s => s!.SpecimenType)
+            .Include(r => r.LabCase);
 }

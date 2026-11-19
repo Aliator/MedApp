@@ -24,13 +24,34 @@ public sealed class SpecimenResponse
     /// <summary>The patient's restricted, disputed and anonymised flags, for the banners.</summary>
     public PatientFlagsResponse? PatientFlags { get; set; }
 
-    public Guid PathwayId { get; set; }
+    /// <summary>Where it came from (MC14): <c>Clinic</c> or <c>Hospital</c>.</summary>
+    public string Source { get; set; } = string.Empty;
 
-    public string PathwayTitle { get; set; } = string.Empty;
+    public Guid? RequestingTeamId { get; set; }
 
-    public Guid StageId { get; set; }
+    /// <summary>The clinic that asked for it; null for the hospital's.</summary>
+    public string? RequestingTeamName { get; set; }
 
-    public string StageName { get; set; } = string.Empty;
+    public Guid? HospitalId { get; set; }
+
+    public string? HospitalName { get; set; }
+
+    public Guid? HospitalRequestId { get; set; }
+
+    public Guid? LabTestId { get; set; }
+
+    public string? LabTestName { get; set; }
+
+    /// <summary>The lab case it's in (MC15), once the lab has it.</summary>
+    public Guid? LabCaseId { get; set; }
+
+    public Guid? PathwayId { get; set; }
+
+    public string? PathwayTitle { get; set; }
+
+    public Guid? StageId { get; set; }
+
+    public string? StageName { get; set; }
 
     public Guid SpecimenTypeId { get; set; }
 
@@ -39,9 +60,7 @@ public sealed class SpecimenResponse
     /// <summary>The type's expected days from taken to reported.</summary>
     public int ExpectedTurnaroundDays { get; set; }
 
-    public Guid LaboratoryId { get; set; }
 
-    public string LaboratoryName { get; set; } = string.Empty;
 
     public string? Site { get; set; }
 
@@ -97,6 +116,9 @@ public sealed class SpecimenResponse
     /// <summary>Still open after <see cref="ExpectedByUtc"/>: a date comparison, nothing clinical.</summary>
     public bool IsOverdueAtLab { get; set; }
 
+    /// <summary>The clock of the lab case it's in (MC19), which its due date follows once the lab has it.</summary>
+    public MedApp.Contracts.Lab.Responses.LabClockResponse? Clock { get; set; }
+
     /// <summary>One more for each change: send it back as <c>expectedVersion</c>.</summary>
     public int Version { get; set; }
 
@@ -117,6 +139,12 @@ public sealed class SpecimenResponse
 
     /// <summary>Why it can't change now (the record restricted or anonymised, or the specimen closed), or null.</summary>
     public string? ReadOnlyReason { get; set; }
+
+    /// <summary>The number of the lab case it's in, for its page to link to.</summary>
+    public string? LabCaseNumber { get; set; }
+
+    /// <summary>Whether the viewer can open a lab case for it by hand: received, in none, the viewer the lab team.</summary>
+    public bool CanOpenLabCase { get; set; }
 
     /// <summary>The label's QR code, holding the specimen number only.</summary>
     public SpecimenLabelResponse Label { get; set; } = new();
@@ -151,13 +179,33 @@ public sealed class SpecimenSummaryResponse
 
     public DateOnly PatientDateOfBirth { get; set; }
 
-    public Guid PathwayId { get; set; }
+    /// <summary>Where it came from (MC14): <c>Clinic</c> or <c>Hospital</c>.</summary>
+    public string Source { get; set; } = string.Empty;
 
-    public Guid StageId { get; set; }
+    public Guid? RequestingTeamId { get; set; }
+
+    /// <summary>The clinic that asked for it; null for the hospital's.</summary>
+    public string? RequestingTeamName { get; set; }
+
+    public Guid? HospitalId { get; set; }
+
+    public string? HospitalName { get; set; }
+
+    public Guid? HospitalRequestId { get; set; }
+
+    public Guid? LabTestId { get; set; }
+
+    public string? LabTestName { get; set; }
+
+    /// <summary>The lab case it's in (MC15), once the lab has it.</summary>
+    public Guid? LabCaseId { get; set; }
+
+    public Guid? PathwayId { get; set; }
+
+    public Guid? StageId { get; set; }
 
     public string SpecimenTypeName { get; set; } = string.Empty;
 
-    public string LaboratoryName { get; set; } = string.Empty;
 
     public string Status { get; set; } = string.Empty;
 
@@ -176,6 +224,9 @@ public sealed class SpecimenSummaryResponse
     public DateTime ExpectedByUtc { get; set; }
 
     public bool IsOverdueAtLab { get; set; }
+
+    /// <summary>The clock of the lab case it's in (MC19), which its due date follows once the lab has it.</summary>
+    public MedApp.Contracts.Lab.Responses.LabClockResponse? Clock { get; set; }
 }
 
 /// <summary>A specimen type, for the setup page and the Record Specimen dialog.</summary>
@@ -187,6 +238,9 @@ public sealed class SpecimenTypeResponse
 
     public int ExpectedTurnaroundDays { get; set; }
 
+    /// <summary>Its SNOMED CT specimen code (MC13), if given.</summary>
+    public string? SnomedCode { get; set; }
+
     public bool IsArchived { get; set; }
 
     /// <summary>No specimen has it, so it can be deleted; otherwise it's archived.</summary>
@@ -194,16 +248,3 @@ public sealed class SpecimenTypeResponse
 }
 
 /// <summary>A lab, for the setup page and the Record Specimen dialog.</summary>
-public sealed class LaboratoryResponse
-{
-    public Guid Id { get; set; }
-
-    public string Name { get; set; } = string.Empty;
-
-    public bool UsesMedApp { get; set; }
-
-    public bool IsArchived { get; set; }
-
-    /// <summary>No specimen was sent to it, so it can be deleted; otherwise it's archived.</summary>
-    public bool CanBeDeleted { get; set; }
-}

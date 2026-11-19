@@ -7,6 +7,8 @@ using MedApp.Application.Specimens.Common;
 using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Specimens.Responses;
 using MedApp.Domain.Specimens;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Teams.Repositories;
 using MediatR;
 
 namespace MedApp.Application.Specimens.Commands.RejectSpecimen;
@@ -45,12 +47,15 @@ public sealed class RejectSpecimenHandler(
     INotificationSender notifications,
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<RejectSpecimenCommand, SpecimenResponse>
 {
     public async Task<SpecimenResponse> Handle(RejectSpecimenCommand request, CancellationToken cancellationToken)
     {
-        var specimen = await repository.GetForUpdateOrThrowAsync(request.SpecimenId, cancellationToken);
+        var specimen = await repository.GetVisibleForUpdateOrThrowAsync(
+            request.SpecimenId, boundary, teams, request.Actor.Teams, cancellationToken);
         if (SpecimenWorkflow.WhyCantMoveTo(specimen, SpecimenStatus.RejectedByLab) is { } why)
             throw new ConflictException(why);
         SpecimenWorkflow.EnsureVersion(specimen, request.ExpectedVersion);

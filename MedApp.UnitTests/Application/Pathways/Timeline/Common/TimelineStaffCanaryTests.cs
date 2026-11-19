@@ -258,7 +258,28 @@ public sealed class TimelineStaffCanaryTests
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(relayChange.AuditEntries)
             .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
             .Concat(ResultEntriesHoldingTheCanary())
-            .Concat(ConsentEntriesHoldingTheCanary()).Concat(ConsultEntriesHoldingTheCanary()).ToList();
+            .Concat(ConsentEntriesHoldingTheCanary()).Concat(ConsultEntriesHoldingTheCanary())
+            .Concat(LabCaseEntriesHoldingTheCanary()).ToList();
+    }
+
+    /// <summary>
+    /// As the lab case handlers (MC15): opened, steps and outcomes, a step and the case entered in error, the report
+    /// authorised and a repeat asked for, with the canary as the results, every detail typed and the pathway's title.
+    /// </summary>
+    private static IEnumerable<PatientPathwayAuditEntry> LabCaseEntriesHoldingTheCanary()
+    {
+        var pathway = CreatePathway(Status.InProgress, title: Canary);
+        var opened = MedApp.Application.Lab.Common.LabCaseChange.Open(
+            "MA26-000999", null, SpecimensTestConstants.Histology(), pathway.PatientId, Guid.NewGuid(), SpecimenSource.Clinic,
+            pathway.TeamId, null, null, pathway, pathway.StageAt(2).Id, [], Staff, Now);
+        var labCase = opened.Case;
+        var work = new MedApp.Application.Lab.Common.LabCaseChange(labCase, pathway, Staff, Now);
+        var step = work.RecordStep(null, Canary, Now);
+        work.MarkStepEnteredInError(step, Canary);
+        work.RecordOutcome(MedApp.Domain.Lab.LabChoice.SampleAdequate, MedApp.Domain.Lab.LabOutcome.Insufficient, Canary);
+        work.Authorise(Canary, Guid.NewGuid());
+        work.MarkEnteredInError(Canary, []);
+        return opened.AuditEntries.Concat(work.AuditEntries);
     }
 
     /// <summary>
@@ -348,7 +369,7 @@ public sealed class TimelineStaffCanaryTests
         var change = new SpecimenChange(reported, reported.Pathway, Staff, Now);
         change.Take();
         change.EditDetails(
-            SpecimensTestConstants.Urine(), SpecimensTestConstants.PartnerLab(), reported.TakenAtUtc.AddHours(-1),
+            SpecimensTestConstants.Urine(), SpecimensTestConstants.Histology(), reported.TakenAtUtc.AddHours(-1),
             $"{Canary} (edited)", $"{Canary} (edited)", OtherUserId, Staff.Username, OtherUsername);
         change.Send(Now, Canary.Length > 50 ? null : Canary);
         change.Receive(Now, Canary);
@@ -528,7 +549,8 @@ public sealed class TimelineStaffCanaryTests
         response.Kind.Should().Be(nameof(PatientTimelineKind.Specimens));
         response.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
         response.SpecimenTypeName.Should().Be(SpecimensTestConstants.UrineName);
-        response.LaboratoryName.Should().Be(SpecimensTestConstants.PartnerLabName);
+        // MC13 dropped the labs list: entries since name the test, never a lab (older ones keep theirs, as written).
+        response.LaboratoryName.Should().BeNull();
         response.Changes.Single(c => c.Field == SpecimenChange.SpecimenTypeField)
             .Should().BeEquivalentTo(new { From = SpecimensTestConstants.BiopsyName, To = SpecimensTestConstants.UrineName });
         response.Changes.Single(c => c.Field == SpecimenChange.RequestingUserField)

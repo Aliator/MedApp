@@ -17,7 +17,17 @@ public sealed class ServiceAlertRepository(MedAppDbContext context) : IServiceAl
             context.Appointments.AsNoTracking(),
             context.Specimens.AsNoTracking(),
             context.PatientPathwayStages.AsNoTracking(),
-            context.MonitoringAlertsSent.AsNoTracking());
+            context.MonitoringAlertsSent.AsNoTracking(),
+            context.LabCases.AsNoTracking());
+
+        // MC19's lab clocks follow each case's test and UK dates: narrowed in SQL, the clock worked out in memory.
+        if (MonitoringEvents.IsLabClock(rule.Event))
+            return (await ServiceAlertCandidates.LabCasesToCheck(sources, rule)
+                    .Include(c => c.LabTest)
+                    .ToListAsync(cancellationToken))
+                .Where(c => ServiceAlertCandidates.IsLabCaseDue(c, rule, nowUtc, today))
+                .Select(c => c.Id)
+                .ToList();
 
         return await ServiceAlertCandidates.Find(sources, rule, nowUtc, today).ToListAsync(cancellationToken);
     }

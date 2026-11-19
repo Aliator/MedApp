@@ -21,7 +21,7 @@ public static class ResultNotifications
     public static Notification? Ready(Result result, PathwayActor actor, DateTime nowUtc) =>
         For(result, actor, nowUtc, NotificationKind.ResultReady, ReadyTitle,
             result.Specimen?.SpecimenType?.Name is { Length: > 0 } type
-                ? $"{actor.Username} reported {Article(type)} specimen."
+                ? $"{actor.Username} reported {Article(type)} sample."
                 : $"{actor.Username} recorded a result from another service.");
 
     /// <summary>"k.ashford made you responsible for a result."</summary>

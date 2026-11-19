@@ -10,6 +10,7 @@ public sealed class SpecimenType
     public const int MaxNameLength = 100;
     public const int MinTurnaroundDays = 1;
     public const int MaxTurnaroundDays = 90;
+    public const int MaxSnomedCodeLength = 18;
 
     public Guid Id { get; init; }
 
@@ -21,6 +22,9 @@ public sealed class SpecimenType
     /// the lab: a date comparison, nothing clinical.
     /// </summary>
     public int ExpectedTurnaroundDays { get; set; }
+
+    /// <summary>Its SNOMED CT specimen code (FHIR <c>Specimen.type</c>; MC13), optional: 6 to 18 digits, never looked up.</summary>
+    public string? SnomedCode { get; set; }
 
     /// <summary>Archived types can't be chosen for new specimens; specimens already of the type keep it.</summary>
     public bool IsArchived { get; set; }

@@ -52,6 +52,16 @@ public sealed class Result
     /// <summary>The report: an attachment. No foreign key, as attachments have none.</summary>
     public Guid ReportAttachmentId { get; init; }
 
+    /// <summary>The lab case whose authorised report made it (MC15), else null. Its report is then the results the lab entered.</summary>
+    public Guid? LabCaseId { get; init; }
+    public MedApp.Domain.Lab.LabCase? LabCase { get; set; }
+
+    /// <summary>
+    /// A lab case's results, as entered when its report was authorised (free text, clinical; the full report file is a
+    /// later step): its report has no file then (<see cref="ReportAttachmentId"/> is empty).
+    /// </summary>
+    public string? ReportText { get; set; }
+
     public DateTime ReportedAtUtc { get; init; }
 
     /// <summary>Who attached the report (the lab) or recorded the external result.</summary>

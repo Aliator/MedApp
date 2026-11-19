@@ -48,7 +48,7 @@ public sealed class SpecimensController(IMediator mediator) : ControllerBase
             id,
             request.StageId,
             request.SpecimenTypeId,
-            request.LaboratoryId,
+            request.LabTestId,
             request.TakenAtUtc,
             request.Site,
             request.RequestNotes,
@@ -68,7 +68,7 @@ public sealed class SpecimensController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SearchSpecimens([FromQuery] SearchSpecimensRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchSpecimensQuery(
-            request.Page, request.PageSize, request.View, request.LaboratoryId, request.PathwayId, request.PatientId), ct));
+            request.Page, request.PageSize, request.View, request.PathwayId, request.PatientId, Scope: User.ToTeamScope()), ct));
 
     /// <summary>
     /// The Lab page's worklist: a view, searched (the specimen's number, the patient's name or NHS number, the type) and
@@ -81,8 +81,9 @@ public sealed class SpecimensController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SearchSpecimenWorklist([FromBody] SpecimenWorklistRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchSpecimensQuery(
-            request.Page, request.PageSize, request.View, request.LaboratoryId, null, null,
-            request.Search, request.Sort, request.Ascending), ct));
+            request.Page, request.PageSize, request.View, null, null,
+            request.Search, request.Sort, request.Ascending,
+            request.Source, request.TeamId, request.LabTestId, request.Status, request.Due, User.ToTeamScope()), ct));
 
     /// <summary>
     /// The specimen with this number, typed or scanned from its label. The number is in the body, never the URL, so it
@@ -118,7 +119,7 @@ public sealed class SpecimensController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new EditSpecimenCommand(
             id,
             request.SpecimenTypeId,
-            request.LaboratoryId,
+            request.LabTestId,
             request.TakenAtUtc,
             request.Site,
             request.RequestNotes,

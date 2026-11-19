@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Lab.Common;
 using MedApp.Application.Specimens.Common;
 using MedApp.Application.Specimens.Queries.SearchSpecimens;
 using MedApp.Application.Specimens.Repositories;
@@ -74,11 +75,8 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
     private Task SaveAsync(CancellationToken ct) =>
         context.SaveChangesOrConflictAsync(SpecimenWorkflow.ChangedMeanwhileMessage, ct);
 
-    public async Task<IReadOnlyList<Specimen>> GetForStageAsync(Guid stageId, CancellationToken ct) =>
-        await context.Specimens
-            .AsNoTracking()
-            .Include(s => s.SpecimenType)
-            .Include(s => s.Laboratory)
+    public async Task<IReadOnlyList<Specimen>> GetForStageAsync(Guid? stageId, CancellationToken ct) =>
+        stageId is null ? [] : await Summaries(context.Specimens.AsNoTracking())
             .Where(s => s.StageId == stageId)
             .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
             .ToListAsync(ct);
@@ -92,22 +90,39 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
             .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
             .ToListAsync(ct);
 
-    public async Task<PagedResult<Specimen>> SearchAsync(SearchSpecimensQuery query, DateTime nowUtc, CancellationToken ct)
+    public async Task<PagedResult<Specimen>> SearchAsync(SearchSpecimensQuery query, Guid? labTeamId, DateTime nowUtc, CancellationToken ct)
     {
-        var filtered = context.Specimens.AsNoTracking().Filter(query, nowUtc);
-        var totalCount = await filtered.CountAsync(ct);
+        var filtered = context.Specimens.AsNoTracking()
+            .VisibleSpecimens(query.Teams, context.PathwayAccess, labTeamId)
+            .Filter(query, nowUtc);
 
-        var page = await filtered
-            .Sort(query.ParsedView, query.Sort, query.Ascending)
-            .Skip(Paging.Skip(query.Page, query.PageSize))
-            .Take(query.PageSize)
-            .Include(s => s.Patient)
-            .Include(s => s.SpecimenType)
-            .Include(s => s.Laboratory)
+        // What follows a lab case's clock (MC19) is worked out in memory, over the samples SQL narrowed.
+        if (query.NeedsClock)
+        {
+            var arranged = SpecimenSearch.Arrange(await Summaries(filtered).AsSplitQuery().ToListAsync(ct), query, nowUtc);
+            return new PagedResult<Specimen>(
+                arranged.Skip(Paging.Skip(query.Page, query.PageSize)).Take(query.PageSize).ToList(), arranged.Count);
+        }
+
+        var totalCount = await filtered.CountAsync(ct);
+        var page = await Summaries(filtered
+                .Sort(query.ParsedView, query.Sort, query.Ascending)
+                .Skip(Paging.Skip(query.Page, query.PageSize))
+                .Take(query.PageSize))
+            .AsSplitQuery()
             .ToListAsync(ct);
 
         return new PagedResult<Specimen>(page, totalCount);
     }
+
+    /// <summary>What a sample in a list shows: its patient, type, test, clinic and lab case (with its test, for its clock).</summary>
+    private static IQueryable<Specimen> Summaries(IQueryable<Specimen> specimens) =>
+        specimens
+            .Include(s => s.Patient)
+            .Include(s => s.SpecimenType)
+            .Include(s => s.LabTest)
+            .Include(s => s.RequestingTeam)
+            .Include(s => s.LabCase!).ThenInclude(c => c.LabTest);
 
     public async Task<bool> IsReportAsync(Guid attachmentId, CancellationToken ct) =>
         await context.Specimens.AnyAsync(s => s.ReportAttachmentId == attachmentId, ct);
@@ -150,43 +165,22 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
     public async Task DeleteTypeAsync(Guid id, CancellationToken ct) =>
         await context.SpecimenTypes.Where(t => t.Id == id).ExecuteDeleteAsync(ct);
 
-    public async Task<IReadOnlyList<Laboratory>> GetLaboratoriesAsync(bool includeArchived, CancellationToken ct) =>
-        await context.Laboratories
-            .AsNoTracking()
-            .Where(l => includeArchived || !l.IsArchived)
-            .OrderBy(l => l.Name).ThenBy(l => l.Id)
+    public async Task<Domain.Lab.LabTest?> GetLabTestAsync(Guid id, CancellationToken ct) =>
+        await context.LabTests.Include(t => t.Steps).FirstOrDefaultAsync(t => t.Id == id, ct);
+
+    public async Task<IReadOnlyList<Specimen>> GetReceivedWithoutCaseAsync(Guid stageId, Guid exceptId, CancellationToken ct) =>
+        await context.Specimens
+            .Where(s => s.StageId == stageId && s.Id != exceptId && s.Status == SpecimenStatus.Received && s.LabCaseId == null)
+            .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
             .ToListAsync(ct);
 
-    public async Task<Laboratory?> GetLaboratoryAsync(Guid id, CancellationToken ct) =>
-        await context.Laboratories.FirstOrDefaultAsync(l => l.Id == id, ct);
-
-    public async Task<bool> LaboratoryNameExistsAsync(string name, Guid? exceptId, CancellationToken ct) =>
-        await context.Laboratories.AnyAsync(l => l.Name == name && l.Id != exceptId, ct);
-
-    public async Task<IReadOnlySet<Guid>> GetLaboratoriesInUseAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
-        (await context.Specimens
-            .Where(s => ids.Contains(s.LaboratoryId))
-            .Select(s => s.LaboratoryId)
-            .Distinct()
-            .ToListAsync(ct))
-        .ToHashSet();
-
-    public async Task AddLaboratoryAsync(Laboratory laboratory, CancellationToken ct)
-    {
-        context.Laboratories.Add(laboratory);
-        await context.SaveChangesAsync(ct);
-    }
-
-    public async Task UpdateLaboratoryAsync(Laboratory laboratory, CancellationToken ct) => await context.SaveChangesAsync(ct);
-
-    public async Task DeleteLaboratoryAsync(Guid id, CancellationToken ct) =>
-        await context.Laboratories.Where(l => l.Id == id).ExecuteDeleteAsync(ct);
-
-    /// <summary>A specimen with its patient, pathway (and its stages, for the stage's name and the audit), type and lab.</summary>
     private static IQueryable<Specimen> WithDetails(IQueryable<Specimen> specimens) =>
         specimens
             .Include(s => s.Patient)
-            .Include(s => s.Pathway).ThenInclude(p => p.Stages)
+            .Include(s => s.Pathway!).ThenInclude(p => p.Stages)
             .Include(s => s.SpecimenType)
-            .Include(s => s.Laboratory);
+            .Include(s => s.LabTest!).ThenInclude(t => t.Steps)
+            .Include(s => s.RequestingTeam)
+            .Include(s => s.LabCase!).ThenInclude(c => c.LabTest)
+            .AsSplitQuery();
 }

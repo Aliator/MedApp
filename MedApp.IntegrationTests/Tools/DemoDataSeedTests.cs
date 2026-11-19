@@ -792,7 +792,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         var closed = (await Query(db => db.PatientPathways.AsNoTracking()
             .Where(p => p.Status == PatientPathwayStatus.Completed || p.Status == PatientPathwayStatus.Archived)
             .Select(p => p.Id).ToListAsync())).ToHashSet();
-        specimens.Where(s => SpecimenWorkflow.IsOpen(s.Status) && closed.Contains(s.PathwayId)).Should().BeEmpty();
+        specimens.Where(s => SpecimenWorkflow.IsOpen(s.Status) && s.PathwayId is { } p && closed.Contains(p)).Should().BeEmpty();
         results.Where(r => r.IsAwaitingSignOff && r.PathwayId is { } id && closed.Contains(id)).Should().BeEmpty();
 
         var gated = await Query(db => db.PatientPathwayStages.AsNoTracking()

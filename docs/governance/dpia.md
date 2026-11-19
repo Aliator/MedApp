@@ -595,12 +595,12 @@ Risks 41 to 48 come from the design of the multi-clinic centre (`docs/multi-clin
 
 ### Risk 29: specimens and lab reports
 
-Built in PR 13 (branch `feature/specimens`). The external lab is a new recipient, outside MedApp: the specimen and its printed pages go to it by hand or courier, and its report comes back as a file.
+Built in PR 13 (branch `feature/specimens`). **Since MC13 to MC16 (the backend catch-up), the lab is the centre's own lab team in MedApp, not an external recipient:** the external labs list was dropped (the audit log keeps the names written before), samples go to the lab team, which works each in a **lab case** (its steps, outcomes and the results it enters, free text) and authorises the report; the team walls let the lab see every sample and case and a clinic only its own. Lab cases are in the export, anonymised like specimens (refused while one is open), audited without free text (IDs, names, outcomes), and their reads recorded (`LabCaseViewed`). Hospitals as recipients come with MC18 and MC20.
 
 | Measure | Status | Where |
 |---|---|---|
 | **The label and request sheet hold only what the lab needs:** the label has the specimen number (as text and as a QR code), the patient's name, date of birth and NHS number, the type and when it was taken; the request sheet adds the site, the request notes, the requesting clinician and the lab. **The QR code holds the specimen number only,** never patient details (decision 87) | In place | `/specimens/{id}/print` (`SpecimenPrintPage`); the QR code drawn on the server by `IQrCodeRenderer` |
-| **The lab is chosen from the organisation's own list,** and shown on the specimen's page and request sheet, so the wrong lab is visible before the specimen goes; an archived lab can't be chosen for a new specimen | In place | `SpecimenChoices`; `Laboratory` |
+| **The lab is the centre's own team** (MC13 dropped the external labs list); the test asked for comes from the lab's catalogue, optional and never chosen for the clinician | In place | `SpecimenChoices`; `LabTest` |
 | **The specimen number stays out of URLs** (and so out of request logs and traces): finding one by its number, typed or scanned, sends it in the request's body | In place | `POST api/specimens/find` |
 | **The history holds no free text:** the audit entries store the specimen's ID and number, its type and lab, the statuses, the rejection reason by name, the times and an edit's field names, **never** the site, request notes, references or any detail, so correction and anonymisation work in one place | In place | `SpecimenChange` |
 | **Staff never get a specimen's free text on the patient timeline:** they see the action, who, when, the number, type, lab and statuses; admins also see the site, request notes, rejection reason and closing detail, read from the specimen. A canary test covers every specimen action | In place | `TimelineMapper`, `TimelineStaffCanaryTests` |

@@ -135,7 +135,6 @@ public sealed class SpecimenRecordTests
         {
             Number,
             SpecimenTypeName = BiopsyName,
-            LaboratoryName = InHouseLabName,
             Site = specimen.Site,
             RequestNotes = specimen.RequestNotes,
             RequestedBy = Staff.Username,

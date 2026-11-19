@@ -7,6 +7,8 @@ using MedApp.Application.Specimens.Common;
 using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Specimens.Responses;
 using MedApp.Domain.Specimens;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Teams.Repositories;
 using MediatR;
 
 namespace MedApp.Application.Specimens.Commands.MarkSpecimenLost;
@@ -35,6 +37,8 @@ public sealed class MarkSpecimenLostHandler(
     INotificationSender notifications,
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<MarkSpecimenLostCommand, SpecimenResponse>
 {
@@ -43,7 +47,8 @@ public sealed class MarkSpecimenLostHandler(
         if (!SpecimenWorkflow.MayMarkLost(request.Actor))
             throw new ForbiddenException(SpecimenWorkflow.LostNotAllowedMessage);
 
-        var specimen = await repository.GetForUpdateOrThrowAsync(request.SpecimenId, cancellationToken);
+        var specimen = await repository.GetVisibleForUpdateOrThrowAsync(
+            request.SpecimenId, boundary, teams, request.Actor.Teams, cancellationToken);
         if (SpecimenWorkflow.WhyCantMoveTo(specimen, SpecimenStatus.Lost) is { } why)
             throw new ConflictException(why);
         SpecimenWorkflow.EnsureVersion(specimen, request.ExpectedVersion);

@@ -21,33 +21,37 @@ public static class SpecimenApi
     public const string Site = "Synthetic site: left forearm";
     public const string RequestNotes = "Synthetic request notes for the lab.";
 
-    /// <summary>A specimen type (14 days) and a lab, made by an admin (ManageSetup).</summary>
-    public static async Task<(SpecimenTypeResponse Type, LaboratoryResponse Lab)> CreateSetupAsync(HttpClient admin)
+    /// <summary>A specimen type (14 days) and a lab test (MC13), made by an admin (ManageSetup).</summary>
+    public static async Task<(SpecimenTypeResponse Type, MedApp.Contracts.Lab.Responses.LabTestResponse Test)> CreateSetupAsync(HttpClient admin)
     {
         var type = await (await admin.PostAsJsonAsync("/api/specimen-types",
                 new SpecimenTypeRequest { Name = $"{BiopsyTypeName} {Guid.NewGuid():N}"[..30], ExpectedTurnaroundDays = 14 }))
             .ReadAsAsync<SpecimenTypeResponse>(HttpStatusCode.Created);
-        var lab = await (await admin.PostAsJsonAsync("/api/laboratories",
-                new LaboratoryRequest { Name = $"{LabName} {Guid.NewGuid():N}"[..30], UsesMedApp = true }))
-            .ReadAsAsync<LaboratoryResponse>(HttpStatusCode.Created);
-        return (type, lab);
+        var test = await (await admin.PostAsJsonAsync("/api/lab-tests",
+                new MedApp.Contracts.Lab.Requests.LabTestRequest
+                {
+                    Name = $"{LabName} {Guid.NewGuid():N}"[..30], Kind = "Histology", TargetDays = 7, LimitDays = 10, AtRiskDays = 2,
+                    Steps = [new MedApp.Contracts.Lab.Requests.LabTestStepRequest { Name = "Synthetic step", Kind = "Standard" }],
+                }))
+            .ReadAsAsync<MedApp.Contracts.Lab.Responses.LabTestResponse>(HttpStatusCode.Created);
+        return (type, test);
     }
 
     public static Task<HttpResponseMessage> PostRecordAsync(
-        HttpClient client, PatientPathwayResponse pathway, Guid typeId, Guid labId, Guid requestingUserId, int stage = 0) =>
+        HttpClient client, PatientPathwayResponse pathway, Guid typeId, Guid? labTestId, Guid requestingUserId, int stage = 0) =>
         client.PostAsJsonAsync($"/api/pathways/{pathway.Id}/specimens", new RecordSpecimenRequest
         {
             StageId = pathway.Stages[stage].Id,
             SpecimenTypeId = typeId,
-            LaboratoryId = labId,
+            LabTestId = labTestId,
             RequestingUserId = requestingUserId,
             Site = Site,
             RequestNotes = RequestNotes,
         });
 
     public static async Task<SpecimenResponse> RecordAsync(
-        HttpClient client, PatientPathwayResponse pathway, Guid typeId, Guid labId, Guid requestingUserId) =>
-        await (await PostRecordAsync(client, pathway, typeId, labId, requestingUserId)).ReadAsAsync<SpecimenResponse>(HttpStatusCode.Created);
+        HttpClient client, PatientPathwayResponse pathway, Guid typeId, Guid? labTestId, Guid requestingUserId) =>
+        await (await PostRecordAsync(client, pathway, typeId, labTestId, requestingUserId)).ReadAsAsync<SpecimenResponse>(HttpStatusCode.Created);
 
     public static Task<HttpResponseMessage> StepAsync(HttpClient client, SpecimenResponse specimen, string step, object? body = null) =>
         client.PostAsJsonAsync($"/api/specimens/{specimen.Id}/{step}", body ?? new SpecimenStepRequest { ExpectedVersion = specimen.Version });
@@ -79,7 +83,7 @@ public sealed class SpecimenTests : IntegrationTest
     private StaffAccount _clinician = null!;
     private StaffAccount _lab = null!;
     private SpecimenTypeResponse _type = null!;
-    private LaboratoryResponse _laboratory = null!;
+    private MedApp.Contracts.Lab.Responses.LabTestResponse _laboratory = null!;
 
     [SetUp]
     public async Task SetUpAsync()
@@ -183,12 +187,12 @@ public sealed class SpecimenTests : IntegrationTest
         var pathway = await CreatePatientWithPathwayAsync(_admin);
         var overdue = await (await _nurse.Client.PostAsJsonAsync($"/api/pathways/{pathway.Id}/specimens", new RecordSpecimenRequest
         {
-            StageId = pathway.Stages[0].Id, SpecimenTypeId = quick.Id, LaboratoryId = _laboratory.Id,
+            StageId = pathway.Stages[0].Id, SpecimenTypeId = quick.Id, LabTestId = _laboratory.Id,
             RequestingUserId = _clinician.UserId, TakenAtUtc = Now.AddDays(-2),
         })).ReadAsAsync<SpecimenResponse>(HttpStatusCode.Created);
 
         async Task<IReadOnlyList<SpecimenSummaryResponse>> View(string view) =>
-            (await (await _lab.Client.GetAsync($"/api/specimens/search?view={view}&laboratoryId={_laboratory.Id}&pageSize=100"))
+            (await (await _lab.Client.GetAsync($"/api/specimens/search?view={view}&pageSize=100"))
                 .ReadAsAsync<PagedResponse<SpecimenSummaryResponse>>()).Items;
 
         (await View("ToSend")).Select(s => s.Id).Should().Equal(overdue.Id, toSend.Id);

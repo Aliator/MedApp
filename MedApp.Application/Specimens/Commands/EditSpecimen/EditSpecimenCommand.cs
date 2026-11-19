@@ -8,7 +8,7 @@ namespace MedApp.Application.Specimens.Commands.EditSpecimen;
 public sealed record EditSpecimenCommand(
     Guid SpecimenId,
     Guid SpecimenTypeId,
-    Guid LaboratoryId,
+    Guid? LabTestId,
     DateTime TakenAtUtc,
     string? Site,
     string? RequestNotes,

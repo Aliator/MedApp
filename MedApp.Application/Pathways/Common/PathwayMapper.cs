@@ -193,10 +193,10 @@ public static class PathwayMapper
                             EnteredByUsername = Username(usernames, s.ResultEnteredByUserId),
                             EnteredAtUtc = s.ResultEnteredAtUtc
                         },
-                    // The lab case fields come with the lab's cases (MC15, MC16): none yet.
-                    LabCaseId = null,
-                    LabCaseNumber = null,
-                    LabCaseStatus = null,
+                    // A lab stage's case (MC16), for its page to link to: its open one, else its latest.
+                    LabCaseId = LabCaseOf(s)?.Id,
+                    LabCaseNumber = LabCaseOf(s)?.Number,
+                    LabCaseStatus = LabCaseOf(s)?.Status.ToString(),
                     PredecessorIds = PathwayGraph.Predecessors(pathway, s).Select(x => x.Id).ToList(),
                     BranchAdditionId = s.BranchAdditionId,
                     Notes = s.Notes,
@@ -273,6 +273,10 @@ public static class PathwayMapper
     }
 
     /// <summary>A stage handed over and waiting for its team to pick it up (MC7).</summary>
+    /// <summary>A lab stage's case (MC16): its open one, else its latest not entered in error; none for a clinic's stage.</summary>
+    public static Domain.Lab.LabCase? LabCaseOf(PatientPathwayStage stage) =>
+        stage.OwnerTeam?.Kind == Domain.Teams.TeamKind.Lab ? Lab.Common.LabStages.CaseOf(stage) : null;
+
     public static bool AwaitsPickUp(PatientPathwayStage stage) =>
         stage.HandedOverFromTeamId is not null && stage.PickedUpAtUtc is null;
 

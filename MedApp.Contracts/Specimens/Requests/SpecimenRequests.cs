@@ -8,7 +8,9 @@ public sealed class RecordSpecimenRequest
 
     public Guid SpecimenTypeId { get; set; }
 
-    public Guid LaboratoryId { get; set; }
+    /// <summary>The test asked for, from the lab's catalogue (MC13): optional, never chosen for the clinician.</summary>
+    public Guid? LabTestId { get; set; }
+
 
     /// <summary>When it was taken: now if left out, or up to 7 days back, never in the future.</summary>
     public DateTime? TakenAtUtc { get; set; }
@@ -28,7 +30,9 @@ public sealed class EditSpecimenRequest
 {
     public Guid SpecimenTypeId { get; set; }
 
-    public Guid LaboratoryId { get; set; }
+    /// <summary>The test asked for, from the lab's catalogue (MC13): optional, never chosen for the clinician.</summary>
+    public Guid? LabTestId { get; set; }
+
 
     /// <summary>When it was taken: up to 7 days back, never in the future.</summary>
     public DateTime TakenAtUtc { get; set; }
@@ -98,7 +102,6 @@ public sealed class SearchSpecimensRequest
     /// </summary>
     public string? View { get; set; }
 
-    public Guid? LaboratoryId { get; set; }
 
     public Guid? PathwayId { get; set; }
 
@@ -118,13 +121,26 @@ public sealed class SpecimenWorklistRequest
     /// <summary>As <see cref="SearchSpecimensRequest.View"/>.</summary>
     public string? View { get; set; }
 
-    public Guid? LaboratoryId { get; set; }
 
     /// <summary>
     /// Text in the specimen's number (spaces ignored), the patient's name or NHS number, or the specimen type's name,
     /// ignoring case. At most 200 characters.
     /// </summary>
     public string? Search { get; set; }
+
+    /// <summary>Where they came from: <c>Clinic</c> or <c>Hospital</c> (MC14).</summary>
+    public string? Source { get; set; }
+
+    /// <summary>The clinic that asked for them.</summary>
+    public Guid? TeamId { get; set; }
+
+    public Guid? LabTestId { get; set; }
+
+    /// <summary>A status, by name.</summary>
+    public string? Status { get; set; }
+
+    /// <summary>Open samples by their due date: <c>Overdue</c>, <c>DueSoon</c> or <c>NotDue</c>.</summary>
+    public string? Due { get; set; }
 
     /// <summary>
     /// <c>number</c>, <c>patient</c>, <c>lab</c>, <c>status</c> or <c>time</c> (the view's time: taken, sent,
@@ -140,15 +156,11 @@ public sealed class SpecimenTypeRequest
 {
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Its SNOMED CT specimen code (MC13), optional: 6 to 18 digits.</summary>
+    public string? SnomedCode { get; set; }
+
     /// <summary>Days from taken to reported the lab is expected to take, 1 to 90.</summary>
     public int ExpectedTurnaroundDays { get; set; }
 }
 
 /// <summary>Adding or changing a lab.</summary>
-public sealed class LaboratoryRequest
-{
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>Whether the lab's own staff use MedApp to receive and report specimens.</summary>
-    public bool UsesMedApp { get; set; }
-}
