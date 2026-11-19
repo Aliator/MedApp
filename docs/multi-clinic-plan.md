@@ -360,7 +360,7 @@ Never renumber; add new values with new numbers. Reserved by the earlier plan an
 
 **New permissions** (stored by name): `ViewAllTeams` (MC3, Administrator-only), `AuthoriseLabReports` (MC15, group Lab; new starting role **Pathologist**; in `NotForAdmin`). Everything else reuses existing permissions: hospital intake, steps and surgery details `ProcessSpecimens`; consults and adding branches `WorkPathways`; lab tests and hospitals `ManageSetup`; memberships `ManageUsers`.
 
-**Migrations, in order:** `RenamedSpecialtiesToTeams` (MC2), `AddedTeamKindsAndAccountTypes` (MC3), `AddedTeamBoundaries` (MC4), `AddedStageOwners` (MC7), `AddedStageLinks` (MC8), `AddedAddableBranches` (MC10), `AddedLabTestsAndDroppedLaboratories` (MC13), `ReworkedSpecimensIntoSamples` (MC14), `AddedLabCases` (MC15), `AddedHospitalRequests` (MC18), `AddedLabClocks` (MC19), `AddedSurgeryDetails` (MC20), `AddedConsults` (MC25), `AddedClinicalPhotoFlag` (MC27)., `AddedMdtPresenters` (MC21).
+**Migrations:** built demo first, so the backend made them as **one combined migration, `AddedMultiClinicCentre`** (19 Nov 2026; its data steps are in its summary and `MultiClinicCentreMigrationTests`). Planned, in order: `RenamedSpecialtiesToTeams` (MC2), `AddedTeamKindsAndAccountTypes` (MC3), `AddedTeamBoundaries` (MC4), `AddedStageOwners` (MC7), `AddedStageLinks` (MC8), `AddedAddableBranches` (MC10), `AddedLabTestsAndDroppedLaboratories` (MC13), `ReworkedSpecimensIntoSamples` (MC14), `AddedLabCases` (MC15), `AddedHospitalRequests` (MC18), `AddedLabClocks` (MC19), `AddedSurgeryDetails` (MC20), `AddedConsults` (MC25), `AddedClinicalPhotoFlag` (MC27)., `AddedMdtPresenters` (MC21).
 
 ## 8. Safety, governance and the device position
 

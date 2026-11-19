@@ -98,8 +98,8 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 The web and light demo were reworded (PRs #261 to #265); the API's own texts follow at the backend catch-up:
 - **No "discharge" in visible text** (the owner): `Permissions.cs` WorkPathways (then `permissions.ts`), `LetterKinds.cs` and `LetterWorkflow.cs` ("End of care letter"), `DataRequests/Common/Words.cs`, `MdtRules.cs`, `MonitoringNotifications.cs`, `PathwayWorkflow.cs`, `ChangePatientPathwayStatusHandler.cs`, `AnonymisePatientHandler.cs`.
 - **Admins are read-only:** "After that, ask an admin" becomes "ask someone who can correct records" (`ConsentWorkflow.cs`, `ResultWorkflow.cs`, `SpecimenWorkflow.cs`).
-- **Permission descriptions:** `ManageSetup` lists every setup list; `ViewInsights` "See Insights."; "samples", not "specimens"; the 403 text (`ApiAuthorizationResultHandler.cs`) in plain words.
-- **The role "All staff (before roles)"** (`AppRoles.cs`, `StandardRoles.cs`): rename or retire it.
+- **Permission descriptions:** `ManageSetup` lists every setup list; "samples", not "specimens"; the 403 text (`ApiAuthorizationResultHandler.cs`) in plain words. (`ViewInsights` "See Insights." is done.)
+- ~~**The role "All staff (before roles)"**: rename or retire it.~~ Done: `AddedMultiClinicCentre` archives it (its holders keep its permissions; nobody new is given it).
 - **Consults are "sent"**, not "asked".
 - **Priorities:** whether High, Medium and Low become NHS terms (Urgent suspected cancer, Urgent, Routine) is the owner's call.
 - **Names, not usernames,** across lists and labels (needs the API to send display names).
