@@ -64,6 +64,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/mdt/meetings/{meetingId:guid}/items"] = Records("PatientListed"), // each patient on the MDT's list
         ["api/mdt/awaiting-meeting"] = Records("PatientListed"), // each patient whose MDT was cancelled
         ["api/mdt/pathways/{pathwayId:guid}/items"] = Records("PathwayViewed"),
+        ["api/consults/pathways/{pathwayId:guid}"] = Records("PathwayViewed"), // a pathway's consults, with their questions and replies
+        ["api/consults/incoming"] = Records("PatientListed"), // each patient with an open consult asked of the viewer's teams
         ["api/clinics/sessions/{id:guid}"] = Records("PatientListed"), // each patient booked into one of its slots
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/letters/count"] = Nothing("counts for the side nav: names no patients"),

@@ -32,7 +32,13 @@ public enum LetterRecipientKind
     Referrer = 2,
 
     /// <summary>Anyone else, with a name and address typed by the author.</summary>
-    Other = 3
+    Other = 3,
+
+    /// <summary>
+    /// A hospital (MC20, MC28: an onward referral, a lab report), with its name and address typed by the author as for
+    /// <see cref="Other"/>.
+    /// </summary>
+    Hospital = 4
 }
 
 /// <summary>Whether a letter has reached one recipient. Stored by number, so never renumber it.</summary>

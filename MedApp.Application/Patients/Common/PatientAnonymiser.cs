@@ -42,6 +42,8 @@ namespace MedApp.Application.Patients.Common;
 /// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
 /// <item>Data requests' requester names and relationships, identity check details, extension and refusal reasons, and
 /// the reasons items were withheld, become <see cref="RemovedText"/>; their dates, statuses and methods stay.</item>
+/// <item>Consults' questions and replies become <see cref="RemovedText"/>; open ones are closed (or withdrawn, without a
+/// reply), ending the asked teams' reading.</item>
 /// <item>Consent records' withdrawal and correction details become <see cref="RemovedText"/>; their scans are deleted
 /// with every other live file.</item>
 /// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
@@ -264,6 +266,27 @@ public static class PatientAnonymiser
                 item.Version++;
             }
         }
+        // Consults (MC25): the question and the reply are free text. Open ones end, as the record can't change any more
+        // (by whoever anonymises, without an audit entry of their own), and so does the asked teams' reading.
+        foreach (var consult in record.Consults)
+        {
+            consult.Question = Removed(consult.Question);
+            if (consult.Reply is not null)
+                consult.Reply = Removed(consult.Reply);
+            if (consult.IsOpen)
+            {
+                consult.Status = consult.Status == Domain.Consults.ConsultStatus.Replied
+                    ? Domain.Consults.ConsultStatus.Closed
+                    : Domain.Consults.ConsultStatus.Withdrawn;
+                consult.ClosedAtUtc = nowUtc;
+                consult.ClosedByUserId = by?.UserId;
+                consult.ClosedByUsername = by?.Username;
+                consult.Version++;
+            }
+        }
+        foreach (var grant in record.ConsultGrants.Where(g => g.EndedAtUtc is null))
+            grant.EndedAtUtc = nowUtc;
+
         // Consent records keep their forms, dates, who signed (by kind) and statuses; a withdrawal's or correction's
         // detail goes. Their scans are files, deleted below with the rest.
         foreach (var consent in record.ConsentRecords.Where(c => c.StatusDetail is not null))

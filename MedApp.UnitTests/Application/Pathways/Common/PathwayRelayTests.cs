@@ -271,4 +271,24 @@ public sealed class PathwayRelayTests
         pathway.Status.Should().Be(Status.InProgress);
         change.AuditEntries.Should().Contain(e => e.Action == PatientPathwayAuditAction.StageUnlocked && e.Details.Contains("repeatSample"));
     }
+
+    [Test]
+    public void ToResponse_ForATeamAskedAConsult_SaysWhereToReply()
+    {
+        var pathway = Relay();
+        var other = Guid.NewGuid();
+
+        var asked = PathwayMapper.ToResponse(
+            pathway, Usernames, Now, viewerPermissions: Works, viewerScope: ScopeOf(other), teamName: "Dermatology",
+            viewerAccess: TeamAccessKind.Consult);
+        var reading = PathwayMapper.ToResponse(
+            pathway, Usernames, Now, viewerPermissions: Works, viewerScope: ScopeOf(other), teamName: "Dermatology",
+            viewerAccess: TeamAccessKind.StageOwner);
+
+        asked.ReadOnlyReason.Should().Be(TeamWalls.ConsultReadOnly("Dermatology"))
+            .And.Be("Your team was asked a consult by Dermatology: you can read this pathway until they close it, and reply in Consults.");
+        asked.CanAddNotes.Should().BeFalse();
+        asked.CanEditDetails.Should().BeFalse();
+        reading.ReadOnlyReason.Should().Be(TeamWalls.NotYourTeams("Dermatology"));
+    }
 }

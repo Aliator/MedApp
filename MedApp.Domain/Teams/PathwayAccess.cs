@@ -50,4 +50,15 @@ public sealed class PathwayAccess
         Reason = PathwayAccessReason.StageOwner,
         StartedAtUtc = nowUtc,
     };
+
+    /// <summary>A consulted team's grant (MC25): read only, ended when the consult closes or is withdrawn.</summary>
+    public static PathwayAccess Consult(Guid pathwayId, Guid patientId, Guid teamId, DateTime nowUtc) => new()
+    {
+        Id = Guid.NewGuid(),
+        PathwayId = pathwayId,
+        PatientId = patientId,
+        TeamId = teamId,
+        Reason = PathwayAccessReason.Consult,
+        StartedAtUtc = nowUtc,
+    };
 }

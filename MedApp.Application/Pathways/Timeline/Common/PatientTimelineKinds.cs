@@ -54,6 +54,7 @@ public static class PatientTimelineKinds
         >= ResultRecorded and <= ResultEnteredInError => PatientTimelineKind.Results,
         MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn => PatientTimelineKind.Mdt,
         ConsentRecorded or ConsentWithdrawn or ConsentEnteredInError => PatientTimelineKind.Consent,
+        ConsultRequested or ConsultReplied or ConsultClosed or ConsultWithdrawn => PatientTimelineKind.Consults,
         _ => PatientTimelineKind.Details
     };
 
@@ -80,6 +81,7 @@ public static class PatientTimelineKinds
         var results = kinds.Contains(PatientTimelineKind.Results);
         var mdt = kinds.Contains(PatientTimelineKind.Mdt);
         var consent = kinds.Contains(PatientTimelineKind.Consent);
+        var consults = kinds.Contains(PatientTimelineKind.Consults);
 
         return entries.Where(e =>
             (created && e.Action == Created)
@@ -100,7 +102,8 @@ public static class PatientTimelineKinds
             || (specimens && e.Action >= SpecimenTaken && e.Action <= SpecimenDetailsEdited)
             || (results && e.Action >= ResultRecorded && e.Action <= ResultEnteredInError)
             || (mdt && (e.Action == MdtListed || e.Action == MdtOutcomeRecorded || e.Action == MdtDeferred || e.Action == MdtWithdrawn))
-            || (consent && e.Action >= ConsentRecorded && e.Action <= ConsentEnteredInError));
+            || (consent && e.Action >= ConsentRecorded && e.Action <= ConsentEnteredInError)
+            || (consults && (e.Action == ConsultRequested || e.Action == ConsultReplied || e.Action == ConsultClosed || e.Action == ConsultWithdrawn)));
     }
 
     /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>

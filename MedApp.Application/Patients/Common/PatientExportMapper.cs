@@ -282,7 +282,8 @@ public static class PatientExportMapper
                     UploadedBy = a.UploadedByUsername,
                     UploadedAtUtc = a.UploadedAtUtc,
                     DeletedAtUtc = a.DeletedAtUtc,
-                    DeletedBy = a.DeletedByUsername
+                    DeletedBy = a.DeletedByUsername,
+                    IsClinicalPhoto = a.IsClinicalPhoto
                 })
                 .ToList(),
             // Everything the referrer sent and what was decided; staff by the usernames recorded at the time.

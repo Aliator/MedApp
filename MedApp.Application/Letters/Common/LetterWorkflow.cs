@@ -158,7 +158,7 @@ public static class LetterWorkflow
             ? Practices.Common.PracticeRules.SecureEmailDomainMessage(allowedDomains)
         : null;
 
-    /// <summary>"Discharge summary", for messages: the kind in words, starting lower case.</summary>
+    /// <summary>"End of care letter", for messages: the kind in words, starting lower case.</summary>
     public static string KindInMessage(LetterKind kind)
     {
         var words = LetterKinds.Describe(kind);

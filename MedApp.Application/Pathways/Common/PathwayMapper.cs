@@ -48,12 +48,13 @@ public static class PathwayMapper
         IReadOnlySet<Permission>? viewerPermissions = null,
         TeamScope? viewerScope = null,
         string? teamName = null,
-        IReadOnlyDictionary<Guid, string>? teamNames = null)
+        IReadOnlyDictionary<Guid, string>? teamNames = null,
+        TeamAccessKind? viewerAccess = null)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(pathway), ct);
         return ToResponse(
             pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerPermissions: viewerPermissions,
-            viewerScope: viewerScope, teamName: teamName, teamNames: teamNames);
+            viewerScope: viewerScope, teamName: teamName, teamNames: teamNames, viewerAccess: viewerAccess);
     }
 
     /// <summary>
@@ -79,6 +80,10 @@ public static class PathwayMapper
     /// adds notes too, though the pathway stays its own team's; the pathway's own team reads a stage another team has
     /// (<c>IsWithAnotherTeam</c>). Teams are named from <paramref name="teamNames"/> or those loaded with the pathway.
     /// </para>
+    /// <para>
+    /// <paramref name="viewerAccess"/> is why the viewer sees it (<see cref="ITeamBoundary.GetPathwayAccessAsync"/>): one
+    /// reading it only through a consult asked of their team gets the consult's <c>ReadOnlyReason</c>.
+    /// </para>
     /// </summary>
     public static PatientPathwayResponse ToResponse(
         PatientPathway pathway,
@@ -90,7 +95,8 @@ public static class PathwayMapper
         IReadOnlySet<Permission>? viewerPermissions = null,
         TeamScope? viewerScope = null,
         string? teamName = null,
-        IReadOnlyDictionary<Guid, string>? teamNames = null)
+        IReadOnlyDictionary<Guid, string>? teamNames = null,
+        TeamAccessKind? viewerAccess = null)
     {
         // The patient comes with the pathway when it was loaded with them, or separately for one just created.
         patient ??= pathway.Patient;
@@ -106,7 +112,10 @@ public static class PathwayMapper
         bool WorksStage(PatientPathwayStage s) => viewerScope is null || TeamAccess.CanWorkStage(pathway, s, viewerScope);
         string? NameOf(Guid? id) => TeamName(pathway, id, teamNames);
         if (readOnlyReason is null && !mine && !worksCurrent && viewerScope is { SeesAllTeams: false })
-            readOnlyReason = TeamWalls.NotYourTeams(teamName ?? NameOf(pathway.TeamId));
+            // A team that reads it only through a consult asked of it (MC25) is told so, and where to reply.
+            readOnlyReason = viewerAccess == TeamAccessKind.Consult
+                ? TeamWalls.ConsultReadOnly(teamName ?? NameOf(pathway.TeamId))
+                : TeamWalls.NotYourTeams(teamName ?? NameOf(pathway.TeamId));
         // A restricted record's pathways can still be paused: blocked or cancelled, with a reason.
         var canPause = !PatientRules.IsAnonymised(pathway.Patient);
         var canWork = Allows(viewerPermissions, Permission.WorkPathways) && mine;

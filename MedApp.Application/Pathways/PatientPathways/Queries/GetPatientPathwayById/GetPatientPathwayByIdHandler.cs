@@ -43,7 +43,7 @@ public sealed class GetPatientPathwayByIdHandler(
             : (await teams.GetAsync(pathway.TeamId, cancellationToken))?.Name;
         var response = await PathwayMapper.ToResponseAsync(
             pathway, identityReadService, now, cancellationToken, viewerId: request.ViewerId,
-            viewerPermissions: request.ViewerPermissions, viewerScope: request.Teams, teamName: teamName);
+            viewerPermissions: request.ViewerPermissions, viewerScope: request.Teams, teamName: teamName, viewerAccess: access);
 
         // The referral it was accepted from, if any, for a link back to it and its waiting-time clock.
         if (await referralRepository.GetForPathwayAsync(pathway.Id, cancellationToken) is { } referral)
