@@ -118,14 +118,16 @@ public sealed class TeamTests : IntegrationTest
         template.TeamId.Should().Be(dermatology.Id);
         template.TeamName.Should().Be(dermatology.Name);
         var patient = await CreatePatientAsync(_admin);
+        // Staff in both teams create the pathways (a template is its team's).
+        var clinic = await CreateClinicStaffAsync(dermatology.Id, urology.Id);
 
-        var before = await CreatePathwayAsync(_admin, patient.Id, template.Id);
+        var before = await CreatePathwayAsync(clinic.Client, patient.Id, template.Id);
         before.TeamId.Should().Be(dermatology.Id);
 
         var moved = await (await _admin.PatchAsJsonAsync($"{Templates}/{template.Id}", new UpdatePathwayTemplateRequest { TeamId = urology.Id }))
             .ReadAsAsync<PathwayTemplateResponse>();
         moved.TeamName.Should().Be(urology.Name);
-        var after = await CreatePathwayAsync(_admin, patient.Id, template.Id);
+        var after = await CreatePathwayAsync(clinic.Client, patient.Id, template.Id);
 
         (await (await _admin.GetAsync($"/api/pathways/patient-pathways/{before.Id}")).ReadAsAsync<PatientPathwayResponse>())
             .TeamId.Should().Be(dermatology.Id);
@@ -172,7 +174,7 @@ public sealed class TeamTests : IntegrationTest
     {
         var dermatology = await CreateTeamAsync();
         var urology = await CreateTeamAsync();
-        var staff = await CreateStaffAsync(UserRole);
+        var staff = await CreateStaffInAsync([], UserRole);
 
         var set = await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams",
                 new SetUserTeamsRequest([new(urology.Id, null), new(dermatology.Id, null)])))

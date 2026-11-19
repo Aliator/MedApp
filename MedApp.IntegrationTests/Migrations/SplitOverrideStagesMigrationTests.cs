@@ -65,12 +65,16 @@ public sealed class SplitOverrideStagesMigrationTests
         await MigrateAsync(Migration);
 
         var roles = await _context.Roles.AsNoTracking().Select(r => new { r.Id, r.Name, r.Description, r.IsBuiltIn, r.IsArchived }).ToListAsync();
-        roles.Select(r => r.Id).Should().BeEquivalentTo(StandardRoles.All.Select(r => r.Id));
+        roles.Select(r => r.Id).Should().BeEquivalentTo(LaterMigrationPermissions.AllAsAt(Migration).Select(r => r.Id));
+        // Its description as this migration wrote it (AddedMultiClinicCentre reworded it).
         roles.Single(r => r.Id == StandardRoles.SeniorClinician.Id).Should().BeEquivalentTo(new
         {
-            StandardRoles.SeniorClinician.Name, StandardRoles.SeniorClinician.Description, IsBuiltIn = false, IsArchived = false,
+            StandardRoles.SeniorClinician.Name,
+            Description = "Senior clinicians: as Clinician, and they unlock stages and finish one without its visit.",
+            IsBuiltIn = false,
+            IsArchived = false,
         });
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(Migration))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, Migration), role.Name);
     }
 

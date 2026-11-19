@@ -261,9 +261,9 @@ public sealed class MeetingTests : IntegrationTest
             (UkAt(_day, 13), UkAt(_day, 15)),
             (UkAt(_day, 16), UkAt(_day, 18)));
 
-        // With nobody named, it's everyone with a staff role, the admin included.
+        // With nobody named, it's the team's members (General's: the admin is in no team).
         var everyone = await (await _admin.GetAsync($"/api/calendar/team?date={_day:yyyy-MM-dd}")).ReadAsAsync<TeamCalendarResponse>();
-        everyone.Members.Select(m => m.StaffUsername).Should().Contain([AdminUsername, _staff.Username, _other.Username]);
+        everyone.Members.Select(m => m.StaffUsername).Should().Contain([_staff.Username, _other.Username]).And.NotContain(AdminUsername);
     }
 
     [Test]

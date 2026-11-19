@@ -13,6 +13,7 @@ public sealed class GetClinicSessionByIdHandler(
     IClinicRepository repository,
     IIdentityReadService identityReadService,
     IActivityLog activityLog,
+    MedApp.Application.Common.Teams.ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<GetClinicSessionByIdQuery, ClinicSessionDetailResponse>
 {
@@ -22,8 +23,19 @@ public sealed class GetClinicSessionByIdHandler(
                       ?? throw new NotFoundException($"Clinic session '{request.SessionId}' was not found.");
         var appointments = await repository.GetSessionAppointmentsAsync(session.Id, cancellationToken);
 
+        // Another team's appointments are only busy slots (the team walls, MC5): those of the viewer's teams, or on a
+        // pathway they see, are named.
+        var scope = request.Actor.Teams;
+        var visiblePathways = await boundary.VisiblePathwaysAsync(
+            appointments.Select(a => a.PathwayId).OfType<Guid>().Distinct(), scope, cancellationToken);
+        var hidden = appointments
+            .Where(a => !scope.SeesAllTeams && !scope.IsMember(a.TeamId) && !(a.PathwayId is { } p && visiblePathways.Contains(p)))
+            .Select(a => a.Id)
+            .ToHashSet();
+
         // Its slots name the patients booked into them: a read of their records (it fails closed).
-        await activityLog.RecordViewsAsync(ActivityAction.PatientListed, appointments.Select(a => a.PatientId), cancellationToken);
+        await activityLog.RecordViewsAsync(
+            ActivityAction.PatientListed, appointments.Where(a => !hidden.Contains(a.Id)).Select(a => a.PatientId), cancellationToken);
 
         var usernames = await identityReadService.GetUsernamesByIdAsync([session.StaffUserId], cancellationToken);
         return ClinicMapper.ToDetailResponse(
@@ -31,6 +43,7 @@ public sealed class GetClinicSessionByIdHandler(
             usernames.GetValueOrDefault(session.StaffUserId) ?? string.Empty,
             appointments,
             timeProvider.GetUtcNow().UtcDateTime,
-            request.Actor.CanManageClinics);
+            request.Actor.CanManageClinics,
+            hidden);
     }
 }

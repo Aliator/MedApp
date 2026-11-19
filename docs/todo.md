@@ -98,11 +98,17 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 The web and light demo were reworded (PRs #261 to #265); the API's own texts follow at the backend catch-up:
 - **No "discharge" in visible text** (the owner): `Permissions.cs` WorkPathways (then `permissions.ts`), `LetterKinds.cs` and `LetterWorkflow.cs` ("End of care letter"), `DataRequests/Common/Words.cs`, `MdtRules.cs`, `MonitoringNotifications.cs`, `PathwayWorkflow.cs`, `ChangePatientPathwayStatusHandler.cs`, `AnonymisePatientHandler.cs`.
 - **Admins are read-only:** "After that, ask an admin" becomes "ask someone who can correct records" (`ConsentWorkflow.cs`, `ResultWorkflow.cs`, `SpecimenWorkflow.cs`).
-- **Permission descriptions:** `ManageSetup` lists every setup list; `ViewInsights` "See Insights."; "samples", not "specimens"; the 403 text (`ApiAuthorizationResultHandler.cs`) in plain words.
-- **The role "All staff (before roles)"** (`AppRoles.cs`, `StandardRoles.cs`): rename or retire it.
+- **Permission descriptions:** `ManageSetup` lists every setup list; "samples", not "specimens"; the 403 text (`ApiAuthorizationResultHandler.cs`) in plain words. (`ViewInsights` "See Insights." is done.)
+- ~~**The role "All staff (before roles)"**: rename or retire it.~~ Done: `AddedMultiClinicCentre` archives it (its holders keep its permissions; nobody new is given it).
 - **Consults are "sent"**, not "asked".
 - **Priorities:** whether High, Medium and Low become NHS terms (Urgent suspected cancer, Urgent, Routine) is the owner's call.
 - **Names, not usernames,** across lists and labels (needs the API to send display names).
+
+## After the backend catch-up (combined migration, 19 November 2026)
+
+- **Corrections nobody can make:** `CorrectRecords` is Administrator-only, but admins are read only and in no team, so nobody can now delete someone else's file, withdraw a visit recorded after the event once its 30 days are up, or mark consent entered in error after the recorder's 24 hours (the team walls give an admin a 409; the endpoints need `AttachFiles` or `BookAppointments`). Decide who corrects records (a staff permission, or an admin exception to the walls) and match the light demo.
+- **Old branch points:** `AddedMultiClinicCentre` turns a branch point still to be chosen into a choice node only on an open pathway with nothing after it yet (it's grown from a plan); a closed pathway's, or one with work after it, became a plain stage, and its branches run in order.
+- **The contract:** the API's generated `schema.d.ts` matches the hand-edited one in substance (checked at the catch-up), but for a stage's `result` (the generator can't mark a reference nullable: `| null` kept by hand) and the export's lab cases, hospital requests and results text (the API exports more than the web reads). The committed file stays hand-edited until a schema filter covers nullable references.
 
 ## Dermatology pathways: gaps
 

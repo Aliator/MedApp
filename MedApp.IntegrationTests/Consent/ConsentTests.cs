@@ -70,7 +70,7 @@ public sealed class ConsentTests : IntegrationTest
         record.Should().BeEquivalentTo(new { Status = "Valid", FormVersion = "3", SignedBy = "Patient", ScanAttachmentId = (Guid?)scan.Id, Version = 1 });
 
         // The scan goes only with the record's own correction.
-        (await _admin.DeleteAsync($"/api/attachments/{scan.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await _nurse.Client.DeleteAsync($"/api/attachments/{scan.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         // A used form is archived, not deleted.
         (await _admin.DeleteAsync($"/api/consent-forms/{form.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -90,7 +90,7 @@ public sealed class ConsentTests : IntegrationTest
     }
 
     [Test]
-    public async Task EnteredInError_ByAnAdmin_DeletesTheScan_AndTheStageWaitsAgain()
+    public async Task EnteredInError_ByWhoeverRecordedIt_DeletesTheScan_AndTheStageWaitsAgain_ButNotByAnAdmin()
     {
         var pathway = await PathwayNeedingConsentAsync();
         var form = await CreateFormAsync();
@@ -100,7 +100,11 @@ public sealed class ConsentTests : IntegrationTest
             StageId = pathway.Stages[0].Id, ConsentFormId = form.Id, SignedOn = UkToday, SignedBy = "BestInterestsDecision", ScanAttachmentId = scan.Id,
         }), HttpStatusCode.Created);
 
-        record = await Ok(_admin.PostAsJsonAsync($"/api/consent-records/{record.Id}/entered-in-error",
+        // An admin reads it but doesn't change a team's records (the team walls: a 409).
+        (await _admin.PostAsJsonAsync($"/api/consent-records/{record.Id}/entered-in-error",
+            new MarkConsentEnteredInErrorRequest { Detail = "Synthetic: wrong patient.", ExpectedVersion = record.Version }))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
+        record = await Ok(_nurse.Client.PostAsJsonAsync($"/api/consent-records/{record.Id}/entered-in-error",
             new MarkConsentEnteredInErrorRequest { Detail = "Synthetic: wrong patient.", ExpectedVersion = record.Version }));
         record.Status.Should().Be("EnteredInError");
 

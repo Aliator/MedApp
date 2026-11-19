@@ -9,6 +9,15 @@ namespace MedApp.Application.Pathways.Common;
 
 public static class PathwayMapper
 {
+    /// <summary>
+    /// The current stages as a pathway shows them: none while it's on hold or closed (as the light demo has it), else
+    /// those being worked (<see cref="PathwayWorkflow.CurrentStages"/>).
+    /// </summary>
+    private static IReadOnlyList<PatientPathwayStage> ShownCurrentStages(PatientPathway pathway) =>
+        pathway.Status == PatientPathwayStatus.Blocked || PathwayWorkflow.IsClosed(pathway.Status)
+            ? []
+            : PathwayWorkflow.CurrentStages(pathway);
+
     /// <summary>Shown in place of a username whose account no longer exists.</summary>
     public const string DeletedUser = "Deleted user";
 
@@ -100,7 +109,7 @@ public static class PathwayMapper
     {
         // The patient comes with the pathway when it was loaded with them, or separately for one just created.
         patient ??= pathway.Patient;
-        var currents = PathwayWorkflow.CurrentStages(pathway);
+        var currents = ShownCurrentStages(pathway);
         var currentIds = currents.Select(s => s.Id).ToHashSet();
         // A restricted or anonymised patient's pathways can't change, so nothing on them is offered.
         var readOnlyReason = PatientRules.WhyCantChange(patient);
@@ -371,7 +380,7 @@ public static class PathwayMapper
         // Every current stage, so a route side by side isn't missed in a list (H-69), and who has them (the relay).
         CurrentStageName = CurrentStageNames(pathway),
         CurrentStageTeamName = CurrentStageTeamNames(pathway),
-        AwaitingPickUp = PathwayWorkflow.CurrentStages(pathway).Any(AwaitsPickUp),
+        AwaitingPickUp = ShownCurrentStages(pathway).Any(AwaitsPickUp),
         Assignees = pathway.Assignments
             .Select(a => Username(usernames, a.UserId))
             .Order(StringComparer.OrdinalIgnoreCase)
@@ -383,10 +392,10 @@ public static class PathwayMapper
     };
 
     private static string? CurrentStageNames(PatientPathway pathway) =>
-        AndList(PathwayWorkflow.CurrentStages(pathway).Select(s => s.Name).ToList()) is { Length: > 0 } names ? names : null;
+        AndList(ShownCurrentStages(pathway).Select(s => s.Name).ToList()) is { Length: > 0 } names ? names : null;
 
     private static string? CurrentStageTeamNames(PatientPathway pathway) =>
-        AndList(PathwayWorkflow.CurrentStages(pathway)
+        AndList(ShownCurrentStages(pathway)
                 .Select(s => TeamName(pathway, PathwayGraph.StageTeam(pathway, s)))
                 .OfType<string>()
                 .Distinct()

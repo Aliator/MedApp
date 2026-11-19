@@ -41,11 +41,11 @@ public sealed class MdtTests : IntegrationTest
         var mdt = await ArrangeMdtAsync(admin, clinician.UserId, start);
         mdt.IsMdt.Should().BeTrue();
 
-        var listed = await (await admin.PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
+        var listed = await (await (await ClinicalAsync(admin)).PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
         {
             PathwayId = pathway.Id, MeetingId = mdt.Id, Question = "Synthetic question?",
         })).ReadAsAsync<MdtItemResponse>(HttpStatusCode.Created);
-        (await admin.PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
+        (await (await ClinicalAsync(admin)).PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
         {
             PathwayId = pathway.Id, MeetingId = mdt.Id, Question = "Again?",
         })).StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -77,7 +77,7 @@ public sealed class MdtTests : IntegrationTest
         var pathway = await CreatePatientWithPathwayAsync(admin);
         var mdt = await ArrangeMdtAsync(admin, clinician.UserId, UkAt(NextWorkingDay(), 9));
         var later = await ArrangeMdtAsync(admin, clinician.UserId, UkAt(NextWorkingDay(3), 9));
-        var listed = await (await admin.PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
+        var listed = await (await (await ClinicalAsync(admin)).PostAsJsonAsync("/api/mdt/items", new ListForMdtRequest
         {
             PathwayId = pathway.Id, MeetingId = mdt.Id, Question = "Synthetic question?",
         })).ReadAsAsync<MdtItemResponse>(HttpStatusCode.Created);
@@ -90,7 +90,7 @@ public sealed class MdtTests : IntegrationTest
         item.Status.Should().Be("Listed");
         item.MeetingCancelledStartUtc.Should().NotBeNull();
 
-        var moved = await (await admin.PostAsJsonAsync($"/api/mdt/items/{listed.Id}/defer", new DeferMdtItemRequest
+        var moved = await (await (await ClinicalAsync(admin)).PostAsJsonAsync($"/api/mdt/items/{listed.Id}/defer", new DeferMdtItemRequest
         {
             MeetingId = later.Id, ExpectedVersion = item.Version,
         })).ReadAsAsync<MdtItemResponse>();

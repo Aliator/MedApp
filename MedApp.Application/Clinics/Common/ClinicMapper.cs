@@ -53,9 +53,15 @@ public static class ClinicMapper
     /// A session with each of its slots: free, or the appointment on the calendar in it (with its patient); and, once
     /// it's cancelled, the patients whose appointments were cancelled with it, to tell.
     /// </summary>
+    /// <param name="hidden">
+    /// Appointments the viewer can't see (another team's, the team walls): their slots show as booked, with no
+    /// appointment or patient, and they're left out of the patients to tell.
+    /// </param>
     public static ClinicSessionDetailResponse ToDetailResponse(
-        ClinicSession session, string staffUsername, IReadOnlyList<Appointment> appointments, DateTime nowUtc, bool canManage)
+        ClinicSession session, string staffUsername, IReadOnlyList<Appointment> appointments, DateTime nowUtc, bool canManage,
+        IReadOnlySet<Guid>? hidden = null)
     {
+        hidden ??= new HashSet<Guid>();
         var byStart = appointments
             .Where(a => a.StartUtc is not null && AppointmentWorkflow.IsOnCalendar(a.Status))
             .GroupBy(a => UkTime.Utc(a.StartUtc!.Value))
@@ -68,20 +74,21 @@ public static class ClinicMapper
                 .Select(slot =>
                 {
                     var appointment = byStart.GetValueOrDefault(slot.StartUtc);
+                    var shown = appointment is not null && !hidden.Contains(appointment.Id) ? appointment : null;
                     return new ClinicSlotResponse
                     {
                         StartUtc = slot.StartUtc,
                         EndUtc = slot.EndUtc,
                         IsPast = slot.StartUtc <= nowUtc,
-                        AppointmentId = appointment?.Id,
-                        PatientId = appointment?.PatientId,
-                        PatientName = appointment is null ? null : PathwayMapper.PatientName(appointment.Patient),
+                        AppointmentId = shown?.Id,
+                        PatientId = shown?.PatientId,
+                        PatientName = shown is null ? null : PathwayMapper.PatientName(shown.Patient),
                         AppointmentStatus = appointment?.Status.ToString()
                     };
                 })
                 .ToList(),
             PatientsToTell = session.Status == ClinicSessionStatus.Cancelled
-                ? appointments.Where(a => a.Status == AppointmentStatus.Cancelled).OrderBy(a => a.StartUtc).Select(ToPatientToTell).ToList()
+                ? appointments.Where(a => a.Status == AppointmentStatus.Cancelled && !hidden.Contains(a.Id)).OrderBy(a => a.StartUtc).Select(ToPatientToTell).ToList()
                 : []
         };
     }

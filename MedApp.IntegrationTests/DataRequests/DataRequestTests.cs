@@ -39,9 +39,9 @@ public sealed class DataRequestTests : IntegrationTest
     public async Task ThePack_NeedsTheIdentityCheckAndTheReview_AndLeavesOutWhatWasWithheld()
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin);
-        var kept = await (await _admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
+        var kept = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
             new AddPathwayNoteRequest { Text = "Synthetic kept note." })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
-        var withheld = await (await _admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
+        var withheld = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
             new AddPathwayNoteRequest { Text = "Synthetic withheld note." })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
         await UploadAttachmentOkAsync(_admin, $"pathwayId={pathway.Id}", SyntheticPdf, "synthetic.pdf");
 
@@ -92,7 +92,7 @@ public sealed class DataRequestTests : IntegrationTest
         var patient = await CreatePatientAsync(_admin);
         var request = await CreateAsync(patient.Id);
 
-        (await _admin.DeleteAsync($"/api/patients/{patient.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await (await ClinicalAsync(_admin)).DeleteAsync($"/api/patients/{patient.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await _admin.PostAsJsonAsync($"/api/patients/{patient.Id}/anonymise", new
         {
             confirmation = $"{patient.FirstName} {patient.LastName}", reason = "RetentionPeriodEnded"

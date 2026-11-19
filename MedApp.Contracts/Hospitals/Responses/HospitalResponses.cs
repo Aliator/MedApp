@@ -21,9 +21,6 @@ public sealed class HospitalResponse
 
     /// <summary>Whether it can be deleted: it has sent no requests (else it's archived).</summary>
     public bool CanBeDeleted { get; set; }
-
-    /// <summary>Its version now, which moves on with each change.</summary>
-    public int ExpectedVersion { get; set; }
 }
 
 /// <summary>A patient a hospital request could be for, for a person to choose from (never chosen for them, H-72).</summary>

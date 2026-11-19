@@ -254,7 +254,7 @@ public sealed class WaitingClockTests : IntegrationTest
         await (await PostPathwayStatusAsync(_clinician.Client, pathway.Id, "Completed")).ShouldHaveStatusAsync(HttpStatusCode.OK);
         (await PathwayAsync(pathway.Id)).Referral!.Clock!.Should().BeEquivalentTo(new { State = "Stopped", StopReason = "PathwayDischarged" });
 
-        var reinstated = await (await _admin.PostAsJsonAsync($"{StageUrl(pathway.Id, stages[1].Id)}/reinstate",
+        var reinstated = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{StageUrl(pathway.Id, stages[1].Id)}/reinstate",
             new ReinstatePathwayStageRequest { Reason = "Synthetic: needed after all." })).ReadAsAsync<PatientPathwayResponse>();
         reinstated.Status.Should().Be("InProgress");
         (await PathwayAsync(pathway.Id)).Referral!.Clock!.Should().BeEquivalentTo(new { State = "Stopped", StopReason = "PathwayDischarged" });

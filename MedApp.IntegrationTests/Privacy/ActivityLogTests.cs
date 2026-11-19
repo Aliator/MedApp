@@ -67,7 +67,7 @@ public sealed class ActivityLogTests : IntegrationTest
     {
         var patient = await CreatePatientAsync(_admin);
 
-        var response = await _admin.PatchAsJsonAsync($"/api/patients/{patient.Id}", new UpdatePatientRequest
+        var response = await (await ClinicalAsync(_admin)).PatchAsJsonAsync($"/api/patients/{patient.Id}", new UpdatePatientRequest
         {
             FirstName = "Renamed",
             LastName = patient.LastName,

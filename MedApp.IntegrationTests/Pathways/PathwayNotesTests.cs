@@ -40,8 +40,9 @@ public sealed class PathwayNotesTests : IntegrationTest
 
     private static string NotesUrl(Guid pathwayId) => $"{PathwayUrl(pathwayId)}/notes";
 
-    private static Task<HttpResponseMessage> AddAsync(HttpClient client, Guid pathwayId, string text) =>
-        client.PostAsJsonAsync(NotesUrl(pathwayId), new AddPathwayNoteRequest { Text = text });
+    /// <summary>Adds a note: an admin's client adds it as the test's clinic staff (admins are read only).</summary>
+    private static async Task<HttpResponseMessage> AddAsync(HttpClient client, Guid pathwayId, string text) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync(NotesUrl(pathwayId), new AddPathwayNoteRequest { Text = text });
 
     private static Task<HttpResponseMessage> EditAsync(HttpClient client, Guid pathwayId, Guid noteId, string text, int expectedVersion) =>
         client.PutAsJsonAsync($"{NotesUrl(pathwayId)}/{noteId}", new EditPathwayNoteRequest { Text = text, ExpectedVersion = expectedVersion });
@@ -63,8 +64,11 @@ public sealed class PathwayNotesTests : IntegrationTest
         var asStaff = await GetAsync(_staff.Client, pathway.Id);
         asStaff.CanAddNotes.Should().BeTrue();
         asStaff.NoteList.Select(n => (n.Id, n.CanEdit)).Should().Equal((second.Id, false), (first.Id, true));
-        asStaff.NoteList[0].AuthorUsername.Should().Be(AdminUsername);
-        (await GetAsync(_admin, pathway.Id)).NoteList.Select(n => n.CanEdit).Should().Equal(true, false);
+        var clinic = await ClinicStaffAsync();
+        asStaff.NoteList[0].AuthorUsername.Should().Be(clinic.Username);
+        (await GetAsync(clinic.Client, pathway.Id)).NoteList.Select(n => n.CanEdit).Should().Equal(true, false);
+        // Admins read only.
+        (await GetAsync(_admin, pathway.Id)).NoteList.Select(n => n.CanEdit).Should().Equal(false, false);
     }
 
     [Test]
