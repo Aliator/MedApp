@@ -1,4 +1,5 @@
 import {screen} from '@testing-library/react';
+import {REQUEST_ID, testRequestSummary} from '../../test/hospitals';
 import {json, mockApi, renderWithApp, userWithRoles} from '../../test/render';
 import {SPECIMEN_ID, testSummary} from '../../test/specimens';
 import {LabHomePage} from './LabHomePage';
@@ -29,6 +30,7 @@ function renderPage(samples: Record<string, unknown[]> = {}, pathways: Record<st
       const items = samples[view] ?? [];
       return pageOf(items, view === 'InLab' ? 12 : items.length);
     },
+    'POST /api/hospital-requests/search': () => pageOf([testRequestSummary()]),
   });
   return {...renderWithApp(<LabHomePage />, {user: labUser}), fetch};
 }
@@ -47,7 +49,13 @@ describe('LabHomePage', () => {
     expect(screen.getByText('Skin biopsy (punch) · Freya Ahmed · Sent 2 Nov 2026, 15:00')).toBeInTheDocument();
     // A list longer than it shows says how many there are, and opens them all.
     expect(screen.getByRole('link', {name: 'See all 12'})).toHaveAttribute('href', '/lab/samples?view=InLab');
-    expect(screen.getAllByRole('link', {name: 'Open the list'}).map((l) => l.getAttribute('href'))).toEqual(['/tasks?view=newForUs', '/lab/samples?view=Expected']);
+    expect(screen.getAllByRole('link', {name: 'Open the list'}).map((l) => l.getAttribute('href'))).toEqual([
+      '/tasks?view=newForUs',
+      '/lab/samples?view=Expected',
+      '/hospital-requests',
+    ]);
+    // The hospital's requests (MC18), each opening its lab case.
+    expect(screen.getByRole('link', {name: 'MA26-000201'})).toHaveAttribute('href', `/hospital-requests/${REQUEST_ID}`);
     // Empty lists say what they'd hold.
     expect(screen.getByText("Nothing overdue. Not reported by the type's expected days.")).toBeInTheDocument();
     expect(screen.getByText('No pathway is with the lab. Pathways at a stage the lab works.')).toBeInTheDocument();
@@ -55,7 +63,9 @@ describe('LabHomePage', () => {
     const requests = fetch.mock.calls.map(([r]) => r as Request);
     const views = requests.filter((r) => r.method === 'GET').map((r) => new URL(r.url).searchParams.get('View'));
     expect(views.sort()).toEqual(['NewForUs', 'OurTurn']);
-    const bodies = await Promise.all(requests.filter((r) => r.method === 'POST').map((r) => r.clone().json()));
+    const bodies = await Promise.all(
+      requests.filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/api/specimens/search').map((r) => r.clone().json()),
+    );
     expect(bodies.map((b: {view: string}) => b.view).sort()).toEqual(['Expected', 'InLab', 'Overdue', 'Reported']);
     expect(bodies[0]).toMatchObject({page: 1, pageSize: 5});
   });
@@ -64,6 +74,7 @@ describe('LabHomePage', () => {
     mockApi({
       'GET /api/pathways/patient-pathways/search': () => json({}, 500),
       'POST /api/specimens/search': () => pageOf([]),
+      'POST /api/hospital-requests/search': () => pageOf([]),
     });
     renderWithApp(<LabHomePage />, {user: labUser});
 
@@ -75,6 +86,7 @@ describe('LabHomePage', () => {
       'In progress',
       'Overdue',
       'Back to the clinic',
+      'From the hospital',
     ]);
     expect(await screen.findByText(/^Nothing reported in the last 7 days/)).toBeInTheDocument();
   });

@@ -2731,7 +2731,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Possible harm.** Wrong or delayed surgery. One patient (or two); Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** none in the API yet. **The web app and light demo (MC18):** the patient chosen by a person from the matches (none pre-selected), the banner over both numbers, and a warning when the request's NHS number isn't the record's.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
